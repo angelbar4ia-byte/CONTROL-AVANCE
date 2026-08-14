@@ -1,0 +1,77 @@
+# ============================================================
+# PowerSync — sync rules
+# Spec §12.5 (offline) · §12.4 (multi-tenant) · §4 (alcance por rol)
+#
+# REQUISITO CRÍTICO (§12.4): estas reglas deben reflejar EXACTAMENTE el
+# mismo `org_id` y alcance por rol que las políticas RLS de
+# `database/migrations/0011_rls_helpers.sql` y `0012_rls_policies.sql`.
+# Si divergen, el offline expone datos de otra organización — y RLS no
+# puede evitarlo, porque estas consultas corren del lado del servicio de
+# sync, no del cliente.
+#
+# Espejo de `app.obra_visible()`:
+#   residente        -> obra.residente_id = usuario
+#   supervisor       -> obras de sus clusters (supervisor_cluster)
+#   control_obra     -> obras de sus proyectos (control_proyecto)
+#   super_intendente -> toda la organización
+#
+# El super intendente es solo web (§5.2), así que no tiene bucket aquí.
+# ============================================================
+
+bucket_definitions:
+
+  # --- Datos globales de la organización -------------------------------
+  # Catálogos mínimos para poder capturar sin señal.
+  org_catalogos:
+    parameters: |
+      SELECT org_id FROM usuario
+      WHERE auth_user_id = request.user_id()
+        AND estatus = 'activo'
+    data:
+      - SELECT id, org_id, clave, nombre, orden, color
+          FROM frente WHERE org_id = bucket.org_id
+      - SELECT id, org_id, clave, descripcion, unidad_id
+          FROM concepto WHERE org_id = bucket.org_id AND estatus = 'activo'
+
+  # --- Residente: sus obras (§4) ---------------------------------------
+  residente_obras:
+    parameters: |
+      SELECT u.org_id, o.id AS obra_id
+      FROM usuario u
+      JOIN obra o ON o.residente_id = u.id AND o.org_id = u.org_id
+      WHERE u.auth_user_id = request.user_id()
+        AND u.rol = 'residente'
+        AND u.estatus = 'activo'
+    data: &datos_de_obra
+      - SELECT * FROM obra            WHERE id      = bucket.obra_id
+      - SELECT * FROM actividad       WHERE obra_id = bucket.obra_id
+      - SELECT * FROM registro_avance WHERE actividad_id IN (
+          SELECT id FROM actividad WHERE obra_id = bucket.obra_id)
+      - SELECT * FROM incidencia      WHERE obra_id = bucket.obra_id
+      - SELECT * FROM revision_fisica WHERE obra_id = bucket.obra_id
+
+  # --- Supervisor: obras de sus clusters (§4) --------------------------
+  supervisor_obras:
+    parameters: |
+      SELECT u.org_id, o.id AS obra_id
+      FROM usuario u
+      JOIN supervisor_cluster sc ON sc.supervisor_id = u.id
+      JOIN obra o ON o.cluster_id = sc.cluster_id AND o.org_id = u.org_id
+      WHERE u.auth_user_id = request.user_id()
+        AND u.rol = 'supervisor'
+        AND u.estatus = 'activo'
+    data: *datos_de_obra
+
+  # --- Control de obra: obras de sus proyectos (§4) --------------------
+  # En móvil solo hace revisión física; la configuración es solo web (§5.2).
+  control_obras:
+    parameters: |
+      SELECT u.org_id, o.id AS obra_id
+      FROM usuario u
+      JOIN control_proyecto cp ON cp.usuario_id = u.id
+      JOIN cluster c ON c.proyecto_id = cp.proyecto_id
+      JOIN obra o ON o.cluster_id = c.id AND o.org_id = u.org_id
+      WHERE u.auth_user_id = request.user_id()
+        AND u.rol = 'control_obra'
+        AND u.estatus = 'activo'
+    data: *datos_de_obra
