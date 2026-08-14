@@ -1,0 +1,68 @@
+# Render — ObraCtrl (§12.8)
+# Un servicio por entorno: dev / staging / prod. El deploy es por Git:
+# al hacer push, Render construye y publica.
+services:
+  - type: web
+    name: obractrl-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ENTORNO
+        value: prod
+      - key: DATABASE_URL          # Supabase, con el rol obractrl_api (no owner)
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY     # anon key; la service key NUNCA sale (§10.7)
+        sync: false
+      - key: CORS_ORIGENES         # origen de Vercel por entorno (§12.8)
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_ACCESS_KEY
+        sync: false
+      - key: R2_SECRET_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: obractrl-redis
+          property: connectionString
+
+  # Worker de jobs: CPM, estimaciones, cargas masivas (§12.2)
+  - type: worker
+    name: obractrl-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    dockerCommand: arq obractrl.infrastructure.jobs.worker.Configuracion
+    envVars:
+      - key: ENTORNO
+        value: prod
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: obractrl-redis
+          property: connectionString
+
+  - type: redis
+    name: obractrl-redis
+    plan: starter
+    region: oregon
+    maxmemoryPolicy: noeviction   # Arq no puede perder trabajos encolados
+    ipAllowList: []               # solo red interna de Render

@@ -1,0 +1,41 @@
+# Dependencias
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Builds
+dist/
+build/
+*.egg-info/
+.expo/
+web-build/
+
+# Cachés de herramientas
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.tsbuildinfo
+.turbo/
+
+# Cobertura y reportes
+.coverage
+htmlcov/
+playwright-report/
+test-results/
+
+# Secretos — NUNCA se commitean (§12.8)
+.env
+.env.local
+.env.*.local
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+play-service-account.json
+
+# Sistema
+.DS_Store
+Thumbs.db
