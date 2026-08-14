@@ -27,6 +27,7 @@ __all__ = [
     "RepositorioCierres",
     "RepositorioConfiguracion",
     "RepositorioEstimaciones",
+    "RepositorioEvaluaciones",
     "RepositorioIncidencias",
     "RepositorioMateriales",
     "RepositorioObras",
@@ -299,4 +300,50 @@ class RepositorioIncidencias(Protocol):
 
     async def listar(self, *, estatus: str | None = None) -> list[dict]:
         """Bandeja por rol: RLS ya acota el alcance (§11.2)."""
+        ...
+
+
+@runtime_checkable
+class RepositorioEvaluaciones(Protocol):
+    """Acceso a evaluaciones de desempeño. Siempre scoped por RLS — §12.11, §12.4."""
+
+    async def obtener(self, evaluacion_id: UUID) -> dict | None: ...
+
+    async def crear(
+        self,
+        *,
+        sujeto_tipo: str,
+        sujeto_id: UUID,
+        evaluador_id: UUID,
+        nivel: str,
+        periodo: str,
+        obra_id: UUID | None = None,
+    ) -> UUID: ...
+
+    async def respuestas_de(self, evaluacion_id: UUID) -> list[dict]:
+        """Respuestas ya registradas, para reconstruir la entidad antes de
+        agregar nuevas (evita repetir criterio, §7.8)."""
+        ...
+
+    async def pesos_de_criterios(self, criterio_ids: list[UUID]) -> dict[UUID, Decimal]:
+        """Pesos vigentes del catálogo (`criterio_evaluacion.peso`, semilla
+        editable, §8.7) para los criterios que se están respondiendo."""
+        ...
+
+    async def agregar_respuestas(
+        self,
+        evaluacion_id: UUID,
+        *,
+        respuestas: list[dict],
+        puntaje: Decimal | None,
+    ) -> None: ...
+
+    async def listar(
+        self, *, nivel: str | None = None, sujeto_tipo: str | None = None
+    ) -> list[dict]:
+        """Bandeja por rol: RLS ya acota el alcance (§11.2)."""
+        ...
+
+    async def listar_criterios(self, *, aplica_a: str | None = None) -> list[dict]:
+        """Catálogo `criterio_evaluacion` vigente (§11.2 `GET /criterios-evaluacion`)."""
         ...

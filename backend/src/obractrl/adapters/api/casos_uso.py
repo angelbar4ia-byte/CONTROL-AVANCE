@@ -20,8 +20,10 @@ from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
+from obractrl.adapters.repos.evaluaciones_sql import RepositorioEvaluacionesSQL
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
+from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
 from obractrl.application.casos_uso.gestionar_cierre import (
@@ -35,6 +37,10 @@ from obractrl.application.casos_uso.gestionar_estimacion import (
     GenerarEstimacion,
     ValidarEstimacion,
 )
+from obractrl.application.casos_uso.gestionar_evaluacion import (
+    AgregarRespuestas,
+    CrearEvaluacion,
+)
 from obractrl.application.casos_uso.gestionar_incidencia import (
     AbrirIncidencia,
     CerrarIncidencia,
@@ -46,9 +52,11 @@ from obractrl.application.casos_uso.registrar_salida_almacen import RegistrarSal
 
 __all__ = [
     "AbrirIncidenciaDep",
+    "AgregarRespuestasDep",
     "AutorizarCierreDep",
     "CapturarAvanceDep",
     "CerrarIncidenciaDep",
+    "CrearEvaluacionDep",
     "EnviarEstimacionDep",
     "GenerarEstimacionDep",
     "ProgramarIncidenciaDep",
@@ -197,3 +205,22 @@ CerrarIncidenciaDep = Annotated[CerrarIncidencia, Depends(obtener_cerrar_inciden
 RechazarIncidenciaDep = Annotated[
     RechazarIncidencia, Depends(obtener_rechazar_incidencia)
 ]
+
+
+def obtener_crear_evaluacion(sesion: SesionRLS) -> CrearEvaluacion:
+    return CrearEvaluacion(
+        evaluaciones=RepositorioEvaluacionesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_agregar_respuestas(sesion: SesionRLS) -> AgregarRespuestas:
+    return AgregarRespuestas(
+        evaluaciones=RepositorioEvaluacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+CrearEvaluacionDep = Annotated[CrearEvaluacion, Depends(obtener_crear_evaluacion)]
+AgregarRespuestasDep = Annotated[AgregarRespuestas, Depends(obtener_agregar_respuestas)]

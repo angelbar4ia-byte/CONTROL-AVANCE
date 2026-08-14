@@ -25,6 +25,7 @@ from obractrl.application.casos_uso.capturar_avance import (
 )
 from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEncontrada
 from obractrl.application.casos_uso.gestionar_estimacion import EstimacionNoEncontrada
+from obractrl.application.casos_uso.gestionar_evaluacion import EvaluacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_incidencia import IncidenciaNoEncontrada
 from obractrl.application.casos_uso.registrar_salida_almacen import (
     MotivoAlmacenNoEncontrado,
@@ -32,6 +33,7 @@ from obractrl.application.casos_uso.registrar_salida_almacen import (
 from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.cierres.reglas import ErrorDeCierre
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
+from obractrl.domain.evaluaciones.reglas import ErrorDeEvaluacion
 from obractrl.domain.incidencias.reglas import ErrorDeIncidencia
 from obractrl.domain.materiales.reglas import ErrorDeMaterial
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
@@ -264,6 +266,30 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="incidencia-no-encontrada",
             titulo="Incidencia no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeEvaluacion)
+    async def _evaluacion(request: Request, exc: ErrorDeEvaluacion) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="regla-de-evaluacion",
+            titulo="Evaluación inválida",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(EvaluacionNoEncontrada)
+    async def _evaluacion_no_encontrada(
+        request: Request, exc: EvaluacionNoEncontrada
+    ) -> JSONResponse:
+        # Mismo tratamiento que SolicitudCierreNoEncontrada: RLS hace
+        # indistinguible "no existe" de "no la puedes ver" a propósito (§12.4).
+        return _problema(
+            request,
+            status=404,
+            tipo="evaluacion-no-encontrada",
+            titulo="Evaluación no encontrada",
             detalle=str(exc),
         )
 
