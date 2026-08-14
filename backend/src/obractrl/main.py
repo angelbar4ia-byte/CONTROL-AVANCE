@@ -18,6 +18,10 @@ from fastapi.responses import JSONResponse
 
 from obractrl import __version__
 from obractrl.adapters.api.v1 import api_v1
+from obractrl.application.casos_uso.capturar_avance import (
+    ActividadBloqueada,
+    ActividadNoEncontrada,
+)
 from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.cierres.reglas import ErrorDeCierre
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
@@ -123,6 +127,33 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             titulo="El cronograma tiene dependencias circulares",
             detalle=str(exc),
             actividades=exc.involucradas,
+        )
+
+    @app.exception_handler(ActividadNoEncontrada)
+    async def _actividad_no_encontrada(
+        request: Request, exc: ActividadNoEncontrada
+    ) -> JSONResponse:
+        # RLS hace indistinguible "no existe" de "no la puedes ver" a
+        # propósito (§12.4): ambos casos dan 404, nunca un 403 que revele
+        # que el recurso existe en otra organización o fuera de tu alcance.
+        return _problema(
+            request,
+            status=404,
+            tipo="actividad-no-encontrada",
+            titulo="Actividad no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ActividadBloqueada)
+    async def _actividad_bloqueada(
+        request: Request, exc: ActividadBloqueada
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="actividad-bloqueada",
+            titulo="Actividad bloqueada",
+            detalle=str(exc),
         )
 
 

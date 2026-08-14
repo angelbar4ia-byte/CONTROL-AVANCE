@@ -37,14 +37,23 @@ __all__ = [
 ]
 
 TOPE_SOBREPROGRAMA = Decimal("1.2")
-"""Default de ``cant_programada ≤ cant_base × 1.2`` (§6).
+"""``cant_programada ≤ cant_base × 1.2`` (§6).
 
-Configurable en BD bajo la clave ``tope_sobreprograma`` (§8.7). El caso de uso
-lee el valor vigente y lo pasa por parámetro; este módulo solo trae el default.
+A diferencia del IVA o el umbral de desviación (§3.5, §3.6), el §6 escribe
+este factor como fórmula fija, no como parámetro configurable de §8.7. Se
+deja como argumento con default —no como constante inline— solo por
+testabilidad; en producción siempre vale 1.2. La razón de fondo: un `CHECK`
+de Postgres no puede leer una tabla de configuración (no admite subconsultas),
+así que si este valor fuera configurable, la BD —que es la última frontera en
+la ruta offline (§12.5)— no podría replicar la regla real y divergiría en
+silencio de lo que aplica la app. Ver `ck_actividad_programada_vs_base` en
+``database/migrations/0007_ejecucion_y_avance.sql``, que codifica el mismo 1.2.
 """
 
 UMBRAL_CASI_PCT = Decimal("90")
-"""Default del auto-estatus ``casi`` (§6). Clave ``avance_casi_pct`` en BD."""
+"""Umbral fijo del auto-estatus ``casi`` (§6). Mismo razonamiento que arriba:
+no es un configurable de §8.7, y el trigger `app.actividad_recalcular` de la
+BD codifica este mismo 90 a propósito, para no divergir."""
 
 
 class ErrorDeCaptura(ValueError):

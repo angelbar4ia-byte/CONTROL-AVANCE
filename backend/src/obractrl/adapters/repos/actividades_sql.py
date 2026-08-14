@@ -1,0 +1,248 @@
+"""Repositorio de actividades.
+
+Spec §12.11 (adaptador de persistencia) · §7.6 (ejecución y avance) ·
+§6 (CPM) · §12.4 (RLS).
+
+RLS ya filtra `actividad` por alcance de rol (política `actividad_scope`,
+`database/migrations/0012`, vía `app.obra_visible(obra_id)`): ningún método
+de aquí filtra por `org_id` u `obra_id` de forma manual para decidir qué es
+visible — eso lo impone la base. `org_id` en los INSERT se resuelve leyendo
+`current_setting('app.org_id')`, que es el mismo valor que `sesion_con_rls`
+fijó con `SET LOCAL` (§12.4): así ningún método de este repo necesita que el
+caso de uso le pase `org_id` explícito.
+
+`json` se usa solo para **serializar hacia la BD** (`evidencias`, dict de
+`guardar_resultado_cpm`); lo que la BD **devuelve** en columnas `jsonb` ya
+llega deserializado por el dialecto asyncpg de SQLAlchemy — confirmado
+empíricamente, no hace falta `json.loads` en las lecturas.
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import date
+from decimal import Decimal
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from obractrl.application.puertos.repositorios import RegistroNoEncontrado
+from obractrl.domain.programacion.cpm import Dependencia, NodoCPM
+
+__all__ = ["ActividadNoModificada", "RepositorioActividadesSQL"]
+
+
+class ActividadNoModificada(RegistroNoEncontrado):
+    """El UPDATE no afectó ninguna fila.
+
+    Pasa si la actividad se borró o salió del alcance del usuario (RLS) entre
+    el `obtener()` inicial y el `actualizar_avance()` posterior — una carrera
+    genuina, no un bug de la query. Subclasea `RegistroNoEncontrado` (el
+    puerto) para que `CapturarAvance` la pueda atrapar sin importar de este
+    módulo del borde (§12.11).
+    """
+
+
+class RepositorioActividadesSQL:
+    def __init__(self, sesion: AsyncSession) -> None:
+        self._sesion = sesion
+
+    async def obtener(self, actividad_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, obra_id, cant_base, cant_programada,
+                           cant_ejecutada, avance_pct, estatus, bloqueada,
+                           precio_unitario, precio_destajo, modo_pago
+                    from actividad
+                    where id = :id
+                    """
+                ),
+                {"id": str(actividad_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def actualizar_avance(
+        self,
+        actividad_id: UUID,
+        *,
+        cant_programada: Decimal,
+        cant_ejecutada: Decimal,
+        avance_pct: Decimal,
+        estatus: str,
+    ) -> None:
+        # avance_pct y estatus también los deriva `app.actividad_recalcular`
+        # (trigger de la BD, `database/migrations/0007`) a partir de las
+        # mismas fórmulas fijas del §6 — es defensa en profundidad, no una
+        # segunda fuente de verdad: si el dominio tiene un bug, la BD corrige
+        # el valor igual antes de guardarlo.
+        resultado = await self._sesion.execute(
+            text(
+                """
+                update actividad
+                   set cant_programada = :cant_programada,
+                       cant_ejecutada  = :cant_ejecutada,
+                       avance_pct      = :avance_pct,
+                       estatus         = :estatus
+                 where id = :id
+                """
+            ),
+            {
+                "cant_programada": cant_programada,
+                "cant_ejecutada": cant_ejecutada,
+                "avance_pct": avance_pct,
+                "estatus": estatus,
+                "id": str(actividad_id),
+            },
+        )
+        if resultado.rowcount == 0:
+            raise ActividadNoModificada(
+                f"No se actualizó la actividad {actividad_id}: ya no existe o "
+                f"salió de tu alcance."
+            )
+
+    async def registrar_captura(
+        self,
+        actividad_id: UUID,
+        *,
+        fecha: date,
+        delta_ejecutado: Decimal,
+        usuario_id: UUID,
+        evidencias: list[str],
+    ) -> UUID:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into registro_avance
+                        (org_id, actividad_id, fecha, delta_ejecutado,
+                         usuario_id, evidencias, sync_status)
+                    values
+                        (cast(current_setting('app.org_id') as uuid),
+                         :actividad_id, :fecha, :delta_ejecutado,
+                         :usuario_id, cast(:evidencias as jsonb),
+                         'sincronizado')
+                    returning id
+                    """
+                ),
+                {
+                    "actividad_id": str(actividad_id),
+                    "fecha": fecha,
+                    "delta_ejecutado": delta_ejecutado,
+                    "usuario_id": str(usuario_id),
+                    "evidencias": json.dumps(evidencias),
+                },
+            )
+        ).scalar_one()
+        return fila
+
+    async def nodos_cpm_de_obra(self, obra_id: UUID) -> list[NodoCPM]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, duracion_dias, dependencias, avance_pct,
+                           fecha_termino, bloqueada
+                    from actividad
+                    where obra_id = :obra_id
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+
+        nodos = []
+        for fila in filas:
+            avance = float(fila["avance_pct"])
+            nodos.append(
+                NodoCPM(
+                    ref=str(fila["id"]),
+                    duracion_dias=float(fila["duracion_dias"]),
+                    dependencias=tuple(
+                        Dependencia.desde_jsonb(d) for d in fila["dependencias"]
+                    ),
+                    avance_pct=avance,
+                    # `fecha_termino` guarda la fecha real solo una vez
+                    # concluida la actividad; antes de eso es la fecha
+                    # planeada vigente, que el motor CPM no debe usar como
+                    # "real" (invalidaría su propio cálculo de desfase).
+                    fecha_real_termino=fila["fecha_termino"] if avance >= 100 else None,
+                    bloqueada=bool(fila["bloqueada"]),
+                )
+            )
+        return nodos
+
+    async def guardar_resultado_cpm(
+        self,
+        obra_id: UUID,
+        resultados: dict[str, dict[str, Any]],
+    ) -> None:
+        """Persiste las salidas del CPM que otras pantallas consultan sin
+        recalcular (Torre de control, reportes): `es_critica`, `holgura`,
+        `desfase`.
+
+        Cada valor de ``resultados`` trae exactamente esas tres claves —
+        ``{"es_critica": bool, "holgura": float, "desfase": float}``. Las
+        fechas tempranas/tardías del CPM (`inicio_temprano`, `fin_temprano`…)
+        no se persisten: `calcular_cpm` es una función pura y barata sobre el
+        cronograma vigente, así que se recalculan bajo demanda en vez de
+        guardarse por fila —evita la ambigüedad de qué es "fecha planeada"
+        vs "fecha real" en la única columna `fecha_termino`.
+        """
+        if not resultados:
+            return
+
+        params = [
+            {
+                "id": ref,
+                "es_critica": valores["es_critica"],
+                "holgura": valores["holgura"],
+                "desfase": valores["desfase"],
+            }
+            for ref, valores in resultados.items()
+        ]
+
+        await self._sesion.execute(
+            text(
+                """
+                update actividad
+                   set es_critica = :es_critica,
+                       holgura    = :holgura,
+                       desfase    = :desfase
+                 where id = cast(:id as uuid)
+                   and obra_id = cast(:obra_id as uuid)
+                """
+            ).bindparams(obra_id=str(obra_id)),
+            params,
+        )
+
+    async def marcar_bloqueadas(
+        self, obra_id: UUID, refs: set[str], bloqueada: bool
+    ) -> None:
+        """Bloquea o desbloquea actividades por una incidencia `detiene` (§6).
+
+        `refs` puede llegar vacío —una incidencia que se cierra sin haber
+        bloqueado nada— y en ese caso no hay nada que actualizar.
+        """
+        if not refs:
+            return
+
+        await self._sesion.execute(
+            text(
+                """
+                update actividad
+                   set bloqueada = :bloqueada
+                 where obra_id = cast(:obra_id as uuid)
+                   and id = any(cast(:refs as uuid[]))
+                """
+            ),
+            {
+                "obra_id": str(obra_id),
+                "refs": list(refs),
+                "bloqueada": bloqueada,
+            },
+        )

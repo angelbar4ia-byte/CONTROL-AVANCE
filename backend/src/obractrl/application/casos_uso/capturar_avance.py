@@ -6,10 +6,14 @@ Es la referencia de cómo se escribe un caso de uso en este backend:
 
 * Orquesta el **dominio** (`domain.avance.reglas`) a través de **puertos**;
   no importa SQLModel, ni FastAPI, ni la sesión de BD.
-* Lee los configurables de BD antes de aplicar las reglas — el default del
-  código es solo fallback (§8.7).
 * No contiene reglas de negocio propias: las reglas viven en el dominio y
   aquí solo se secuencian.
+
+No depende de `RepositorioConfiguracion`: el tope de sobre-programación y el
+umbral de "casi" son fórmulas fijas del §6, no configurables de §8.7 (ver el
+comentario en `domain.avance.reglas`). Si en el futuro alguna regla de este
+caso de uso sí se vuelve configurable, se resuelve aquí —antes de llamar al
+dominio— nunca dentro de `aplicar_captura`.
 
 La misma entrada sirve para la web (`PATCH /actividades/{id}/avance`) y para
 la conciliación offline del móvil, para que ambas rutas apliquen exactamente
@@ -24,13 +28,11 @@ from decimal import Decimal
 from uuid import UUID
 
 from obractrl.application.puertos.repositorios import (
+    RegistroNoEncontrado,
     RepositorioActividades,
-    RepositorioConfiguracion,
     UnidadDeTrabajo,
 )
 from obractrl.domain.avance.reglas import (
-    TOPE_SOBREPROGRAMA,
-    UMBRAL_CASI_PCT,
     CapturaAvance,
     ErrorDeCaptura,
     aplicar_captura,
@@ -67,11 +69,9 @@ class CapturarAvance:
         self,
         *,
         actividades: RepositorioActividades,
-        configuracion: RepositorioConfiguracion,
         uow: UnidadDeTrabajo,
     ) -> None:
         self._actividades = actividades
-        self._config = configuracion
         self._uow = uow
 
     async def ejecutar(self, cmd: ComandoCapturarAvance) -> CapturaAvance:
@@ -89,10 +89,6 @@ class CapturarAvance:
                 "obra. Atiende la incidencia antes de capturar avance (§6)."
             )
 
-        # Los configurables mandan sobre el default del código (§8.7)
-        tope = await self._config.decimal("tope_sobreprograma", TOPE_SOBREPROGRAMA)
-        umbral = await self._config.decimal("avance_casi_pct", UMBRAL_CASI_PCT)
-
         cant_base = Decimal(str(actividad["cant_base"]))
         cant_programada = (
             cmd.cant_programada
@@ -106,20 +102,28 @@ class CapturarAvance:
             cant_programada=cant_programada,
             cant_ejecutada=cmd.cant_ejecutada,
             estatus_actual=estatus_actual,
-            tope=tope,
-            umbral_casi=umbral,
         )
 
         delta = cmd.cant_ejecutada - Decimal(str(actividad["cant_ejecutada"]))
 
         async with self._uow:
-            await self._actividades.actualizar_avance(
-                cmd.actividad_id,
-                cant_programada=resultado.cant_programada,
-                cant_ejecutada=resultado.cant_ejecutada,
-                avance_pct=resultado.avance.pct,
-                estatus=resultado.estatus.value,
-            )
+            try:
+                await self._actividades.actualizar_avance(
+                    cmd.actividad_id,
+                    cant_programada=resultado.cant_programada,
+                    cant_ejecutada=resultado.cant_ejecutada,
+                    avance_pct=resultado.avance.pct,
+                    estatus=resultado.estatus.value,
+                )
+            except RegistroNoEncontrado as exc:
+                # Carrera genuina entre el obtener() de arriba y este UPDATE:
+                # la actividad se borró o salió del alcance del usuario justo
+                # en medio. Mismo tratamiento que el 404 inicial (§12.4): no
+                # se distingue de "no encontrada".
+                raise ActividadNoEncontrada(
+                    f"Actividad {cmd.actividad_id} ya no está en tu alcance."
+                ) from exc
+
             await self._actividades.registrar_captura(
                 cmd.actividad_id,
                 fecha=cmd.fecha or date.today(),

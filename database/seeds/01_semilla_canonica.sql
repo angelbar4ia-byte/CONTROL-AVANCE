@@ -79,15 +79,21 @@ on conflict (org_id, clave) do nothing;
 -- §3.5, §3.6 · Configurables. El código solo trae el default;
 -- en runtime SIEMPRE se lee de aquí primero (§8.7 caveat).
 -- ------------------------------------------------------------
+-- NOTA: el tope de sobre-programación (1.2) y el umbral de "casi" (90%) del
+-- §6 NO están aquí a propósito. El §6 los escribe como fórmula fija, no como
+-- parámetro de §8.7, y un CHECK de Postgres no puede leer esta tabla (no
+-- admite subconsultas) — así que si fueran "configurables" solo de palabra,
+-- la BD (última frontera en la ruta offline, §12.5) y la app divergirían en
+-- silencio para cualquier org que los cambiara. Quedan fijos en ambos lados:
+-- `ck_actividad_programada_vs_base` / `app.actividad_recalcular` (BD) y
+-- `TOPE_SOBREPROGRAMA` / `UMBRAL_CASI_PCT` (dominio).
 insert into configuracion (org_id, clave, valor, ambito) values
   (:org_id, 'iva_tasa',            '0.16'::jsonb,        'global'),
   (:org_id, 'umbral_desviacion',   '0.05'::jsonb,        'global'),
   (:org_id, 'similitud_minima',    '0.90'::jsonb,        'global'),
   (:org_id, 'semana_tipo_default', '"obra"'::jsonb,      'global'),
   (:org_id, 'moneda',              '"MXN"'::jsonb,       'global'),
-  (:org_id, 'densidad_default',    '"comfy"'::jsonb,     'global'),
-  (:org_id, 'tope_sobreprograma',  '1.2'::jsonb,         'global'),
-  (:org_id, 'avance_casi_pct',     '90'::jsonb,          'global')
+  (:org_id, 'densidad_default',    '"comfy"'::jsonb,     'global')
 on conflict do nothing;
 
 -- ------------------------------------------------------------

@@ -58,7 +58,7 @@ packages = ["src/obractrl"]
 
 # ---------------------------------------------------------------------
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-q --strict-markers"

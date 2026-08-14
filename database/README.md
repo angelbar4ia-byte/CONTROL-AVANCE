@@ -61,6 +61,15 @@ Una función `STABLE` usa el snapshot del inicio de la sentencia y no ve la fila
 nueva. Por eso el alta de `obra` se valida contra el **cluster destino**
 (`app.cluster_en_alcance`) y no contra `app.obra_visible(id)`.
 
+**3. `obractrl_api` tiene `LOGIN` pero nace sin contraseña.**
+Es el único rol de aplicación al que algo se conecta *directamente* (el
+backend, vía `DATABASE_URL`); `anon`/`authenticated` son `NOLOGIN` porque en
+Supabase son roles internos a los que PostgREST cambia después de validar el
+JWT. La contraseña de `obractrl_api` **no se versiona**: se fija por entorno
+con `ALTER ROLE obractrl_api WITH PASSWORD '...'` (a mano o vía el
+dashboard/CLI de Supabase) y esa misma cadena va en `DATABASE_URL` de Render.
+Sin ese paso el rol existe pero no puede autenticarse — falla cerrado.
+
 ## Contexto de sesión
 
 Dos rutas, en este orden de prioridad:

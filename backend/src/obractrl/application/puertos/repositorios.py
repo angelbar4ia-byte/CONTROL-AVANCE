@@ -21,6 +21,7 @@ from obractrl.domain.programacion.cpm import NodoCPM
 from obractrl.domain.shared.diccionario import TipoSemana
 
 __all__ = [
+    "RegistroNoEncontrado",
     "RepositorioActividades",
     "RepositorioCalendario",
     "RepositorioConfiguracion",
@@ -28,6 +29,20 @@ __all__ = [
     "RepositorioObras",
     "UnidadDeTrabajo",
 ]
+
+
+class RegistroNoEncontrado(LookupError):
+    """Una escritura scoped (`UPDATE ... WHERE id = ...`) no afectó ninguna fila.
+
+    Cualquier implementación de un puerto que haga una escritura acotada bajo
+    RLS debe levantar esto —o una subclase propia— cuando el `rowcount` es 0:
+    la fila ya no existe, o salió del alcance del rol entre la lectura y la
+    escritura (§12.4). Se declara aquí, en el puerto, y no en el adaptador
+    concreto, para que los casos de uso puedan atraparla sin importar de
+    `adapters/` —eso violaría la regla de dependencia que exige
+    `import-linter` (§12.11): la aplicación no toca la infraestructura
+    directamente, solo sus propias abstracciones.
+    """
 
 
 @runtime_checkable

@@ -23,7 +23,7 @@ src/obractrl/
 │  └─ casos_uso/
 ├─ adapters/          BORDE
 │  ├─ api/            controladores FastAPI + DTOs → OpenAPI → Orval
-│  ├─ repos/          repositorios (SQLModel) + RLS
+│  ├─ repos/          repositorios (SQLAlchemy Core, texto parametrizado) + RLS
 │  ├─ excel/          cargadores por archivo (§10.6) + 3 modos (§10.2)
 │  └─ export/         PDF (WeasyPrint) / Excel (OpenPyXL)
 └─ infrastructure/    PostgreSQL+RLS, Alembic, jobs (Arq+Redis), R2, push/email
@@ -65,21 +65,27 @@ mypy                  # tipos (strict)
 | Flujo de cierre (autorizar ≠ validar) | `domain/cierres/reglas.py` | §4, §6 |
 | Puertos de persistencia | `application/puertos/repositorios.py` | §12.11 |
 | Caso de uso de referencia | `application/casos_uso/capturar_avance.py` | §11.3 B |
+| Repositorios (actividades, obras, calendario, configuración, estimaciones) | `adapters/repos/` | §12.11 |
+| Endpoint cableado de punta a punta | `adapters/api/v1/avance.py`, `adapters/api/casos_uso.py` | §11.3 B |
 | JWT → contexto RLS | `infrastructure/db/sesion.py`, `adapters/api/dependencias.py` | §12.4 |
 | Errores de dominio → problem+json | `main.py` | §11.2 |
 
-**79 pruebas de dominio** cubren §6, §3.2, §11.1 y el motor CPM.
+**79 pruebas de dominio** (sin BD) + **27 pruebas de integración** (contra
+Postgres real, bajo RLS) — ver la sección de pruebas más abajo.
 
 ## Lo que falta (siguiente iteración)
 
-- Repositorios SQLModel que implementen los puertos (`adapters/repos/`).
-- Cablear `PATCH /actividades/{id}/avance` con `CapturarAvance` — hoy el
-  endpoint levanta `NotImplementedError` a propósito, para no aparentar que
-  funciona.
 - Módulos restantes del §11.2: proyectos, catálogos, programación, estimación,
   materiales, incidencias, cierres, evaluación, cargas, expediente, reportes.
+  Sus puertos y repos se agregan igual que `capturar_avance` — es la
+  referencia a copiar.
 - Cargadores Excel (§9, §10.6) y exportadores.
 - Jobs de Arq (CPM, estimación semanal, cargas) y WS/SSE.
+- `RecalcularCPM` (o similar): `RepositorioActividades.nodos_cpm_de_obra` /
+  `guardar_resultado_cpm` / `marcar_bloqueadas` ya están implementados y
+  probados a nivel de repositorio (`tests/integracion/test_actividades_repo.py`),
+  pero todavía no tienen un caso de uso que los combine con
+  `domain.programacion.cpm.calcular_cpm`.
 
 ## Configuración con RLS — el detalle que importa
 
@@ -96,6 +102,39 @@ SET LOCAL app.rol = 'residente';
 Por eso los endpoints **nunca reciben `org_id`** (§11.2): el alcance es
 implícito y lo impone la base.
 
+`obractrl_api` (`database/migrations/0014`) nace con `LOGIN` pero **sin
+contraseña**: se fija por entorno con
+`ALTER ROLE obractrl_api WITH PASSWORD '...'` (nunca en un archivo
+versionado) y esa cadena va en `DATABASE_URL`.
+
+## Pruebas
+
+```bash
+pytest tests/domain -q      # dominio puro: 79 pruebas, no toca la BD
+```
+
+Las de integración (`tests/integracion/`) corren contra un Postgres real con
+las migraciones de `database/migrations/` aplicadas, y ejercitan los
+repositorios **a través de RLS** (no como superusuario): prueban que el
+aislamiento por rol se sostiene en el código Python, no solo en el SQL de
+`database/tests/test_rls.sql`.
+
+Requieren dos variables, ninguna con default —no se versionan secretos, ni de
+prueba—:
+
+```bash
+export DATABASE_URL_ADMIN="postgresql+asyncpg://postgres:...@host:5432/obractrl_test"
+export DATABASE_URL_TEST="postgresql+asyncpg://obractrl_api:...@host:5432/obractrl_test"
+
+pytest tests/integracion -v   # 27 pruebas
+```
+
+Sin ellas, la carpeta completa se salta (`tests/domain` nunca se ve
+afectado). `DATABASE_URL_ADMIN` bypassa RLS a propósito: solo arma y limpia
+el escenario de cada prueba; `DATABASE_URL_TEST` es el rol `obractrl_api`,
+el mismo que usa el backend en producción — ahí es donde se prueba RLS de
+verdad.
+
 ## Desarrollo
 
 ```bash
@@ -104,7 +143,6 @@ pip install -e ".[dev]"
 
 cp .env.example .env        # y llenar
 
-pytest tests/domain -q      # dominio puro: no necesita BD
 uvicorn obractrl.main:app --reload
 
 # Regenerar el contrato para Orval (§12.8)

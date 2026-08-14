@@ -38,8 +38,14 @@ class TestTopeDeProgramacion:
         with pytest.raises(ErrorDeCaptura):
             validar_programacion(D("-1"), D("100"))
 
-    def test_el_tope_es_configurable(self) -> None:
-        """El default es fallback; el valor vigente viene de BD (§8.7)."""
+    def test_el_parametro_tope_es_ajustable_para_pruebas(self) -> None:
+        """`tope` es parámetro por testabilidad; en producción siempre es 1.2.
+
+        No es un configurable de §8.7 (a diferencia de IVA o el umbral de
+        desviación): el §6 lo escribe como fórmula fija, y un CHECK de
+        Postgres no puede leer una tabla de configuración, así que la BD no
+        podría reflejar un valor distinto sin divergir de la app.
+        """
         validar_programacion(D("150"), D("100"), tope=D("1.5"))
         with pytest.raises(ErrorDeCaptura):
             validar_programacion(D("150"), D("100"), tope=D("1.2"))

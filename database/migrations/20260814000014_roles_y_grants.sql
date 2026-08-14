@@ -8,6 +8,20 @@
 --
 -- IMPORTANTE: ningún rol de aplicación es superusuario ni dueño de
 -- las tablas, porque el owner SALTA las políticas RLS.
+--
+-- `anon`/`authenticated` son NOLOGIN a propósito: en Supabase son roles
+-- internos a los que PostgREST cambia (`SET ROLE`) después de validar el
+-- JWT; nadie se conecta a Postgres autenticándose directamente como ellos.
+--
+-- `obractrl_api` es distinto: el backend en Render SÍ abre una conexión
+-- real a Postgres con este rol (`infrastructure/db/sesion.py`), así que
+-- necesita LOGIN. La contraseña **no se fija aquí** —nunca en un archivo
+-- versionado— sino por entorno:
+--   ALTER ROLE obractrl_api WITH PASSWORD '...';
+-- corrido a mano (o vía el dashboard/CLI de Supabase) en cada entorno, y esa
+-- misma cadena va en `DATABASE_URL` de las variables de Render (§12.8). Sin
+-- contraseña fijada, el rol existe pero no puede autenticarse — falla cerrado
+-- por diseño, no abierto.
 -- ============================================================
 
 do $$
@@ -21,7 +35,7 @@ begin
   -- Rol que usa el backend FastAPI (§12.4). Tampoco es owner: fija
   -- el contexto con SET LOCAL app.* y queda sujeto a RLS.
   if not exists (select 1 from pg_roles where rolname = 'obractrl_api') then
-    create role obractrl_api nologin noinherit;
+    create role obractrl_api login noinherit;
   end if;
 end;
 $$;

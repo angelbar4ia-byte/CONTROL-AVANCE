@@ -16,7 +16,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 
-from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS, exigir_rol
+from obractrl.adapters.api.casos_uso import CapturarAvanceDep
+from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
+from obractrl.application.casos_uso.capturar_avance import ComandoCapturarAvance
 from obractrl.domain.shared.diccionario import Rol
 
 router = APIRouter(tags=["avance"])
@@ -60,23 +62,37 @@ class AvanceRespuesta(BaseModel):
     summary="Capturar avance de una actividad",
     dependencies=[Depends(exigir_rol(Rol.RESIDENTE))],
     responses={
-        422: {"description": "Violación de una regla de captura (§6)."},
+        404: {"description": "La actividad no existe o está fuera de tu alcance."},
         409: {"description": "Actividad bloqueada por una incidencia que detiene."},
+        422: {"description": "Violación de una regla de captura (§6)."},
     },
 )
 async def capturar_avance(
     actividad_id: UUID,
     peticion: CapturaAvancePeticion,
     ctx: ContextoActual,
-    sesion: SesionRLS,
+    caso_uso: CapturarAvanceDep,
 ) -> AvanceRespuesta:
     """Captura el avance ejecutado de una actividad (§11.3 B).
 
     La ruta web y la conciliación offline del móvil pasan por el mismo caso de
     uso, para que ambas apliquen exactamente las mismas reglas.
     """
-    raise NotImplementedError(
-        "Pendiente: cablear ComandoCapturarAvance con el repositorio SQLModel. "
-        "El caso de uso y las reglas de dominio ya están en "
-        "application/casos_uso/capturar_avance.py y domain/avance/reglas.py."
+    resultado = await caso_uso.ejecutar(
+        ComandoCapturarAvance(
+            actividad_id=actividad_id,
+            usuario_id=ctx.usuario_id,
+            cant_ejecutada=peticion.cant_ejecutada,
+            cant_programada=peticion.cant_programada,
+            fecha=peticion.fecha,
+            evidencias=tuple(peticion.evidencias),
+        )
+    )
+    return AvanceRespuesta(
+        actividad_id=actividad_id,
+        cant_base=resultado.cant_base,
+        cant_programada=resultado.cant_programada,
+        cant_ejecutada=resultado.cant_ejecutada,
+        avance_pct=resultado.avance.pct,
+        estatus=resultado.estatus.value,
     )
