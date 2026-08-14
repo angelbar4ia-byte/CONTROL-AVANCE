@@ -20,6 +20,8 @@ from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
+from obractrl.adapters.repos.evaluaciones_sql import RepositorioEvaluacionesSQL
+from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
 from obractrl.application.casos_uso.gestionar_cierre import (
@@ -33,10 +35,16 @@ from obractrl.application.casos_uso.gestionar_estimacion import (
     GenerarEstimacion,
     ValidarEstimacion,
 )
+from obractrl.application.casos_uso.gestionar_evaluacion import (
+    AgregarRespuestas,
+    CrearEvaluacion,
+)
 
 __all__ = [
+    "AgregarRespuestasDep",
     "AutorizarCierreDep",
     "CapturarAvanceDep",
+    "CrearEvaluacionDep",
     "EnviarEstimacionDep",
     "GenerarEstimacionDep",
     "RechazarCierreDep",
@@ -118,3 +126,22 @@ def obtener_validar_estimacion(sesion: SesionRLS) -> ValidarEstimacion:
 GenerarEstimacionDep = Annotated[GenerarEstimacion, Depends(obtener_generar_estimacion)]
 EnviarEstimacionDep = Annotated[EnviarEstimacion, Depends(obtener_enviar_estimacion)]
 ValidarEstimacionDep = Annotated[ValidarEstimacion, Depends(obtener_validar_estimacion)]
+
+
+def obtener_crear_evaluacion(sesion: SesionRLS) -> CrearEvaluacion:
+    return CrearEvaluacion(
+        evaluaciones=RepositorioEvaluacionesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_agregar_respuestas(sesion: SesionRLS) -> AgregarRespuestas:
+    return AgregarRespuestas(
+        evaluaciones=RepositorioEvaluacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+CrearEvaluacionDep = Annotated[CrearEvaluacion, Depends(obtener_crear_evaluacion)]
+AgregarRespuestasDep = Annotated[AgregarRespuestas, Depends(obtener_agregar_respuestas)]
