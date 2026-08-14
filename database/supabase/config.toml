@@ -1,0 +1,30 @@
+# Supabase CLI — ObraCtrl
+# Un proyecto por entorno: dev / staging / prod (§12.8)
+project_id = "obractrl"
+
+[db]
+port = 54322
+major_version = 16
+
+[db.migrations]
+schema_paths = ["../migrations"]
+
+[api]
+enabled = true
+port = 54321
+# `app` queda fuera: son helpers de RLS, no API pública (§10.7)
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173", "obractrl://"]
+jwt_expiry = 3600
+enable_signup = false   # el alta de usuarios la hace Control de obra (§5.1)
+
+[storage]
+enabled = true
+# Las evidencias pesadas van a Cloudflare R2 vía presigned URL (§12.2),
+# no a Supabase Storage.

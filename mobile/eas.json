@@ -1,0 +1,32 @@
+{
+  "cli": { "version": ">= 12.0.0", "appVersionSource": "remote" },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": { "EXPO_PUBLIC_ENTORNO": "dev" }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "channel": "preview",
+      "env": { "EXPO_PUBLIC_ENTORNO": "staging" }
+    },
+    "production": {
+      "android": { "buildType": "app-bundle" },
+      "channel": "production",
+      "autoIncrement": true,
+      "env": { "EXPO_PUBLIC_ENTORNO": "prod" }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./play-service-account.json",
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
+    }
+  }
+}
