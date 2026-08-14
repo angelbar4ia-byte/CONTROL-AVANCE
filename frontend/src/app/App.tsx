@@ -13,7 +13,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from '@/shell/AppShell';
 import { useAplicarDensidad } from '@/shell/SelectorDensidad';
 import { useSesion } from '@/app/sesion';
+import { Login } from '@/app/Login';
 import { queryClient } from '@/app/queryClient';
+import { supabase } from '@/lib/supabase';
 import { useEnLinea } from '@/lib/useEnLinea';
 import Avances from '@/avance/Avances';
 import Cierres from '@/cierres/Cierres';
@@ -32,11 +34,12 @@ export function App() {
 function Rutas() {
   useAplicarDensidad();
 
-  const { sesion, cargando } = useSesion();
+  const { sesion, cargando, error } = useSesion();
   const enLinea = useEnLinea();
 
   if (cargando) return <Cargando />;
-  if (!sesion) return <PantallaLogin />;
+  if (error) return <SesionSinVincular mensaje={error} />;
+  if (!sesion) return <Login />;
 
   return (
     <Routes>
@@ -50,12 +53,13 @@ function Rutas() {
           />
         }
       >
-        {/* La ruta inicial depende del rol: el Residente entra a sus obras,
-            los demás a la Torre de control (§5.1). */}
+        {/* La ruta inicial depende del rol. El Residente entra a sus obras;
+            los demás a Cierres —hoy la única pantalla compartida real; la
+            Torre de control (§5.1) todavía no está implementada. */}
         <Route
           index
           element={
-            <Navigate to={sesion.rol === 'residente' ? '/obras' : '/torre'} replace />
+            <Navigate to={sesion.rol === 'residente' ? '/obras' : '/cierres'} replace />
           }
         />
         {/* Las features se registran aquí conforme se implementan. */}
@@ -70,18 +74,44 @@ function Rutas() {
 
 function Cargando() {
   return (
-    <div className="empty">
-      <div className="empty-title">Cargando…</div>
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+      <div className="text-mute text-sm">Cargando…</div>
     </div>
   );
 }
 
-function PantallaLogin() {
+/**
+ * El usuario sí se autenticó en Supabase, pero su cuenta no tiene un
+ * `usuario` de ObraCtrl vinculado (o está inactivo) — el Custom Access
+ * Token Hook no encontró fila y el JWT salió sin `org_id`/`rol`
+ * (`database/migrations/20260814000015_auth_hook.sql`). No es un error de
+ * login: es una cuenta sin dar de alta en la organización.
+ */
+function SesionSinVincular({ mensaje }: { readonly mensaje: string }) {
   return (
-    <div className="empty">
-      <div className="empty-title">Inicia sesión</div>
-      <div className="empty-sub">
-        El alta de usuarios la realiza Control de obra (§5.1).
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <div className="card" style={{ width: 360 }}>
+        <div className="card__header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+          <h1 className="card__title">Cuenta sin vincular</h1>
+        </div>
+        <div className="card__body col gap-12">
+          <div className="badge badge--danger" role="alert">
+            {mensaje}
+          </div>
+          <div className="field__hint">
+            Pide a Control de obra que dé de alta tu usuario en la organización.
+          </div>
+          <button type="button" className="btn" onClick={() => void supabase.auth.signOut()}>
+            Cerrar sesión
+          </button>
+        </div>
       </div>
     </div>
   );
