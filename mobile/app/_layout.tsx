@@ -11,7 +11,10 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { PowerSyncContext } from '@powersync/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { db } from '@/sync/db';
 
 import '../global.css';
 
@@ -29,14 +32,20 @@ const queryClient = new QueryClient({
 export default function LayoutRaiz() {
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(residente)" />
-          <Stack.Screen name="(supervisor)" />
-          <Stack.Screen name="(control)" />
-        </Stack>
-      </QueryClientProvider>
+      {/* db es la réplica SQLite local de PowerSync (§12.5): las pantallas
+          de captura leen/escriben contra ella con `usePowerSync`/`useQuery`
+          sin pasar por la API HTTP. */}
+      <PowerSyncContext.Provider value={db}>
+        <QueryClientProvider client={queryClient}>
+          <StatusBar style="dark" />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="login" />
+            <Stack.Screen name="(residente)" />
+            <Stack.Screen name="(supervisor)" />
+            <Stack.Screen name="(control)" />
+          </Stack>
+        </QueryClientProvider>
+      </PowerSyncContext.Provider>
     </SafeAreaProvider>
   );
 }
