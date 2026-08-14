@@ -1,0 +1,1170 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ObraCtrl API",
+    "description": "Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/me": {
+      "get": {
+        "tags": [
+          "identidad"
+        ],
+        "summary": "Perfil y alcance",
+        "description": "Devuelve el perfil del token y su alcance efectivo.\n\nEl conteo de obras sale de una consulta normal: RLS ya filtra por rol, así\nque el número es el alcance real y no hay que calcularlo en la API (§12.4).",
+        "operationId": "obtener_perfil_api_v1_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerfilRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/avance": {
+      "patch": {
+        "tags": [
+          "avance"
+        ],
+        "summary": "Capturar avance de una actividad",
+        "description": "Captura el avance ejecutado de una actividad (§11.3 B).\n\nLa ruta web y la conciliación offline del móvil pasan por el mismo caso de\nuso, para que ambas apliquen exactamente las mismas reglas.",
+        "operationId": "capturar_avance_api_v1_actividades__actividad_id__avance_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CapturaAvancePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvanceRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Actividad bloqueada por una incidencia que detiene."
+          },
+          "422": {
+            "description": "Violación de una regla de captura (§6)."
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/cierre": {
+      "post": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Solicitar el cierre de una actividad",
+        "description": "El Residente solicita el cierre de una actividad (§11.3 C.1).",
+        "operationId": "solicitar_cierre_api_v1_actividades__actividad_id__cierre_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitarCierrePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Falta checklist o evidencias (§6)."
+          }
+        }
+      }
+    },
+    "/api/v1/cierres/{cierre_id}/autorizar": {
+      "post": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Autorizar un cierre (cierra la actividad)",
+        "description": "El Supervisor **autoriza**: cierra la actividad (§4, §11.3 C.2).",
+        "operationId": "autorizar_cierre_api_v1_cierres__cierre_id__autorizar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cierre_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cierre Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La solicitud no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Transición de cierre no permitida."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cierres/{cierre_id}/validar": {
+      "post": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Validar un cierre (habilita para estimación)",
+        "description": "Control de obra **valida y comenta**, no autoriza (§4, §11.3 C.3).",
+        "operationId": "validar_cierre_api_v1_cierres__cierre_id__validar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cierre_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cierre Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidarCierrePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La solicitud no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Transición de cierre no permitida."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cierres/{cierre_id}/rechazar": {
+      "post": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Rechazar una solicitud de cierre",
+        "description": "Supervisor o Control de obra rechazan la solicitud (§11.2).",
+        "operationId": "rechazar_cierre_api_v1_cierres__cierre_id__rechazar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cierre_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cierre Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechazarCierrePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La solicitud no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Transición de cierre no permitida."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cierres": {
+      "get": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Bandeja de cierres por rol",
+        "description": "Bandeja de solicitudes visibles para el rol actual.\n\nEs una lectura simple sin orquestación de dominio —como `GET /me`\n(`adapters/api/v1/identidad.py`)— así que consulta el repo directo, sin\ncaso de uso: RLS ya acota el alcance (§12.4).",
+        "operationId": "listar_cierres_api_v1_cierres_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "estatus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/EstatusSolicitudCierre"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por estatus del flujo (§7.8).",
+              "title": "Estatus"
+            },
+            "description": "Filtra por estatus del flujo (§7.8)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CierreRespuesta"
+                  },
+                  "title": "Response Listar Cierres Api V1 Cierres Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/estimaciones": {
+      "post": {
+        "tags": [
+          "estimacion"
+        ],
+        "summary": "Generar la estimación de la semana activa",
+        "description": "Residente o Supervisor generan la estimación (§11.3 E.1-2).",
+        "operationId": "generar_estimacion_api_v1_obras__obra_id__estimaciones_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerarEstimacionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstimacionRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No hay ancla de semana configurada (§3.1), o no hay actividades validadas para ese modo en la semana."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "estimacion"
+        ],
+        "summary": "Bandeja de estimaciones de una obra",
+        "description": "Lectura simple sin orquestación de dominio —como `GET /cierres`\n(`adapters/api/v1/cierres.py`)— así que consulta el repo directo: RLS ya\nacota el alcance (§12.4).",
+        "operationId": "listar_estimaciones_api_v1_obras__obra_id__estimaciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EstimacionRespuesta"
+                  },
+                  "title": "Response Listar Estimaciones Api V1 Obras  Obra Id  Estimaciones Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/estimaciones/{estimacion_id}": {
+      "patch": {
+        "tags": [
+          "estimacion"
+        ],
+        "summary": "Enviar una estimación",
+        "description": "Residente o Supervisor envían la estimación (§11.3 E.3).",
+        "operationId": "enviar_estimacion_api_v1_estimaciones__estimacion_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "estimacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Estimacion Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstimacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La estimación no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Transición de estimación no permitida."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/estimaciones/{estimacion_id}/validar": {
+      "post": {
+        "tags": [
+          "estimacion"
+        ],
+        "summary": "Validar una estimación (bloquea el periodo)",
+        "description": "Control de obra valida la estimación (§11.3 E.4).",
+        "operationId": "validar_estimacion_api_v1_estimaciones__estimacion_id__validar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "estimacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Estimacion Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstimacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La estimación no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Transición de estimación no permitida."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "salud"
+        ],
+        "summary": "Health check",
+        "description": "Sonda de Render. Debe responder sin tocar la BD.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AvanceRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "cant_base": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Base"
+          },
+          "cant_programada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Programada"
+          },
+          "cant_ejecutada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Ejecutada"
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "cant_base",
+          "cant_programada",
+          "cant_ejecutada",
+          "avance_pct",
+          "estatus"
+        ],
+        "title": "AvanceRespuesta"
+      },
+      "CapturaAvancePeticion": {
+        "properties": {
+          "cant_ejecutada": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cant Ejecutada",
+            "description": "No puede exceder la programada."
+          },
+          "cant_programada": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cant Programada",
+            "description": "Si se envía, se revalida contra cant_base × 1.2."
+          },
+          "fecha": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha",
+            "description": "Fecha de la captura. Por defecto, hoy."
+          },
+          "evidencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidencias",
+            "description": "URLs ya subidas a R2 vía presigned URL (§11.2)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "cant_ejecutada"
+        ],
+        "title": "CapturaAvancePeticion",
+        "description": "Captura de avance (§6).\n\nLas mismas reglas se reflejan en el cliente para UX y se aplican de forma\nautoritativa en el servidor (§11.1)."
+      },
+      "CierreRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "solicitada_por": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Solicitada Por"
+          },
+          "autorizada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autorizada Por"
+          },
+          "validada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada Por"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "monto": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto"
+          },
+          "checklist": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Checklist"
+          },
+          "adjuntos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Adjuntos"
+          },
+          "comentarios": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comentarios"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "actividad_id",
+          "solicitada_por",
+          "autorizada_por",
+          "validada_por",
+          "cantidad",
+          "monto",
+          "checklist",
+          "adjuntos",
+          "comentarios",
+          "estatus"
+        ],
+        "title": "CierreRespuesta"
+      },
+      "EstatusSolicitudCierre": {
+        "type": "string",
+        "enum": [
+          "solicitada",
+          "autorizada",
+          "validada",
+          "rechazada"
+        ],
+        "title": "EstatusSolicitudCierre"
+      },
+      "EstimacionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "folio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folio"
+          },
+          "semana": {
+            "type": "integer",
+            "title": "Semana"
+          },
+          "anio": {
+            "type": "integer",
+            "title": "Anio"
+          },
+          "modo": {
+            "type": "string",
+            "title": "Modo"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "monto_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto Total"
+          },
+          "origen_erp": {
+            "type": "boolean",
+            "title": "Origen Erp"
+          },
+          "creada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creada Por"
+          },
+          "validada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada Por"
+          },
+          "n_conceptos": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Conceptos",
+            "description": "Solo presente justo al generar (§11.3 E.2)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "folio",
+          "semana",
+          "anio",
+          "modo",
+          "estatus",
+          "monto_total",
+          "origen_erp",
+          "creada_por",
+          "validada_por"
+        ],
+        "title": "EstimacionRespuesta"
+      },
+      "GenerarEstimacionPeticion": {
+        "properties": {
+          "modo": {
+            "$ref": "#/components/schemas/ModoPago"
+          },
+          "origen_erp": {
+            "type": "boolean",
+            "title": "Origen Erp",
+            "description": "Metadato de origen (§3.2).",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "modo"
+        ],
+        "title": "GenerarEstimacionPeticion",
+        "description": "Genera la estimación de la semana activa (§11.3 E.1).\n\n``modo`` selecciona qué actividades entran: solo las que se pagan de esa\nforma (`actividad.modo_pago`, §6)."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ModoPago": {
+        "type": "string",
+        "enum": [
+          "destajo",
+          "concepto",
+          "subcontrato"
+        ],
+        "title": "ModoPago",
+        "description": "``actividad.modo_pago`` y ``estimacion.modo`` comparten valores (§8.2)."
+      },
+      "PerfilRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "rol": {
+            "type": "string",
+            "title": "Rol",
+            "description": "residente | supervisor | control_obra | super_intendente"
+          },
+          "org_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Org Id"
+          },
+          "org_nombre": {
+            "type": "string",
+            "title": "Org Nombre"
+          },
+          "obras_en_alcance": {
+            "type": "integer",
+            "title": "Obras En Alcance",
+            "description": "Cuántas obras ve este usuario; lo determina RLS, no la API."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nombre",
+          "email",
+          "rol",
+          "org_id",
+          "org_nombre",
+          "obras_en_alcance"
+        ],
+        "title": "PerfilRespuesta",
+        "description": "Perfil, rol y alcance del usuario del token (§11.2 `GET /me`)."
+      },
+      "RechazarCierrePeticion": {
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Motivo",
+            "description": "Motivo obligatorio del rechazo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "motivo"
+        ],
+        "title": "RechazarCierrePeticion"
+      },
+      "SolicitarCierrePeticion": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cantidad",
+            "description": "Cantidad que se cierra."
+          },
+          "checklist": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Checklist",
+            "description": "Checklist obligatorio."
+          },
+          "adjuntos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Adjuntos",
+            "description": "Evidencias ya subidas a R2 vía presigned URL."
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad",
+          "checklist",
+          "adjuntos"
+        ],
+        "title": "SolicitarCierrePeticion",
+        "description": "Solicitud de cierre de actividad (§6, §11.3 C.1)."
+      },
+      "ValidarCierrePeticion": {
+        "properties": {
+          "comentario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comentario",
+            "description": "Comentario de Control de obra."
+          }
+        },
+        "type": "object",
+        "title": "ValidarCierrePeticion"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

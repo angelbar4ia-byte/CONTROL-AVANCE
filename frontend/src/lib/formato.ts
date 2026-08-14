@@ -63,10 +63,25 @@ export function fmtPct(pct: number | string | null | undefined): string {
   return Number.isFinite(n) ? PCT.format(n / 100) : '—';
 }
 
+const SOLO_FECHA = /^(\d{4})-(\d{2})-(\d{2})$/;
+
 /** Fecha corta `dd mmm aa` (§12.10). Acepta `Date` o ISO de Postgres. */
 export function fmtFecha(valor: Date | string | null | undefined): string {
   if (!valor) return '—';
-  const d = valor instanceof Date ? valor : new Date(valor);
+
+  // Postgres devuelve fechas puras (`date`, sin hora) como `YYYY-MM-DD`.
+  // `new Date('YYYY-MM-DD')` las interpreta como medianoche UTC, así que en
+  // cualquier huso al oeste de Greenwich (incluida toda la República
+  // Mexicana, §1) el día local queda un día atrás. Se parsean a mano como
+  // fecha local para evitar el corrimiento.
+  let d: Date;
+  if (valor instanceof Date) {
+    d = valor;
+  } else {
+    const m = SOLO_FECHA.exec(valor);
+    d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(valor);
+  }
+
   if (Number.isNaN(d.getTime())) return '—';
 
   const dia = String(d.getDate()).padStart(2, '0');

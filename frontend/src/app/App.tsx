@@ -15,6 +15,9 @@ import { useAplicarDensidad } from '@/shell/SelectorDensidad';
 import { useSesion } from '@/app/sesion';
 import { queryClient } from '@/app/queryClient';
 import { useEnLinea } from '@/lib/useEnLinea';
+import Avances from '@/avance/Avances';
+import Cierres from '@/cierres/Cierres';
+import Estimacion from '@/estimacion/Estimacion';
 
 export function App() {
   return (
@@ -56,6 +59,9 @@ function Rutas() {
           }
         />
         {/* Las features se registran aquí conforme se implementan. */}
+        <Route path="/avances" element={<Avances />} />
+        <Route path="/cierres" element={<Cierres />} />
+        <Route path="/estimacion" element={<Estimacion />} />
         <Route path="*" element={<EnConstruccion />} />
       </Route>
     </Routes>
