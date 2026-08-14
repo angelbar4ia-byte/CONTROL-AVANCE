@@ -25,9 +25,11 @@ from obractrl.application.casos_uso.capturar_avance import (
 )
 from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEncontrada
 from obractrl.application.casos_uso.gestionar_estimacion import EstimacionNoEncontrada
+from obractrl.application.casos_uso.gestionar_incidencia import IncidenciaNoEncontrada
 from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.cierres.reglas import ErrorDeCierre
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
+from obractrl.domain.incidencias.reglas import ErrorDeIncidencia
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
 from obractrl.infrastructure.config import obtener_config
 from obractrl.infrastructure.db.sesion import cerrar_engine
@@ -208,6 +210,30 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=409,
             tipo="calendario-no-configurado",
             titulo="Ancla de semana no configurada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeIncidencia)
+    async def _incidencia(request: Request, exc: ErrorDeIncidencia) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="flujo-de-incidencia",
+            titulo="Transición de incidencia no permitida",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(IncidenciaNoEncontrada)
+    async def _incidencia_no_encontrada(
+        request: Request, exc: IncidenciaNoEncontrada
+    ) -> JSONResponse:
+        # Mismo tratamiento que ActividadNoEncontrada/SolicitudCierreNoEncontrada:
+        # RLS hace indistinguible "no existe" de "no la puedes ver" (§12.4).
+        return _problema(
+            request,
+            status=404,
+            tipo="incidencia-no-encontrada",
+            titulo="Incidencia no encontrada",
             detalle=str(exc),
         )
 

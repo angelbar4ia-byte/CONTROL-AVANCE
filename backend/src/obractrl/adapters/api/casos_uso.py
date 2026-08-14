@@ -20,6 +20,7 @@ from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
+from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
 from obractrl.application.casos_uso.gestionar_cierre import (
@@ -33,13 +34,25 @@ from obractrl.application.casos_uso.gestionar_estimacion import (
     GenerarEstimacion,
     ValidarEstimacion,
 )
+from obractrl.application.casos_uso.gestionar_incidencia import (
+    AbrirIncidencia,
+    CerrarIncidencia,
+    ProgramarIncidencia,
+    RechazarIncidencia,
+    RegistrarEventoIncidencia,
+)
 
 __all__ = [
+    "AbrirIncidenciaDep",
     "AutorizarCierreDep",
     "CapturarAvanceDep",
+    "CerrarIncidenciaDep",
     "EnviarEstimacionDep",
     "GenerarEstimacionDep",
+    "ProgramarIncidenciaDep",
     "RechazarCierreDep",
+    "RechazarIncidenciaDep",
+    "RegistrarEventoIncidenciaDep",
     "SolicitarCierreDep",
     "ValidarCierreDep",
     "ValidarEstimacionDep",
@@ -118,3 +131,53 @@ def obtener_validar_estimacion(sesion: SesionRLS) -> ValidarEstimacion:
 GenerarEstimacionDep = Annotated[GenerarEstimacion, Depends(obtener_generar_estimacion)]
 EnviarEstimacionDep = Annotated[EnviarEstimacion, Depends(obtener_enviar_estimacion)]
 ValidarEstimacionDep = Annotated[ValidarEstimacion, Depends(obtener_validar_estimacion)]
+
+
+def obtener_abrir_incidencia(sesion: SesionRLS) -> AbrirIncidencia:
+    return AbrirIncidencia(
+        actividades=RepositorioActividadesSQL(sesion),
+        incidencias=RepositorioIncidenciasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_programar_incidencia(sesion: SesionRLS) -> ProgramarIncidencia:
+    return ProgramarIncidencia(
+        incidencias=RepositorioIncidenciasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_registrar_evento_incidencia(sesion: SesionRLS) -> RegistrarEventoIncidencia:
+    return RegistrarEventoIncidencia(
+        incidencias=RepositorioIncidenciasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_cerrar_incidencia(sesion: SesionRLS) -> CerrarIncidencia:
+    return CerrarIncidencia(
+        actividades=RepositorioActividadesSQL(sesion),
+        incidencias=RepositorioIncidenciasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_rechazar_incidencia(sesion: SesionRLS) -> RechazarIncidencia:
+    return RechazarIncidencia(
+        incidencias=RepositorioIncidenciasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+AbrirIncidenciaDep = Annotated[AbrirIncidencia, Depends(obtener_abrir_incidencia)]
+ProgramarIncidenciaDep = Annotated[
+    ProgramarIncidencia, Depends(obtener_programar_incidencia)
+]
+RegistrarEventoIncidenciaDep = Annotated[
+    RegistrarEventoIncidencia, Depends(obtener_registrar_evento_incidencia)
+]
+CerrarIncidenciaDep = Annotated[CerrarIncidencia, Depends(obtener_cerrar_incidencia)]
+RechazarIncidenciaDep = Annotated[
+    RechazarIncidencia, Depends(obtener_rechazar_incidencia)
+]

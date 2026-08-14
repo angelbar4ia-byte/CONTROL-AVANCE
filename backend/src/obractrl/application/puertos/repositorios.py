@@ -27,6 +27,7 @@ __all__ = [
     "RepositorioCierres",
     "RepositorioConfiguracion",
     "RepositorioEstimaciones",
+    "RepositorioIncidencias",
     "RepositorioObras",
     "UnidadDeTrabajo",
 ]
@@ -221,3 +222,50 @@ class UnidadDeTrabajo(Protocol):
     async def commit(self) -> None: ...
 
     async def rollback(self) -> None: ...
+
+
+@runtime_checkable
+class RepositorioIncidencias(Protocol):
+    """Acceso a incidencias. Siempre scoped por RLS — §12.11, §12.4, §7.8."""
+
+    async def obtener(self, incidencia_id: UUID) -> dict | None: ...
+
+    async def crear(
+        self,
+        *,
+        obra_id: UUID,
+        creada_por: UUID,
+        tipo: str,
+        impacto: str,
+        titulo: str,
+        descripcion: str | None = None,
+        frente_id: UUID | None = None,
+        evidencias: list[str] | None = None,
+        bloquea_actividades: list[str] | None = None,
+        fecha_limite: date | None = None,
+    ) -> UUID: ...
+
+    async def actualizar(
+        self,
+        incidencia_id: UUID,
+        *,
+        estatus: str,
+        asignada_a: UUID | None = None,
+    ) -> None: ...
+
+    async def registrar_evento(
+        self,
+        incidencia_id: UUID,
+        *,
+        usuario_id: UUID,
+        accion: str,
+        estatus_previo: str,
+        estatus_nuevo: str,
+        comentario: str | None = None,
+    ) -> UUID:
+        """Bitácora de la incidencia (`incidencia_evento`, §7.8)."""
+        ...
+
+    async def listar(self, *, estatus: str | None = None) -> list[dict]:
+        """Bandeja por rol: RLS ya acota el alcance (§11.2)."""
+        ...
