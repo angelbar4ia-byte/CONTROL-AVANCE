@@ -25,12 +25,14 @@ from obractrl.application.casos_uso.capturar_avance import (
 )
 from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEncontrada
 from obractrl.application.casos_uso.gestionar_estimacion import EstimacionNoEncontrada
+from obractrl.application.casos_uso.gestionar_incidencia import IncidenciaNoEncontrada
 from obractrl.application.casos_uso.registrar_salida_almacen import (
     MotivoAlmacenNoEncontrado,
 )
 from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.cierres.reglas import ErrorDeCierre
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
+from obractrl.domain.incidencias.reglas import ErrorDeIncidencia
 from obractrl.domain.materiales.reglas import ErrorDeMaterial
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
 from obractrl.infrastructure.config import obtener_config
@@ -238,6 +240,30 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="motivo-almacen-no-encontrado",
             titulo="Motivo de almacén no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeIncidencia)
+    async def _incidencia(request: Request, exc: ErrorDeIncidencia) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="flujo-de-incidencia",
+            titulo="Transición de incidencia no permitida",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(IncidenciaNoEncontrada)
+    async def _incidencia_no_encontrada(
+        request: Request, exc: IncidenciaNoEncontrada
+    ) -> JSONResponse:
+        # Mismo tratamiento que ActividadNoEncontrada/SolicitudCierreNoEncontrada:
+        # RLS hace indistinguible "no existe" de "no la puedes ver" (§12.4).
+        return _problema(
+            request,
+            status=404,
+            tipo="incidencia-no-encontrada",
+            titulo="Incidencia no encontrada",
             detalle=str(exc),
         )
 
