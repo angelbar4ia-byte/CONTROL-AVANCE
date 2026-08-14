@@ -27,6 +27,7 @@ __all__ = [
     "RepositorioCierres",
     "RepositorioConfiguracion",
     "RepositorioEstimaciones",
+    "RepositorioMateriales",
     "RepositorioObras",
     "UnidadDeTrabajo",
 ]
@@ -208,6 +209,36 @@ class RepositorioConfiguracion(Protocol):
     async def decimal(
         self, clave: str, default: Decimal, *, ambito_id: UUID | None = None
     ) -> Decimal: ...
+
+
+@runtime_checkable
+class RepositorioMateriales(Protocol):
+    """Movimientos de almacén y su cruce contra presupuesto (§7.7, §10.5).
+
+    `salida_almacen` entra al alcance por obra (política `salida_almacen_scope`,
+    `database/migrations/20260814000012`, vía `obra_visible`); `motivo_almacen`
+    es semilla editable de organización (§8.7), visible a cualquier usuario de
+    la org. `v_consumo_vs_presupuesto` no trae RLS propia —hereda la de las
+    tablas que consulta—, así que la implementación debe acotarla por
+    `obra_id` explícitamente (no acota sola por org/obra).
+    """
+
+    async def obtener_motivo(self, motivo_id: UUID) -> dict | None:
+        """Motivo de almacén con su `signo` y `bucket` (§10.5)."""
+        ...
+
+    async def crear_salida(self, datos: dict) -> UUID:
+        """Inserta el movimiento ya validado por el caso de uso (§10.5)."""
+        ...
+
+    async def consumo_vs_presupuesto(self, obra_id: UUID) -> list[dict]:
+        """Consumo real vs teórico por insumo de una obra (§7.7, §10.5),
+        sobre `v_consumo_vs_presupuesto`."""
+        ...
+
+    async def listar_salidas(self, obra_id: UUID | None = None) -> list[dict]:
+        """Bandeja de movimientos; RLS ya acota el alcance (§11.2)."""
+        ...
 
 
 @runtime_checkable
