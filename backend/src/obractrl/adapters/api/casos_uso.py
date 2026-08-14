@@ -20,6 +20,7 @@ from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
+from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
 from obractrl.application.casos_uso.gestionar_cierre import (
@@ -33,6 +34,7 @@ from obractrl.application.casos_uso.gestionar_estimacion import (
     GenerarEstimacion,
     ValidarEstimacion,
 )
+from obractrl.application.casos_uso.registrar_salida_almacen import RegistrarSalidaAlmacen
 
 __all__ = [
     "AutorizarCierreDep",
@@ -40,6 +42,7 @@ __all__ = [
     "EnviarEstimacionDep",
     "GenerarEstimacionDep",
     "RechazarCierreDep",
+    "RegistrarSalidaAlmacenDep",
     "SolicitarCierreDep",
     "ValidarCierreDep",
     "ValidarEstimacionDep",
@@ -118,3 +121,15 @@ def obtener_validar_estimacion(sesion: SesionRLS) -> ValidarEstimacion:
 GenerarEstimacionDep = Annotated[GenerarEstimacion, Depends(obtener_generar_estimacion)]
 EnviarEstimacionDep = Annotated[EnviarEstimacion, Depends(obtener_enviar_estimacion)]
 ValidarEstimacionDep = Annotated[ValidarEstimacion, Depends(obtener_validar_estimacion)]
+
+
+def obtener_registrar_salida_almacen(sesion: SesionRLS) -> RegistrarSalidaAlmacen:
+    return RegistrarSalidaAlmacen(
+        materiales=RepositorioMaterialesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+RegistrarSalidaAlmacenDep = Annotated[
+    RegistrarSalidaAlmacen, Depends(obtener_registrar_salida_almacen)
+]

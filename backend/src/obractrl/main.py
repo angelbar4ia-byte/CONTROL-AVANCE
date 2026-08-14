@@ -25,9 +25,13 @@ from obractrl.application.casos_uso.capturar_avance import (
 )
 from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEncontrada
 from obractrl.application.casos_uso.gestionar_estimacion import EstimacionNoEncontrada
+from obractrl.application.casos_uso.registrar_salida_almacen import (
+    MotivoAlmacenNoEncontrado,
+)
 from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.cierres.reglas import ErrorDeCierre
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
+from obractrl.domain.materiales.reglas import ErrorDeMaterial
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
 from obractrl.infrastructure.config import obtener_config
 from obractrl.infrastructure.db.sesion import cerrar_engine
@@ -208,6 +212,32 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=409,
             tipo="calendario-no-configurado",
             titulo="Ancla de semana no configurada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeMaterial)
+    async def _material(request: Request, exc: ErrorDeMaterial) -> JSONResponse:
+        # Mismo tratamiento que ErrorDeCierre (409): el signo de la cantidad
+        # no coincide con el del motivo (§10.5).
+        return _problema(
+            request,
+            status=409,
+            tipo="regla-de-material",
+            titulo="Movimiento de almacén inválido",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(MotivoAlmacenNoEncontrado)
+    async def _motivo_no_encontrado(
+        request: Request, exc: MotivoAlmacenNoEncontrado
+    ) -> JSONResponse:
+        # RLS hace indistinguible "no existe" de "no la puedes ver" a
+        # propósito (§12.4), igual que ActividadNoEncontrada.
+        return _problema(
+            request,
+            status=404,
+            tipo="motivo-almacen-no-encontrado",
+            titulo="Motivo de almacén no encontrado",
             detalle=str(exc),
         )
 
