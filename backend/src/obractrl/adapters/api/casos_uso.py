@@ -17,10 +17,23 @@ from fastapi import Depends
 
 from obractrl.adapters.api.dependencias import SesionRLS
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
+from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
+from obractrl.application.casos_uso.gestionar_cierre import (
+    AutorizarCierre,
+    RechazarCierre,
+    SolicitarCierre,
+    ValidarCierre,
+)
 
-__all__ = ["CapturarAvanceDep"]
+__all__ = [
+    "AutorizarCierreDep",
+    "CapturarAvanceDep",
+    "RechazarCierreDep",
+    "SolicitarCierreDep",
+    "ValidarCierreDep",
+]
 
 
 def obtener_capturar_avance(sesion: SesionRLS) -> CapturarAvance:
@@ -31,3 +44,40 @@ def obtener_capturar_avance(sesion: SesionRLS) -> CapturarAvance:
 
 
 CapturarAvanceDep = Annotated[CapturarAvance, Depends(obtener_capturar_avance)]
+
+
+def obtener_solicitar_cierre(sesion: SesionRLS) -> SolicitarCierre:
+    return SolicitarCierre(
+        actividades=RepositorioActividadesSQL(sesion),
+        cierres=RepositorioCierresSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_autorizar_cierre(sesion: SesionRLS) -> AutorizarCierre:
+    return AutorizarCierre(
+        cierres=RepositorioCierresSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_validar_cierre(sesion: SesionRLS) -> ValidarCierre:
+    return ValidarCierre(
+        actividades=RepositorioActividadesSQL(sesion),
+        cierres=RepositorioCierresSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_rechazar_cierre(sesion: SesionRLS) -> RechazarCierre:
+    return RechazarCierre(
+        actividades=RepositorioActividadesSQL(sesion),
+        cierres=RepositorioCierresSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+SolicitarCierreDep = Annotated[SolicitarCierre, Depends(obtener_solicitar_cierre)]
+AutorizarCierreDep = Annotated[AutorizarCierre, Depends(obtener_autorizar_cierre)]
+ValidarCierreDep = Annotated[ValidarCierre, Depends(obtener_validar_cierre)]
+RechazarCierreDep = Annotated[RechazarCierre, Depends(obtener_rechazar_cierre)]

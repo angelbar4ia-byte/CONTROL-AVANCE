@@ -22,6 +22,7 @@ from obractrl.application.casos_uso.capturar_avance import (
     ActividadBloqueada,
     ActividadNoEncontrada,
 )
+from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEncontrada
 from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.cierres.reglas import ErrorDeCierre
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
@@ -153,6 +154,20 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=409,
             tipo="actividad-bloqueada",
             titulo="Actividad bloqueada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(SolicitudCierreNoEncontrada)
+    async def _cierre_no_encontrado(
+        request: Request, exc: SolicitudCierreNoEncontrada
+    ) -> JSONResponse:
+        # Mismo tratamiento que ActividadNoEncontrada: RLS hace indistinguible
+        # "no existe" de "no la puedes ver" a propósito (§12.4).
+        return _problema(
+            request,
+            status=404,
+            tipo="cierre-no-encontrado",
+            titulo="Solicitud de cierre no encontrada",
             detalle=str(exc),
         )
 

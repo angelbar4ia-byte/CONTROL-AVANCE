@@ -81,7 +81,7 @@ autoriza), y el Super intendente ejecuta el **cierre de obra final**.
 | | Listo | Falta |
 |---|---|---|
 | `database/` | 14 migraciones, RLS por rol, semillas, generador de calendario · **15 pruebas de aislamiento** | Sync rules en producción |
-| `backend/` | Dominio puro: reglas de avance, motor CPM, flujo de cierre, folios, value objects · **79 pruebas** | Repositorios, módulos restantes del §11.2, cargadores Excel |
+| `backend/` | Dominio puro (avance, CPM, cierre, folios, value objects) · módulos **avance** y **cierres** end-to-end (repos + casos de uso + endpoints) · **79+ pruebas** | Módulos restantes del §11.2 (proyectos, catálogos, programación, estimación, materiales, incidencias, evaluación, cargas, expediente, reportes), cargadores Excel |
 | `frontend/` | Shell de 3 columnas, navegación por rol, tokens, densidad, cliente Supabase y HTTP · **13 pruebas** | Las features de cada dominio |
 | `mobile/` | Tabs por rol, esquema PowerSync, sync rules, config lista para Play | Pantallas reales, login, captura offline |
 

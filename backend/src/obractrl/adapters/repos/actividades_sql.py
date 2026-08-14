@@ -220,6 +220,21 @@ class RepositorioActividadesSQL:
             params,
         )
 
+    async def marcar_estatus(self, actividad_id: UUID, estatus: str) -> None:
+        # No toca cant_base ni cant_ejecutada: el trigger `app.actividad_recalcular`
+        # (database/migrations/0007) solo dispara con esas columnas, así que un
+        # estatus de flujo (pendiente_cierre, concluida…) queda tal cual lo fijó
+        # el caso de uso de cierres, sin que el auto-estatus del §6 lo pise.
+        resultado = await self._sesion.execute(
+            text("update actividad set estatus = :estatus where id = :id"),
+            {"estatus": estatus, "id": str(actividad_id)},
+        )
+        if resultado.rowcount == 0:
+            raise ActividadNoModificada(
+                f"No se actualizó la actividad {actividad_id}: ya no existe o "
+                f"salió de tu alcance."
+            )
+
     async def marcar_bloqueadas(
         self, obra_id: UUID, refs: set[str], bloqueada: bool
     ) -> None:

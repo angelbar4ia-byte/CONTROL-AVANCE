@@ -24,6 +24,7 @@ __all__ = [
     "RegistroNoEncontrado",
     "RepositorioActividades",
     "RepositorioCalendario",
+    "RepositorioCierres",
     "RepositorioConfiguracion",
     "RepositorioEstimaciones",
     "RepositorioObras",
@@ -84,6 +85,44 @@ class RepositorioActividades(Protocol):
     async def marcar_bloqueadas(
         self, obra_id: UUID, refs: set[str], bloqueada: bool
     ) -> None: ...
+
+    async def marcar_estatus(self, actividad_id: UUID, estatus: str) -> None:
+        """Fija un estatus de flujo (``pendiente_cierre``, ``concluida``…)
+        sin tocar cantidades — lo usa el caso de uso de cierres (§11.3 C), no
+        el motor de avance (§6)."""
+        ...
+
+
+@runtime_checkable
+class RepositorioCierres(Protocol):
+    """Acceso a solicitudes de cierre. Siempre scoped por RLS — §12.11, §12.4."""
+
+    async def obtener(self, cierre_id: UUID) -> dict | None: ...
+
+    async def crear(
+        self,
+        *,
+        actividad_id: UUID,
+        solicitada_por: UUID,
+        cantidad: Decimal,
+        monto: Decimal,
+        checklist: list[dict],
+        adjuntos: list[str],
+    ) -> UUID: ...
+
+    async def actualizar(
+        self,
+        cierre_id: UUID,
+        *,
+        estatus: str,
+        autorizada_por: UUID | None = None,
+        validada_por: UUID | None = None,
+        comentarios: str | None = None,
+    ) -> None: ...
+
+    async def listar(self, *, estatus: str | None = None) -> list[dict]:
+        """Bandeja por rol: RLS ya acota el alcance (§11.2)."""
+        ...
 
 
 @runtime_checkable

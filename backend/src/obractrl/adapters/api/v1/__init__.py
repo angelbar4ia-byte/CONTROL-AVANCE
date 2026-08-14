@@ -12,14 +12,16 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from obractrl.adapters.api.v1.avance import router as router_avance
+from obractrl.adapters.api.v1.cierres import router as router_cierres
 from obractrl.adapters.api.v1.identidad import router as router_identidad
 
 api_v1 = APIRouter()
 
 api_v1.include_router(router_identidad)
 api_v1.include_router(router_avance)
+api_v1.include_router(router_cierres)
 
 # Pendientes de implementar (§11.2). Cada uno es un módulo con su fachada:
 #   proyectos · catalogos · programacion · estimacion · materiales
-#   incidencias · cierres · evaluacion · cargas · expediente · reportes
+#   incidencias · evaluacion · cargas · expediente · reportes
 __all__ = ["api_v1"]
