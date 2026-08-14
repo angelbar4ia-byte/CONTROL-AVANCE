@@ -18,13 +18,16 @@ from fastapi.responses import JSONResponse
 
 from obractrl import __version__
 from obractrl.adapters.api.v1 import api_v1
+from obractrl.adapters.repos.calendario_sql import CalendarioNoConfigurado
 from obractrl.application.casos_uso.capturar_avance import (
     ActividadBloqueada,
     ActividadNoEncontrada,
 )
 from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEncontrada
+from obractrl.application.casos_uso.gestionar_estimacion import EstimacionNoEncontrada
 from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.cierres.reglas import ErrorDeCierre
+from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
 from obractrl.infrastructure.config import obtener_config
 from obractrl.infrastructure.db.sesion import cerrar_engine
@@ -168,6 +171,43 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="cierre-no-encontrado",
             titulo="Solicitud de cierre no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeEstimacion)
+    async def _estimacion(request: Request, exc: ErrorDeEstimacion) -> JSONResponse:
+        # Mismo código que ErrorDeCierre (409): cubre tanto "no hay nada que
+        # estimar" (precondición de negocio) como la transición de flujo
+        # inválida — igual que allá, un solo tipo de error de dominio (§6).
+        return _problema(
+            request,
+            status=409,
+            tipo="regla-de-estimacion",
+            titulo="Estimación inválida",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(EstimacionNoEncontrada)
+    async def _estimacion_no_encontrada(
+        request: Request, exc: EstimacionNoEncontrada
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="estimacion-no-encontrada",
+            titulo="Estimación no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(CalendarioNoConfigurado)
+    async def _calendario_no_configurado(
+        request: Request, exc: CalendarioNoConfigurado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="calendario-no-configurado",
+            titulo="Ancla de semana no configurada",
             detalle=str(exc),
         )
 

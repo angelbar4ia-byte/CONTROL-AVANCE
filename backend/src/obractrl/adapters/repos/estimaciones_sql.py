@@ -15,9 +15,15 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from obractrl.application.puertos.repositorios import RegistroNoEncontrado
 from obractrl.domain.shared.folio import Folio
 
-__all__ = ["RepositorioEstimacionesSQL"]
+__all__ = ["EstimacionNoModificada", "RepositorioEstimacionesSQL"]
+
+
+class EstimacionNoModificada(RegistroNoEncontrado):
+    """El UPDATE no afectó ninguna fila: la estimación ya no existe o salió
+    del alcance del usuario (RLS) entre el `obtener()` y la escritura."""
 
 
 class RepositorioEstimacionesSQL:
@@ -60,20 +66,22 @@ class RepositorioEstimacionesSQL:
 
         Claves esperadas en ``datos``: ``obra_id``, ``folio`` (str, ya
         formateado por `Folio`), ``semana``, ``anio``, ``modo``
-        (destajo | concepto | subcontrato), ``creada_por``. Opcionales:
-        ``tipo_semana`` (default ``"obra"``, §3.1), ``origen_erp`` (default
-        ``False``, §3.2). ``estatus`` nace ``borrador`` por default de la BD.
+        (destajo | concepto | subcontrato), ``creada_por``, ``monto_total``
+        (ya calculado por `domain.estimacion.reglas.Estimacion.monto_total`).
+        Opcionales: ``tipo_semana`` (default ``"obra"``, §3.1), ``origen_erp``
+        (default ``False``, §3.2). ``estatus`` nace ``borrador`` por default
+        de la BD.
         """
         fila = await self._sesion.execute(
             text(
                 """
                 insert into estimacion
                     (org_id, obra_id, folio, semana, anio, tipo_semana, modo,
-                     creada_por, origen_erp)
+                     creada_por, origen_erp, monto_total)
                 values
                     (cast(current_setting('app.org_id') as uuid),
                      :obra_id, :folio, :semana, :anio, :tipo_semana, :modo,
-                     cast(:creada_por as uuid), :origen_erp)
+                     cast(:creada_por as uuid), :origen_erp, :monto_total)
                 returning id
                 """
             ),
@@ -88,9 +96,113 @@ class RepositorioEstimacionesSQL:
                 if datos.get("creada_por")
                 else None,
                 "origen_erp": datos.get("origen_erp", False),
+                "monto_total": datos.get("monto_total", 0),
             },
         )
         return fila.scalar_one()
+
+    async def agregar_conceptos(
+        self, estimacion_id: UUID, conceptos: list[dict[str, Any]]
+    ) -> None:
+        """Inserta las líneas `EstimacionConcepto` ya calculadas por el
+        dominio (§11.3 E.2). Cada dict trae ``actividad_id``, ``concepto_id``
+        (o ``None`` si es fuera de catálogo), ``cantidad_validada``,
+        ``precio_unitario`` e ``importe``.
+        """
+        if not conceptos:
+            return
+
+        params = [
+            {
+                "estimacion_id": str(estimacion_id),
+                "actividad_id": str(c["actividad_id"]),
+                "concepto_id": str(c["concepto_id"]) if c.get("concepto_id") else None,
+                "cantidad_validada": c["cantidad_validada"],
+                "precio_unitario": c["precio_unitario"],
+                "importe": c["importe"],
+                "fuera_catalogo": c.get("concepto_id") is None,
+            }
+            for c in conceptos
+        ]
+
+        await self._sesion.execute(
+            text(
+                """
+                insert into estimacion_concepto
+                    (org_id, estimacion_id, actividad_id, concepto_id,
+                     cantidad_validada, precio_unitario, importe, fuera_catalogo)
+                values
+                    (cast(current_setting('app.org_id') as uuid),
+                     cast(:estimacion_id as uuid), cast(:actividad_id as uuid),
+                     cast(:concepto_id as uuid), :cantidad_validada,
+                     :precio_unitario, :importe, :fuera_catalogo)
+                """
+            ),
+            params,
+        )
+
+    async def obtener(self, estimacion_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, obra_id, folio, semana, anio, tipo_semana,
+                           modo, estatus, monto_total, origen_erp,
+                           creada_por, validada_por
+                    from estimacion
+                    where id = :id
+                    """
+                ),
+                {"id": str(estimacion_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def actualizar_estatus(
+        self,
+        estimacion_id: UUID,
+        *,
+        estatus: str,
+        validada_por: UUID | None = None,
+    ) -> None:
+        resultado = await self._sesion.execute(
+            text(
+                """
+                update estimacion
+                   set estatus      = cast(:estatus as estatus_estimacion),
+                       validada_por = coalesce(cast(:validada_por as uuid), validada_por)
+                 where id = :id
+                """
+            ),
+            {
+                "id": str(estimacion_id),
+                "estatus": estatus,
+                "validada_por": str(validada_por) if validada_por else None,
+            },
+        )
+        if resultado.rowcount == 0:
+            raise EstimacionNoModificada(
+                f"No se actualizó la estimación {estimacion_id}: ya no existe "
+                f"o salió de tu alcance."
+            )
+
+    async def listar(self, obra_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, obra_id, folio, semana, anio, tipo_semana,
+                           modo, estatus, monto_total, origen_erp,
+                           creada_por, validada_por
+                    from estimacion
+                    where obra_id = :obra_id
+                    order by anio desc, semana desc
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
 
     async def actividades_estimables(
         self, obra_id: UUID, semana: int, anio: int

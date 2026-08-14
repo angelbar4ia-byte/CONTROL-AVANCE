@@ -17,7 +17,9 @@ from fastapi import Depends
 
 from obractrl.adapters.api.dependencias import SesionRLS
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
+from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
+from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
 from obractrl.application.casos_uso.gestionar_cierre import (
@@ -26,13 +28,21 @@ from obractrl.application.casos_uso.gestionar_cierre import (
     SolicitarCierre,
     ValidarCierre,
 )
+from obractrl.application.casos_uso.gestionar_estimacion import (
+    EnviarEstimacion,
+    GenerarEstimacion,
+    ValidarEstimacion,
+)
 
 __all__ = [
     "AutorizarCierreDep",
     "CapturarAvanceDep",
+    "EnviarEstimacionDep",
+    "GenerarEstimacionDep",
     "RechazarCierreDep",
     "SolicitarCierreDep",
     "ValidarCierreDep",
+    "ValidarEstimacionDep",
 ]
 
 
@@ -81,3 +91,30 @@ SolicitarCierreDep = Annotated[SolicitarCierre, Depends(obtener_solicitar_cierre
 AutorizarCierreDep = Annotated[AutorizarCierre, Depends(obtener_autorizar_cierre)]
 ValidarCierreDep = Annotated[ValidarCierre, Depends(obtener_validar_cierre)]
 RechazarCierreDep = Annotated[RechazarCierre, Depends(obtener_rechazar_cierre)]
+
+
+def obtener_generar_estimacion(sesion: SesionRLS) -> GenerarEstimacion:
+    return GenerarEstimacion(
+        estimaciones=RepositorioEstimacionesSQL(sesion),
+        calendario=RepositorioCalendarioSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_enviar_estimacion(sesion: SesionRLS) -> EnviarEstimacion:
+    return EnviarEstimacion(
+        estimaciones=RepositorioEstimacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_validar_estimacion(sesion: SesionRLS) -> ValidarEstimacion:
+    return ValidarEstimacion(
+        estimaciones=RepositorioEstimacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+GenerarEstimacionDep = Annotated[GenerarEstimacion, Depends(obtener_generar_estimacion)]
+EnviarEstimacionDep = Annotated[EnviarEstimacion, Depends(obtener_enviar_estimacion)]
+ValidarEstimacionDep = Annotated[ValidarEstimacion, Depends(obtener_validar_estimacion)]

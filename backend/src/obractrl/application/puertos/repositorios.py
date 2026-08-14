@@ -154,6 +154,29 @@ class RepositorioEstimaciones(Protocol):
         """Actividades con avance validado de la semana (§11.3 E.2)."""
         ...
 
+    async def agregar_conceptos(
+        self, estimacion_id: UUID, conceptos: list[dict]
+    ) -> None:
+        """Persiste las líneas `EstimacionConcepto` ya calculadas por el
+        dominio (§11.3 E.2)."""
+        ...
+
+    async def obtener(self, estimacion_id: UUID) -> dict | None:
+        """Cabecera de la estimación, sin sus conceptos (§11.3 E.3-4)."""
+        ...
+
+    async def actualizar_estatus(
+        self,
+        estimacion_id: UUID,
+        *,
+        estatus: str,
+        validada_por: UUID | None = None,
+    ) -> None: ...
+
+    async def listar(self, obra_id: UUID) -> list[dict]:
+        """Bandeja de estimaciones de una obra: RLS ya acota el alcance."""
+        ...
+
 
 @runtime_checkable
 class RepositorioCalendario(Protocol):
