@@ -165,6 +165,7 @@ def obtener_cerrar_incidencia(sesion: SesionRLS) -> CerrarIncidencia:
 
 def obtener_rechazar_incidencia(sesion: SesionRLS) -> RechazarIncidencia:
     return RechazarIncidencia(
+        actividades=RepositorioActividadesSQL(sesion),
         incidencias=RepositorioIncidenciasSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
     )

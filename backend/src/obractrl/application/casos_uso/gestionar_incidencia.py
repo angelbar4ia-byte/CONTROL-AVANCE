@@ -16,11 +16,13 @@ Dos escrituras conviven en cada paso que transiciona: la fila de
 mismo commit.
 
 Si `impacto=detiene` y la incidencia trae `bloquea_actividades`, abrirla
-bloquea esas actividades y cerrarla las desbloquea —reutilizando
-`RepositorioActividades.marcar_bloqueadas` tal cual, sin reimplementarlo
-(§12.11: ningún módulo toca las tablas de otro salvo por su puerto). El
-rechazo, a propósito, no las desbloquea: el §6 solo describe el desbloqueo
-para el cierre, no para el rechazo.
+bloquea esas actividades; cerrarla o rechazarla las desbloquea por igual
+—reutilizando `RepositorioActividades.marcar_bloqueadas` tal cual, sin
+reimplementarlo (§12.11: ningún módulo toca las tablas de otro salvo por su
+puerto). El rechazo también desbloquea a propósito: una incidencia
+rechazada significa que el bloqueo no era válido, y `rechazada` es terminal
+—sin esto, la actividad quedaría bloqueada para siempre sin ninguna vía de
+recuperación (ni una incidencia nueva reabre ni desbloquea la anterior).
 """
 
 from __future__ import annotations
@@ -343,11 +345,20 @@ class CerrarIncidencia:
 
 
 class RechazarIncidencia:
-    """Supervisor o Control rechazan la incidencia (§11.2, §6)."""
+    """Supervisor o Control rechazan la incidencia (§11.2, §6).
+
+    Si bloqueaba actividades, las desbloquea — igual que al cerrar: una
+    incidencia rechazada no debe dejar nada bloqueado sin vía de recuperación.
+    """
 
     def __init__(
-        self, *, incidencias: RepositorioIncidencias, uow: UnidadDeTrabajo
+        self,
+        *,
+        actividades: RepositorioActividades,
+        incidencias: RepositorioIncidencias,
+        uow: UnidadDeTrabajo,
     ) -> None:
+        self._actividades = actividades
         self._incidencias = incidencias
         self._uow = uow
 
@@ -374,6 +385,12 @@ class RechazarIncidencia:
                     estatus_nuevo=incidencia.estatus.value,
                     comentario=cmd.motivo,
                 )
+                if incidencia.bloquea_actividades_activo:
+                    await self._actividades.marcar_bloqueadas(
+                        UUID(incidencia.obra_id),
+                        set(incidencia.bloquea_actividades),
+                        False,
+                    )
             except RegistroNoEncontrado as exc:
                 raise IncidenciaNoEncontrada(
                     f"Incidencia {cmd.incidencia_id} ya no está en tu alcance."

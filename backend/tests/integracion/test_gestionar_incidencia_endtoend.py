@@ -214,7 +214,7 @@ async def test_abrir_con_impacto_detiene_bloquea_la_actividad(
     assert actividad.bloqueada is False
 
 
-async def test_rechazar_exige_motivo_y_no_desbloquea(
+async def test_rechazar_exige_motivo_y_desbloquea(
     escenario: Escenario, contexto_residente: ContextoSesion, contexto_supervisor: ContextoSesion
 ) -> None:
     incidencia_id = await _abrir(
@@ -229,7 +229,9 @@ async def test_rechazar_exige_motivo_y_no_desbloquea(
 
     async with sesion_con_rls(contexto_supervisor) as sesion:
         caso_uso = RechazarIncidencia(
-            incidencias=RepositorioIncidenciasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+            actividades=RepositorioActividadesSQL(sesion),
+            incidencias=RepositorioIncidenciasSQL(sesion),
+            uow=UnidadDeTrabajoSQL(sesion),
         )
         with pytest.raises(ErrorDeIncidencia, match="motivo"):
             await caso_uso.ejecutar(
@@ -266,8 +268,9 @@ async def test_rechazar_exige_motivo_y_no_desbloquea(
     await admin.dispose()
 
     assert incidencia.estatus == "rechazada"
-    # El §6 solo describe el desbloqueo para el cierre, no para el rechazo.
-    assert actividad.bloqueada is True
+    # Rechazar también desbloquea: sin esto la actividad quedaría bloqueada
+    # para siempre, sin vía de recuperación (rechazada es terminal).
+    assert actividad.bloqueada is False
 
 
 async def test_residente_no_programa(
