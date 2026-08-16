@@ -85,6 +85,14 @@ async def contexto_actual(
         raise _no_autorizado("El token expiró.") from exc
     except jwt.InvalidTokenError as exc:
         raise _no_autorizado("Token inválido.") from exc
+    except (ValueError, TypeError) as exc:
+        # Llave y algoritmo incompatibles: p. ej. el proveedor firma ES256
+        # pero falta `SUPABASE_URL` y se cayó al secreto HS256, así que se
+        # intenta leer un string como llave EC. `cryptography` levanta
+        # ValueError, que NO es InvalidTokenError y sin este caso escapaba
+        # como 500. Un despliegue mal configurado no debe verse como una
+        # falla del cliente ni tirar la petición con un error opaco.
+        raise _no_autorizado("Token inválido.") from exc
 
     org_id = claims.get("org_id")
     usuario_id = claims.get("usuario_id") or claims.get("sub")
