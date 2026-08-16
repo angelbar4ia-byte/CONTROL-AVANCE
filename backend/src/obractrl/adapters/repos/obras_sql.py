@@ -106,13 +106,15 @@ class RepositorioObrasSQL:
                     select {_COLUMNAS_O}
                     from obra o
                     join cluster c on c.id = o.cluster_id
-                    where (:proyecto_id is null
+                    -- El cast del lado `is null` fija el tipo del parámetro;
+                    -- sin él asyncpg levanta AmbiguousParameterError.
+                    where (cast(:proyecto_id as uuid) is null
                            or c.proyecto_id = cast(:proyecto_id as uuid))
-                      and (:cluster_id is null
+                      and (cast(:cluster_id as uuid) is null
                            or o.cluster_id = cast(:cluster_id as uuid))
-                      and (:residente_id is null
+                      and (cast(:residente_id as uuid) is null
                            or o.residente_id = cast(:residente_id as uuid))
-                      and (:estatus is null
+                      and (cast(:estatus as estatus_obra) is null
                            or o.estatus = cast(:estatus as estatus_obra))
                     order by o.clave
                     """

@@ -73,7 +73,9 @@ class RepositorioClustersSQL:
                     f"""
                     select {_COLUMNAS}
                     from cluster
-                    where :proyecto_id is null
+                    -- El cast del lado `is null` fija el tipo del parámetro;
+                    -- sin él asyncpg levanta AmbiguousParameterError.
+                    where cast(:proyecto_id as uuid) is null
                        or proyecto_id = cast(:proyecto_id as uuid)
                     order by clave
                     """
