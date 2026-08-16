@@ -35,9 +35,34 @@ class Config(BaseSettings):
     db_max_overflow: int = 10
 
     # --- Auth (JWT del proveedor administrado) --------------------------
+    #
+    # Supabase firma con **llaves asimétricas** (ES256) y publica la parte
+    # pública en el JWKS del proyecto. El backend verifica contra ese JWKS:
+    # así el secreto no existe en las variables de Render y una rotación de
+    # llaves no obliga a redesplegar (§12.4, §12.8).
+    #
+    # `jwt_secret` solo sigue existiendo para proyectos que aún emiten HS256
+    # con secreto compartido; si `jwt_jwks_url` está puesta, se ignora.
     jwt_secret: str = Field(default="cambiar-en-produccion")
-    jwt_algoritmo: str = "HS256"
+    jwt_algoritmos: list[str] = ["ES256", "RS256", "HS256"]
     jwt_audiencia: str = "authenticated"
+    jwt_jwks_url: str = Field(
+        default="",
+        description=(
+            "JWKS del proyecto, p. ej. "
+            "https://<ref>.supabase.co/auth/v1/.well-known/jwks.json. "
+            "Si se deja vacío se deriva de `supabase_url`."
+        ),
+    )
+
+    @property
+    def jwks_url_efectiva(self) -> str:
+        """JWKS explícito, o el derivado de `supabase_url`; '' si no hay ninguno."""
+        if self.jwt_jwks_url:
+            return self.jwt_jwks_url
+        if self.supabase_url:
+            return f"{self.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+        return ""
 
     # --- Supabase (solo para la ruta directa del front) -----------------
     supabase_url: str = ""
