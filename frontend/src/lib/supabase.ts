@@ -20,7 +20,24 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL;
+/**
+ * Sufijos que el Dashboard de Supabase muestra pegados a la URL del proyecto.
+ *
+ * La etiqueta que ve el operador dice "API URL" y el valor termina en
+ * `/rest/v1/`, así que copiarlo tal cual es el camino natural. Pero
+ * supabase-js espera la URL **base** y le agrega la ruta del servicio: con el
+ * sufijo incluido, el login pega contra `/rest/v1/auth/v1/token` y devuelve
+ * 404. Se normaliza aquí en vez de exigir que alguien recuerde recortarlo.
+ */
+const SUFIJOS_DE_SERVICIO = ['/rest/v1', '/auth/v1', '/storage/v1', '/realtime/v1'];
+
+function baseDeProyecto(valor: string): string {
+  const base = valor.trim().replace(/\/+$/, '');
+  const sufijo = SUFIJOS_DE_SERVICIO.find((s) => base.endsWith(s));
+  return sufijo ? base.slice(0, -sufijo.length).replace(/\/+$/, '') : base;
+}
+
+const url = baseDeProyecto(import.meta.env.VITE_SUPABASE_URL ?? '');
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!url || !anonKey) {
