@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from 'react';
 
+import { decodificarClaimsJwt } from '@/lib/jwt';
 import { supabase } from '@/lib/supabase';
 import type { Rol } from '@/shell/navegacion';
 
@@ -64,7 +65,13 @@ export function useSesion(): EstadoSesion {
 
       // org_id y rol son claims del JWT (§12.4). Sin ellos no se puede fijar
       // el contexto RLS, así que la sesión no sirve.
-      const claims = data.session.user.app_metadata as Record<string, unknown>;
+      //
+      // Se leen del token decodificado, NO de `user.app_metadata`: el hook
+      // `custom_access_token_hook` (migración 0015) los pone en la raíz de
+      // los claims, y `app_metadata` solo trae `{provider, providers}`.
+      // Leerlos de ahí devolvía `undefined` siempre y rechazaba sesiones
+      // perfectamente válidas.
+      const claims = decodificarClaimsJwt(data.session.access_token);
       const rol = claims.rol;
       const orgId = claims.org_id;
 
