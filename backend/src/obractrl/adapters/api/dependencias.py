@@ -10,11 +10,13 @@ contexto que se fija aquí.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from functools import lru_cache
 from typing import Annotated
 from uuid import UUID
 
 import jwt
 from fastapi import Depends, HTTPException, status
+from jwt import PyJWKClient
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,6 +37,38 @@ def _no_autorizado(detalle: str) -> HTTPException:
     )
 
 
+@lru_cache(maxsize=4)
+def _cliente_jwks(url: str) -> PyJWKClient:
+    """Un cliente JWKS por URL, cacheado.
+
+    `PyJWKClient` guarda las llaves que ya trajo, así que cachear la instancia
+    es lo que evita una petición HTTP al proveedor en cada request. Ante un
+    `kid` desconocido —una rotación de llaves— vuelve a consultar el JWKS él
+    solo, sin redespliegue.
+    """
+    return PyJWKClient(url, cache_keys=True)
+
+
+def _llave_de_verificacion(token: str, cfg: Config) -> str:
+    """Llave con la que se verifica la firma.
+
+    Supabase firma con llaves **asimétricas** (ES256) y publica la pública en
+    el JWKS del proyecto; el secreto compartido nunca llega al backend. Si no
+    hay JWKS configurado se cae al `jwt_secret`, que es el esquema HS256
+    antiguo y sigue sirviendo para entornos que aún lo usen (§12.4).
+    """
+    url = cfg.jwks_url_efectiva
+    if not url:
+        return cfg.jwt_secret
+    try:
+        return _cliente_jwks(url).get_signing_key_from_jwt(token).key
+    except jwt.PyJWKClientError as exc:
+        # No se distingue del token inválido hacia afuera: que el JWKS no
+        # responda o no tenga el `kid` no es algo que el cliente pueda
+        # arreglar, y detallarlo solo daría pistas de la infraestructura.
+        raise _no_autorizado("Token inválido.") from exc
+
+
 async def contexto_actual(
     credenciales: Annotated[HTTPAuthorizationCredentials, Depends(_bearer)],
     cfg: Annotated[Config, Depends(obtener_config)],
@@ -43,8 +77,8 @@ async def contexto_actual(
     try:
         claims = jwt.decode(
             credenciales.credentials,
-            cfg.jwt_secret,
-            algorithms=[cfg.jwt_algoritmo],
+            _llave_de_verificacion(credenciales.credentials, cfg),
+            algorithms=cfg.jwt_algoritmos,
             audience=cfg.jwt_audiencia,
         )
     except jwt.ExpiredSignatureError as exc:
