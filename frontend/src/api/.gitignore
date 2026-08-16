@@ -1,2 +1,10 @@
-# Artefacto de Orval: se regenera desde openapi.json (§12.8)
-generado/
+# `generado/` SÍ se versiona (§12.8).
+#
+# Es artefacto de Orval —no se edita a mano—, pero se commitea porque el
+# despliegue lo necesita: Vercel construye con Root Directory = `frontend/`,
+# así que `../openapi/openapi.json` no llega al build y regenerarlo ahí es
+# imposible. Versionarlo también garantiza que se despliega exactamente el
+# cliente que se verificó en local.
+#
+# Al cambiar el contrato: `npm run api:generar` y commitear el resultado
+# junto con `openapi/openapi.json`.
