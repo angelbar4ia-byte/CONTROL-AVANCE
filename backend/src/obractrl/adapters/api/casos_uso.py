@@ -19,13 +19,19 @@ from obractrl.adapters.api.dependencias import SesionRLS
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
+from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
 from obractrl.adapters.repos.evaluaciones_sql import RepositorioEvaluacionesSQL
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
+from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
+from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
+from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
+    GenerarObraDesdePrototipo,
+)
 from obractrl.application.casos_uso.gestionar_cierre import (
     AutorizarCierre,
     RechazarCierre,
@@ -48,17 +54,34 @@ from obractrl.application.casos_uso.gestionar_incidencia import (
     RechazarIncidencia,
     RegistrarEventoIncidencia,
 )
+from obractrl.application.casos_uso.gestionar_obra import (
+    ActualizarObra,
+    CrearObra,
+    CrearObrasEnLote,
+)
+from obractrl.application.casos_uso.gestionar_proyecto import (
+    CrearCluster,
+    CrearPrototipo,
+    CrearProyecto,
+)
 from obractrl.application.casos_uso.registrar_salida_almacen import RegistrarSalidaAlmacen
 
 __all__ = [
     "AbrirIncidenciaDep",
+    "ActualizarObraDep",
     "AgregarRespuestasDep",
     "AutorizarCierreDep",
     "CapturarAvanceDep",
     "CerrarIncidenciaDep",
+    "CrearClusterDep",
     "CrearEvaluacionDep",
+    "CrearObraDep",
+    "CrearObrasEnLoteDep",
+    "CrearPrototipoDep",
+    "CrearProyectoDep",
     "EnviarEstimacionDep",
     "GenerarEstimacionDep",
+    "GenerarObraDesdePrototipoDep",
     "ProgramarIncidenciaDep",
     "RechazarCierreDep",
     "RechazarIncidenciaDep",
@@ -224,3 +247,68 @@ def obtener_agregar_respuestas(sesion: SesionRLS) -> AgregarRespuestas:
 
 CrearEvaluacionDep = Annotated[CrearEvaluacion, Depends(obtener_crear_evaluacion)]
 AgregarRespuestasDep = Annotated[AgregarRespuestas, Depends(obtener_agregar_respuestas)]
+
+
+# --- Proyecto · Obra (§11.2) --------------------------------------------
+
+
+def obtener_crear_proyecto(sesion: SesionRLS) -> CrearProyecto:
+    return CrearProyecto(
+        proyectos=RepositorioProyectosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_crear_cluster(sesion: SesionRLS) -> CrearCluster:
+    return CrearCluster(
+        clusters=RepositorioClustersSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_crear_prototipo(sesion: SesionRLS) -> CrearPrototipo:
+    return CrearPrototipo(
+        prototipos=RepositorioPrototiposSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+CrearProyectoDep = Annotated[CrearProyecto, Depends(obtener_crear_proyecto)]
+CrearClusterDep = Annotated[CrearCluster, Depends(obtener_crear_cluster)]
+CrearPrototipoDep = Annotated[CrearPrototipo, Depends(obtener_crear_prototipo)]
+
+
+def obtener_crear_obra(sesion: SesionRLS) -> CrearObra:
+    return CrearObra(
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_crear_obras_en_lote(sesion: SesionRLS) -> CrearObrasEnLote:
+    return CrearObrasEnLote(
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_actualizar_obra(sesion: SesionRLS) -> ActualizarObra:
+    return ActualizarObra(
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_generar_obra(sesion: SesionRLS) -> GenerarObraDesdePrototipo:
+    return GenerarObraDesdePrototipo(
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+CrearObraDep = Annotated[CrearObra, Depends(obtener_crear_obra)]
+CrearObrasEnLoteDep = Annotated[CrearObrasEnLote, Depends(obtener_crear_obras_en_lote)]
+ActualizarObraDep = Annotated[ActualizarObra, Depends(obtener_actualizar_obra)]
+GenerarObraDesdePrototipoDep = Annotated[
+    GenerarObraDesdePrototipo, Depends(obtener_generar_obra)
+]

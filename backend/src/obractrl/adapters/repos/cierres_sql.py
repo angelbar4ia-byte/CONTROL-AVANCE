@@ -132,7 +132,12 @@ class RepositorioCierresSQL:
                     f"""
                     select {_COLUMNAS}
                     from solicitud_cierre
-                    where :estatus is null or estatus = cast(:estatus as estatus_solicitud_cierre)
+                    -- El cast del lado `is null` no es decorativo: sin él
+                    -- asyncpg no puede inferir el tipo del parámetro (aparece
+                    -- dos veces y ninguna lo fija) y falla con
+                    -- AmbiguousParameterError antes de tocar la tabla.
+                    where cast(:estatus as estatus_solicitud_cierre) is null
+                       or estatus = cast(:estatus as estatus_solicitud_cierre)
                     order by fecha_solicitud desc
                     """
                 ),

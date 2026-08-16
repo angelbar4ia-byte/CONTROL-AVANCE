@@ -73,10 +73,14 @@ async def capturar_avance(
     ctx: ContextoActual,
     caso_uso: CapturarAvanceDep,
 ) -> AvanceRespuesta:
-    """Captura el avance ejecutado de una actividad (§11.3 B).
+    """Captura el avance ejecutado de una actividad (§11.3 B) — **ruta web**.
 
-    La ruta web y la conciliación offline del móvil pasan por el mismo caso de
-    uso, para que ambas apliquen exactamente las mismas reglas.
+    El móvil **no** pasa por aquí: su conciliación offline escribe directo a
+    Postgres vía PowerSync, con RLS como única frontera (§11.3 B). Allá el
+    total lo deriva el trigger `app.registro_avance_agregar` (migración 0017)
+    a partir de la bitácora `registro_avance`; acá lo escribe este caso de
+    uso. Las reglas del §6 son las mismas en ambas rutas porque las garantiza
+    también la BD (CHECKs de la migración 0007).
     """
     resultado = await caso_uso.ejecutar(
         ComandoCapturarAvance(

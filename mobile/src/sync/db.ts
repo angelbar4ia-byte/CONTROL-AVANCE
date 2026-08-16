@@ -4,14 +4,13 @@
  * Spec §12.5. Solo abre la base local: la app lee/escribe contra SQLite sin
  * esperar red (§6, §12.5). `esquemaLocal` viene de `./powersync.ts`.
  *
- * NOTA de alcance: conectar esta instancia al servicio de PowerSync
- * (`db.connect(connector)`) requiere un `PowerSyncBackendConnector` que
- * resuelva credenciales/token contra el backend y suba la cola de CRUD
- * (§12.4) — eso es un paso de infraestructura aparte (endpoint de token,
- * URL del servicio PowerSync) que no está definido en el alcance de esta
- * pantalla. Mientras `connect()` no se llame, las escrituras locales quedan
- * en la cola de subida (`getCrudBatch`/`getNextCrudTransaction`) y se
- * sincronizan en cuanto algún conector futuro conecte esta misma `db`.
+ * Quién la conecta: `ProveedorSync.tsx`, mientras haya sesión y esté
+ * configurada `EXPO_PUBLIC_POWERSYNC_URL`, usando el conector de
+ * `conector.ts`. Si esa URL no está configurada, `connect()` no se llama y
+ * la app trabaja **solo local**: las escrituras se acumulan en la cola de
+ * subida (`getNextCrudTransaction`) y suben en cuanto exista la URL. El
+ * indicador de sync lo dice explícitamente (`sin-configurar`), no se
+ * disimula.
  */
 import { PowerSyncDatabase } from '@powersync/react-native';
 

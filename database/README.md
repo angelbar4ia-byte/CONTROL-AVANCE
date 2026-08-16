@@ -45,6 +45,8 @@ database/
 | `0012_rls_policies` | Políticas por tabla |
 | `0013_calendario_generador` | Materializa la base temporal (§3.1) |
 | `0014_roles_y_grants` | Roles `anon` / `authenticated` / `obractrl_api` |
+| `0015_auth_hook` | Claims de `org_id` y `rol` en el JWT de Supabase (§12.4) |
+| `0016_autoasignacion_control_proyecto` | Quien crea un proyecto queda asignado a él (§4) |
 
 ## Dos decisiones que conviene no romper
 
@@ -60,6 +62,15 @@ predicado de lectura y el de escritura son idénticos.
 Una función `STABLE` usa el snapshot del inicio de la sentencia y no ve la fila
 nueva. Por eso el alta de `obra` se valida contra el **cluster destino**
 (`app.cluster_en_alcance`) y no contra `app.obra_visible(id)`.
+
+De ahí sale un corolario que costó una migración (`0016`): **`INSERT ...
+RETURNING` también pasa por la política de `SELECT`**, así que una tabla cuyo
+`SELECT` se apoya en una función `STABLE` que la consulta a *ella misma*
+(`proyecto` con `app.proyecto_visible(id)`, `obra` con `app.obra_visible(id)`)
+no puede devolver su propia fila recién insertada. Por eso los repos de
+`proyecto` y `obra` generan el uuid en Python y leen después, en otra
+sentencia. Y por eso `control_obra` necesitaba el trigger de la `0016`: sin él
+creaba proyectos que no volvía a ver.
 
 **3. `obractrl_api` tiene `LOGIN` pero nace sin contraseña.**
 Es el único rol de aplicación al que algo se conecta *directamente* (el

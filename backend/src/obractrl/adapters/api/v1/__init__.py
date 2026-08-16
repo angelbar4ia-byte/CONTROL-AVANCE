@@ -18,10 +18,14 @@ from obractrl.adapters.api.v1.evaluaciones import router as router_evaluaciones
 from obractrl.adapters.api.v1.identidad import router as router_identidad
 from obractrl.adapters.api.v1.incidencias import router as router_incidencias
 from obractrl.adapters.api.v1.materiales import router as router_materiales
+from obractrl.adapters.api.v1.obras import router as router_obras
+from obractrl.adapters.api.v1.proyectos import router as router_proyectos
 
 api_v1 = APIRouter()
 
 api_v1.include_router(router_identidad)
+api_v1.include_router(router_proyectos)
+api_v1.include_router(router_obras)
 api_v1.include_router(router_avance)
 api_v1.include_router(router_cierres)
 api_v1.include_router(router_estimacion)
@@ -30,5 +34,5 @@ api_v1.include_router(router_incidencias)
 api_v1.include_router(router_evaluaciones)
 
 # Pendientes de implementar (§11.2). Cada uno es un módulo con su fachada:
-#   proyectos · catalogos · programacion · cargas · expediente · reportes
+#   catalogos · programacion · cargas · expediente · reportes
 __all__ = ["api_v1"]

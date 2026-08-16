@@ -104,15 +104,17 @@ class CapturarAvance:
             estatus_actual=estatus_actual,
         )
 
-        delta = cmd.cant_ejecutada - Decimal(str(actividad["cant_ejecutada"]))
+        # El delta sale de lo que el dominio VALIDÓ, no de lo que pidió el
+        # cliente: es lo que se persiste, y la bitácora tiene que sumar
+        # exactamente el total (D5 — `registro_avance` es la única fuente de
+        # `cant_ejecutada`).
+        delta = resultado.cant_ejecutada - Decimal(str(actividad["cant_ejecutada"]))
 
         async with self._uow:
             try:
                 await self._actividades.actualizar_avance(
                     cmd.actividad_id,
                     cant_programada=resultado.cant_programada,
-                    cant_ejecutada=resultado.cant_ejecutada,
-                    avance_pct=resultado.avance.pct,
                     estatus=resultado.estatus.value,
                 )
             except RegistroNoEncontrado as exc:

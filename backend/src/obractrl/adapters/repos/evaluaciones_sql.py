@@ -172,8 +172,11 @@ class RepositorioEvaluacionesSQL:
                     f"""
                     select {_COLUMNAS}
                     from evaluacion
-                    where (:nivel is null or nivel = cast(:nivel as nivel_evaluacion))
-                      and (:sujeto_tipo is null
+                    -- El cast del lado `is null` fija el tipo del parámetro;
+                    -- sin él asyncpg levanta AmbiguousParameterError.
+                    where (cast(:nivel as nivel_evaluacion) is null
+                           or nivel = cast(:nivel as nivel_evaluacion))
+                      and (cast(:sujeto_tipo as sujeto_evaluacion) is null
                            or sujeto_tipo = cast(:sujeto_tipo as sujeto_evaluacion))
                     order by created_at desc
                     """
@@ -196,7 +199,7 @@ class RepositorioEvaluacionesSQL:
                     select id, aplica_a, clave, nombre, peso, estatus
                     from criterio_evaluacion
                     where estatus = 'activo'
-                      and (:aplica_a is null
+                      and (cast(:aplica_a as sujeto_evaluacion) is null
                            or aplica_a = cast(:aplica_a as sujeto_evaluacion))
                     order by aplica_a, nombre
                     """

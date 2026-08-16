@@ -54,17 +54,23 @@ async def test_obtener_no_ve_actividades_de_otra_org(
 async def test_actualizar_avance_persiste_y_el_trigger_coincide(
     escenario: Escenario, contexto_residente: ContextoSesion
 ) -> None:
-    """El repo escribe lo que el dominio calculó; el trigger de la BD lo
-    recalcula independiente y debe llegar al mismo número —si no coincide,
-    la corrección de §6 (tope/umbral fijos, no configurables) se rompió."""
+    """El repo escribe la cantidad programada; `cant_ejecutada` llega por la
+    bitácora (D5) y los triggers derivan `avance_pct` y el auto-estatus. Si el
+    número no coincide, la corrección de §6 (tope/umbral fijos, no
+    configurables) se rompió."""
     async with sesion_con_rls(contexto_residente) as sesion:
         repo = RepositorioActividadesSQL(sesion)
         await repo.actualizar_avance(
             escenario.actividad_id,
             cant_programada=Decimal("100"),
-            cant_ejecutada=Decimal("95"),
-            avance_pct=Decimal("95.00"),
             estatus="casi",
+        )
+        await repo.registrar_captura(
+            escenario.actividad_id,
+            fecha=date.today(),
+            delta_ejecutado=Decimal("95"),
+            usuario_id=contexto_residente.usuario_id,
+            evidencias=[],
         )
         await sesion.commit()
 
@@ -94,8 +100,6 @@ async def test_actualizar_avance_actividad_inexistente_levanta(
             await repo.actualizar_avance(
                 uuid.uuid4(),
                 cant_programada=Decimal("1"),
-                cant_ejecutada=Decimal("1"),
-                avance_pct=Decimal("100"),
                 estatus="concluida",
             )
 

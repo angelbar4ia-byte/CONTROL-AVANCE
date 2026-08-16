@@ -8,17 +8,31 @@
  */
 
 import { useState } from 'react';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 
 import { iniciarSesion } from '@/lib/auth';
+import { useSesion } from '@/lib/sesion';
 import { TOKENS } from '@/lib/tabs';
 
 export default function Login() {
+  const { sesion, cargando } = useSesion();
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // La sesión se persiste en el dispositivo (`lib/supabase.ts`): al abrir la
+  // app en campo, sin red, no se vuelve a pedir contraseña (§12.5).
+  if (cargando) {
+    return (
+      <View className="flex-1 items-center justify-center bg-bg">
+        <ActivityIndicator color={TOKENS.accent} />
+      </View>
+    );
+  }
+
+  if (sesion) return <Redirect href="/" />;
 
   async function enviar() {
     if (enviando) return;

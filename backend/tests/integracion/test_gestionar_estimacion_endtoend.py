@@ -34,6 +34,7 @@ from obractrl.application.casos_uso.gestionar_estimacion import (
     ValidarEstimacion,
 )
 from obractrl.domain.shared.diccionario import ModoPago, Rol
+from obractrl.domain.shared.valores import Dinero
 from obractrl.infrastructure.db.sesion import ContextoSesion, sesion_con_rls
 from tests.integracion.conftest import DATABASE_URL_ADMIN, Escenario
 
@@ -125,7 +126,9 @@ async def test_generar_toma_solo_las_actividades_del_modo_pedido(
 
     assert creada.estimacion.semana == semana
     assert creada.estimacion.anio == anio
-    assert creada.estimacion.monto_total == Decimal("1200")  # 10 * 120 (destajo)
+    # `monto_total` es un `Dinero` (DECIMAL + MXN, §11.1), no un Decimal
+    # suelto: compararlo contra uno crudo siempre da falso.
+    assert creada.estimacion.monto_total == Dinero("1200")  # 10 * 120 (destajo)
     assert len(creada.estimacion.conceptos) == 1
 
     admin = create_async_engine(DATABASE_URL_ADMIN)

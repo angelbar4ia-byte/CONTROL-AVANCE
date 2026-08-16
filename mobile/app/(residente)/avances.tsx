@@ -4,16 +4,18 @@
  * Offline-first: lee y escribe directo contra la réplica SQLite local de
  * PowerSync (`usePowerSync`/`useQuery`), nunca contra la API HTTP. El sync
  * hacia Postgres lo hace PowerSync solo, en background, cuando hay
- * conexión (`src/sync/db.ts`).
+ * conexión (`src/sync/conector.ts`).
  *
  * Los topes de §6 se validan aquí mismo, antes de escribir a SQLite, con
  * las mismas fórmulas que el backend
  * (`backend/src/obractrl/domain/avance/reglas.py`), portadas en
- * `src/lib/reglasAvance.ts`. Un rechazo de regla se muestra en la UI, nunca
- * falla en silencio.
+ * `src/lib/reglasAvance.ts`. Es un **reflejo para UX**: la autoridad sigue
+ * siendo el servidor cuando el registro sincroniza (§11.1). Un rechazo de
+ * regla se muestra en la UI, nunca falla en silencio.
  */
 
 import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   ActivityIndicator,
   FlatList,
@@ -34,6 +36,9 @@ import {
 } from '@/lib/reglasAvance';
 import { useSesion } from '@/lib/sesion';
 import { TOKENS } from '@/lib/tabs';
+import { Barra } from '@/ui/Barra';
+import { Encabezado } from '@/ui/Encabezado';
+import { Estatus } from '@/ui/Estatus';
 
 interface FilaActividad {
   id: string;
@@ -43,59 +48,54 @@ interface FilaActividad {
   cant_ejecutada: number;
   avance_pct: number;
   estatus: string;
+  bloqueada: number | null;
   org_id: string;
   obra_clave: string | null;
+  sin_subir: number;
 }
 
-const ETIQUETA_ESTATUS: Record<string, string> = {
-  programada: 'Programada',
-  en_proceso: 'En proceso',
-  casi: 'Casi lista',
-  pendiente_cierre: 'Cierre pendiente',
-  concluida: 'Concluida',
-  retrasada: 'Retrasada',
-  extra_catalogo: 'Extra-catálogo',
-};
-
-/** Color por estatus, reusando los tokens del sistema de diseño (§12.10). */
-function estiloEstatus(estatus: string): { bg: string; texto: string } {
-  switch (estatus) {
-    case 'concluida':
-      return { bg: 'bg-ok-soft', texto: 'text-ok' };
-    case 'retrasada':
-      return { bg: 'bg-danger-soft', texto: 'text-danger' };
-    case 'casi':
-      return { bg: 'bg-warn-soft', texto: 'text-warn' };
-    case 'pendiente_cierre':
-      return { bg: 'bg-info-soft', texto: 'text-info' };
-    case 'en_proceso':
-      return { bg: 'bg-accent-soft', texto: 'text-accent' };
-    default:
-      return { bg: 'bg-elev', texto: 'text-text-mute' };
-  }
-}
+/**
+ * `(? IS NULL OR ...)` con el mismo valor dos veces: SQLite posicional no
+ * reusa parámetros, y así la pantalla sirve igual filtrada por obra que
+ * completa, sin dos consultas distintas.
+ */
+const CONSULTA = `
+  SELECT a.id, a.descripcion, a.cant_base, a.cant_programada, a.cant_ejecutada,
+         a.avance_pct, a.estatus, a.bloqueada, a.org_id, o.clave AS obra_clave,
+         (SELECT COUNT(*) FROM registro_avance r
+           WHERE r.actividad_id = a.id AND r.sync_status = 'pendiente') AS sin_subir
+    FROM actividad a
+    LEFT JOIN obra o ON o.id = a.obra_id
+   WHERE a.estatus != 'concluida'
+     AND (? IS NULL OR a.obra_id = ?)
+   ORDER BY (a.estatus = 'retrasada') DESC, a.fecha_inicio ASC
+`;
 
 export default function Pantalla() {
   const { sesion } = useSesion();
   const db = usePowerSync();
 
-  const { data: actividades, isLoading } = useQuery<FilaActividad>(
-    `SELECT a.id, a.descripcion, a.cant_base, a.cant_programada, a.cant_ejecutada,
-            a.avance_pct, a.estatus, a.org_id, o.clave AS obra_clave
-       FROM actividad a
-       LEFT JOIN obra o ON o.id = a.obra_id
-      WHERE a.estatus != 'concluida'
-      ORDER BY (a.estatus = 'retrasada') DESC, a.fecha_inicio ASC`,
-  );
+  const { obraId, obraClave } = useLocalSearchParams<{
+    obraId?: string;
+    obraClave?: string;
+  }>();
+  const filtroObra = obraId ?? null;
+
+  const { data: actividades, isLoading } = useQuery<FilaActividad>(CONSULTA, [
+    filtroObra,
+    filtroObra,
+  ]);
 
   const [seleccionada, setSeleccionada] = useState<FilaActividad | null>(null);
   const [delta, setDelta] = useState('');
+  const [comentario, setComentario] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
   function abrirCaptura(actividad: FilaActividad) {
     setSeleccionada(actividad);
     setDelta('');
+    setComentario('');
     setError(null);
   }
 
@@ -153,8 +153,8 @@ export default function Pantalla() {
             ahora.slice(0, 10),
             deltaNum,
             sesion.usuarioId,
-            '',
-            '',
+            '[]',
+            comentario.trim(),
             'pendiente',
             deviceId,
             ahora,
@@ -162,9 +162,9 @@ export default function Pantalla() {
         );
 
         // Reflejo local optimista: el total canónico lo recalcula el
-        // servidor sumando los deltas (estatus "servidor-manda" en
-        // sync/powersync.ts); esto solo evita que la pantalla se vea
-        // desactualizada mientras no ha sincronizado.
+        // servidor (estatus "servidor-manda" en sync/powersync.ts, y por eso
+        // `actividad` no se sube en sync/conector.ts); esto solo evita que
+        // la pantalla se vea desactualizada mientras no ha sincronizado.
         await tx.execute(
           `UPDATE actividad
               SET cant_ejecutada = ?, avance_pct = ?, estatus = ?
@@ -183,8 +183,20 @@ export default function Pantalla() {
 
   return (
     <View className="flex-1 bg-bg px-5 pt-14">
-      <Text className="text-2xl text-text">Avances</Text>
-      <Text className="mt-2 text-md text-text-mute">Captura offline; se sincroniza al reconectar (§12.5).</Text>
+      <Encabezado
+        eyebrow={obraClave ? `Obra ${obraClave}` : 'Todas mis obras'}
+        titulo="Avances"
+        descripcion="Captura sin señal; se sincroniza al reconectar (§12.5)."
+      />
+
+      {filtroObra ? (
+        <Pressable
+          onPress={() => router.replace('/(residente)/avances')}
+          className="mb-3 self-start rounded-full border border-line bg-surface px-3 py-1 active:opacity-70"
+        >
+          <Text className="text-xs text-text-soft">Quitar filtro de obra</Text>
+        </Pressable>
+      ) : null}
 
       {isLoading ? (
         <View className="mt-10 items-center">
@@ -192,52 +204,61 @@ export default function Pantalla() {
         </View>
       ) : (
         <FlatList
-          className="mt-4"
           data={actividades}
           keyExtractor={(item) => item.id}
           ListEmptyComponent={
             <Text className="mt-8 text-md text-text-mute">No hay actividades pendientes de captura.</Text>
           }
-          renderItem={({ item }) => {
-            const estilo = estiloEstatus(item.estatus);
-            return (
-              <Pressable
-                onPress={() => abrirCaptura(item)}
-                className="mb-3 rounded-lg border border-line bg-surface p-4 active:opacity-70"
-              >
-                <View className="flex-row items-start justify-between">
-                  <View className="flex-1 pr-3">
-                    {item.obra_clave ? (
-                      <Text className="text-xs text-text-faint">{item.obra_clave}</Text>
-                    ) : null}
-                    <Text className="text-base text-text">{item.descripcion}</Text>
-                  </View>
-                  <View className={`rounded-full px-2 py-1 ${estilo.bg}`}>
-                    <Text className={`text-xs ${estilo.texto}`}>
-                      {ETIQUETA_ESTATUS[item.estatus] ?? item.estatus}
-                    </Text>
-                  </View>
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => abrirCaptura(item)}
+              disabled={item.bloqueada === 1}
+              className="mb-3 rounded-lg border border-line bg-surface p-4 active:opacity-70 disabled:opacity-50"
+            >
+              <View className="flex-row items-start justify-between">
+                <View className="flex-1 pr-3">
+                  {item.obra_clave ? (
+                    <Text className="font-mono text-xs text-text-faint">{item.obra_clave}</Text>
+                  ) : null}
+                  <Text className="text-base text-text">{item.descripcion}</Text>
                 </View>
+                <Estatus valor={item.estatus} />
+              </View>
 
-                <View className="mt-3 flex-row items-center justify-between">
-                  <Text className="text-sm text-text-mute">
-                    {item.cant_ejecutada} / {item.cant_programada} (base {item.cant_base})
-                  </Text>
-                  <Text className="text-sm font-medium text-text">{item.avance_pct}%</Text>
-                </View>
-              </Pressable>
-            );
-          }}
+              <View className="mt-3">
+                <Barra pct={item.avance_pct} />
+              </View>
+
+              <View className="mt-2 flex-row items-center justify-between">
+                <Text className="font-mono text-sm text-text-mute">
+                  {item.cant_ejecutada} / {item.cant_programada} (base {item.cant_base})
+                </Text>
+                <Text className="font-mono text-sm text-text">{item.avance_pct}%</Text>
+              </View>
+
+              {item.bloqueada === 1 ? (
+                <Text className="mt-2 text-xs text-danger">
+                  Bloqueada por una incidencia que detiene la obra (§6).
+                </Text>
+              ) : null}
+
+              {item.sin_subir > 0 ? (
+                <Text className="mt-2 text-xs text-warn">
+                  {item.sin_subir} captura{item.sin_subir === 1 ? '' : 's'} sin subir
+                </Text>
+              ) : null}
+            </Pressable>
+          )}
         />
       )}
 
       <Modal visible={seleccionada !== null} transparent animationType="fade" onRequestClose={cerrarCaptura}>
-        <View className="flex-1 items-center justify-center bg-black/40 px-6">
+        <View className="flex-1 items-center justify-center bg-scrim px-6">
           <View className="w-full rounded-lg bg-surface p-5">
             {seleccionada ? (
               <>
                 <Text className="text-lg text-text">{seleccionada.descripcion}</Text>
-                <Text className="mt-1 text-sm text-text-mute">
+                <Text className="mt-1 font-mono text-sm text-text-mute">
                   Ejecutado: {seleccionada.cant_ejecutada} · Programado: {seleccionada.cant_programada} · Base:{' '}
                   {seleccionada.cant_base}
                 </Text>
@@ -251,7 +272,19 @@ export default function Pantalla() {
                   placeholderTextColor={TOKENS.textMute}
                   editable={!guardando}
                   autoFocus
-                  className="h-fila rounded-md border border-line bg-bg px-3 text-base text-text"
+                  className="h-fila rounded-md border border-line bg-bg px-3 font-mono text-base text-text"
+                />
+
+                <Text className="mb-1 mt-3 text-sm text-text-soft">Comentario (opcional)</Text>
+                <TextInput
+                  value={comentario}
+                  onChangeText={setComentario}
+                  placeholder="Nota para la bitácora"
+                  placeholderTextColor={TOKENS.textMute}
+                  editable={!guardando}
+                  multiline
+                  numberOfLines={3}
+                  className="rounded-md border border-line bg-bg px-3 py-3 text-base text-text"
                 />
 
                 {error ? <Text className="mt-2 text-sm text-danger">{error}</Text> : null}

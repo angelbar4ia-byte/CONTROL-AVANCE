@@ -63,12 +63,18 @@ async def _solicitar(ctx: ContextoSesion, escenario: Escenario) -> uuid.UUID:
 
 
 async def _autorizar(ctx: ContextoSesion, cierre_id: uuid.UUID, usuario_id: uuid.UUID) -> None:
+    # El rol sale del contexto, no fijo: si se codificara `Rol.SUPERVISOR`
+    # aquí, el caso negativo (`test_control_no_puede_autorizar`) autorizaría
+    # como supervisor sin importar con qué identidad se llame, y pasaría por
+    # la razón equivocada.
     async with sesion_con_rls(ctx) as sesion:
         caso_uso = AutorizarCierre(
             cierres=RepositorioCierresSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
         )
         await caso_uso.ejecutar(
-            ComandoAutorizarCierre(cierre_id=cierre_id, usuario_id=usuario_id, rol=Rol.SUPERVISOR)
+            ComandoAutorizarCierre(
+                cierre_id=cierre_id, usuario_id=usuario_id, rol=Rol(ctx.rol)
+            )
         )
 
 
@@ -81,7 +87,7 @@ async def _validar(ctx: ContextoSesion, cierre_id: uuid.UUID, usuario_id: uuid.U
         )
         await caso_uso.ejecutar(
             ComandoValidarCierre(
-                cierre_id=cierre_id, usuario_id=usuario_id, rol=Rol.CONTROL_OBRA, comentario="Ok"
+                cierre_id=cierre_id, usuario_id=usuario_id, rol=Rol(ctx.rol), comentario="Ok"
             )
         )
 

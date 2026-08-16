@@ -1,10 +1,15 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+
+import { Encabezado } from '@/ui/Encabezado';
 
 export default function Pantalla() {
   return (
     <View className="flex-1 bg-bg px-5 pt-14">
-      <Text className="text-2xl text-text">Mis incidencias</Text>
-      <Text className="mt-2 text-md text-text-mute">Reporte de incidencias con evidencias (§6).</Text>
+      <Encabezado
+        eyebrow="Residente"
+        titulo="Mis incidencias"
+        descripcion="Reporte de incidencias con evidencias (§6)."
+      />
     </View>
   );
 }

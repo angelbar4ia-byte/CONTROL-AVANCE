@@ -49,6 +49,13 @@ module.exports = {
         fg: 'oklch(98% 0.005 255)',
       },
 
+      // Velo de modal/sheet — mismo valor que `.scrim` del CSS web.
+      // Sin esto habría que escribir `bg-black/40`, y `black` no existe en
+      // esta paleta (aquí `theme.colors` sustituye la de Tailwind, no la
+      // extiende): la clase se caería en silencio y el modal quedaría sin
+      // velo. DESIGN_SYSTEM.md §5, regla 1: cero colores crudos.
+      scrim: 'oklch(20% 0.012 255 / 0.30)',
+
       ok: { DEFAULT: 'oklch(58% 0.12 155)', soft: 'oklch(94% 0.045 155)' },
       warn: { DEFAULT: 'oklch(72% 0.13 75)', soft: 'oklch(95% 0.05 75)' },
       danger: { DEFAULT: 'oklch(58% 0.18 25)', soft: 'oklch(94% 0.045 25)' },

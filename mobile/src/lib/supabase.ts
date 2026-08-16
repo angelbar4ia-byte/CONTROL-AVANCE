@@ -13,9 +13,10 @@
  * con la sesión guardada (§12.5): `getSession()` resuelve desde el storage
  * local sin esperar respuesta del servidor.
  */
-import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { createClient, type SupportedStorage } from '@supabase/supabase-js';
+
+import { CLAVE_ANON_SUPABASE, URL_SUPABASE } from './entorno';
 
 const storageAdapter: SupportedStorage = {
   getItem: (clave: string) => SecureStore.getItemAsync(clave),
@@ -23,14 +24,7 @@ const storageAdapter: SupportedStorage = {
   removeItem: (clave: string) => SecureStore.deleteItemAsync(clave),
 };
 
-const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, unknown>;
-
-const supabaseUrl =
-  (extra.supabaseUrl as string | undefined) || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey =
-  (extra.supabaseAnonKey as string | undefined) || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!URL_SUPABASE || !CLAVE_ANON_SUPABASE) {
   // No se lanza: permite que `tsc`/tests corran sin credenciales reales.
   // En un dispositivo real sin estas variables, el login fallará con un
   // error de red claro en vez de silencioso.
@@ -40,7 +34,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(URL_SUPABASE, CLAVE_ANON_SUPABASE, {
   auth: {
     storage: storageAdapter,
     autoRefreshToken: true,

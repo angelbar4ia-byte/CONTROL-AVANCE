@@ -20,6 +20,8 @@ import { useEnLinea } from '@/lib/useEnLinea';
 import Avances from '@/avance/Avances';
 import Cierres from '@/cierres/Cierres';
 import Estimacion from '@/estimacion/Estimacion';
+import Obras from '@/proyectos/Obras';
+import Frentes from '@/proyectos/Frentes';
 
 export function App() {
   return (
@@ -63,6 +65,14 @@ function Rutas() {
           }
         />
         {/* Las features se registran aquí conforme se implementan. */}
+        {/* Proyecto → Cluster → Obra: una sola pantalla montada en la ruta
+            que cada rol trae en su sidebar (§5.1, §5.3) — "Mis obras" y
+            "Obras supervisadas" (R, S), "Creador de obra" (C) y "Avance de
+            proyecto" (SI). */}
+        <Route path="/obras" element={<Obras />} />
+        <Route path="/config/creador-obra" element={<Obras />} />
+        <Route path="/avance-proyecto" element={<Obras />} />
+        <Route path="/frentes" element={<Frentes />} />
         <Route path="/avances" element={<Avances />} />
         <Route path="/cierres" element={<Cierres />} />
         <Route path="/estimacion" element={<Estimacion />} />

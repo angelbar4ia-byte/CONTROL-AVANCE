@@ -23,6 +23,7 @@ from obractrl.application.casos_uso.capturar_avance import (
     ActividadBloqueada,
     ActividadNoEncontrada,
 )
+from obractrl.application.casos_uso.generar_obra_desde_prototipo import ObraNoEncontrada
 from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEncontrada
 from obractrl.application.casos_uso.gestionar_estimacion import EstimacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_evaluacion import EvaluacionNoEncontrada
@@ -36,7 +37,10 @@ from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
 from obractrl.domain.evaluaciones.reglas import ErrorDeEvaluacion
 from obractrl.domain.incidencias.reglas import ErrorDeIncidencia
 from obractrl.domain.materiales.reglas import ErrorDeMaterial
+from obractrl.domain.obras.generacion import ErrorDeGeneracion
+from obractrl.domain.obras.reglas import ErrorDeObra, TransicionDeObraInvalida
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
+from obractrl.domain.proyectos.reglas import ErrorDeProyecto
 from obractrl.infrastructure.config import obtener_config
 from obractrl.infrastructure.db.sesion import cerrar_engine
 
@@ -266,6 +270,70 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="incidencia-no-encontrada",
             titulo="Incidencia no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeProyecto)
+    async def _proyecto(request: Request, exc: ErrorDeProyecto) -> JSONResponse:
+        # 422 como `ErrorDeCaptura`: es una invariante de datos de alta
+        # (clave vacía, fechas invertidas…), no una transición de flujo.
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-proyecto",
+            titulo="Datos de proyecto inválidos",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeObra)
+    async def _obra(request: Request, exc: ErrorDeObra) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-obra",
+            titulo="Datos de obra inválidos",
+            detalle=str(exc),
+        )
+
+    # Starlette resuelve el manejador recorriendo el MRO de la excepción, así
+    # que estas dos subclases de `ErrorDeObra` ganan sobre el 422 de arriba:
+    # no son datos malos del usuario sino una precondición de negocio (§11.3
+    # A y D), y eso es un 409 —mismo criterio que `ErrorDeEstimacion`.
+    @app.exception_handler(TransicionDeObraInvalida)
+    async def _transicion_obra(
+        request: Request, exc: TransicionDeObraInvalida
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="flujo-de-obra",
+            titulo="Operación no permitida sobre la obra",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeGeneracion)
+    async def _generacion_obra(
+        request: Request, exc: ErrorDeGeneracion
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="generacion-de-obra",
+            titulo="La obra no se puede generar desde su prototipo",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ObraNoEncontrada)
+    async def _obra_no_encontrada(
+        request: Request, exc: ObraNoEncontrada
+    ) -> JSONResponse:
+        # Mismo tratamiento que ActividadNoEncontrada: RLS hace indistinguible
+        # "no existe" de "no la puedes ver" a propósito (§12.4).
+        return _problema(
+            request,
+            status=404,
+            tipo="obra-no-encontrada",
+            titulo="Obra no encontrada",
             detalle=str(exc),
         )
 

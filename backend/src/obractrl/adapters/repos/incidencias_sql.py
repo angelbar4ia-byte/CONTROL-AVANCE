@@ -172,7 +172,10 @@ class RepositorioIncidenciasSQL:
                     f"""
                     select {_COLUMNAS}
                     from incidencia
-                    where :estatus is null or estatus = cast(:estatus as estatus_incidencia)
+                    -- El cast del lado `is null` fija el tipo del parámetro;
+                    -- sin él asyncpg levanta AmbiguousParameterError.
+                    where cast(:estatus as estatus_incidencia) is null
+                       or estatus = cast(:estatus as estatus_incidencia)
                     order by fecha_creada desc
                     """
                 ),
