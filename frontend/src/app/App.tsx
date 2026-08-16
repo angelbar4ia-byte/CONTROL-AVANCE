@@ -22,6 +22,7 @@ import Cierres from '@/cierres/Cierres';
 import Estimacion from '@/estimacion/Estimacion';
 import Obras from '@/proyectos/Obras';
 import Frentes from '@/proyectos/Frentes';
+import Catalogos from '@/catalogos/Catalogos';
 
 export function App() {
   return (
@@ -73,6 +74,11 @@ function Rutas() {
         <Route path="/config/creador-obra" element={<Obras />} />
         <Route path="/avance-proyecto" element={<Obras />} />
         <Route path="/frentes" element={<Frentes />} />
+        {/* Catálogos · APU: el bloque es de Control de obra (§11.2) y su
+            sidebar lo trae en Configuración → "Catálogos" (§5.1). El Super
+            intendente puede leer el APU pero no tiene la entrada en su
+            sidebar, así que no se monta una ruta que nada apunte. */}
+        <Route path="/config/catalogos" element={<Catalogos />} />
         <Route path="/avances" element={<Avances />} />
         <Route path="/cierres" element={<Cierres />} />
         <Route path="/estimacion" element={<Estimacion />} />

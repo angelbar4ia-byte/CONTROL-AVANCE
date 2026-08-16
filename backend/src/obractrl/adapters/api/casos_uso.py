@@ -20,17 +20,34 @@ from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
+from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
+from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
 from obractrl.adapters.repos.evaluaciones_sql import RepositorioEvaluacionesSQL
+from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
+from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
 from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
+from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
+from obractrl.application.casos_uso.calcular_cpu import (
+    ExplotarConcepto,
+    ObtenerCPU,
+    PublicarVersionCPU,
+)
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     GenerarObraDesdePrototipo,
+)
+from obractrl.application.casos_uso.gestionar_catalogos import (
+    CrearConcepto,
+    CrearContratista,
+    CrearFamilia,
+    CrearInsumo,
+    CrearUnidad,
 )
 from obractrl.application.casos_uso.gestionar_cierre import (
     AutorizarCierre,
@@ -74,15 +91,23 @@ __all__ = [
     "CapturarAvanceDep",
     "CerrarIncidenciaDep",
     "CrearClusterDep",
+    "CrearConceptoDep",
+    "CrearContratistaDep",
     "CrearEvaluacionDep",
+    "CrearFamiliaDep",
+    "CrearInsumoDep",
     "CrearObraDep",
     "CrearObrasEnLoteDep",
     "CrearPrototipoDep",
     "CrearProyectoDep",
+    "CrearUnidadDep",
     "EnviarEstimacionDep",
+    "ExplotarConceptoDep",
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
+    "ObtenerCPUDep",
     "ProgramarIncidenciaDep",
+    "PublicarVersionCPUDep",
     "RechazarCierreDep",
     "RechazarIncidenciaDep",
     "RegistrarEventoIncidenciaDep",
@@ -304,6 +329,73 @@ def obtener_generar_obra(sesion: SesionRLS) -> GenerarObraDesdePrototipo:
         obras=RepositorioObrasSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
     )
+
+
+# --- Catálogos · APU (§11.2) ---------------------------------------------
+
+
+def obtener_crear_unidad(sesion: SesionRLS) -> CrearUnidad:
+    return CrearUnidad(
+        unidades=RepositorioUnidadesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_crear_familia(sesion: SesionRLS) -> CrearFamilia:
+    return CrearFamilia(
+        familias=RepositorioFamiliasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_crear_insumo(sesion: SesionRLS) -> CrearInsumo:
+    """Sirve a `POST /insumos` y a `POST /materiales`: `Material` es un
+    `Insumo` con `tipo='material'` (§7.3)."""
+    return CrearInsumo(
+        insumos=RepositorioInsumosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_crear_concepto(sesion: SesionRLS) -> CrearConcepto:
+    return CrearConcepto(
+        conceptos=RepositorioConceptosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_crear_contratista(sesion: SesionRLS) -> CrearContratista:
+    return CrearContratista(
+        contratistas=RepositorioContratistasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_explotar_concepto(sesion: SesionRLS) -> ExplotarConcepto:
+    return ExplotarConcepto(conceptos=RepositorioConceptosSQL(sesion))
+
+
+def obtener_cpu(sesion: SesionRLS) -> ObtenerCPU:
+    return ObtenerCPU(conceptos=RepositorioConceptosSQL(sesion))
+
+
+def obtener_publicar_version_cpu(sesion: SesionRLS) -> PublicarVersionCPU:
+    return PublicarVersionCPU(
+        conceptos=RepositorioConceptosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+CrearUnidadDep = Annotated[CrearUnidad, Depends(obtener_crear_unidad)]
+CrearFamiliaDep = Annotated[CrearFamilia, Depends(obtener_crear_familia)]
+CrearInsumoDep = Annotated[CrearInsumo, Depends(obtener_crear_insumo)]
+CrearConceptoDep = Annotated[CrearConcepto, Depends(obtener_crear_concepto)]
+CrearContratistaDep = Annotated[CrearContratista, Depends(obtener_crear_contratista)]
+ExplotarConceptoDep = Annotated[ExplotarConcepto, Depends(obtener_explotar_concepto)]
+ObtenerCPUDep = Annotated[ObtenerCPU, Depends(obtener_cpu)]
+PublicarVersionCPUDep = Annotated[
+    PublicarVersionCPU, Depends(obtener_publicar_version_cpu)
+]
 
 
 CrearObraDep = Annotated[CrearObra, Depends(obtener_crear_obra)]

@@ -353,6 +353,825 @@
         }
       }
     },
+    "/api/v1/unidades": {
+      "get": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Catálogo de unidades",
+        "description": "Lectura simple sin orquestación de dominio —como `GET /proyectos`— así\nque consulta el repo directo: RLS ya acota el alcance (§12.4).",
+        "operationId": "listar_unidades_api_v1_unidades_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incluir_inactivos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluye los registros dados de baja (§8.7).",
+              "default": false,
+              "title": "Incluir Inactivos"
+            },
+            "description": "Incluye los registros dados de baja (§8.7)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnidadRespuesta"
+                  },
+                  "title": "Response Listar Unidades Api V1 Unidades Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Alta de unidad",
+        "operationId": "crear_unidad_api_v1_unidades_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearUnidadPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnidadRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Datos de catálogo inválidos (§7.3)."
+          }
+        }
+      }
+    },
+    "/api/v1/familias": {
+      "get": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Árbol de familias",
+        "operationId": "listar_familias_api_v1_familias_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "aplica_a",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`material` o `concepto` (§10.1).",
+              "title": "Aplica A"
+            },
+            "description": "`material` o `concepto` (§10.1)."
+          },
+          {
+            "name": "incluir_inactivos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluye los registros dados de baja (§8.7).",
+              "default": false,
+              "title": "Incluir Inactivos"
+            },
+            "description": "Incluye los registros dados de baja (§8.7)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FamiliaRespuesta"
+                  },
+                  "title": "Response Listar Familias Api V1 Familias Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Alta de familia",
+        "operationId": "crear_familia_api_v1_familias_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearFamiliaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FamiliaRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Datos de catálogo inválidos (§7.3)."
+          }
+        }
+      }
+    },
+    "/api/v1/insumos": {
+      "get": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Catálogo de insumos",
+        "operationId": "listar_insumos_api_v1_insumos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TipoInsumo"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por tipo de insumo (§8.2).",
+              "title": "Tipo"
+            },
+            "description": "Filtra por tipo de insumo (§8.2)."
+          },
+          {
+            "name": "familia_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Acota a una familia del árbol (§7.3).",
+              "title": "Familia Id"
+            },
+            "description": "Acota a una familia del árbol (§7.3)."
+          },
+          {
+            "name": "incluir_inactivos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluye los registros dados de baja (§8.7).",
+              "default": false,
+              "title": "Incluir Inactivos"
+            },
+            "description": "Incluye los registros dados de baja (§8.7)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InsumoRespuesta"
+                  },
+                  "title": "Response Listar Insumos Api V1 Insumos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Alta de insumo",
+        "operationId": "crear_insumo_api_v1_insumos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearInsumoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsumoRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Datos de catálogo inválidos (§7.3)."
+          }
+        }
+      }
+    },
+    "/api/v1/materiales": {
+      "get": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Catálogo de materiales",
+        "description": "`Material` = `Insumo` con `tipo='material'` (§7.3): mismo repositorio,\nfiltro fijado aquí. No hay tabla ni catálogo aparte.",
+        "operationId": "listar_materiales_api_v1_materiales_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "familia_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Acota a una familia del árbol (§7.3).",
+              "title": "Familia Id"
+            },
+            "description": "Acota a una familia del árbol (§7.3)."
+          },
+          {
+            "name": "incluir_inactivos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluye los registros dados de baja (§8.7).",
+              "default": false,
+              "title": "Incluir Inactivos"
+            },
+            "description": "Incluye los registros dados de baja (§8.7)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InsumoRespuesta"
+                  },
+                  "title": "Response Listar Materiales Api V1 Materiales Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Alta de material",
+        "operationId": "crear_material_api_v1_materiales_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearMaterialPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsumoRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Datos de catálogo inválidos (§7.3)."
+          }
+        }
+      }
+    },
+    "/api/v1/contratistas": {
+      "get": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Catálogo de contratistas",
+        "operationId": "listar_contratistas_api_v1_contratistas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incluir_inactivos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluye los registros dados de baja (§8.7).",
+              "default": false,
+              "title": "Incluir Inactivos"
+            },
+            "description": "Incluye los registros dados de baja (§8.7)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContratistaRespuesta"
+                  },
+                  "title": "Response Listar Contratistas Api V1 Contratistas Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Alta de contratista",
+        "operationId": "crear_contratista_api_v1_contratistas_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearContratistaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContratistaRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Datos de catálogo inválidos (§7.3)."
+          }
+        }
+      }
+    },
+    "/api/v1/conceptos": {
+      "get": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Catálogo de conceptos",
+        "operationId": "listar_conceptos_api_v1_conceptos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TipoConcepto"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por tipo de concepto (§8.2).",
+              "title": "Tipo"
+            },
+            "description": "Filtra por tipo de concepto (§8.2)."
+          },
+          {
+            "name": "familia_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Acota a una familia del árbol (§7.3).",
+              "title": "Familia Id"
+            },
+            "description": "Acota a una familia del árbol (§7.3)."
+          },
+          {
+            "name": "incluir_inactivos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluye los registros dados de baja (§8.7).",
+              "default": false,
+              "title": "Incluir Inactivos"
+            },
+            "description": "Incluye los registros dados de baja (§8.7)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConceptoRespuesta"
+                  },
+                  "title": "Response Listar Conceptos Api V1 Conceptos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Alta de concepto",
+        "operationId": "crear_concepto_api_v1_conceptos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearConceptoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptoRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Datos de catálogo inválidos (§7.3)."
+          }
+        }
+      }
+    },
+    "/api/v1/conceptos/{concepto_id}/explosion": {
+      "get": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Explosión recursiva del concepto",
+        "description": "Árbol completo del APU: insumos y conceptos anidados (§7.3).",
+        "operationId": "explotar_concepto_api_v1_conceptos__concepto_id__explosion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplosionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El concepto no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "La composición tiene un ciclo (§7.3)."
+          }
+        }
+      }
+    },
+    "/api/v1/conceptos/{concepto_id}/cpu": {
+      "get": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "CPU del concepto: versión vigente e historial",
+        "operationId": "obtener_cpu_api_v1_conceptos__concepto_id__cpu_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          },
+          {
+            "name": "variante",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Receta alterna del concepto; vacío = receta base (§2.2).",
+              "title": "Variante"
+            },
+            "description": "Receta alterna del concepto; vacío = receta base (§2.2)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CPURespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El concepto no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "La composición tiene un ciclo (§7.3)."
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Publica una nueva versión del CPU",
+        "description": "Nueva versión vigente; la anterior pasa al histórico (§10.8).",
+        "operationId": "publicar_cpu_api_v1_conceptos__concepto_id__cpu_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicarCPUPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionPublicadaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El concepto no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Composición cíclica o precio inválido (§7.3)."
+          }
+        }
+      }
+    },
     "/api/v1/obras": {
       "get": {
         "tags": [
@@ -2333,6 +3152,59 @@
         ],
         "title": "AvanceRespuesta"
       },
+      "CPURespuesta": {
+        "properties": {
+          "concepto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Concepto Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "variante": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variante"
+          },
+          "vigente": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VersionCPURespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "historial": {
+            "items": {
+              "$ref": "#/components/schemas/VersionCPURespuesta"
+            },
+            "type": "array",
+            "title": "Historial"
+          },
+          "calculado": {
+            "$ref": "#/components/schemas/PrecioUnitarioRespuesta",
+            "description": "CPU recalculado desde la explosión de hoy. Si difiere del vigente, el catálogo cambió y toca publicar una versión nueva (§10.8)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto_id",
+          "clave",
+          "historial",
+          "calculado"
+        ],
+        "title": "CPURespuesta"
+      },
       "CapturaAvancePeticion": {
         "properties": {
           "cant_ejecutada": {
@@ -2394,6 +3266,19 @@
         ],
         "title": "CapturaAvancePeticion",
         "description": "Captura de avance (§6).\n\nLas mismas reglas se reflejan en el cliente para UX y se aplican de forma\nautoritativa en el servidor (§11.1)."
+      },
+      "CategoriaExplosion": {
+        "type": "string",
+        "enum": [
+          "material",
+          "mano_obra",
+          "equipo",
+          "destajo",
+          "subcontrato",
+          "auxiliar",
+          "matriz"
+        ],
+        "title": "CategoriaExplosion"
       },
       "CerrarIncidenciaPeticion": {
         "properties": {
@@ -2540,6 +3425,63 @@
         ],
         "title": "ClusterRespuesta"
       },
+      "ConceptoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoConcepto"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Id"
+          },
+          "familia_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Familia Id"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "default": "activo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tipo",
+          "clave",
+          "descripcion"
+        ],
+        "title": "ConceptoRespuesta"
+      },
       "ConsumoRespuesta": {
         "properties": {
           "obra_id": {
@@ -2605,6 +3547,91 @@
         "title": "ConsumoRespuesta",
         "description": "Fila de `v_consumo_vs_presupuesto`: consumo real vs teórico (§7.7, §10.5)."
       },
+      "ContratistaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "razon_social": {
+            "type": "string",
+            "title": "Razon Social"
+          },
+          "rfc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rfc"
+          },
+          "contacto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contacto"
+          },
+          "telefono": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telefono"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "calificacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calificacion"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "default": "activo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "razon_social"
+        ],
+        "title": "ContratistaRespuesta"
+      },
       "CrearClusterPeticion": {
         "properties": {
           "proyecto_id": {
@@ -2630,6 +3657,144 @@
           "nombre"
         ],
         "title": "CrearClusterPeticion"
+      },
+      "CrearConceptoPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave",
+            "description": "Clave con prefijo `EST`… (§10.1)."
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Descripcion"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoConcepto",
+            "description": "`auxiliar` y `matriz` son los que otros conceptos anidan (§7.3).",
+            "default": "concepto"
+          },
+          "unidad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Id"
+          },
+          "familia_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Familia Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion"
+        ],
+        "title": "CrearConceptoPeticion"
+      },
+      "CrearContratistaPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave"
+          },
+          "razon_social": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Razon Social"
+          },
+          "rfc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rfc"
+          },
+          "contacto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contacto"
+          },
+          "telefono": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telefono"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "calificacion": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calificacion"
+          },
+          "frentes": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Frentes",
+            "description": "Frentes que atiende (`ContratistaFrente`)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "razon_social"
+        ],
+        "title": "CrearContratistaPeticion"
       },
       "CrearEvaluacionPeticion": {
         "properties": {
@@ -2673,6 +3838,219 @@
         ],
         "title": "CrearEvaluacionPeticion",
         "description": "Alta de una evaluación en el nivel indicado (§11.3 H)."
+      },
+      "CrearFamiliaPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id",
+            "description": "Padre en el árbol (§7.3)."
+          },
+          "aplica_a": {
+            "type": "string",
+            "title": "Aplica A",
+            "description": "Familias de materiales o de conceptos (§10.1).",
+            "default": "material"
+          },
+          "iva_aplica": {
+            "type": "boolean",
+            "title": "Iva Aplica",
+            "description": "IVA de la familia (§3.5). Cada insumo puede sobrescribirlo; la tasa es configurable y se lee de BD (§8.7).",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "CrearFamiliaPeticion"
+      },
+      "CrearInsumoPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Descripcion"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoInsumo",
+            "default": "material"
+          },
+          "unidad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Id"
+          },
+          "familia_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Familia Id"
+          },
+          "costo_base": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Costo Base",
+            "default": "0"
+          },
+          "iva_aplica": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iva Aplica",
+            "description": "Override del IVA de la familia (§3.5). Nulo = hereda de la familia."
+          },
+          "factor_conversion": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Factor Conversion",
+            "default": "1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion"
+        ],
+        "title": "CrearInsumoPeticion"
+      },
+      "CrearMaterialPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Descripcion"
+          },
+          "unidad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Id"
+          },
+          "familia_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Familia Id"
+          },
+          "costo_base": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Costo Base",
+            "default": "0"
+          },
+          "iva_aplica": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iva Aplica"
+          },
+          "factor_conversion": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Factor Conversion",
+            "default": "1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion"
+        ],
+        "title": "CrearMaterialPeticion",
+        "description": "`POST /materiales` — mismo cuerpo, sin `tipo`: es siempre `material` (§7.3)."
       },
       "CrearObraPeticion": {
         "properties": {
@@ -2902,6 +4280,49 @@
           "nombre"
         ],
         "title": "CrearProyectoPeticion"
+      },
+      "CrearUnidadPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave",
+            "description": "Clave única del catálogo (§3.3)."
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "sinonimos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sinonimos",
+            "description": "Alias que cruzan a esta unidad (§10.3)."
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Factor",
+            "description": "Factor de conversión (§3.5).",
+            "default": "1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "CrearUnidadPeticion"
       },
       "CriterioRespuesta": {
         "properties": {
@@ -3200,6 +4621,82 @@
         "title": "EventoIncidenciaPeticion",
         "description": "Comentario y, opcionalmente, transición (§11.3 F.3)."
       },
+      "ExplosionRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "lineas": {
+            "items": {
+              "$ref": "#/components/schemas/LineaExplosionRespuesta"
+            },
+            "type": "array",
+            "title": "Lineas"
+          },
+          "precio": {
+            "$ref": "#/components/schemas/PrecioUnitarioRespuesta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "lineas",
+          "precio"
+        ],
+        "title": "ExplosionRespuesta"
+      },
+      "FamiliaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "aplica_a": {
+            "type": "string",
+            "title": "Aplica A",
+            "default": "material"
+          },
+          "iva_aplica": {
+            "type": "boolean",
+            "title": "Iva Aplica",
+            "default": true
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "default": "activo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "nombre"
+        ],
+        "title": "FamiliaRespuesta"
+      },
       "FrenteRespuesta": {
         "properties": {
           "id": {
@@ -3424,6 +4921,193 @@
         ],
         "title": "IncidenciaRespuesta"
       },
+      "InsumoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoInsumo"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Id"
+          },
+          "familia_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Familia Id"
+          },
+          "costo_base": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Costo Base",
+            "default": "0"
+          },
+          "costo_base_actualizado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo Base Actualizado"
+          },
+          "costo_promedio_almacen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo Promedio Almacen"
+          },
+          "costo_ultimo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo Ultimo"
+          },
+          "origen": {
+            "type": "string",
+            "title": "Origen",
+            "default": "base"
+          },
+          "iva_aplica": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iva Aplica"
+          },
+          "factor_conversion": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Factor Conversion",
+            "default": "1"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "default": "activo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tipo",
+          "clave",
+          "descripcion"
+        ],
+        "title": "InsumoRespuesta"
+      },
+      "LineaExplosionRespuesta": {
+        "properties": {
+          "ruta": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ruta"
+          },
+          "nivel": {
+            "type": "integer",
+            "title": "Nivel"
+          },
+          "tipo_hijo": {
+            "$ref": "#/components/schemas/TipoHijoExplosion"
+          },
+          "referencia": {
+            "type": "string",
+            "title": "Referencia",
+            "description": "Clave del insumo o del concepto hijo (§3.3)."
+          },
+          "categoria": {
+            "$ref": "#/components/schemas/CategoriaExplosion"
+          },
+          "cantidad_unitaria": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Unitaria",
+            "description": "Por unidad del padre inmediato."
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "description": "Acumulada por unidad del concepto raíz."
+          },
+          "costo_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Costo Unitario"
+          },
+          "importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe"
+          },
+          "es_destajo": {
+            "type": "boolean",
+            "title": "Es Destajo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ruta",
+          "nivel",
+          "tipo_hijo",
+          "referencia",
+          "categoria",
+          "cantidad_unitaria",
+          "cantidad",
+          "costo_unitario",
+          "importe",
+          "es_destajo"
+        ],
+        "title": "LineaExplosionRespuesta"
+      },
       "ModoPago": {
         "type": "string",
         "enum": [
@@ -3623,6 +5307,36 @@
         "title": "PerfilRespuesta",
         "description": "Perfil, rol y alcance del usuario del token (§11.2 `GET /me`)."
       },
+      "PrecioUnitarioRespuesta": {
+        "properties": {
+          "total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total",
+            "description": "Materiales + auxiliares + matrices + MO + equipo."
+          },
+          "destajo": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Destajo",
+            "description": "Lo que cobra la cuadrilla: MO o subcontrato."
+          },
+          "materiales": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Materiales",
+            "description": "Porción que no es destajo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "destajo",
+          "materiales"
+        ],
+        "title": "PrecioUnitarioRespuesta",
+        "description": "CPU con su desglose de destajo (§7.3, §11.1)."
+      },
       "ProgramarIncidenciaPeticion": {
         "properties": {
           "asignada_a": {
@@ -3765,6 +5479,55 @@
           "nombre"
         ],
         "title": "ProyectoRespuesta"
+      },
+      "PublicarCPUPeticion": {
+        "properties": {
+          "variante": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variante",
+            "description": "Receta alterna; nulo = receta base (§2.2)."
+          },
+          "precio_unitario": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Unitario",
+            "description": "Precio explícito. Si se omite —lo normal—, el CPU se calcula de la explosión del concepto (§7.3)."
+          },
+          "precio_destajo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Destajo"
+          }
+        },
+        "type": "object",
+        "title": "PublicarCPUPeticion"
       },
       "RechazarCierrePeticion": {
         "properties": {
@@ -4076,6 +5839,24 @@
         ],
         "title": "SujetoEvaluacion"
       },
+      "TipoConcepto": {
+        "type": "string",
+        "enum": [
+          "concepto",
+          "auxiliar",
+          "matriz",
+          "basico"
+        ],
+        "title": "TipoConcepto"
+      },
+      "TipoHijoExplosion": {
+        "type": "string",
+        "enum": [
+          "insumo",
+          "concepto"
+        ],
+        "title": "TipoHijoExplosion"
+      },
       "TipoIncidencia": {
         "type": "string",
         "enum": [
@@ -4087,6 +5868,58 @@
           "detalle"
         ],
         "title": "TipoIncidencia"
+      },
+      "TipoInsumo": {
+        "type": "string",
+        "enum": [
+          "material",
+          "mano_obra",
+          "equipo",
+          "herramienta"
+        ],
+        "title": "TipoInsumo"
+      },
+      "UnidadRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "sinonimos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sinonimos"
+          },
+          "factor": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Factor",
+            "default": "1"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "default": "activo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "nombre"
+        ],
+        "title": "UnidadRespuesta"
       },
       "ValidarCierrePeticion": {
         "properties": {
@@ -4138,6 +5971,72 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VersionCPURespuesta": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "variante": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variante"
+          },
+          "vigente": {
+            "type": "boolean",
+            "title": "Vigente",
+            "default": false
+          },
+          "precio": {
+            "$ref": "#/components/schemas/PrecioUnitarioRespuesta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "precio"
+        ],
+        "title": "VersionCPURespuesta"
+      },
+      "VersionPublicadaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "concepto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Concepto Id"
+          },
+          "version": {
+            "$ref": "#/components/schemas/VersionCPURespuesta"
+          },
+          "retiradas": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Retiradas",
+            "description": "Versiones que dejaron de estar vigentes; siguen en el histórico (§10.8)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "concepto_id",
+          "version",
+          "retiradas"
+        ],
+        "title": "VersionPublicadaRespuesta"
       }
     },
     "securitySchemes": {

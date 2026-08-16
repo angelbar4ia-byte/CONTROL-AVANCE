@@ -26,15 +26,20 @@ __all__ = [
     "RepositorioCalendario",
     "RepositorioCierres",
     "RepositorioClusters",
+    "RepositorioConceptos",
     "RepositorioConfiguracion",
+    "RepositorioContratistas",
     "RepositorioEstimaciones",
     "RepositorioEvaluaciones",
+    "RepositorioFamilias",
     "RepositorioFrentes",
     "RepositorioIncidencias",
+    "RepositorioInsumos",
     "RepositorioMateriales",
     "RepositorioObras",
     "RepositorioPrototipos",
     "RepositorioProyectos",
+    "RepositorioUnidades",
     "UnidadDeTrabajo",
 ]
 
@@ -401,6 +406,137 @@ class RepositorioIncidencias(Protocol):
 
     async def listar(self, *, estatus: str | None = None) -> list[dict]:
         """Bandeja por rol: RLS ya acota el alcance (§11.2)."""
+        ...
+
+
+# --- Catálogos · APU (§7.3, §11.2) ---------------------------------------
+#
+# Los catálogos entran al bloque A de `rls_policies` (migración
+# 20260814000012): **lectura** para cualquier usuario de la organización,
+# **escritura** solo para `app.es_config()` —Control de obra y Super
+# intendente (§5.1)—. Ninguna implementación filtra por `org_id` a mano.
+#
+# La CLAVE es única por catálogo y es la que manda en todo cruce (§3.3), así
+# que el alta de cualquiera de estos puertos puede chocar con su índice único
+# (`uq_unidad_clave`, `uq_insumo_clave`…): eso es correcto, es el §3.3 en la
+# base.
+
+
+@runtime_checkable
+class RepositorioUnidades(Protocol):
+    """Catálogo de unidades con sinónimos y factor (§7.3, §3.5).
+
+    Semilla editable (§8.7): el front la lee directo de Supabase (§10.7) y la
+    escribe por aquí.
+    """
+
+    async def crear(self, datos: dict) -> UUID: ...
+
+    async def obtener(self, unidad_id: UUID) -> dict | None: ...
+
+    async def listar(self, *, solo_activos: bool = True) -> list[dict]: ...
+
+
+@runtime_checkable
+class RepositorioFamilias(Protocol):
+    """Árbol de familias (§7.3). En materiales define el IVA (§3.5)."""
+
+    async def crear(self, datos: dict) -> UUID: ...
+
+    async def obtener(self, familia_id: UUID) -> dict | None: ...
+
+    async def listar(
+        self, *, aplica_a: str | None = None, solo_activos: bool = True
+    ) -> list[dict]: ...
+
+
+@runtime_checkable
+class RepositorioInsumos(Protocol):
+    """Recursos base del APU (§7.3).
+
+    `Material` **no** es otra tabla: es un insumo con ``tipo = 'material'``
+    (§7.3), así que `GET /materiales` (§11.2) es este mismo puerto con el
+    filtro puesto. Duplicarlo partiría la clave única del catálogo (§3.3).
+    """
+
+    async def crear(self, datos: dict) -> UUID: ...
+
+    async def obtener(self, insumo_id: UUID) -> dict | None: ...
+
+    async def listar(
+        self,
+        *,
+        tipo: str | None = None,
+        familia_id: UUID | None = None,
+        solo_activos: bool = True,
+    ) -> list[dict]:
+        """Insumos visibles; `tipo='material'` da el catálogo de materiales."""
+        ...
+
+
+@runtime_checkable
+class RepositorioContratistas(Protocol):
+    """Contratistas oficiales (§7.3, §10.1)."""
+
+    async def crear(self, datos: dict) -> UUID: ...
+
+    async def obtener(self, contratista_id: UUID) -> dict | None: ...
+
+    async def listar(self, *, solo_activos: bool = True) -> list[dict]: ...
+
+
+@runtime_checkable
+class RepositorioConceptos(Protocol):
+    """Conceptos, su explosión y sus versiones de CPU (§7.3)."""
+
+    async def crear(self, datos: dict) -> UUID: ...
+
+    async def obtener(self, concepto_id: UUID) -> dict | None: ...
+
+    async def listar(
+        self,
+        *,
+        tipo: str | None = None,
+        familia_id: UUID | None = None,
+        solo_activos: bool = True,
+    ) -> list[dict]: ...
+
+    async def composicion_recursiva(self, concepto_id: UUID) -> list[dict]:
+        """Filas de `Explosion` de **todo** concepto alcanzable desde la raíz.
+
+        El dominio explota por CLAVE (§3.3), así que cada fila trae ya
+        resueltas ``concepto_clave``, ``insumo_clave`` y
+        ``concepto_hijo_clave`` además de ``categoria``, ``cantidad``,
+        ``costo_unitario`` y ``costo_insumo_vigente`` (§10.1).
+
+        Devuelve el conjunto **completo**, incluida la arista que cierra un
+        ciclo: detectarlo es del dominio (`CicloEnExplosion`, §7.3), no del
+        SQL — la base solo impide el ciclo directo.
+        """
+        ...
+
+    async def versiones_cpu(self, concepto_id: UUID) -> list[dict]:
+        """Historial de CPU del concepto, todas las variantes (§7.3, §10.8)."""
+        ...
+
+    async def publicar_version_cpu(
+        self,
+        concepto_id: UUID,
+        *,
+        version: int,
+        precio_unitario: Decimal,
+        precio_destajo: Decimal,
+        variante: str | None,
+        retirar: list[int],
+    ) -> UUID:
+        """Inserta la versión nueva como vigente y retira las de ``retirar``.
+
+        Retirar y luego insertar es **una sola operación** a propósito:
+        `uq_cpu_vigente` es un índice único parcial y no es diferible, así que
+        insertar el nuevo vigente antes de bajar el anterior violaría la
+        restricción. Quién retira a quién ya lo decidió el dominio
+        (`apu.publicar_version`).
+        """
         ...
 
 
