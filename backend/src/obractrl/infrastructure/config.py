@@ -62,6 +62,14 @@ class Config(BaseSettings):
     jwt_secret: str = Field(default="cambiar-en-produccion")
     jwt_algoritmos: list[str] = ["ES256", "RS256", "HS256"]
     jwt_audiencia: str = "authenticated"
+    jwt_holgura_segundos: int = Field(
+        default=60,
+        description=(
+            "Tolerancia de desfase de reloj al validar `iat`/`exp`. El token "
+            "lo emite Supabase y lo valida otro host; unos segundos de "
+            "diferencia bastan para que un token legítimo se vea prematuro."
+        ),
+    )
     jwt_jwks_url: str = Field(
         default="",
         description=(
