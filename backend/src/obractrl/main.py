@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from obractrl import __version__
 from obractrl.adapters.api.v1 import api_v1
 from obractrl.adapters.repos.calendario_sql import CalendarioNoConfigurado
+from obractrl.application.casos_uso.calcular_cpu import ConceptoNoEncontrado
 from obractrl.application.casos_uso.capturar_avance import (
     ActividadBloqueada,
     ActividadNoEncontrada,
@@ -32,6 +33,8 @@ from obractrl.application.casos_uso.registrar_salida_almacen import (
     MotivoAlmacenNoEncontrado,
 )
 from obractrl.domain.avance.reglas import ErrorDeCaptura
+from obractrl.domain.catalogos.apu import CicloEnExplosion, ErrorDeAPU
+from obractrl.domain.catalogos.reglas import ErrorDeCatalogo
 from obractrl.domain.cierres.reglas import ErrorDeCierre
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
 from obractrl.domain.evaluaciones.reglas import ErrorDeEvaluacion
@@ -334,6 +337,59 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="obra-no-encontrada",
             titulo="Obra no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeCatalogo)
+    async def _catalogo(request: Request, exc: ErrorDeCatalogo) -> JSONResponse:
+        # 422 como `ErrorDeProyecto`: es una invariante de datos de alta
+        # (clave vacía, tipo fuera del §8.2, factor no positivo…), no una
+        # transición de flujo.
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-catalogo",
+            titulo="Datos de catálogo inválidos",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeAPU)
+    async def _apu(request: Request, exc: ErrorDeAPU) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-apu",
+            titulo="Composición de APU inválida",
+            detalle=str(exc),
+        )
+
+    # Starlette resuelve el manejador recorriendo el MRO, así que esta
+    # subclase gana sobre el `ErrorDeAPU` de arriba: el ciclo se reporta con
+    # el camino involucrado, igual que `CicloEnGrafoError` en el CPM.
+    @app.exception_handler(CicloEnExplosion)
+    async def _ciclo_explosion(
+        request: Request, exc: CicloEnExplosion
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="explosion-ciclica",
+            titulo="La explosión del concepto tiene un ciclo",
+            detalle=str(exc),
+            conceptos=exc.camino,
+        )
+
+    @app.exception_handler(ConceptoNoEncontrado)
+    async def _concepto_no_encontrado(
+        request: Request, exc: ConceptoNoEncontrado
+    ) -> JSONResponse:
+        # Mismo tratamiento que ActividadNoEncontrada: RLS hace indistinguible
+        # "no existe" de "no lo puedes ver" a propósito (§12.4).
+        return _problema(
+            request,
+            status=404,
+            tipo="concepto-no-encontrado",
+            titulo="Concepto no encontrado",
             detalle=str(exc),
         )
 
