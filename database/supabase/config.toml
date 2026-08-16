@@ -24,6 +24,14 @@ additional_redirect_urls = ["http://localhost:5173", "obractrl://"]
 jwt_expiry = 3600
 enable_signup = false   # el alta de usuarios la hace Control de obra (§5.1)
 
+# Sin esto el JWT sale sin `org_id` ni `rol` (§12.4): la sesión inicia pero
+# el backend no puede fijar el contexto RLS y el usuario no ve nada. En la
+# nube el hook se activa en Authentication → Hooks; en local se declara
+# aquí. La función la crea la migración 0015.
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/custom_access_token_hook"
+
 [storage]
 enabled = true
 # Las evidencias pesadas van a Cloudflare R2 vía presigned URL (§12.2),
