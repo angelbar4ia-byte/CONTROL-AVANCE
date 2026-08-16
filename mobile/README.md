@@ -12,9 +12,9 @@ mobile/
 │  ├─ (supervisor)/      Torre · Incidencias · Cierres · Ruta · Más
 │  └─ (control)/         Obras · Revisión · Fotos · Calidad
 ├─ src/
-│  ├─ sync/              esquema local de PowerSync
-│  ├─ lib/               sesión, tokens del tab bar
-│  └─ componentes/
+│  ├─ sync/              esquema local, conector y estado de PowerSync
+│  ├─ lib/               sesión, auth, guardia por rol, reglas de avance
+│  └─ ui/                encabezado, indicador de sync, chip de perfil
 ├─ sync-rules.yaml       reglas de sincronización de PowerSync
 ├─ app.json              config de Expo (applicationId, permisos)
 └─ eas.json              perfiles de build y submit
@@ -43,6 +43,25 @@ se concilian contra Postgres.
 `sync-rules.yaml` es el espejo de `app.obra_visible()`
 (`database/migrations/0011`). **Si cambia el alcance de un rol allá, cambia
 aquí.**
+
+### Conexión y cola de subida
+
+`src/sync/ProveedorSync.tsx` conecta la réplica local al servicio de PowerSync
+**mientras haya sesión**; al cerrar sesión llama `disconnect()` y nunca
+`disconnectAndClear()`, que borraría la cola de capturas sin subir.
+
+`src/sync/conector.ts` sube la cola. Sigue el workflow B del §11.3 —
+*"PowerSync concilia contra Postgres (respetando RLS); **en web**: `PATCH
+/actividades/{id}/avance`"*—: la ruta móvil escribe con el cliente de Supabase
+autenticado con el JWT del usuario, así que las mismas políticas RLS y los
+`CHECK`/triggers del §6 que viven en la BD siguen aplicando.
+
+`actividad` **no se sube**: es *servidor-manda*. La pantalla de captura la
+actualiza local solo como reflejo optimista; subirla pisaría el total
+canónico.
+
+El estado se ve siempre en el encabezado (`src/ui/IndicadorSync.tsx`):
+*sincronizado · sincronizando · N por subir · sin red · solo local*.
 
 ### Conflictos
 
@@ -136,11 +155,18 @@ de fila sube a 44px: en móvil manda el objetivo táctil, no la densidad.
 
 | Listo | Falta |
 |---|---|
-| Tabs por rol (§5.2) | Pantallas reales (hoy son placeholders) |
-| Esquema local de PowerSync | Cliente de PowerSync conectado |
-| Sync rules espejo de RLS | Login con `expo-secure-store` |
-| `app.json` / `eas.json` listos para Play | Captura offline y cola de subida a R2 |
-| Tokens portados a NativeWind | Assets de tienda |
+| Login real + sesión persistida en `expo-secure-store` | Pantallas de Supervisor y Control (hoy son placeholders) |
+| Tabs por rol (§5.2) con guardia de sesión/rol | Cola de evidencias (fotos) a R2 |
+| Captura offline de avance con las reglas del §6 | Extra-catálogo, incidencias, cierres, ruta crítica |
+| Conector de PowerSync + indicador de sincronización | Suma de deltas en el servidor (ver abajo) |
+| Sync rules espejo de RLS · tokens NativeWind | Assets de tienda |
+
+> **Pendiente del lado servidor:** `registro_avance` guarda deltas, pero hoy
+> nada en Postgres los acumula en `actividad.cant_ejecutada` — el trigger
+> `app.actividad_recalcular` deriva `avance_pct`/estatus *a partir de*
+> `cant_ejecutada`, que solo escribe el caso de uso `capturar_avance`. Cuando
+> el móvil suba sus registros, hace falta que backend/datos cierren ese paso
+> (trigger de agregación o job de conciliación).
 
 ## Desarrollo
 
@@ -149,3 +175,14 @@ npm install
 npx expo start
 npm run typecheck
 ```
+
+### Configuración
+
+Se leen de `app.json → expo.extra` y, si no están, de variables de entorno
+(`src/lib/entorno.ts`):
+
+| Variable | Para qué |
+|---|---|
+| `EXPO_PUBLIC_SUPABASE_URL` | Auth administrado (§12.4) |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Auth administrado (§12.4) |
+| `EXPO_PUBLIC_POWERSYNC_URL` | Servicio de sync. Sin ella la app corre **solo local** |

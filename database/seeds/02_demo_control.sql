@@ -177,7 +177,25 @@ insert into actividad
      precio_unitario, precio_destajo, modo_pago)
 values
     (:'org_id', :'obra2_id', 'Preliminares - trazo y nivelación', 20, 20, 18,
-     300, 300, 'concepto');
+     300, 300, 'concepto')
+returning id as act4_id \gset
+
+-- ------------------------------------------------------------
+-- Línea base en la bitácora (D5 · migración 0017).
+--
+-- `registro_avance` es la ÚNICA fuente de `cant_ejecutada`: el trigger
+-- `app.registro_avance_agregar` la deriva de la suma de sus deltas. Una
+-- actividad sembrada con avance pero sin bitácora quedaría inconsistente, y
+-- la primera captura del móvil la reduciría a solo ese delta. Por eso cada
+-- actividad de demo estrena su registro de línea base.
+-- ------------------------------------------------------------
+insert into registro_avance
+    (org_id, actividad_id, fecha, delta_ejecutado, usuario_id, comentario)
+values
+    (:'org_id', :'act1_id', current_date, 95, :'residente_id', 'Línea base de demo'),
+    (:'org_id', :'act2_id', current_date, 30, :'residente_id', 'Línea base de demo'),
+    (:'org_id', :'act3_id', current_date, 80, :'residente_id', 'Línea base de demo'),
+    (:'org_id', :'act4_id', current_date, 18, :'residente_id', 'Línea base de demo');
 
 \endif
 

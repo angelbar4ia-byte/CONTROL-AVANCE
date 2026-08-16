@@ -25,12 +25,16 @@ __all__ = [
     "RepositorioActividades",
     "RepositorioCalendario",
     "RepositorioCierres",
+    "RepositorioClusters",
     "RepositorioConfiguracion",
     "RepositorioEstimaciones",
     "RepositorioEvaluaciones",
+    "RepositorioFrentes",
     "RepositorioIncidencias",
     "RepositorioMateriales",
     "RepositorioObras",
+    "RepositorioPrototipos",
+    "RepositorioProyectos",
     "UnidadDeTrabajo",
 ]
 
@@ -60,10 +64,10 @@ class RepositorioActividades(Protocol):
         actividad_id: UUID,
         *,
         cant_programada: Decimal,
-        cant_ejecutada: Decimal,
-        avance_pct: Decimal,
         estatus: str,
     ) -> None: ...
+    # `cant_ejecutada` y `avance_pct` no viajan: se derivan de la bitácora
+    # (`registrar_captura`) en la BD. Ver D5 en `MD/ROADMAP.md`.
 
     async def registrar_captura(
         self,
@@ -129,6 +133,51 @@ class RepositorioCierres(Protocol):
 
 
 @runtime_checkable
+class RepositorioProyectos(Protocol):
+    """Proyectos (§7.2). Alcance por rol vía `app.proyecto_visible` (§12.4)."""
+
+    async def crear(self, datos: dict) -> UUID:
+        """Alta de proyecto ya validada por el dominio (§11.2, roles C y SI)."""
+        ...
+
+    async def obtener(self, proyecto_id: UUID) -> dict | None: ...
+
+    async def listar(self) -> list[dict]:
+        """Proyectos visibles para el rol actual: RLS ya acota el alcance."""
+        ...
+
+
+@runtime_checkable
+class RepositorioClusters(Protocol):
+    """Clusters —manzanas— de un proyecto (§7.2). Alcance del Supervisor (§4)."""
+
+    async def crear(self, datos: dict) -> UUID: ...
+
+    async def obtener(self, cluster_id: UUID) -> dict | None: ...
+
+    async def listar(self, proyecto_id: UUID | None = None) -> list[dict]: ...
+
+
+@runtime_checkable
+class RepositorioPrototipos(Protocol):
+    """Prototipos —modelos de vivienda— del proyecto (§7.2)."""
+
+    async def crear(self, datos: dict) -> UUID: ...
+
+    async def obtener(self, prototipo_id: UUID) -> dict | None: ...
+
+    async def listar(self, proyecto_id: UUID | None = None) -> list[dict]: ...
+
+
+@runtime_checkable
+class RepositorioFrentes(Protocol):
+    """Catálogo de frentes (§8.3). Semilla editable de organización (§8.7):
+    lo lee cualquier rol (§11.2 `GET /frentes`), lo escribe Configuración."""
+
+    async def listar(self, *, solo_activos: bool = True) -> list[dict]: ...
+
+
+@runtime_checkable
 class RepositorioObras(Protocol):
     async def obtener(self, obra_id: UUID) -> dict | None: ...
 
@@ -136,6 +185,58 @@ class RepositorioObras(Protocol):
 
     async def arbol_prototipo(self, prototipo_id: UUID) -> list[dict]:
         """Nodos WBS del prototipo, ordenados (§7.4). Alimenta el workflow A."""
+        ...
+
+    async def crear(self, datos: dict) -> UUID:
+        """Alta de obra ya validada por el dominio (§11.2 `POST /obras`)."""
+        ...
+
+    async def crear_en_lote(self, obras: list[dict]) -> list[UUID]:
+        """Alta masiva (§11.2 `POST /obras/bulk`), en una sola transacción."""
+        ...
+
+    async def actualizar(self, obra_id: UUID, cambios: dict) -> None:
+        """Edición parcial (§11.2 `PATCH /obras/{id}`). Solo las claves
+        presentes en `cambios` se escriben."""
+        ...
+
+    async def listar(
+        self,
+        *,
+        proyecto_id: UUID | None = None,
+        cluster_id: UUID | None = None,
+        residente_id: UUID | None = None,
+        estatus: str | None = None,
+    ) -> list[dict]:
+        """Obras visibles para el rol actual: RLS ya acota el alcance (§11.2)."""
+        ...
+
+    async def tiene_actividades(self, obra_id: UUID) -> bool:
+        """Si la obra ya se generó, volver a generarla la duplicaría (§11.3 A)."""
+        ...
+
+    async def precios_vigentes(self, concepto_ids: list[UUID]) -> dict[str, dict]:
+        """CPU vigente por concepto (§7.3) para el workflow A.
+
+        Devuelve ``{concepto_id: {"precio_unitario", "precio_destajo"}}``; los
+        conceptos sin CPU vigente simplemente no aparecen —el dominio decide
+        qué hacer con los faltantes (§11.3 A.2).
+        """
+        ...
+
+    async def items_programa_base(self, prototipo_id: UUID) -> list[dict]:
+        """Items del `ProgramaBase` vigente del prototipo (§7.5). Lista vacía
+        si el prototipo aún no tiene plantilla de duraciones."""
+        ...
+
+    async def instanciar_programa(self, obra_id: UUID) -> UUID:
+        """Crea el `ProgramaObra` vigente de la obra (§7.5, §11.3 A.2)."""
+        ...
+
+    async def crear_actividades(
+        self, obra_id: UUID, programa_obra_id: UUID, actividades: list[dict]
+    ) -> None:
+        """Persiste las `Actividad` ya planeadas por el dominio (§11.3 A.2)."""
         ...
 
 

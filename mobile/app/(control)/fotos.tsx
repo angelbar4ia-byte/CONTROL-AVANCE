@@ -1,10 +1,15 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+
+import { Encabezado } from '@/ui/Encabezado';
 
 export default function Pantalla() {
   return (
     <View className="flex-1 bg-bg px-5 pt-14">
-      <Text className="text-2xl text-text">Fotos</Text>
-      <Text className="mt-2 text-md text-text-mute">Evidencias; suben directo a R2 en segundo plano (§12.5).</Text>
+      <Encabezado
+        eyebrow="Control de obra"
+        titulo="Fotos"
+        descripcion="Evidencias; suben directo a R2 en segundo plano (§12.5)."
+      />
     </View>
   );
 }

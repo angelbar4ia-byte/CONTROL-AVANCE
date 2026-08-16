@@ -12,12 +12,17 @@ El flujo completo:
 Por eso los endpoints **nunca** reciben ni pasan `org_id` como parámetro
 (§11.2): el alcance es implícito y lo impone la base de datos.
 
-Dos detalles que no se pueden relajar:
+Tres detalles que no se pueden relajar:
 
 1. `SET LOCAL` (no `SET`) — el contexto muere con la transacción y no se
    filtra a la siguiente petición que reutilice la conexión del pool.
 2. El rol de conexión **no** puede ser dueño de las tablas: el owner salta
    RLS. Se conecta con `obractrl_api` (ver `database/migrations/0014`).
+3. Como el contexto es **de transacción**, un `commit()` a media sesión lo
+   borra: todo lo que se leyera después quedaría sin `app.org_id` y RLS no
+   devolvería **nada** —un caso de uso que reconsulta tras confirmar vería
+   su propio registro como inexistente—. Por eso el contexto se re-aplica en
+   cada `begin` (`_fijar_contexto`), no una sola vez al abrir la sesión.
 """
 
 from __future__ import annotations
@@ -27,7 +32,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -86,19 +91,30 @@ async def sesion_con_rls(ctx: ContextoSesion) -> AsyncIterator[AsyncSession]:
     concatenación.
     """
     async with obtener_sessionmaker()() as sesion:
-        await sesion.execute(
-            text(
-                "select set_config('app.org_id',     :org,  true),"
-                "       set_config('app.usuario_id', :usr,  true),"
-                "       set_config('app.rol',        :rol,  true)"
-            ),
-            {"org": str(ctx.org_id), "usr": str(ctx.usuario_id), "rol": ctx.rol},
-        )
+        # Se engancha a `after_begin` en vez de ejecutarlo una vez: así el
+        # contexto vuelve a fijarse en la transacción que abre cada `commit()`
+        # intermedio, y no solo en la primera (ver punto 3 del encabezado).
+        @event.listens_for(sesion.sync_session, "after_begin")
+        def _fijar_contexto(_sesion, _transaccion, conexion) -> None:  # noqa: ANN001
+            conexion.execute(
+                text(
+                    "select set_config('app.org_id',     :org,  true),"
+                    "       set_config('app.usuario_id', :usr,  true),"
+                    "       set_config('app.rol',        :rol,  true)"
+                ),
+                {"org": str(ctx.org_id), "usr": str(ctx.usuario_id), "rol": ctx.rol},
+            )
+
         try:
+            # Fuerza el primer `begin` para que el contexto quede puesto antes
+            # de la primera consulta del llamador.
+            await sesion.connection()
             yield sesion
         except Exception:
             await sesion.rollback()
             raise
+        finally:
+            event.remove(sesion.sync_session, "after_begin", _fijar_contexto)
 
 
 async def cerrar_engine() -> None:

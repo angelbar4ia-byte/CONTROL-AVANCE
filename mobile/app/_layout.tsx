@@ -15,6 +15,7 @@ import { PowerSyncContext } from '@powersync/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { db } from '@/sync/db';
+import { ProveedorSync } from '@/sync/ProveedorSync';
 
 import '../global.css';
 
@@ -37,13 +38,16 @@ export default function LayoutRaiz() {
           sin pasar por la API HTTP. */}
       <PowerSyncContext.Provider value={db}>
         <QueryClientProvider client={queryClient}>
-          <StatusBar style="dark" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="login" />
-            <Stack.Screen name="(residente)" />
-            <Stack.Screen name="(supervisor)" />
-            <Stack.Screen name="(control)" />
-          </Stack>
+          {/* Conecta/desconecta la réplica local según haya sesión (§12.5). */}
+          <ProveedorSync>
+            <StatusBar style="dark" />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="login" />
+              <Stack.Screen name="(residente)" />
+              <Stack.Screen name="(supervisor)" />
+              <Stack.Screen name="(control)" />
+            </Stack>
+          </ProveedorSync>
         </QueryClientProvider>
       </PowerSyncContext.Provider>
     </SafeAreaProvider>

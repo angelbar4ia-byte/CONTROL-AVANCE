@@ -71,30 +71,32 @@ class RepositorioActividadesSQL:
         actividad_id: UUID,
         *,
         cant_programada: Decimal,
-        cant_ejecutada: Decimal,
-        avance_pct: Decimal,
         estatus: str,
     ) -> None:
-        # avance_pct y estatus también los deriva `app.actividad_recalcular`
-        # (trigger de la BD, `database/migrations/0007`) a partir de las
-        # mismas fórmulas fijas del §6 — es defensa en profundidad, no una
-        # segunda fuente de verdad: si el dominio tiene un bug, la BD corrige
-        # el valor igual antes de guardarlo.
+        """Escribe lo que **sí** se captura: la cantidad programada y el
+        estatus de flujo.
+
+        `cant_ejecutada` NO se escribe aquí: desde la decisión D5 la bitácora
+        `registro_avance` es su única fuente, y el trigger
+        `app.registro_avance_agregar` (migración 0017) la deriva de la suma de
+        los deltas. La ruta web y la conciliación offline de PowerSync llegan
+        así al mismo número por el mismo camino; si esto volviera a escribir
+        un absoluto, la primera captura del móvil lo pisaría con Σ deltas.
+
+        `avance_pct` tampoco: lo deriva `app.actividad_recalcular` (migración
+        0007) con las fórmulas fijas del §6.
+        """
         resultado = await self._sesion.execute(
             text(
                 """
                 update actividad
                    set cant_programada = :cant_programada,
-                       cant_ejecutada  = :cant_ejecutada,
-                       avance_pct      = :avance_pct,
                        estatus         = :estatus
                  where id = :id
                 """
             ),
             {
                 "cant_programada": cant_programada,
-                "cant_ejecutada": cant_ejecutada,
-                "avance_pct": avance_pct,
                 "estatus": estatus,
                 "id": str(actividad_id),
             },

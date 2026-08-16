@@ -7,7 +7,13 @@ from decimal import Decimal
 import pytest
 
 from obractrl.domain.shared.folio import Folio, interpretar_campo_semana
-from obractrl.domain.shared.valores import Avance, Cantidad, Dinero, PrecioUnitario
+from obractrl.domain.shared.valores import (
+    Avance,
+    Cantidad,
+    Clave,
+    Dinero,
+    PrecioUnitario,
+)
 
 D = Decimal
 
@@ -115,3 +121,23 @@ class TestPrecioUnitario:
     def test_los_materiales_son_el_resto(self) -> None:
         pu = PrecioUnitario(total=Dinero("500"), destajo=Dinero("120"))
         assert pu.materiales == Dinero("380")
+
+
+class TestClave:
+    """La clave es única y manda en todo cruce (§3.3)."""
+
+    def test_normaliza_mayusculas_y_espacios(self) -> None:
+        assert str(Clave("  fresno   01 ")) == "FRESNO 01"
+
+    def test_dos_escrituras_de_la_misma_clave_son_iguales(self) -> None:
+        assert Clave(" fresno  01 ") == Clave("FRESNO 01")
+
+    def test_no_acepta_vacio(self) -> None:
+        with pytest.raises(ValueError, match="obligatoria"):
+            Clave("   ")
+
+    def test_expone_el_prefijo(self) -> None:
+        assert Clave("cas-01").prefijo == "CAS"
+
+    def test_sin_guion_no_hay_prefijo(self) -> None:
+        assert Clave("FRESNO 01").prefijo is None

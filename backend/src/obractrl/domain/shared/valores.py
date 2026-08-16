@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
-__all__ = ["MONEDA", "Avance", "Cantidad", "Dinero", "PrecioUnitario"]
+__all__ = ["MONEDA", "Avance", "Cantidad", "Clave", "Dinero", "PrecioUnitario"]
 
 MONEDA = "MXN"
 """Moneda única del sistema (§3.5)."""
@@ -109,6 +109,42 @@ class Cantidad:
 
     def importe(self, precio: Dinero) -> Dinero:
         return precio * self.valor
+
+
+@dataclass(frozen=True, slots=True)
+class Clave:
+    """Clave de catálogo o de estructura (§3.3).
+
+    En **todos** los catálogos la clave es única y es la que manda en todo
+    análisis, mapeo y cruce; la descripción solo desempata. Por eso se
+    normaliza una sola vez, aquí: mayúsculas y espacios internos colapsados,
+    para que ``' fresno  01 '`` y ``'FRESNO 01'`` sean la misma clave y el
+    índice único de la BD (``uq_obra_clave``…) no vea dos.
+
+    >>> str(Clave(" fresno  01 "))
+    'FRESNO 01'
+    """
+
+    valor: str
+
+    def __init__(self, valor: str) -> None:
+        v = " ".join(str(valor).split()).upper()
+        if not v:
+            raise ValueError("La clave es obligatoria y no puede ser solo espacios (§3.3).")
+        object.__setattr__(self, "valor", v)
+
+    def __str__(self) -> str:
+        return self.valor
+
+    @property
+    def prefijo(self) -> str | None:
+        """Prefijo canónico (``CAS-01`` → ``CAS``), si la clave lo trae (§10.1).
+
+        Los prefijos son **semilla editable** (§8.7): el dominio los lee, no
+        los impone.
+        """
+        cabeza, sep, _ = self.valor.partition("-")
+        return cabeza if sep and cabeza else None
 
 
 @dataclass(frozen=True, slots=True)

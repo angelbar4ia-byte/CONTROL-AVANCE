@@ -107,7 +107,10 @@ class RepositorioMaterialesSQL:
                     f"""
                     select {_COLUMNAS_SALIDA}
                     from salida_almacen
-                    where :obra_id is null or obra_id = cast(:obra_id as uuid)
+                    -- El cast del lado `is null` fija el tipo del parámetro;
+                    -- sin él asyncpg levanta AmbiguousParameterError.
+                    where cast(:obra_id as uuid) is null
+                       or obra_id = cast(:obra_id as uuid)
                     order by fecha desc
                     """
                 ),
