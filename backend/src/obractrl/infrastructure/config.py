@@ -15,6 +15,22 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 __all__ = ["Config", "obtener_config"]
 
+# Sufijos que el Dashboard de Supabase muestra pegados a la URL del proyecto.
+# La etiqueta que ve el usuario dice "API URL" y el valor viene con
+# `/rest/v1/`, así que copiarlo tal cual es el camino natural —y dejaría el
+# JWKS en `/rest/v1/auth/v1/...`, que no existe. Se normaliza en vez de
+# exigir que el operador sepa recortarlo.
+_SUFIJOS_DE_SERVICIO = ("/rest/v1", "/auth/v1", "/storage/v1", "/realtime/v1")
+
+
+def _base_de_proyecto(url: str) -> str:
+    """URL base del proyecto, sin sufijo de servicio ni barra final."""
+    base = url.strip().rstrip("/")
+    for sufijo in _SUFIJOS_DE_SERVICIO:
+        if base.endswith(sufijo):
+            return base[: -len(sufijo)].rstrip("/")
+    return base
+
 
 class Config(BaseSettings):
     model_config = SettingsConfigDict(
@@ -60,9 +76,8 @@ class Config(BaseSettings):
         """JWKS explícito, o el derivado de `supabase_url`; '' si no hay ninguno."""
         if self.jwt_jwks_url:
             return self.jwt_jwks_url
-        if self.supabase_url:
-            return f"{self.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
-        return ""
+        base = _base_de_proyecto(self.supabase_url)
+        return f"{base}/auth/v1/.well-known/jwks.json" if base else ""
 
     # --- Supabase (solo para la ruta directa del front) -----------------
     supabase_url: str = ""
