@@ -84,6 +84,16 @@ async def contexto_actual(
             _llave_de_verificacion(credenciales.credentials, cfg),
             algorithms=cfg.jwt_algoritmos,
             audience=cfg.jwt_audiencia,
+            # Tolerancia de reloj (§12.4). El token lo emite Supabase y lo
+            # valida otro host: si el nuestro va unos segundos atrasado, el
+            # `iat` parece futuro y PyJWT lo rechaza como prematuro
+            # (`ImmatureSignatureError`) aunque sea legítimo. Pasó en
+            # producción y se veía como "token inválido" intermitente.
+            #
+            # La holgura recorta lo mismo por el otro lado —un token seguiría
+            # siendo aceptado unos segundos tras expirar—, y por eso se
+            # mantiene en el orden de segundos y no de minutos.
+            leeway=cfg.jwt_holgura_segundos,
         )
     except jwt.ExpiredSignatureError as exc:
         raise _no_autorizado("El token expiró.") from exc
