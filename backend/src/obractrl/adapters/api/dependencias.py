@@ -9,6 +9,7 @@ contexto que se fija aquí.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from functools import lru_cache
 from typing import Annotated
@@ -16,8 +17,8 @@ from uuid import UUID
 
 import jwt
 from fastapi import Depends, HTTPException, status
-from jwt import PyJWKClient
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt import PyJWKClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obractrl.domain.shared.diccionario import Rol
@@ -26,6 +27,7 @@ from obractrl.infrastructure.db.sesion import ContextoSesion, sesion_con_rls
 
 __all__ = ["ContextoActual", "SesionRLS", "exigir_rol"]
 
+_log = logging.getLogger(__name__)
 _bearer = HTTPBearer(auto_error=True)
 
 
@@ -66,6 +68,8 @@ def _llave_de_verificacion(token: str, cfg: Config) -> str:
         # No se distingue del token inválido hacia afuera: que el JWKS no
         # responda o no tenga el `kid` no es algo que el cliente pueda
         # arreglar, y detallarlo solo daría pistas de la infraestructura.
+        # Al log sí, que es donde el operador puede actuar.
+        _log.warning("JWKS falló (%s): %s: %s", url, type(exc).__name__, exc)
         raise _no_autorizado("Token inválido.") from exc
 
 
@@ -84,6 +88,11 @@ async def contexto_actual(
     except jwt.ExpiredSignatureError as exc:
         raise _no_autorizado("El token expiró.") from exc
     except jwt.InvalidTokenError as exc:
+        # Al cliente se le responde siempre lo mismo —no se le dice por qué
+        # falló, sería darle pistas—, pero el operador necesita distinguir
+        # "firma mala" de "audiencia equivocada" o "algoritmo no soportado":
+        # los tres dan 401 y sin esto no hay forma de separarlos.
+        _log.warning("JWT rechazado: %s: %s", type(exc).__name__, exc)
         raise _no_autorizado("Token inválido.") from exc
     except (ValueError, TypeError) as exc:
         # Llave y algoritmo incompatibles: p. ej. el proveedor firma ES256
