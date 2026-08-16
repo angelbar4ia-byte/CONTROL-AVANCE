@@ -87,8 +87,24 @@ def crear_app() -> FastAPI:
 
     @app.get("/health", tags=["salud"], summary="Health check")
     async def health() -> dict[str, str]:
-        """Sonda de Render. Debe responder sin tocar la BD."""
-        return {"estatus": "ok", "version": __version__, "entorno": cfg.entorno}
+        """Sonda de Render. Debe responder sin tocar la BD.
+
+        Incluye cómo quedó configurada la verificación del JWT. Sin esto, un
+        despliegue mal configurado solo se manifiesta como 401 en todas las
+        rutas y no hay forma de distinguir "la variable no llegó" de "el
+        token es malo" —y la Shell de Render es de pago.
+
+        No expone secretos: `jwks_url` es un endpoint público del proveedor
+        y `auth_modo` solo dice qué camino se tomó.
+        """
+        jwks = cfg.jwks_url_efectiva
+        return {
+            "estatus": "ok",
+            "version": __version__,
+            "entorno": cfg.entorno,
+            "auth_modo": "jwks" if jwks else "secreto_compartido",
+            "jwks_url": jwks or "(sin configurar: falta SUPABASE_URL)",
+        }
 
     return app
 
