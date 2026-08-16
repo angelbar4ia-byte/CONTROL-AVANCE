@@ -104,9 +104,44 @@ def crear_app() -> FastAPI:
             "entorno": cfg.entorno,
             "auth_modo": "jwks" if jwks else "secreto_compartido",
             "jwks_url": jwks or "(sin configurar: falta SUPABASE_URL)",
+            # Verificar ES256 exige `cryptography`, que entra por el extra
+            # `pyjwt[crypto]`. Si el build lo instaló sin el extra, PyJWT
+            # rechaza el algoritmo y la respuesta es un 401 idéntico al de un
+            # token realmente inválido. Sin esta sonda no se distinguen.
+            "es256_disponible": _hay_es256(),
+            "jwks_alcanzable": _jwks_alcanzable(jwks),
         }
 
     return app
+
+
+def _hay_es256() -> str:
+    """¿PyJWT puede verificar ES256 en este entorno? (§12.4)"""
+    try:
+        import jwt.algorithms as _alg
+
+        return "si" if "ES256" in _alg.get_default_algorithms() else "no"
+    except Exception as exc:  # noqa: BLE001 — es una sonda, no una ruta crítica
+        return f"error: {type(exc).__name__}"
+
+
+def _jwks_alcanzable(url: str) -> str:
+    """¿El proceso alcanza el JWKS del proveedor? (§12.4)
+
+    Un despliegue sin salida a Internet, o con la URL mal derivada, da el
+    mismo 401 que un token inválido. Devuelve la clase del fallo, nunca el
+    contenido: el JWKS es público, pero el detalle del error no aporta al
+    cliente y sí describe la infraestructura.
+    """
+    if not url:
+        return "n/a"
+    try:
+        import urllib.request
+
+        with urllib.request.urlopen(url, timeout=5) as r:  # noqa: S310 — URL propia
+            return "si" if r.status == 200 else f"http {r.status}"
+    except Exception as exc:  # noqa: BLE001 — es una sonda, no una ruta crítica
+        return f"error: {type(exc).__name__}"
 
 
 def _registrar_manejadores_de_error(app: FastAPI) -> None:
