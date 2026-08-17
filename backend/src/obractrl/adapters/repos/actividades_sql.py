@@ -33,6 +33,33 @@ from obractrl.domain.programacion.cpm import Dependencia, NodoCPM
 
 __all__ = ["ActividadNoModificada", "RepositorioActividadesSQL"]
 
+_COLUMNAS_PROGRAMACION = """
+    id, prototipo_nodo_id, frente_id, etapa_id, nivel_id, descripcion,
+    duracion_dias, dependencias, fecha_inicio, fecha_termino, avance_pct,
+    estatus, bloqueada, es_critica, holgura, desfase
+"""
+"""Lo que el cronograma y el Gantt necesitan de una actividad (§7.6, §11.2).
+
+Es un `select` propio y no `_COLUMNAS` del avance porque son dos vistas de la
+misma fila con consumidores distintos: la captura mira cantidades y precios,
+la programación mira fechas, duración y dependencias.
+"""
+
+_CAMPOS_PROGRAMACION = {
+    "duracion_dias": "duracion_dias = :duracion_dias",
+    "dependencias": "dependencias = cast(:dependencias as jsonb)",
+    "frente_id": "frente_id = cast(:frente_id as uuid)",
+    "fecha_inicio": "fecha_inicio = :fecha_inicio",
+    "fecha_termino": "fecha_termino = :fecha_termino",
+}
+"""Columnas que `PATCH /actividades/{id}/programacion` puede tocar (§11.2).
+
+Lista blanca, igual que `_CAMPOS_EDITABLES` en `obras_sql.py`: la clave del
+dict entra a la sentencia SQL, así que solo pueden entrar estas. Las salidas
+del CPM (`es_critica`, `holgura`, `desfase`) no están: nadie las captura, las
+deriva el motor y las escribe `guardar_resultado_cpm`.
+"""
+
 
 class ActividadNoModificada(RegistroNoEncontrado):
     """El UPDATE no afectó ninguna fila.
@@ -230,6 +257,139 @@ class RepositorioActividadesSQL:
         resultado = await self._sesion.execute(
             text("update actividad set estatus = :estatus where id = :id"),
             {"estatus": estatus, "id": str(actividad_id)},
+        )
+        if resultado.rowcount == 0:
+            raise ActividadNoModificada(
+                f"No se actualizó la actividad {actividad_id}: ya no existe o "
+                f"salió de tu alcance."
+            )
+
+    # --- Programación · CPM (§7.5, §11.2) --------------------------------
+
+    async def programacion_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Cronograma completo de la obra (§11.2 `GET /obras/{id}/ruta-critica`).
+
+        Orden estable por antigüedad: la `actividad` no tiene columna de
+        orden propia, y el workflow A las inserta en el recorrido en
+        profundidad del árbol del prototipo (§11.3 A.2), así que `created_at`
+        preserva ese recorrido. El `id` desempata los inserts del mismo lote,
+        que comparten `created_at` al milisegundo.
+        """
+        filas = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    select {_COLUMNAS_PROGRAMACION}
+                    from actividad
+                    where obra_id = :obra_id
+                    order by created_at, id
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
+    async def programacion_de(self, actividad_id: UUID) -> dict[str, Any] | None:
+        """Programación de una actividad, con su `obra_id` (§11.2 `PATCH`).
+
+        Trae el `obra_id` porque el ajuste manual necesita el grafo completo
+        de la obra para que el motor pueda detectar un ciclo: una arista
+        suelta no dice nada (§6).
+        """
+        fila = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    select obra_id, programa_obra_id, {_COLUMNAS_PROGRAMACION}
+                    from actividad
+                    where id = :id
+                    """
+                ),
+                {"id": str(actividad_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def aplicar_programacion(
+        self,
+        obra_id: UUID,
+        *,
+        programa_obra_id: UUID,
+        programaciones: list[dict[str, Any]],
+    ) -> None:
+        """Baja el cronograma instanciado a las actividades (§7.5, §11.2).
+
+        Ata cada actividad a la versión de `ProgramaObra` que la programó:
+        sin eso no habría forma de saber contra qué versión del cronograma se
+        midió un corte (§7.5).
+
+        Cada dict trae `id`, `duracion_dias`, `dependencias` (json ya
+        serializado), `frente_id`, `fecha_inicio` y `fecha_termino`.
+        """
+        if not programaciones:
+            return
+
+        params = [
+            {
+                "id": str(p["id"]),
+                "duracion_dias": p["duracion_dias"],
+                "dependencias": p["dependencias"],
+                "frente_id": str(p["frente_id"]) if p.get("frente_id") else None,
+                "fecha_inicio": p.get("fecha_inicio"),
+                "fecha_termino": p.get("fecha_termino"),
+            }
+            for p in programaciones
+        ]
+
+        await self._sesion.execute(
+            text(
+                """
+                update actividad
+                   set duracion_dias    = :duracion_dias,
+                       dependencias     = cast(:dependencias as jsonb),
+                       frente_id        = cast(:frente_id as uuid),
+                       fecha_inicio     = :fecha_inicio,
+                       fecha_termino    = :fecha_termino,
+                       programa_obra_id = cast(:programa_obra_id as uuid)
+                 where id = cast(:id as uuid)
+                   and obra_id = cast(:obra_id as uuid)
+                """
+            ).bindparams(
+                obra_id=str(obra_id), programa_obra_id=str(programa_obra_id)
+            ),
+            params,
+        )
+
+    async def actualizar_programacion(
+        self, actividad_id: UUID, cambios: dict[str, Any]
+    ) -> None:
+        """Ajuste manual de una actividad (§11.2 `PATCH`).
+
+        Solo se escriben las claves presentes en `cambios` y solo si están en
+        `_CAMPOS_PROGRAMACION`; una clave desconocida es un error de
+        programación del caso de uso, no una entrada del usuario, así que
+        revienta fuerte —mismo criterio que `obras_sql.actualizar`.
+        """
+        desconocidos = set(cambios) - set(_CAMPOS_PROGRAMACION)
+        if desconocidos:
+            raise ValueError(
+                f"Campos no programables en actividad: "
+                f"{', '.join(sorted(desconocidos))}."
+            )
+        if not cambios:
+            return
+
+        asignaciones = ", ".join(_CAMPOS_PROGRAMACION[campo] for campo in cambios)
+        params: dict[str, Any] = {"id": str(actividad_id)}
+        for campo, valor in cambios.items():
+            params[campo] = (
+                str(valor) if campo == "frente_id" and valor is not None else valor
+            )
+
+        resultado = await self._sesion.execute(
+            text(f"update actividad set {asignaciones} where id = :id"),
+            params,
         )
         if resultado.rowcount == 0:
             raise ActividadNoModificada(

@@ -37,6 +37,7 @@ __all__ = [
     "RepositorioInsumos",
     "RepositorioMateriales",
     "RepositorioObras",
+    "RepositorioProgramas",
     "RepositorioPrototipos",
     "RepositorioProyectos",
     "RepositorioUnidades",
@@ -102,6 +103,42 @@ class RepositorioActividades(Protocol):
         """Fija un estatus de flujo (``pendiente_cierre``, ``concluida``…)
         sin tocar cantidades — lo usa el caso de uso de cierres (§11.3 C), no
         el motor de avance (§6)."""
+        ...
+
+    # --- Programación · CPM (§7.5, §11.2) --------------------------------
+    #
+    # Los campos de programación (`duracion_dias`, `dependencias`,
+    # `fecha_inicio`, `fecha_termino`, `es_critica`, `holgura`, `desfase`)
+    # viven en `actividad` por el §7.6, así que el contexto Programación los
+    # lee y escribe **por este puerto**, nunca tocando la tabla desde su
+    # propio repositorio (§11.1: ningún módulo toca las tablas de otro).
+
+    async def programacion_de_obra(self, obra_id: UUID) -> list[dict]:
+        """Cronograma completo de la obra: lo que el CPM y el Gantt necesitan
+        de cada actividad (§7.6, §11.2 `GET /obras/{id}/ruta-critica`)."""
+        ...
+
+    async def programacion_de(self, actividad_id: UUID) -> dict | None:
+        """Programación de una sola actividad, con su `obra_id` (§11.2
+        `PATCH /actividades/{id}/programacion`)."""
+        ...
+
+    async def aplicar_programacion(
+        self,
+        obra_id: UUID,
+        *,
+        programa_obra_id: UUID,
+        programaciones: list[dict],
+    ) -> None:
+        """Baja el cronograma instanciado a las actividades y las ata a la
+        versión de `ProgramaObra` que las programó (§7.5, §11.2)."""
+        ...
+
+    async def actualizar_programacion(
+        self, actividad_id: UUID, cambios: dict
+    ) -> None:
+        """Ajuste manual de una actividad; solo las claves presentes se
+        escriben (§11.2 `PATCH /actividades/{id}/programacion`)."""
         ...
 
 
@@ -242,6 +279,73 @@ class RepositorioObras(Protocol):
         self, obra_id: UUID, programa_obra_id: UUID, actividades: list[dict]
     ) -> None:
         """Persiste las `Actividad` ya planeadas por el dominio (§11.3 A.2)."""
+        ...
+
+
+@runtime_checkable
+class RepositorioProgramas(Protocol):
+    """Programación: plantilla del prototipo y cronograma de la obra (§7.5).
+
+    Cubre las tres tablas del contexto —`programa_base`, `programa_base_item`
+    y `programa_obra`— y **solo** esas: los campos de programación de la
+    `Actividad` (§7.6) se tocan por `RepositorioActividades`, que es su puerto
+    (§11.1).
+
+    Alcance: `programa_base` y `programa_base_item` entran al bloque de
+    catálogo de `rls_policies` (lectura para la org, escritura para
+    `app.es_config()`); `programa_obra` entra al bloque por obra
+    (`app.obra_visible(obra_id)`). Ninguna implementación filtra `org_id` a
+    mano.
+    """
+
+    async def crear_base(self, datos: dict) -> UUID:
+        """Alta de `ProgramaBase` con su versión (§11.2 `POST /programas-base`).
+
+        La implementación resuelve la versión siguiente del prototipo y retira
+        el vigente anterior: `uq_programa_base_vigente` deja un solo vigente
+        por prototipo.
+        """
+        ...
+
+    async def obtener_base(self, programa_base_id: UUID) -> dict | None: ...
+
+    async def listar_bases(
+        self, *, prototipo_id: UUID | None = None, solo_vigentes: bool = False
+    ) -> list[dict]:
+        """Programas base visibles (§11.2 `GET /programas-base`)."""
+        ...
+
+    async def agregar_items_base(
+        self, programa_base_id: UUID, items: list[dict]
+    ) -> None:
+        """Renglones ya validados por el dominio (`validar_item_base`)."""
+        ...
+
+    async def listar_items_base(self, programa_base_id: UUID) -> list[dict]:
+        """§11.2 `GET /programas-base/{id}/items`."""
+        ...
+
+    async def items_base_vigente(self, prototipo_id: UUID) -> list[dict]:
+        """Renglones del programa base **vigente** del prototipo (§7.5).
+        Lista vacía si el prototipo aún no tiene plantilla."""
+        ...
+
+    async def programa_vigente(self, obra_id: UUID) -> dict | None:
+        """`ProgramaObra` vigente de la obra (§11.2 `GET /obras/{id}/programa`)."""
+        ...
+
+    async def listar_programas(self, obra_id: UUID) -> list[dict]:
+        """Historial de versiones del cronograma de la obra (§7.5)."""
+        ...
+
+    async def instanciar(self, obra_id: UUID, *, fecha_corte: date | None) -> dict:
+        """Crea la siguiente versión vigente de `ProgramaObra` y retira la
+        anterior (§7.5, §11.2 `POST /obras/{id}/programa`)."""
+        ...
+
+    async def fijar_fecha_corte(self, programa_obra_id: UUID, fecha: date) -> None:
+        """Deja constancia de contra qué fecha se midió el último recálculo
+        (§7.5 `ProgramaObra.fecha_corte`, §6 desfase)."""
         ...
 
 

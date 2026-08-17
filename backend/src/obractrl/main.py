@@ -29,6 +29,10 @@ from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEnc
 from obractrl.application.casos_uso.gestionar_estimacion import EstimacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_evaluacion import EvaluacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_incidencia import IncidenciaNoEncontrada
+from obractrl.application.casos_uso.gestionar_programacion import (
+    ActividadNoProgramable,
+    ProgramaBaseNoEncontrado,
+)
 from obractrl.application.casos_uso.registrar_salida_almacen import (
     MotivoAlmacenNoEncontrado,
 )
@@ -43,6 +47,7 @@ from obractrl.domain.materiales.reglas import ErrorDeMaterial
 from obractrl.domain.obras.generacion import ErrorDeGeneracion
 from obractrl.domain.obras.reglas import ErrorDeObra, TransicionDeObraInvalida
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
+from obractrl.domain.programacion.reglas import ErrorDeProgramacion
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto
 from obractrl.infrastructure.config import obtener_config
 from obractrl.infrastructure.db.sesion import cerrar_engine
@@ -197,6 +202,49 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             titulo="El cronograma tiene dependencias circulares",
             detalle=str(exc),
             actividades=exc.involucradas,
+        )
+
+    @app.exception_handler(ErrorDeProgramacion)
+    async def _programacion(
+        request: Request, exc: ErrorDeProgramacion
+    ) -> JSONResponse:
+        # 422 como `ErrorDeCaptura`: es una invariante del cronograma
+        # (duración no positiva, dependencia fuera de la obra, fechas
+        # invertidas), no una transición de flujo (§7.5).
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-programacion",
+            titulo="Programación inválida",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ProgramaBaseNoEncontrado)
+    async def _programa_base_no_encontrado(
+        request: Request, exc: ProgramaBaseNoEncontrado
+    ) -> JSONResponse:
+        # RLS hace indistinguible "no existe" de "no lo puedes ver" (§12.4).
+        return _problema(
+            request,
+            status=404,
+            tipo="programa-base-no-encontrado",
+            titulo="Programa base no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ActividadNoProgramable)
+    async def _actividad_no_programable(
+        request: Request, exc: ActividadNoProgramable
+    ) -> JSONResponse:
+        # Mismo 404 que `ActividadNoEncontrada`: para el cliente son
+        # indistinguibles a propósito, aunque sean de contextos distintos
+        # (§11.1, §12.4).
+        return _problema(
+            request,
+            status=404,
+            tipo="actividad-no-encontrada",
+            titulo="Actividad no encontrada",
+            detalle=str(exc),
         )
 
     @app.exception_handler(ActividadNoEncontrada)

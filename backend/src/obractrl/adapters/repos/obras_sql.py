@@ -22,7 +22,10 @@ y `programa_base*`, que pertenecen a los contextos de Prototipo, Catálogos/APU
 y Programación (§11.1). Es lo que el **workflow A** necesita para nacer
 (§11.3 A.2) y sigue el precedente de `arbol_prototipo`; son lecturas de
 referencia, nunca escrituras. Cuando esos contextos publiquen su fachada
-(Fases 2 y 3 del roadmap) estos tres métodos se mueven detrás de ella.
+(Fases 2 y 3 del roadmap) estos tres métodos se mueven detrás de ella —
+`items_programa_base` ya tiene su equivalente en el repositorio de
+Programación (`programas_sql.items_base_vigente`), que es a donde se moverá
+cuando el workflow A pase a consumirlo por su puerto.
 """
 
 from __future__ import annotations
@@ -382,10 +385,10 @@ class RepositorioObrasSQL:
 
         `avance_pct` y el estatus inicial no se mandan: los deriva el trigger
         `trg_actividad_recalcular` (§6, migración 0007), que es el espejo en BD
-        de la misma regla. Cada dict trae `concepto_id`, `descripcion`,
-        `cant_base`, `precio_unitario`, `precio_destajo`, `modo_pago`,
-        `duracion_dias`, `dependencias` (json ya serializado) y, opcionales,
-        `frente_id`, `nivel_id` y `etapa_id`.
+        de la misma regla. Cada dict trae `concepto_id`, `prototipo_nodo_id`,
+        `descripcion`, `cant_base`, `precio_unitario`, `precio_destajo`,
+        `modo_pago`, `duracion_dias`, `dependencias` (json ya serializado) y,
+        opcionales, `frente_id`, `nivel_id` y `etapa_id`.
         """
         if not actividades:
             return
@@ -395,6 +398,9 @@ class RepositorioObrasSQL:
                 "obra_id": str(obra_id),
                 "programa_obra_id": str(programa_obra_id),
                 "concepto_id": str(a["concepto_id"]),
+                "prototipo_nodo_id": str(a["prototipo_nodo_id"])
+                if a.get("prototipo_nodo_id")
+                else None,
                 "frente_id": str(a["frente_id"]) if a.get("frente_id") else None,
                 "nivel_id": str(a["nivel_id"]) if a.get("nivel_id") else None,
                 "etapa_id": str(a["etapa_id"]) if a.get("etapa_id") else None,
@@ -413,14 +419,16 @@ class RepositorioObrasSQL:
             text(
                 """
                 insert into actividad
-                    (org_id, obra_id, programa_obra_id, concepto_id, frente_id,
+                    (org_id, obra_id, programa_obra_id, concepto_id,
+                     prototipo_nodo_id, frente_id,
                      nivel_id, etapa_id, descripcion, cant_base,
                      precio_unitario, precio_destajo, modo_pago, duracion_dias,
                      dependencias)
                 values
                     (cast(current_setting('app.org_id') as uuid),
                      cast(:obra_id as uuid), cast(:programa_obra_id as uuid),
-                     cast(:concepto_id as uuid), cast(:frente_id as uuid),
+                     cast(:concepto_id as uuid),
+                     cast(:prototipo_nodo_id as uuid), cast(:frente_id as uuid),
                      cast(:nivel_id as uuid), cast(:etapa_id as uuid),
                      :descripcion, :cant_base, :precio_unitario,
                      :precio_destajo, cast(:modo_pago as modo_pago),

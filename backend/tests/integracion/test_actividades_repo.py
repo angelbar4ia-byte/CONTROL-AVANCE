@@ -21,6 +21,7 @@ from obractrl.adapters.repos.actividades_sql import (
     ActividadNoModificada,
     RepositorioActividadesSQL,
 )
+from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
 from obractrl.domain.programacion.cpm import TipoDependencia
 from obractrl.infrastructure.db.sesion import ContextoSesion, sesion_con_rls
 from tests.integracion.conftest import DATABASE_URL_ADMIN, Escenario
@@ -223,6 +224,95 @@ async def test_marcar_bloqueadas_y_vacio_es_no_op(
 
     assert fila is not None
     assert fila["bloqueada"] is True
+
+
+async def test_programacion_de_obra_y_de_una_actividad(
+    escenario: Escenario, contexto_residente: ContextoSesion
+) -> None:
+    """El `select` de programación trae lo que el Gantt y el CPM necesitan
+    (§7.6, §11.2) — incluido el `obra_id` en la lectura por actividad, que es
+    lo que deja al ajuste manual pedir el grafo completo."""
+    async with sesion_con_rls(contexto_residente) as sesion:
+        repo = RepositorioActividadesSQL(sesion)
+        de_la_obra = await repo.programacion_de_obra(escenario.obra_id)
+        una = await repo.programacion_de(escenario.actividad_id)
+
+    assert [fila["id"] for fila in de_la_obra] == [escenario.actividad_id]
+    assert una is not None
+    assert una["obra_id"] == escenario.obra_id
+    assert una["duracion_dias"] == Decimal("1.00")
+    assert una["dependencias"] == []
+    assert una["prototipo_nodo_id"] is None
+
+
+async def test_aplicar_programacion_ata_la_actividad_a_su_programa(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    async with sesion_con_rls(contexto_control) as sesion:
+        programa = await RepositorioProgramasSQL(sesion).instanciar(
+            escenario.obra_id, fecha_corte=None
+        )
+        await RepositorioActividadesSQL(sesion).aplicar_programacion(
+            escenario.obra_id,
+            programa_obra_id=programa["id"],
+            programaciones=[
+                {
+                    "id": escenario.actividad_id,
+                    "duracion_dias": Decimal("4.5"),
+                    "dependencias": '[{"ref": "otra", "tipo": "SS", "lag_dias": 1}]',
+                    "frente_id": None,
+                    "fecha_inicio": date(2026, 3, 2),
+                    "fecha_termino": None,
+                }
+            ],
+        )
+        await sesion.commit()
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        fila = await RepositorioActividadesSQL(sesion).programacion_de(
+            escenario.actividad_id
+        )
+
+    assert fila is not None
+    assert fila["duracion_dias"] == Decimal("4.50")
+    assert fila["dependencias"] == [{"ref": "otra", "tipo": "SS", "lag_dias": 1}]
+    assert fila["fecha_inicio"] == date(2026, 3, 2)
+    assert fila["programa_obra_id"] == programa["id"]
+
+
+async def test_actualizar_programacion_solo_toca_su_lista_blanca(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    async with sesion_con_rls(contexto_control) as sesion:
+        repo = RepositorioActividadesSQL(sesion)
+
+        # Vacío: no debe tronar ni tocar nada.
+        await repo.actualizar_programacion(escenario.actividad_id, {})
+
+        # Una columna fuera de la lista blanca es un error del caso de uso.
+        with pytest.raises(ValueError, match=r"[Nn]o programables"):
+            await repo.actualizar_programacion(
+                escenario.actividad_id, {"cant_base": Decimal("1")}
+            )
+
+        await repo.actualizar_programacion(
+            escenario.actividad_id, {"duracion_dias": Decimal("7")}
+        )
+        await sesion.commit()
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        fila = await RepositorioActividadesSQL(sesion).programacion_de(
+            escenario.actividad_id
+        )
+
+    assert fila is not None
+    assert fila["duracion_dias"] == Decimal("7.00")
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        with pytest.raises(ActividadNoModificada):
+            await RepositorioActividadesSQL(sesion).actualizar_programacion(
+                uuid.uuid4(), {"duracion_dias": Decimal("2")}
+            )
 
 
 async def test_guardar_resultado_cpm_persiste_los_tres_campos(

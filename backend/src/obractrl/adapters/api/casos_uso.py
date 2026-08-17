@@ -29,6 +29,7 @@ from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
+from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
 from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
 from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
@@ -76,12 +77,21 @@ from obractrl.application.casos_uso.gestionar_obra import (
     CrearObra,
     CrearObrasEnLote,
 )
+from obractrl.application.casos_uso.gestionar_programacion import (
+    ComandoRecalcularRutaCritica,
+    ConsultarRutaCritica,
+    CrearProgramaBase,
+    EditarProgramacionActividad,
+    InstanciarProgramaObra,
+    RecalcularRutaCritica,
+)
 from obractrl.application.casos_uso.gestionar_proyecto import (
     CrearCluster,
     CrearPrototipo,
     CrearProyecto,
 )
 from obractrl.application.casos_uso.registrar_salida_almacen import RegistrarSalidaAlmacen
+from obractrl.application.eventos import ActividadCerrada, BusEnProceso
 
 __all__ = [
     "AbrirIncidenciaDep",
@@ -90,6 +100,7 @@ __all__ = [
     "AutorizarCierreDep",
     "CapturarAvanceDep",
     "CerrarIncidenciaDep",
+    "ConsultarRutaCriticaDep",
     "CrearClusterDep",
     "CrearConceptoDep",
     "CrearContratistaDep",
@@ -98,16 +109,20 @@ __all__ = [
     "CrearInsumoDep",
     "CrearObraDep",
     "CrearObrasEnLoteDep",
+    "CrearProgramaBaseDep",
     "CrearPrototipoDep",
     "CrearProyectoDep",
     "CrearUnidadDep",
+    "EditarProgramacionActividadDep",
     "EnviarEstimacionDep",
     "ExplotarConceptoDep",
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
+    "InstanciarProgramaObraDep",
     "ObtenerCPUDep",
     "ProgramarIncidenciaDep",
     "PublicarVersionCPUDep",
+    "RecalcularRutaCriticaDep",
     "RechazarCierreDep",
     "RechazarIncidenciaDep",
     "RegistrarEventoIncidenciaDep",
@@ -144,11 +159,32 @@ def obtener_autorizar_cierre(sesion: SesionRLS) -> AutorizarCierre:
 
 
 def obtener_validar_cierre(sesion: SesionRLS) -> ValidarCierre:
+    """Validar un cierre publica `ActividadCerrada` (§11.3 C.4).
+
+    El **borde** es quien decide que ese evento recalcula el CPM: el caso de
+    uso de cierres no conoce el de programación, y viceversa (§11.1). Cambiar
+    el transporte a Arq es sustituir el bus aquí, sin tocar ningún caso de uso.
+    """
     return ValidarCierre(
         actividades=RepositorioActividadesSQL(sesion),
         cierres=RepositorioCierresSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_cierre(sesion),
     )
+
+
+def _bus_de_cierre(sesion: SesionRLS) -> BusEnProceso:
+    """`ActividadCerrada` → recalcular la ruta crítica de su obra (§11.1)."""
+    recalcular = obtener_recalcular_ruta_critica(sesion)
+
+    async def _recalcular_cpm(evento: ActividadCerrada) -> None:
+        await recalcular.ejecutar(
+            ComandoRecalcularRutaCritica(obra_id=evento.obra_id)
+        )
+
+    bus = BusEnProceso()
+    bus.suscribir(ActividadCerrada, _recalcular_cpm)
+    return bus
 
 
 def obtener_rechazar_cierre(sesion: SesionRLS) -> RechazarCierre:
@@ -395,6 +431,67 @@ ExplotarConceptoDep = Annotated[ExplotarConcepto, Depends(obtener_explotar_conce
 ObtenerCPUDep = Annotated[ObtenerCPU, Depends(obtener_cpu)]
 PublicarVersionCPUDep = Annotated[
     PublicarVersionCPU, Depends(obtener_publicar_version_cpu)
+]
+
+
+# --- Programación · CPM (§11.2) ------------------------------------------
+
+
+def obtener_crear_programa_base(sesion: SesionRLS) -> CrearProgramaBase:
+    return CrearProgramaBase(
+        programas=RepositorioProgramasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_consultar_ruta_critica(sesion: SesionRLS) -> ConsultarRutaCritica:
+    return ConsultarRutaCritica(
+        actividades=RepositorioActividadesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        programas=RepositorioProgramasSQL(sesion),
+    )
+
+
+def obtener_recalcular_ruta_critica(sesion: SesionRLS) -> RecalcularRutaCritica:
+    return RecalcularRutaCritica(
+        actividades=RepositorioActividadesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        programas=RepositorioProgramasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_instanciar_programa(sesion: SesionRLS) -> InstanciarProgramaObra:
+    return InstanciarProgramaObra(
+        actividades=RepositorioActividadesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        programas=RepositorioProgramasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_editar_programacion(sesion: SesionRLS) -> EditarProgramacionActividad:
+    return EditarProgramacionActividad(
+        actividades=RepositorioActividadesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+CrearProgramaBaseDep = Annotated[
+    CrearProgramaBase, Depends(obtener_crear_programa_base)
+]
+ConsultarRutaCriticaDep = Annotated[
+    ConsultarRutaCritica, Depends(obtener_consultar_ruta_critica)
+]
+RecalcularRutaCriticaDep = Annotated[
+    RecalcularRutaCritica, Depends(obtener_recalcular_ruta_critica)
+]
+InstanciarProgramaObraDep = Annotated[
+    InstanciarProgramaObra, Depends(obtener_instanciar_programa)
+]
+EditarProgramacionActividadDep = Annotated[
+    EditarProgramacionActividad, Depends(obtener_editar_programacion)
 ]
 
 

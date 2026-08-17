@@ -15,17 +15,19 @@ entonces persiste. Ninguna regla vive aquí, solo la secuencia:
    unidad de trabajo**: una obra a medio generar es peor que una sin generar.
 
 **Evento `ObraGenerada` (§11.3 A.3):** el paso 3 del workflow dispara un job
-de CPM inicial. El job vive en la Fase 3 del roadmap (Programación · CPM),
-junto con el resto del motor; aquí se devuelve el `ProgramaObra` recién
-instanciado para que quien encole ese job tenga a qué apuntar.
+de CPM inicial; aquí se devuelve el `ProgramaObra` recién instanciado para que
+quien lo encole tenga a qué apuntar.
 
 **Dependencias del cronograma:** las `dependencias` del `ProgramaBase` se
-copian **tal cual** a la actividad. Sus `ref` apuntan a nodos o claves del
-prototipo, no a los ids de las actividades recién creadas; resolverlas es
-parte de la Fase 3, donde vive la instanciación versionada del programa
-(§11.2 `POST /obras/{id}/programa`). Mientras tanto no rompen nada: el motor
-CPM ignora las dependencias cuyo `ref` no está en el grafo
-(`domain.programacion.cpm._orden_topologico`).
+copian **tal cual** a la actividad. Sus `ref` apuntan a nodos del prototipo,
+no a los ids de las actividades recién creadas, así que el motor CPM las
+ignora mientras tanto (ignora todo `ref` que no esté en el grafo,
+`domain.programacion.cpm._orden_topologico`). Quien las traduce a ids de
+actividad es `POST /obras/{id}/programa`
+(`casos_uso.gestionar_programacion.InstanciarProgramaObra`), que es donde vive
+la instanciación versionada del cronograma (§11.2, §7.5). El puente entre las
+dos es `actividad.prototipo_nodo_id`, que este caso de uso persiste
+precisamente para eso.
 """
 
 from __future__ import annotations
@@ -135,6 +137,11 @@ def _a_registro(planeada: ActividadPlaneada) -> dict:
     """Aplana la actividad planeada a lo que espera el repositorio."""
     return {
         "concepto_id": planeada.concepto_id,
+        # De qué nodo del árbol salió la actividad (§7.4). Es lo que después
+        # deja a `POST /obras/{id}/programa` cruzar cada `programa_base_item`
+        # con su actividad y traducir las `dependencias` del programa base
+        # —que hablan en nodos del prototipo— a ids de actividad (§11.2).
+        "prototipo_nodo_id": planeada.prototipo_nodo_id,
         "descripcion": planeada.descripcion,
         "frente_id": planeada.frente_id,
         "nivel_id": planeada.nivel_id,

@@ -36,6 +36,14 @@ import { peticion } from '../../cliente';
 
 /**
  * Sonda de Render. Debe responder sin tocar la BD.
+
+Incluye cómo quedó configurada la verificación del JWT. Sin esto, un
+despliegue mal configurado solo se manifiesta como 401 en todas las
+rutas y no hay forma de distinguir "la variable no llegó" de "el
+token es malo" —y la Shell de Render es de pago.
+
+No expone secretos: `jwks_url` es un endpoint público del proveedor
+y `auth_modo` solo dice qué camino se tomó.
  * @summary Health check
  */
 export const healthHealthGet = (
