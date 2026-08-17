@@ -21,9 +21,14 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from obractrl.adapters.api.casos_uso import obtener_validar_cierre
+from obractrl.adapters.api.casos_uso import (
+    obtener_abrir_incidencia,
+    obtener_cerrar_incidencia,
+    obtener_validar_cierre,
+)
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
+from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
@@ -33,6 +38,14 @@ from obractrl.application.casos_uso.gestionar_cierre import (
     ComandoSolicitarCierre,
     ComandoValidarCierre,
     SolicitarCierre,
+)
+from obractrl.application.casos_uso.gestionar_incidencia import (
+    ComandoAbrirIncidencia,
+    ComandoCerrarIncidencia,
+    ComandoProgramarIncidencia,
+    ComandoRegistrarEventoIncidencia,
+    ProgramarIncidencia,
+    RegistrarEventoIncidencia,
 )
 from obractrl.application.casos_uso.gestionar_programacion import (
     ActividadNoProgramable,
@@ -46,7 +59,12 @@ from obractrl.application.casos_uso.gestionar_programacion import (
     RecalcularRutaCritica,
 )
 from obractrl.domain.programacion.cpm import CicloEnGrafoError, Dependencia
-from obractrl.domain.shared.diccionario import Rol
+from obractrl.domain.shared.diccionario import (
+    EstatusIncidencia,
+    ImpactoIncidencia,
+    Rol,
+    TipoIncidencia,
+)
 from obractrl.infrastructure.db.sesion import ContextoSesion, sesion_con_rls
 from tests.integracion.conftest import DATABASE_URL_ADMIN, Escenario
 
@@ -188,7 +206,7 @@ async def _leer_actividades(ids: list[uuid.UUID]) -> dict[uuid.UUID, dict]:
                 text(
                     """
                     select id, duracion_dias, dependencias, es_critica, holgura,
-                           desfase, programa_obra_id
+                           desfase, programa_obra_id, bloqueada
                     from actividad
                     where id = any(cast(:ids as uuid[]))
                     """
@@ -535,3 +553,145 @@ async def test_validar_cierre_recalcula_la_ruta(
     assert filas[cronograma.act_a]["es_critica"] is True
     assert filas[cronograma.act_b]["es_critica"] is True
     assert filas[cronograma.act_c]["holgura"] == Decimal("4.00")
+
+
+async def _llevar_a_cierre_solicitado(
+    ctx: ContextoSesion, incidencia_id: uuid.UUID, escenario: Escenario
+) -> None:
+    """Recorre F.2-F.3 (programar → atender → solicitar cierre) para dejar la
+    incidencia lista de cerrar. Es camino ya cubierto por
+    `test_gestionar_incidencia_endtoend.py`; aquí solo es preámbulo."""
+    async with sesion_con_rls(ctx) as sesion:
+        await ProgramarIncidencia(
+            incidencias=RepositorioIncidenciasSQL(sesion),
+            uow=UnidadDeTrabajoSQL(sesion),
+        ).ejecutar(
+            ComandoProgramarIncidencia(
+                incidencia_id=incidencia_id,
+                usuario_id=escenario.supervisor_id,
+                rol=Rol.SUPERVISOR,
+                asignada_a=escenario.supervisor_id,
+            )
+        )
+        for accion, estatus in (
+            ("atender", EstatusIncidencia.EN_ATENCION),
+            ("solicitar_cierre", EstatusIncidencia.CIERRE_SOLICITADO),
+        ):
+            await RegistrarEventoIncidencia(
+                incidencias=RepositorioIncidenciasSQL(sesion),
+                uow=UnidadDeTrabajoSQL(sesion),
+            ).ejecutar(
+                ComandoRegistrarEventoIncidencia(
+                    incidencia_id=incidencia_id,
+                    usuario_id=escenario.supervisor_id,
+                    accion=accion,
+                    estatus_nuevo=estatus,
+                )
+            )
+
+
+async def _borrar_cpm(obra_id: uuid.UUID) -> None:
+    """Deja el cronograma escrito pero el CPM sin calcular, para que el único
+    recálculo posible sea el que dispare el evento."""
+    admin = create_async_engine(DATABASE_URL_ADMIN)
+    async with admin.begin() as conn:
+        await conn.execute(
+            text(
+                "update actividad set es_critica = false, holgura = null, "
+                "desfase = null where obra_id = :obra"
+            ),
+            {"obra": str(obra_id)},
+        )
+    await admin.dispose()
+
+
+async def test_incidencia_que_detiene_bloquea_y_recalcula_la_ruta(
+    escenario: Escenario,
+    contexto_control: ContextoSesion,
+    contexto_residente: ContextoSesion,
+    contexto_supervisor: ContextoSesion,
+) -> None:
+    """§11.3 F.5: `impacto=detiene` → bloquea actividades **y** recalcula CPM.
+
+    Igual que `test_validar_cierre_recalcula_la_ruta`, se usa el ensamblado
+    real de `adapters/api/casos_uso` —bus incluido— para probar el cableado y
+    no una imitación. Las dos mitades se verifican por separado a propósito:
+    el bloqueo va dentro de la transacción del caso de uso y el recálculo
+    viene después, por el evento (ver `application.eventos.IncidenciaDetiene`).
+    """
+    cronograma = await _armar_cronograma(escenario)
+    await _plantilla(escenario, contexto_control, cronograma)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        await _instanciar(sesion).ejecutar(
+            ComandoInstanciarPrograma(obra_id=escenario.obra_id, fecha_corte=CORTE)
+        )
+    await _borrar_cpm(escenario.obra_id)
+
+    async with sesion_con_rls(contexto_residente) as sesion:
+        creada = await obtener_abrir_incidencia(sesion).ejecutar(
+            ComandoAbrirIncidencia(
+                obra_id=escenario.obra_id,
+                creada_por=escenario.residente_id,
+                tipo=TipoIncidencia.FALTA_MATERIAL,
+                impacto=ImpactoIncidencia.DETIENE,
+                titulo="Sin acero en obra",
+                bloquea_actividades=[cronograma.act_a],
+            )
+        )
+
+    filas = await _leer_actividades([cronograma.act_a, cronograma.act_b, cronograma.act_c])
+    assert filas[cronograma.act_a]["bloqueada"] is True
+    # Y la ruta quedó replaneada: sin el evento, `holgura` seguiría en null.
+    assert filas[cronograma.act_a]["es_critica"] is True
+    assert filas[cronograma.act_c]["holgura"] == Decimal("4.00")
+
+    # Cerrar desbloquea y vuelve a replanear (§11.3 F.4-5).
+    await _borrar_cpm(escenario.obra_id)
+    await _llevar_a_cierre_solicitado(contexto_supervisor, creada.id, escenario)
+
+    async with sesion_con_rls(contexto_supervisor) as sesion:
+        await obtener_cerrar_incidencia(sesion).ejecutar(
+            ComandoCerrarIncidencia(
+                incidencia_id=creada.id,
+                usuario_id=escenario.supervisor_id,
+                rol=Rol.SUPERVISOR,
+                comentario="Llegó el acero",
+            )
+        )
+
+    filas = await _leer_actividades([cronograma.act_a, cronograma.act_b, cronograma.act_c])
+    assert filas[cronograma.act_a]["bloqueada"] is False
+    assert filas[cronograma.act_c]["holgura"] == Decimal("4.00")
+
+
+async def test_incidencia_sin_impacto_detiene_no_recalcula(
+    escenario: Escenario,
+    contexto_control: ContextoSesion,
+    contexto_residente: ContextoSesion,
+) -> None:
+    """El §11.3 F.5 condiciona el evento a `impacto=detiene`: una incidencia
+    de detalle no toca el cronograma de nadie."""
+    cronograma = await _armar_cronograma(escenario)
+    await _plantilla(escenario, contexto_control, cronograma)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        await _instanciar(sesion).ejecutar(
+            ComandoInstanciarPrograma(obra_id=escenario.obra_id, fecha_corte=CORTE)
+        )
+    await _borrar_cpm(escenario.obra_id)
+
+    async with sesion_con_rls(contexto_residente) as sesion:
+        await obtener_abrir_incidencia(sesion).ejecutar(
+            ComandoAbrirIncidencia(
+                obra_id=escenario.obra_id,
+                creada_por=escenario.residente_id,
+                tipo=TipoIncidencia.DETALLE,
+                impacto=ImpactoIncidencia.DETALLE,
+                titulo="Falta señalización",
+            )
+        )
+
+    filas = await _leer_actividades([cronograma.act_a, cronograma.act_c])
+    assert filas[cronograma.act_a]["bloqueada"] is False
+    assert filas[cronograma.act_c]["holgura"] is None

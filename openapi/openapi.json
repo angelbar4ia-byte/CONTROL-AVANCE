@@ -3363,6 +3363,173 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/revisiones": {
+      "post": {
+        "tags": [
+          "revisiones"
+        ],
+        "summary": "Registrar una revisión física en campo",
+        "description": "Control de obra captura fotos, comentario y calidad (§11.2).\n\nLa obra sale de la ruta, no del body: RLS decide si es visible para el\nusuario y, si no lo es, la política de `revision_fisica` rechaza el INSERT\n—no hace falta preguntarle primero al repo de Obras (§11.1: ningún módulo\nlee las tablas de otro).",
+        "operationId": "registrar_revision_api_v1_obras__obra_id__revisiones_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrarRevisionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Rol o calidad fuera de lo permitido (§7.8, §11.2)."
+          }
+        }
+      }
+    },
+    "/api/v1/revisiones": {
+      "get": {
+        "tags": [
+          "revisiones"
+        ],
+        "summary": "Bandeja de revisiones físicas",
+        "description": "Revisiones visibles para el rol actual (§11.2 `GET /revisiones`).\n\nLectura simple sin orquestación de dominio —como `GET /cierres`\n(`adapters/api/v1/cierres.py`)—: consulta el repo directo, sin caso de uso,\nporque RLS ya acota el alcance (§12.4). Sin `exigir_rol`: el §11.2 pone la\n`(C)` solo sobre el alta, y la bandeja la ve quien vea la obra.",
+        "operationId": "listar_revisiones_api_v1_revisiones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por obra.",
+              "title": "Obra Id"
+            },
+            "description": "Filtra por obra."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RevisionRespuesta"
+                  },
+                  "title": "Response Listar Revisiones Api V1 Revisiones Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/evidencias/presigned": {
+      "post": {
+        "tags": [
+          "evidencias"
+        ],
+        "summary": "URL firmada para subir una evidencia directo a R2",
+        "description": "Emite la URL firmada (§11.2, §12.2). El archivo no viaja por la API.\n\n`firmar_subida` es cómputo local —SigV4 no llama a R2—, así que no bloquea\nel event loop pese a que `boto3` sea síncrono.",
+        "operationId": "firmar_evidencia_api_v1_evidencias_presigned_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresignedPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresignedRespuesta"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "El almacenamiento de evidencias no está configurado en este entorno (§12.8)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -6278,6 +6445,84 @@
         "title": "PrecioUnitarioRespuesta",
         "description": "CPU con su desglose de destajo (§7.3, §11.1)."
       },
+      "PresignedPeticion": {
+        "properties": {
+          "nombre_archivo": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nombre Archivo",
+            "description": "Nombre original del archivo. Solo se usa como sufijo legible de la clave; el servidor lo sanea y le antepone el prefijo de la organización."
+          },
+          "content_type": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Content Type",
+            "description": "Tipo MIME con el que se firmará el PUT; el cliente debe mandarlo igual.",
+            "default": "application/octet-stream"
+          },
+          "obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Id",
+            "description": "Agrupa la evidencia bajo la obra dentro del bucket (opcional)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nombre_archivo"
+        ],
+        "title": "PresignedPeticion",
+        "description": "Lo que el cliente propone: nombre y tipo. La ruta la decide el servidor."
+      },
+      "PresignedRespuesta": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "URL firmada; caduca. Súbelo con el método indicado."
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave",
+            "description": "Clave del objeto en el bucket; esto es lo que se persiste."
+          },
+          "metodo": {
+            "type": "string",
+            "title": "Metodo"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "expira_en_segundos": {
+            "type": "integer",
+            "title": "Expira En Segundos"
+          },
+          "expira_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expira En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "clave",
+          "metodo",
+          "content_type",
+          "expira_en_segundos",
+          "expira_en"
+        ],
+        "title": "PresignedRespuesta",
+        "description": "URL firmada y la clave con la que se referenciará después.\n\nNo incluye —ni puede incluir— ninguna credencial de R2: la firma es un\nHMAC derivado del secreto, no el secreto. Ver el docstring de\n`infrastructure.storage.r2`."
+      },
       "ProgramaBaseCreadoRespuesta": {
         "properties": {
           "id": {
@@ -6755,6 +7000,85 @@
         ],
         "title": "RechazarIncidenciaPeticion"
       },
+      "RegistrarRevisionPeticion": {
+        "properties": {
+          "fecha": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha",
+            "description": "Día de la revisión; por omisión, hoy (`revision_fisica.fecha`)."
+          },
+          "fotos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fotos",
+            "description": "Claves de los objetos ya subidos a R2 con `POST /evidencias/presigned` (§12.2). El archivo no viaja por la API."
+          },
+          "comentario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comentario"
+          },
+          "calidad": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 5.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calidad",
+            "description": "Escala 1–5 (§7.8)."
+          },
+          "actividad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad Id",
+            "description": "Vínculo opcional a un avance (§7.8)."
+          },
+          "incidencia_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incidencia Id",
+            "description": "Vínculo opcional a una incidencia (§7.8)."
+          }
+        },
+        "type": "object",
+        "title": "RegistrarRevisionPeticion",
+        "description": "Captura en campo (§11.2): fotos + comentario + calidad."
+      },
       "RegistrarSalidaPeticion": {
         "properties": {
           "insumo_id": {
@@ -6904,6 +7228,103 @@
           "valor"
         ],
         "title": "RespuestaItem"
+      },
+      "RevisionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "actividad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad Id"
+          },
+          "incidencia_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Incidencia Id"
+          },
+          "usuario_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Id"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha"
+          },
+          "fotos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fotos"
+          },
+          "comentario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comentario"
+          },
+          "calidad": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "actividad_id",
+          "incidencia_id",
+          "usuario_id",
+          "fecha",
+          "fotos",
+          "comentario",
+          "calidad"
+        ],
+        "title": "RevisionRespuesta"
       },
       "RutaCriticaRespuesta": {
         "properties": {

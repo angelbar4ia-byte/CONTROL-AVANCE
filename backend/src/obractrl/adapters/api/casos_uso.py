@@ -32,6 +32,7 @@ from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
 from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
 from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
+from obractrl.adapters.repos.revisiones_sql import RepositorioRevisionesSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
 from obractrl.application.casos_uso.calcular_cpu import (
@@ -90,8 +91,15 @@ from obractrl.application.casos_uso.gestionar_proyecto import (
     CrearPrototipo,
     CrearProyecto,
 )
+from obractrl.application.casos_uso.registrar_revision_fisica import (
+    RegistrarRevisionFisica,
+)
 from obractrl.application.casos_uso.registrar_salida_almacen import RegistrarSalidaAlmacen
-from obractrl.application.eventos import ActividadCerrada, BusEnProceso
+from obractrl.application.eventos import (
+    ActividadCerrada,
+    BusEnProceso,
+    IncidenciaDetiene,
+)
 
 __all__ = [
     "AbrirIncidenciaDep",
@@ -126,6 +134,7 @@ __all__ = [
     "RechazarCierreDep",
     "RechazarIncidenciaDep",
     "RegistrarEventoIncidenciaDep",
+    "RegistrarRevisionFisicaDep",
     "RegistrarSalidaAlmacenDep",
     "SolicitarCierreDep",
     "ValidarCierreDep",
@@ -240,11 +249,33 @@ RegistrarSalidaAlmacenDep = Annotated[
 ]
 
 
+def _bus_de_incidencia(sesion: SesionRLS) -> BusEnProceso:
+    """`IncidenciaDetiene` → recalcular la ruta crítica de su obra (§11.3 F.5).
+
+    Mismo cableado que `_bus_de_cierre`, y por la misma razón: el flujo de
+    incidencias no conoce el de programación ni al revés (§11.1). Bloquear o
+    desbloquear la actividad ya lo hizo el caso de uso dentro de su
+    transacción, por el puerto `RepositorioActividades`; lo que falta después
+    del commit es replanear el cronograma contra ese bloqueo —el "recalcular
+    CPM (desfase)" del §11.3 F.5—, y eso es idempotente, así que da igual que
+    el disparador sea el alta, el cierre o el rechazo.
+    """
+    recalcular = obtener_recalcular_ruta_critica(sesion)
+
+    async def _recalcular_cpm(evento: IncidenciaDetiene) -> None:
+        await recalcular.ejecutar(ComandoRecalcularRutaCritica(obra_id=evento.obra_id))
+
+    bus = BusEnProceso()
+    bus.suscribir(IncidenciaDetiene, _recalcular_cpm)
+    return bus
+
+
 def obtener_abrir_incidencia(sesion: SesionRLS) -> AbrirIncidencia:
     return AbrirIncidencia(
         actividades=RepositorioActividadesSQL(sesion),
         incidencias=RepositorioIncidenciasSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_incidencia(sesion),
     )
 
 
@@ -267,6 +298,7 @@ def obtener_cerrar_incidencia(sesion: SesionRLS) -> CerrarIncidencia:
         actividades=RepositorioActividadesSQL(sesion),
         incidencias=RepositorioIncidenciasSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_incidencia(sesion),
     )
 
 
@@ -275,6 +307,7 @@ def obtener_rechazar_incidencia(sesion: SesionRLS) -> RechazarIncidencia:
         actividades=RepositorioActividadesSQL(sesion),
         incidencias=RepositorioIncidenciasSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_incidencia(sesion),
     )
 
 
@@ -308,6 +341,18 @@ def obtener_agregar_respuestas(sesion: SesionRLS) -> AgregarRespuestas:
 
 CrearEvaluacionDep = Annotated[CrearEvaluacion, Depends(obtener_crear_evaluacion)]
 AgregarRespuestasDep = Annotated[AgregarRespuestas, Depends(obtener_agregar_respuestas)]
+
+
+def obtener_registrar_revision_fisica(sesion: SesionRLS) -> RegistrarRevisionFisica:
+    return RegistrarRevisionFisica(
+        revisiones=RepositorioRevisionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+RegistrarRevisionFisicaDep = Annotated[
+    RegistrarRevisionFisica, Depends(obtener_registrar_revision_fisica)
+]
 
 
 # --- Proyecto · Obra (§11.2) --------------------------------------------

@@ -97,7 +97,9 @@ packages = ["obractrl"]
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = ["arq.*", "weasyprint.*", "boto3.*"]
+# `botocore` viene con `boto3` y tampoco trae `py.typed`; se firma la URL de
+# R2 con `botocore.config.Config` (§12.2), así que va junto a `boto3.*`.
+module = ["arq.*", "weasyprint.*", "boto3.*", "botocore.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------------

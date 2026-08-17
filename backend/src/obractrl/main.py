@@ -49,8 +49,10 @@ from obractrl.domain.obras.reglas import ErrorDeObra, TransicionDeObraInvalida
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
 from obractrl.domain.programacion.reglas import ErrorDeProgramacion
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto
+from obractrl.domain.revisiones.reglas import ErrorDeRevision
 from obractrl.infrastructure.config import obtener_config
 from obractrl.infrastructure.db.sesion import cerrar_engine
+from obractrl.infrastructure.storage.r2 import AlmacenamientoNoConfigurado
 
 BASE_API = "/api/v1"
 
@@ -513,6 +515,35 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="evaluacion-no-encontrada",
             titulo="Evaluación no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeRevision)
+    async def _revision(request: Request, exc: ErrorDeRevision) -> JSONResponse:
+        # 422 como `ErrorDeCaptura`: es una invariante de la captura (rol que
+        # no registra, calidad fuera de escala), no una transición de flujo —
+        # la revisión física no tiene ciclo de vida (§7.8).
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-revision",
+            titulo="Revisión física inválida",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(AlmacenamientoNoConfigurado)
+    async def _almacenamiento_no_configurado(
+        request: Request, exc: AlmacenamientoNoConfigurado
+    ) -> JSONResponse:
+        # 503 y no 500: la petición es válida y volverá a serlo en cuanto el
+        # despliegue tenga sus variables de R2 (§12.8). El detalle nombra las
+        # variables que faltan —nunca su valor—, igual que `/health` reporta
+        # el modo de auth sin exponer secretos.
+        return _problema(
+            request,
+            status=503,
+            tipo="almacenamiento-no-configurado",
+            titulo="Almacenamiento de evidencias no disponible",
             detalle=str(exc),
         )
 

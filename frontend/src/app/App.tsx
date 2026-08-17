@@ -25,6 +25,10 @@ import Frentes from '@/proyectos/Frentes';
 import Catalogos from '@/catalogos/Catalogos';
 import Programacion from '@/programacion/Programacion';
 import ProgramasBase from '@/programacion/ProgramasBase';
+import Consumo from '@/materiales/Consumo';
+import Salidas from '@/materiales/Salidas';
+import Incidencias from '@/incidencias/Incidencias';
+import Evaluaciones from '@/evaluaciones/Evaluaciones';
 
 export function App() {
   return (
@@ -91,6 +95,18 @@ function Rutas() {
         <Route path="/config/programas-base" element={<ProgramasBase />} />
         <Route path="/avances" element={<Avances />} />
         <Route path="/cierres" element={<Cierres />} />
+        {/* Control de materiales (§7.7, §11.2): Control de obra trae las dos
+            entradas en su sidebar —"Salidas de almacén" y "Consumo vs
+            presupuesto"—; el Residente trae una sola, "Control de materiales
+            (lectura)" en /materiales, que apunta al consumo (§5.1). */}
+        <Route path="/materiales" element={<Consumo />} />
+        <Route path="/materiales/consumo" element={<Consumo />} />
+        <Route path="/materiales/salidas" element={<Salidas />} />
+        {/* Incidencias y Evaluación son pantallas compartidas (§5.3): una
+            sola ruta que los cuatro sidebars ya traen con distinta etiqueta
+            (§5.1). */}
+        <Route path="/incidencias" element={<Incidencias />} />
+        <Route path="/evaluaciones" element={<Evaluaciones />} />
         <Route path="/estimacion" element={<Estimacion />} />
         <Route path="*" element={<EnConstruccion />} />
       </Route>

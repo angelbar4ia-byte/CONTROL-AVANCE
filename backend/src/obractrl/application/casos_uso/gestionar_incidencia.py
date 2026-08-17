@@ -23,6 +23,22 @@ puerto). El rechazo también desbloquea a propósito: una incidencia
 rechazada significa que el bloqueo no era válido, y `rechazada` es terminal
 —sin esto, la actividad quedaría bloqueada para siempre sin ninguna vía de
 recuperación (ni una incidencia nueva reabre ni desbloquea la anterior).
+
+**Evento `IncidenciaDetiene` (§11.1, §11.3 F.5):** "Si `impacto=detiene` →
+evento bloquea actividades + recalcular CPM (desfase)". Los tres pasos que
+mueven el bloqueo —abrir, cerrar, rechazar— lo publican **fuera** de la
+unidad de trabajo, ya commiteado el cambio, con la misma forma que
+`ValidarCierre` publica `ActividadCerrada`: quien escucha (el recálculo de la
+ruta crítica) es otro contexto y no puede revertir una incidencia válida si
+falla (§11.1 "in-process o vía Arq"). El caso de uso no sabe quién escucha;
+el bus lo ensambla el borde (`adapters/api/casos_uso.py`).
+
+Bloquear no viaja en el evento y el recálculo sí: el bus se traga los fallos
+del manejador a propósito (ver `BusEnProceso`), así que una actividad que
+quedara sin bloquear sería un permiso abierto de más y nadie se enteraría,
+mientras que un CPM sin recalcular es dato derivado que `POST
+/obras/{id}/ruta-critica/recalcular` repone. Ver el docstring de
+`application.eventos.IncidenciaDetiene`.
 """
 
 from __future__ import annotations
@@ -31,6 +47,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from uuid import UUID
 
+from obractrl.application.eventos import IncidenciaDetiene, PublicadorEventos
 from obractrl.application.puertos.repositorios import (
     RegistroNoEncontrado,
     RepositorioActividades,
@@ -138,8 +155,40 @@ def _reconstruir(fila: dict) -> Incidencia:
     )
 
 
+async def _publicar_detiene(
+    eventos: PublicadorEventos | None,
+    incidencia: Incidencia,
+    *,
+    obra_id: UUID,
+    incidencia_id: UUID,
+    bloquear: bool,
+) -> None:
+    """Publica `IncidenciaDetiene` si la incidencia movió el bloqueo (§11.3 F.5).
+
+    Se llama **después** del commit, nunca dentro de la `UnidadDeTrabajo`: el
+    suscriptor recalcula el CPM en otro contexto y no puede revertir el paso
+    del workflow que ya quedó escrito (§11.1). Sin actividades bloqueadas no
+    hay nada que replanear, así que no se publica.
+    """
+    if eventos is None or not incidencia.bloquea_actividades_activo:
+        return
+    await eventos.publicar(
+        IncidenciaDetiene(
+            obra_id=obra_id,
+            incidencia_id=incidencia_id,
+            refs_bloqueadas=tuple(incidencia.bloquea_actividades),
+            bloquear=bloquear,
+        )
+    )
+
+
 class AbrirIncidencia:
-    """Cualquier rol abre una incidencia (§11.3 F.1)."""
+    """Cualquier rol abre una incidencia (§11.3 F.1).
+
+    Con `impacto=detiene` bloquea las actividades listadas y publica
+    `IncidenciaDetiene` (§11.3 F.5). El bus es opcional: sin él el flujo
+    funciona igual, solo que nadie recalcula la ruta crítica.
+    """
 
     def __init__(
         self,
@@ -147,10 +196,12 @@ class AbrirIncidencia:
         actividades: RepositorioActividades,
         incidencias: RepositorioIncidencias,
         uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
     ) -> None:
         self._actividades = actividades
         self._incidencias = incidencias
         self._uow = uow
+        self._eventos = eventos
 
     async def ejecutar(self, cmd: ComandoAbrirIncidencia) -> IncidenciaCreada:
         incidencia = Incidencia.abrir(
@@ -185,6 +236,13 @@ class AbrirIncidencia:
                 )
             await self._uow.commit()
 
+        await _publicar_detiene(
+            self._eventos,
+            incidencia,
+            obra_id=cmd.obra_id,
+            incidencia_id=incidencia_id,
+            bloquear=True,
+        )
         return IncidenciaCreada(id=incidencia_id, incidencia=incidencia)
 
 
@@ -292,7 +350,8 @@ class RegistrarEventoIncidencia:
 class CerrarIncidencia:
     """Supervisor o Control cierran la incidencia (§11.3 F.4).
 
-    Si bloqueaba actividades, las desbloquea.
+    Si bloqueaba actividades, las desbloquea y publica `IncidenciaDetiene`
+    con ``bloquear=False`` para que se replanee la ruta crítica (§11.3 F.5).
     """
 
     def __init__(
@@ -301,10 +360,12 @@ class CerrarIncidencia:
         actividades: RepositorioActividades,
         incidencias: RepositorioIncidencias,
         uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
     ) -> None:
         self._actividades = actividades
         self._incidencias = incidencias
         self._uow = uow
+        self._eventos = eventos
 
     async def ejecutar(self, cmd: ComandoCerrarIncidencia) -> Incidencia:
         fila = await self._incidencias.obtener(cmd.incidencia_id)
@@ -341,14 +402,23 @@ class CerrarIncidencia:
                 ) from exc
             await self._uow.commit()
 
+        await _publicar_detiene(
+            self._eventos,
+            incidencia,
+            obra_id=UUID(incidencia.obra_id),
+            incidencia_id=cmd.incidencia_id,
+            bloquear=False,
+        )
         return incidencia
 
 
 class RechazarIncidencia:
     """Supervisor o Control rechazan la incidencia (§11.2, §6).
 
-    Si bloqueaba actividades, las desbloquea — igual que al cerrar: una
-    incidencia rechazada no debe dejar nada bloqueado sin vía de recuperación.
+    Si bloqueaba actividades, las desbloquea y publica `IncidenciaDetiene`
+    con ``bloquear=False`` — igual que al cerrar: una incidencia rechazada no
+    debe dejar nada bloqueado sin vía de recuperación, ni la ruta crítica
+    midiendo contra un bloqueo que ya no existe.
     """
 
     def __init__(
@@ -357,10 +427,12 @@ class RechazarIncidencia:
         actividades: RepositorioActividades,
         incidencias: RepositorioIncidencias,
         uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
     ) -> None:
         self._actividades = actividades
         self._incidencias = incidencias
         self._uow = uow
+        self._eventos = eventos
 
     async def ejecutar(self, cmd: ComandoRechazarIncidencia) -> Incidencia:
         fila = await self._incidencias.obtener(cmd.incidencia_id)
@@ -397,4 +469,11 @@ class RechazarIncidencia:
                 ) from exc
             await self._uow.commit()
 
+        await _publicar_detiene(
+            self._eventos,
+            incidencia,
+            obra_id=UUID(incidencia.obra_id),
+            incidencia_id=cmd.incidencia_id,
+            bloquear=False,
+        )
         return incidencia

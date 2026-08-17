@@ -17,6 +17,7 @@ from obractrl.application.eventos import (
     ActividadCerrada,
     BusEnProceso,
     EstimacionValidada,
+    IncidenciaDetiene,
     PublicadorEventos,
 )
 
@@ -85,3 +86,61 @@ async def test_el_fallo_de_un_manejador_no_sube_al_publicador(
 
 def test_el_bus_cumple_el_puerto_de_publicacion() -> None:
     assert isinstance(BusEnProceso(), PublicadorEventos)
+
+
+class TestIncidenciaDetiene:
+    """§11.3 F.5 — "Si `impacto=detiene` → evento bloquea actividades +
+    recalcular CPM (desfase)"."""
+
+    def test_bloquear_es_lo_normal_y_no_hay_que_deletrearlo(self) -> None:
+        evento = IncidenciaDetiene(
+            obra_id=uuid.uuid4(), incidencia_id=uuid.uuid4()
+        )
+        assert evento.bloquear is True
+        assert evento.refs_bloqueadas == ()
+
+    async def test_abrir_y_cerrar_llegan_al_mismo_suscriptor(self) -> None:
+        """Un solo manejador cubre las dos caras: quien escucha reacciona
+        igual —recalcular la ruta— empiece o termine el bloqueo."""
+        bus = BusEnProceso()
+        recibidos: list[IncidenciaDetiene] = []
+
+        async def _manejar(evento: IncidenciaDetiene) -> None:
+            recibidos.append(evento)
+
+        bus.suscribir(IncidenciaDetiene, _manejar)
+        obra = uuid.uuid4()
+        incidencia = uuid.uuid4()
+        await bus.publicar(
+            IncidenciaDetiene(
+                obra_id=obra,
+                incidencia_id=incidencia,
+                refs_bloqueadas=("act-1",),
+                bloquear=True,
+            )
+        )
+        await bus.publicar(
+            IncidenciaDetiene(
+                obra_id=obra,
+                incidencia_id=incidencia,
+                refs_bloqueadas=("act-1",),
+                bloquear=False,
+            )
+        )
+
+        assert [e.bloquear for e in recibidos] == [True, False]
+        assert {e.obra_id for e in recibidos} == {obra}
+
+    async def test_no_se_confunde_con_actividadcerrada(self) -> None:
+        """Los dos eventos recalculan el CPM, pero por caminos distintos: el
+        bus enruta por tipo, no por efecto (§11.1)."""
+        bus = BusEnProceso()
+        recibidos: list[object] = []
+
+        async def _manejar(evento: object) -> None:
+            recibidos.append(evento)
+
+        bus.suscribir(IncidenciaDetiene, _manejar)
+        await bus.publicar(_evento())
+
+        assert recibidos == []
