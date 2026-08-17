@@ -26,7 +26,11 @@ Tres fuentes se cruzan aquí:
 
 Módulo puro: recibe y devuelve dataclasses, no toca la BD (§12.11) — igual que
 `domain.programacion.cpm`, de donde se reutiliza `Dependencia` tal cual para
-no tener dos formas de la misma precedencia.
+no tener dos formas de la misma precedencia. `ItemProgramaBase` y el criterio
+con el que un item le toca a un nodo (`item_aplicable`) viven en
+`domain.programacion.reglas`, que es su contexto (§7.5): la generación de la
+obra los **consume**, no los redefine — si discreparan, una obra nacería con
+un cronograma distinto del que le instancia `POST /obras/{id}/programa`.
 """
 
 from __future__ import annotations
@@ -37,6 +41,11 @@ from decimal import Decimal
 
 from obractrl.domain.obras.reglas import ErrorDeObra
 from obractrl.domain.programacion.cpm import Dependencia
+from obractrl.domain.programacion.reglas import (
+    DURACION_POR_DEFECTO,
+    ItemProgramaBase,
+    item_aplicable,
+)
 from obractrl.domain.shared.diccionario import ClaseNodo, ModoPago
 from obractrl.domain.shared.valores import PrecioUnitario
 
@@ -48,8 +57,8 @@ __all__ = [
     "planear_actividades",
 ]
 
-_DURACION_POR_DEFECTO = Decimal(1)
-"""Default del `programa_base_item` y de `actividad.duracion_dias` (§7.5)."""
+_DURACION_POR_DEFECTO = DURACION_POR_DEFECTO
+"""Alias local del default del §7.5, que ahora vive en `programacion.reglas`."""
 
 
 class ErrorDeGeneracion(ErrorDeObra):
@@ -72,18 +81,6 @@ class NodoPrototipo:
     nivel_id: str | None = None
     etapa_id: str | None = None
     cantidad: Decimal = Decimal(0)
-
-
-@dataclass(frozen=True, slots=True)
-class ItemProgramaBase:
-    """Renglón de la plantilla de duraciones del prototipo (§7.5)."""
-
-    duracion_dias: Decimal = _DURACION_POR_DEFECTO
-    prototipo_nodo_id: str | None = None
-    etapa_id: str | None = None
-    frente_id: str | None = None
-    dependencias: tuple[Dependencia, ...] = ()
-    orden: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,28 +150,6 @@ def _heredar(
     return None
 
 
-def _programa_de(
-    nodo_id: str, etapa_id: str | None, programa_base: Sequence[ItemProgramaBase]
-) -> ItemProgramaBase | None:
-    """Item del programa base aplicable al nodo.
-
-    Gana la coincidencia por `prototipo_nodo_id` (el item habla de ese nodo
-    exacto); si no hay, cae al item de su etapa, que es como se captura una
-    plantilla gruesa —una duración por frente/etapa (§7.5).
-    """
-    for item in programa_base:
-        if item.prototipo_nodo_id and item.prototipo_nodo_id == nodo_id:
-            return item
-
-    if etapa_id is None:
-        return None
-
-    for item in programa_base:
-        if item.prototipo_nodo_id is None and item.etapa_id == etapa_id:
-            return item
-    return None
-
-
 def planear_actividades(
     *,
     nodos: Sequence[NodoPrototipo],
@@ -214,7 +189,7 @@ def planear_actividades(
             continue
 
         etapa_id = _heredar(nodo, indice, "etapa_id")
-        item = _programa_de(nodo.id, etapa_id, programa_base)
+        item = item_aplicable(nodo.id, etapa_id, programa_base)
 
         planeadas.append(
             ActividadPlaneada(

@@ -1545,6 +1545,457 @@
         }
       }
     },
+    "/api/v1/programas-base": {
+      "get": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Programas base de duraciones",
+        "operationId": "listar_programas_base_api_v1_programas_base_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "prototipo_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Acota al prototipo (§7.2).",
+              "title": "Prototipo Id"
+            },
+            "description": "Acota al prototipo (§7.2)."
+          },
+          {
+            "name": "solo_vigentes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Solo la versión vigente de cada prototipo (§7.5).",
+              "default": false,
+              "title": "Solo Vigentes"
+            },
+            "description": "Solo la versión vigente de cada prototipo (§7.5)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProgramaBaseRespuesta"
+                  },
+                  "title": "Response Listar Programas Base Api V1 Programas Base Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Alta de un programa base (nueva versión)",
+        "description": "Cada alta versiona y retira la vigente anterior (§7.5, §10.8).",
+        "operationId": "crear_programa_base_api_v1_programas_base_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearProgramaBasePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgramaBaseCreadoRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El cronograma tiene dependencias circulares o la programación es inválida; nada se escribió (§6, §7.5)."
+          }
+        }
+      }
+    },
+    "/api/v1/programas-base/{programa_base_id}/items": {
+      "get": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Renglones de un programa base",
+        "operationId": "listar_items_programa_base_api_v1_programas_base__programa_base_id__items_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "programa_base_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Programa Base Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemProgramaBaseRespuesta"
+                  },
+                  "title": "Response Listar Items Programa Base Api V1 Programas Base  Programa Base Id  Items Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/programa": {
+      "get": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Cronograma vigente de la obra",
+        "description": "El `ProgramaObra` vigente, su historial de versiones y las actividades\ncon su programación (§7.5, §7.6). Sin programa instanciado devuelve las\nactividades igual: es lo que alimenta el Gantt desde el día uno.",
+        "operationId": "obtener_programa_de_obra_api_v1_obras__obra_id__programa_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgramaObraRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Instanciar / versionar el cronograma desde el programa base",
+        "description": "Baja la plantilla del prototipo a las actividades, resuelve las\ndependencias a ids de actividad y recalcula la ruta (§7.5, §11.2).",
+        "operationId": "instanciar_programa_de_obra_api_v1_obras__obra_id__programa_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstanciarProgramaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgramaInstanciadoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "El cronograma tiene dependencias circulares o la programación es inválida; nada se escribió (§6, §7.5)."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/ruta-critica": {
+      "get": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Ruta crítica, holgura y desfase de la obra",
+        "description": "Todos los roles, cada uno con su alcance (§4, §11.2): el Residente ve\nla de su obra porque RLS no le deja ver otra.",
+        "operationId": "obtener_ruta_critica_api_v1_obras__obra_id__ruta_critica_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "fecha_corte",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha contra la que se mide el desfase; por defecto hoy.",
+              "title": "Fecha Corte"
+            },
+            "description": "Fecha contra la que se mide el desfase; por defecto hoy."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RutaCriticaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "El cronograma tiene dependencias circulares o la programación es inválida; nada se escribió (§6, §7.5)."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/ruta-critica/recalcular": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Recalcular y persistir la ruta crítica",
+        "description": "Recálculo on-demand (§6). Es idempotente: con el mismo cronograma y la\nmisma fecha de corte deja exactamente los mismos valores.",
+        "operationId": "recalcular_ruta_critica_api_v1_obras__obra_id__ruta_critica_recalcular_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "fecha_corte",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha de corte del desfase (§6).",
+              "title": "Fecha Corte"
+            },
+            "description": "Fecha de corte del desfase (§6)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RutaCriticaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "El cronograma tiene dependencias circulares o la programación es inválida; nada se escribió (§6, §7.5)."
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/programacion": {
+      "patch": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Ajustar fechas, duración y dependencias de una actividad",
+        "description": "Supervisor y Control de obra ajustan el cronograma (§11.2). El recálculo\nde la ruta va en la misma transacción.",
+        "operationId": "editar_programacion_actividad_api_v1_actividades__actividad_id__programacion_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgramacionActividadPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActividadEnRutaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "El cronograma tiene dependencias circulares o la programación es inválida; nada se escribió (§6, §7.5)."
+          }
+        }
+      }
+    },
     "/api/v1/actividades/{actividad_id}/avance": {
       "patch": {
         "tags": [
@@ -2918,7 +3369,7 @@
           "salud"
         ],
         "summary": "Health check",
-        "description": "Sonda de Render. Debe responder sin tocar la BD.",
+        "description": "Sonda de Render. Debe responder sin tocar la BD.\n\nIncluye cómo quedó configurada la verificación del JWT. Sin esto, un\ndespliegue mal configurado solo se manifiesta como 401 en todas las\nrutas y no hay forma de distinguir \"la variable no llegó\" de \"el\ntoken es malo\" —y la Shell de Render es de pago.\n\nNo expone secretos: `jwks_url` es un endpoint público del proveedor\ny `auth_modo` solo dice qué camino se tomó.",
         "operationId": "health_health_get",
         "responses": {
           "200": {
@@ -3020,6 +3471,263 @@
         ],
         "title": "AbrirIncidenciaPeticion",
         "description": "Alta de incidencia (§11.3 F.1). Cualquier rol la abre."
+      },
+      "ActividadEnRutaRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "frente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frente Id"
+          },
+          "duracion_dias": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Duracion Dias"
+          },
+          "dependencias": {
+            "items": {
+              "$ref": "#/components/schemas/DependenciaDTO"
+            },
+            "type": "array",
+            "title": "Dependencias"
+          },
+          "inicio_temprano": {
+            "type": "string",
+            "format": "date",
+            "title": "Inicio Temprano"
+          },
+          "fin_temprano": {
+            "type": "string",
+            "format": "date",
+            "title": "Fin Temprano"
+          },
+          "inicio_tardio": {
+            "type": "string",
+            "format": "date",
+            "title": "Inicio Tardio"
+          },
+          "fin_tardio": {
+            "type": "string",
+            "format": "date",
+            "title": "Fin Tardio"
+          },
+          "holgura": {
+            "type": "number",
+            "title": "Holgura"
+          },
+          "desfase": {
+            "type": "number",
+            "title": "Desfase"
+          },
+          "es_critica": {
+            "type": "boolean",
+            "title": "Es Critica"
+          },
+          "bloqueada": {
+            "type": "boolean",
+            "title": "Bloqueada"
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "descripcion",
+          "frente_id",
+          "duracion_dias",
+          "dependencias",
+          "inicio_temprano",
+          "fin_temprano",
+          "inicio_tardio",
+          "fin_tardio",
+          "holgura",
+          "desfase",
+          "es_critica",
+          "bloqueada",
+          "avance_pct"
+        ],
+        "title": "ActividadEnRutaRespuesta",
+        "description": "Una actividad con su cálculo de CPM (§6)."
+      },
+      "ActividadProgramadaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "frente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frente Id"
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "duracion_dias": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Duracion Dias"
+          },
+          "dependencias": {
+            "items": {
+              "$ref": "#/components/schemas/DependenciaDTO"
+            },
+            "type": "array",
+            "title": "Dependencias"
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio"
+          },
+          "fecha_termino": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Termino"
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "bloqueada": {
+            "type": "boolean",
+            "title": "Bloqueada"
+          },
+          "es_critica": {
+            "type": "boolean",
+            "title": "Es Critica"
+          },
+          "holgura": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holgura"
+          },
+          "desfase": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desfase"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "descripcion",
+          "frente_id",
+          "etapa_id",
+          "nivel_id",
+          "duracion_dias",
+          "dependencias",
+          "fecha_inicio",
+          "fecha_termino",
+          "avance_pct",
+          "estatus",
+          "bloqueada",
+          "es_critica",
+          "holgura",
+          "desfase"
+        ],
+        "title": "ActividadProgramadaRespuesta",
+        "description": "Fila del Gantt: lo capturado más lo que derivó el motor (§7.6, §6)."
       },
       "ActualizarObraPeticion": {
         "properties": {
@@ -4161,6 +4869,39 @@
         "title": "CrearObrasEnLotePeticion",
         "description": "Alta masiva (§11.2 `POST /obras/bulk`). O entran todas o no entra ninguna."
       },
+      "CrearProgramaBasePeticion": {
+        "properties": {
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemProgramaBasePeticion"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prototipo_id"
+        ],
+        "title": "CrearProgramaBasePeticion",
+        "description": "§11.2 `POST /programas-base`. Cada alta es una versión nueva (§7.5)."
+      },
       "CrearPrototipoPeticion": {
         "properties": {
           "proyecto_id": {
@@ -4363,6 +5104,34 @@
           "estatus"
         ],
         "title": "CriterioRespuesta"
+      },
+      "DependenciaDTO": {
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Ref",
+            "description": "En un programa base, el `prototipo_nodo_id` de la predecesora; en una actividad, el id de la actividad predecesora."
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "FS (fin→inicio) o SS (inicio→inicio).",
+            "default": "FS"
+          },
+          "lag_dias": {
+            "type": "number",
+            "title": "Lag Dias",
+            "description": "Días de desfase de la relación.",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "ref"
+        ],
+        "title": "DependenciaDTO",
+        "description": "Precedencia entre actividades (§7.5, §6)."
       },
       "EstatusIncidencia": {
         "type": "string",
@@ -4921,6 +5690,25 @@
         ],
         "title": "IncidenciaRespuesta"
       },
+      "InstanciarProgramaPeticion": {
+        "properties": {
+          "fecha_corte": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Corte",
+            "description": "Fecha contra la que se mide el desfase; por defecto hoy (§6)."
+          }
+        },
+        "type": "object",
+        "title": "InstanciarProgramaPeticion"
+      },
       "InsumoRespuesta": {
         "properties": {
           "id": {
@@ -5041,6 +5829,159 @@
           "descripcion"
         ],
         "title": "InsumoRespuesta"
+      },
+      "ItemProgramaBasePeticion": {
+        "properties": {
+          "duracion_dias": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Duracion Dias",
+            "description": "Días de la actividad (§7.5)."
+          },
+          "prototipo_nodo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Nodo Id",
+            "description": "Nodo exacto del árbol WBS al que aplica (§7.4)."
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id",
+            "description": "Plantilla gruesa: aplica a toda la etapa constructiva."
+          },
+          "frente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frente Id",
+            "description": "Frente del §8.3."
+          },
+          "dependencias": {
+            "items": {
+              "$ref": "#/components/schemas/DependenciaDTO"
+            },
+            "type": "array",
+            "title": "Dependencias"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "duracion_dias"
+        ],
+        "title": "ItemProgramaBasePeticion",
+        "description": "Renglón de la plantilla de duraciones (§7.5 `ProgramaBaseItem`)."
+      },
+      "ItemProgramaBaseRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "programa_base_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Programa Base Id"
+          },
+          "prototipo_nodo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Nodo Id"
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id"
+          },
+          "frente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frente Id"
+          },
+          "duracion_dias": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Duracion Dias"
+          },
+          "dependencias": {
+            "items": {
+              "$ref": "#/components/schemas/DependenciaDTO"
+            },
+            "type": "array",
+            "title": "Dependencias"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "programa_base_id",
+          "prototipo_nodo_id",
+          "etapa_id",
+          "frente_id",
+          "duracion_dias",
+          "dependencias",
+          "orden"
+        ],
+        "title": "ItemProgramaBaseRespuesta"
       },
       "LineaExplosionRespuesta": {
         "properties": {
@@ -5336,6 +6277,261 @@
         ],
         "title": "PrecioUnitarioRespuesta",
         "description": "CPU con su desglose de destajo (§7.3, §11.1)."
+      },
+      "ProgramaBaseCreadoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "n_items": {
+            "type": "integer",
+            "title": "N Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "n_items"
+        ],
+        "title": "ProgramaBaseCreadoRespuesta"
+      },
+      "ProgramaBaseRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "vigente": {
+            "type": "boolean",
+            "title": "Vigente"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "prototipo_id",
+          "version",
+          "vigente",
+          "nombre"
+        ],
+        "title": "ProgramaBaseRespuesta"
+      },
+      "ProgramaInstanciadoRespuesta": {
+        "properties": {
+          "programa_obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Programa Obra Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "n_actividades": {
+            "type": "integer",
+            "title": "N Actividades"
+          },
+          "sin_item": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sin Item",
+            "description": "Actividades para las que el programa base no trae renglón: conservaron su programación anterior (§7.5)."
+          },
+          "refs_no_resueltas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Refs No Resueltas",
+            "description": "Dependencias del programa base que no corresponden a ninguna actividad de la obra; el motor las ignora (§6)."
+          },
+          "ruta": {
+            "$ref": "#/components/schemas/RutaCriticaRespuesta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "programa_obra_id",
+          "version",
+          "n_actividades",
+          "sin_item",
+          "refs_no_resueltas",
+          "ruta"
+        ],
+        "title": "ProgramaInstanciadoRespuesta",
+        "description": "§11.2 `POST /obras/{id}/programa`."
+      },
+      "ProgramaObraRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "programa_obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Programa Obra Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "fecha_corte": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Corte"
+          },
+          "versiones": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Versiones"
+          },
+          "actividades": {
+            "items": {
+              "$ref": "#/components/schemas/ActividadProgramadaRespuesta"
+            },
+            "type": "array",
+            "title": "Actividades"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "programa_obra_id",
+          "version",
+          "fecha_corte",
+          "versiones",
+          "actividades"
+        ],
+        "title": "ProgramaObraRespuesta",
+        "description": "§11.2 `GET /obras/{id}/programa`: el cronograma vigente y su historial."
+      },
+      "ProgramacionActividadPeticion": {
+        "properties": {
+          "duracion_dias": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duracion Dias"
+          },
+          "dependencias": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DependenciaDTO"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dependencias"
+          },
+          "frente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frente Id"
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio"
+          },
+          "fecha_termino": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Termino"
+          }
+        },
+        "type": "object",
+        "title": "ProgramacionActividadPeticion",
+        "description": "§11.2 `PATCH /actividades/{id}/programacion`.\n\nSolo se cambia lo que llega. Una lista vacía de `dependencias` **sí** es un\ncambio: deja la actividad sin predecesoras."
       },
       "ProgramarIncidenciaPeticion": {
         "properties": {
@@ -5708,6 +6904,78 @@
           "valor"
         ],
         "title": "RespuestaItem"
+      },
+      "RutaCriticaRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "fecha_inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Inicio"
+          },
+          "fecha_corte": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Corte"
+          },
+          "fin_programado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fin Programado"
+          },
+          "programa_obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Programa Obra Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "actividades": {
+            "items": {
+              "$ref": "#/components/schemas/ActividadEnRutaRespuesta"
+            },
+            "type": "array",
+            "title": "Actividades"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "fecha_inicio",
+          "fecha_corte",
+          "fin_programado",
+          "programa_obra_id",
+          "version",
+          "actividades"
+        ],
+        "title": "RutaCriticaRespuesta"
       },
       "SalidaRespuesta": {
         "properties": {

@@ -15,6 +15,14 @@ solicitar dejar la actividad en ``pendiente_cierre``, validar la deja en
 recalculado con la misma fórmula del §6 (`resolver_estatus`), no con un valor
 fijo — así una actividad rechazada al 95% vuelve a ``casi``, no a
 ``programada``.
+
+**Evento `ActividadCerrada` (§11.1, §11.3 C.4):** lo publica `ValidarCierre`,
+que es el paso que deja la actividad ``concluida`` —el diagrama del §11.3 C
+pone el evento después de `validada`, no de `autorizada`. Se publica **fuera**
+de la unidad de trabajo, ya commiteado el cierre: quien escucha (el recálculo
+de CPM) es otro contexto y no puede revertir un cierre válido si falla (§11.1
+"in-process o vía Arq"). El caso de uso no sabe quién escucha; el bus lo
+ensambla el borde.
 """
 
 from __future__ import annotations
@@ -24,6 +32,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from obractrl.application.casos_uso.capturar_avance import ActividadNoEncontrada
+from obractrl.application.eventos import ActividadCerrada, PublicadorEventos
 from obractrl.application.puertos.repositorios import (
     RegistroNoEncontrado,
     RepositorioActividades,
@@ -211,7 +220,9 @@ class AutorizarCierre:
 class ValidarCierre:
     """Control de obra valida y comenta: no autoriza (§4, §11.3 C.3).
 
-    Habilita la actividad para estimación al dejarla ``concluida``.
+    Habilita la actividad para estimación al dejarla ``concluida`` y publica
+    `ActividadCerrada` (§11.3 C.4). El bus es opcional: sin él el flujo de
+    cierre funciona igual, solo que nadie reacciona.
     """
 
     def __init__(
@@ -220,10 +231,12 @@ class ValidarCierre:
         actividades: RepositorioActividades,
         cierres: RepositorioCierres,
         uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
     ) -> None:
         self._actividades = actividades
         self._cierres = cierres
         self._uow = uow
+        self._eventos = eventos
 
     async def ejecutar(self, cmd: ComandoValidarCierre) -> SolicitudCierre:
         fila = await self._cierres.obtener(cmd.cierre_id)
@@ -234,6 +247,16 @@ class ValidarCierre:
         solicitud = _reconstruir(fila)
         solicitud.validar(usuario_id=str(cmd.usuario_id), rol=cmd.rol, comentario=cmd.comentario)
 
+        actividad_id = UUID(solicitud.actividad_id)
+        # Se lee antes del commit y solo si alguien escucha: el evento viaja
+        # con la obra a la que pertenece la actividad, y quien lo reciba no
+        # puede volver a preguntarle al repo de otro contexto (§11.1).
+        obra_id = (
+            (await self._actividades.obtener(actividad_id) or {}).get("obra_id")
+            if self._eventos is not None
+            else None
+        )
+
         async with self._uow:
             try:
                 await self._cierres.actualizar(
@@ -243,13 +266,18 @@ class ValidarCierre:
                     comentarios=solicitud.comentarios,
                 )
                 await self._actividades.marcar_estatus(
-                    UUID(solicitud.actividad_id), EstatusActividad.CONCLUIDA.value
+                    actividad_id, EstatusActividad.CONCLUIDA.value
                 )
             except RegistroNoEncontrado as exc:
                 raise SolicitudCierreNoEncontrada(
                     f"Solicitud {cmd.cierre_id} ya no está en tu alcance."
                 ) from exc
             await self._uow.commit()
+
+        if self._eventos is not None and obra_id is not None:
+            await self._eventos.publicar(
+                ActividadCerrada(obra_id=obra_id, actividad_id=actividad_id)
+            )
 
         return solicitud
 

@@ -1,0 +1,320 @@
+"""Repositorio de programación.
+
+Spec §12.11 (adaptador de persistencia) · §7.5 (ProgramaBase ·
+ProgramaBaseItem · ProgramaObra) · §11.2 ("Programación · CPM") · §12.4 (RLS).
+
+Tres tablas, dos alcances distintos (`database/migrations/20260814000012`):
+
+* `programa_base` y `programa_base_item` entran al bloque **A** de catálogo:
+  las lee cualquier usuario de la organización y las escribe `app.es_config()`
+  —Control de obra y Super intendente (§5.1)—. Como el predicado de `SELECT`
+  es solo de organización, el `RETURNING` del alta es seguro (a diferencia de
+  `proyectos_sql.py`).
+* `programa_obra` entra al bloque **B** por obra
+  (`app.obra_visible(obra_id)`). El `RETURNING` también es seguro aquí: el
+  predicado se evalúa sobre la **obra**, que ya existe (mismo razonamiento que
+  `obras_sql.instanciar_programa`).
+
+Ningún método filtra por `org_id` a mano: eso lo impone la base. `org_id` en
+los INSERT sale de `current_setting('app.org_id')`, igual que en el resto de
+los repos.
+
+**Fronteras de módulo (§11.1):** aquí *no* se toca `actividad`. Los campos de
+programación viven en esa tabla por el §7.6, pero se leen y escriben por
+`RepositorioActividades` —su puerto—, nunca desde este repositorio.
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import date
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from obractrl.application.puertos.repositorios import RegistroNoEncontrado
+
+__all__ = ["ProgramaNoModificado", "RepositorioProgramasSQL"]
+
+_COLUMNAS_BASE = """
+    id, prototipo_id, version, vigente, nombre
+"""
+
+_COLUMNAS_ITEM = """
+    id, programa_base_id, prototipo_nodo_id, frente_id, etapa_id,
+    duracion_dias, dependencias, orden
+"""
+
+_COLUMNAS_OBRA = """
+    id, obra_id, version, vigente, fecha_corte
+"""
+
+
+class ProgramaNoModificado(RegistroNoEncontrado):
+    """El UPDATE no afectó ninguna fila: el programa se borró o salió del
+    alcance del usuario (RLS) entre la lectura y la escritura (§12.4)."""
+
+
+class RepositorioProgramasSQL:
+    def __init__(self, sesion: AsyncSession) -> None:
+        self._sesion = sesion
+
+    # --- ProgramaBase (§7.5) ---------------------------------------------
+
+    async def crear_base(self, datos: dict[str, Any]) -> UUID:
+        """Alta de `ProgramaBase` (§11.2 `POST /programas-base`, rol C).
+
+        Claves esperadas: ``prototipo_id``. Opcional: ``nombre``.
+
+        Retirar el vigente anterior **antes** de insertar el nuevo no es
+        opcional: `uq_programa_base_vigente` es un índice único parcial y no
+        es diferible, así que insertar el nuevo vigente primero violaría la
+        restricción — mismo caso que `conceptos_sql.publicar_version_cpu`.
+        """
+        prototipo_id = str(datos["prototipo_id"])
+
+        await self._sesion.execute(
+            text(
+                """
+                update programa_base
+                   set vigente = false
+                 where prototipo_id = cast(:prototipo_id as uuid)
+                   and vigente
+                """
+            ),
+            {"prototipo_id": prototipo_id},
+        )
+
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into programa_base
+                        (org_id, prototipo_id, version, vigente, nombre)
+                    select cast(current_setting('app.org_id') as uuid),
+                           cast(:prototipo_id as uuid),
+                           coalesce(max(version), 0) + 1,
+                           true,
+                           :nombre
+                    from programa_base
+                    where prototipo_id = cast(:prototipo_id as uuid)
+                    returning id
+                    """
+                ),
+                {"prototipo_id": prototipo_id, "nombre": datos.get("nombre")},
+            )
+        ).scalar_one()
+
+    async def obtener_base(self, programa_base_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text(f"select {_COLUMNAS_BASE} from programa_base where id = :id"),
+                {"id": str(programa_base_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def listar_bases(
+        self, *, prototipo_id: UUID | None = None, solo_vigentes: bool = False
+    ) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    select {_COLUMNAS_BASE}
+                    from programa_base
+                    -- El cast del lado `is null` fija el tipo del parámetro;
+                    -- sin él asyncpg levanta AmbiguousParameterError.
+                    where (cast(:prototipo_id as uuid) is null
+                           or prototipo_id = cast(:prototipo_id as uuid))
+                      and (not cast(:solo_vigentes as boolean) or vigente)
+                    order by prototipo_id, version desc
+                    """
+                ),
+                {
+                    "prototipo_id": str(prototipo_id) if prototipo_id else None,
+                    "solo_vigentes": solo_vigentes,
+                },
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
+    async def agregar_items_base(
+        self, programa_base_id: UUID, items: list[dict[str, Any]]
+    ) -> None:
+        """Renglones de la plantilla, ya validados por el dominio (§7.5).
+
+        Cada dict trae ``duracion_dias`` y ``orden``, y opcionales
+        ``prototipo_nodo_id``, ``etapa_id``, ``frente_id`` y ``dependencias``
+        (lista de dicts; se serializa aquí, que es el borde).
+        """
+        if not items:
+            return
+
+        params = [
+            {
+                "programa_base_id": str(programa_base_id),
+                "prototipo_nodo_id": str(item["prototipo_nodo_id"])
+                if item.get("prototipo_nodo_id")
+                else None,
+                "etapa_id": str(item["etapa_id"]) if item.get("etapa_id") else None,
+                "frente_id": str(item["frente_id"]) if item.get("frente_id") else None,
+                "duracion_dias": item["duracion_dias"],
+                "dependencias": json.dumps(item.get("dependencias") or []),
+                "orden": item.get("orden", 0),
+            }
+            for item in items
+        ]
+
+        await self._sesion.execute(
+            text(
+                """
+                insert into programa_base_item
+                    (org_id, programa_base_id, prototipo_nodo_id, etapa_id,
+                     frente_id, duracion_dias, dependencias, orden)
+                values
+                    (cast(current_setting('app.org_id') as uuid),
+                     cast(:programa_base_id as uuid),
+                     cast(:prototipo_nodo_id as uuid),
+                     cast(:etapa_id as uuid), cast(:frente_id as uuid),
+                     :duracion_dias, cast(:dependencias as jsonb), :orden)
+                """
+            ),
+            params,
+        )
+
+    async def listar_items_base(
+        self, programa_base_id: UUID
+    ) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    select {_COLUMNAS_ITEM}
+                    from programa_base_item
+                    where programa_base_id = :programa_base_id
+                    order by orden
+                    """
+                ),
+                {"programa_base_id": str(programa_base_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
+    async def items_base_vigente(self, prototipo_id: UUID) -> list[dict[str, Any]]:
+        """Renglones del programa base vigente del prototipo (§7.5).
+
+        Es la misma lectura que `obras_sql.items_programa_base` hace para el
+        workflow A; existe aquí porque este es el repositorio del contexto
+        Programación, y el de obras la mantiene mientras el workflow A viva
+        allá (ver su docstring de fronteras).
+        """
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select i.id, i.programa_base_id, i.prototipo_nodo_id,
+                           i.frente_id, i.etapa_id, i.duracion_dias,
+                           i.dependencias, i.orden
+                    from programa_base_item i
+                    join programa_base b on b.id = i.programa_base_id
+                    where b.prototipo_id = :prototipo_id
+                      and b.vigente
+                    order by i.orden
+                    """
+                ),
+                {"prototipo_id": str(prototipo_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
+    # --- ProgramaObra (§7.5) ---------------------------------------------
+
+    async def programa_vigente(self, obra_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    select {_COLUMNAS_OBRA}
+                    from programa_obra
+                    where obra_id = :obra_id and vigente
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def listar_programas(self, obra_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    select {_COLUMNAS_OBRA}
+                    from programa_obra
+                    where obra_id = :obra_id
+                    order by version desc
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
+    async def instanciar(
+        self, obra_id: UUID, *, fecha_corte: date | None = None
+    ) -> dict[str, Any]:
+        """Siguiente versión vigente del cronograma de la obra (§11.2).
+
+        Mismo patrón que `crear_base`: primero se retira el vigente anterior
+        —`uq_programa_obra_vigente` no es diferible— y luego se inserta la
+        versión nueva. Versionar en vez de sobrescribir es lo que deja
+        auditar contra qué programa se midió cada corte (§7.5).
+        """
+        await self._sesion.execute(
+            text(
+                """
+                update programa_obra
+                   set vigente = false
+                 where obra_id = cast(:obra_id as uuid)
+                   and vigente
+                """
+            ),
+            {"obra_id": str(obra_id)},
+        )
+
+        fila = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    insert into programa_obra
+                        (org_id, obra_id, version, vigente, fecha_corte)
+                    select cast(current_setting('app.org_id') as uuid),
+                           cast(:obra_id as uuid),
+                           coalesce(max(version), 0) + 1,
+                           true,
+                           cast(:fecha_corte as date)
+                    from programa_obra
+                    where obra_id = cast(:obra_id as uuid)
+                    returning {_COLUMNAS_OBRA}
+                    """
+                ),
+                {"obra_id": str(obra_id), "fecha_corte": fecha_corte},
+            )
+        ).mappings().one()
+        return dict(fila)
+
+    async def fijar_fecha_corte(self, programa_obra_id: UUID, fecha: date) -> None:
+        resultado = await self._sesion.execute(
+            text(
+                "update programa_obra set fecha_corte = :fecha where id = :id"
+            ),
+            {"fecha": fecha, "id": str(programa_obra_id)},
+        )
+        if resultado.rowcount == 0:
+            raise ProgramaNoModificado(
+                f"No se actualizó el programa {programa_obra_id}: ya no existe "
+                f"o salió de tu alcance."
+            )

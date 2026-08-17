@@ -23,6 +23,8 @@ import Estimacion from '@/estimacion/Estimacion';
 import Obras from '@/proyectos/Obras';
 import Frentes from '@/proyectos/Frentes';
 import Catalogos from '@/catalogos/Catalogos';
+import Programacion from '@/programacion/Programacion';
+import ProgramasBase from '@/programacion/ProgramasBase';
 
 export function App() {
   return (
@@ -79,6 +81,14 @@ function Rutas() {
             intendente puede leer el APU pero no tiene la entrada en su
             sidebar, así que no se monta una ruta que nada apunte. */}
         <Route path="/config/catalogos" element={<Catalogos />} />
+        {/* Programación · CPM: el Gantt con la ruta crítica es pantalla
+            compartida (§5.3) y los cuatro sidebars ya traen "Ruta crítica"
+            (§5.1). El Super intendente además la alcanza desde Reportes →
+            "Programas de obra". Los programas base son de Control de obra y
+            su sidebar los trae en Configuración (§11.2, §5.1). */}
+        <Route path="/ruta-critica" element={<Programacion />} />
+        <Route path="/programas" element={<Programacion />} />
+        <Route path="/config/programas-base" element={<ProgramasBase />} />
         <Route path="/avances" element={<Avances />} />
         <Route path="/cierres" element={<Cierres />} />
         <Route path="/estimacion" element={<Estimacion />} />
