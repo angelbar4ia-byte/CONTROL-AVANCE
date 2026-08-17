@@ -40,6 +40,7 @@ __all__ = [
     "RepositorioProgramas",
     "RepositorioPrototipos",
     "RepositorioProyectos",
+    "RepositorioRevisiones",
     "RepositorioUnidades",
     "UnidadDeTrabajo",
 ]
@@ -510,6 +511,36 @@ class RepositorioIncidencias(Protocol):
 
     async def listar(self, *, estatus: str | None = None) -> list[dict]:
         """Bandeja por rol: RLS ya acota el alcance (§11.2)."""
+        ...
+
+
+@runtime_checkable
+class RepositorioRevisiones(Protocol):
+    """Revisiones físicas de campo (§7.8). Scoped por RLS — §12.4.
+
+    `revision_fisica` entra al loop `por_obra` de
+    `database/migrations/20260814000012_rls_policies.sql` (vía `obra_visible`),
+    así que ninguna implementación filtra por `org_id` u `obra_id` a mano: eso
+    lo impone la base, igual que en `cierres` e `incidencias`.
+    """
+
+    async def crear(
+        self,
+        *,
+        obra_id: UUID,
+        usuario_id: UUID,
+        fecha: date,
+        fotos: list[str],
+        comentario: str | None = None,
+        calidad: int | None = None,
+        actividad_id: UUID | None = None,
+        incidencia_id: UUID | None = None,
+    ) -> UUID:
+        """Alta ya validada por el dominio (§11.2 `POST /obras/{id}/revisiones`)."""
+        ...
+
+    async def listar(self, *, obra_id: UUID | None = None) -> list[dict]:
+        """Bandeja `GET /revisiones`: RLS ya acota el alcance (§11.2)."""
         ...
 
 

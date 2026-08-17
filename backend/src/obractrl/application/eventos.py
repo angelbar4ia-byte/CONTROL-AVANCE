@@ -60,16 +60,31 @@ class ActividadCerrada:
 
 @dataclass(frozen=True, slots=True)
 class IncidenciaDetiene:
-    """§11.1 · §11.3 F.5 — bloquea actividades y recalcula la ruta.
+    """§11.1 · §11.3 F.5 — "Si `impacto=detiene` → evento bloquea actividades
+    + recalcular CPM (desfase)".
 
-    Declarado aquí junto con los demás para que el catálogo de eventos del
-    §11.1 viva en un solo lugar; el bloqueo en sí ya lo aplica
-    `AbrirIncidencia` por el puerto de actividades.
+    Lo publican `AbrirIncidencia` (con ``bloquear=True``) y
+    `CerrarIncidencia`/`RechazarIncidencia` (con ``bloquear=False``): los tres
+    pasos del workflow F que mueven el bloqueo. `bloquear` distingue las dos
+    caras del mismo hecho —la incidencia que detiene la obra empieza o deja de
+    detenerla— en vez de partirlo en dos eventos, porque el suscriptor reacciona
+    igual en ambos casos: recalcular la ruta crítica de la obra.
+
+    El bloqueo en sí lo escribe el caso de uso **dentro** de su unidad de
+    trabajo, por el puerto `RepositorioActividades` —igual que `ValidarCierre`
+    escribe `actividad.estatus` por ese mismo puerto (§11.1: por fachada, nunca
+    tocando la tabla de otro contexto)—. Ahí no cabe un evento: `BusEnProceso`
+    se traga los fallos del manejador a propósito, y una actividad que quedara
+    sin bloquear sería un permiso abierto de más, no un dato derivado que se
+    pueda recalcular después. Lo que sí viaja por el evento es el recálculo del
+    CPM, que es derivado e idempotente (`RecalcularRutaCritica`), igual que en
+    `ActividadCerrada`.
     """
 
     obra_id: UUID
     incidencia_id: UUID
     refs_bloqueadas: tuple[str, ...] = ()
+    bloquear: bool = True
 
 
 @dataclass(frozen=True, slots=True)
