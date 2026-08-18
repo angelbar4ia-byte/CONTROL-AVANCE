@@ -21,7 +21,7 @@ commitea solo. Ninguno bloquea a otro.
 | 3 | `Idempotency-Key` en mutaciones sensibles (§11.2, §12.3) | pendiente | — |
 | 4 | Sync rules de PowerSync auditadas contra RLS (§12.4, §12.5) | **hecho** | auditoría + `registro_avance.obra_id` |
 | 5 | E2E Playwright de los seis workflows (§11.3) | pendiente | — |
-| 6 | Despliegue: Render · Vercel · Play Store (§12.8, §12.13) | pendiente | — |
+| 6 | Despliegue: Render · Vercel · Play Store (§12.8, §12.13) | **hecho** | CI y worker de Render corregido |
 
 ---
 
@@ -245,8 +245,41 @@ pasan.
 declarado ahí. `mobile/eas.json` existe. No hay workflows de CI en `.github/`,
 así que "verde en CI" es hoy una promesa sin CI.
 
-**Confirmado al pasar por el frente 2:** `render.yaml` **no** declara
-`RESEND_API_KEY` ni `RESEND_REMITENTE`. Revisar de paso si declara el worker.
+**Entregado.**
+
+**El worker de Render no habría arrancado.** `render.yaml` lo lanzaba con
+`arq obractrl.infrastructure.jobs.worker.Configuracion`, un módulo que no
+existe: el composition root de los jobs es `obractrl/trabajador.py`
+(`WorkerSettings`), hermano de `main.py`. Con eso, el servicio worker habría
+fallado al arrancar y **todos los reportes se habrían quedado encolados sin
+que nadie los procesara** — y el síntoma del lado del usuario sería un reporte
+eternamente `en_cola`, no un error.
+
+Además: `RESEND_API_KEY`/`RESEND_REMITENTE` en el servicio web (van ahí y no en
+el worker: el bus de eventos es en proceso, §11.1) y `SENTRY_DSN` en el worker,
+que hasta ahora no reportaba a ningún lado —un reporte que truena en la cola no
+deja rastro en ninguna respuesta HTTP—.
+
+**CI, por primera vez.** `.github/workflows/ci.yml` con tres jobs. Lo que
+justifica el archivo no es correr lo que ya corre en local, sino que **levanta
+Postgres**: sin él, `backend/tests/integracion/` se salta entero —su
+`conftest.py` lo declara así— y los archivos de `database/tests/` no corren
+nunca. Son ~150 pruebas y 5 archivos de aislamiento RLS que hasta hoy solo se
+ejercitaban a mano. Se apoya en que la migración 0014 crea `anon`,
+`authenticated` y `obractrl_api` en un Postgres pelón justo para esto.
+
+Incluye un paso que **verifica que `openapi.json` esté al día**: regenera el
+contrato y lo compara contra el versionado. Si alguien cambia un endpoint y no
+regenera, el front programa contra un contrato viejo (§12.2) y hoy nada lo
+detectaba.
+
+`vercel.json` y `eas.json` ya estaban completos —incluido el flujo de §12.13
+con `track: internal` y `releaseStatus: draft`—; no hizo falta tocarlos.
+
+**No verificado aquí:** el workflow no se ha ejecutado nunca. Cada comando es
+uno que ya corre en local, y el YAML y el heredoc del paso de contrato se
+validaron parseándolos, pero la primera corrida real es la que dirá si el
+servicio de Postgres y los `working-directory` quedaron bien.
 
 ---
 
@@ -295,3 +328,10 @@ trigger que pisa lo que mande el cliente, y la autorización sigue resolviéndos
 por `actividad_id`. Una columna que existe para sincronizar no puede volverse
 la que decide quién ve qué: si el cliente pudiera fijarla, marcaría sus
 capturas como de cualquier obra.
+
+**F6.8 · El paso de CI que compara el contrato no es burocracia.** `openapi.json`
+lo consume Orval para generar los hooks del front y del móvil (§12.2). Un
+endpoint cambiado sin regenerar no rompe ninguna prueba —el front sigue
+compilando contra el contrato viejo— y se descubre en producción. Compararlo en
+CI es lo único que convierte "el front programa contra el contrato" en algo
+verificado y no en una costumbre.

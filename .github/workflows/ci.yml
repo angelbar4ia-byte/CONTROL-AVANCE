@@ -1,0 +1,153 @@
+# ============================================================
+# ObraCtrl · CI (§12.8)
+#
+# El DoD de cada fase dice "verde en CI" y hasta ahora no había CI, así que
+# era una promesa sin nadie que la verificara.
+#
+# Lo que hace este archivo que una máquina de desarrollo normalmente no hace:
+# **levanta Postgres**. Sin él, `backend/tests/integracion/` se salta entero
+# —su `conftest.py` lo declara así— y los archivos de `database/tests/` no
+# corren nunca. Son ~150 pruebas y 5 archivos de aislamiento RLS que solo se
+# ejercitan aquí.
+#
+# Las migraciones se aplican contra un Postgres pelón, no contra Supabase: la
+# 0014 crea `anon`, `authenticated` y `obractrl_api` justo para que esto sea
+# posible con el mismo modelo de permisos que producción.
+# ============================================================
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  # Un push nuevo cancela la corrida anterior de la misma rama: no sirve
+  # esperar el resultado de un commit que ya quedó atrás.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend · dominio, integración y RLS
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: obractrl
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Superusuario: aplica migraciones y arma el escenario de cada prueba.
+      # Bypassa RLS a propósito (ver `tests/integracion/conftest.py`).
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/obractrl
+      DATABASE_URL_ADMIN: postgresql+asyncpg://postgres:postgres@localhost:5432/obractrl
+      # El rol del backend en producción: NO es owner, así que RLS le aplica.
+      # Es contra este que se ejercitan los repos.
+      DATABASE_URL_TEST: postgresql+asyncpg://obractrl_api:ci@localhost:5432/obractrl
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Instalar dependencias
+        working-directory: backend
+        run: pip install -e ".[dev]"
+
+      - name: Aplicar migraciones
+        run: bash database/scripts/migrar.sh
+
+      - name: Dar contraseña a obractrl_api
+        # La 0014 crea el rol sin contraseña a propósito —nunca en un archivo
+        # versionado—, así que falla cerrado hasta que cada entorno la fija.
+        # Este es el entorno de CI fijando la suya.
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "alter role obractrl_api with password 'ci'"
+
+      - name: Ruff
+        working-directory: backend
+        run: ruff check .
+
+      - name: Regla de dependencia (§12.11)
+        working-directory: backend
+        run: lint-imports
+
+      - name: Pruebas (dominio + integración)
+        working-directory: backend
+        run: pytest -q
+
+      - name: Aislamiento RLS (§12.4)
+        run: bash database/scripts/probar.sh
+
+      - name: El contrato está al día
+        # Si alguien cambia un endpoint y no regenera `openapi.json`, el front
+        # programa contra un contrato viejo (§12.2). Se regenera y se compara.
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          from obractrl.main import crear_app
+          generado = json.dumps(crear_app().openapi(), indent=2, ensure_ascii=False)
+          versionado = pathlib.Path("../openapi/openapi.json").read_text(encoding="utf-8")
+          if generado.strip() != versionado.strip():
+              raise SystemExit(
+                  "openapi.json está desactualizado. Regenéralo y vuelve a "
+                  "generar el cliente de Orval (ver openapi/README.md)."
+              )
+          print("Contrato al día.")
+          PY
+
+  frontend:
+    name: Web · tipos y pruebas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: frontend
+        run: npm ci
+
+      - name: Tipos
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Pruebas
+        working-directory: frontend
+        run: npm run test
+
+  mobile:
+    name: Móvil · tipos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: mobile
+        run: npm ci
+
+      - name: Tipos
+        working-directory: mobile
+        run: npx tsc --noEmit

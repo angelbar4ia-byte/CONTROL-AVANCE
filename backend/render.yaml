@@ -34,13 +34,21 @@ services:
         sync: false
       - key: SENTRY_DSN
         sync: false
+      # Aviso de EstimacionValidada (§11.3 E.5). Sale del proceso web y no
+      # del worker: el bus de eventos es en proceso (§11.1). Sin llave el
+      # aviso se registra y no se manda; la validación no se cae por eso.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_REMITENTE
+        sync: false
       - key: REDIS_URL
         fromService:
           type: redis
           name: obractrl-redis
           property: connectionString
 
-  # Worker de jobs: CPM, estimaciones, cargas masivas (§12.2)
+  # Worker de jobs: reportes (xlsx de estimación, PDF de expediente) y
+  # recálculo de CPM (§12.2, §11.2 "job")
   - type: worker
     name: obractrl-worker
     runtime: docker
@@ -48,11 +56,17 @@ services:
     dockerContext: .
     plan: starter
     region: oregon
-    dockerCommand: arq obractrl.infrastructure.jobs.worker.Configuracion
+    # El composition root de los jobs es `obractrl/trabajador.py`, hermano
+    # de `main.py` (§12.11). Apuntaba a un módulo que no existe.
+    dockerCommand: arq obractrl.trabajador.WorkerSettings
     envVars:
       - key: ENTORNO
         value: prod
       - key: DATABASE_URL
+        sync: false
+      # El worker también reporta: un reporte que truena en la cola no deja
+      # rastro en ninguna respuesta HTTP (§11.7).
+      - key: SENTRY_DSN
         sync: false
       - key: REDIS_URL
         fromService:
