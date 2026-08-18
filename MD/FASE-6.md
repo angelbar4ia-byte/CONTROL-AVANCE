@@ -17,7 +17,7 @@ commitea solo. Ninguno bloquea a otro.
 | # | Frente | Estado | Commit |
 |---|---|---|---|
 | 1 | `problem+json` uniforme (§11.2) | **hecho** | `problem+json` en todo error |
-| 2 | Observabilidad: Sentry, request id, logs separados (§11.7) | pendiente | — |
+| 2 | Observabilidad: Sentry, request id, logs separados (§11.7) | **hecho** | id de petición, Sentry y sonda de dependencias |
 | 3 | `Idempotency-Key` en mutaciones sensibles (§11.2, §12.3) | pendiente | — |
 | 4 | Sync rules de PowerSync auditadas contra RLS (§12.4, §12.5) | pendiente | — |
 | 5 | E2E Playwright de los seis workflows (§11.3) | pendiente | — |
@@ -88,6 +88,32 @@ como Resend); `X-Request-Id` que entra o se genera y viaja al log y al
 `problem+json`; `/health` con el estado de Postgres y Redis sin volverse una
 ruta cara.
 
+**Entregado.** `infrastructure/observabilidad.py` (ContextVar del id, filtro y
+formato de log, arranque de Sentry) y `adapters/api/middleware.py` (la cabecera).
+27 pruebas en `backend/tests/api/test_observabilidad.py`.
+
+- **El id cose las tres cosas**: sale en `X-Request-Id`, en `request_id` del
+  `problem+json` (RFC 7807 §3.2 permite extensiones) y en cada línea de log.
+  Se respeta el que traiga el cliente —para seguir una petición a través de
+  los servicios— y se sanea: un id con saltos de línea inyectaría renglones
+  falsos en la bitácora.
+- **`expose_headers` en CORS**: sin eso el navegador no deja leer el id justo
+  cuando el front lo necesita, que es en la respuesta de error que va a
+  reportar.
+- **`sqlalchemy.engine` fijado en WARNING**, incluso en debug: en INFO registra
+  cada sentencia **con sus parámetros**, y esos parámetros son datos de la
+  organización (§12.4).
+- **La sonda se partió en dos.** `/health` sigue sin tocar nada —es la de
+  liveness de Render; si la base se cae, reiniciar el proceso solo agrega un
+  arranque en frío a un incidente que ya existe— y `/health/dependencias`
+  consulta Postgres y Redis en paralelo, con 3 s por dependencia. **Nunca
+  responde 5xx**: una sonda que se cae junto con lo que vigila no diagnostica
+  nada. Reporta la clase del fallo, nunca la cadena de conexión.
+
+**Deuda que salió a la luz.** `RESEND_API_KEY` y `RESEND_REMITENTE` (Fase 5) no
+estaban ni en `.env.example` ni en `render.yaml`. Se agregaron al primero; el
+segundo se atiende en el frente 6 junto con el worker de jobs.
+
 ## 3 · `Idempotency-Key`
 
 **Qué pide el spec.** §11.2: "Mutaciones sensibles con `Idempotency-Key`".
@@ -140,6 +166,9 @@ pasan.
 declarado ahí. `mobile/eas.json` existe. No hay workflows de CI en `.github/`,
 así que "verde en CI" es hoy una promesa sin CI.
 
+**Confirmado al pasar por el frente 2:** `render.yaml` **no** declara
+`RESEND_API_KEY` ni `RESEND_REMITENTE`. Revisar de paso si declara el worker.
+
 ---
 
 ## Decisiones de la fase
@@ -156,3 +185,22 @@ cliente. El slug describe el estado y ya.
 FastAPI hereda de ella, así que atrapar la de Starlette cubre las dos; al
 revés se quedaban fuera los 404 y 405 que enruta Starlette sola, antes de que
 exista un router.
+
+**F6.3 · Liveness y readiness son dos rutas, no una.** `/health` responde sin
+tocar nada porque es lo que Render sondea para decidir si reinicia: una sonda
+que falla cuando falla Postgres convertiría una caída de base en un ciclo de
+reinicios. `/health/dependencias` es la que consulta, y responde 200 siempre —
+con el estado de cada dependencia en su campo— para que un monitor alerte sobre
+el campo y no sobre el código HTTP.
+
+**F6.4 · El id de petición se recorta, no se descarta.** Un `X-Request-Id`
+larguísimo se corta a 64 caracteres en vez de reemplazarse: el prefijo del id
+del cliente sigue sirviendo para correlacionar, y el riesgo real —una cabecera
+de 8 KB repetida en cada línea de log— ya quedó acotado. Solo se reemplaza el
+que trae caracteres que no sirven, porque ahí sí hay riesgo de inyección en la
+bitácora.
+
+**F6.5 · Middleware ASGI puro, no `BaseHTTPMiddleware`.** El de Starlette corre
+el endpoint en otra tarea, así que el `ContextVar` que fija el middleware
+podría no ser el que ve el endpoint. Hay una prueba que compara el id que ve el
+endpoint contra el que sale en la cabecera, justo por esto.

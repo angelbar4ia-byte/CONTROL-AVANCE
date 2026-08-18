@@ -9,6 +9,7 @@ no contiene lógica de negocio (§12.11).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -17,9 +18,11 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 from starlette.exceptions import HTTPException as ExcepcionHTTP
 
 from obractrl import __version__
+from obractrl.adapters.api.middleware import MiddlewareDeIdDePeticion
 from obractrl.adapters.api.v1 import api_v1
 from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador
 from obractrl.adapters.excel.lector import ErrorDeArchivo
@@ -64,13 +67,26 @@ from obractrl.domain.programacion.reglas import ErrorDeProgramacion
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto
 from obractrl.domain.revisiones.reglas import ErrorDeRevision
 from obractrl.infrastructure.config import obtener_config
-from obractrl.infrastructure.db.sesion import cerrar_engine
-from obractrl.infrastructure.jobs.cola import ColaNoDisponible, TrabajoNoEncontrado
+from obractrl.infrastructure.db.sesion import cerrar_engine, obtener_sessionmaker
+from obractrl.infrastructure.jobs.cola import (
+    ColaDeTrabajos,
+    ColaNoDisponible,
+    TrabajoNoEncontrado,
+)
+from obractrl.infrastructure.observabilidad import (
+    configurar_logging,
+    id_de_peticion,
+    iniciar_sentry,
+)
 from obractrl.infrastructure.storage.r2 import AlmacenamientoNoConfigurado
 
 BASE_API = "/api/v1"
 
 _log = logging.getLogger(__name__)
+
+_TIMEOUT_SONDA = 3
+"""Segundos por dependencia. Corto: la sonda se consulta cuando algo ya va
+mal, y ahí una respuesta lenta es tan inútil como ninguna."""
 
 
 @asynccontextmanager
@@ -81,6 +97,11 @@ async def ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:
 
 def crear_app() -> FastAPI:
     cfg = obtener_config()
+
+    # Antes de construir nada: si algo del ensamblado falla, que salga con el
+    # formato de la casa y no con el default de Python (§11.7).
+    configurar_logging(cfg)
+    iniciar_sentry(cfg)
 
     app = FastAPI(
         title="ObraCtrl API",
@@ -103,7 +124,14 @@ def crear_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # Sin esto el navegador **no deja leer** el id de una respuesta de
+        # error, que es justo cuando el front lo necesita para reportarla.
+        expose_headers=["X-Request-Id"],
     )
+
+    # Se agrega al final para que quede por fuera de CORS: así hasta una
+    # respuesta rechazada por origen sale con su id (§11.7).
+    app.add_middleware(MiddlewareDeIdDePeticion)
 
     _registrar_manejadores_de_error(app)
     app.include_router(api_v1, prefix=BASE_API)
@@ -135,7 +163,62 @@ def crear_app() -> FastAPI:
             "jwks_alcanzable": _jwks_alcanzable(jwks),
         }
 
+    @app.get(
+        "/health/dependencias",
+        tags=["salud"],
+        summary="Estado de Postgres y de la cola de trabajos",
+    )
+    async def health_dependencias() -> dict[str, str]:
+        """Sonda **de readiness**: sí toca la base y sí toca Redis (§11.7).
+
+        Va aparte de `/health` a propósito. `/health` es la sonda de liveness
+        de Render y responde sin tocar nada: si la base se cae, Render no
+        debe reiniciar un proceso que está perfectamente vivo —eso solo
+        agrega un arranque en frío a un incidente que ya existe—. Esta otra
+        es la que se mira cuando algo va mal, y para eso tiene que consultar.
+
+        **Nunca responde 5xx.** Devuelve 200 con el estado de cada
+        dependencia; una sonda que se cae junto con lo que vigila no
+        diagnostica nada. El estado agregado dice `degradado` para que un
+        monitor pueda alertar sobre un solo campo.
+
+        No expone cadenas de conexión: solo `ok` o la clase del fallo (§12.4).
+        """
+        # En paralelo: son independientes, y en serie la sonda tardaría la
+        # suma de los dos timeouts justo cuando todo está caído — que es
+        # cuando alguien la está mirando.
+        postgres, redis = await asyncio.gather(
+            _postgres_responde(), _redis_responde()
+        )
+        return {
+            "estatus": "ok" if postgres == "ok" and redis == "ok" else "degradado",
+            "postgres": postgres,
+            "cola": redis,
+        }
+
     return app
+
+
+async def _postgres_responde() -> str:
+    """`select 1` contra el pool real. Devuelve `ok` o la clase del fallo."""
+    try:
+        async with asyncio.timeout(_TIMEOUT_SONDA):
+            sesion_maker = obtener_sessionmaker()
+            async with sesion_maker() as sesion:
+                await sesion.execute(text("select 1"))
+        return "ok"
+    except Exception as exc:  # noqa: BLE001 — es una sonda, no una ruta crítica
+        # La clase basta para saber si es red, credenciales o esquema; el
+        # mensaje de asyncpg puede traer el DSN con contraseña.
+        return f"error: {type(exc).__name__}"
+
+
+async def _redis_responde() -> str:
+    try:
+        async with asyncio.timeout(_TIMEOUT_SONDA):
+            return "ok" if await ColaDeTrabajos().disponible() else "no responde"
+    except Exception as exc:  # noqa: BLE001 — es una sonda, no una ruta crítica
+        return f"error: {type(exc).__name__}"
 
 
 def _hay_es256() -> str:
@@ -233,6 +316,11 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
                 "status": status,
                 "detail": detalle,
                 "instance": str(request.url.path),
+                # Extensión propia del problem+json (RFC 7807 §3.2 las
+                # permite). Es el mismo id que va en `X-Request-Id` y en cada
+                # línea de log de esta petición: es lo que convierte "me
+                # falló" en algo buscable.
+                "request_id": id_de_peticion(),
                 **extra,
             },
         )

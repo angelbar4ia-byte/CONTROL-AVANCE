@@ -4252,6 +4252,32 @@
           }
         }
       }
+    },
+    "/health/dependencias": {
+      "get": {
+        "tags": [
+          "salud"
+        ],
+        "summary": "Estado de Postgres y de la cola de trabajos",
+        "description": "Sonda **de readiness**: sí toca la base y sí toca Redis (§11.7).\n\nVa aparte de `/health` a propósito. `/health` es la sonda de liveness\nde Render y responde sin tocar nada: si la base se cae, Render no\ndebe reiniciar un proceso que está perfectamente vivo —eso solo\nagrega un arranque en frío a un incidente que ya existe—. Esta otra\nes la que se mira cuando algo va mal, y para eso tiene que consultar.\n\n**Nunca responde 5xx.** Devuelve 200 con el estado de cada\ndependencia; una sonda que se cae junto con lo que vigila no\ndiagnostica nada. El estado agregado dice `degradado` para que un\nmonitor pueda alertar sobre un solo campo.\n\nNo expone cadenas de conexión: solo `ok` o la clase del fallo (§12.4).",
+        "operationId": "health_dependencias_health_dependencias_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Dependencias Health Dependencias Get"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

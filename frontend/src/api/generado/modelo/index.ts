@@ -153,6 +153,7 @@ export * from './frenteRespuestaEtapa';
 export * from './generarEstimacionPeticion';
 export * from './generarObraPeticion';
 export * from './hTTPValidationError';
+export * from './healthDependenciasHealthDependenciasGet200';
 export * from './healthHealthGet200';
 export * from './impactoIncidencia';
 export * from './incidenciaRespuesta';
