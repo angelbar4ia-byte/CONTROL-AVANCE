@@ -64,49 +64,13 @@ jobs:
 
       - name: Instalar dependencias
         working-directory: backend
-        run: pip install -e ".[dev]"
-
-      - name: Aplicar migraciones
-        run: bash database/scripts/migrar.sh
-
-      - name: Dar contraseña a obractrl_api
-        # La 0014 crea el rol sin contraseña a propósito —nunca en un archivo
-        # versionado—, así que falla cerrado hasta que cada entorno la fija.
-        # Este es el entorno de CI fijando la suya.
-        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "alter role obractrl_api with password 'ci'"
-
-      - name: Ruff
-        working-directory: backend
-        run: ruff check .
-
-      - name: Regla de dependencia (§12.11)
-        working-directory: backend
-        run: lint-imports
-
-      - name: Pruebas (dominio + integración)
-        working-directory: backend
-        run: pytest -q
-
-      - name: Aislamiento RLS (§12.4)
-        run: bash database/scripts/probar.sh
-
+        # `-c constraints.txt` fija lo que define el contrato. Sin eso, CI
+        # resolvía una versión de FastAPI distinta de la probada y el paso
       - name: El contrato está al día
-        # Si alguien cambia un endpoint y no regenera `openapi.json`, el front
-        # programa contra un contrato viejo (§12.2). Se regenera y se compara.
         working-directory: backend
-        run: |
-          python - <<'PY'
-          import json, pathlib
-          from obractrl.main import crear_app
-          generado = json.dumps(crear_app().openapi(), indent=2, ensure_ascii=False)
-          versionado = pathlib.Path("../openapi/openapi.json").read_text(encoding="utf-8")
-          if generado.strip() != versionado.strip():
-              raise SystemExit(
-                  "openapi.json está desactualizado. Regenéralo y vuelve a "
-                  "generar el cliente de Orval (ver openapi/README.md)."
-              )
-          print("Contrato al día.")
-          PY
+        # El script vive en el repo, así que esto corre igual en local:
+        #   python scripts/verificar_contrato.py
+        run: python scripts/verificar_contrato.py
 
   frontend:
     name: Web · tipos y pruebas

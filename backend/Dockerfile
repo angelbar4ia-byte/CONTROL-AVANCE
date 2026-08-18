@@ -14,9 +14,11 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Capa de dependencias aparte: el código cambia mucho más seguido
-COPY pyproject.toml ./
+COPY pyproject.toml constraints.txt ./
 COPY src ./src
-RUN pip install --no-cache-dir .
+# `-c constraints.txt` fija lo que se probó. Sin esto, un redespliegue podía
+# traer una versión de FastAPI que nunca pasó por CI (§12.8).
+RUN pip install --no-cache-dir . -c constraints.txt
 
 # No corre como root
 RUN useradd --create-home --uid 10001 obractrl

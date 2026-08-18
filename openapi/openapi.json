@@ -4964,7 +4964,7 @@
         "properties": {
           "archivo": {
             "type": "string",
-            "format": "binary",
+            "contentMediaType": "application/octet-stream",
             "title": "Archivo",
             "description": "Archivo .xlsx del §10.6."
           },
@@ -9343,6 +9343,13 @@
           "type": {
             "type": "string",
             "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
           }
         },
         "type": "object",

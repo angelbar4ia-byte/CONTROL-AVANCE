@@ -44,7 +44,25 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 
   webServer: {
-    command: 'npm run dev',
+    /**
+     * `--mode test` para que Vite cargue `.env.test`.
+     *
+     * `src/lib/supabase.ts` **lanza al importarse** si faltan
+     * `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`, y media aplicación lo
+     * importa de forma transitiva: sin esas variables no se pinta nada y las
+     * cuatro pruebas de humo fallan sin decir por qué. En una máquina de
+     * desarrollo hay un `.env.local` que las trae y el problema no se ve; en
+     * CI no existe, y ahí fue donde apareció.
+     *
+     * `.env.test` está versionado con valores ficticios y nació justo para
+     * esto en Vitest. Reusarlo mantiene un solo mecanismo en vez de dos, y
+     * hace que el humo corra igual en cualquier máquina, con `.env.local` o
+     * sin él — el modo gana sobre `.env.local` en el orden de Vite.
+     *
+     * El humo nunca habla con Supabase: sin sesión, la app pinta el login,
+     * que es exactamente lo que se verifica.
+     */
+    command: 'npm run dev -- --mode test',
     url: process.env.E2E_BASE_URL ?? 'http://localhost:5173',
     // Si ya hay un dev server corriendo se reutiliza; en CI siempre se levanta
     // uno limpio.

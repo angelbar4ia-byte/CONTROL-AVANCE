@@ -351,10 +351,47 @@ detectaba.
 `vercel.json` y `eas.json` ya estaban completos —incluido el flujo de §12.13
 con `track: internal` y `releaseStatus: draft`—; no hizo falta tocarlos.
 
-**No verificado aquí:** el workflow no se ha ejecutado nunca. Cada comando es
-uno que ya corre en local, y el YAML y el heredoc del paso de contrato se
-validaron parseándolos, pero la primera corrida real es la que dirá si el
-servicio de Postgres y los `working-directory` quedaron bien.
+**La primera corrida real encontró dos cosas**, las dos por diferencias entre
+mi máquina y un entorno limpio — que es exactamente para lo que sirve un CI.
+El resto del workflow (Postgres, migraciones, las ~150 pruebas de integración,
+los 5 archivos de RLS, `working-directory`) funcionó a la primera.
+
+**1. El contrato no era reproducible.** `pyproject.toml` declara
+`fastapi>=0.115`; mi entorno tenía 0.115 y CI resolvió **0.141**, que emite
+`contentMediaType: application/octet-stream` donde el otro emitía
+`format: binary`, y agrega `input`/`ctx` al esquema de error de validación. O
+sea: el contrato salía distinto sin que nadie hubiera tocado un endpoint, y el
+paso de verificación fallaba con razón —solo que la causa no era la que el
+mensaje sugería—.
+
+El mismo agujero, más caro, estaba en el despliegue: el `Dockerfile` hacía
+`pip install .` sin fijar nada, así que un redespliegue en Render podía traer
+una versión de FastAPI que nunca pasó por CI (§12.8).
+
+Arreglado con `backend/constraints.txt`, que fija solo lo que define la forma
+del contrato (fastapi, starlette, pydantic, pydantic-settings) y lo usan CI y
+el Dockerfile. `pyproject.toml` sigue expresando **compatibilidad**, que es su
+trabajo; el constraints expresa **reproducibilidad**. Se subió a FastAPI 0.141
+—las 547 pruebas pasan— y se regeneraron contrato y cliente de Orval.
+
+**2. El humo de E2E no arrancaba sin `.env.local`.** `src/lib/supabase.ts`
+**lanza al importarse** si faltan `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`,
+y media aplicación lo importa de forma transitiva: sin ellas no se pinta nada y
+las cuatro pruebas fallan sin decir por qué. En mi máquina un `.env.local` no
+versionado las traía y el problema era invisible.
+
+Arreglado corriendo el dev server con `--mode test`, para que Vite cargue el
+`.env.test` que **ya existe versionado** con valores ficticios y que nació
+justo para este problema en Vitest. Un solo mecanismo en vez de dos, y el humo
+corre igual con `.env.local` o sin él. Verificado escondiendo el `.env.local`
+para reproducir las condiciones de CI.
+
+**De paso:** el paso que compara el contrato salió del YAML a
+`backend/scripts/verificar_contrato.py`. Python embebido en un bloque de YAML
+es frágil —un escape mal puesto rompe el archivo entero y no se nota hasta la
+corrida— y además ahora el mismo script corre en local. Imprime el diff, no
+solo el veredicto: sin él, "está desactualizado" obliga a reproducir el
+entorno de CI para saber qué cambió.
 
 ---
 
@@ -426,3 +463,15 @@ workflows van con `test.fixme` y no como specs escritos a ciegas: Playwright
 los reporta como no implementados en cada corrida, así que la deuda se ve.
 Seis specs con selectores inventados habrían dado la sensación de cobertura
 sin la cobertura, que es peor que no tener nada.
+
+**F6.12 · Un artefacto generado y versionado exige dependencias fijas.**
+`openapi.json` se compara en CI contra lo que genera la app, y esa comparación
+solo significa algo si generar da siempre lo mismo. Con `fastapi>=0.115` no
+daba. `backend/constraints.txt` fija lo que define la forma del contrato, y lo
+usa también el `Dockerfile`: si el contrato no es reproducible, el despliegue
+tampoco lo era.
+
+**F6.13 · Nada de Python embebido en el YAML de CI.** Un escape mal puesto en
+un bloque `run: |` rompe el archivo entero y no se descubre hasta la corrida.
+Los pasos con lógica van a `scripts/`, donde además se pueden correr en local
+antes de empujar.

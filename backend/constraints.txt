@@ -1,0 +1,44 @@
+# ============================================================
+# ObraCtrl · versiones fijas de lo que define el contrato (§12.2, §12.8)
+#
+# POR QUÉ EXISTE ESTE ARCHIVO
+#
+# `openapi.json` está versionado y de él Orval genera los hooks del front y del
+# móvil. Ese archivo es un **artefacto generado**, así que solo tiene sentido
+# compararlo en CI —"¿alguien cambió un endpoint sin regenerar?"— si generarlo
+# da siempre lo mismo. Y no daba: `pyproject.toml` declara `fastapi>=0.115`, un
+# entorno tenía 0.115 y CI resolvía 0.141, que emite
+# `contentMediaType: application/octet-stream` donde el otro emitía
+# `format: binary` y agrega `input`/`ctx` al esquema de error de validación.
+# El contrato salía distinto sin que nadie hubiera tocado un endpoint.
+#
+# El mismo problema, más caro, existía en el despliegue: el `Dockerfile` hacía
+# `pip install .` sin fijar nada, así que un redespliegue en Render podía traer
+# una versión de FastAPI que jamás se probó (§12.8).
+#
+# QUÉ SE FIJA Y QUÉ NO
+#
+# Solo lo que determina la forma del contrato o el comportamiento del borde.
+# El resto —pandas, boto3, weasyprint— sigue flotando dentro de los rangos de
+# `pyproject.toml`: no aparece en el esquema y fijarlo obligaría a revisar este
+# archivo por cambios que no cambian nada observable.
+#
+# `pyproject.toml` sigue expresando **compatibilidad** (con qué versiones
+# funciona el código), que es su trabajo; esto expresa **reproducibilidad**
+# (con cuáles se construyó y se probó). Son dos preguntas distintas.
+#
+# CÓMO SE SUBE UNA VERSIÓN
+#
+# Es un acto deliberado, no un `pip install -U`:
+#   1. cambiar el pin aquí,
+#   2. correr `pytest` completo,
+#   3. regenerar `openapi/openapi.json` y el cliente de Orval,
+#   4. commitear las tres cosas juntas.
+# Si el paso 3 produce un diff, ese diff es justo lo que este archivo existe
+# para que nadie descubra en producción.
+# ============================================================
+
+fastapi==0.141.1
+starlette==1.6.0
+pydantic==2.13.4
+pydantic-settings==2.7.0

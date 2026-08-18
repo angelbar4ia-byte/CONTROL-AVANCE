@@ -303,6 +303,7 @@ export * from './unidadRespuesta';
 export * from './validarCierrePeticion';
 export * from './validarCierrePeticionComentario';
 export * from './validationError';
+export * from './validationErrorCtx';
 export * from './validationErrorLocItem';
 export * from './versionCPURespuesta';
 export * from './versionCPURespuestaVariante';

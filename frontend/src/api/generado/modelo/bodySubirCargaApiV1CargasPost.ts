@@ -10,7 +10,7 @@ import type { ModoCarga } from './modoCarga';
 
 export interface BodySubirCargaApiV1CargasPost {
   /** Archivo .xlsx del §10.6. */
-  archivo: Blob;
+  archivo: string;
   /** Tipo de carga (§8.2). */
   tipo: TipoCarga;
   /** Modo de carga (§10.2). */
