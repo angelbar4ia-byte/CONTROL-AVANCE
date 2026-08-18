@@ -14,14 +14,19 @@
 | D5 | **La conciliación offline va directo a Postgres** | Gana el spec §11.3 workflow B: el móvil escribe vía PowerSync → Postgres, con RLS como única frontera; **no** pasa por `PATCH /actividades/{id}/avance`, que queda como ruta exclusivamente web. Resuelve la contradicción que tenía el docstring de `adapters/api/v1/avance.py`. |
 | D6 | **`registro_avance` es la única fuente de `cant_ejecutada`** | Corolario obligado de D5: si el móvil escribe deltas y la web escribía un absoluto, la primera captura offline pisaba el total. Ahora `cant_ejecutada` se **deriva** de Σ deltas en el trigger `app.registro_avance_agregar` (migración 0017), igual que `avance_pct` se deriva de ella desde 0007. Consecuencias aplicadas: `actualizar_avance` dejó de escribir `cant_ejecutada`/`avance_pct`; el caso de uso web solo aporta su delta; las semillas emiten un `registro_avance` de línea base. Exceder `cant_programada` **rechaza** la captura en vez de recortarla — recortar rompería la identidad `Σ deltas = total` que el expediente técnico necesita auditar. |
 
-## Estado actual (línea base)
+## Estado actual (al cierre de la Fase 5)
 
 | Capa | Entregado | Pendiente |
 |---|---|---|
-| `database/` | 15 migraciones · RLS por rol · semillas · generador de calendario · auth hook · 15 pruebas de aislamiento | Sync rules en producción; tablas de expediente/reportes |
-| `backend/` | Dominio: `avance`, `cierres`, `estimacion`, `programacion/cpm`, `shared` · Casos de uso: avance, cierre, estimación, evaluación, incidencia, salida de almacén · Routers v1: `identidad`, `avance`, `cierres`, `estimacion`, `evaluaciones`, `incidencias`, `materiales` · 92+ pruebas de dominio | Routers: proyectos/obras, catálogos/APU, programación/CPM, revisiones, expediente, reportes, cargas · `adapters/excel` y `adapters/export` vacíos |
-| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `avance`, `cierres`, `estimacion` · 13 pruebas | Features: proyectos/obras, catálogos, programación/Gantt, materiales, incidencias, evaluación, reportes, expediente |
-| `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · sync-rules · config Play | Pantallas reales, login, captura offline de avance, cola de evidencias a R2 |
+| `database/` | 20 migraciones · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · 4 archivos de pruebas de aislamiento | Sync rules de PowerSync en producción (Fase 6) |
+| `backend/` | Dominio completo: `avance`, `cierres`, `estimacion`, `programacion/cpm`, `catalogos`, `materiales`, `incidencias`, `evaluaciones`, `revisiones`, `proyectos`, `obras`, `cargadores`, `expediente`, `reportes`, `shared` · Routers v1: los 58 endpoints del §11.2 salvo los de la Fase 6 · `adapters/excel` (cargadores del §10.6) y `adapters/export` (XLSX de estimación, PDF de expediente) · jobs Arq + Redis con worker propio · notificaciones Resend · 491 pruebas de dominio + integración contra Postgres real | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) · `Idempotency-Key` (Fase 6) |
+| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · 221 pruebas | Features: cargas (bandeja de pendientes), expediente, reportes, revisión física |
+| `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules · config Play | Cola de evidencias a R2 · revisión física en campo · build de Play Store (Fase 6) |
+
+> La Fase 5 cerró el backend de cargas, expediente y reportes. Lo que queda de
+> esas tres verticales es **web**: la bandeja de pendientes del §10.3, el
+> expediente por obra y la descarga de reportes consumen endpoints que ya
+> existen y están en el contrato (`openapi/openapi.json`, 58 rutas).
 
 ---
 

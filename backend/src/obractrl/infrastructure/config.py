@@ -94,6 +94,22 @@ class Config(BaseSettings):
     # --- Jobs (Arq + Redis) ---------------------------------------------
     redis_url: str = "redis://localhost:6379/0"
 
+    # --- Notificaciones (Resend, §12.2) ---------------------------------
+    #
+    # Sin llave el sistema **sigue funcionando**: `ClienteResend.enviar`
+    # registra y devuelve `False` (§11.3 E.5, una notificación no puede
+    # tumbar la validación de una estimación). Por eso el default es vacío y
+    # no un valor de mentira.
+    resend_api_key: str = ""
+    resend_remitente: str = Field(
+        default="",
+        description=(
+            'Remitente verificado en Resend, p. ej. "ObraCtrl '
+            '<avisos@obractrl.mx>". Un dominio no verificado hace que Resend '
+            "rechace el envío."
+        ),
+    )
+
     # --- Evidencias (Cloudflare R2) -------------------------------------
     r2_endpoint: str = ""
     r2_bucket: str = "obractrl-evidencias"

@@ -18,12 +18,14 @@ from obractrl.adapters.api.v1.cierres import router as router_cierres
 from obractrl.adapters.api.v1.estimacion import router as router_estimacion
 from obractrl.adapters.api.v1.evaluaciones import router as router_evaluaciones
 from obractrl.adapters.api.v1.evidencias import router as router_evidencias
+from obractrl.adapters.api.v1.expediente import router as router_expediente
 from obractrl.adapters.api.v1.identidad import router as router_identidad
 from obractrl.adapters.api.v1.incidencias import router as router_incidencias
 from obractrl.adapters.api.v1.materiales import router as router_materiales
 from obractrl.adapters.api.v1.obras import router as router_obras
 from obractrl.adapters.api.v1.programacion import router as router_programacion
 from obractrl.adapters.api.v1.proyectos import router as router_proyectos
+from obractrl.adapters.api.v1.reportes import router as router_reportes
 from obractrl.adapters.api.v1.revisiones import router as router_revisiones
 
 api_v1 = APIRouter()
@@ -42,7 +44,9 @@ api_v1.include_router(router_evaluaciones)
 api_v1.include_router(router_revisiones)
 api_v1.include_router(router_evidencias)
 api_v1.include_router(router_cargas)
+api_v1.include_router(router_expediente)
+api_v1.include_router(router_reportes)
 
-# Pendientes de implementar (§11.2). Cada uno es un módulo con su fachada:
-#   expediente · reportes
+# Pendientes de implementar (§11.2): `POST /reportes/{tipo}` genérico ·
+# procesos (§7.9) · tiempo real (`WS /ws`).
 __all__ = ["api_v1"]

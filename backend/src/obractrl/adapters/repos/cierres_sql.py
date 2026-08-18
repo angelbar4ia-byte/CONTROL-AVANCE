@@ -145,3 +145,33 @@ class RepositorioCierresSQL:
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]
+
+    async def listar_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Cierres de una obra, con fechas y adjuntos, para el expediente
+        (§7.9, §11.2 `GET /obras/{id}/expediente`).
+
+        `solicitud_cierre` no tiene `obra_id`: llega a la obra por su
+        actividad (§7.8), y así lo resuelve también su política RLS. El join
+        con `actividad` es ese mismo camino, no una lectura de otro contexto:
+        el expediente pide los cierres **por este puerto** y nunca toca la
+        tabla (§11.1).
+        """
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select sc.id, sc.actividad_id, sc.solicitada_por,
+                           sc.autorizada_por, sc.validada_por, sc.cantidad,
+                           sc.monto, sc.checklist, sc.adjuntos, sc.comentarios,
+                           sc.estatus, sc.fecha_solicitud, sc.fecha_autoriza,
+                           sc.fecha_valida, a.obra_id, a.descripcion
+                    from solicitud_cierre sc
+                    join actividad a on a.id = sc.actividad_id
+                    where a.obra_id = cast(:obra_id as uuid)
+                    order by sc.fecha_solicitud desc
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]

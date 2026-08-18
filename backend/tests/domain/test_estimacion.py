@@ -105,6 +105,68 @@ class TestGenerar:
             )
 
 
+class TestPeriodoBloqueado:
+    """§11.3 E.5: validar cierra la semana de esa obra.
+
+    Es el otro lado del evento `EstimacionValidada` ("notificar + **bloquear
+    periodo**"). Sin este candado la misma semana se podría volver a estimar
+    —y a cobrar—, que es exactamente lo que la migración 0020 impide en la
+    base y esta regla impide en el dominio.
+    """
+
+    def _generar(self, *, periodo_bloqueado: bool) -> Estimacion:
+        return Estimacion.generar(
+            obra_id="obra-1",
+            semana=21,
+            anio=2026,
+            modo=ModoPago.DESTAJO,
+            conceptos=_conceptos(),
+            creada_por="usr-res",
+            rol=Rol.RESIDENTE,
+            periodo_bloqueado=periodo_bloqueado,
+        )
+
+    def test_una_semana_ya_validada_no_admite_otra_estimacion(self) -> None:
+        with pytest.raises(ErrorDeEstimacion, match="bloqueado"):
+            self._generar(periodo_bloqueado=True)
+
+    def test_el_mensaje_nombra_la_semana_y_el_anio(self) -> None:
+        with pytest.raises(ErrorDeEstimacion, match=r"21/2026"):
+            self._generar(periodo_bloqueado=True)
+
+    def test_una_semana_abierta_genera_normal(self) -> None:
+        assert self._generar(periodo_bloqueado=False).semana == 21
+
+    def test_el_default_es_abierto(self) -> None:
+        """Quien genera no siempre tiene por qué consultarlo: el caso de uso
+        lo resuelve por el puerto y lo pasa."""
+        estimacion = Estimacion.generar(
+            obra_id="obra-1",
+            semana=21,
+            anio=2026,
+            modo=ModoPago.DESTAJO,
+            conceptos=_conceptos(),
+            creada_por="usr-res",
+            rol=Rol.RESIDENTE,
+        )
+        assert estimacion.estatus is EstatusEstimacion.BORRADOR
+
+    def test_el_rol_se_valida_antes_que_el_candado(self) -> None:
+        """Un Control de obra sobre una semana cerrada tiene dos problemas; el
+        que se le reporta es el suyo, no el estado de la semana."""
+        with pytest.raises(ErrorDeEstimacion, match="Residente o Supervisor"):
+            Estimacion.generar(
+                obra_id="obra-1",
+                semana=21,
+                anio=2026,
+                modo=ModoPago.DESTAJO,
+                conceptos=_conceptos(),
+                creada_por="x",
+                rol=Rol.CONTROL_OBRA,
+                periodo_bloqueado=True,
+            )
+
+
 class TestFlujo:
     def _estimacion(self) -> Estimacion:
         return Estimacion.generar(

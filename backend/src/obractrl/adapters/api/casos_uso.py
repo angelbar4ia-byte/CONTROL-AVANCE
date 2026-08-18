@@ -22,13 +22,14 @@ from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador, cargador_
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
-from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
+from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
 from obractrl.adapters.repos.evaluaciones_sql import RepositorioEvaluacionesSQL
+from obractrl.adapters.repos.expediente_sql import RepositorioExpedienteSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
@@ -40,6 +41,7 @@ from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
 from obractrl.adapters.repos.revisiones_sql import RepositorioRevisionesSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
+from obractrl.adapters.repos.usuarios_sql import RepositorioUsuariosSQL
 from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorAlmacen,
     AplicadorCPU,
@@ -52,6 +54,9 @@ from obractrl.application.casos_uso.calcular_cpu import (
     PublicarVersionCPU,
 )
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
+from obractrl.application.casos_uso.exportar_estimacion import (
+    ArmarReporteDeEstimacion,
+)
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     GenerarObraDesdePrototipo,
 )
@@ -82,6 +87,11 @@ from obractrl.application.casos_uso.gestionar_evaluacion import (
     AgregarRespuestas,
     CrearEvaluacion,
 )
+from obractrl.application.casos_uso.gestionar_expediente import (
+    AgregarDocumento,
+    ArmarExpediente,
+    ConsultarExpediente,
+)
 from obractrl.application.casos_uso.gestionar_incidencia import (
     AbrirIncidencia,
     CerrarIncidencia,
@@ -107,6 +117,9 @@ from obractrl.application.casos_uso.gestionar_proyecto import (
     CrearPrototipo,
     CrearProyecto,
 )
+from obractrl.application.casos_uso.notificar_estimacion import (
+    NotificarEstimacionValidada,
+)
 from obractrl.application.casos_uso.registrar_revision_fisica import (
     RegistrarRevisionFisica,
 )
@@ -114,20 +127,26 @@ from obractrl.application.casos_uso.registrar_salida_almacen import RegistrarSal
 from obractrl.application.eventos import (
     ActividadCerrada,
     BusEnProceso,
+    EstimacionValidada,
     IncidenciaDetiene,
 )
 from obractrl.domain.shared.diccionario import TipoCarga
+from obractrl.infrastructure.jobs.cola import ColaDeTrabajos
+from obractrl.infrastructure.notificaciones.resend import ClienteResend
 
 __all__ = [
     "AbrirIncidenciaDep",
     "ActualizarObraDep",
-    "ConsultarCargaDep",
-    "FabricaDeCargasDep",
-    "RevertirCargaDep",
+    "AgregarDocumentoDep",
     "AgregarRespuestasDep",
+    "ArmarExpedienteDep",
+    "ArmarReporteDeEstimacionDep",
     "AutorizarCierreDep",
     "CapturarAvanceDep",
     "CerrarIncidenciaDep",
+    "ColaDeTrabajosDep",
+    "ConsultarCargaDep",
+    "ConsultarExpedienteDep",
     "ConsultarRutaCriticaDep",
     "CrearClusterDep",
     "CrearConceptoDep",
@@ -144,6 +163,7 @@ __all__ = [
     "EditarProgramacionActividadDep",
     "EnviarEstimacionDep",
     "ExplotarConceptoDep",
+    "FabricaDeCargasDep",
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
     "InstanciarProgramaObraDep",
@@ -156,6 +176,7 @@ __all__ = [
     "RegistrarEventoIncidenciaDep",
     "RegistrarRevisionFisicaDep",
     "RegistrarSalidaAlmacenDep",
+    "RevertirCargaDep",
     "SolicitarCierreDep",
     "ValidarCierreDep",
     "ValidarEstimacionDep",
@@ -245,16 +266,55 @@ def obtener_enviar_estimacion(sesion: SesionRLS) -> EnviarEstimacion:
     )
 
 
+def _bus_de_estimacion(sesion: SesionRLS) -> BusEnProceso:
+    """`EstimacionValidada` → notificar por Resend (§11.1, §11.3 E.5).
+
+    Mismo cableado que `_bus_de_cierre` y `_bus_de_incidencia`: el borde
+    decide qué reacciona al evento; el caso de uso de estimación no conoce a
+    Resend ni al de notificación (§11.1).
+
+    El **bloqueo del periodo** —el otro efecto que el §11.1 nombra en la misma
+    línea— no está aquí: lo escribe `ValidarEstimacion` dentro de su
+    transacción, porque el bus descarta los fallos de sus manejadores y un
+    candado que se pierde deja cobrar dos veces la misma semana (ver el
+    docstring de `IncidenciaDetiene` en `application/eventos.py`).
+    """
+    notificar = NotificarEstimacionValidada(
+        estimaciones=RepositorioEstimacionesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        usuarios=RepositorioUsuariosSQL(sesion),
+        correo=ClienteResend(),
+    )
+
+    async def _notificar(evento: EstimacionValidada) -> None:
+        await notificar.ejecutar(evento)
+
+    bus = BusEnProceso()
+    bus.suscribir(EstimacionValidada, _notificar)
+    return bus
+
+
 def obtener_validar_estimacion(sesion: SesionRLS) -> ValidarEstimacion:
     return ValidarEstimacion(
         estimaciones=RepositorioEstimacionesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_estimacion(sesion),
+    )
+
+
+def obtener_armar_reporte_estimacion(sesion: SesionRLS) -> ArmarReporteDeEstimacion:
+    return ArmarReporteDeEstimacion(
+        estimaciones=RepositorioEstimacionesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
     )
 
 
 GenerarEstimacionDep = Annotated[GenerarEstimacion, Depends(obtener_generar_estimacion)]
 EnviarEstimacionDep = Annotated[EnviarEstimacion, Depends(obtener_enviar_estimacion)]
 ValidarEstimacionDep = Annotated[ValidarEstimacion, Depends(obtener_validar_estimacion)]
+ArmarReporteDeEstimacionDep = Annotated[
+    ArmarReporteDeEstimacion, Depends(obtener_armar_reporte_estimacion)
+]
 
 
 def obtener_registrar_salida_almacen(sesion: SesionRLS) -> RegistrarSalidaAlmacen:
@@ -373,6 +433,52 @@ def obtener_registrar_revision_fisica(sesion: SesionRLS) -> RegistrarRevisionFis
 RegistrarRevisionFisicaDep = Annotated[
     RegistrarRevisionFisica, Depends(obtener_registrar_revision_fisica)
 ]
+
+
+# --- Expediente (§7.9, §11.2) --------------------------------------------
+
+
+def obtener_agregar_documento(sesion: SesionRLS) -> AgregarDocumento:
+    return AgregarDocumento(
+        expediente=RepositorioExpedienteSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_consultar_expediente(sesion: SesionRLS) -> ConsultarExpediente:
+    return ConsultarExpediente(expediente=RepositorioExpedienteSQL(sesion))
+
+
+def obtener_armar_expediente(sesion: SesionRLS) -> ArmarExpediente:
+    """La vista agregada cruza cuatro contextos y cada uno entra por **su**
+    repositorio: aquí se ve que ninguno lee las tablas de otro (§11.1)."""
+    return ArmarExpediente(
+        expediente=RepositorioExpedienteSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        cierres=RepositorioCierresSQL(sesion),
+        estimaciones=RepositorioEstimacionesSQL(sesion),
+        revisiones=RepositorioRevisionesSQL(sesion),
+        incidencias=RepositorioIncidenciasSQL(sesion),
+    )
+
+
+AgregarDocumentoDep = Annotated[AgregarDocumento, Depends(obtener_agregar_documento)]
+ConsultarExpedienteDep = Annotated[
+    ConsultarExpediente, Depends(obtener_consultar_expediente)
+]
+ArmarExpedienteDep = Annotated[ArmarExpediente, Depends(obtener_armar_expediente)]
+
+
+# --- Cola de trabajos (§12.2, §11.2 "job") -------------------------------
+
+
+def obtener_cola_de_trabajos() -> ColaDeTrabajos:
+    """No depende de la sesión: la cola es Redis, no Postgres. El contexto
+    RLS viaja en el payload del trabajo (`adapters/export/trabajos.py`)."""
+    return ColaDeTrabajos()
+
+
+ColaDeTrabajosDep = Annotated[ColaDeTrabajos, Depends(obtener_cola_de_trabajos)]
 
 
 # --- Proyecto · Obra (§11.2) --------------------------------------------

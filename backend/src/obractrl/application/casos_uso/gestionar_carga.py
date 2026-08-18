@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
-from obractrl.application.casos_uso.aplicar_carga import Aplicacion, AplicadorDeCarga
+from obractrl.application.casos_uso.aplicar_carga import AplicadorDeCarga
 from obractrl.application.puertos.cargadores import LectorDeCarga, RepositorioCargas
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
 from obractrl.domain.cargadores.reporte import ErrorDeFila, ResumenCarga

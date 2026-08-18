@@ -13,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
+from obractrl.application.eventos import EstimacionValidada, PublicadorEventos
 from obractrl.application.puertos.repositorios import (
     RegistroNoEncontrado,
     RepositorioCalendario,
@@ -118,6 +119,15 @@ class GenerarEstimacion:
 
     async def ejecutar(self, cmd: ComandoGenerarEstimacion) -> EstimacionCreada:
         semana, anio = await self._calendario.semana_activa(TipoSemana.OBRA)
+        # El periodo cerrado se consulta **antes** de armar nada: si la semana
+        # ya se validó (§11.3 E.5) no hay nada que generar, y así no se gasta
+        # un consecutivo de folio (§3.2) en una corrida que va a fallar.
+        bloqueado = await self._estimaciones.periodo_bloqueado(
+            obra_id=cmd.obra_id,
+            tipo_semana=TipoSemana.OBRA.value,
+            semana=semana,
+            anio=anio,
+        )
         filas = await self._estimaciones.actividades_estimables(cmd.obra_id, semana, anio)
         conceptos = seleccionar_estimables(filas, cmd.modo)
         ultimo = await self._estimaciones.ultimo_consecutivo(semana, anio)
@@ -133,6 +143,7 @@ class GenerarEstimacion:
             rol=cmd.rol,
             folio=folio,
             origen_erp=cmd.origen_erp,
+            periodo_bloqueado=bloqueado,
         )
 
         async with self._uow:
@@ -201,13 +212,30 @@ class EnviarEstimacion:
 
 
 class ValidarEstimacion:
-    """Control de obra valida: bloquea el periodo (§11.3 E.4)."""
+    """Control de obra valida: bloquea el periodo y notifica (§11.3 E.4-5).
+
+    Los dos efectos del §11.3 E.5 entran por caminos distintos, a propósito:
+
+    - **Bloquear el periodo** se escribe *dentro* de esta transacción, por el
+      puerto de estimaciones. Es un candado, no un derivado: si se perdiera,
+      la misma semana se podría volver a estimar y cobrar. Mismo criterio que
+      `IncidenciaDetiene` con las actividades bloqueadas (ver su docstring en
+      `application/eventos.py`).
+    - **Notificar** sale como evento `EstimacionValidada` *después* del
+      commit. Es lo que sí se puede perder sin consecuencias, y el bus
+      descarta los fallos de sus manejadores (§11.1).
+    """
 
     def __init__(
-        self, *, estimaciones: RepositorioEstimaciones, uow: UnidadDeTrabajo
+        self,
+        *,
+        estimaciones: RepositorioEstimaciones,
+        uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
     ) -> None:
         self._estimaciones = estimaciones
         self._uow = uow
+        self._eventos = eventos
 
     async def ejecutar(self, cmd: ComandoValidarEstimacion) -> dict:
         fila = await self._estimaciones.obtener(cmd.estimacion_id)
@@ -229,7 +257,23 @@ class ValidarEstimacion:
                 raise EstimacionNoEncontrada(
                     f"Estimación {cmd.estimacion_id} ya no está en tu alcance."
                 ) from exc
+            await self._estimaciones.bloquear_periodo(
+                obra_id=fila["obra_id"],
+                tipo_semana=estimacion.tipo_semana.value,
+                semana=estimacion.semana,
+                anio=estimacion.anio,
+                estimacion_id=cmd.estimacion_id,
+                usuario_id=cmd.usuario_id,
+            )
             await self._uow.commit()
+
+        if self._eventos is not None:
+            await self._eventos.publicar(
+                EstimacionValidada(
+                    obra_id=UUID(str(fila["obra_id"])),
+                    estimacion_id=cmd.estimacion_id,
+                )
+            )
 
         actualizada = await self._estimaciones.obtener(cmd.estimacion_id)
         assert actualizada is not None

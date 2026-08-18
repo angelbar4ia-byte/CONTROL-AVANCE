@@ -160,12 +160,28 @@ class Estimacion:
         folio: Folio | None = None,
         tipo_semana: TipoSemana = TipoSemana.OBRA,
         origen_erp: bool = False,
+        periodo_bloqueado: bool = False,
     ) -> Estimacion:
-        """Genera la estimación en borrador (§11.3 E.1)."""
+        """Genera la estimación en borrador (§11.3 E.1).
+
+        ``periodo_bloqueado`` es el otro lado del §11.3 E.5 ("evento
+        `EstimacionValidada` → … + **bloquear periodo**"): validar cierra la
+        semana de esa obra, y una estimación nueva sobre una semana ya
+        cerrada volvería a cobrar lo mismo. Default `False` porque quien
+        genera no siempre tiene por qué consultarlo —el caso de uso lo
+        resuelve por el puerto y lo pasa—; la regla, como todas las del §6,
+        se escribe aquí una sola vez.
+        """
         if rol not in (Rol.RESIDENTE, Rol.SUPERVISOR):
             raise ErrorDeEstimacion(
                 f"Solo Residente o Supervisor generan una estimación; el rol "
                 f"{rol.value!r} no puede."
+            )
+        if periodo_bloqueado:
+            raise ErrorDeEstimacion(
+                f"El periodo {semana:02d}/{anio} de esta obra ya está "
+                f"bloqueado por una estimación validada (§11.3 E.5); no se "
+                f"puede generar otra."
             )
         if not conceptos:
             raise ErrorDeEstimacion(
