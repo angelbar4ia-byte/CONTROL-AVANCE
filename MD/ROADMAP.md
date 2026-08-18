@@ -14,19 +14,76 @@
 | D5 | **La conciliación offline va directo a Postgres** | Gana el spec §11.3 workflow B: el móvil escribe vía PowerSync → Postgres, con RLS como única frontera; **no** pasa por `PATCH /actividades/{id}/avance`, que queda como ruta exclusivamente web. Resuelve la contradicción que tenía el docstring de `adapters/api/v1/avance.py`. |
 | D6 | **`registro_avance` es la única fuente de `cant_ejecutada`** | Corolario obligado de D5: si el móvil escribe deltas y la web escribía un absoluto, la primera captura offline pisaba el total. Ahora `cant_ejecutada` se **deriva** de Σ deltas en el trigger `app.registro_avance_agregar` (migración 0017), igual que `avance_pct` se deriva de ella desde 0007. Consecuencias aplicadas: `actualizar_avance` dejó de escribir `cant_ejecutada`/`avance_pct`; el caso de uso web solo aporta su delta; las semillas emiten un `registro_avance` de línea base. Exceder `cant_programada` **rechaza** la captura en vez de recortarla — recortar rompería la identidad `Σ deltas = total` que el expediente técnico necesita auditar. |
 
-## Estado actual (al cierre de la Fase 5)
+## Estado actual (Fase 6 en curso)
 
 | Capa | Entregado | Pendiente |
 |---|---|---|
-| `database/` | 20 migraciones · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · 4 archivos de pruebas de aislamiento | Sync rules de PowerSync en producción (Fase 6) |
-| `backend/` | Dominio completo: `avance`, `cierres`, `estimacion`, `programacion/cpm`, `catalogos`, `materiales`, `incidencias`, `evaluaciones`, `revisiones`, `proyectos`, `obras`, `cargadores`, `expediente`, `reportes`, `shared` · Routers v1: los 58 endpoints del §11.2 salvo los de la Fase 6 · `adapters/excel` (cargadores del §10.6) y `adapters/export` (XLSX de estimación, PDF de expediente) · jobs Arq + Redis con worker propio · notificaciones Resend · 491 pruebas de dominio + integración contra Postgres real | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) · `Idempotency-Key` (Fase 6) |
-| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · 221 pruebas | Features: cargas (bandeja de pendientes), expediente, reportes, revisión física |
-| `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules · config Play | Cola de evidencias a R2 · revisión física en campo · build de Play Store (Fase 6) |
+| `database/` | 22 migraciones · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · 5 archivos de pruebas de aislamiento | Publicar las sync rules auditadas en el PowerSync de producción |
+| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · **547 pruebas** | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
+| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · **221 pruebas** + 4 E2E de humo | Features: cargas, expediente, reportes, revisión física · cablear `Idempotency-Key` · los 6 E2E de workflow |
+| `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules auditadas · config Play | Pantallas de captura y revisión · cola de evidencias a R2 · build de Play Store |
+| CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), web, humo en navegador, tipos de móvil, contrato al día | **Nunca se ha ejecutado**: la primera corrida es la que valida el workflow |
 
-> La Fase 5 cerró el backend de cargas, expediente y reportes. Lo que queda de
-> esas tres verticales es **web**: la bandeja de pendientes del §10.3, el
-> expediente por obra y la descarga de reportes consumen endpoints que ya
-> existen y están en el contrato (`openapi/openapi.json`, 58 rutas).
+---
+
+## Pendiente para la siguiente sesión
+
+Ordenado por lo que desbloquea más con menos. Los tres primeros son la deuda de
+la Fase 5 y la Fase 6; el resto ya es alcance nuevo.
+
+### 1. Ver correr el CI (minutos)
+
+`.github/workflows/ci.yml` existe y **nunca se ha ejecutado**. Cada comando es
+uno que ya corre en local y el YAML está validado, pero el servicio de Postgres,
+los `working-directory` y el paso que compara el contrato solo se prueban de
+verdad al empujar. Es lo primero porque de aquí en adelante todo lo demás se
+apoya en que CI diga la verdad — y porque son las ~150 pruebas de integración y
+los 5 archivos de RLS que hoy no corren en ninguna parte.
+
+### 2. Las tres features web de la Fase 5
+
+Consumen endpoints que **ya existen** y están en el contrato, con los hooks de
+Orval generados. Es trabajo de UI, no de integración:
+
+- **Cargas** — bandeja de pendientes del §10.3: subir archivo, ver el reporte de
+  errores por fila (número, columna, valor, motivo), revertir el lote,
+  descargar plantilla.
+- **Expediente** — por obra: documentos, vista agregada y el PDF (§11.2).
+- **Reportes** — encolar, consultar estado y descargar (§11.2 `GET /reportes/{id}`).
+
+Con esto la Fase 5 cierra según D1, que pide el vertical hasta la UI.
+
+### 3. Cablear `Idempotency-Key` en las pantallas
+
+El backend está listo y protege 10 mutaciones. Falta que **cada pantalla fije
+su clave**, una por operación: `claveDeIdempotencia()` al montar el formulario
+y la misma en cada intento. Cuidado con el error fácil —generarla dentro de
+`peticion` daría una cabecera nueva en cada intento y no desduplicaría nada—.
+Hecho eso, se puede volver a encender `retry` en las mutaciones de
+`queryClient.ts`, que hoy está en 0 justamente por esto.
+
+### 4. Los seis E2E de workflow
+
+Hoy marcados `test.fixme` en `frontend/e2e/workflows/`, con el arnés y el
+`entrar()` ya resueltos. Necesitan un entorno con API + Postgres migrado y
+sembrado + un usuario real del proveedor de auth (`E2E_API_URL`, `E2E_USUARIO`,
+`E2E_PASSWORD`). Dos de los seis son móvil (§5.2) y van con Detox/Maestro, no
+con Playwright.
+
+### 5. Móvil
+
+Pantallas reales de captura y revisión, y la cola de evidencias a R2. Es lo
+único que queda sin empezar de una capa entera; el `lib/` y el `sync/` ya están.
+
+### 6. Publicar las sync rules
+
+La auditoría quedó escrita y el archivo corregido (`mobile/sync-rules.yaml`),
+pero desplegarlo en el PowerSync de producción y verificar que el bucket del
+residente sincroniza lo que debe es un paso que necesita el servicio arriba.
+
+> **Dónde está el detalle.** El desglose de la Fase 6 —qué se entregó en cada
+> frente, con su razón— vive en [`FASE-6.md`](FASE-6.md), incluidas las
+> decisiones F6.1 a F6.11.
 
 ---
 
@@ -99,11 +156,12 @@ Los casos de uso existen; falta cerrar el vertical.
 - Observabilidad, `Idempotency-Key` en mutaciones sensibles, `problem+json` uniforme.
 - E2E Playwright de los seis workflows; build de Play Store y Vercel/Render.
 
-> **En curso.** El desglose real —seis frentes, qué se entregó en cada uno y
-> qué falta— vive en [`FASE-6.md`](FASE-6.md). Resumen: `problem+json`,
-> observabilidad, sync rules auditadas, CI e idempotencia están hechos; queda
-> cablear `Idempotency-Key` en las pantallas y escribir los seis E2E de
-> workflow (hoy marcados `fixme`, con el arnés listo).
+> **En curso.** Cuatro frentes cerrados (`problem+json`, observabilidad, sync
+> rules auditadas, CI y despliegue) y dos a medias: `Idempotency-Key` con el
+> backend hecho y sin cablear en las pantallas, y E2E con el humo corriendo y
+> los seis workflows en `fixme`. El desglose con sus razones está en
+> [`FASE-6.md`](FASE-6.md); lo que sigue, en
+> [Pendiente para la siguiente sesión](#pendiente-para-la-siguiente-sesión).
 
 ---
 
