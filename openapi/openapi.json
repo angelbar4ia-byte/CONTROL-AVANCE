@@ -3530,6 +3530,326 @@
         ]
       }
     },
+    "/api/v1/cargas": {
+      "post": {
+        "tags": [
+          "cargas"
+        ],
+        "summary": "Subir un archivo de carga (vista previa o commit)",
+        "description": "Workflow G: mapea, valida y —si no es vista previa— aplica (§11.3 G).",
+        "operationId": "subir_carga_api_v1_cargas_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_subir_carga_api_v1_cargas_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CargaRespuesta"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "El archivo excede el máximo permitido."
+          },
+          "422": {
+            "description": "El archivo no cumple el contrato del §10.6."
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "cargas"
+        ],
+        "summary": "Historial de cargas",
+        "description": "Historial de versiones por tipo (§10.8): RLS ya acota el alcance.",
+        "operationId": "listar_cargas_api_v1_cargas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TipoCarga"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por tipo.",
+              "title": "Tipo"
+            },
+            "description": "Filtra por tipo."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LoteRespuesta"
+                  },
+                  "title": "Response Listar Cargas Api V1 Cargas Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cargas/plantillas/{tipo}": {
+      "get": {
+        "tags": [
+          "cargas"
+        ],
+        "summary": "Plantilla Excel del cargador",
+        "description": "`.xlsx` con las cabeceras del §10.6 de ese cargador (§9.3).",
+        "operationId": "descargar_plantilla_api_v1_cargas_plantillas__tipo__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TipoCarga"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plantilla .xlsx",
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cargas/{carga_id}": {
+      "get": {
+        "tags": [
+          "cargas"
+        ],
+        "summary": "Resultado de una carga",
+        "description": "Resumen, reporte de errores por fila y versión generada (§9.3, §9.4).",
+        "operationId": "obtener_carga_api_v1_cargas__carga_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "carga_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Carga Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoteRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La carga no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cargas/{carga_id}/pendientes": {
+      "get": {
+        "tags": [
+          "cargas"
+        ],
+        "summary": "Bandeja de pendientes de una carga",
+        "description": "Excepciones que esperan confirmación humana (§10.3).",
+        "operationId": "bandeja_de_carga_api_v1_cargas__carga_id__pendientes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "carga_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Carga Id"
+            }
+          },
+          {
+            "name": "solo_abiertos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Solo lo que falta confirmar.",
+              "default": true,
+              "title": "Solo Abiertos"
+            },
+            "description": "Solo lo que falta confirmar."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PendienteRespuesta"
+                  },
+                  "title": "Response Bandeja De Carga Api V1 Cargas  Carga Id  Pendientes Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La carga no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cargas/{carga_id}/revertir": {
+      "post": {
+        "tags": [
+          "cargas"
+        ],
+        "summary": "Revertir una carga completa",
+        "description": "Deshace el lote como unidad, no registro por registro (§10.8).",
+        "operationId": "revertir_carga_api_v1_cargas__carga_id__revertir_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "carga_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Carga Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReversaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La carga no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La carga no se aplicó, o ya se revirtió."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -4027,6 +4347,37 @@
         ],
         "title": "AvanceRespuesta"
       },
+      "Body_subir_carga_api_v1_cargas_post": {
+        "properties": {
+          "archivo": {
+            "type": "string",
+            "format": "binary",
+            "title": "Archivo",
+            "description": "Archivo .xlsx del §10.6."
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoCarga",
+            "description": "Tipo de carga (§8.2)."
+          },
+          "modo": {
+            "$ref": "#/components/schemas/ModoCarga",
+            "description": "Modo de carga (§10.2).",
+            "default": "actualizar"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "description": "Vista previa: valida y cuenta sin escribir (§10.2).",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "archivo",
+          "tipo"
+        ],
+        "title": "Body_subir_carga_api_v1_cargas_post"
+      },
       "CPURespuesta": {
         "properties": {
           "concepto_id": {
@@ -4141,6 +4492,82 @@
         ],
         "title": "CapturaAvancePeticion",
         "description": "Captura de avance (§6).\n\nLas mismas reglas se reflejan en el cliente para UX y se aplican de forma\nautoritativa en el servidor (§11.1)."
+      },
+      "CargaRespuesta": {
+        "properties": {
+          "carga_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Carga Id"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "version_generada": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Generada"
+          },
+          "filas": {
+            "type": "integer",
+            "title": "Filas"
+          },
+          "insertados": {
+            "type": "integer",
+            "title": "Insertados"
+          },
+          "actualizados": {
+            "type": "integer",
+            "title": "Actualizados"
+          },
+          "omitidos": {
+            "type": "integer",
+            "title": "Omitidos"
+          },
+          "errores": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorDeFilaRespuesta"
+            },
+            "type": "array",
+            "title": "Errores"
+          },
+          "pendientes": {
+            "type": "integer",
+            "title": "Pendientes"
+          },
+          "diff": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Diff",
+            "description": "Qué cambió respecto de la versión vigente (§10.8)."
+          },
+          "reutilizada": {
+            "type": "boolean",
+            "title": "Reutilizada",
+            "description": "El archivo ya se había aplicado idéntico: no se creó versión ni se tocó el catálogo (§10.8, §12.3).",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "carga_id",
+          "estatus",
+          "filas",
+          "insertados",
+          "actualizados",
+          "omitidos",
+          "errores",
+          "pendientes"
+        ],
+        "title": "CargaRespuesta",
+        "description": "Resultado de una carga (§9.4 `CargaDatos.resumen`)."
       },
       "CategoriaExplosion": {
         "type": "string",
@@ -5300,6 +5727,47 @@
         "title": "DependenciaDTO",
         "description": "Precedencia entre actividades (§7.5, §6)."
       },
+      "ErrorDeFilaRespuesta": {
+        "properties": {
+          "fila": {
+            "type": "integer",
+            "title": "Fila"
+          },
+          "columna": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Columna"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor"
+          },
+          "motivo": {
+            "type": "string",
+            "title": "Motivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fila",
+          "motivo"
+        ],
+        "title": "ErrorDeFilaRespuesta",
+        "description": "Un renglón del reporte de errores por fila/columna (§9.3)."
+      },
       "EstatusIncidencia": {
         "type": "string",
         "enum": [
@@ -6216,6 +6684,102 @@
         ],
         "title": "LineaExplosionRespuesta"
       },
+      "LoteRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "modo": {
+            "type": "string",
+            "title": "Modo"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "archivo_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archivo Nombre"
+          },
+          "archivo_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archivo Hash"
+          },
+          "version_generada": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Generada"
+          },
+          "revertida": {
+            "type": "boolean",
+            "title": "Revertida"
+          },
+          "resumen": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Resumen"
+          },
+          "errores": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Errores"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tipo",
+          "modo",
+          "estatus",
+          "archivo_nombre",
+          "archivo_hash",
+          "version_generada",
+          "revertida",
+          "resumen",
+          "errores"
+        ],
+        "title": "LoteRespuesta",
+        "description": "Estado de un lote ya registrado (§9.4)."
+      },
+      "ModoCarga": {
+        "type": "string",
+        "enum": [
+          "actualizar",
+          "acumular",
+          "reemplazar"
+        ],
+        "title": "ModoCarga",
+        "description": "Modos de carga (§10.2)."
+      },
       "ModoPago": {
         "type": "string",
         "enum": [
@@ -6366,6 +6930,78 @@
           "es_urba"
         ],
         "title": "ObraRespuesta"
+      },
+      "PendienteRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "entidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entidad"
+          },
+          "valor_origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Origen"
+          },
+          "propuesta": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Propuesta"
+          },
+          "critico": {
+            "type": "boolean",
+            "title": "Critico"
+          },
+          "resuelto": {
+            "type": "boolean",
+            "title": "Resuelto"
+          },
+          "origen_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen Ref"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tipo",
+          "entidad",
+          "valor_origen",
+          "propuesta",
+          "critico",
+          "resuelto",
+          "origen_ref"
+        ],
+        "title": "PendienteRespuesta",
+        "description": "Renglón de la bandeja: el sistema propone, el humano confirma (§10.3)."
       },
       "PerfilRespuesta": {
         "properties": {
@@ -7229,6 +7865,25 @@
         ],
         "title": "RespuestaItem"
       },
+      "ReversaRespuesta": {
+        "properties": {
+          "carga_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Carga Id"
+          },
+          "operaciones_revertidas": {
+            "type": "integer",
+            "title": "Operaciones Revertidas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "carga_id",
+          "operaciones_revertidas"
+        ],
+        "title": "ReversaRespuesta"
+      },
       "RevisionRespuesta": {
         "properties": {
           "id": {
@@ -7527,6 +8182,21 @@
           "contratista"
         ],
         "title": "SujetoEvaluacion"
+      },
+      "TipoCarga": {
+        "type": "string",
+        "enum": [
+          "catalogo_conceptos",
+          "materiales",
+          "contratistas",
+          "unidades",
+          "familias",
+          "presupuesto",
+          "programa_base",
+          "obras",
+          "almacen"
+        ],
+        "title": "TipoCarga"
       },
       "TipoConcepto": {
         "type": "string",

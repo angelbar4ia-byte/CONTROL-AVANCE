@@ -1,0 +1,778 @@
+"""Cargas del §10.6 de punta a punta: `.xlsx` → pipeline → Postgres real.
+
+Spec §9.2 (pipeline) · §9.3 (reporte por fila) · §10.2 (modos) · §10.3
+(bandeja) · §10.5 (valuación y motivos) · §10.6 (cabeceras) · §10.8
+(versión y reversa) · §12.11 (Definition of Done).
+
+`tests/domain/test_cargadores.py` prueba las reglas sin disco; esto prueba
+que el archivo real las atraviesa: openpyxl lee, el dominio valida, el
+aplicador escribe bajo RLS y el lote queda revertible.
+
+Los archivos de ejemplo se **generan aquí** con openpyxl: no se versiona un
+binario de prueba, y así el archivo siempre coincide con el contrato que el
+§10.6 describe.
+"""
+
+from __future__ import annotations
+
+import uuid
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
+from datetime import date
+from decimal import Decimal
+from io import BytesIO
+
+import pytest
+from openpyxl import Workbook
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+
+from obractrl.adapters.excel.cargadores import cargador_para
+from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
+from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
+from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
+from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
+from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
+from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
+from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
+from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
+from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
+from obractrl.application.casos_uso.aplicar_carga import (
+    AplicadorAlmacen,
+    AplicadorCPU,
+    AplicadorDeCarga,
+    AplicadorMateriales,
+)
+from obractrl.application.casos_uso.gestionar_carga import (
+    ComandoEjecutarCarga,
+    EjecutarCarga,
+    ResultadoCarga,
+    RevertirCarga,
+)
+from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera
+from obractrl.domain.cargadores.reporte import TipoPendiente
+from obractrl.domain.shared.diccionario import EstatusCarga, ModoCarga, TipoCarga
+from obractrl.infrastructure.db.sesion import ContextoSesion, sesion_con_rls
+from tests.integracion.conftest import DATABASE_URL_ADMIN, Escenario
+
+# --- Construcción de los archivos de ejemplo -----------------------------
+
+
+def _libro(filas: list[list[object]], *, hoja: str | None = None) -> bytes:
+    """Un `.xlsx` en memoria con esas filas. Nada toca el disco."""
+    libro = Workbook()
+    pagina = libro.active
+    assert pagina is not None
+    if hoja:
+        pagina.title = hoja
+    for fila in filas:
+        pagina.append(fila)
+    memoria = BytesIO()
+    libro.save(memoria)
+    libro.close()
+    return memoria.getvalue()
+
+
+_CABECERAS_MATERIALES = ["Clave", "Descripción", "Unidad", "Clase", "Costo base", "C/Último", "IVA"]
+
+
+def _archivo_materiales(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_MATERIALES, *filas])
+
+
+_CABECERAS_CPU = [
+    "CLAVE", "CLAVE INSUMO", "DESCRIPCION", "UNIDAD", "CANTIDAD", "P.U.", "", "FAMILIA", "TIPO",
+]
+
+
+def _fila_cpu(
+    clave: str = "",
+    insumo: str = "",
+    descripcion: str = "",
+    unidad: str = "",
+    cantidad: object = "",
+    pu: object = "",
+    tipo: str = "",
+) -> list[object]:
+    return [clave, insumo, descripcion, unidad, cantidad, pu, "", "", tipo]
+
+
+def _archivo_cpu(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_CPU, *filas], hoja="EXPORTADOR")
+
+
+_CABECERAS_ALMACEN = [
+    "# Parte", "Parte", "Clase", "Ubicacion", "Lote", "Contratista", "Fecha",
+    "Motivo", "Efecto Qty", "Efecto Costo", "C/Último", "C/Promedio",
+    "Referencia", "# Almacen", "Almacen", "Usuario",
+]
+
+
+def _archivo_almacen(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_ALMACEN, *filas], hoja="Consulta")
+
+
+# --- Escenario de catálogos ----------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class Catalogos:
+    unidad_id: uuid.UUID
+    familia_id: uuid.UUID
+    motivo_id: uuid.UUID
+
+
+@pytest.fixture
+async def catalogos(escenario: Escenario) -> AsyncIterator[Catalogos]:
+    """Unidad, familia y motivo mínimos para que los cruces del §10.3 tengan
+    contra qué homologar. Se arma con el rol admin, como el resto de fixtures."""
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    unidad, familia, motivo = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "insert into unidad (id, org_id, clave, nombre, sinonimos) "
+                "values (:id, :org, 'ton', 'Tonelada', array['TONELADA'])"
+            ),
+            {"id": str(unidad), "org": str(escenario.org_id)},
+        )
+        await conn.execute(
+            text(
+                "insert into familia (id, org_id, clave, nombre, aplica_a, iva_aplica) "
+                "values (:id, :org, 'CEM', 'Cementantes', 'material', true)"
+            ),
+            {"id": str(familia), "org": str(escenario.org_id)},
+        )
+        await conn.execute(
+            text(
+                "insert into motivo_almacen (id, org_id, clave, descripcion, signo, bucket) "
+                "values (:id, :org, 'SALIDA-PROD', 'Salida para producción', -1, 'salidas')"
+            ),
+            {"id": str(motivo), "org": str(escenario.org_id)},
+        )
+    await engine.dispose()
+
+    yield Catalogos(unidad_id=unidad, familia_id=familia, motivo_id=motivo)
+
+
+def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
+    """Mismo cableado que `adapters/api/casos_uso.py::FabricaDeCargas`."""
+    cargas = RepositorioCargasSQL(sesion)
+    if tipo is TipoCarga.MATERIALES:
+        return AplicadorMateriales(
+            insumos=RepositorioInsumosSQL(sesion),
+            unidades=RepositorioUnidadesSQL(sesion),
+            familias=RepositorioFamiliasSQL(sesion),
+            cargas=cargas,
+        )
+    if tipo is TipoCarga.CATALOGO_CONCEPTOS:
+        return AplicadorCPU(
+            conceptos=RepositorioConceptosSQL(sesion),
+            insumos=RepositorioInsumosSQL(sesion),
+            unidades=RepositorioUnidadesSQL(sesion),
+            familias=RepositorioFamiliasSQL(sesion),
+            cargas=cargas,
+        )
+    return AplicadorAlmacen(
+        materiales=RepositorioMaterialesSQL(sesion),
+        insumos=RepositorioInsumosSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        contratistas=RepositorioContratistasSQL(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        familias=RepositorioFamiliasSQL(sesion),
+        cargas=cargas,
+        tasa_iva=Decimal("0.16"),
+    )
+
+
+async def _cargar(
+    contexto: ContextoSesion,
+    tipo: TipoCarga,
+    contenido: bytes,
+    *,
+    modo: ModoCarga = ModoCarga.ACTUALIZAR,
+    dry_run: bool = False,
+    nombre: str = "prueba.xlsx",
+) -> ResultadoCarga:
+    async with sesion_con_rls(contexto) as sesion:
+        caso_uso = EjecutarCarga(
+            cargas=RepositorioCargasSQL(sesion),
+            lector=cargador_para(tipo),
+            aplicador=_aplicador(tipo, sesion),
+            uow=UnidadDeTrabajoSQL(sesion),
+        )
+        return await caso_uso.ejecutar(
+            ComandoEjecutarCarga(
+                tipo=tipo,
+                contenido=contenido,
+                archivo_nombre=nombre,
+                usuario_id=contexto.usuario_id,
+                modo=modo,
+                dry_run=dry_run,
+            )
+        )
+
+
+async def _insumos(contexto: ContextoSesion) -> dict[str, dict]:
+    async with sesion_con_rls(contexto) as sesion:
+        filas = await RepositorioInsumosSQL(sesion).listar(solo_activos=False)
+    return {str(f["clave"]): f for f in filas}
+
+
+# --- Materiales (§10.6 `CABECERAS_MATERIALES.xlsx`) ----------------------
+
+
+async def test_carga_de_materiales_alimenta_el_catalogo_de_insumos(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Un material es un `Insumo` con `tipo='material'` (§7.3)."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales(
+            [
+                ["CEM-01", "Cemento gris", "ton", "CEM", "250.5", "260", "SI"],
+                ["ARE-01", "Arena de río", "ton", "CEM", "100", "", "NO"],
+            ]
+        ),
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.insertados == 2
+    assert resultado.resumen.errores == 0
+    assert resultado.version_generada == 1  # §10.8: cada carga es una versión
+
+    catalogo = await _insumos(contexto_control)
+    assert catalogo["CEM-01"]["descripcion"] == "Cemento gris"
+    assert catalogo["CEM-01"]["costo_base"] == Decimal("250.5000")
+    # §10.5: costo_base_actualizado = el costo último más reciente.
+    assert catalogo["CEM-01"]["costo_base_actualizado"] == Decimal("260.0000")
+    assert catalogo["CEM-01"]["unidad_id"] == catalogos.unidad_id
+    assert catalogo["CEM-01"]["familia_id"] == catalogos.familia_id
+    assert catalogo["ARE-01"]["iva_aplica"] is False
+
+
+async def test_el_mismo_archivo_no_se_aplica_dos_veces(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§10.8/§12.3: "si es idéntico, no crea versión"."""
+    contenido = _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "250", "", "SI"]])
+    primera = await _cargar(contexto_control, TipoCarga.MATERIALES, contenido)
+    segunda = await _cargar(contexto_control, TipoCarga.MATERIALES, contenido)
+
+    assert primera.reutilizada is False
+    assert segunda.reutilizada is True
+    assert segunda.carga_id == primera.carga_id
+    assert segunda.version_generada == primera.version_generada
+    assert len(await _insumos(contexto_control)) == 1
+
+
+async def test_un_archivo_distinto_sin_cambios_reales_tampoco_versiona(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """El §10.8 compara **contenido**, no bytes: 250 y 250.00 son lo mismo."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "250", "", "SI"]]),
+    )
+    segunda = await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        # Mismo dato, otro archivo: cambia el hash pero no el catálogo.
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "250.00", "", "SI"]]),
+    )
+
+    assert segunda.reutilizada is False
+    assert segunda.version_generada is None
+    assert segunda.resumen.omitidos == 1
+
+
+async def test_un_precio_que_cambia_genera_la_version_siguiente(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """El ejemplo del §10.8: v1, luego v2 con el diff de lo que cambió."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "250", "", "SI"]]),
+    )
+    segunda = await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales(
+            [
+                ["CEM-01", "Cemento gris", "ton", "CEM", "270", "", "SI"],
+                ["GRA-01", "Grava", "ton", "CEM", "80", "", "SI"],
+            ]
+        ),
+    )
+
+    assert segunda.version_generada == 2
+    assert segunda.resumen.insertados == 1
+    assert segunda.resumen.actualizados == 1
+    assert segunda.diff["cambios"] == {"CEM-01": ["costo_base"]}
+    catalogo = await _insumos(contexto_control)
+    assert catalogo["CEM-01"]["costo_base"] == Decimal("270.0000")
+
+
+async def test_una_fila_mala_se_reporta_y_el_resto_del_archivo_entra(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§9.3: reporte de errores por fila/columna, sin abortar el archivo."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales(
+            [
+                ["CEM-01", "Cemento gris", "ton", "CEM", "250", "", "SI"],
+                ["", "Sin clave", "ton", "CEM", "10", "", "SI"],
+                ["ARE-01", "Arena", "ton", "CEM", "no es número", "", "SI"],
+                ["GRA-01", "Grava", "ton", "CEM", "80", "", "SI"],
+            ]
+        ),
+    )
+
+    assert resultado.resumen.insertados == 2
+    assert resultado.resumen.errores == 2
+    assert {(e.fila, e.columna) for e in resultado.errores} == {(3, "clave"), (4, "costo_base")}
+    assert set(await _insumos(contexto_control)) == {"CEM-01", "GRA-01"}
+
+
+async def test_una_unidad_desconocida_cae_en_la_bandeja_y_no_se_inventa(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§10.3: el sistema propone, el humano confirma."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "sacos", "CEM", "250", "", "SI"]]),
+    )
+
+    assert resultado.pendientes == 1
+    async with sesion_con_rls(contexto_control) as sesion:
+        bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(
+            carga_id=resultado.carga_id
+        )
+    assert bandeja[0]["tipo"] == str(TipoPendiente.UNIDAD)
+    assert bandeja[0]["valor_origen"] == "sacos"
+    # El material entra igual, pero sin unidad adivinada.
+    assert (await _insumos(contexto_control))["CEM-01"]["unidad_id"] is None
+
+
+async def test_la_vista_previa_cuenta_igual_pero_no_escribe(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§9.3: el dry-run tiene que dar los mismos números que el commit."""
+    contenido = _archivo_materiales(
+        [["CEM-01", "Cemento gris", "ton", "CEM", "250", "", "SI"]]
+    )
+    previa = await _cargar(contexto_control, TipoCarga.MATERIALES, contenido, dry_run=True)
+
+    assert previa.estatus is EstatusCarga.PREVISUALIZADO
+    assert previa.resumen.insertados == 1
+    assert previa.version_generada is None
+    assert await _insumos(contexto_control) == {}
+
+    aplicada = await _cargar(contexto_control, TipoCarga.MATERIALES, contenido)
+    assert aplicada.resumen.insertados == previa.resumen.insertados
+
+
+async def test_reemplazar_da_de_baja_lo_que_el_archivo_ya_no_trae(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§10.2. La baja es lógica: `explosion` y `salida_almacen` apuntan aquí."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales(
+            [
+                ["CEM-01", "Cemento gris", "ton", "CEM", "250", "", "SI"],
+                ["ARE-01", "Arena", "ton", "CEM", "100", "", "SI"],
+            ]
+        ),
+    )
+    await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "250", "", "SI"]]),
+        modo=ModoCarga.REEMPLAZAR,
+    )
+
+    catalogo = await _insumos(contexto_control)
+    assert catalogo["CEM-01"]["estatus"] == "activo"
+    assert catalogo["ARE-01"]["estatus"] == "inactivo"
+
+
+async def test_revertir_deja_el_catalogo_como_estaba_antes_del_lote(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§10.8: se revierte el **lote**, no registro por registro."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "250", "", "SI"]]),
+    )
+    segunda = await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales(
+            [
+                ["CEM-01", "Cemento gris", "ton", "CEM", "270", "", "SI"],
+                ["GRA-01", "Grava", "ton", "CEM", "80", "", "SI"],
+            ]
+        ),
+    )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        reversa = await RevertirCarga(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(segunda.carga_id, usuario_id=contexto_control.usuario_id)
+
+    assert reversa["operaciones_revertidas"] == 2
+    catalogo = await _insumos(contexto_control)
+    assert set(catalogo) == {"CEM-01"}  # la alta del lote se fue
+    assert catalogo["CEM-01"]["costo_base"] == Decimal("250.0000")  # el precio volvió
+
+
+async def test_una_carga_revertida_no_se_revierte_dos_veces(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    from obractrl.application.casos_uso.gestionar_carga import CargaNoRevertible
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "250", "", "SI"]]),
+    )
+    async with sesion_con_rls(contexto_control) as sesion:
+        await RevertirCarga(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(resultado.carga_id)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        with pytest.raises(CargaNoRevertible, match="ya se revirtió"):
+            await RevertirCarga(
+                cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+            ).ejecutar(resultado.carga_id)
+
+
+async def test_un_archivo_sin_las_cabeceras_del_contrato_se_rechaza_entero(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§10.6 es el contrato: sin clave no hay nada que validar fila a fila."""
+    with pytest.raises(ErrorDeCabecera, match="clave"):
+        await _cargar(
+            contexto_control,
+            TipoCarga.MATERIALES,
+            _libro([["Columna A", "Columna B"], ["x", "y"]]),
+        )
+
+
+# --- CPU / Conceptos (§10.6 `CABECERAS_CPU.xlsx`) ------------------------
+
+
+async def _sembrar_insumos(contexto: ContextoSesion) -> None:
+    await _cargar(
+        contexto,
+        TipoCarga.MATERIALES,
+        _archivo_materiales(
+            [
+                ["MAT-01", "Block de concreto", "ton", "CEM", "20", "", "SI"],
+                ["MOA-01", "Albañil", "ton", "CEM", "300", "", "NO"],
+            ]
+        ),
+    )
+
+
+async def test_carga_de_cpu_crea_concepto_explosion_y_version(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§10.6 formato plano; §7.3 el CPU **se calcula** de la explosión."""
+    await _sembrar_insumos(contexto_control)
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_cpu(
+            [
+                _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
+                _fila_cpu(insumo="MAT-01", descripcion="Block", cantidad="12.5", pu="20", tipo="Material"),
+                _fila_cpu(insumo="MOA-01", descripcion="Albañil", cantidad="0.8", pu="300", tipo="Mano de obra"),
+            ]
+        ),
+    )
+
+    assert resultado.resumen.insertados == 1
+    assert resultado.resumen.errores == 0
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        repo = RepositorioConceptosSQL(sesion)
+        concepto = next(c for c in await repo.listar() if str(c["clave"]) == "EST-01")
+        versiones = await repo.versiones_cpu(concepto["id"])
+        explosion = await repo.explosion_directa(concepto["id"])
+
+    assert len(versiones) == 1
+    assert versiones[0]["version"] == 1 and versiones[0]["vigente"] is True
+    # 12.5 × 20 = 250 (material) + 0.8 × 300 = 240 (destajo) → 490 total.
+    assert versiones[0]["precio_unitario"] == Decimal("490.0000")
+    assert versiones[0]["precio_destajo"] == Decimal("240.0000")
+    assert len(explosion) == 2
+    # §10.6 da una sola columna E: `cantidad` y `rendimiento` reciben lo mismo.
+    assert explosion[0]["cantidad"] == explosion[0]["rendimiento"] == Decimal("12.500000")
+
+
+async def test_un_insumo_desconocido_detiene_el_concepto_y_abre_pendiente_critico(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Un APU con un hueco publicaría un precio menor al real (§7.3)."""
+    await _sembrar_insumos(contexto_control)
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_cpu(
+            [
+                _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
+                _fila_cpu(insumo="MAT-01", cantidad="12.5", pu="20", tipo="Material"),
+                _fila_cpu(insumo="NO-EXISTE", cantidad="1", pu="10", tipo="Material"),
+            ]
+        ),
+    )
+
+    assert resultado.resumen.insertados == 0
+    assert resultado.pendientes == 1
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(
+            carga_id=resultado.carga_id
+        )
+        conceptos = await RepositorioConceptosSQL(sesion).listar()
+
+    assert bandeja[0]["tipo"] == str(TipoPendiente.MAPEO_NO_RECONOCIDO)
+    assert bandeja[0]["entidad"] == "insumo"
+    assert bandeja[0]["critico"] is True
+    assert [c for c in conceptos if str(c["clave"]) == "EST-01"] == []
+
+
+async def test_recargar_el_cpu_con_otra_receta_publica_version_2_y_se_revierte(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§10.8: la anterior queda en el historial y el lote se deshace entero."""
+    await _sembrar_insumos(contexto_control)
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_cpu(
+            [
+                _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
+                _fila_cpu(insumo="MAT-01", cantidad="12.5", pu="20", tipo="Material"),
+            ]
+        ),
+    )
+    segunda = await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_cpu(
+            [
+                _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
+                _fila_cpu(insumo="MAT-01", cantidad="14", pu="20", tipo="Material"),
+            ]
+        ),
+    )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        repo = RepositorioConceptosSQL(sesion)
+        concepto = next(c for c in await repo.listar() if str(c["clave"]) == "EST-01")
+        versiones = await repo.versiones_cpu(concepto["id"])
+
+    assert [v["version"] for v in versiones] == [1, 2]
+    assert [v["vigente"] for v in versiones] == [False, True]
+    assert versiones[1]["precio_unitario"] == Decimal("280.0000")  # 14 × 20
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        await RevertirCarga(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(segunda.carga_id)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        repo = RepositorioConceptosSQL(sesion)
+        versiones = await repo.versiones_cpu(concepto["id"])
+        explosion = await repo.explosion_directa(concepto["id"])
+
+    assert [(v["version"], v["vigente"]) for v in versiones] == [(1, True)]
+    assert len(explosion) == 1
+    assert explosion[0]["cantidad"] == Decimal("12.500000")
+
+
+# --- Movimientos de almacén (§10.6 `IMPORTAADOR_ALMACEN.xlsx`) -----------
+
+
+def _fila_almacen(
+    *,
+    parte: str = "CEM-01",
+    ubicacion: str = "OBRA",
+    lote: str = "01",
+    motivo: str = "Salida para producción",
+    qty: object = "-10",
+    costo: object = "-2500",
+    ultimo: object = "250",
+) -> list[object]:
+    return [
+        parte, "Cemento gris", "CEM", ubicacion, lote, "Constructora X",
+        date(2026, 8, 10), motivo, qty, costo, ultimo, "248",
+        "No.Parte:EST-0123 OP-99", "1", "Central", "jperez",
+    ]
+
+
+async def test_carga_de_almacen_registra_movimientos_y_baja_la_valuacion(
+    catalogos: Catalogos, escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """§10.5: el signo viene del archivo y `C/Último` es el costo del cruce."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "200", "", "SI"]]),
+    )
+
+    resultado = await _cargar(
+        contexto_control, TipoCarga.ALMACEN, _archivo_almacen([_fila_almacen()])
+    )
+
+    assert resultado.resumen.insertados == 1
+    assert resultado.resumen.errores == 0
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        salidas = await RepositorioMaterialesSQL(sesion).listar_salidas(
+            obra_id=escenario.obra_id
+        )
+    assert len(salidas) == 1
+    assert salidas[0]["cantidad"] == Decimal("-10.000000")
+    assert salidas[0]["costo"] == Decimal("-2500.0000")
+    assert salidas[0]["costo_ultimo"] == Decimal("250.0000")
+    assert salidas[0]["motivo_id"] == catalogos.motivo_id
+
+    catalogo = await _insumos(contexto_control)
+    assert catalogo["CEM-01"]["costo_ultimo"] == Decimal("250.0000")
+    assert catalogo["CEM-01"]["costo_base_actualizado"] == Decimal("250.0000")
+    assert catalogo["CEM-01"]["origen"] == "almacen"
+
+
+async def test_el_importe_con_iva_se_calcula_desde_el_costo_sin_iva(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§10.6: "los costos vienen sin IVA y se agrega 16% según `Clase`"."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "200", "", ""]]),
+    )
+    resultado = await _cargar(
+        contexto_control, TipoCarga.ALMACEN, _archivo_almacen([_fila_almacen()])
+    )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        carga = await RepositorioCargasSQL(sesion).obtener(resultado.carga_id)
+    assert carga is not None
+    assert carga["resumen"]["importe_con_iva"] == "-2900.0000"
+    assert carga["resumen"]["tasa_iva"] == "0.16"
+
+
+async def test_un_motivo_no_catalogado_va_a_la_bandeja_y_no_se_inventa(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§10.5: "Motivo no catalogado -> bandeja de pendientes"."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "200", "", "SI"]]),
+    )
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.ALMACEN,
+        _archivo_almacen([_fila_almacen(motivo="Merma por lluvia")]),
+    )
+
+    assert resultado.resumen.insertados == 0
+    assert resultado.resumen.omitidos == 1
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(
+            carga_id=resultado.carga_id
+        )
+    assert bandeja[0]["tipo"] == str(TipoPendiente.MOTIVO_ALMACEN)
+    assert bandeja[0]["valor_origen"] == "Merma por lluvia"
+    assert bandeja[0]["critico"] is True
+
+
+async def test_un_signo_que_contradice_al_motivo_es_error_de_fila(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Misma regla que la captura manual (`domain.materiales.reglas`, §10.5)."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "200", "", "SI"]]),
+    )
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.ALMACEN,
+        _archivo_almacen([_fila_almacen(qty="10", costo="2500")]),
+    )
+
+    assert resultado.resumen.insertados == 0
+    assert resultado.resumen.errores == 1
+    assert resultado.errores[0].columna == "cantidad"
+
+
+async def test_una_obra_que_no_existe_no_carga_el_movimiento(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§10.3: sin cruce de obra el movimiento va a la bandeja, no a la basura."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "200", "", "SI"]]),
+    )
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.ALMACEN,
+        _archivo_almacen([_fila_almacen(ubicacion="ENCINO", lote="99")]),
+    )
+
+    assert resultado.resumen.insertados == 0
+    async with sesion_con_rls(contexto_control) as sesion:
+        bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(
+            carga_id=resultado.carga_id
+        )
+    assert bandeja[0]["entidad"] == "obra"
+    assert bandeja[0]["valor_origen"] == "ENCINO 99"
+
+
+async def test_revertir_una_carga_de_almacen_borra_sus_movimientos(
+    catalogos: Catalogos, escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """§10.8: el lote se revierte como unidad, valuación incluida."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "200", "", "SI"]]),
+    )
+    carga = await _cargar(
+        contexto_control, TipoCarga.ALMACEN, _archivo_almacen([_fila_almacen()])
+    )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        await RevertirCarga(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(carga.carga_id)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        salidas = await RepositorioMaterialesSQL(sesion).listar_salidas(
+            obra_id=escenario.obra_id
+        )
+    assert salidas == []
+    catalogo = await _insumos(contexto_control)
+    assert catalogo["CEM-01"]["costo_ultimo"] is None
+    assert catalogo["CEM-01"]["origen"] == "base"

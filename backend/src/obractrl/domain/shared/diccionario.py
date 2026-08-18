@@ -252,6 +252,17 @@ class TipoCarga(_Canonico):
     PROGRAMA_BASE = "programa_base"
     OBRAS = "obras"
 
+    ALMACEN = "almacen"
+    """Movimientos de almacén — `IMPORTAADOR_ALMACEN.xlsx` (§10.6).
+
+    El §10.6 define este archivo como parte del contrato de cargadores, pero
+    la lista de `carga_datos.tipo` del §8.2 no le dio valor: sin él una carga
+    de almacén no se podría registrar como lote reversible (§10.8). Agregarlo
+    es el "trabajo de programador" que el §8.7 prevé para un invariante, y su
+    espejo en la base es
+    `database/migrations/20260814000019_carga_de_almacen.sql`.
+    """
+
 
 class EstatusCarga(_Canonico):
     PENDIENTE = "pendiente"

@@ -52,6 +52,29 @@ class RepositorioMaterialesSQL:
         ).mappings().first()
         return dict(fila) if fila is not None else None
 
+    async def listar_motivos(self, *, solo_activos: bool = True) -> list[dict[str, Any]]:
+        """Catálogo completo de motivos con su signo y bucket (§10.5).
+
+        El cargador de almacén lo trae entero de una vez: cruza cada renglón
+        del archivo por la columna `Motivo` (§10.6) y un motivo no catalogado
+        va a la bandeja (§10.3), así que necesita la lista viva —es semilla
+        editable (§8.7)—, no un motivo a la vez.
+        """
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, clave, descripcion, signo, bucket, estatus
+                    from motivo_almacen
+                    where not cast(:solo_activos as boolean) or estatus = 'activo'
+                    order by clave
+                    """
+                ),
+                {"solo_activos": solo_activos},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
     async def crear_salida(self, datos: dict[str, Any]) -> UUID:
         fila = (
             await self._sesion.execute(
@@ -59,11 +82,16 @@ class RepositorioMaterialesSQL:
                     """
                     insert into salida_almacen
                         (org_id, obra_id, insumo_id, motivo_id, concepto_id,
-                         contratista_id, usuario_id, fecha, cantidad, costo)
+                         contratista_id, usuario_id, carga_id, fecha, cantidad,
+                         costo, costo_ultimo, almacen, referencia)
                     values
                         (cast(current_setting('app.org_id') as uuid),
                          :obra_id, :insumo_id, :motivo_id, :concepto_id,
-                         :contratista_id, :usuario_id, :fecha, :cantidad, :costo)
+                         :contratista_id, :usuario_id, cast(:carga_id as uuid),
+                         :fecha, :cantidad, :costo,
+                         -- El cast fija el tipo del parámetro; sin él un
+                         -- Decimal nulo/entero perdería decimales.
+                         cast(:costo_ultimo as numeric), :almacen, :referencia)
                     returning id
                     """
                 ),
@@ -76,9 +104,15 @@ class RepositorioMaterialesSQL:
                         str(datos["contratista_id"]) if datos.get("contratista_id") else None
                     ),
                     "usuario_id": str(datos["usuario_id"]) if datos.get("usuario_id") else None,
+                    # Liga al lote que lo importó: es lo que permite revertir
+                    # la carga como unidad (§10.8).
+                    "carga_id": str(datos["carga_id"]) if datos.get("carga_id") else None,
                     "fecha": datos["fecha"],
                     "cantidad": datos["cantidad"],
                     "costo": datos["costo"],
+                    "costo_ultimo": datos.get("costo_ultimo"),
+                    "almacen": datos.get("almacen"),
+                    "referencia": datos.get("referencia"),
                 },
             )
         ).scalar_one()

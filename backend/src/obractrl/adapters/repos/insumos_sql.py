@@ -36,6 +36,27 @@ _COLUMNAS = """
     origen, iva_aplica, factor_conversion, estatus
 """
 
+_CAMPOS_EDITABLES: dict[str, str] = {
+    "descripcion": "descripcion = :descripcion",
+    "unidad_id": "unidad_id = cast(:unidad_id as uuid)",
+    "familia_id": "familia_id = cast(:familia_id as uuid)",
+    "costo_base": "costo_base = cast(:costo_base as numeric)",
+    "costo_base_actualizado": (
+        "costo_base_actualizado = cast(:costo_base_actualizado as numeric)"
+    ),
+    "costo_promedio_almacen": (
+        "costo_promedio_almacen = cast(:costo_promedio_almacen as numeric)"
+    ),
+    "costo_ultimo": "costo_ultimo = cast(:costo_ultimo as numeric)",
+    "origen": "origen = :origen",
+    "iva_aplica": "iva_aplica = cast(:iva_aplica as boolean)",
+    "factor_conversion": "factor_conversion = cast(:factor_conversion as numeric)",
+    "estatus": "estatus = cast(:estatus as estatus_registro)",
+}
+"""Campos que una edición puede tocar. La `clave` no está: es la identidad
+del registro (§3.3). El diccionario es también la lista blanca que evita
+armar SQL con nombres que vengan de un archivo."""
+
 
 class RepositorioInsumosSQL:
     def __init__(self, sesion: AsyncSession) -> None:
@@ -85,6 +106,38 @@ class RepositorioInsumosSQL:
                 },
             )
         ).scalar_one()
+
+    async def actualizar(self, insumo_id: UUID, cambios: dict[str, Any]) -> None:
+        """Edición parcial; solo las claves presentes en ``cambios`` se escriben.
+
+        La usan los cargadores (§10.6): el de materiales para actualizar lo
+        que ya existe en el modo Actualizar (§10.2), y el de almacén para
+        bajar la valuación del §10.5 —`costo_ultimo` y
+        `costo_base_actualizado` = el costo último más reciente—. La `clave`
+        **no** es editable: es la identidad del registro (§3.3); cambiarla
+        sería otro insumo, no una edición.
+        """
+        asignaciones = [
+            _CAMPOS_EDITABLES[campo] for campo in cambios if campo in _CAMPOS_EDITABLES
+        ]
+        if not asignaciones:
+            return
+
+        parametros: dict[str, Any] = {"id": str(insumo_id)}
+        for campo in cambios:
+            if campo not in _CAMPOS_EDITABLES:
+                continue
+            valor = cambios[campo]
+            parametros[campo] = (
+                str(valor) if campo.endswith("_id") and valor is not None else valor
+            )
+
+        await self._sesion.execute(
+            text(
+                f"update insumo set {', '.join(asignaciones)} where id = :id"
+            ),
+            parametros,
+        )
 
     async def obtener(self, insumo_id: UUID) -> dict[str, Any] | None:
         fila = (

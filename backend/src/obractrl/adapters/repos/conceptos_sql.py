@@ -31,6 +31,21 @@ _COLUMNAS = """
     id, tipo, clave, descripcion, unidad_id, familia_id, estatus
 """
 
+_CAMPOS_EDITABLES: dict[str, str] = {
+    "tipo": "tipo = cast(:tipo as tipo_concepto)",
+    "descripcion": "descripcion = :descripcion",
+    "unidad_id": "unidad_id = cast(:unidad_id as uuid)",
+    "familia_id": "familia_id = cast(:familia_id as uuid)",
+    "estatus": "estatus = cast(:estatus as estatus_registro)",
+}
+"""Lista blanca de campos editables; también evita armar SQL con nombres que
+vengan de un archivo externo. La `clave` no está: es la identidad (§3.3)."""
+
+_COLUMNAS_EXPLOSION = """
+    id, concepto_id, cpu_id, tipo_hijo, insumo_id, concepto_hijo_id,
+    categoria, cantidad, rendimiento, costo_unitario, importe, orden
+"""
+
 _PROFUNDIDAD_MAXIMA = 32
 """Espeja `domain.catalogos.apu._PROFUNDIDAD_MAXIMA`.
 
@@ -94,6 +109,33 @@ class RepositorioConceptosSQL:
                 },
             )
         ).scalar_one()
+
+    async def actualizar(self, concepto_id: UUID, cambios: dict[str, Any]) -> None:
+        """Edición parcial; solo las claves presentes en ``cambios`` se escriben.
+
+        La usa el cargador de CPU (§10.6) cuando el archivo trae un concepto
+        que ya existe: en modo Actualizar se refresca descripción, unidad y
+        familia (§10.2). La `clave` no es editable — es la identidad (§3.3).
+        """
+        asignaciones = [
+            _CAMPOS_EDITABLES[campo] for campo in cambios if campo in _CAMPOS_EDITABLES
+        ]
+        if not asignaciones:
+            return
+
+        parametros: dict[str, Any] = {"id": str(concepto_id)}
+        for campo in cambios:
+            if campo not in _CAMPOS_EDITABLES:
+                continue
+            valor = cambios[campo]
+            parametros[campo] = (
+                str(valor) if campo.endswith("_id") and valor is not None else valor
+            )
+
+        await self._sesion.execute(
+            text(f"update concepto set {', '.join(asignaciones)} where id = :id"),
+            parametros,
+        )
 
     async def obtener(self, concepto_id: UUID) -> dict[str, Any] | None:
         fila = (
@@ -182,6 +224,103 @@ class RepositorioConceptosSQL:
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]
+
+    async def explosion_directa(self, concepto_id: UUID) -> list[dict[str, Any]]:
+        """Filas de `Explosion` **propias** del concepto, sin recursión (§7.3).
+
+        A diferencia de `composicion_recursiva`, esto no explota el árbol: es
+        lo que el cargador de CPU necesita para saber qué composición va a
+        sustituir y guardar su `antes` en el snapshot del lote (§10.8).
+        """
+        filas = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    select {_COLUMNAS_EXPLOSION}
+                    from explosion
+                    where concepto_id = :id
+                    order by orden, id
+                    """
+                ),
+                {"id": str(concepto_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
+    async def eliminar_explosion(self, concepto_id: UUID) -> None:
+        """Borra la composición vigente del concepto.
+
+        El cargador de CPU **sustituye** la composición en vez de acumularla:
+        `v_consumo_vs_presupuesto` (migración 0008) suma `explosion` por
+        `concepto_id` sin filtrar versión, así que dejar las filas viejas al
+        publicar una versión nueva duplicaría el consumo teórico (§7.7).
+        Lo borrado queda en el snapshot del lote y la reversa lo repone
+        (§10.8).
+        """
+        await self._sesion.execute(
+            text("delete from explosion where concepto_id = :id"),
+            {"id": str(concepto_id)},
+        )
+
+    async def agregar_explosion(
+        self, concepto_id: UUID, *, cpu_id: UUID | None, filas: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Inserta la composición nueva y devuelve las filas ya persistidas.
+
+        Devuelve el registro completo —no solo el id— porque el snapshot del
+        §10.8 guarda el ``despues`` de cada operación, y armarlo desde el
+        `returning` evita releer.
+        """
+        insertadas: list[dict[str, Any]] = []
+        for orden, fila in enumerate(filas):
+            registro = (
+                await self._sesion.execute(
+                    text(
+                        f"""
+                        insert into explosion
+                            (org_id, concepto_id, cpu_id, tipo_hijo, insumo_id,
+                             concepto_hijo_id, categoria, cantidad, rendimiento,
+                             costo_unitario, importe, orden)
+                        values (cast(current_setting('app.org_id') as uuid),
+                                :concepto_id, cast(:cpu_id as uuid),
+                                cast(:tipo_hijo as tipo_hijo_explosion),
+                                cast(:insumo_id as uuid),
+                                cast(:concepto_hijo_id as uuid),
+                                cast(:categoria as categoria_explosion),
+                                -- El cast a numeric no es decorativo: sin él
+                                -- asyncpg puede inferir entero y perder los
+                                -- decimales del rendimiento en silencio.
+                                cast(:cantidad as numeric),
+                                cast(:rendimiento as numeric),
+                                cast(:costo_unitario as numeric),
+                                cast(:importe as numeric),
+                                :orden)
+                        returning {_COLUMNAS_EXPLOSION}
+                        """
+                    ),
+                    {
+                        "concepto_id": str(concepto_id),
+                        "cpu_id": str(cpu_id) if cpu_id else None,
+                        "tipo_hijo": fila["tipo_hijo"],
+                        "insumo_id": (
+                            str(fila["insumo_id"]) if fila.get("insumo_id") else None
+                        ),
+                        "concepto_hijo_id": (
+                            str(fila["concepto_hijo_id"])
+                            if fila.get("concepto_hijo_id")
+                            else None
+                        ),
+                        "categoria": fila["categoria"],
+                        "cantidad": fila.get("cantidad", 0),
+                        "rendimiento": fila.get("rendimiento", 0),
+                        "costo_unitario": fila.get("costo_unitario", 0),
+                        "importe": fila.get("importe", 0),
+                        "orden": fila.get("orden", orden),
+                    },
+                )
+            ).mappings().one()
+            insertadas.append(dict(registro))
+        return insertadas
 
     async def versiones_cpu(self, concepto_id: UUID) -> list[dict[str, Any]]:
         """Historial de CPU del concepto, todas sus variantes (§7.3, §10.8)."""

@@ -18,13 +18,20 @@ from fastapi.responses import JSONResponse
 
 from obractrl import __version__
 from obractrl.adapters.api.v1 import api_v1
+from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador
+from obractrl.adapters.excel.lector import ErrorDeArchivo
 from obractrl.adapters.repos.calendario_sql import CalendarioNoConfigurado
+from obractrl.adapters.repos.cargas_sql import TablaNoRevertible
 from obractrl.application.casos_uso.calcular_cpu import ConceptoNoEncontrado
 from obractrl.application.casos_uso.capturar_avance import (
     ActividadBloqueada,
     ActividadNoEncontrada,
 )
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import ObraNoEncontrada
+from obractrl.application.casos_uso.gestionar_carga import (
+    CargaNoEncontrada,
+    CargaNoRevertible,
+)
 from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEncontrada
 from obractrl.application.casos_uso.gestionar_estimacion import EstimacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_evaluacion import EvaluacionNoEncontrada
@@ -39,6 +46,7 @@ from obractrl.application.casos_uso.registrar_salida_almacen import (
 from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.catalogos.apu import CicloEnExplosion, ErrorDeAPU
 from obractrl.domain.catalogos.reglas import ErrorDeCatalogo
+from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera
 from obractrl.domain.cierres.reglas import ErrorDeCierre
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
 from obractrl.domain.evaluaciones.reglas import ErrorDeEvaluacion
@@ -528,6 +536,86 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=422,
             tipo="regla-de-revision",
             titulo="Revisión física inválida",
+            detalle=str(exc),
+        )
+
+    # --- Cargas de datos (§9.3, §10.6, §10.8) ---------------------------
+
+    @app.exception_handler(ErrorDeArchivo)
+    async def _archivo_de_carga(request: Request, exc: ErrorDeArchivo) -> JSONResponse:
+        # 422 y no 400: la petición está bien formada, el **contenido** no
+        # cumple el contrato del §10.6 —mismo criterio que `ErrorDeCaptura`.
+        return _problema(
+            request,
+            status=422,
+            tipo="archivo-de-carga-invalido",
+            titulo="El archivo de carga no se puede leer",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeCabecera)
+    async def _cabecera_de_carga(
+        request: Request, exc: ErrorDeCabecera
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="cabeceras-de-carga-invalidas",
+            titulo="El archivo no trae las cabeceras del contrato",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(TipoDeCargaSinCargador)
+    async def _tipo_sin_cargador(
+        request: Request, exc: TipoDeCargaSinCargador
+    ) -> JSONResponse:
+        # 501 y no 404: el tipo existe en el §8.2, lo que falta es el
+        # cargador de este lado. El cliente no tiene nada que corregir.
+        return _problema(
+            request,
+            status=501,
+            tipo="cargador-no-implementado",
+            titulo="Ese tipo de carga todavía no tiene cargador",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(CargaNoEncontrada)
+    async def _carga_no_encontrada(
+        request: Request, exc: CargaNoEncontrada
+    ) -> JSONResponse:
+        # Mismo tratamiento que ActividadNoEncontrada: RLS hace indistinguible
+        # "no existe" de "no la puedes ver" a propósito (§12.4).
+        return _problema(
+            request,
+            status=404,
+            tipo="carga-no-encontrada",
+            titulo="Carga no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(CargaNoRevertible)
+    async def _carga_no_revertible(
+        request: Request, exc: CargaNoRevertible
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="carga-no-revertible",
+            titulo="La carga no se puede revertir",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(TablaNoRevertible)
+    async def _tabla_no_revertible(
+        request: Request, exc: TablaNoRevertible
+    ) -> JSONResponse:
+        # 500: el snapshot lo escribió este mismo backend, así que si menciona
+        # una tabla que no sabe deshacer, el defecto es nuestro (§10.8).
+        return _problema(
+            request,
+            status=500,
+            tipo="snapshot-inconsistente",
+            titulo="El lote no se puede deshacer completo",
             detalle=str(exc),
         )
 
