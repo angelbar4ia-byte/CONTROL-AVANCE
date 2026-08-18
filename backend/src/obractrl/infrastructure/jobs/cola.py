@@ -188,6 +188,20 @@ class ColaDeTrabajos:
                 id=trabajo_id, estatus=EstadoTrabajo.LISTO, valor=info.result
             )
 
+    async def disponible(self) -> bool:
+        """¿Responde Redis? Para la sonda de dependencias (§11.7).
+
+        Abre el pool y lo cierra, que es lo que `arq` hace con un `ping`
+        incluido. No levanta: la sonda reporta el estado, no falla por él —un
+        `/health` que se cae cuando se cae una dependencia no sirve para
+        diagnosticar nada—.
+        """
+        try:
+            async with self._pool():
+                return True
+        except ColaNoDisponible:
+            return False
+
     def _pool(self) -> _PoolDeArq:
         return _PoolDeArq(_ajustes(self._cfg))
 

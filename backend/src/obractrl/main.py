@@ -9,14 +9,25 @@ no contiene lógica de negocio (§12.11).
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from starlette.exceptions import HTTPException as ExcepcionHTTP
 
 from obractrl import __version__
+from obractrl.adapters.api.idempotencia import (
+    ClaveDeIdempotenciaInvalida,
+    ClaveReusada,
+    PeticionYaProcesada,
+)
+from obractrl.adapters.api.middleware import MiddlewareDeIdDePeticion
 from obractrl.adapters.api.v1 import api_v1
 from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador
 from obractrl.adapters.excel.lector import ErrorDeArchivo
@@ -61,11 +72,26 @@ from obractrl.domain.programacion.reglas import ErrorDeProgramacion
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto
 from obractrl.domain.revisiones.reglas import ErrorDeRevision
 from obractrl.infrastructure.config import obtener_config
-from obractrl.infrastructure.db.sesion import cerrar_engine
-from obractrl.infrastructure.jobs.cola import ColaNoDisponible, TrabajoNoEncontrado
+from obractrl.infrastructure.db.sesion import cerrar_engine, obtener_sessionmaker
+from obractrl.infrastructure.jobs.cola import (
+    ColaDeTrabajos,
+    ColaNoDisponible,
+    TrabajoNoEncontrado,
+)
+from obractrl.infrastructure.observabilidad import (
+    configurar_logging,
+    id_de_peticion,
+    iniciar_sentry,
+)
 from obractrl.infrastructure.storage.r2 import AlmacenamientoNoConfigurado
 
 BASE_API = "/api/v1"
+
+_log = logging.getLogger(__name__)
+
+_TIMEOUT_SONDA = 3
+"""Segundos por dependencia. Corto: la sonda se consulta cuando algo ya va
+mal, y ahí una respuesta lenta es tan inútil como ninguna."""
 
 
 @asynccontextmanager
@@ -76,6 +102,11 @@ async def ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:
 
 def crear_app() -> FastAPI:
     cfg = obtener_config()
+
+    # Antes de construir nada: si algo del ensamblado falla, que salga con el
+    # formato de la casa y no con el default de Python (§11.7).
+    configurar_logging(cfg)
+    iniciar_sentry(cfg)
 
     app = FastAPI(
         title="ObraCtrl API",
@@ -98,7 +129,14 @@ def crear_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # Sin esto el navegador **no deja leer** el id de una respuesta de
+        # error, que es justo cuando el front lo necesita para reportarla.
+        expose_headers=["X-Request-Id"],
     )
+
+    # Se agrega al final para que quede por fuera de CORS: así hasta una
+    # respuesta rechazada por origen sale con su id (§11.7).
+    app.add_middleware(MiddlewareDeIdDePeticion)
 
     _registrar_manejadores_de_error(app)
     app.include_router(api_v1, prefix=BASE_API)
@@ -130,7 +168,62 @@ def crear_app() -> FastAPI:
             "jwks_alcanzable": _jwks_alcanzable(jwks),
         }
 
+    @app.get(
+        "/health/dependencias",
+        tags=["salud"],
+        summary="Estado de Postgres y de la cola de trabajos",
+    )
+    async def health_dependencias() -> dict[str, str]:
+        """Sonda **de readiness**: sí toca la base y sí toca Redis (§11.7).
+
+        Va aparte de `/health` a propósito. `/health` es la sonda de liveness
+        de Render y responde sin tocar nada: si la base se cae, Render no
+        debe reiniciar un proceso que está perfectamente vivo —eso solo
+        agrega un arranque en frío a un incidente que ya existe—. Esta otra
+        es la que se mira cuando algo va mal, y para eso tiene que consultar.
+
+        **Nunca responde 5xx.** Devuelve 200 con el estado de cada
+        dependencia; una sonda que se cae junto con lo que vigila no
+        diagnostica nada. El estado agregado dice `degradado` para que un
+        monitor pueda alertar sobre un solo campo.
+
+        No expone cadenas de conexión: solo `ok` o la clase del fallo (§12.4).
+        """
+        # En paralelo: son independientes, y en serie la sonda tardaría la
+        # suma de los dos timeouts justo cuando todo está caído — que es
+        # cuando alguien la está mirando.
+        postgres, redis = await asyncio.gather(
+            _postgres_responde(), _redis_responde()
+        )
+        return {
+            "estatus": "ok" if postgres == "ok" and redis == "ok" else "degradado",
+            "postgres": postgres,
+            "cola": redis,
+        }
+
     return app
+
+
+async def _postgres_responde() -> str:
+    """`select 1` contra el pool real. Devuelve `ok` o la clase del fallo."""
+    try:
+        async with asyncio.timeout(_TIMEOUT_SONDA):
+            sesion_maker = obtener_sessionmaker()
+            async with sesion_maker() as sesion:
+                await sesion.execute(text("select 1"))
+        return "ok"
+    except Exception as exc:  # noqa: BLE001 — es una sonda, no una ruta crítica
+        # La clase basta para saber si es red, credenciales o esquema; el
+        # mensaje de asyncpg puede traer el DSN con contraseña.
+        return f"error: {type(exc).__name__}"
+
+
+async def _redis_responde() -> str:
+    try:
+        async with asyncio.timeout(_TIMEOUT_SONDA):
+            return "ok" if await ColaDeTrabajos().disponible() else "no responde"
+    except Exception as exc:  # noqa: BLE001 — es una sonda, no una ruta crítica
+        return f"error: {type(exc).__name__}"
 
 
 def _hay_es256() -> str:
@@ -162,11 +255,58 @@ def _jwks_alcanzable(url: str) -> str:
         return f"error: {type(exc).__name__}"
 
 
+_TIPO_POR_ESTADO: dict[int, str] = {
+    400: "peticion-invalida",
+    401: "no-autenticado",
+    403: "acceso-denegado",
+    404: "no-encontrado",
+    405: "metodo-no-permitido",
+    409: "conflicto",
+    413: "archivo-demasiado-grande",
+    415: "medio-no-soportado",
+    422: "peticion-invalida",
+    429: "demasiadas-peticiones",
+    503: "servicio-no-disponible",
+}
+"""Slug de `type` para los errores que **no** nacen de una regla de dominio.
+
+Los del dominio traen su propio nombre (`regla-de-cierre`,
+`estimacion-no-encontrada`…) porque el cliente puede ramificar sobre ellos.
+Estos son de protocolo, así que el slug describe el estado y nada más — pero
+existe, porque el front lee `type` en toda respuesta de error
+(`frontend/src/api/cliente.ts`) y un `undefined` ahí es un caso especial de
+más en el cliente.
+"""
+
+
+def _titulo_por_estado(status: int) -> str:
+    return {
+        400: "Petición inválida",
+        401: "No autenticado",
+        403: "Acceso denegado",
+        404: "Recurso no encontrado",
+        405: "Método no permitido",
+        409: "Conflicto con el estado actual",
+        413: "Archivo demasiado grande",
+        415: "Tipo de contenido no soportado",
+        422: "Petición inválida",
+        429: "Demasiadas peticiones",
+        503: "Servicio no disponible",
+    }.get(status, "Error de la API")
+
+
 def _registrar_manejadores_de_error(app: FastAPI) -> None:
     """Errores de dominio → problem+json, RFC 7807 (§11.2).
 
     Traducir aquí es lo que mantiene el dominio libre de HTTP: las reglas
     lanzan excepciones de negocio y el borde decide el código de estado.
+
+    Los manejadores **genéricos** van al final del archivo: cubren lo que no
+    nace de una regla —un 403 de `exigir_rol`, un 422 de Pydantic, un fallo no
+    previsto— para que el §11.2 se cumpla sin excepciones. El front lee
+    `problem+json` en toda respuesta de error, así que una sola que salga con
+    el formato por defecto de FastAPI es un caso especial que alguien tiene
+    que manejar en el cliente.
     """
 
     def _problema(
@@ -181,6 +321,11 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
                 "status": status,
                 "detail": detalle,
                 "instance": str(request.url.path),
+                # Extensión propia del problem+json (RFC 7807 §3.2 las
+                # permite). Es el mismo id que va en `X-Request-Id` y en cada
+                # línea de log de esta petición: es lo que convierte "me
+                # falló" en algo buscable.
+                "request_id": id_de_peticion(),
                 **extra,
             },
         )
@@ -696,6 +841,146 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             tipo="almacenamiento-no-configurado",
             titulo="Almacenamiento de evidencias no disponible",
             detalle=str(exc),
+        )
+
+    # --- Idempotencia (§11.2, §12.3) ------------------------------------
+
+    @app.exception_handler(PeticionYaProcesada)
+    async def _ya_procesada(
+        request: Request, exc: PeticionYaProcesada
+    ) -> JSONResponse:
+        # 409 y no 200: la operación ocurrió **una** vez y esta petición no
+        # hizo nada. Devolver 200 fingiría que este intento la ejecutó, y el
+        # cliente no podría distinguir "se hizo ahora" de "ya estaba hecha"
+        # —que es justo lo que quiere saber después de un doble clic—.
+        return _problema(
+            request,
+            status=409,
+            tipo="peticion-ya-procesada",
+            titulo="La petición ya se procesó",
+            detalle=str(exc),
+            clave_idempotencia=exc.clave,
+        )
+
+    @app.exception_handler(ClaveReusada)
+    async def _clave_reusada(request: Request, exc: ClaveReusada) -> JSONResponse:
+        # 422: la clave es correcta como cabecera pero incorrecta como uso.
+        # No es un conflicto de estado —no hay nada previo que estorbe—, es
+        # que el cliente mandó mal la petición.
+        return _problema(
+            request,
+            status=422,
+            tipo="clave-de-idempotencia-reusada",
+            titulo="Clave de idempotencia reusada",
+            detalle=str(exc),
+            clave_idempotencia=exc.clave,
+        )
+
+    @app.exception_handler(ClaveDeIdempotenciaInvalida)
+    async def _clave_invalida(
+        request: Request, exc: ClaveDeIdempotenciaInvalida
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=400,
+            tipo="clave-de-idempotencia-invalida",
+            titulo="Clave de idempotencia inválida",
+            detalle=str(exc),
+        )
+
+    # --- Genéricos: lo que no nace de una regla de dominio (§11.2) -------
+
+    @app.exception_handler(ExcepcionHTTP)
+    async def _http(request: Request, exc: ExcepcionHTTP) -> JSONResponse:
+        """`HTTPException` de los routers y de Starlette → problem+json.
+
+        Cubre el 403 de `exigir_rol`, el 401 de `dependencias`, el 409 de
+        `/reportes/{id}/descargar` y los 404/405 que enruta Starlette sola.
+
+        Se atrapa la excepción de **Starlette**, no la de FastAPI: la de
+        FastAPI hereda de ella, así que este manejador cubre las dos, mientras
+        que registrar la de FastAPI dejaría fuera las que levanta el router
+        antes de entrar al endpoint.
+
+        Las cabeceras se conservan. No es un detalle: el 401 lleva
+        `WWW-Authenticate: Bearer` (`_no_autorizado`), y perderlo convertiría
+        una respuesta correcta de autenticación en una a medias.
+        """
+        respuesta = _problema(
+            request,
+            status=exc.status_code,
+            tipo=_TIPO_POR_ESTADO.get(exc.status_code, f"http-{exc.status_code}"),
+            titulo=_titulo_por_estado(exc.status_code),
+            detalle=str(exc.detail),
+        )
+        for nombre, valor in (exc.headers or {}).items():
+            respuesta.headers[nombre] = valor
+        return respuesta
+
+    @app.exception_handler(RequestValidationError)
+    async def _validacion(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        """422 de Pydantic → problem+json con el detalle por campo.
+
+        El formato de FastAPI (`{"detail": [{loc, msg, type}, …]}`) se
+        conserva **traducido** en `errores`: el front necesita saber qué campo
+        falló para marcarlo en el formulario, y perder esa lista para ganar
+        uniformidad sería cambiar un problema por otro.
+
+        `loc` se aplana a un nombre de campo con punto. Se descarta el primer
+        segmento —`body`, `query`, `path`—, que le dice al cliente dónde
+        buscar algo que él mismo mandó.
+        """
+        errores = [
+            {
+                "campo": ".".join(str(parte) for parte in error["loc"][1:])
+                or str(error["loc"][0]),
+                "motivo": error.get("msg", ""),
+                "tipo": error.get("type", ""),
+            }
+            for error in exc.errors()
+        ]
+        return _problema(
+            request,
+            status=422,
+            tipo="peticion-invalida",
+            titulo="Petición inválida",
+            detalle=(
+                f"{len(errores)} campo(s) no cumplen el contrato: "
+                + ", ".join(e["campo"] for e in errores)
+            ),
+            errores=errores,
+        )
+
+    @app.exception_handler(Exception)
+    async def _no_previsto(request: Request, exc: Exception) -> JSONResponse:
+        """Último recurso: cualquier fallo no previsto → 500 problem+json.
+
+        **El detalle no lleva el mensaje de la excepción.** Un `str(exc)` de
+        algo no previsto puede traer un fragmento de SQL, una ruta del
+        servidor o un valor de la fila que se estaba procesando (§12.4). Lo
+        que sí va es la clase y el `request_id` cuando exista, que es lo que
+        permite cruzar el reporte del usuario con la traza del servidor.
+
+        La traza completa se registra con `exception`, no se responde.
+        """
+        _log.exception(
+            "Fallo no previsto en %s %s: %s",
+            request.method,
+            request.url.path,
+            type(exc).__name__,
+        )
+        return _problema(
+            request,
+            status=500,
+            tipo="error-interno",
+            titulo="Error interno",
+            detalle=(
+                "La petición no se pudo completar por un fallo del servidor. "
+                "El detalle quedó en el log; si el problema persiste, repórtalo "
+                f"con la clase del fallo: {type(exc).__name__}."
+            ),
         )
 
 

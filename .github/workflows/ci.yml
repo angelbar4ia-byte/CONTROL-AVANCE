@@ -1,0 +1,154 @@
+# ============================================================
+# ObraCtrl · CI (§12.8)
+#
+# El DoD de cada fase dice "verde en CI" y hasta ahora no había CI, así que
+# era una promesa sin nadie que la verificara.
+#
+# Lo que hace este archivo que una máquina de desarrollo normalmente no hace:
+# **levanta Postgres**. Sin él, `backend/tests/integracion/` se salta entero
+# —su `conftest.py` lo declara así— y los archivos de `database/tests/` no
+# corren nunca. Son ~150 pruebas y 5 archivos de aislamiento RLS que solo se
+# ejercitan aquí.
+#
+# Las migraciones se aplican contra un Postgres pelón, no contra Supabase: la
+# 0014 crea `anon`, `authenticated` y `obractrl_api` justo para que esto sea
+# posible con el mismo modelo de permisos que producción.
+# ============================================================
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  # Un push nuevo cancela la corrida anterior de la misma rama: no sirve
+  # esperar el resultado de un commit que ya quedó atrás.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend · dominio, integración y RLS
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: obractrl
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Superusuario: aplica migraciones y arma el escenario de cada prueba.
+      # Bypassa RLS a propósito (ver `tests/integracion/conftest.py`).
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/obractrl
+      DATABASE_URL_ADMIN: postgresql+asyncpg://postgres:postgres@localhost:5432/obractrl
+      # El rol del backend en producción: NO es owner, así que RLS le aplica.
+      # Es contra este que se ejercitan los repos.
+      DATABASE_URL_TEST: postgresql+asyncpg://obractrl_api:ci@localhost:5432/obractrl
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Instalar dependencias
+        working-directory: backend
+        # `-c constraints.txt` fija lo que define el contrato. Sin eso, CI
+        # resolvía una versión de FastAPI distinta de la probada y el paso
+      - name: El contrato está al día
+        working-directory: backend
+        # El script vive en el repo, así que esto corre igual en local:
+        #   python scripts/verificar_contrato.py
+        run: python scripts/verificar_contrato.py
+
+  frontend:
+    name: Web · tipos y pruebas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: frontend
+        run: npm ci
+
+      - name: Tipos
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Pruebas
+        working-directory: frontend
+        run: npm run test
+
+  e2e:
+    name: Web · humo en navegador
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: frontend
+        run: npm ci
+
+      - name: Instalar Chromium
+        working-directory: frontend
+        # Solo Chromium: el humo no prueba compatibilidad entre navegadores,
+        # prueba que la app arranque. Bajar tres motores costaría minutos por
+        # corrida sin decir nada nuevo.
+        run: npx playwright install --with-deps chromium
+
+      - name: Humo
+        working-directory: frontend
+        # Sin `E2E_API_URL`, los specs de `e2e/workflows/` se saltan solos y
+        # corre únicamente el humo, que no necesita backend.
+        run: npx playwright test
+
+      - name: Guardar el reporte si algo falló
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+  mobile:
+    name: Móvil · tipos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: mobile
+        run: npm ci
+
+      - name: Tipos
+        working-directory: mobile
+        run: npx tsc --noEmit

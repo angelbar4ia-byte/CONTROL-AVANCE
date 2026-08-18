@@ -30,6 +30,7 @@ from obractrl.adapters.api.casos_uso import (
     GenerarObraDesdePrototipoDep,
 )
 from obractrl.adapters.api.dependencias import SesionRLS, exigir_rol
+from obractrl.adapters.api.idempotencia import Idempotencia
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     ComandoGenerarObra,
@@ -236,7 +237,7 @@ async def crear_obra(
     response_model=list[ObraRespuesta],
     status_code=status.HTTP_201_CREATED,
     summary="Alta masiva de obras",
-    dependencies=[CREADOR_DE_OBRA],
+    dependencies=[CREADOR_DE_OBRA, Idempotencia],
     responses={422: {"description": "Alguna obra del lote es inválida (§7.2)."}},
 )
 async def crear_obras_en_lote(
@@ -304,7 +305,7 @@ async def actualizar_obra(
     response_model=ObraGeneradaRespuesta,
     status_code=status.HTTP_201_CREATED,
     summary="Generar actividades y programa desde el prototipo",
-    dependencies=[CREADOR_DE_OBRA],
+    dependencies=[CREADOR_DE_OBRA, Idempotencia],
     responses={
         **_NO_ENCONTRADA,
         409: {

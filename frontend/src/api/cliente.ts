@@ -26,6 +26,28 @@ export class ErrorApi extends Error {
   }
 }
 
+/**
+ * Clave para `Idempotency-Key` (§11.2).
+ *
+ * La API la usa para no ejecutar dos veces una mutación sensible —un cierre,
+ * una estimación, una salida de almacén— y responde 409
+ * `peticion-ya-procesada` si la clave se repite.
+ *
+ * **Se genera una vez por operación, no por petición.** Ese es todo el punto:
+ * si se generara dentro de `peticion`, cada reintento llevaría una clave
+ * distinta y no desduplicaría nada. Quien dispara la mutación la crea al
+ * montar el formulario (o al abrir el diálogo) y la manda en cada intento:
+ *
+ *     const clave = useMemo(claveDeIdempotencia, []);
+ *     ...
+ *     peticion({ ..., headers: { 'Idempotency-Key': clave } })
+ *
+ * Es también lo que protege del doble clic, que es el caso más común.
+ */
+export const claveDeIdempotencia = (): string =>
+  globalThis.crypto?.randomUUID?.() ??
+  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
 export const peticion = async <T>(config: {
   url: string;
   method: string;

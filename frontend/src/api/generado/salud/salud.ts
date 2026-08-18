@@ -26,6 +26,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  HealthDependenciasHealthDependenciasGet200,
   HealthHealthGet200
 } from '.././modelo';
 
@@ -197,6 +198,185 @@ export function useHealthHealthGet<TData = Awaited<ReturnType<typeof healthHealt
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getHealthHealthGetQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * Sonda **de readiness**: sí toca la base y sí toca Redis (§11.7).
+
+Va aparte de `/health` a propósito. `/health` es la sonda de liveness
+de Render y responde sin tocar nada: si la base se cae, Render no
+debe reiniciar un proceso que está perfectamente vivo —eso solo
+agrega un arranque en frío a un incidente que ya existe—. Esta otra
+es la que se mira cuando algo va mal, y para eso tiene que consultar.
+
+**Nunca responde 5xx.** Devuelve 200 con el estado de cada
+dependencia; una sonda que se cae junto con lo que vigila no
+diagnostica nada. El estado agregado dice `degradado` para que un
+monitor pueda alertar sobre un solo campo.
+
+No expone cadenas de conexión: solo `ok` o la clase del fallo (§12.4).
+ * @summary Estado de Postgres y de la cola de trabajos
+ */
+export const healthDependenciasHealthDependenciasGet = (
+    
+ signal?: AbortSignal
+) => {
+      
+      
+      return peticion<HealthDependenciasHealthDependenciasGet200>(
+      {url: `/health/dependencias`, method: 'GET', signal
+    },
+      );
+    }
+  
+
+
+
+export const getHealthDependenciasHealthDependenciasGetInfiniteQueryKey = () => {
+    return [
+    'infinite', `/health/dependencias`
+    ] as const;
+    }
+
+export const getHealthDependenciasHealthDependenciasGetQueryKey = () => {
+    return [
+    `/health/dependencias`
+    ] as const;
+    }
+
+    
+export const getHealthDependenciasHealthDependenciasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>>, TError = unknown>( options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError, TData>>, }
+) => {
+
+const {query: queryOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthDependenciasHealthDependenciasGetInfiniteQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>> = ({ signal }) => healthDependenciasHealthDependenciasGet(signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type HealthDependenciasHealthDependenciasGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>>
+export type HealthDependenciasHealthDependenciasGetInfiniteQueryError = unknown
+
+
+export function useHealthDependenciasHealthDependenciasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>>, TError = unknown>(
+  options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>,
+          TError,
+          Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>
+        > , 'initialData'
+      >, }
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthDependenciasHealthDependenciasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>>, TError = unknown>(
+  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>,
+          TError,
+          Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>
+        > , 'initialData'
+      >, }
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthDependenciasHealthDependenciasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>>, TError = unknown>(
+  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError, TData>>, }
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Estado de Postgres y de la cola de trabajos
+ */
+
+export function useHealthDependenciasHealthDependenciasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>>, TError = unknown>(
+  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError, TData>>, }
+ , queryClient?: QueryClient 
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getHealthDependenciasHealthDependenciasGetInfiniteQueryOptions(options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getHealthDependenciasHealthDependenciasGetQueryOptions = <TData = Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError, TData>>, }
+) => {
+
+const {query: queryOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHealthDependenciasHealthDependenciasGetQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>> = ({ signal }) => healthDependenciasHealthDependenciasGet(signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type HealthDependenciasHealthDependenciasGetQueryResult = NonNullable<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>>
+export type HealthDependenciasHealthDependenciasGetQueryError = unknown
+
+
+export function useHealthDependenciasHealthDependenciasGet<TData = Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>,
+          TError,
+          Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>
+        > , 'initialData'
+      >, }
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthDependenciasHealthDependenciasGet<TData = Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>,
+          TError,
+          Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>
+        > , 'initialData'
+      >, }
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useHealthDependenciasHealthDependenciasGet<TData = Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError, TData>>, }
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Estado de Postgres y de la cola de trabajos
+ */
+
+export function useHealthDependenciasHealthDependenciasGet<TData = Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError, TData>>, }
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getHealthDependenciasHealthDependenciasGetQueryOptions(options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

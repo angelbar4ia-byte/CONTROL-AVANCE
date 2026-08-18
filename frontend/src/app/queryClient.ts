@@ -17,8 +17,13 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
     },
     mutations: {
-      // Las mutaciones sensibles llevan Idempotency-Key (§11.2); reintentar
-      // a ciegas duplicaría cierres y estimaciones.
+      // Reintentar a ciegas duplicaría cierres y estimaciones (§11.3 C, E).
+      //
+      // La API ya acepta `Idempotency-Key` en esas mutaciones y con una clave
+      // el reintento sería seguro, pero **la clave la tiene que fijar quien
+      // llama**: una generada por petición cambiaría en cada intento y no
+      // desduplicaría nada. Ver `claveDeIdempotencia` en `api/cliente.ts`.
+      // Mientras las pantallas no la manden, el reintento sigue apagado.
       retry: 0,
     },
   },
