@@ -66,6 +66,11 @@ export const esquemaLocal = new Schema({
   // Bitácora de captura diaria: es la tabla que más se escribe offline (§7.6)
   registro_avance: new Table({
     org_id: column.text,
+    // Derivada de `actividad.obra_id` por trigger (migración 0021). El
+    // cliente **no** la manda al capturar: el servidor la pisa. Está aquí
+    // porque las data queries de las sync rules no admiten subconsulta y sin
+    // ella esta tabla no se puede acotar a la obra del bucket (§12.5).
+    obra_id: column.text,
     actividad_id: column.text,
     fecha: column.text,
     delta_ejecutado: column.real,

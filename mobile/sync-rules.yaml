@@ -1,6 +1,7 @@
 # ============================================================
 # PowerSync — sync rules
-# Spec §12.5 (offline) · §12.4 (multi-tenant) · §4 (alcance por rol)
+# Spec §12.5 (offline) · §12.4 (multi-tenant) · §4 (alcance por rol) ·
+# §5.2 (qué hace cada rol en móvil)
 #
 # REQUISITO CRÍTICO (§12.4): estas reglas deben reflejar EXACTAMENTE el
 # mismo `org_id` y alcance por rol que las políticas RLS de
@@ -9,6 +10,9 @@
 # puede evitarlo, porque estas consultas corren del lado del servicio de
 # sync, no del cliente.
 #
+# La auditoría tabla por tabla —qué se sincroniza, con qué alcance y por qué
+# lo demás no— vive en `MD/FASE-6.md`, frente 4. Aquí solo las reglas.
+#
 # Espejo de `app.obra_visible()`:
 #   residente        -> obra.residente_id = usuario
 #   supervisor       -> obras de sus clusters (supervisor_cluster)
@@ -16,6 +20,20 @@
 #   super_intendente -> toda la organización
 #
 # El super intendente es solo web (§5.2), así que no tiene bucket aquí.
+#
+# ------------------------------------------------------------
+# DOS REGLAS DE ESTILO QUE NO SON ESTILO
+#
+# 1. **Columnas explícitas, nunca `SELECT *`.** Con `*`, el día que una
+#    migración le agregue una columna a `obra` —un costo, una nota interna—
+#    esa columna sale hacia todos los teléfonos sin que nadie lo decida. La
+#    lista explícita convierte "qué sale del servidor" en algo que se revisa
+#    en un diff. Además debe coincidir con `mobile/src/sync/powersync.ts`:
+#    lo que no está declarado ahí, el cliente lo descarta igual.
+#
+# 2. **Filtro directo sobre una columna del bucket.** Las *data queries* no
+#    admiten `join` ni subconsulta. Por eso `registro_avance` tiene `obra_id`
+#    derivado (migración 0021) en vez de llegar a la obra por su actividad.
 # ============================================================
 
 bucket_definitions:
@@ -30,10 +48,13 @@ bucket_definitions:
     data:
       - SELECT id, org_id, clave, nombre, orden, color
           FROM frente WHERE org_id = bucket.org_id
+      # Solo lo que rotula una captura: clave, descripción y unidad. El CPU,
+      # los precios y el desglose de destajo (§7.3) son web —meter el
+      # catálogo de costos en cada teléfono sería pesado e innecesario—.
       - SELECT id, org_id, clave, descripcion, unidad_id
           FROM concepto WHERE org_id = bucket.org_id AND estatus = 'activo'
 
-  # --- Residente: sus obras (§4) ---------------------------------------
+  # --- Residente: sus obras (§4, §5.2 "captura offline") ---------------
   residente_obras:
     parameters: |
       SELECT u.org_id, o.id AS obra_id
@@ -43,19 +64,34 @@ bucket_definitions:
         AND u.rol = 'residente'
         AND u.estatus = 'activo'
     data: &datos_de_obra
-      - SELECT * FROM obra            WHERE id      = bucket.obra_id
-      - SELECT * FROM actividad       WHERE obra_id = bucket.obra_id
-      - SELECT * FROM registro_avance WHERE actividad_id IN (
-          SELECT id FROM actividad WHERE obra_id = bucket.obra_id)
-      - SELECT * FROM incidencia      WHERE obra_id = bucket.obra_id
-      - SELECT * FROM revision_fisica WHERE obra_id = bucket.obra_id
+      - SELECT id, org_id, cluster_id, clave, estatus, avance_pct,
+               residente_id, fecha_inicio
+          FROM obra WHERE id = bucket.obra_id
+      - SELECT id, org_id, obra_id, concepto_id, frente_id, descripcion,
+               cant_base, cant_programada, cant_ejecutada, avance_pct,
+               estatus, precio_unitario, precio_destajo, modo_pago,
+               es_critica, holgura, bloqueada, fecha_inicio, fecha_termino
+          FROM actividad WHERE obra_id = bucket.obra_id
+      # `obra_id` es la columna derivada de la migración 0021: sin ella esto
+      # necesitaría una subconsulta contra `actividad`, que aquí no se puede.
+      - SELECT id, org_id, obra_id, actividad_id, fecha, delta_ejecutado,
+               usuario_id, evidencias, comentario, sync_status, device_id,
+               capturado_en
+          FROM registro_avance WHERE obra_id = bucket.obra_id
+      - SELECT id, org_id, obra_id, frente_id, tipo, impacto, titulo,
+               descripcion, estatus, creada_por, fecha_creada, fecha_limite
+          FROM incidencia WHERE obra_id = bucket.obra_id
+      - SELECT id, org_id, obra_id, actividad_id, usuario_id, fecha, fotos,
+               comentario, calidad, sync_status
+          FROM revision_fisica WHERE obra_id = bucket.obra_id
 
   # --- Supervisor: obras de sus clusters (§4) --------------------------
   supervisor_obras:
     parameters: |
       SELECT u.org_id, o.id AS obra_id
       FROM usuario u
-      JOIN supervisor_cluster sc ON sc.supervisor_id = u.id
+      JOIN supervisor_cluster sc
+        ON sc.supervisor_id = u.id AND sc.org_id = u.org_id
       JOIN obra o ON o.cluster_id = sc.cluster_id AND o.org_id = u.org_id
       WHERE u.auth_user_id = request.user_id()
         AND u.rol = 'supervisor'
@@ -68,8 +104,10 @@ bucket_definitions:
     parameters: |
       SELECT u.org_id, o.id AS obra_id
       FROM usuario u
-      JOIN control_proyecto cp ON cp.usuario_id = u.id
-      JOIN cluster c ON c.proyecto_id = cp.proyecto_id
+      JOIN control_proyecto cp
+        ON cp.usuario_id = u.id AND cp.org_id = u.org_id
+      JOIN cluster c
+        ON c.proyecto_id = cp.proyecto_id AND c.org_id = u.org_id
       JOIN obra o ON o.cluster_id = c.id AND o.org_id = u.org_id
       WHERE u.auth_user_id = request.user_id()
         AND u.rol = 'control_obra'

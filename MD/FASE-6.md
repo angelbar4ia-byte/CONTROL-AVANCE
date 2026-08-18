@@ -19,7 +19,7 @@ commitea solo. Ninguno bloquea a otro.
 | 1 | `problem+json` uniforme (§11.2) | **hecho** | `problem+json` en todo error |
 | 2 | Observabilidad: Sentry, request id, logs separados (§11.7) | **hecho** | id de petición, Sentry y sonda de dependencias |
 | 3 | `Idempotency-Key` en mutaciones sensibles (§11.2, §12.3) | pendiente | — |
-| 4 | Sync rules de PowerSync auditadas contra RLS (§12.4, §12.5) | pendiente | — |
+| 4 | Sync rules de PowerSync auditadas contra RLS (§12.4, §12.5) | **hecho** | auditoría + `registro_avance.obra_id` |
 | 5 | E2E Playwright de los seis workflows (§11.3) | pendiente | — |
 | 6 | Despliegue: Render · Vercel · Play Store (§12.8, §12.13) | pendiente | — |
 
@@ -144,6 +144,85 @@ fases 2–5 agregaron tablas; hace falta auditarlo tabla por tabla contra
 **Criterio de cierre.** Una auditoría escrita —qué tabla sincroniza, con qué
 alcance y por qué las demás no— y, si hay divergencia, corregida.
 
+### La auditoría
+
+El invariante que se verifica es **asimétrico**: sincronizar *menos* de lo que
+RLS permite es una decisión de producto; sincronizar *más* es una fuga. Así que
+por cada tabla la pregunta es "¿el bucket cabe dentro de lo que la política
+dejaría leer?".
+
+De las **53 tablas con RLS**, el móvil sincroniza **7**. Las demás no se
+excluyen por descuido:
+
+| Grupo | Tablas | Por qué no sincroniza |
+|---|---|---|
+| Catálogos de costo | `unidad`, `familia`, `insumo`, `cpu`, `explosion`, `presupuesto`, `partida_presupuesto`, `grupo_funcional*`, `mapeo`… | El costo es web (§5.2: "toda la configuración es solo web"). Meter el CPU en cada teléfono sería pesado y no lo usa ninguna pantalla de campo. |
+| Programación | `programa_base*`, `programa_obra`, `prototipo*`, `nivel`, `etapa_constructiva`, `calendario`, `ancla_semana` | La ruta crítica se **consulta** en móvil (§5.2 tab *Ruta*) pero se calcula en el servidor: se lee por API, no por réplica. |
+| Flujos que exigen estar en línea | `estimacion*`, `solicitud_cierre`, `cierre_obra*`, `evaluacion*`, `periodo_bloqueado` | Son transiciones con folio, validación por rol y efectos (§11.3 C, E, H). Resolverlas last-write-wins offline produciría dobles folios y dobles cobros. |
+| Cargas y soporte | `carga_datos`, `carga_snapshot`, `pendiente`, `expediente_doc`, `evidencia`, `bitacora`, `notificacion`, `proceso` | `es_config()` en su política: son de Control/SI en web. |
+| Identidad y alcance | `usuario`, `organizacion`, `supervisor_cluster`, `control_proyecto`, `proyecto`, `cluster` | Se leen en las *parameter queries* para resolver el bucket; no hacen falta como datos en el dispositivo. |
+
+Lo que **sí** sincroniza, y contra qué política se comparó:
+
+| Tabla | Alcance del bucket | Política RLS espejada | ¿Cabe? |
+|---|---|---|---|
+| `frente`, `concepto` | `org_id` del usuario | loop `catalogos`: `org_id = current_org_id()` | sí, y más estrecho: solo `concepto.estatus = 'activo'` y 4 columnas |
+| `obra` | `obra.id = bucket.obra_id` | `obra_select` vía `obra_visible()` | sí: el bucket **es** `obra_visible` |
+| `actividad`, `incidencia`, `revision_fisica` | `obra_id = bucket.obra_id` | loop `por_obra`: `org + obra_visible(obra_id)` | sí, idéntico |
+| `registro_avance` | `obra_id = bucket.obra_id` | `registro_avance_scope`: `org + obra_visible(actividad.obra_id)` | sí — ver abajo |
+
+### Lo que estaba mal
+
+**1. `registro_avance` no se podía sincronizar.** Su regla era
+
+    SELECT * FROM registro_avance
+     WHERE actividad_id IN (SELECT id FROM actividad WHERE obra_id = ...)
+
+y las *data queries* de PowerSync filtran contra los parámetros del bucket y
+nada más: no admiten `join` ni subconsulta. `registro_avance` llega a la obra
+por su actividad (§7.6) y no tenía `obra_id`. Y es **la tabla que más se
+escribe offline**: es la bitácora de captura del residente y la fuente de
+`actividad.cant_ejecutada` desde la migración 0017 — o sea, el workflow B
+entero.
+
+Arreglado con la **migración 0021**: `registro_avance.obra_id`, derivada por
+trigger desde `actividad.obra_id`. Tres cosas que la hacen segura:
+
+- **El trigger pisa lo que venga en el insert.** El escritor de esta tabla es
+  un teléfono que escribe directo a Postgres (D5); si el valor se aceptara tal
+  cual, un cliente podría marcar su captura como de otra obra.
+- **La política RLS no cambió.** Sigue autorizando por `actividad_id`, que es
+  el dato que el cliente tiene que acertar para que la fila signifique algo.
+  `obra_id` es copia derivada para sincronizar e indexar, no fuente de
+  autorización.
+- **Sigue a la actividad en los `UPDATE`**, para que una corrección no deje la
+  captura en el bucket equivocado.
+
+`database/tests/test_registro_avance_obra.sql` cubre los tres casos más el
+aislamiento.
+
+**2. `SELECT *` en todas las data queries.** Se cambió por listas explícitas
+que coinciden con `mobile/src/sync/powersync.ts`. El argumento no es de estilo:
+con `*`, el día que una migración le agregue una columna a `obra` —un costo,
+una nota interna— esa columna sale hacia todos los teléfonos sin que nadie lo
+decida. La lista explícita convierte "qué sale del servidor" en algo que se
+revisa en un diff.
+
+**3. Los joins de alcance no filtraban `org_id`.** `supervisor_cluster` y
+`control_proyecto` se unían solo por `usuario_id`. No era explotable —un
+`usuario.id` pertenece a una sola organización y la obra sí filtraba por
+`u.org_id`—, pero la defensa dependía de un invariante implícito en vez de
+estar escrita. Ahora las tres uniones llevan su `org_id`.
+
+### Lo que se deja anotado y no se cambia
+
+§5.2 le da al supervisor un tab de *Cierres* en móvil, y `solicitud_cierre` no
+sincroniza. Es deliberado: autorizar un cierre es una transición con efectos
+(§11.3 C) y resolverla last-write-wins offline dejaría cierres autorizados dos
+veces. El tab funciona en línea contra la API. Si algún día tiene que ver
+cierres sin señal, va como bucket **de solo lectura**, nunca como cola de
+escritura.
+
 ## 5 · E2E Playwright
 
 **Qué pide el spec / roadmap.** Los seis workflows del §11.3 (A generar obra ·
@@ -204,3 +283,15 @@ bitácora.
 el endpoint en otra tarea, así que el `ContextVar` que fija el middleware
 podría no ser el que ve el endpoint. Hay una prueba que compara el id que ve el
 endpoint contra el que sale en la cabecera, justo por esto.
+
+**F6.6 · Sincronizar menos que RLS está bien; sincronizar más, nunca.** El
+invariante del §12.4 es asimétrico y así se auditó: por cada tabla la pregunta
+fue si el bucket cabe dentro de lo que la política dejaría leer, no si coincide
+exactamente. Por eso `concepto` puede sincronizar 4 columnas y solo las activas
+sin que eso sea una divergencia.
+
+**F6.7 · `registro_avance.obra_id` es derivada, no declarada.** La escribe un
+trigger que pisa lo que mande el cliente, y la autorización sigue resolviéndose
+por `actividad_id`. Una columna que existe para sincronizar no puede volverse
+la que decide quién ve qué: si el cliente pudiera fijarla, marcaría sus
+capturas como de cualquier obra.
