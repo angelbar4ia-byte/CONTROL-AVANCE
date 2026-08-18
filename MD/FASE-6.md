@@ -16,7 +16,7 @@ commitea solo. Ninguno bloquea a otro.
 
 | # | Frente | Estado | Commit |
 |---|---|---|---|
-| 1 | `problem+json` uniforme (§11.2) | pendiente | — |
+| 1 | `problem+json` uniforme (§11.2) | **hecho** | `problem+json` en todo error |
 | 2 | Observabilidad: Sentry, request id, logs separados (§11.7) | pendiente | — |
 | 3 | `Idempotency-Key` en mutaciones sensibles (§11.2, §12.3) | pendiente | — |
 | 4 | Sync rules de PowerSync auditadas contra RLS (§12.4, §12.5) | pendiente | — |
@@ -44,6 +44,33 @@ tres casos de arriba le llegan degradados.
 
 **Criterio de cierre.** Ninguna respuesta de error de la API sale sin
 `application/problem+json`. Prueba que recorra los tres casos.
+
+**Entregado.** Tres manejadores genéricos al final de
+`_registrar_manejadores_de_error`: `HTTPException` de Starlette (cubre también
+la de FastAPI, que hereda de ella, y con eso los 404/405 de enrutamiento),
+`RequestValidationError` y un `Exception` de último recurso. 15 pruebas en
+`backend/tests/api/test_problem_json.py`, sin Postgres —estas rutas fallan en
+el borde—.
+
+Tres cosas que valen más que la uniformidad en sí:
+
+- El 422 de Pydantic **conserva qué campo falló** en `errores[]`. Uniformar el
+  formato no puede costar el detalle por campo: el front lo necesita para
+  marcar el input.
+- El 500 **no devuelve `str(exc)`**. El mensaje de un fallo no previsto puede
+  traer SQL, una ruta del servidor o el valor de la fila en proceso (§12.4).
+  Va la clase de la excepción, que es lo que permite cruzar el reporte del
+  usuario con el log; la traza completa se registra, no se responde.
+- El manejador de `HTTPException` **copia las cabeceras**. Sin eso, el 401
+  perdía su `WWW-Authenticate: Bearer`.
+
+**Defecto encontrado de paso.** Una petición **sin** cabecera `Authorization`
+respondía **403 "Not authenticated"** —el default de `HTTPBearer(auto_error=True)`—
+en vez de 401. Dice lo contrario de lo que pasa: 403 es "te identifiqué y no
+puedes", y ahí nadie se identificó. Un front que distingue "manda a login" de
+"muestra no tienes permiso" —el nuestro lo hace— enseñaba la pantalla
+equivocada. Corregido con `auto_error=False` y el 401 explícito en
+`contexto_actual`.
 
 ## 2 · Observabilidad
 
@@ -117,4 +144,15 @@ así que "verde en CI" es hoy una promesa sin CI.
 
 ## Decisiones de la fase
 
-_(se van anotando aquí conforme se toman, con su razón)_
+**F6.1 · El slug de `type` existe siempre, aunque el error no sea de dominio.**
+Los errores de regla traen nombre propio (`regla-de-cierre`,
+`estimacion-no-encontrada`) porque el cliente ramifica sobre ellos. Los de
+protocolo no tienen nada sobre qué ramificar, pero igual llevan slug
+(`no-autenticado`, `conflicto`, `error-interno`): el front lee `type` en toda
+respuesta de error, y un `undefined` ahí es un caso especial de más en el
+cliente. El slug describe el estado y ya.
+
+**F6.2 · Se atrapa la `HTTPException` de Starlette, no la de FastAPI.** La de
+FastAPI hereda de ella, así que atrapar la de Starlette cubre las dos; al
+revés se quedaban fuera los 404 y 405 que enruta Starlette sola, antes de que
+exista un router.

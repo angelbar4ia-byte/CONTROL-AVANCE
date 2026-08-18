@@ -28,7 +28,20 @@ from obractrl.infrastructure.db.sesion import ContextoSesion, sesion_con_rls
 __all__ = ["ContextoActual", "SesionRLS", "exigir_rol"]
 
 _log = logging.getLogger(__name__)
-_bearer = HTTPBearer(auto_error=True)
+_bearer = HTTPBearer(auto_error=False)
+"""`auto_error=False` a propósito.
+
+Con `True`, FastAPI responde una petición **sin** cabecera `Authorization` con
+un **403 "Not authenticated"**, que le dice al cliente lo contrario de lo que
+pasa: 403 significa "te identifiqué y no puedes", y aquí nadie se identificó.
+Un front que distingue "manda a login" de "muestra "no tienes permiso"" —el
+nuestro lo hace— acabaría enseñando la pantalla equivocada, y el 403 tampoco
+lleva `WWW-Authenticate`.
+
+Apagándolo, la falta de credenciales cae en `contexto_actual` y sale por
+`_no_autorizado`, igual que un token expirado o inválido: 401 con
+`WWW-Authenticate: Bearer` (RFC 9110 §11.6.1).
+"""
 
 
 def _no_autorizado(detalle: str) -> HTTPException:
@@ -74,10 +87,16 @@ def _llave_de_verificacion(token: str, cfg: Config) -> str:
 
 
 async def contexto_actual(
-    credenciales: Annotated[HTTPAuthorizationCredentials, Depends(_bearer)],
+    credenciales: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
     cfg: Annotated[Config, Depends(obtener_config)],
 ) -> ContextoSesion:
     """Extrae `org_id`, `usuario_id` y `rol` del JWT (§12.4)."""
+    if credenciales is None:
+        # Sin cabecera `Authorization`. Mismo 401 que un token malo: al
+        # cliente no se le dice si el problema fue no mandarlo o mandarlo mal
+        # —no cambia lo que tiene que hacer, que es autenticarse—.
+        raise _no_autorizado("Falta la cabecera Authorization: Bearer <token>.")
+
     try:
         claims = jwt.decode(
             credenciales.credentials,

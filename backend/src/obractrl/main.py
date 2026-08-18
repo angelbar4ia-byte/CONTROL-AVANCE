@@ -9,12 +9,15 @@ no contiene lógica de negocio (§12.11).
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as ExcepcionHTTP
 
 from obractrl import __version__
 from obractrl.adapters.api.v1 import api_v1
@@ -66,6 +69,8 @@ from obractrl.infrastructure.jobs.cola import ColaNoDisponible, TrabajoNoEncontr
 from obractrl.infrastructure.storage.r2 import AlmacenamientoNoConfigurado
 
 BASE_API = "/api/v1"
+
+_log = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -162,11 +167,58 @@ def _jwks_alcanzable(url: str) -> str:
         return f"error: {type(exc).__name__}"
 
 
+_TIPO_POR_ESTADO: dict[int, str] = {
+    400: "peticion-invalida",
+    401: "no-autenticado",
+    403: "acceso-denegado",
+    404: "no-encontrado",
+    405: "metodo-no-permitido",
+    409: "conflicto",
+    413: "archivo-demasiado-grande",
+    415: "medio-no-soportado",
+    422: "peticion-invalida",
+    429: "demasiadas-peticiones",
+    503: "servicio-no-disponible",
+}
+"""Slug de `type` para los errores que **no** nacen de una regla de dominio.
+
+Los del dominio traen su propio nombre (`regla-de-cierre`,
+`estimacion-no-encontrada`…) porque el cliente puede ramificar sobre ellos.
+Estos son de protocolo, así que el slug describe el estado y nada más — pero
+existe, porque el front lee `type` en toda respuesta de error
+(`frontend/src/api/cliente.ts`) y un `undefined` ahí es un caso especial de
+más en el cliente.
+"""
+
+
+def _titulo_por_estado(status: int) -> str:
+    return {
+        400: "Petición inválida",
+        401: "No autenticado",
+        403: "Acceso denegado",
+        404: "Recurso no encontrado",
+        405: "Método no permitido",
+        409: "Conflicto con el estado actual",
+        413: "Archivo demasiado grande",
+        415: "Tipo de contenido no soportado",
+        422: "Petición inválida",
+        429: "Demasiadas peticiones",
+        503: "Servicio no disponible",
+    }.get(status, "Error de la API")
+
+
 def _registrar_manejadores_de_error(app: FastAPI) -> None:
     """Errores de dominio → problem+json, RFC 7807 (§11.2).
 
     Traducir aquí es lo que mantiene el dominio libre de HTTP: las reglas
     lanzan excepciones de negocio y el borde decide el código de estado.
+
+    Los manejadores **genéricos** van al final del archivo: cubren lo que no
+    nace de una regla —un 403 de `exigir_rol`, un 422 de Pydantic, un fallo no
+    previsto— para que el §11.2 se cumpla sin excepciones. El front lee
+    `problem+json` en toda respuesta de error, así que una sola que salga con
+    el formato por defecto de FastAPI es un caso especial que alguien tiene
+    que manejar en el cliente.
     """
 
     def _problema(
@@ -696,6 +748,101 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             tipo="almacenamiento-no-configurado",
             titulo="Almacenamiento de evidencias no disponible",
             detalle=str(exc),
+        )
+
+    # --- Genéricos: lo que no nace de una regla de dominio (§11.2) -------
+
+    @app.exception_handler(ExcepcionHTTP)
+    async def _http(request: Request, exc: ExcepcionHTTP) -> JSONResponse:
+        """`HTTPException` de los routers y de Starlette → problem+json.
+
+        Cubre el 403 de `exigir_rol`, el 401 de `dependencias`, el 409 de
+        `/reportes/{id}/descargar` y los 404/405 que enruta Starlette sola.
+
+        Se atrapa la excepción de **Starlette**, no la de FastAPI: la de
+        FastAPI hereda de ella, así que este manejador cubre las dos, mientras
+        que registrar la de FastAPI dejaría fuera las que levanta el router
+        antes de entrar al endpoint.
+
+        Las cabeceras se conservan. No es un detalle: el 401 lleva
+        `WWW-Authenticate: Bearer` (`_no_autorizado`), y perderlo convertiría
+        una respuesta correcta de autenticación en una a medias.
+        """
+        respuesta = _problema(
+            request,
+            status=exc.status_code,
+            tipo=_TIPO_POR_ESTADO.get(exc.status_code, f"http-{exc.status_code}"),
+            titulo=_titulo_por_estado(exc.status_code),
+            detalle=str(exc.detail),
+        )
+        for nombre, valor in (exc.headers or {}).items():
+            respuesta.headers[nombre] = valor
+        return respuesta
+
+    @app.exception_handler(RequestValidationError)
+    async def _validacion(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        """422 de Pydantic → problem+json con el detalle por campo.
+
+        El formato de FastAPI (`{"detail": [{loc, msg, type}, …]}`) se
+        conserva **traducido** en `errores`: el front necesita saber qué campo
+        falló para marcarlo en el formulario, y perder esa lista para ganar
+        uniformidad sería cambiar un problema por otro.
+
+        `loc` se aplana a un nombre de campo con punto. Se descarta el primer
+        segmento —`body`, `query`, `path`—, que le dice al cliente dónde
+        buscar algo que él mismo mandó.
+        """
+        errores = [
+            {
+                "campo": ".".join(str(parte) for parte in error["loc"][1:])
+                or str(error["loc"][0]),
+                "motivo": error.get("msg", ""),
+                "tipo": error.get("type", ""),
+            }
+            for error in exc.errors()
+        ]
+        return _problema(
+            request,
+            status=422,
+            tipo="peticion-invalida",
+            titulo="Petición inválida",
+            detalle=(
+                f"{len(errores)} campo(s) no cumplen el contrato: "
+                + ", ".join(e["campo"] for e in errores)
+            ),
+            errores=errores,
+        )
+
+    @app.exception_handler(Exception)
+    async def _no_previsto(request: Request, exc: Exception) -> JSONResponse:
+        """Último recurso: cualquier fallo no previsto → 500 problem+json.
+
+        **El detalle no lleva el mensaje de la excepción.** Un `str(exc)` de
+        algo no previsto puede traer un fragmento de SQL, una ruta del
+        servidor o un valor de la fila que se estaba procesando (§12.4). Lo
+        que sí va es la clase y el `request_id` cuando exista, que es lo que
+        permite cruzar el reporte del usuario con la traza del servidor.
+
+        La traza completa se registra con `exception`, no se responde.
+        """
+        _log.exception(
+            "Fallo no previsto en %s %s: %s",
+            request.method,
+            request.url.path,
+            type(exc).__name__,
+        )
+        return _problema(
+            request,
+            status=500,
+            tipo="error-interno",
+            titulo="Error interno",
+            detalle=(
+                "La petición no se pudo completar por un fallo del servidor. "
+                "El detalle quedó en el log; si el problema persiste, repórtalo "
+                f"con la clase del fallo: {type(exc).__name__}."
+            ),
         )
 
 
