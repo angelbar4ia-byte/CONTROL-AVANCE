@@ -1,0 +1,54 @@
+import { defineConfig, devices } from '@playwright/test';
+
+/**
+ * Playwright — E2E de la web (§12.8, §11.3).
+ *
+ * ## Dos niveles, a propósito
+ *
+ * `e2e/humo/` corre **sin backend**: levanta el Vite dev server y verifica que
+ * la aplicación arranca y pinta la pantalla de login. Suena poco, pero es lo
+ * que atrapa el fallo más común y más caro de un SPA —un import roto, una
+ * variable de entorno que falta, un provider mal montado— que ninguna prueba
+ * de Vitest ve porque Vitest nunca monta la app entera en un navegador real.
+ *
+ * `e2e/workflows/` recorre los seis workflows del §11.3 y necesita
+ * infraestructura: API, Postgres con migraciones y semilla, y un usuario real
+ * en el proveedor de auth. Se saltan solos si falta `E2E_API_URL`, en vez de
+ * fallar en falso — mismo criterio que `backend/tests/integracion/conftest.py`
+ * con Postgres.
+ *
+ * ## Cómo correrlos
+ *
+ *     npm run e2e                    # solo humo, sin infraestructura
+ *     E2E_API_URL=http://localhost:8000 \
+ *     E2E_USUARIO=... E2E_PASSWORD=... npm run e2e     # todo
+ */
+export default defineConfig({
+  testDir: './e2e',
+  // Un E2E que tarda más que esto normalmente está esperando algo que no va a
+  // llegar; mejor fallar y verlo.
+  timeout: 30_000,
+  expect: { timeout: 5_000 },
+  fullyParallel: true,
+  // En CI, un `.only` olvidado dejaría pasar el resto sin correr.
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 1 : 0,
+  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list']],
+
+  use: {
+    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:5173',
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+  },
+
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+
+  webServer: {
+    command: 'npm run dev',
+    url: process.env.E2E_BASE_URL ?? 'http://localhost:5173',
+    // Si ya hay un dev server corriendo se reutiliza; en CI siempre se levanta
+    // uno limpio.
+    reuseExistingServer: !process.env.CI,
+    timeout: 60_000,
+  },
+});

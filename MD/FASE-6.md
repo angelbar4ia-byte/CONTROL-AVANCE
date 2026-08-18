@@ -20,7 +20,7 @@ commitea solo. Ninguno bloquea a otro.
 | 2 | Observabilidad: Sentry, request id, logs separados (§11.7) | **hecho** | id de petición, Sentry y sonda de dependencias |
 | 3 | `Idempotency-Key` en mutaciones sensibles (§11.2, §12.3) | **backend hecho**, falta cablearlo en las pantallas | tabla `idempotencia` + dependencia |
 | 4 | Sync rules de PowerSync auditadas contra RLS (§12.4, §12.5) | **hecho** | auditoría + `registro_avance.obra_id` |
-| 5 | E2E Playwright de los seis workflows (§11.3) | pendiente | — |
+| 5 | E2E Playwright de los seis workflows (§11.3) | **humo hecho**, los seis workflows marcados `fixme` | Playwright + humo en CI |
 | 6 | Despliegue: Render · Vercel · Play Store (§12.8, §12.13) | **hecho** | CI y worker de Render corregido |
 
 ---
@@ -281,6 +281,36 @@ Supabase levantados. En una máquina sin esa infra los specs se escriben pero
 no se pueden correr; hay que dejar dicho cómo se corren en vez de fingir que
 pasan.
 
+**Entregado.** `playwright.config.ts` y dos niveles:
+
+- `e2e/humo/` — **4 pruebas que corren de verdad**, sin backend, contra el dev
+  server de Vite en un Chromium real. Suena poco pero atrapa lo que ninguna
+  prueba de Vitest ve, porque Vitest nunca monta la app entera en un navegador:
+  un import circular, un `@/` mal resuelto, un provider fuera de orden. Incluye
+  una que falla si el arranque deja `console.error`.
+- `e2e/workflows/` — los seis del §11.3, declarados con **`test.fixme`**.
+
+**Por qué `fixme` y no specs escritos.** Escribir seis specs contra una UI que
+no se ha podido ejecutar produce selectores inventados y una suite que parece
+cubrir y no cubre. `test.fixme` los reporta como pendientes y **nunca** como
+verdes; el reporte los lista, así que la deuda es visible en cada corrida en
+vez de estar escondida en un archivo de notas.
+
+Lo que sí quedó listo es lo caro de acertar: `e2e/infraestructura.ts`, con el
+salto por falta de backend —mismo criterio que
+`backend/tests/integracion/conftest.py`, porque un rojo que solo significa "no
+levantaste Postgres" enseña a ignorar los rojos— y un `entrar()` que pasa por
+el formulario real de login en vez de inyectar un token (inyectarlo acoplaría
+la prueba a cómo guarda supabase-js su sesión hoy).
+
+Cada `fixme` lleva escritos sus pasos y los datos que necesita. **Dos de los
+seis no son de web:** la captura offline (B) y parte de la revisión física (D)
+son móvil (§5.2), y su prueba va con Detox/Maestro sobre Expo, no con
+Playwright. Quedan anotados para que el mapa de los seis esté completo.
+
+El humo corre en CI con solo Chromium: no prueba compatibilidad entre
+navegadores, prueba que la app arranque.
+
 ## 6 · Despliegue
 
 **Qué pide el spec.** §12.8 (entornos y CI/CD) y §12.13 (publicación en Play).
@@ -390,3 +420,9 @@ implementar mal sin notarlo: generar la clave dentro del transporte HTTP da
 una cabecera nueva en cada intento y no desduplica nada. Por eso el front
 expone `claveDeIdempotencia()` para que la fije quien dispara la mutación, en
 vez de mandarla sola desde `peticion`.
+
+**F6.11 · Un pendiente visible vale más que un verde falso.** Los seis
+workflows van con `test.fixme` y no como specs escritos a ciegas: Playwright
+los reporta como no implementados en cada corrida, así que la deuda se ve.
+Seis specs con selectores inventados habrían dado la sensación de cobertura
+sin la cobertura, que es peor que no tener nada.
