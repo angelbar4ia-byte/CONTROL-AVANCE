@@ -22,7 +22,7 @@
 | `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · **547 pruebas** | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
 | `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · **221 pruebas** + 4 E2E de humo | Features: cargas, expediente, reportes, revisión física · cablear `Idempotency-Key` · los 6 E2E de workflow |
 | `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules auditadas · config Play | Pantallas de captura y revisión · cola de evidencias a R2 · build de Play Store |
-| CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), web, humo en navegador, tipos de móvil, contrato al día | **Nunca se ha ejecutado**: la primera corrida es la que valida el workflow |
+| CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Confirmar en verde tras los arreglos de la primera corrida |
 
 ---
 
@@ -31,14 +31,18 @@
 Ordenado por lo que desbloquea más con menos. Los tres primeros son la deuda de
 la Fase 5 y la Fase 6; el resto ya es alcance nuevo.
 
-### 1. Ver correr el CI (minutos)
+### 1. Confirmar el CI en verde (minutos)
 
-`.github/workflows/ci.yml` existe y **nunca se ha ejecutado**. Cada comando es
-uno que ya corre en local y el YAML está validado, pero el servicio de Postgres,
-los `working-directory` y el paso que compara el contrato solo se prueban de
-verdad al empujar. Es lo primero porque de aquí en adelante todo lo demás se
-apoya en que CI diga la verdad — y porque son las ~150 pruebas de integración y
-los 5 archivos de RLS que hoy no corren en ninguna parte.
+Ya corrió una vez y encontró dos cosas, las dos por diferencias entre una
+máquina de desarrollo y un entorno limpio: el contrato no era reproducible
+(`fastapi>=0.115` resolvía distinto en CI) y el humo de E2E no arrancaba sin el
+`.env.local` no versionado. Ambas corregidas —`backend/constraints.txt` y
+`--mode test`— y verificadas en local, la segunda reproduciendo las condiciones
+de CI. **Falta ver la corrida en verde.**
+
+Lo que sí funcionó a la primera: Postgres, migraciones, las ~150 pruebas de
+integración y los 5 archivos de aislamiento RLS, que hasta entonces no corrían
+en ninguna parte.
 
 ### 2. Las tres features web de la Fase 5
 
