@@ -11,13 +11,18 @@ router solo conoce el caso de uso (aplicación), no `adapters.repos`.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from obractrl.adapters.api.dependencias import SesionRLS
+from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador, cargador_para
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
+from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
+from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
@@ -35,6 +40,12 @@ from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
 from obractrl.adapters.repos.revisiones_sql import RepositorioRevisionesSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
+from obractrl.application.casos_uso.aplicar_carga import (
+    AplicadorAlmacen,
+    AplicadorCPU,
+    AplicadorDeCarga,
+    AplicadorMateriales,
+)
 from obractrl.application.casos_uso.calcular_cpu import (
     ExplotarConcepto,
     ObtenerCPU,
@@ -43,6 +54,11 @@ from obractrl.application.casos_uso.calcular_cpu import (
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     GenerarObraDesdePrototipo,
+)
+from obractrl.application.casos_uso.gestionar_carga import (
+    ConsultarCarga,
+    EjecutarCarga,
+    RevertirCarga,
 )
 from obractrl.application.casos_uso.gestionar_catalogos import (
     CrearConcepto,
@@ -100,10 +116,14 @@ from obractrl.application.eventos import (
     BusEnProceso,
     IncidenciaDetiene,
 )
+from obractrl.domain.shared.diccionario import TipoCarga
 
 __all__ = [
     "AbrirIncidenciaDep",
     "ActualizarObraDep",
+    "ConsultarCargaDep",
+    "FabricaDeCargasDep",
+    "RevertirCargaDep",
     "AgregarRespuestasDep",
     "AutorizarCierreDep",
     "CapturarAvanceDep",
@@ -546,3 +566,94 @@ ActualizarObraDep = Annotated[ActualizarObra, Depends(obtener_actualizar_obra)]
 GenerarObraDesdePrototipoDep = Annotated[
     GenerarObraDesdePrototipo, Depends(obtener_generar_obra)
 ]
+
+
+# --- Cargas (§11.2 "Cargas", §11.3 G) ------------------------------------
+
+
+def obtener_consultar_carga(sesion: SesionRLS) -> ConsultarCarga:
+    return ConsultarCarga(cargas=RepositorioCargasSQL(sesion))
+
+
+def obtener_revertir_carga(sesion: SesionRLS) -> RevertirCarga:
+    return RevertirCarga(
+        cargas=RepositorioCargasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+ConsultarCargaDep = Annotated[ConsultarCarga, Depends(obtener_consultar_carga)]
+RevertirCargaDep = Annotated[RevertirCarga, Depends(obtener_revertir_carga)]
+
+
+class FabricaDeCargas:
+    """Arma el caso de uso de carga que corresponde al tipo pedido.
+
+    El tipo llega en el **cuerpo** de la petición (`POST /cargas`), no en la
+    ruta, así que no puede resolverse como una dependencia normal de FastAPI:
+    el router pide la fábrica y le pasa el tipo ya validado. Sigue siendo el
+    borde el que ensambla —el caso de uso no conoce `adapters.repos` ni
+    `adapters.excel` (§12.11)—, solo que en dos tiempos.
+    """
+
+    _IVA_TASA = "iva_tasa"
+    _IVA_DEFAULT = Decimal("0.16")
+    """Default canónico del §3.5. En runtime manda Configuración (§8.7): el
+    valor del código es solo el fallback."""
+
+    def __init__(self, sesion: AsyncSession) -> None:
+        self._sesion = sesion
+
+    async def para(self, tipo: TipoCarga) -> EjecutarCarga:
+        return EjecutarCarga(
+            cargas=RepositorioCargasSQL(self._sesion),
+            lector=cargador_para(tipo),
+            aplicador=await self._aplicador(tipo),
+            uow=UnidadDeTrabajoSQL(self._sesion),
+        )
+
+    async def _aplicador(self, tipo: TipoCarga) -> AplicadorDeCarga:
+        sesion = self._sesion
+        cargas = RepositorioCargasSQL(sesion)
+
+        if tipo is TipoCarga.MATERIALES:
+            return AplicadorMateriales(
+                insumos=RepositorioInsumosSQL(sesion),
+                unidades=RepositorioUnidadesSQL(sesion),
+                familias=RepositorioFamiliasSQL(sesion),
+                cargas=cargas,
+            )
+        if tipo is TipoCarga.CATALOGO_CONCEPTOS:
+            return AplicadorCPU(
+                conceptos=RepositorioConceptosSQL(sesion),
+                insumos=RepositorioInsumosSQL(sesion),
+                unidades=RepositorioUnidadesSQL(sesion),
+                familias=RepositorioFamiliasSQL(sesion),
+                cargas=cargas,
+            )
+        if tipo is TipoCarga.ALMACEN:
+            tasa = await RepositorioConfiguracionSQL(sesion).decimal(
+                self._IVA_TASA, self._IVA_DEFAULT
+            )
+            return AplicadorAlmacen(
+                materiales=RepositorioMaterialesSQL(sesion),
+                insumos=RepositorioInsumosSQL(sesion),
+                obras=RepositorioObrasSQL(sesion),
+                contratistas=RepositorioContratistasSQL(sesion),
+                conceptos=RepositorioConceptosSQL(sesion),
+                familias=RepositorioFamiliasSQL(sesion),
+                cargas=cargas,
+                tasa_iva=tasa,
+            )
+        # `cargador_para` ya rechazó los tipos sin cargador; llegar aquí
+        # significa que se agregó uno y se olvidó su aplicador.
+        raise TipoDeCargaSinCargador(
+            f"El tipo {tipo!r} tiene cargador pero no aplicador (§10.6)."
+        )
+
+
+def obtener_fabrica_de_cargas(sesion: SesionRLS) -> FabricaDeCargas:
+    return FabricaDeCargas(sesion)
+
+
+FabricaDeCargasDep = Annotated[FabricaDeCargas, Depends(obtener_fabrica_de_cargas)]

@@ -440,6 +440,15 @@ class RepositorioMateriales(Protocol):
         """Motivo de almacén con su `signo` y `bucket` (§10.5)."""
         ...
 
+    async def listar_motivos(self, *, solo_activos: bool = True) -> list[dict]:
+        """Catálogo vivo de motivos (§8.7, semilla editable).
+
+        El cargador de almacén cruza por la columna `Motivo` del archivo
+        (§10.6) y un motivo no catalogado va a la bandeja (§10.3, §10.5), así
+        que necesita la lista completa, no un motivo a la vez.
+        """
+        ...
+
     async def crear_salida(self, datos: dict) -> UUID:
         """Inserta el movimiento ya validado por el caso de uso (§10.5)."""
         ...
@@ -598,6 +607,15 @@ class RepositorioInsumos(Protocol):
 
     async def obtener(self, insumo_id: UUID) -> dict | None: ...
 
+    async def actualizar(self, insumo_id: UUID, cambios: dict) -> None:
+        """Edición parcial; solo las claves presentes se escriben.
+
+        La `clave` no es editable: es la identidad del registro (§3.3). La
+        usan el cargador de materiales (modo Actualizar, §10.2) y el de
+        almacén para bajar la valuación del §10.5.
+        """
+        ...
+
     async def listar(
         self,
         *,
@@ -648,6 +666,30 @@ class RepositorioConceptos(Protocol):
         ciclo: detectarlo es del dominio (`CicloEnExplosion`, §7.3), no del
         SQL — la base solo impide el ciclo directo.
         """
+        ...
+
+    async def actualizar(self, concepto_id: UUID, cambios: dict) -> None:
+        """Edición parcial; la `clave` no es editable (§3.3). La usa el
+        cargador de CPU en modo Actualizar (§10.2)."""
+        ...
+
+    async def explosion_directa(self, concepto_id: UUID) -> list[dict]:
+        """Filas de `Explosion` propias del concepto, sin recursión (§7.3).
+
+        Es lo que el cargador de CPU necesita para guardar el ``antes`` de la
+        composición que va a sustituir (§10.8).
+        """
+        ...
+
+    async def eliminar_explosion(self, concepto_id: UUID) -> None:
+        """Borra la composición vigente del concepto (§10.6, §10.8)."""
+        ...
+
+    async def agregar_explosion(
+        self, concepto_id: UUID, *, cpu_id: UUID | None, filas: list[dict]
+    ) -> list[dict]:
+        """Inserta la composición nueva y devuelve las filas persistidas,
+        completas, para el snapshot del lote (§10.8)."""
         ...
 
     async def versiones_cpu(self, concepto_id: UUID) -> list[dict]:
