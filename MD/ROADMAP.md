@@ -13,6 +13,7 @@
 | D4 | **RLS = frontera real** | Toda tabla nueva entra con política RLS + prueba de aislamiento en el mismo PR. Las sync rules de PowerSync espejean RLS. |
 | D5 | **La conciliación offline va directo a Postgres** | Gana el spec §11.3 workflow B: el móvil escribe vía PowerSync → Postgres, con RLS como única frontera; **no** pasa por `PATCH /actividades/{id}/avance`, que queda como ruta exclusivamente web. Resuelve la contradicción que tenía el docstring de `adapters/api/v1/avance.py`. |
 | D6 | **`registro_avance` es la única fuente de `cant_ejecutada`** | Corolario obligado de D5: si el móvil escribe deltas y la web escribía un absoluto, la primera captura offline pisaba el total. Ahora `cant_ejecutada` se **deriva** de Σ deltas en el trigger `app.registro_avance_agregar` (migración 0017), igual que `avance_pct` se deriva de ella desde 0007. Consecuencias aplicadas: `actualizar_avance` dejó de escribir `cant_ejecutada`/`avance_pct`; el caso de uso web solo aporta su delta; las semillas emiten un `registro_avance` de línea base. Exceder `cant_programada` **rechaza** la captura en vez de recortarla — recortar rompería la identidad `Σ deltas = total` que el expediente técnico necesita auditar. |
+| D7 | **Las Fases 7+ se ordenan por un piloto en obra real** | El orden lo decide qué **bloquea el uso**, no qué falta del spec. Consecuencias: la administración de usuarios sube al primer lugar —hoy no se puede dar de alta a nadie y el Login ya lo promete—; presupuesto, procesos y tiempo real bajan; y el móvil se va al final, lo que hace que el piloto sea **web-only**. Eso último solo se sostiene si el residente captura con señal: `PATCH /actividades/{id}/avance` y la feature `avance` de la web ya lo permiten. **Si el residente resulta no tener señal en campo, el móvil deja de ser opcional y salta al frente de la fila** — es el supuesto que hay que confirmar antes de empezar el piloto, no durante. |
 
 ## Estado actual (Fase 6 en curso)
 
@@ -26,70 +27,24 @@
 
 ---
 
-## Pendiente para la siguiente sesión
+## Lo inmediato
 
-Ordenado por lo que desbloquea más con menos. Los tres primeros son la deuda de
-la Fase 5 y la Fase 6; el resto ya es alcance nuevo.
-
-### 1. Confirmar el CI en verde (minutos)
-
-Ya corrió una vez y encontró dos cosas, las dos por diferencias entre una
-máquina de desarrollo y un entorno limpio: el contrato no era reproducible
-(`fastapi>=0.115` resolvía distinto en CI) y el humo de E2E no arrancaba sin el
-`.env.local` no versionado. Ambas corregidas —`backend/constraints.txt` y
-`--mode test`— y verificadas en local, la segunda reproduciendo las condiciones
-de CI. **Falta ver la corrida en verde.**
+**Confirmar el CI en verde.** Ya corrió una vez y encontró dos cosas, las dos
+por diferencias entre una máquina de desarrollo y un entorno limpio: el
+contrato no era reproducible (`fastapi>=0.115` resolvía distinto en CI) y el
+humo de E2E no arrancaba sin el `.env.local` no versionado. Ambas corregidas
+—`backend/constraints.txt` y `--mode test`— y verificadas en local, la segunda
+reproduciendo las condiciones de CI. Falta ver la corrida en verde.
 
 Lo que sí funcionó a la primera: Postgres, migraciones, las ~150 pruebas de
 integración y los 5 archivos de aislamiento RLS, que hasta entonces no corrían
 en ninguna parte.
 
-### 2. Las tres features web de la Fase 5
-
-Consumen endpoints que **ya existen** y están en el contrato, con los hooks de
-Orval generados. Es trabajo de UI, no de integración:
-
-- **Cargas** — bandeja de pendientes del §10.3: subir archivo, ver el reporte de
-  errores por fila (número, columna, valor, motivo), revertir el lote,
-  descargar plantilla.
-- **Expediente** — por obra: documentos, vista agregada y el PDF (§11.2).
-- **Reportes** — encolar, consultar estado y descargar (§11.2 `GET /reportes/{id}`).
-
-Con esto la Fase 5 cierra según D1, que pide el vertical hasta la UI.
-
-### 3. Cablear `Idempotency-Key` en las pantallas
-
-El backend está listo y protege 10 mutaciones. Falta que **cada pantalla fije
-su clave**, una por operación: `claveDeIdempotencia()` al montar el formulario
-y la misma en cada intento. Cuidado con el error fácil —generarla dentro de
-`peticion` daría una cabecera nueva en cada intento y no desduplicaría nada—.
-Hecho eso, se puede volver a encender `retry` en las mutaciones de
-`queryClient.ts`, que hoy está en 0 justamente por esto.
-
-### 4. Los seis E2E de workflow
-
-Hoy marcados `test.fixme` en `frontend/e2e/workflows/`, con el arnés y el
-`entrar()` ya resueltos. Necesitan un entorno con API + Postgres migrado y
-sembrado + un usuario real del proveedor de auth (`E2E_API_URL`, `E2E_USUARIO`,
-`E2E_PASSWORD`). Dos de los seis son móvil (§5.2) y van con Detox/Maestro, no
-con Playwright.
-
-### 5. Móvil
-
-Pantallas reales de captura y revisión, y la cola de evidencias a R2. Es lo
-único que queda sin empezar de una capa entera; el `lib/` y el `sync/` ya están.
-
-### 6. Publicar las sync rules
-
-La auditoría quedó escrita y el archivo corregido (`mobile/sync-rules.yaml`),
-pero desplegarlo en el PowerSync de producción y verificar que el bucket del
-residente sincroniza lo que debe es un paso que necesita el servicio arriba.
-
-> **Dónde está el detalle.** El desglose de la Fase 6 —qué se entregó en cada
-> frente, con su razón— vive en [`FASE-6.md`](FASE-6.md), incluidas las
-> decisiones F6.1 a F6.11.
+Después de eso, **Fase 7**. El detalle de la Fase 6 —qué se entregó en cada
+frente y por qué— está en [`FASE-6.md`](FASE-6.md), decisiones F6.1 a F6.13.
 
 ---
+
 
 ## Fase 1 — Proyectos · Clusters · Obras  ·  Móvil: login + captura offline
 
@@ -166,6 +121,191 @@ Los casos de uso existen; falta cerrar el vertical.
 > los seis workflows en `fixme`. El desglose con sus razones está en
 > [`FASE-6.md`](FASE-6.md); lo que sigue, en
 > [Pendiente para la siguiente sesión](#pendiente-para-la-siguiente-sesión).
+
+---
+
+## Reglas que aplican a toda fase de aquí en adelante
+
+Absorben la deuda que dejó la Fase 6 sin convertirla en una fase aparte,
+porque no es trabajo suelto: es algo que cada pantalla nueva trae consigo.
+
+1. **Cada pantalla que dispare una mutación sensible fija su
+   `Idempotency-Key`.** El backend ya protege 10 mutaciones; la clave la crea
+   quien llama, **una por operación** (`claveDeIdempotencia()` al montar el
+   formulario, la misma en cada intento). Generarla dentro de `peticion` no
+   desduplica nada. Cuando todas las pantallas la manden, se vuelve a encender
+   `retry` en `queryClient.ts`.
+2. **Cada workflow que llegue a la UI se lleva su spec de E2E.** Los seis del
+   §11.3 están hoy en `frontend/e2e/workflows/` como `test.fixme`, con el arnés
+   resuelto. El de C (cierres) ya se puede escribir: su UI existe.
+3. **Toda tabla nueva entra con RLS + prueba de aislamiento** (D4), y todo
+   cambio de contrato se commitea con `openapi.json` y el cliente de Orval
+   regenerados — CI lo verifica.
+
+---
+
+## Fase 7 — Onboarding: usuarios, alcance y organización
+
+**Por qué va primero.** Hoy no se puede dar de alta a nadie. La pantalla de
+Login le promete al usuario que "el alta de usuarios la realiza Control de
+obra" (§5.1) y esa pantalla no existe: los usuarios del piloto habría que
+insertarlos a mano en SQL, junto con sus puentes de alcance
+(`supervisor_cluster`, `control_proyecto`). Sin esto no hay piloto que empiece.
+
+**Lo que ya está.** La base está lista y es más de lo que parece: `usuario`
+tiene su política de escritura para Control de obra (`es_config()`), los
+puentes de alcance existen con RLS, y el auth hook (migración 0015) ya copia
+`org_id`, `rol` y `usuario_id` al nivel raíz del JWT.
+
+**La decisión que hay que tomar antes de codear.** Crear una fila en `usuario`
+**no** crea una cuenta en el proveedor de auth: la persona no puede entrar
+hasta que exista un `auth.users` ligado por `usuario.auth_user_id`. Tres
+caminos, y no son equivalentes:
+
+| Camino | A favor | En contra |
+|---|---|---|
+| **Invitación por correo** (Supabase Admin API) | El usuario fija su propia contraseña; es lo que corresponde al §12.4 | Mete la *service key* en el backend —nunca en el cliente (§10.7)— y una plantilla de correo más (Resend ya está) |
+| **Alta con contraseña temporal** | El más simple de construir | Peor higiene: alguien más conoce la contraseña inicial |
+| **Vinculación al primer acceso** | Cero superficie nueva | Deja una ventana con una cuenta sin org ni rol, que es justo lo que el §12.4 no quiere |
+
+La invitación es la recomendada; conviene decidirlo en la primera media hora
+de la fase y no a medio camino.
+
+| Agente | Entregable | DoD |
+|---|---|---|
+| **01 Arquitecto** | Contrato de `/usuarios` y `/orgs` (§11.2) y el puerto de invitación —el proveedor de auth entra como puerto, no como llamada suelta desde un caso de uso—. | Camino de alta decidido y escrito antes de codear. |
+| **03 Datos** | Repos `usuarios_sql` (extender: hoy solo tiene `correos_de`), `asignaciones_sql` para los puentes de alcance. | Prueba de aislamiento por rol; un Control de obra no asigna fuera de sus proyectos. |
+| **02 Backend** | `GET/POST /usuarios`, `PATCH /usuarios/{id}`, `GET/POST /orgs`, y las rutas de asignación de alcance. Adaptador del proveedor de auth en `infrastructure/`. | Rol y alcance validados en el dominio, no solo en el router. |
+| **04 Web** | Pantalla **Usuarios** (C) y **Asignaciones** (§5.1 "Equipo"): alta, edición, asignar clusters a un supervisor y proyectos a un control. | Sin lógica de negocio en componentes. |
+| **07 QA** | Pruebas de dominio e integración; E2E del alta completa. | Verde en CI. |
+
+**Criterio de cierre:** un Control de obra da de alta a un residente, le asigna
+sus obras, el residente entra con su propia contraseña y captura avance — sin
+que nadie toque SQL.
+
+---
+
+## Fase 8 — Cerrar la Fase 5 en web
+
+**Por qué aquí.** Es deuda de D1: el vertical de cargas, expediente y reportes
+llegó hasta la API y se detuvo. Los endpoints existen, están en el contrato y
+los hooks de Orval ya están generados, así que es trabajo de UI y no de
+integración. Para un piloto con datos reales, la bandeja de cargas es además lo
+que permite subir los catálogos del cliente sin que un operador corra scripts.
+
+- **Cargas** — bandeja de pendientes del §10.3: subir archivo, ver el reporte
+  de errores **por fila** (número, columna, valor, motivo), revertir el lote
+  como unidad, descargar plantilla.
+- **Expediente** — por obra: documentos, la vista agregada y el PDF.
+- **Reportes** — encolar, consultar estado y descargar el archivo.
+
+Al cerrar cada pantalla se le cablea su `Idempotency-Key` y se le escribe su
+E2E (reglas 1 y 2 de arriba), incluido el rezago de las pantallas que ya
+existían.
+
+**Criterio de cierre:** la Fase 5 queda cerrada según D1 —el vertical llega a
+la UI— y un Control de obra carga su catálogo real desde Excel.
+
+---
+
+## Fase 9 — Torre de control
+
+**Por qué aquí.** Es la pantalla donde **aterrizan tres de los cuatro roles**
+(§5.1: Supervisor, Control de obra y Super intendente la tienen como primera
+entrada). Hoy caen en Cierres como sustituto, con un comentario en `App.tsx`
+que lo dice. Es la pantalla compartida por excelencia del §5.3: una sola
+implementación que cambia por rol y alcance.
+
+- Backend: `GET /obras/{id}/actividades` y `GET /actividades/{id}`, que hoy no
+  existen y la Torre necesita.
+- Web: Torre de control con el estado por obra —avance, ruta crítica,
+  incidencias abiertas, cierres pendientes, semana activa— filtrada por el
+  alcance del rol.
+- Sin tiempo real todavía: primero con recarga de TanStack Query. El `WS /ws`
+  del §11.2 entra en la Fase 14, cuando haya algo que valga la pena empujar.
+
+**Criterio de cierre:** un supervisor abre la app y ve, en una pantalla, dónde
+está cada obra suya y qué le toca hacer hoy.
+
+---
+
+## Fase 10 — Los huecos de una obra real
+
+**Por qué aquí.** Son las cosas que aparecen en cuanto una obra de verdad se
+mueve, y que hoy no tienen a dónde ir.
+
+- `POST /actividades` — **alta extra-catálogo con OC** (§11.2, rol R). En una
+  obra real siempre hay trabajo que no estaba en el prototipo; hoy no hay forma
+  de registrarlo. Web: pantalla *Extra-catálogo* del §5.1.
+- **Revisión física en web** (C): el endpoint existe desde la Fase 4 y ninguna
+  pantalla lo usa. Mientras el móvil no esté, es la única manera de registrar
+  fotos, comentario y calidad.
+- Revisar si `POST /actividades/{id}/registros` (§11.2) sigue teniendo sentido
+  o si D5 lo dejó sin objeto: el móvil escribe `registro_avance` directo por
+  PowerSync y la web aporta su delta por `PATCH .../avance`. **Puede que la
+  conclusión sea borrarlo del contrato**, y eso también es una entrega.
+
+---
+
+## Fase 11 — Cierre de obra · Workflow D
+
+**Por qué aquí.** Es el **único de los seis workflows del §11.3 sin nada de
+backend**, y es la culminación natural del piloto: se cierra la obra con la que
+se empezó. El expediente técnico de la Fase 5 se construyó justamente para
+sostenerlo (§11.3 D).
+
+- Las tablas `cierre_obra` y `cierre_obra_participacion` **ya existen con RLS**
+  desde la migración 0009; falta todo lo demás.
+- `POST /obras/{id}/cierre-obra` (SI) y `POST /cierres-obra/{id}/participar`
+  (todos los roles).
+- Dominio: qué exige un cierre de obra —avance, cierres validados, expediente,
+  evaluación— antes de dejar cerrar.
+- Web: *Cierres de obra* (SI).
+
+---
+
+## Fase 12 — Presupuesto y rendimientos
+
+Tablas con RLS (`presupuesto`, `partida_presupuesto`) y **ni un repositorio ni
+un endpoint**. Es un área entera del §5.1 que aparece en el sidebar de Control
+de obra y de Super intendente.
+
+- Repos y endpoints de presupuesto por obra y por partida.
+- Rendimientos: lo ejecutado contra lo presupuestado, por concepto y por
+  cuadrilla.
+- Web: *Presupuesto de obras* y *Rendimientos*, pantallas compartidas (§5.3).
+
+---
+
+## Fase 13 — Móvil
+
+Una app entera sin pantallas: `lib/` (auth, sesión, jwt, dispositivo, reglas de
+avance) y `sync/` (PowerSync + SQLite) están listos, y las sync rules quedaron
+auditadas en la Fase 6.
+
+- Captura offline del residente (§11.3 B) y revisión física de Control de obra.
+- Cola de evidencias a R2 con presigned URL: las fotos no viajan por la API.
+- Expo Push (§12.2), lo único de notificaciones que falta —Resend ya está—.
+- E2E con Detox o Maestro; **no** con Playwright.
+- Build y publicación (§12.13): `eas.json` ya tiene los tres perfiles.
+
+> Si el piloto revela que el residente no tiene señal en campo, esta fase deja
+> de ser la última (D7).
+
+---
+
+## Fase 14 — Lo que queda del spec
+
+Lo que no bloquea el piloto pero cierra la superficie del §11.2:
+
+- **Tiempo real** `WS /ws` (o SSE): Torre, bandejas y notificaciones en vivo.
+- **Procesos** (§7.9, mejora continua): `GET/POST /procesos` — (SI).
+- **Bitácora de eventos** (SI): la tabla existe con RLS y nadie la escribe.
+- **`POST /reportes/{tipo}`** genérico: hoy los dos reportes se encolan desde
+  su propia ruta; el spec pide además una genérica por alcance.
+- Revisar la deuda de tipos: mypy tiene ~258 hallazgos, casi todos del patrón
+  `list[dict]` sin parametrizar. Decidir si se adopta o se corrige, pero
+  decidirlo.
 
 ---
 
