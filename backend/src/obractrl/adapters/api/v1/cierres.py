@@ -23,6 +23,7 @@ from obractrl.adapters.api.casos_uso import (
     ValidarCierreDep,
 )
 from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS, exigir_rol
+from obractrl.adapters.api.idempotencia import Idempotencia
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.application.casos_uso.gestionar_cierre import (
     ComandoAutorizarCierre,
@@ -110,7 +111,7 @@ class CierreRespuesta(BaseModel):
     response_model=CierreRespuesta,
     status_code=status.HTTP_201_CREATED,
     summary="Solicitar el cierre de una actividad",
-    dependencies=[Depends(exigir_rol(Rol.RESIDENTE))],
+    dependencies=[Depends(exigir_rol(Rol.RESIDENTE)), Idempotencia],
     responses={
         404: {"description": "La actividad no existe o está fuera de tu alcance."},
         422: {"description": "Falta checklist o evidencias (§6)."},
@@ -140,7 +141,7 @@ async def solicitar_cierre(
     "/cierres/{cierre_id}/autorizar",
     response_model=CierreRespuesta,
     summary="Autorizar un cierre (cierra la actividad)",
-    dependencies=[Depends(exigir_rol(Rol.SUPERVISOR))],
+    dependencies=[Depends(exigir_rol(Rol.SUPERVISOR)), Idempotencia],
     responses={
         404: {"description": "La solicitud no existe o está fuera de tu alcance."},
         409: {"description": "Transición de cierre no permitida."},
@@ -160,7 +161,7 @@ async def autorizar_cierre(
     "/cierres/{cierre_id}/validar",
     response_model=CierreRespuesta,
     summary="Validar un cierre (habilita para estimación)",
-    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA)), Idempotencia],
     responses={
         404: {"description": "La solicitud no existe o está fuera de tu alcance."},
         409: {"description": "Transición de cierre no permitida."},
@@ -188,7 +189,7 @@ async def validar_cierre(
     "/cierres/{cierre_id}/rechazar",
     response_model=CierreRespuesta,
     summary="Rechazar una solicitud de cierre",
-    dependencies=[Depends(exigir_rol(Rol.SUPERVISOR, Rol.CONTROL_OBRA))],
+    dependencies=[Depends(exigir_rol(Rol.SUPERVISOR, Rol.CONTROL_OBRA)), Idempotencia],
     responses={
         404: {"description": "La solicitud no existe o está fuera de tu alcance."},
         409: {"description": "Transición de cierre no permitida."},

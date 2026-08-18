@@ -18,7 +18,7 @@ commitea solo. Ninguno bloquea a otro.
 |---|---|---|---|
 | 1 | `problem+json` uniforme (§11.2) | **hecho** | `problem+json` en todo error |
 | 2 | Observabilidad: Sentry, request id, logs separados (§11.7) | **hecho** | id de petición, Sentry y sonda de dependencias |
-| 3 | `Idempotency-Key` en mutaciones sensibles (§11.2, §12.3) | pendiente | — |
+| 3 | `Idempotency-Key` en mutaciones sensibles (§11.2, §12.3) | **backend hecho**, falta cablearlo en las pantallas | tabla `idempotencia` + dependencia |
 | 4 | Sync rules de PowerSync auditadas contra RLS (§12.4, §12.5) | **hecho** | auditoría + `registro_avance.obra_id` |
 | 5 | E2E Playwright de los seis workflows (§11.3) | pendiente | — |
 | 6 | Despliegue: Render · Vercel · Play Store (§12.8, §12.13) | **hecho** | CI y worker de Render corregido |
@@ -124,11 +124,56 @@ segundo se atiende en el frente 6 junto con el worker de jobs.
 mutaciones por esto (`queryClient.ts` lo dice en un comentario), o sea que hoy
 se paga el costo sin tener el beneficio.
 
-**Qué falta decidir al empezar.** Dónde vive la clave: tabla en Postgres
-(sobrevive al reinicio, entra en la transacción, cuesta una migración) o Redis
-(ya está para los jobs, se pierde al reiniciar). Y **cuáles** son las
-mutaciones sensibles: como mínimo las que mueven dinero o estado irreversible
-—solicitar/validar cierre, generar/validar estimación, salida de almacén—.
+**Decidido: tabla en Postgres, no Redis.** La clave y la mutación tienen que
+quedar en la **misma transacción**. Con Redis no pueden: entre el `COMMIT` en
+Postgres y el `SET` en Redis hay una ventana, y un proceso que muere ahí deja
+la mutación aplicada y la clave sin registrar — que es exactamente el caso que
+la idempotencia existe para cubrir. Redis además no es durable aquí: un
+reinicio borraría las claves y el reintento posterior duplicaría.
+
+**Entregado (backend).** Migración 0022 (`idempotencia`) y
+`adapters/api/idempotencia.py`. La dependencia corre antes del endpoint sobre
+**la misma sesión** que usará el caso de uso, así que su `insert` viaja en la
+transacción que `UnidadDeTrabajoSQL.commit()` cierra: o quedan la clave y el
+cierre, o no queda ninguno. Hay prueba de las dos direcciones —commit y
+rollback— en `tests/integracion/test_idempotencia_endtoend.py`.
+
+Las **10 mutaciones sensibles** protegidas son las que mueven dinero o dejan
+estado irreversible: los cuatro pasos del workflow C (solicitar, autorizar,
+validar, rechazar cierre), los tres del E (generar, enviar, validar
+estimación), la salida de almacén y las dos altas masivas (`/obras/bulk`,
+`/obras/{id}/generar`). Hay una prueba que fija esa lista exacta contra el
+contrato, para que agregar una mutación sensible sin protegerla se note.
+
+Respuestas: misma clave y misma huella → **409** (`peticion-ya-procesada`);
+misma clave con otra petición → **422**, porque es un error del cliente y no un
+reintento. El choque de `uq_idempotencia` se traduce también a 409: dos
+peticiones idénticas **en paralelo** —el doble clic— no las cubre el `select`
+previo, y ahí la unicidad de la base es la que decide.
+
+**Lo que este diseño NO hace.** No guarda la respuesta original para
+devolverla en el reintento. Guardarla obligaría a escribirla *después* del
+commit —la respuesta no existe antes—, o sea en una segunda transacción, y un
+fallo justo ahí dejaría una clave sin respuesta: el reintento tendría que
+contestar 409 igual. Se prefiere contestar 409 siempre. El invariante que
+importa, que la operación ocurra exactamente una vez, se cumple entero; el
+cliente que necesite el cuerpo vuelve a consultar el recurso.
+
+### Lo que falta: cablearlo en las pantallas
+
+Orval **no** generó el parámetro de cabecera con la configuración actual, así
+que los hooks generados no lo pasan. Y el punto fino: **la clave la tiene que
+fijar quien llama**, una vez por operación. Una generada dentro de `peticion`
+cambiaría en cada intento y no desduplicaría nada — sería teatro.
+
+Hecho en el front: `claveDeIdempotencia()` en `api/cliente.ts` (el transporte
+ya reenvía `config.headers`, así que la pass-through funciona) y el comentario
+de `queryClient.ts` corregido, porque afirmaba que las mutaciones ya llevaban
+la cabecera y no era cierto.
+
+Falta: que cada pantalla que dispara una de las 10 mutaciones cree su clave al
+montar el formulario y la mande en cada intento. Ahí se puede volver a
+encender `retry` en las mutaciones, que hoy está en 0 justamente por esto.
 
 ## 4 · Sync rules ↔ RLS
 
@@ -335,3 +380,13 @@ endpoint cambiado sin regenerar no rompe ninguna prueba —el front sigue
 compilando contra el contrato viejo— y se descubre en producción. Compararlo en
 CI es lo único que convierte "el front programa contra el contrato" en algo
 verificado y no en una costumbre.
+
+**F6.9 · La clave de idempotencia va en Postgres porque tiene que ser atómica
+con la mutación.** Es la única razón; si no fuera por eso, Redis era más
+barato y ya estaba. Ver el frente 3.
+
+**F6.10 · Una clave por operación, no por petición.** Es la parte que se puede
+implementar mal sin notarlo: generar la clave dentro del transporte HTTP da
+una cabecera nueva en cada intento y no desduplica nada. Por eso el front
+expone `claveDeIdempotencia()` para que la fije quien dispara la mutación, en
+vez de mandarla sola desde `peticion`.

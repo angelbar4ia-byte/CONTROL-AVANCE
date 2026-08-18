@@ -22,6 +22,7 @@ from obractrl.adapters.api.casos_uso import (
     ValidarEstimacionDep,
 )
 from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS, exigir_rol
+from obractrl.adapters.api.idempotencia import Idempotencia
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
 from obractrl.application.casos_uso.gestionar_estimacion import (
     ComandoEnviarEstimacion,
@@ -105,7 +106,7 @@ def _resultado(creada: EstimacionCreada) -> EstimacionRespuesta:
     response_model=EstimacionRespuesta,
     status_code=status.HTTP_201_CREATED,
     summary="Generar la estimación de la semana activa",
-    dependencies=[Depends(exigir_rol(Rol.RESIDENTE, Rol.SUPERVISOR))],
+    dependencies=[Depends(exigir_rol(Rol.RESIDENTE, Rol.SUPERVISOR)), Idempotencia],
     responses={
         409: {
             "description": (
@@ -138,7 +139,7 @@ async def generar_estimacion(
     "/estimaciones/{estimacion_id}",
     response_model=EstimacionRespuesta,
     summary="Enviar una estimación",
-    dependencies=[Depends(exigir_rol(Rol.RESIDENTE, Rol.SUPERVISOR))],
+    dependencies=[Depends(exigir_rol(Rol.RESIDENTE, Rol.SUPERVISOR)), Idempotencia],
     responses={
         404: {"description": "La estimación no existe o está fuera de tu alcance."},
         409: {"description": "Transición de estimación no permitida."},
@@ -160,7 +161,7 @@ async def enviar_estimacion(
     "/estimaciones/{estimacion_id}/validar",
     response_model=EstimacionRespuesta,
     summary="Validar una estimación (bloquea el periodo)",
-    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA)), Idempotencia],
     responses={
         404: {"description": "La estimación no existe o está fuera de tu alcance."},
         409: {"description": "Transición de estimación no permitida."},

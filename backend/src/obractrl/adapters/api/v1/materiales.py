@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 
 from obractrl.adapters.api.casos_uso import RegistrarSalidaAlmacenDep
 from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS, exigir_rol
+from obractrl.adapters.api.idempotencia import Idempotencia
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.application.casos_uso.registrar_salida_almacen import (
     ComandoRegistrarSalida,
@@ -134,7 +135,7 @@ async def consumo_vs_presupuesto(obra_id: UUID, sesion: SesionRLS) -> list[Consu
     response_model=SalidaRespuesta,
     status_code=status.HTTP_201_CREATED,
     summary="Registrar una salida de almacén",
-    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA)), Idempotencia],
     responses={
         404: {"description": "El motivo de almacén no existe o está fuera de tu alcance."},
         409: {"description": "El signo de la cantidad no coincide con el del motivo (§10.5)."},

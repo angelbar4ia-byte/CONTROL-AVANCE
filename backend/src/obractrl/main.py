@@ -22,6 +22,11 @@ from sqlalchemy import text
 from starlette.exceptions import HTTPException as ExcepcionHTTP
 
 from obractrl import __version__
+from obractrl.adapters.api.idempotencia import (
+    ClaveDeIdempotenciaInvalida,
+    ClaveReusada,
+    PeticionYaProcesada,
+)
 from obractrl.adapters.api.middleware import MiddlewareDeIdDePeticion
 from obractrl.adapters.api.v1 import api_v1
 from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador
@@ -835,6 +840,51 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=503,
             tipo="almacenamiento-no-configurado",
             titulo="Almacenamiento de evidencias no disponible",
+            detalle=str(exc),
+        )
+
+    # --- Idempotencia (§11.2, §12.3) ------------------------------------
+
+    @app.exception_handler(PeticionYaProcesada)
+    async def _ya_procesada(
+        request: Request, exc: PeticionYaProcesada
+    ) -> JSONResponse:
+        # 409 y no 200: la operación ocurrió **una** vez y esta petición no
+        # hizo nada. Devolver 200 fingiría que este intento la ejecutó, y el
+        # cliente no podría distinguir "se hizo ahora" de "ya estaba hecha"
+        # —que es justo lo que quiere saber después de un doble clic—.
+        return _problema(
+            request,
+            status=409,
+            tipo="peticion-ya-procesada",
+            titulo="La petición ya se procesó",
+            detalle=str(exc),
+            clave_idempotencia=exc.clave,
+        )
+
+    @app.exception_handler(ClaveReusada)
+    async def _clave_reusada(request: Request, exc: ClaveReusada) -> JSONResponse:
+        # 422: la clave es correcta como cabecera pero incorrecta como uso.
+        # No es un conflicto de estado —no hay nada previo que estorbe—, es
+        # que el cliente mandó mal la petición.
+        return _problema(
+            request,
+            status=422,
+            tipo="clave-de-idempotencia-reusada",
+            titulo="Clave de idempotencia reusada",
+            detalle=str(exc),
+            clave_idempotencia=exc.clave,
+        )
+
+    @app.exception_handler(ClaveDeIdempotenciaInvalida)
+    async def _clave_invalida(
+        request: Request, exc: ClaveDeIdempotenciaInvalida
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=400,
+            tipo="clave-de-idempotencia-invalida",
+            titulo="Clave de idempotencia inválida",
             detalle=str(exc),
         )
 
