@@ -165,7 +165,9 @@ class RepositorioIncidenciasSQL:
         ).scalar_one()
         return fila
 
-    async def listar(self, *, estatus: str | None = None) -> list[dict[str, Any]]:
+    async def listar(
+        self, *, estatus: str | None = None, obra_id: UUID | None = None
+    ) -> list[dict[str, Any]]:
         filas = (
             await self._sesion.execute(
                 text(
@@ -174,12 +176,14 @@ class RepositorioIncidenciasSQL:
                     from incidencia
                     -- El cast del lado `is null` fija el tipo del parámetro;
                     -- sin él asyncpg levanta AmbiguousParameterError.
-                    where cast(:estatus as estatus_incidencia) is null
-                       or estatus = cast(:estatus as estatus_incidencia)
+                    where (cast(:estatus as estatus_incidencia) is null
+                           or estatus = cast(:estatus as estatus_incidencia))
+                      and (cast(:obra_id as uuid) is null
+                           or obra_id = cast(:obra_id as uuid))
                     order by fecha_creada desc
                     """
                 ),
-                {"estatus": estatus},
+                {"estatus": estatus, "obra_id": str(obra_id) if obra_id else None},
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]

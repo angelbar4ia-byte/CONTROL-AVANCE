@@ -79,6 +79,13 @@ ignore = [
   # El dominio se nombra en español (§8, lenguaje ubicuo). La convención de
   # excepciones es `ErrorDeX`, que es el equivalente natural de `XError`.
   "N818",
+  # Los `# noqa: BLE001 | S101 | C901 | ANN001 | PLC0415` del código anotan
+  # reglas que este perfil no selecciona todavía (bandit, pylint,
+  # flake8-annotations, mccabe). Se conservan porque lo que documentan es la
+  # decisión —por qué ese `except Exception` es correcto, por qué ese `assert`
+  # no es una validación—, no la supresión: si mañana se endurece `select`,
+  # ya están puestas. Marcarlas como "unused" borraría justamente eso.
+  "RUF100",
 ]
 
 # La regla de dependencia (§12.11) la verifica import-linter (abajo), que

@@ -20,6 +20,7 @@ from obractrl import __version__
 from obractrl.adapters.api.v1 import api_v1
 from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador
 from obractrl.adapters.excel.lector import ErrorDeArchivo
+from obractrl.adapters.export.pdf import MotorDePdfNoDisponible
 from obractrl.adapters.repos.calendario_sql import CalendarioNoConfigurado
 from obractrl.adapters.repos.cargas_sql import TablaNoRevertible
 from obractrl.application.casos_uso.calcular_cpu import ConceptoNoEncontrado
@@ -44,12 +45,13 @@ from obractrl.application.casos_uso.registrar_salida_almacen import (
     MotivoAlmacenNoEncontrado,
 )
 from obractrl.domain.avance.reglas import ErrorDeCaptura
+from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera
 from obractrl.domain.catalogos.apu import CicloEnExplosion, ErrorDeAPU
 from obractrl.domain.catalogos.reglas import ErrorDeCatalogo
-from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera
 from obractrl.domain.cierres.reglas import ErrorDeCierre
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
 from obractrl.domain.evaluaciones.reglas import ErrorDeEvaluacion
+from obractrl.domain.expediente.reglas import ErrorDeExpediente
 from obractrl.domain.incidencias.reglas import ErrorDeIncidencia
 from obractrl.domain.materiales.reglas import ErrorDeMaterial
 from obractrl.domain.obras.generacion import ErrorDeGeneracion
@@ -60,6 +62,7 @@ from obractrl.domain.proyectos.reglas import ErrorDeProyecto
 from obractrl.domain.revisiones.reglas import ErrorDeRevision
 from obractrl.infrastructure.config import obtener_config
 from obractrl.infrastructure.db.sesion import cerrar_engine
+from obractrl.infrastructure.jobs.cola import ColaNoDisponible, TrabajoNoEncontrado
 from obractrl.infrastructure.storage.r2 import AlmacenamientoNoConfigurado
 
 BASE_API = "/api/v1"
@@ -616,6 +619,66 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=500,
             tipo="snapshot-inconsistente",
             titulo="El lote no se puede deshacer completo",
+            detalle=str(exc),
+        )
+
+    # --- Expediente y reportes (§7.9, §11.2) ----------------------------
+
+    @app.exception_handler(ErrorDeExpediente)
+    async def _expediente(request: Request, exc: ErrorDeExpediente) -> JSONResponse:
+        # 422 como `ErrorDeRevision`: es una invariante del alta (rol que no
+        # sube, nombre o clave vacíos), no una transición de flujo — el §7.9
+        # no le da ciclo de vida al documento.
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-expediente",
+            titulo="Documento de expediente inválido",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(TrabajoNoEncontrado)
+    async def _trabajo_no_encontrado(
+        request: Request, exc: TrabajoNoEncontrado
+    ) -> JSONResponse:
+        # 404: el resultado de un reporte vive un tiempo acotado en Redis
+        # (`keep_result`, `obractrl/trabajador.py`). Pasado eso el reporte deja
+        # de existir y hay que volver a pedirlo.
+        return _problema(
+            request,
+            status=404,
+            tipo="reporte-no-encontrado",
+            titulo="Reporte no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ColaNoDisponible)
+    async def _cola_no_disponible(
+        request: Request, exc: ColaNoDisponible
+    ) -> JSONResponse:
+        # 503 y no 500, mismo criterio que `AlmacenamientoNoConfigurado`: la
+        # petición es válida y volverá a serlo en cuanto Redis responda
+        # (§12.8). El detalle nombra la variable que falta, nunca su valor —el
+        # DSN de Redis puede traer contraseña.
+        return _problema(
+            request,
+            status=503,
+            tipo="cola-no-disponible",
+            titulo="Cola de trabajos no disponible",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(MotorDePdfNoDisponible)
+    async def _motor_pdf_no_disponible(
+        request: Request, exc: MotorDePdfNoDisponible
+    ) -> JSONResponse:
+        # 503 igual: faltan las bibliotecas nativas de WeasyPrint en el
+        # despliegue (§12.8). El resto de la API sigue sirviendo.
+        return _problema(
+            request,
+            status=503,
+            tipo="motor-de-pdf-no-disponible",
+            titulo="Generación de PDF no disponible",
             detalle=str(exc),
         )
 

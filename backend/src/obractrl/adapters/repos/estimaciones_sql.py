@@ -204,6 +204,112 @@ class RepositorioEstimacionesSQL:
         ).mappings().all()
         return [dict(fila) for fila in filas]
 
+    async def conceptos_de(self, estimacion_id: UUID) -> list[dict[str, Any]]:
+        """Renglones de la estimación con lo necesario para rotularlos (§11.2
+        `GET /estimaciones/{id}/export`).
+
+        Acompaña cada `estimacion_concepto` con la descripción de su actividad
+        y con la clave/unidad del concepto de catálogo, igual que
+        `actividades_estimables` acompaña la actividad con su precio: el
+        renglón de una estimación no se lee sin el concepto que estima. Los
+        `left join` son deliberados —una actividad extra-catálogo no tiene
+        `concepto_id` (§11.2 `POST /actividades`) y debe salir igual, marcada
+        como fuera de catálogo.
+        """
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select ec.id, ec.actividad_id, ec.concepto_id,
+                           ec.cantidad_validada, ec.precio_unitario,
+                           ec.importe, ec.fuera_catalogo,
+                           coalesce(a.descripcion, c.descripcion) as descripcion,
+                           c.clave, u.clave as unidad
+                    from estimacion_concepto ec
+                    left join actividad a on a.id = ec.actividad_id
+                    left join concepto  c on c.id = ec.concepto_id
+                    left join unidad    u on u.id = c.unidad_id
+                    where ec.estimacion_id = cast(:id as uuid)
+                    order by c.clave nulls last, ec.created_at
+                    """
+                ),
+                {"id": str(estimacion_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
+    # --- Bloqueo del periodo (§11.3 E.5) ---------------------------------
+
+    async def bloquear_periodo(
+        self,
+        *,
+        obra_id: UUID,
+        tipo_semana: str,
+        semana: int,
+        anio: int,
+        estimacion_id: UUID,
+        usuario_id: UUID,
+    ) -> None:
+        """Cierra la semana de la obra al validar (§11.3 E.5).
+
+        `on conflict do nothing` y no un `select` previo: dos modos de pago
+        distintos (§6) pueden validarse en la misma semana, y el segundo
+        encontraría el periodo ya bloqueado. Eso no es un error —el candado
+        ya está puesto— y dejarlo como choque de `uq_periodo_bloqueado`
+        abortaría la transacción que acaba de validar la estimación.
+        """
+        await self._sesion.execute(
+            text(
+                """
+                insert into periodo_bloqueado
+                    (org_id, obra_id, tipo_semana, anio, semana,
+                     estimacion_id, bloqueado_por)
+                values
+                    (cast(current_setting('app.org_id') as uuid),
+                     cast(:obra_id as uuid),
+                     cast(:tipo_semana as tipo_semana),
+                     :anio, :semana,
+                     cast(:estimacion_id as uuid), cast(:usuario_id as uuid))
+                on conflict on constraint uq_periodo_bloqueado do nothing
+                """
+            ),
+            {
+                "obra_id": str(obra_id),
+                "tipo_semana": tipo_semana,
+                "anio": anio,
+                "semana": semana,
+                "estimacion_id": str(estimacion_id),
+                "usuario_id": str(usuario_id),
+            },
+        )
+
+    async def periodo_bloqueado(
+        self, *, obra_id: UUID, tipo_semana: str, semana: int, anio: int
+    ) -> bool:
+        """¿La semana de esa obra ya está cerrada? (§11.3 E.5)"""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select 1
+                    from periodo_bloqueado
+                    where obra_id = cast(:obra_id as uuid)
+                      and tipo_semana = cast(:tipo_semana as tipo_semana)
+                      and anio = :anio
+                      and semana = :semana
+                    limit 1
+                    """
+                ),
+                {
+                    "obra_id": str(obra_id),
+                    "tipo_semana": tipo_semana,
+                    "anio": anio,
+                    "semana": semana,
+                },
+            )
+        ).first()
+        return fila is not None
+
     async def actividades_estimables(
         self, obra_id: UUID, semana: int, anio: int
     ) -> list[dict[str, Any]]:

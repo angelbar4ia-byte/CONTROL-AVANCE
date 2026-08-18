@@ -3850,6 +3850,383 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/expediente": {
+      "get": {
+        "tags": [
+          "expediente"
+        ],
+        "summary": "Documentos del expediente de una obra",
+        "description": "Lectura para **todos** los roles (§11.2): RLS acota el alcance (§12.4).",
+        "operationId": "listar_expediente_api_v1_obras__obra_id__expediente_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TipoExpedienteDoc"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por tipo de documento (§7.9).",
+              "title": "Tipo"
+            },
+            "description": "Filtra por tipo de documento (§7.9)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentoRespuesta"
+                  },
+                  "title": "Response Listar Expediente Api V1 Obras  Obra Id  Expediente Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "expediente"
+        ],
+        "summary": "Agregar un documento al expediente",
+        "description": "C y SI suben documentos (§11.2).\n\nLa guarda y el dominio comprueban el mismo rol, como en `revisiones.py`:\n`exigir_rol` da un 403 legible antes de tocar nada y\n`DocumentoExpediente.subir` deja la regla escrita una sola vez, donde vive\nel §6. La lista de roles no se duplica —las dos leen `ROLES_QUE_SUBEN` del\ndominio.\n\nLa obra sale de la ruta, no del body: si no es visible, la política de\n`expediente_doc` rechaza el INSERT (§12.4).",
+        "operationId": "agregar_documento_api_v1_obras__obra_id__expediente_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgregarDocumentoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra y Super intendente suben (§11.2)."
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Tipo, nombre o clave inválidos (§7.9)."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/expediente/vista": {
+      "get": {
+        "tags": [
+          "expediente"
+        ],
+        "summary": "Vista agregada del expediente: documentos, evidencias, cierres y estimaciones",
+        "description": "Todo el acervo de la obra en una respuesta (§7.9, §11.2).\n\nEl §11.2 solo nombra el PDF como salida del expediente; esta vista es su\nequivalente en JSON —los **mismos** datos y las **mismas** sumas, del\nmismo agregado de dominio— para que la web no tenga que descargar un PDF\npara pintar la pantalla (§11.3 D, \"C calidad/expediente\").",
+        "operationId": "vista_del_expediente_api_v1_obras__obra_id__expediente_vista_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpedienteRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/expediente/pdf": {
+      "get": {
+        "tags": [
+          "expediente"
+        ],
+        "summary": "Generar el PDF del expediente (job)",
+        "description": "El §11.2 lo marca como **job**: encola y devuelve el identificador.\n\nNo se genera en la petición a propósito: WeasyPrint es CPU y un expediente\ngrande bloquearía el único worker de la API (§12.8). El estado y la\ndescarga se consultan en `GET /reportes/{id}` (§11.2).\n\nEl alcance del que pide viaja al worker y ahí se vuelve a fijar como\ncontexto RLS: encolar **no** amplía lo que ese usuario puede ver\n(`adapters/export/trabajos.py`).",
+        "operationId": "pdf_del_expediente_api_v1_obras__obra_id__expediente_pdf_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrabajoRespuesta"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "La cola de trabajos no está disponible (§12.8)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/estimaciones/{estimacion_id}/export": {
+      "get": {
+        "tags": [
+          "reportes"
+        ],
+        "summary": "Exportar una estimación a Excel (job)",
+        "description": "Encola el `.xlsx` de la estimación (§11.2, roles C y SI).\n\nLa estimación **no se lee aquí**: si no existe o está fuera del alcance,\nel trabajo falla en el worker con el mismo `EstimacionNoEncontrada` y el\nestado sale `fallido`. Comprobarlo antes solo duplicaría la consulta —y\nel alcance del worker es el mismo, porque el contexto RLS viaja con el\ntrabajo (`adapters/export/trabajos.py`).",
+        "operationId": "exportar_estimacion_api_v1_estimaciones__estimacion_id__export_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "estimacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Estimacion Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrabajoRespuesta"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "La cola de trabajos no está disponible (§12.8)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reportes/{reporte_id}": {
+      "get": {
+        "tags": [
+          "reportes"
+        ],
+        "summary": "Estado de un reporte encolado",
+        "description": "§11.2 `GET /reportes/{id}` (estado). La descarga va aparte; ver el\nencabezado del módulo.",
+        "operationId": "estado_de_reporte_api_v1_reportes__reporte_id__get",
+        "parameters": [
+          {
+            "name": "reporte_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Reporte Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoReporteRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El reporte no existe o su resultado ya expiró."
+          },
+          "503": {
+            "description": "La cola de trabajos no está disponible (§12.8)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reportes/{reporte_id}/descargar": {
+      "get": {
+        "tags": [
+          "reportes"
+        ],
+        "summary": "Descargar un reporte terminado",
+        "description": "§11.2 `GET /reportes/{id}` (descarga).",
+        "operationId": "descargar_reporte_api_v1_reportes__reporte_id__descargar_get",
+        "parameters": [
+          {
+            "name": "reporte_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Reporte Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "El archivo generado (.xlsx o .pdf)."
+          },
+          "404": {
+            "description": "El reporte no existe o su resultado ya expiró."
+          },
+          "409": {
+            "description": "El reporte todavía no está listo, o falló."
+          },
+          "503": {
+            "description": "La cola de trabajos no está disponible (§12.8)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -4287,6 +4664,34 @@
         "title": "ActualizarObraPeticion",
         "description": "Edición parcial (§11.2 `PATCH /obras/{id}`).\n\nEl `estatus` no se edita por aquí: lo deriva el avance y lo cierra el\ncierre de obra final (§6, §11.3 D). `cluster_id` tampoco: mover una obra\nde cluster la saca de su proyecto y con eso de su alcance."
       },
+      "AgregarDocumentoPeticion": {
+        "properties": {
+          "tipo": {
+            "$ref": "#/components/schemas/TipoExpedienteDoc",
+            "description": "plano | contrato | acta | evidencia | bitacora | otro (§7.9)."
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nombre",
+            "description": "Nombre legible del documento."
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Url",
+            "description": "Clave del objeto ya subido a R2 con `POST /evidencias/presigned` (§12.2). El archivo no viaja por la API."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "nombre",
+          "url"
+        ],
+        "title": "AgregarDocumentoPeticion",
+        "description": "Alta de un documento del expediente (§7.9)."
+      },
       "AgregarRespuestasPeticion": {
         "properties": {
           "respuestas": {
@@ -4598,6 +5003,55 @@
         },
         "type": "object",
         "title": "CerrarIncidenciaPeticion"
+      },
+      "CierreDelExpedienteRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "monto": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto"
+          },
+          "fecha_valida": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Valida"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "actividad_id",
+          "estatus",
+          "cantidad",
+          "monto"
+        ],
+        "title": "CierreDelExpedienteRespuesta"
       },
       "CierreRespuesta": {
         "properties": {
@@ -5727,6 +6181,66 @@
         "title": "DependenciaDTO",
         "description": "Precedencia entre actividades (§7.5, §6)."
       },
+      "DocumentoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "subido_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subido Por"
+          },
+          "fecha": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "tipo",
+          "nombre",
+          "url",
+          "subido_por"
+        ],
+        "title": "DocumentoRespuesta"
+      },
       "ErrorDeFilaRespuesta": {
         "properties": {
           "fila": {
@@ -5768,6 +6282,78 @@
         "title": "ErrorDeFilaRespuesta",
         "description": "Un renglón del reporte de errores por fila/columna (§9.3)."
       },
+      "EstadoReporteRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Identificador del reporte; se consulta en /reportes/{id}."
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "description": "en_cola | en_proceso | listo | fallido. Mientras no sea `listo`, la descarga responde 409."
+          },
+          "consulta": {
+            "type": "string",
+            "title": "Consulta",
+            "description": "Ruta donde consultar el estado."
+          },
+          "descarga": {
+            "type": "string",
+            "title": "Descarga",
+            "description": "Ruta de descarga, válida cuando esté `listo`."
+          },
+          "listo": {
+            "type": "boolean",
+            "title": "Listo"
+          },
+          "nombre_archivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre Archivo"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Clase del fallo del worker. El detalle queda en el log del servidor, no en la respuesta (§12.4)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "estatus",
+          "consulta",
+          "descarga",
+          "listo"
+        ],
+        "title": "EstadoReporteRespuesta",
+        "description": "Estado del reporte y, si terminó, cómo se llama el archivo."
+      },
       "EstatusIncidencia": {
         "type": "string",
         "enum": [
@@ -5800,6 +6386,58 @@
           "rechazada"
         ],
         "title": "EstatusSolicitudCierre"
+      },
+      "EstimacionDelExpedienteRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "folio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folio"
+          },
+          "semana": {
+            "type": "integer",
+            "title": "Semana"
+          },
+          "anio": {
+            "type": "integer",
+            "title": "Anio"
+          },
+          "modo": {
+            "type": "string",
+            "title": "Modo"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "monto": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "folio",
+          "semana",
+          "anio",
+          "modo",
+          "estatus",
+          "monto"
+        ],
+        "title": "EstimacionDelExpedienteRespuesta"
       },
       "EstimacionRespuesta": {
         "properties": {
@@ -6024,6 +6662,137 @@
         ],
         "title": "EventoIncidenciaPeticion",
         "description": "Comentario y, opcionalmente, transición (§11.3 F.3)."
+      },
+      "EvidenciaRespuesta": {
+        "properties": {
+          "origen": {
+            "type": "string",
+            "title": "Origen",
+            "description": "revision_fisica | incidencia | solicitud_cierre"
+          },
+          "origen_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Origen Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "fecha": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha"
+          }
+        },
+        "type": "object",
+        "required": [
+          "origen",
+          "origen_id",
+          "clave"
+        ],
+        "title": "EvidenciaRespuesta",
+        "description": "Una clave de R2 referenciada por alguna entidad de la obra (§7.8)."
+      },
+      "ExpedienteRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "obra_clave": {
+            "type": "string",
+            "title": "Obra Clave"
+          },
+          "obra_estatus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Estatus"
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct"
+          },
+          "generado_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generado En"
+          },
+          "documentos": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentoRespuesta"
+            },
+            "type": "array",
+            "title": "Documentos"
+          },
+          "evidencias": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenciaRespuesta"
+            },
+            "type": "array",
+            "title": "Evidencias"
+          },
+          "cierres": {
+            "items": {
+              "$ref": "#/components/schemas/CierreDelExpedienteRespuesta"
+            },
+            "type": "array",
+            "title": "Cierres"
+          },
+          "estimaciones": {
+            "items": {
+              "$ref": "#/components/schemas/EstimacionDelExpedienteRespuesta"
+            },
+            "type": "array",
+            "title": "Estimaciones"
+          },
+          "monto_cerrado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto Cerrado"
+          },
+          "monto_estimado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto Estimado"
+          },
+          "n_evidencias": {
+            "type": "integer",
+            "title": "N Evidencias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "obra_clave",
+          "obra_estatus",
+          "avance_pct",
+          "generado_en",
+          "documentos",
+          "evidencias",
+          "cierres",
+          "estimaciones",
+          "monto_cerrado",
+          "monto_estimado",
+          "n_evidencias"
+        ],
+        "title": "ExpedienteRespuesta",
+        "description": "Vista agregada del expediente (§11.2, §7.9).\n\nLos montos son los **validados**: un cierre sin validar o una estimación\nen borrador aún pueden cambiar, así que no suman (`ExpedienteTecnico`)."
       },
       "ExplosionRespuesta": {
         "properties": {
@@ -8208,6 +8977,18 @@
         ],
         "title": "TipoConcepto"
       },
+      "TipoExpedienteDoc": {
+        "type": "string",
+        "enum": [
+          "plano",
+          "contrato",
+          "acta",
+          "evidencia",
+          "bitacora",
+          "otro"
+        ],
+        "title": "TipoExpedienteDoc"
+      },
       "TipoHijoExplosion": {
         "type": "string",
         "enum": [
@@ -8237,6 +9018,39 @@
           "herramienta"
         ],
         "title": "TipoInsumo"
+      },
+      "TrabajoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Identificador del reporte; se consulta en /reportes/{id}."
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "description": "en_cola | en_proceso | listo | fallido. Mientras no sea `listo`, la descarga responde 409."
+          },
+          "consulta": {
+            "type": "string",
+            "title": "Consulta",
+            "description": "Ruta donde consultar el estado."
+          },
+          "descarga": {
+            "type": "string",
+            "title": "Descarga",
+            "description": "Ruta de descarga, válida cuando esté `listo`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "estatus",
+          "consulta",
+          "descarga"
+        ],
+        "title": "TrabajoRespuesta",
+        "description": "Identificador con el que se sigue un reporte encolado (§11.2)."
       },
       "UnidadRespuesta": {
         "properties": {

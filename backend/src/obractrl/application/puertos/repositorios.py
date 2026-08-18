@@ -31,6 +31,7 @@ __all__ = [
     "RepositorioContratistas",
     "RepositorioEstimaciones",
     "RepositorioEvaluaciones",
+    "RepositorioExpediente",
     "RepositorioFamilias",
     "RepositorioFrentes",
     "RepositorioIncidencias",
@@ -42,6 +43,7 @@ __all__ = [
     "RepositorioProyectos",
     "RepositorioRevisiones",
     "RepositorioUnidades",
+    "RepositorioUsuarios",
     "UnidadDeTrabajo",
 ]
 
@@ -172,6 +174,19 @@ class RepositorioCierres(Protocol):
 
     async def listar(self, *, estatus: str | None = None) -> list[dict]:
         """Bandeja por rol: RLS ya acota el alcance (§11.2)."""
+        ...
+
+    async def listar_de_obra(self, obra_id: UUID) -> list[dict]:
+        """Cierres de una obra, con fechas y adjuntos, para el expediente
+        (§7.9, §11.2 `GET /obras/{id}/expediente`).
+
+        Método aparte de `listar` y no un filtro más: la bandeja del §11.2
+        pagina por estatus y no necesita los adjuntos, mientras que el
+        expediente los necesita todos y con sus fechas. `solicitud_cierre` no
+        tiene `obra_id` propio —llega a la obra por su actividad (§7.8)—, así
+        que la implementación resuelve el vínculo; el expediente no toca la
+        tabla de otro contexto (§11.1).
+        """
         ...
 
 
@@ -391,6 +406,45 @@ class RepositorioEstimaciones(Protocol):
         """Bandeja de estimaciones de una obra: RLS ya acota el alcance."""
         ...
 
+    async def conceptos_de(self, estimacion_id: UUID) -> list[dict]:
+        """Renglones de la estimación, listos para exportar (§11.2 `GET
+        /estimaciones/{id}/export`).
+
+        Trae la línea de `estimacion_concepto` ya acompañada de lo que el
+        Excel necesita rotular —clave y descripción del concepto, unidad— tal
+        como `actividades_estimables` acompaña la actividad con su precio: el
+        renglón de una estimación no se entiende sin el concepto que estima.
+        """
+        ...
+
+    # --- Bloqueo del periodo (§11.3 E.5) ---------------------------------
+
+    async def bloquear_periodo(
+        self,
+        *,
+        obra_id: UUID,
+        tipo_semana: str,
+        semana: int,
+        anio: int,
+        estimacion_id: UUID,
+        usuario_id: UUID,
+    ) -> None:
+        """Cierra la semana de la obra al validar (§11.3 E.5 "bloquear
+        periodo").
+
+        Idempotente: validar dos veces la misma estimación —o dos
+        estimaciones de modos distintos de la misma semana— no puede reventar
+        con un choque de índice único; el periodo ya bloqueado sigue
+        bloqueado.
+        """
+        ...
+
+    async def periodo_bloqueado(
+        self, *, obra_id: UUID, tipo_semana: str, semana: int, anio: int
+    ) -> bool:
+        """¿La semana de esa obra ya está cerrada? (§11.3 E.5)"""
+        ...
+
 
 @runtime_checkable
 class RepositorioCalendario(Protocol):
@@ -518,8 +572,14 @@ class RepositorioIncidencias(Protocol):
         """Bitácora de la incidencia (`incidencia_evento`, §7.8)."""
         ...
 
-    async def listar(self, *, estatus: str | None = None) -> list[dict]:
-        """Bandeja por rol: RLS ya acota el alcance (§11.2)."""
+    async def listar(
+        self, *, estatus: str | None = None, obra_id: UUID | None = None
+    ) -> list[dict]:
+        """Bandeja por rol: RLS ya acota el alcance (§11.2).
+
+        `obra_id` lo usa el expediente (§7.9), que reúne las evidencias de la
+        obra sin leer la tabla de incidencias por su cuenta (§11.1).
+        """
         ...
 
 
@@ -714,6 +774,52 @@ class RepositorioConceptos(Protocol):
         restricción. Quién retira a quién ya lo decidió el dominio
         (`apu.publicar_version`).
         """
+        ...
+
+
+@runtime_checkable
+class RepositorioExpediente(Protocol):
+    """Acervo documental de la obra (`expediente_doc`, §7.9).
+
+    `expediente_doc` entra al loop `por_obra` de
+    `database/migrations/20260814000012_rls_policies.sql` (vía
+    `obra_visible`), así que ninguna implementación filtra por `org_id` u
+    `obra_id` a mano: eso lo impone la base, igual que en `revisiones`.
+    """
+
+    async def crear(
+        self,
+        *,
+        obra_id: UUID,
+        tipo: str,
+        nombre: str,
+        url: str,
+        subido_por: UUID,
+    ) -> UUID:
+        """Alta ya validada por el dominio (§11.2, roles C y SI)."""
+        ...
+
+    async def listar(
+        self, obra_id: UUID, *, tipo: str | None = None
+    ) -> list[dict]:
+        """Documentos visibles de la obra (§11.2 `GET /obras/{id}/expediente`)."""
+        ...
+
+
+@runtime_checkable
+class RepositorioUsuarios(Protocol):
+    """Identidad, solo para lo que otro contexto necesita de ella (§11.1).
+
+    Existe para que Notificaciones pueda resolver a quién le escribe sin
+    consultar `usuario` desde su propio repositorio: la tabla es del contexto
+    Identidad/Org (§11.1) y se accede por esta fachada. La política
+    `usuario_select` (migración 0012) da lectura a cualquier usuario de la
+    organización, así que el alcance sigue siendo el del token.
+    """
+
+    async def correos_de(self, usuario_ids: list[UUID]) -> list[dict]:
+        """`{id, nombre, email}` de los usuarios pedidos que existan y estén
+        en el alcance. Los que no, simplemente no aparecen."""
         ...
 
 
