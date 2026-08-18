@@ -99,6 +99,12 @@ Los casos de uso existen; falta cerrar el vertical.
 - Observabilidad, `Idempotency-Key` en mutaciones sensibles, `problem+json` uniforme.
 - E2E Playwright de los seis workflows; build de Play Store y Vercel/Render.
 
+> **En curso.** El desglose real —seis frentes, qué se entregó en cada uno y
+> qué falta— vive en [`FASE-6.md`](FASE-6.md). Resumen: `problem+json`,
+> observabilidad, sync rules auditadas, CI e idempotencia están hechos; queda
+> cablear `Idempotency-Key` en las pantallas y escribir los seis E2E de
+> workflow (hoy marcados `fixme`, con el arnés listo).
+
 ---
 
 ## Invariantes que ninguna fase rompe

@@ -32,5 +32,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/pruebas/setup.ts'],
+    // Solo las pruebas de componente. `e2e/` es de Playwright: sus specs
+    // importan `@playwright/test`, que en jsdom no corre, y el patrón por
+    // defecto de Vitest (`**/*.spec.ts`) se los llevaría por delante.
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
 });
