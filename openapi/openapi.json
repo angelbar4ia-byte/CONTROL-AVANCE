@@ -2692,6 +2692,323 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/presupuesto": {
+      "get": {
+        "tags": [
+          "presupuesto"
+        ],
+        "summary": "Presupuesto vigente de la obra",
+        "description": "El presupuesto del **prototipo** que la obra instancia (§7.3).\n\nUna obra no tiene presupuesto propio: lo tiene el modelo de vivienda, y\ntodas las obras que lo instancian comparten el mismo.",
+        "operationId": "presupuesto_de_obra_api_v1_obras__obra_id__presupuesto_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresupuestoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe, está fuera de tu alcance, es URBA —sin prototipo— o su prototipo no tiene presupuesto cargado."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prototipos/{prototipo_id}/presupuestos": {
+      "get": {
+        "tags": [
+          "presupuesto"
+        ],
+        "summary": "Historial de versiones del presupuesto",
+        "description": "Qué versión estuvo vigente y de qué carga vino (§10.8).",
+        "operationId": "versiones_de_presupuesto_api_v1_prototipos__prototipo_id__presupuestos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "prototipo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Prototipo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VersionRespuesta"
+                  },
+                  "title": "Response Versiones De Presupuesto Api V1 Prototipos  Prototipo Id  Presupuestos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/rendimientos": {
+      "get": {
+        "tags": [
+          "presupuesto"
+        ],
+        "summary": "Presupuestado contra ejecutado, por concepto",
+        "description": "El comparativo de la obra (§5.1).\n\nIncluye los conceptos **presupuestados y no ejecutados** y los **ejecutados\nsin presupuestar** —los extra-catálogo—: sin ellos el comparativo escondería\njusto lo que explica por qué la obra costó lo que costó.",
+        "operationId": "rendimientos_de_obra_api_v1_obras__obra_id__rendimientos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "umbral",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Porcentaje a partir del cual una desviación se marca (§3.6). Es configurable por organización; sin él se usa el default.",
+              "title": "Umbral"
+            },
+            "description": "Porcentaje a partir del cual una desviación se marca (§3.6). Es configurable por organización; sin él se usa el default."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RendimientoPorConceptoRespuesta"
+                  },
+                  "title": "Response Rendimientos De Obra Api V1 Obras  Obra Id  Rendimientos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/rendimientos/cuadrillas": {
+      "get": {
+        "tags": [
+          "presupuesto"
+        ],
+        "summary": "Lo ejecutado por cada cuadrilla",
+        "description": "Qué produjo cada cuadrilla en esta obra (§5.1).",
+        "operationId": "rendimientos_por_cuadrilla_api_v1_obras__obra_id__rendimientos_cuadrillas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RendimientoPorCuadrillaRespuesta"
+                  },
+                  "title": "Response Rendimientos Por Cuadrilla Api V1 Obras  Obra Id  Rendimientos Cuadrillas Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/presupuestos/obras": {
+      "get": {
+        "tags": [
+          "presupuesto"
+        ],
+        "summary": "Presupuesto contra ejecutado, obra por obra",
+        "description": "La pantalla «Presupuesto de obras» (§5.1).\n\nArranca en `obra`, así que el alcance por rol lo impone RLS: un Control de\nobra compara las obras de sus proyectos y nada más.",
+        "operationId": "presupuesto_de_obras_api_v1_presupuestos_obras_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "proyecto_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Acota a un proyecto.",
+              "title": "Proyecto Id"
+            },
+            "description": "Acota a un proyecto."
+          },
+          {
+            "name": "umbral",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Porcentaje a partir del cual una desviación se marca (§3.6). Es configurable por organización; sin él se usa el default.",
+              "title": "Umbral"
+            },
+            "description": "Porcentaje a partir del cual una desviación se marca (§3.6). Es configurable por organización; sin él se usa el default."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResumenDeObraRespuesta"
+                  },
+                  "title": "Response Presupuesto De Obras Api V1 Presupuestos Obras Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/actividades/{actividad_id}/avance": {
       "patch": {
         "tags": [
@@ -9960,6 +10277,100 @@
         "type": "object",
         "title": "ParticiparPeticion"
       },
+      "PartidaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "concepto_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Descripcion"
+          },
+          "unidad_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Clave"
+          },
+          "prototipo_nodo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Nodo Id"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "precio_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Unitario"
+          },
+          "importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cantidad",
+          "precio_unitario",
+          "importe",
+          "orden"
+        ],
+        "title": "PartidaRespuesta"
+      },
       "PerfilRespuesta": {
         "properties": {
           "id": {
@@ -10115,6 +10526,73 @@
         ],
         "title": "PresignedRespuesta",
         "description": "URL firmada y la clave con la que se referenciará después.\n\nNo incluye —ni puede incluir— ninguna credencial de R2: la firma es un\nHMAC derivado del secreto, no el secreto. Ver el docstring de\n`infrastructure.storage.r2`."
+      },
+      "PresupuestoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "prototipo_clave": {
+            "type": "string",
+            "title": "Prototipo Clave"
+          },
+          "prototipo_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Nombre"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "origen": {
+            "type": "string",
+            "title": "Origen"
+          },
+          "monto_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto Total"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "partidas": {
+            "items": {
+              "$ref": "#/components/schemas/PartidaRespuesta"
+            },
+            "type": "array",
+            "title": "Partidas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "prototipo_id",
+          "prototipo_clave",
+          "version",
+          "origen",
+          "monto_total",
+          "created_at",
+          "partidas"
+        ],
+        "title": "PresupuestoRespuesta",
+        "description": "El presupuesto vigente del prototipo que la obra instancia (§7.3)."
       },
       "ProgramaBaseCreadoRespuesta": {
         "properties": {
@@ -10752,6 +11230,198 @@
         "title": "RegistrarSalidaPeticion",
         "description": "Movimiento de almacén a registrar (§7.7, §10.5)."
       },
+      "RendimientoPorConceptoRespuesta": {
+        "properties": {
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "concepto_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Descripcion"
+          },
+          "unidad_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Clave"
+          },
+          "cantidad_presupuestada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Presupuestada"
+          },
+          "importe_presupuestado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe Presupuestado"
+          },
+          "cantidad_ejecutada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Ejecutada"
+          },
+          "importe_ejecutado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe Ejecutado"
+          },
+          "desviacion_importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Desviacion Importe",
+            "description": "Ejecutado menos presupuestado. Positivo es gastar de más."
+          },
+          "desviacion_pct": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desviacion Pct",
+            "description": "`null` cuando no había presupuesto: dividir entre cero no da infinito, da que la pregunta no aplica."
+          },
+          "clasificacion": {
+            "type": "string",
+            "title": "Clasificacion",
+            "description": "sin_presupuesto | no_ejecutado | sobre_costo | bajo_costo | dentro_de_rango. `no_ejecutado` no es un ahorro: es trabajo que no se hizo."
+          },
+          "extra": {
+            "type": "boolean",
+            "title": "Extra",
+            "description": "Incluye alta extra-catálogo (§11.2).",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad_presupuestada",
+          "importe_presupuestado",
+          "cantidad_ejecutada",
+          "importe_ejecutado",
+          "desviacion_importe",
+          "clasificacion"
+        ],
+        "title": "RendimientoPorConceptoRespuesta",
+        "description": "Presupuestado contra ejecutado, concepto por concepto (§5.1)."
+      },
+      "RendimientoPorCuadrillaRespuesta": {
+        "properties": {
+          "cuadrilla_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cuadrilla Id"
+          },
+          "cuadrilla_clave": {
+            "type": "string",
+            "title": "Cuadrilla Clave"
+          },
+          "cuadrilla_nombre": {
+            "type": "string",
+            "title": "Cuadrilla Nombre"
+          },
+          "contratista_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista Nombre"
+          },
+          "rendimiento_esperado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendimiento Esperado"
+          },
+          "actividades": {
+            "type": "integer",
+            "title": "Actividades"
+          },
+          "concluidas": {
+            "type": "integer",
+            "title": "Concluidas"
+          },
+          "cantidad_ejecutada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Ejecutada"
+          },
+          "importe_ejecutado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importe Ejecutado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cuadrilla_id",
+          "cuadrilla_clave",
+          "cuadrilla_nombre",
+          "actividades",
+          "concluidas"
+        ],
+        "title": "RendimientoPorCuadrillaRespuesta",
+        "description": "Lo que produjo cada cuadrilla (§5.1).\n\nSin contraparte presupuestada: el presupuesto es por concepto y no reparte\nel trabajo entre cuadrillas. Lo comparable es su `rendimiento` de catálogo."
+      },
       "ResetearContrasenaPeticion": {
         "properties": {
           "contrasena_temporal": {
@@ -10912,6 +11582,110 @@
         ],
         "title": "ResumenDeCierreRespuesta",
         "description": "Renglón de la bandeja de cierres de obra (§5.1)."
+      },
+      "ResumenDeObraRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "obra_clave": {
+            "type": "string",
+            "title": "Obra Clave"
+          },
+          "obra_estatus": {
+            "type": "string",
+            "title": "Obra Estatus"
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct"
+          },
+          "es_urba": {
+            "type": "boolean",
+            "title": "Es Urba",
+            "description": "Una obra URBA no tiene prototipo y por lo tanto no tiene presupuesto (§7.2). Aparece con cero, no desaparece."
+          },
+          "prototipo_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Clave"
+          },
+          "cluster_clave": {
+            "type": "string",
+            "title": "Cluster Clave"
+          },
+          "proyecto_clave": {
+            "type": "string",
+            "title": "Proyecto Clave"
+          },
+          "proyecto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Proyecto Id"
+          },
+          "monto_presupuestado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto Presupuestado"
+          },
+          "monto_ejecutado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto Ejecutado"
+          },
+          "desviacion_importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Desviacion Importe"
+          },
+          "desviacion_pct": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desviacion Pct"
+          },
+          "clasificacion": {
+            "type": "string",
+            "title": "Clasificacion"
+          },
+          "actividades": {
+            "type": "integer",
+            "title": "Actividades"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "obra_clave",
+          "obra_estatus",
+          "avance_pct",
+          "es_urba",
+          "cluster_clave",
+          "proyecto_clave",
+          "proyecto_id",
+          "monto_presupuestado",
+          "monto_ejecutado",
+          "desviacion_importe",
+          "clasificacion",
+          "actividades"
+        ],
+        "title": "ResumenDeObraRespuesta",
+        "description": "Un renglón de «Presupuesto de obras» (§5.1)."
       },
       "ReversaRespuesta": {
         "properties": {
@@ -11576,6 +12350,59 @@
           "retiradas"
         ],
         "title": "VersionPublicadaRespuesta"
+      },
+      "VersionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "vigente": {
+            "type": "boolean",
+            "title": "Vigente"
+          },
+          "origen": {
+            "type": "string",
+            "title": "Origen"
+          },
+          "carga_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carga Id"
+          },
+          "monto_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto Total"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "vigente",
+          "origen",
+          "monto_total",
+          "created_at"
+        ],
+        "title": "VersionRespuesta"
       },
       "obractrl__adapters__api__v1__cargas__PendienteRespuesta": {
         "properties": {
