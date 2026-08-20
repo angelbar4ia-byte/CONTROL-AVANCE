@@ -41,6 +41,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -50,7 +52,7 @@ import { peticion } from '../../cliente';
 export const solicitarCierreApiV1ActividadesActividadIdCierrePost = (
     actividadId: string,
     solicitarCierrePeticion: SolicitarCierrePeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -59,21 +61,21 @@ export const solicitarCierreApiV1ActividadesActividadIdCierrePost = (
       headers: {'Content-Type': 'application/json', },
       data: solicitarCierrePeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getSolicitarCierreApiV1ActividadesActividadIdCierrePostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof solicitarCierreApiV1ActividadesActividadIdCierrePost>>, TError,{actividadId: string;data: SolicitarCierrePeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof solicitarCierreApiV1ActividadesActividadIdCierrePost>>, TError,{actividadId: string;data: SolicitarCierrePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof solicitarCierreApiV1ActividadesActividadIdCierrePost>>, TError,{actividadId: string;data: SolicitarCierrePeticion}, TContext> => {
 
 const mutationKey = ['solicitarCierreApiV1ActividadesActividadIdCierrePost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -81,7 +83,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof solicitarCierreApiV1ActividadesActividadIdCierrePost>>, {actividadId: string;data: SolicitarCierrePeticion}> = (props) => {
           const {actividadId,data} = props ?? {};
 
-          return  solicitarCierreApiV1ActividadesActividadIdCierrePost(actividadId,data,)
+          return  solicitarCierreApiV1ActividadesActividadIdCierrePost(actividadId,data,requestOptions)
         }
 
         
@@ -97,7 +99,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Solicitar el cierre de una actividad
  */
 export const useSolicitarCierreApiV1ActividadesActividadIdCierrePost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof solicitarCierreApiV1ActividadesActividadIdCierrePost>>, TError,{actividadId: string;data: SolicitarCierrePeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof solicitarCierreApiV1ActividadesActividadIdCierrePost>>, TError,{actividadId: string;data: SolicitarCierrePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof solicitarCierreApiV1ActividadesActividadIdCierrePost>>,
         TError,
@@ -115,28 +117,28 @@ export const useSolicitarCierreApiV1ActividadesActividadIdCierrePost = <TError =
  */
 export const autorizarCierreApiV1CierresCierreIdAutorizarPost = (
     cierreId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<CierreRespuesta>(
       {url: `/api/v1/cierres/${cierreId}/autorizar`, method: 'POST', signal
     },
-      );
+      options);
     }
   
 
 
 export const getAutorizarCierreApiV1CierresCierreIdAutorizarPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autorizarCierreApiV1CierresCierreIdAutorizarPost>>, TError,{cierreId: string}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autorizarCierreApiV1CierresCierreIdAutorizarPost>>, TError,{cierreId: string}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof autorizarCierreApiV1CierresCierreIdAutorizarPost>>, TError,{cierreId: string}, TContext> => {
 
 const mutationKey = ['autorizarCierreApiV1CierresCierreIdAutorizarPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -144,7 +146,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof autorizarCierreApiV1CierresCierreIdAutorizarPost>>, {cierreId: string}> = (props) => {
           const {cierreId} = props ?? {};
 
-          return  autorizarCierreApiV1CierresCierreIdAutorizarPost(cierreId,)
+          return  autorizarCierreApiV1CierresCierreIdAutorizarPost(cierreId,requestOptions)
         }
 
         
@@ -160,7 +162,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Autorizar un cierre (cierra la actividad)
  */
 export const useAutorizarCierreApiV1CierresCierreIdAutorizarPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autorizarCierreApiV1CierresCierreIdAutorizarPost>>, TError,{cierreId: string}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autorizarCierreApiV1CierresCierreIdAutorizarPost>>, TError,{cierreId: string}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof autorizarCierreApiV1CierresCierreIdAutorizarPost>>,
         TError,
@@ -179,7 +181,7 @@ export const useAutorizarCierreApiV1CierresCierreIdAutorizarPost = <TError = voi
 export const validarCierreApiV1CierresCierreIdValidarPost = (
     cierreId: string,
     validarCierrePeticion: ValidarCierrePeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -188,21 +190,21 @@ export const validarCierreApiV1CierresCierreIdValidarPost = (
       headers: {'Content-Type': 'application/json', },
       data: validarCierrePeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getValidarCierreApiV1CierresCierreIdValidarPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validarCierreApiV1CierresCierreIdValidarPost>>, TError,{cierreId: string;data: ValidarCierrePeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validarCierreApiV1CierresCierreIdValidarPost>>, TError,{cierreId: string;data: ValidarCierrePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof validarCierreApiV1CierresCierreIdValidarPost>>, TError,{cierreId: string;data: ValidarCierrePeticion}, TContext> => {
 
 const mutationKey = ['validarCierreApiV1CierresCierreIdValidarPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -210,7 +212,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof validarCierreApiV1CierresCierreIdValidarPost>>, {cierreId: string;data: ValidarCierrePeticion}> = (props) => {
           const {cierreId,data} = props ?? {};
 
-          return  validarCierreApiV1CierresCierreIdValidarPost(cierreId,data,)
+          return  validarCierreApiV1CierresCierreIdValidarPost(cierreId,data,requestOptions)
         }
 
         
@@ -226,7 +228,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Validar un cierre (habilita para estimación)
  */
 export const useValidarCierreApiV1CierresCierreIdValidarPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validarCierreApiV1CierresCierreIdValidarPost>>, TError,{cierreId: string;data: ValidarCierrePeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validarCierreApiV1CierresCierreIdValidarPost>>, TError,{cierreId: string;data: ValidarCierrePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof validarCierreApiV1CierresCierreIdValidarPost>>,
         TError,
@@ -245,7 +247,7 @@ export const useValidarCierreApiV1CierresCierreIdValidarPost = <TError = void | 
 export const rechazarCierreApiV1CierresCierreIdRechazarPost = (
     cierreId: string,
     rechazarCierrePeticion: RechazarCierrePeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -254,21 +256,21 @@ export const rechazarCierreApiV1CierresCierreIdRechazarPost = (
       headers: {'Content-Type': 'application/json', },
       data: rechazarCierrePeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getRechazarCierreApiV1CierresCierreIdRechazarPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rechazarCierreApiV1CierresCierreIdRechazarPost>>, TError,{cierreId: string;data: RechazarCierrePeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rechazarCierreApiV1CierresCierreIdRechazarPost>>, TError,{cierreId: string;data: RechazarCierrePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof rechazarCierreApiV1CierresCierreIdRechazarPost>>, TError,{cierreId: string;data: RechazarCierrePeticion}, TContext> => {
 
 const mutationKey = ['rechazarCierreApiV1CierresCierreIdRechazarPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -276,7 +278,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof rechazarCierreApiV1CierresCierreIdRechazarPost>>, {cierreId: string;data: RechazarCierrePeticion}> = (props) => {
           const {cierreId,data} = props ?? {};
 
-          return  rechazarCierreApiV1CierresCierreIdRechazarPost(cierreId,data,)
+          return  rechazarCierreApiV1CierresCierreIdRechazarPost(cierreId,data,requestOptions)
         }
 
         
@@ -292,7 +294,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Rechazar una solicitud de cierre
  */
 export const useRechazarCierreApiV1CierresCierreIdRechazarPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rechazarCierreApiV1CierresCierreIdRechazarPost>>, TError,{cierreId: string;data: RechazarCierrePeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rechazarCierreApiV1CierresCierreIdRechazarPost>>, TError,{cierreId: string;data: RechazarCierrePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof rechazarCierreApiV1CierresCierreIdRechazarPost>>,
         TError,
@@ -314,7 +316,7 @@ caso de uso: RLS ya acota el alcance (§12.4).
  */
 export const listarCierresApiV1CierresGet = (
     params?: ListarCierresApiV1CierresGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -322,7 +324,7 @@ export const listarCierresApiV1CierresGet = (
       {url: `/api/v1/cierres`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -341,16 +343,16 @@ export const getListarCierresApiV1CierresGetQueryKey = (params?: ListarCierresAp
     }
 
     
-export const getListarCierresApiV1CierresGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>>, TError = HTTPValidationError>(params?: ListarCierresApiV1CierresGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError, TData>>, }
+export const getListarCierresApiV1CierresGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>>, TError = HTTPValidationError>(params?: ListarCierresApiV1CierresGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarCierresApiV1CierresGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>> = ({ signal }) => listarCierresApiV1CierresGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>> = ({ signal }) => listarCierresApiV1CierresGet(params, requestOptions, signal);
 
       
 
@@ -370,7 +372,7 @@ export function useListarCierresApiV1CierresGetInfinite<TData = InfiniteData<Awa
           TError,
           Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarCierresApiV1CierresGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>>, TError = HTTPValidationError>(
@@ -380,11 +382,11 @@ export function useListarCierresApiV1CierresGetInfinite<TData = InfiniteData<Awa
           TError,
           Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarCierresApiV1CierresGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>>, TError = HTTPValidationError>(
- params?: ListarCierresApiV1CierresGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError, TData>>, }
+ params?: ListarCierresApiV1CierresGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -392,7 +394,7 @@ export function useListarCierresApiV1CierresGetInfinite<TData = InfiniteData<Awa
  */
 
 export function useListarCierresApiV1CierresGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>>, TError = HTTPValidationError>(
- params?: ListarCierresApiV1CierresGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError, TData>>, }
+ params?: ListarCierresApiV1CierresGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -408,16 +410,16 @@ export function useListarCierresApiV1CierresGetInfinite<TData = InfiniteData<Awa
 
 
 
-export const getListarCierresApiV1CierresGetQueryOptions = <TData = Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError = HTTPValidationError>(params?: ListarCierresApiV1CierresGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError, TData>>, }
+export const getListarCierresApiV1CierresGetQueryOptions = <TData = Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError = HTTPValidationError>(params?: ListarCierresApiV1CierresGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarCierresApiV1CierresGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>> = ({ signal }) => listarCierresApiV1CierresGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>> = ({ signal }) => listarCierresApiV1CierresGet(params, requestOptions, signal);
 
       
 
@@ -437,7 +439,7 @@ export function useListarCierresApiV1CierresGet<TData = Awaited<ReturnType<typeo
           TError,
           Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarCierresApiV1CierresGet<TData = Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError = HTTPValidationError>(
@@ -447,11 +449,11 @@ export function useListarCierresApiV1CierresGet<TData = Awaited<ReturnType<typeo
           TError,
           Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarCierresApiV1CierresGet<TData = Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError = HTTPValidationError>(
- params?: ListarCierresApiV1CierresGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError, TData>>, }
+ params?: ListarCierresApiV1CierresGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -459,7 +461,7 @@ export function useListarCierresApiV1CierresGet<TData = Awaited<ReturnType<typeo
  */
 
 export function useListarCierresApiV1CierresGet<TData = Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError = HTTPValidationError>(
- params?: ListarCierresApiV1CierresGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError, TData>>, }
+ params?: ListarCierresApiV1CierresGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCierresApiV1CierresGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 

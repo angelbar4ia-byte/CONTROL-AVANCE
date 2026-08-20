@@ -38,6 +38,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -47,7 +49,7 @@ import { peticion } from '../../cliente';
 export const generarEstimacionApiV1ObrasObraIdEstimacionesPost = (
     obraId: string,
     generarEstimacionPeticion: GenerarEstimacionPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -56,21 +58,21 @@ export const generarEstimacionApiV1ObrasObraIdEstimacionesPost = (
       headers: {'Content-Type': 'application/json', },
       data: generarEstimacionPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getGenerarEstimacionApiV1ObrasObraIdEstimacionesPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>, TError,{obraId: string;data: GenerarEstimacionPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>, TError,{obraId: string;data: GenerarEstimacionPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>, TError,{obraId: string;data: GenerarEstimacionPeticion}, TContext> => {
 
 const mutationKey = ['generarEstimacionApiV1ObrasObraIdEstimacionesPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -78,7 +80,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>, {obraId: string;data: GenerarEstimacionPeticion}> = (props) => {
           const {obraId,data} = props ?? {};
 
-          return  generarEstimacionApiV1ObrasObraIdEstimacionesPost(obraId,data,)
+          return  generarEstimacionApiV1ObrasObraIdEstimacionesPost(obraId,data,requestOptions)
         }
 
         
@@ -94,7 +96,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Generar la estimación de la semana activa
  */
 export const useGenerarEstimacionApiV1ObrasObraIdEstimacionesPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>, TError,{obraId: string;data: GenerarEstimacionPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>, TError,{obraId: string;data: GenerarEstimacionPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>,
         TError,
@@ -114,14 +116,14 @@ acota el alcance (§12.4).
  */
 export const listarEstimacionesApiV1ObrasObraIdEstimacionesGet = (
     obraId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<EstimacionRespuesta[]>(
       {url: `/api/v1/obras/${obraId}/estimaciones`, method: 'GET', signal
     },
-      );
+      options);
     }
   
 
@@ -140,16 +142,16 @@ export const getListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryKey = (obr
     }
 
     
-export const getListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>>, TError = HTTPValidationError>(obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, }
+export const getListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>>, TError = HTTPValidationError>(obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryKey(obraId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>> = ({ signal }) => listarEstimacionesApiV1ObrasObraIdEstimacionesGet(obraId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>> = ({ signal }) => listarEstimacionesApiV1ObrasObraIdEstimacionesGet(obraId, requestOptions, signal);
 
       
 
@@ -169,7 +171,7 @@ export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<TDa
           TError,
           Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>>, TError = HTTPValidationError>(
@@ -179,11 +181,11 @@ export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<TDa
           TError,
           Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -191,7 +193,7 @@ export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<TDa
  */
 
 export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -207,16 +209,16 @@ export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<TDa
 
 
 
-export const getListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError = HTTPValidationError>(obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, }
+export const getListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError = HTTPValidationError>(obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryKey(obraId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>> = ({ signal }) => listarEstimacionesApiV1ObrasObraIdEstimacionesGet(obraId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>> = ({ signal }) => listarEstimacionesApiV1ObrasObraIdEstimacionesGet(obraId, requestOptions, signal);
 
       
 
@@ -236,7 +238,7 @@ export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<TData = Awa
           TError,
           Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<TData = Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError = HTTPValidationError>(
@@ -246,11 +248,11 @@ export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<TData = Awa
           TError,
           Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<TData = Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -258,7 +260,7 @@ export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<TData = Awa
  */
 
 export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<TData = Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -280,27 +282,27 @@ export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<TData = Awa
  */
 export const enviarEstimacionApiV1EstimacionesEstimacionIdPatch = (
     estimacionId: string,
- ) => {
+ options?: SecondParameter<typeof peticion>,) => {
       
       
       return peticion<EstimacionRespuesta>(
       {url: `/api/v1/estimaciones/${estimacionId}`, method: 'PATCH'
     },
-      );
+      options);
     }
   
 
 
 export const getEnviarEstimacionApiV1EstimacionesEstimacionIdPatchMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>>, TError,{estimacionId: string}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>>, TError,{estimacionId: string}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>>, TError,{estimacionId: string}, TContext> => {
 
 const mutationKey = ['enviarEstimacionApiV1EstimacionesEstimacionIdPatch'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -308,7 +310,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>>, {estimacionId: string}> = (props) => {
           const {estimacionId} = props ?? {};
 
-          return  enviarEstimacionApiV1EstimacionesEstimacionIdPatch(estimacionId,)
+          return  enviarEstimacionApiV1EstimacionesEstimacionIdPatch(estimacionId,requestOptions)
         }
 
         
@@ -324,7 +326,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Enviar una estimación
  */
 export const useEnviarEstimacionApiV1EstimacionesEstimacionIdPatch = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>>, TError,{estimacionId: string}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>>, TError,{estimacionId: string}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>>,
         TError,
@@ -342,28 +344,28 @@ export const useEnviarEstimacionApiV1EstimacionesEstimacionIdPatch = <TError = v
  */
 export const validarEstimacionApiV1EstimacionesEstimacionIdValidarPost = (
     estimacionId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<EstimacionRespuesta>(
       {url: `/api/v1/estimaciones/${estimacionId}/validar`, method: 'POST', signal
     },
-      );
+      options);
     }
   
 
 
 export const getValidarEstimacionApiV1EstimacionesEstimacionIdValidarPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>>, TError,{estimacionId: string}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>>, TError,{estimacionId: string}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>>, TError,{estimacionId: string}, TContext> => {
 
 const mutationKey = ['validarEstimacionApiV1EstimacionesEstimacionIdValidarPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -371,7 +373,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>>, {estimacionId: string}> = (props) => {
           const {estimacionId} = props ?? {};
 
-          return  validarEstimacionApiV1EstimacionesEstimacionIdValidarPost(estimacionId,)
+          return  validarEstimacionApiV1EstimacionesEstimacionIdValidarPost(estimacionId,requestOptions)
         }
 
         
@@ -387,7 +389,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Validar una estimación (bloquea el periodo)
  */
 export const useValidarEstimacionApiV1EstimacionesEstimacionIdValidarPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>>, TError,{estimacionId: string}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>>, TError,{estimacionId: string}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>>,
         TError,

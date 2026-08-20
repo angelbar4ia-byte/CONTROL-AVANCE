@@ -140,6 +140,15 @@ const CONTROL_OBRA: readonly SeccionNav[] = [
     ],
   },
   {
+    // El §5.1 dice que el alta de usuarios la hace Control de obra; hasta la
+    // Fase 7 esa promesa no tenía pantalla y había que insertar filas en SQL.
+    titulo: 'Equipo',
+    items: [
+      { a: '/config/equipo', etiqueta: 'Usuarios', icono: Users },
+      { a: '/asignaciones', etiqueta: 'Asignaciones', icono: Users },
+    ],
+  },
+  {
     titulo: 'Configuración',
     items: [
       { a: '/config/programas-base', etiqueta: 'Programas base', icono: GitBranch },
@@ -161,6 +170,13 @@ const SUPER_INTENDENTE: readonly SeccionNav[] = [
       { a: '/incidencias', etiqueta: 'Incidencias', icono: ClipboardList },
       { a: '/ruta-critica', etiqueta: 'Ruta crítica', icono: GitBranch },
       { a: '/avance-proyecto', etiqueta: 'Avance de proyecto', icono: LineChart },
+    ],
+  },
+  {
+    titulo: 'Equipo',
+    items: [
+      { a: '/equipo', etiqueta: 'Usuarios', icono: Users },
+      { a: '/asignaciones', etiqueta: 'Asignaciones', icono: Users },
     ],
   },
   {

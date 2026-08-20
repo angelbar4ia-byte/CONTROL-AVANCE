@@ -40,6 +40,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -51,14 +53,14 @@ que aplicar, el cruce ya viene calculado por la vista.
  */
 export const consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet = (
     obraId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<ConsumoRespuesta[]>(
       {url: `/api/v1/obras/${obraId}/materiales/consumo`, method: 'GET', signal
     },
-      );
+      options);
     }
   
 
@@ -77,16 +79,16 @@ export const getConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetQueryKey
     }
 
     
-export const getConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>>, TError = HTTPValidationError>(obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError, TData>>, }
+export const getConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>>, TError = HTTPValidationError>(obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetInfiniteQueryKey(obraId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>> = ({ signal }) => consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet(obraId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>> = ({ signal }) => consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet(obraId, requestOptions, signal);
 
       
 
@@ -106,7 +108,7 @@ export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetInfin
           TError,
           Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>>, TError = HTTPValidationError>(
@@ -116,11 +118,11 @@ export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetInfin
           TError,
           Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -128,7 +130,7 @@ export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetInfin
  */
 
 export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -144,16 +146,16 @@ export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetInfin
 
 
 
-export const getConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetQueryOptions = <TData = Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError = HTTPValidationError>(obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError, TData>>, }
+export const getConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetQueryOptions = <TData = Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError = HTTPValidationError>(obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGetQueryKey(obraId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>> = ({ signal }) => consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet(obraId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>> = ({ signal }) => consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet(obraId, requestOptions, signal);
 
       
 
@@ -173,7 +175,7 @@ export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet<TDat
           TError,
           Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet<TData = Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError = HTTPValidationError>(
@@ -183,11 +185,11 @@ export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet<TDat
           TError,
           Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet<TData = Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -195,7 +197,7 @@ export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet<TDat
  */
 
 export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet<TData = Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof consumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -218,7 +220,7 @@ export function useConsumoVsPresupuestoApiV1ObrasObraIdMaterialesConsumoGet<TDat
 export const registrarSalidaApiV1ObrasObraIdSalidasPost = (
     obraId: string,
     registrarSalidaPeticion: RegistrarSalidaPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -227,21 +229,21 @@ export const registrarSalidaApiV1ObrasObraIdSalidasPost = (
       headers: {'Content-Type': 'application/json', },
       data: registrarSalidaPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getRegistrarSalidaApiV1ObrasObraIdSalidasPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarSalidaApiV1ObrasObraIdSalidasPost>>, TError,{obraId: string;data: RegistrarSalidaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarSalidaApiV1ObrasObraIdSalidasPost>>, TError,{obraId: string;data: RegistrarSalidaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof registrarSalidaApiV1ObrasObraIdSalidasPost>>, TError,{obraId: string;data: RegistrarSalidaPeticion}, TContext> => {
 
 const mutationKey = ['registrarSalidaApiV1ObrasObraIdSalidasPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -249,7 +251,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof registrarSalidaApiV1ObrasObraIdSalidasPost>>, {obraId: string;data: RegistrarSalidaPeticion}> = (props) => {
           const {obraId,data} = props ?? {};
 
-          return  registrarSalidaApiV1ObrasObraIdSalidasPost(obraId,data,)
+          return  registrarSalidaApiV1ObrasObraIdSalidasPost(obraId,data,requestOptions)
         }
 
         
@@ -265,7 +267,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Registrar una salida de almacén
  */
 export const useRegistrarSalidaApiV1ObrasObraIdSalidasPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarSalidaApiV1ObrasObraIdSalidasPost>>, TError,{obraId: string;data: RegistrarSalidaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarSalidaApiV1ObrasObraIdSalidasPost>>, TError,{obraId: string;data: RegistrarSalidaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof registrarSalidaApiV1ObrasObraIdSalidasPost>>,
         TError,
@@ -283,7 +285,7 @@ export const useRegistrarSalidaApiV1ObrasObraIdSalidasPost = <TError = void | HT
  */
 export const listarSalidasApiV1SalidasGet = (
     params?: ListarSalidasApiV1SalidasGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -291,7 +293,7 @@ export const listarSalidasApiV1SalidasGet = (
       {url: `/api/v1/salidas`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -310,16 +312,16 @@ export const getListarSalidasApiV1SalidasGetQueryKey = (params?: ListarSalidasAp
     }
 
     
-export const getListarSalidasApiV1SalidasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>>, TError = HTTPValidationError>(params?: ListarSalidasApiV1SalidasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError, TData>>, }
+export const getListarSalidasApiV1SalidasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>>, TError = HTTPValidationError>(params?: ListarSalidasApiV1SalidasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarSalidasApiV1SalidasGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>> = ({ signal }) => listarSalidasApiV1SalidasGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>> = ({ signal }) => listarSalidasApiV1SalidasGet(params, requestOptions, signal);
 
       
 
@@ -339,7 +341,7 @@ export function useListarSalidasApiV1SalidasGetInfinite<TData = InfiniteData<Awa
           TError,
           Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarSalidasApiV1SalidasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>>, TError = HTTPValidationError>(
@@ -349,11 +351,11 @@ export function useListarSalidasApiV1SalidasGetInfinite<TData = InfiniteData<Awa
           TError,
           Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarSalidasApiV1SalidasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>>, TError = HTTPValidationError>(
- params?: ListarSalidasApiV1SalidasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError, TData>>, }
+ params?: ListarSalidasApiV1SalidasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -361,7 +363,7 @@ export function useListarSalidasApiV1SalidasGetInfinite<TData = InfiniteData<Awa
  */
 
 export function useListarSalidasApiV1SalidasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>>, TError = HTTPValidationError>(
- params?: ListarSalidasApiV1SalidasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError, TData>>, }
+ params?: ListarSalidasApiV1SalidasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -377,16 +379,16 @@ export function useListarSalidasApiV1SalidasGetInfinite<TData = InfiniteData<Awa
 
 
 
-export const getListarSalidasApiV1SalidasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError = HTTPValidationError>(params?: ListarSalidasApiV1SalidasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError, TData>>, }
+export const getListarSalidasApiV1SalidasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError = HTTPValidationError>(params?: ListarSalidasApiV1SalidasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarSalidasApiV1SalidasGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>> = ({ signal }) => listarSalidasApiV1SalidasGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>> = ({ signal }) => listarSalidasApiV1SalidasGet(params, requestOptions, signal);
 
       
 
@@ -406,7 +408,7 @@ export function useListarSalidasApiV1SalidasGet<TData = Awaited<ReturnType<typeo
           TError,
           Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarSalidasApiV1SalidasGet<TData = Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError = HTTPValidationError>(
@@ -416,11 +418,11 @@ export function useListarSalidasApiV1SalidasGet<TData = Awaited<ReturnType<typeo
           TError,
           Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarSalidasApiV1SalidasGet<TData = Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError = HTTPValidationError>(
- params?: ListarSalidasApiV1SalidasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError, TData>>, }
+ params?: ListarSalidasApiV1SalidasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -428,7 +430,7 @@ export function useListarSalidasApiV1SalidasGet<TData = Awaited<ReturnType<typeo
  */
 
 export function useListarSalidasApiV1SalidasGet<TData = Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError = HTTPValidationError>(
- params?: ListarSalidasApiV1SalidasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError, TData>>, }
+ params?: ListarSalidasApiV1SalidasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarSalidasApiV1SalidasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 

@@ -41,6 +41,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -50,7 +52,7 @@ import { peticion } from '../../cliente';
 export const listarExpedienteApiV1ObrasObraIdExpedienteGet = (
     obraId: string,
     params?: ListarExpedienteApiV1ObrasObraIdExpedienteGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -58,7 +60,7 @@ export const listarExpedienteApiV1ObrasObraIdExpedienteGet = (
       {url: `/api/v1/obras/${obraId}/expediente`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -80,16 +82,16 @@ export const getListarExpedienteApiV1ObrasObraIdExpedienteGetQueryKey = (obraId?
 
     
 export const getListarExpedienteApiV1ObrasObraIdExpedienteGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>>, TError = HTTPValidationError>(obraId: string,
-    params?: ListarExpedienteApiV1ObrasObraIdExpedienteGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError, TData>>, }
+    params?: ListarExpedienteApiV1ObrasObraIdExpedienteGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarExpedienteApiV1ObrasObraIdExpedienteGetInfiniteQueryKey(obraId,params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>> = ({ signal }) => listarExpedienteApiV1ObrasObraIdExpedienteGet(obraId,params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>> = ({ signal }) => listarExpedienteApiV1ObrasObraIdExpedienteGet(obraId,params, requestOptions, signal);
 
       
 
@@ -110,7 +112,7 @@ export function useListarExpedienteApiV1ObrasObraIdExpedienteGetInfinite<TData =
           TError,
           Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarExpedienteApiV1ObrasObraIdExpedienteGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>>, TError = HTTPValidationError>(
@@ -121,12 +123,12 @@ export function useListarExpedienteApiV1ObrasObraIdExpedienteGetInfinite<TData =
           TError,
           Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarExpedienteApiV1ObrasObraIdExpedienteGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>>, TError = HTTPValidationError>(
  obraId: string,
-    params?: ListarExpedienteApiV1ObrasObraIdExpedienteGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError, TData>>, }
+    params?: ListarExpedienteApiV1ObrasObraIdExpedienteGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -135,7 +137,7 @@ export function useListarExpedienteApiV1ObrasObraIdExpedienteGetInfinite<TData =
 
 export function useListarExpedienteApiV1ObrasObraIdExpedienteGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>>, TError = HTTPValidationError>(
  obraId: string,
-    params?: ListarExpedienteApiV1ObrasObraIdExpedienteGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError, TData>>, }
+    params?: ListarExpedienteApiV1ObrasObraIdExpedienteGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -152,16 +154,16 @@ export function useListarExpedienteApiV1ObrasObraIdExpedienteGetInfinite<TData =
 
 
 export const getListarExpedienteApiV1ObrasObraIdExpedienteGetQueryOptions = <TData = Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError = HTTPValidationError>(obraId: string,
-    params?: ListarExpedienteApiV1ObrasObraIdExpedienteGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError, TData>>, }
+    params?: ListarExpedienteApiV1ObrasObraIdExpedienteGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarExpedienteApiV1ObrasObraIdExpedienteGetQueryKey(obraId,params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>> = ({ signal }) => listarExpedienteApiV1ObrasObraIdExpedienteGet(obraId,params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>> = ({ signal }) => listarExpedienteApiV1ObrasObraIdExpedienteGet(obraId,params, requestOptions, signal);
 
       
 
@@ -182,7 +184,7 @@ export function useListarExpedienteApiV1ObrasObraIdExpedienteGet<TData = Awaited
           TError,
           Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarExpedienteApiV1ObrasObraIdExpedienteGet<TData = Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError = HTTPValidationError>(
@@ -193,12 +195,12 @@ export function useListarExpedienteApiV1ObrasObraIdExpedienteGet<TData = Awaited
           TError,
           Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarExpedienteApiV1ObrasObraIdExpedienteGet<TData = Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError = HTTPValidationError>(
  obraId: string,
-    params?: ListarExpedienteApiV1ObrasObraIdExpedienteGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError, TData>>, }
+    params?: ListarExpedienteApiV1ObrasObraIdExpedienteGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -207,7 +209,7 @@ export function useListarExpedienteApiV1ObrasObraIdExpedienteGet<TData = Awaited
 
 export function useListarExpedienteApiV1ObrasObraIdExpedienteGet<TData = Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError = HTTPValidationError>(
  obraId: string,
-    params?: ListarExpedienteApiV1ObrasObraIdExpedienteGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError, TData>>, }
+    params?: ListarExpedienteApiV1ObrasObraIdExpedienteGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarExpedienteApiV1ObrasObraIdExpedienteGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -239,7 +241,7 @@ La obra sale de la ruta, no del body: si no es visible, la política de
 export const agregarDocumentoApiV1ObrasObraIdExpedientePost = (
     obraId: string,
     agregarDocumentoPeticion: AgregarDocumentoPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -248,21 +250,21 @@ export const agregarDocumentoApiV1ObrasObraIdExpedientePost = (
       headers: {'Content-Type': 'application/json', },
       data: agregarDocumentoPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getAgregarDocumentoApiV1ObrasObraIdExpedientePostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof agregarDocumentoApiV1ObrasObraIdExpedientePost>>, TError,{obraId: string;data: AgregarDocumentoPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof agregarDocumentoApiV1ObrasObraIdExpedientePost>>, TError,{obraId: string;data: AgregarDocumentoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof agregarDocumentoApiV1ObrasObraIdExpedientePost>>, TError,{obraId: string;data: AgregarDocumentoPeticion}, TContext> => {
 
 const mutationKey = ['agregarDocumentoApiV1ObrasObraIdExpedientePost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -270,7 +272,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof agregarDocumentoApiV1ObrasObraIdExpedientePost>>, {obraId: string;data: AgregarDocumentoPeticion}> = (props) => {
           const {obraId,data} = props ?? {};
 
-          return  agregarDocumentoApiV1ObrasObraIdExpedientePost(obraId,data,)
+          return  agregarDocumentoApiV1ObrasObraIdExpedientePost(obraId,data,requestOptions)
         }
 
         
@@ -286,7 +288,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Agregar un documento al expediente
  */
 export const useAgregarDocumentoApiV1ObrasObraIdExpedientePost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof agregarDocumentoApiV1ObrasObraIdExpedientePost>>, TError,{obraId: string;data: AgregarDocumentoPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof agregarDocumentoApiV1ObrasObraIdExpedientePost>>, TError,{obraId: string;data: AgregarDocumentoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof agregarDocumentoApiV1ObrasObraIdExpedientePost>>,
         TError,
@@ -309,14 +311,14 @@ para pintar la pantalla (§11.3 D, "C calidad/expediente").
  */
 export const vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet = (
     obraId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<ExpedienteRespuesta>(
       {url: `/api/v1/obras/${obraId}/expediente/vista`, method: 'GET', signal
     },
-      );
+      options);
     }
   
 
@@ -335,16 +337,16 @@ export const getVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetQueryKey = (
     }
 
     
-export const getVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>>, TError = void | HTTPValidationError>(obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError, TData>>, }
+export const getVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>>, TError = void | HTTPValidationError>(obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetInfiniteQueryKey(obraId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>> = ({ signal }) => vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet(obraId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>> = ({ signal }) => vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet(obraId, requestOptions, signal);
 
       
 
@@ -364,7 +366,7 @@ export function useVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetInfinite<
           TError,
           Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>>, TError = void | HTTPValidationError>(
@@ -374,11 +376,11 @@ export function useVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetInfinite<
           TError,
           Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>>, TError = void | HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -386,7 +388,7 @@ export function useVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetInfinite<
  */
 
 export function useVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>>, TError = void | HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -402,16 +404,16 @@ export function useVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetInfinite<
 
 
 
-export const getVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetQueryOptions = <TData = Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError = void | HTTPValidationError>(obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError, TData>>, }
+export const getVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetQueryOptions = <TData = Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError = void | HTTPValidationError>(obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGetQueryKey(obraId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>> = ({ signal }) => vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet(obraId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>> = ({ signal }) => vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet(obraId, requestOptions, signal);
 
       
 
@@ -431,7 +433,7 @@ export function useVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet<TData = 
           TError,
           Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet<TData = Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError = void | HTTPValidationError>(
@@ -441,11 +443,11 @@ export function useVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet<TData = 
           TError,
           Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet<TData = Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError = void | HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -453,7 +455,7 @@ export function useVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet<TData = 
  */
 
 export function useVistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet<TData = Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError = void | HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof vistaDelExpedienteApiV1ObrasObraIdExpedienteVistaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -483,14 +485,14 @@ contexto RLS: encolar **no** amplía lo que ese usuario puede ver
  */
 export const pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet = (
     obraId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<TrabajoRespuesta>(
       {url: `/api/v1/obras/${obraId}/expediente/pdf`, method: 'GET', signal
     },
-      );
+      options);
     }
   
 
@@ -509,16 +511,16 @@ export const getPdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetQueryKey = (obra
     }
 
     
-export const getPdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>>, TError = HTTPValidationError | void>(obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError, TData>>, }
+export const getPdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>>, TError = HTTPValidationError | void>(obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getPdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetInfiniteQueryKey(obraId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>> = ({ signal }) => pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet(obraId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>> = ({ signal }) => pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet(obraId, requestOptions, signal);
 
       
 
@@ -538,7 +540,7 @@ export function usePdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetInfinite<TDat
           TError,
           Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function usePdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>>, TError = HTTPValidationError | void>(
@@ -548,11 +550,11 @@ export function usePdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetInfinite<TDat
           TError,
           Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function usePdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>>, TError = HTTPValidationError | void>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -560,7 +562,7 @@ export function usePdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetInfinite<TDat
  */
 
 export function usePdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>>, TError = HTTPValidationError | void>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -576,16 +578,16 @@ export function usePdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetInfinite<TDat
 
 
 
-export const getPdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetQueryOptions = <TData = Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError = HTTPValidationError | void>(obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError, TData>>, }
+export const getPdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetQueryOptions = <TData = Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError = HTTPValidationError | void>(obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getPdfDelExpedienteApiV1ObrasObraIdExpedientePdfGetQueryKey(obraId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>> = ({ signal }) => pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet(obraId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>> = ({ signal }) => pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet(obraId, requestOptions, signal);
 
       
 
@@ -605,7 +607,7 @@ export function usePdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet<TData = Awai
           TError,
           Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function usePdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet<TData = Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError = HTTPValidationError | void>(
@@ -615,11 +617,11 @@ export function usePdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet<TData = Awai
           TError,
           Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function usePdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet<TData = Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError = HTTPValidationError | void>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -627,7 +629,7 @@ export function usePdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet<TData = Awai
  */
 
 export function usePdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet<TData = Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError = HTTPValidationError | void>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof pdfDelExpedienteApiV1ObrasObraIdExpedientePdfGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 

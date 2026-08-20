@@ -24,6 +24,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -35,7 +37,7 @@ el event loop pese a que `boto3` sea síncrono.
  */
 export const firmarEvidenciaApiV1EvidenciasPresignedPost = (
     presignedPeticion: PresignedPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -44,21 +46,21 @@ export const firmarEvidenciaApiV1EvidenciasPresignedPost = (
       headers: {'Content-Type': 'application/json', },
       data: presignedPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getFirmarEvidenciaApiV1EvidenciasPresignedPostMutationOptions = <TError = HTTPValidationError | void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>, TError,{data: PresignedPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>, TError,{data: PresignedPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>, TError,{data: PresignedPeticion}, TContext> => {
 
 const mutationKey = ['firmarEvidenciaApiV1EvidenciasPresignedPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -66,7 +68,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>, {data: PresignedPeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  firmarEvidenciaApiV1EvidenciasPresignedPost(data,)
+          return  firmarEvidenciaApiV1EvidenciasPresignedPost(data,requestOptions)
         }
 
         
@@ -82,7 +84,7 @@ const {mutation: mutationOptions} = options ?
  * @summary URL firmada para subir una evidencia directo a R2
  */
 export const useFirmarEvidenciaApiV1EvidenciasPresignedPost = <TError = HTTPValidationError | void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>, TError,{data: PresignedPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>, TError,{data: PresignedPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>,
         TError,

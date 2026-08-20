@@ -43,6 +43,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -51,7 +53,7 @@ import { peticion } from '../../cliente';
  */
 export const abrirIncidenciaApiV1IncidenciasPost = (
     abrirIncidenciaPeticion: AbrirIncidenciaPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -60,21 +62,21 @@ export const abrirIncidenciaApiV1IncidenciasPost = (
       headers: {'Content-Type': 'application/json', },
       data: abrirIncidenciaPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getAbrirIncidenciaApiV1IncidenciasPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof abrirIncidenciaApiV1IncidenciasPost>>, TError,{data: AbrirIncidenciaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof abrirIncidenciaApiV1IncidenciasPost>>, TError,{data: AbrirIncidenciaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof abrirIncidenciaApiV1IncidenciasPost>>, TError,{data: AbrirIncidenciaPeticion}, TContext> => {
 
 const mutationKey = ['abrirIncidenciaApiV1IncidenciasPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -82,7 +84,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof abrirIncidenciaApiV1IncidenciasPost>>, {data: AbrirIncidenciaPeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  abrirIncidenciaApiV1IncidenciasPost(data,)
+          return  abrirIncidenciaApiV1IncidenciasPost(data,requestOptions)
         }
 
         
@@ -98,7 +100,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Abrir una incidencia
  */
 export const useAbrirIncidenciaApiV1IncidenciasPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof abrirIncidenciaApiV1IncidenciasPost>>, TError,{data: AbrirIncidenciaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof abrirIncidenciaApiV1IncidenciasPost>>, TError,{data: AbrirIncidenciaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof abrirIncidenciaApiV1IncidenciasPost>>,
         TError,
@@ -120,7 +122,7 @@ caso de uso: RLS ya acota el alcance (§12.4).
  */
 export const listarIncidenciasApiV1IncidenciasGet = (
     params?: ListarIncidenciasApiV1IncidenciasGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -128,7 +130,7 @@ export const listarIncidenciasApiV1IncidenciasGet = (
       {url: `/api/v1/incidencias`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -147,16 +149,16 @@ export const getListarIncidenciasApiV1IncidenciasGetQueryKey = (params?: ListarI
     }
 
     
-export const getListarIncidenciasApiV1IncidenciasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>>, TError = HTTPValidationError>(params?: ListarIncidenciasApiV1IncidenciasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError, TData>>, }
+export const getListarIncidenciasApiV1IncidenciasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>>, TError = HTTPValidationError>(params?: ListarIncidenciasApiV1IncidenciasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarIncidenciasApiV1IncidenciasGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>> = ({ signal }) => listarIncidenciasApiV1IncidenciasGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>> = ({ signal }) => listarIncidenciasApiV1IncidenciasGet(params, requestOptions, signal);
 
       
 
@@ -176,7 +178,7 @@ export function useListarIncidenciasApiV1IncidenciasGetInfinite<TData = Infinite
           TError,
           Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarIncidenciasApiV1IncidenciasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>>, TError = HTTPValidationError>(
@@ -186,11 +188,11 @@ export function useListarIncidenciasApiV1IncidenciasGetInfinite<TData = Infinite
           TError,
           Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarIncidenciasApiV1IncidenciasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>>, TError = HTTPValidationError>(
- params?: ListarIncidenciasApiV1IncidenciasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError, TData>>, }
+ params?: ListarIncidenciasApiV1IncidenciasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -198,7 +200,7 @@ export function useListarIncidenciasApiV1IncidenciasGetInfinite<TData = Infinite
  */
 
 export function useListarIncidenciasApiV1IncidenciasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>>, TError = HTTPValidationError>(
- params?: ListarIncidenciasApiV1IncidenciasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError, TData>>, }
+ params?: ListarIncidenciasApiV1IncidenciasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -214,16 +216,16 @@ export function useListarIncidenciasApiV1IncidenciasGetInfinite<TData = Infinite
 
 
 
-export const getListarIncidenciasApiV1IncidenciasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError = HTTPValidationError>(params?: ListarIncidenciasApiV1IncidenciasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError, TData>>, }
+export const getListarIncidenciasApiV1IncidenciasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError = HTTPValidationError>(params?: ListarIncidenciasApiV1IncidenciasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarIncidenciasApiV1IncidenciasGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>> = ({ signal }) => listarIncidenciasApiV1IncidenciasGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>> = ({ signal }) => listarIncidenciasApiV1IncidenciasGet(params, requestOptions, signal);
 
       
 
@@ -243,7 +245,7 @@ export function useListarIncidenciasApiV1IncidenciasGet<TData = Awaited<ReturnTy
           TError,
           Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarIncidenciasApiV1IncidenciasGet<TData = Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError = HTTPValidationError>(
@@ -253,11 +255,11 @@ export function useListarIncidenciasApiV1IncidenciasGet<TData = Awaited<ReturnTy
           TError,
           Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarIncidenciasApiV1IncidenciasGet<TData = Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError = HTTPValidationError>(
- params?: ListarIncidenciasApiV1IncidenciasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError, TData>>, }
+ params?: ListarIncidenciasApiV1IncidenciasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -265,7 +267,7 @@ export function useListarIncidenciasApiV1IncidenciasGet<TData = Awaited<ReturnTy
  */
 
 export function useListarIncidenciasApiV1IncidenciasGet<TData = Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError = HTTPValidationError>(
- params?: ListarIncidenciasApiV1IncidenciasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError, TData>>, }
+ params?: ListarIncidenciasApiV1IncidenciasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarIncidenciasApiV1IncidenciasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -288,7 +290,7 @@ export function useListarIncidenciasApiV1IncidenciasGet<TData = Awaited<ReturnTy
 export const programarIncidenciaApiV1IncidenciasIncidenciaIdPatch = (
     incidenciaId: string,
     programarIncidenciaPeticion: ProgramarIncidenciaPeticion,
- ) => {
+ options?: SecondParameter<typeof peticion>,) => {
       
       
       return peticion<IncidenciaRespuesta>(
@@ -296,21 +298,21 @@ export const programarIncidenciaApiV1IncidenciasIncidenciaIdPatch = (
       headers: {'Content-Type': 'application/json', },
       data: programarIncidenciaPeticion
     },
-      );
+      options);
     }
   
 
 
 export const getProgramarIncidenciaApiV1IncidenciasIncidenciaIdPatchMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof programarIncidenciaApiV1IncidenciasIncidenciaIdPatch>>, TError,{incidenciaId: string;data: ProgramarIncidenciaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof programarIncidenciaApiV1IncidenciasIncidenciaIdPatch>>, TError,{incidenciaId: string;data: ProgramarIncidenciaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof programarIncidenciaApiV1IncidenciasIncidenciaIdPatch>>, TError,{incidenciaId: string;data: ProgramarIncidenciaPeticion}, TContext> => {
 
 const mutationKey = ['programarIncidenciaApiV1IncidenciasIncidenciaIdPatch'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -318,7 +320,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof programarIncidenciaApiV1IncidenciasIncidenciaIdPatch>>, {incidenciaId: string;data: ProgramarIncidenciaPeticion}> = (props) => {
           const {incidenciaId,data} = props ?? {};
 
-          return  programarIncidenciaApiV1IncidenciasIncidenciaIdPatch(incidenciaId,data,)
+          return  programarIncidenciaApiV1IncidenciasIncidenciaIdPatch(incidenciaId,data,requestOptions)
         }
 
         
@@ -334,7 +336,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Programar una incidencia (asignación)
  */
 export const useProgramarIncidenciaApiV1IncidenciasIncidenciaIdPatch = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof programarIncidenciaApiV1IncidenciasIncidenciaIdPatch>>, TError,{incidenciaId: string;data: ProgramarIncidenciaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof programarIncidenciaApiV1IncidenciasIncidenciaIdPatch>>, TError,{incidenciaId: string;data: ProgramarIncidenciaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof programarIncidenciaApiV1IncidenciasIncidenciaIdPatch>>,
         TError,
@@ -354,7 +356,7 @@ todos los que participan pueden registrar el evento (§11.3 F.3).
 export const registrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost = (
     incidenciaId: string,
     eventoIncidenciaPeticion: EventoIncidenciaPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -363,21 +365,21 @@ export const registrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost = 
       headers: {'Content-Type': 'application/json', },
       data: eventoIncidenciaPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getRegistrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost>>, TError,{incidenciaId: string;data: EventoIncidenciaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost>>, TError,{incidenciaId: string;data: EventoIncidenciaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof registrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost>>, TError,{incidenciaId: string;data: EventoIncidenciaPeticion}, TContext> => {
 
 const mutationKey = ['registrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -385,7 +387,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof registrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost>>, {incidenciaId: string;data: EventoIncidenciaPeticion}> = (props) => {
           const {incidenciaId,data} = props ?? {};
 
-          return  registrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost(incidenciaId,data,)
+          return  registrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost(incidenciaId,data,requestOptions)
         }
 
         
@@ -401,7 +403,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Comentar o transicionar una incidencia
  */
 export const useRegistrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost>>, TError,{incidenciaId: string;data: EventoIncidenciaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost>>, TError,{incidenciaId: string;data: EventoIncidenciaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof registrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost>>,
         TError,
@@ -421,7 +423,7 @@ export const useRegistrarEventoIncidenciaApiV1IncidenciasIncidenciaIdEventosPost
 export const cerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost = (
     incidenciaId: string,
     cerrarIncidenciaPeticion: CerrarIncidenciaPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -430,21 +432,21 @@ export const cerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost = (
       headers: {'Content-Type': 'application/json', },
       data: cerrarIncidenciaPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getCerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost>>, TError,{incidenciaId: string;data: CerrarIncidenciaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost>>, TError,{incidenciaId: string;data: CerrarIncidenciaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof cerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost>>, TError,{incidenciaId: string;data: CerrarIncidenciaPeticion}, TContext> => {
 
 const mutationKey = ['cerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -452,7 +454,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof cerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost>>, {incidenciaId: string;data: CerrarIncidenciaPeticion}> = (props) => {
           const {incidenciaId,data} = props ?? {};
 
-          return  cerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost(incidenciaId,data,)
+          return  cerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost(incidenciaId,data,requestOptions)
         }
 
         
@@ -468,7 +470,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Cerrar una incidencia
  */
 export const useCerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost>>, TError,{incidenciaId: string;data: CerrarIncidenciaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost>>, TError,{incidenciaId: string;data: CerrarIncidenciaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof cerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost>>,
         TError,
@@ -487,7 +489,7 @@ export const useCerrarIncidenciaApiV1IncidenciasIncidenciaIdCerrarPost = <TError
 export const rechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPost = (
     incidenciaId: string,
     rechazarIncidenciaPeticion: RechazarIncidenciaPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -496,21 +498,21 @@ export const rechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPost = (
       headers: {'Content-Type': 'application/json', },
       data: rechazarIncidenciaPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getRechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPost>>, TError,{incidenciaId: string;data: RechazarIncidenciaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPost>>, TError,{incidenciaId: string;data: RechazarIncidenciaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof rechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPost>>, TError,{incidenciaId: string;data: RechazarIncidenciaPeticion}, TContext> => {
 
 const mutationKey = ['rechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -518,7 +520,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof rechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPost>>, {incidenciaId: string;data: RechazarIncidenciaPeticion}> = (props) => {
           const {incidenciaId,data} = props ?? {};
 
-          return  rechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPost(incidenciaId,data,)
+          return  rechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPost(incidenciaId,data,requestOptions)
         }
 
         
@@ -534,7 +536,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Rechazar una incidencia
  */
 export const useRechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPost>>, TError,{incidenciaId: string;data: RechazarIncidenciaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPost>>, TError,{incidenciaId: string;data: RechazarIncidenciaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof rechazarIncidenciaApiV1IncidenciasIncidenciaIdRechazarPost>>,
         TError,

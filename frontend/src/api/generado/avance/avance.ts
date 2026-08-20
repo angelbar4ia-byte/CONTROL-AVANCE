@@ -23,6 +23,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -39,7 +41,7 @@ también la BD (CHECKs de la migración 0007).
 export const capturarAvanceApiV1ActividadesActividadIdAvancePatch = (
     actividadId: string,
     capturaAvancePeticion: CapturaAvancePeticion,
- ) => {
+ options?: SecondParameter<typeof peticion>,) => {
       
       
       return peticion<AvanceRespuesta>(
@@ -47,21 +49,21 @@ export const capturarAvanceApiV1ActividadesActividadIdAvancePatch = (
       headers: {'Content-Type': 'application/json', },
       data: capturaAvancePeticion
     },
-      );
+      options);
     }
   
 
 
 export const getCapturarAvanceApiV1ActividadesActividadIdAvancePatchMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>>, TError,{actividadId: string;data: CapturaAvancePeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>>, TError,{actividadId: string;data: CapturaAvancePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>>, TError,{actividadId: string;data: CapturaAvancePeticion}, TContext> => {
 
 const mutationKey = ['capturarAvanceApiV1ActividadesActividadIdAvancePatch'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -69,7 +71,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>>, {actividadId: string;data: CapturaAvancePeticion}> = (props) => {
           const {actividadId,data} = props ?? {};
 
-          return  capturarAvanceApiV1ActividadesActividadIdAvancePatch(actividadId,data,)
+          return  capturarAvanceApiV1ActividadesActividadIdAvancePatch(actividadId,data,requestOptions)
         }
 
         
@@ -85,7 +87,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Capturar avance de una actividad
  */
 export const useCapturarAvanceApiV1ActividadesActividadIdAvancePatch = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>>, TError,{actividadId: string;data: CapturaAvancePeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>>, TError,{actividadId: string;data: CapturaAvancePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>>,
         TError,

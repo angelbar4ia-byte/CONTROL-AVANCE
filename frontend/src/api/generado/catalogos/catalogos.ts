@@ -58,6 +58,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -67,7 +69,7 @@ que consulta el repo directo: RLS ya acota el alcance (§12.4).
  */
 export const listarUnidadesApiV1UnidadesGet = (
     params?: ListarUnidadesApiV1UnidadesGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -75,7 +77,7 @@ export const listarUnidadesApiV1UnidadesGet = (
       {url: `/api/v1/unidades`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -94,16 +96,16 @@ export const getListarUnidadesApiV1UnidadesGetQueryKey = (params?: ListarUnidade
     }
 
     
-export const getListarUnidadesApiV1UnidadesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>>, TError = HTTPValidationError>(params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, }
+export const getListarUnidadesApiV1UnidadesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>>, TError = HTTPValidationError>(params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarUnidadesApiV1UnidadesGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>> = ({ signal }) => listarUnidadesApiV1UnidadesGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>> = ({ signal }) => listarUnidadesApiV1UnidadesGet(params, requestOptions, signal);
 
       
 
@@ -123,7 +125,7 @@ export function useListarUnidadesApiV1UnidadesGetInfinite<TData = InfiniteData<A
           TError,
           Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarUnidadesApiV1UnidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>>, TError = HTTPValidationError>(
@@ -133,11 +135,11 @@ export function useListarUnidadesApiV1UnidadesGetInfinite<TData = InfiniteData<A
           TError,
           Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarUnidadesApiV1UnidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>>, TError = HTTPValidationError>(
- params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, }
+ params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -145,7 +147,7 @@ export function useListarUnidadesApiV1UnidadesGetInfinite<TData = InfiniteData<A
  */
 
 export function useListarUnidadesApiV1UnidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>>, TError = HTTPValidationError>(
- params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, }
+ params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -161,16 +163,16 @@ export function useListarUnidadesApiV1UnidadesGetInfinite<TData = InfiniteData<A
 
 
 
-export const getListarUnidadesApiV1UnidadesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError = HTTPValidationError>(params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, }
+export const getListarUnidadesApiV1UnidadesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError = HTTPValidationError>(params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarUnidadesApiV1UnidadesGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>> = ({ signal }) => listarUnidadesApiV1UnidadesGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>> = ({ signal }) => listarUnidadesApiV1UnidadesGet(params, requestOptions, signal);
 
       
 
@@ -190,7 +192,7 @@ export function useListarUnidadesApiV1UnidadesGet<TData = Awaited<ReturnType<typ
           TError,
           Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarUnidadesApiV1UnidadesGet<TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError = HTTPValidationError>(
@@ -200,11 +202,11 @@ export function useListarUnidadesApiV1UnidadesGet<TData = Awaited<ReturnType<typ
           TError,
           Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarUnidadesApiV1UnidadesGet<TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError = HTTPValidationError>(
- params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, }
+ params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -212,7 +214,7 @@ export function useListarUnidadesApiV1UnidadesGet<TData = Awaited<ReturnType<typ
  */
 
 export function useListarUnidadesApiV1UnidadesGet<TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError = HTTPValidationError>(
- params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, }
+ params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -233,7 +235,7 @@ export function useListarUnidadesApiV1UnidadesGet<TData = Awaited<ReturnType<typ
  */
 export const crearUnidadApiV1UnidadesPost = (
     crearUnidadPeticion: CrearUnidadPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -242,21 +244,21 @@ export const crearUnidadApiV1UnidadesPost = (
       headers: {'Content-Type': 'application/json', },
       data: crearUnidadPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getCrearUnidadApiV1UnidadesPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>, TError,{data: CrearUnidadPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>, TError,{data: CrearUnidadPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>, TError,{data: CrearUnidadPeticion}, TContext> => {
 
 const mutationKey = ['crearUnidadApiV1UnidadesPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -264,7 +266,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>, {data: CrearUnidadPeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  crearUnidadApiV1UnidadesPost(data,)
+          return  crearUnidadApiV1UnidadesPost(data,requestOptions)
         }
 
         
@@ -280,7 +282,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Alta de unidad
  */
 export const useCrearUnidadApiV1UnidadesPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>, TError,{data: CrearUnidadPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>, TError,{data: CrearUnidadPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>,
         TError,
@@ -297,7 +299,7 @@ export const useCrearUnidadApiV1UnidadesPost = <TError = void,
  */
 export const listarFamiliasApiV1FamiliasGet = (
     params?: ListarFamiliasApiV1FamiliasGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -305,7 +307,7 @@ export const listarFamiliasApiV1FamiliasGet = (
       {url: `/api/v1/familias`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -324,16 +326,16 @@ export const getListarFamiliasApiV1FamiliasGetQueryKey = (params?: ListarFamilia
     }
 
     
-export const getListarFamiliasApiV1FamiliasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>>, TError = HTTPValidationError>(params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, }
+export const getListarFamiliasApiV1FamiliasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>>, TError = HTTPValidationError>(params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarFamiliasApiV1FamiliasGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>> = ({ signal }) => listarFamiliasApiV1FamiliasGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>> = ({ signal }) => listarFamiliasApiV1FamiliasGet(params, requestOptions, signal);
 
       
 
@@ -353,7 +355,7 @@ export function useListarFamiliasApiV1FamiliasGetInfinite<TData = InfiniteData<A
           TError,
           Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarFamiliasApiV1FamiliasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>>, TError = HTTPValidationError>(
@@ -363,11 +365,11 @@ export function useListarFamiliasApiV1FamiliasGetInfinite<TData = InfiniteData<A
           TError,
           Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarFamiliasApiV1FamiliasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>>, TError = HTTPValidationError>(
- params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, }
+ params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -375,7 +377,7 @@ export function useListarFamiliasApiV1FamiliasGetInfinite<TData = InfiniteData<A
  */
 
 export function useListarFamiliasApiV1FamiliasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>>, TError = HTTPValidationError>(
- params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, }
+ params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -391,16 +393,16 @@ export function useListarFamiliasApiV1FamiliasGetInfinite<TData = InfiniteData<A
 
 
 
-export const getListarFamiliasApiV1FamiliasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError = HTTPValidationError>(params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, }
+export const getListarFamiliasApiV1FamiliasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError = HTTPValidationError>(params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarFamiliasApiV1FamiliasGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>> = ({ signal }) => listarFamiliasApiV1FamiliasGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>> = ({ signal }) => listarFamiliasApiV1FamiliasGet(params, requestOptions, signal);
 
       
 
@@ -420,7 +422,7 @@ export function useListarFamiliasApiV1FamiliasGet<TData = Awaited<ReturnType<typ
           TError,
           Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarFamiliasApiV1FamiliasGet<TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError = HTTPValidationError>(
@@ -430,11 +432,11 @@ export function useListarFamiliasApiV1FamiliasGet<TData = Awaited<ReturnType<typ
           TError,
           Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarFamiliasApiV1FamiliasGet<TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError = HTTPValidationError>(
- params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, }
+ params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -442,7 +444,7 @@ export function useListarFamiliasApiV1FamiliasGet<TData = Awaited<ReturnType<typ
  */
 
 export function useListarFamiliasApiV1FamiliasGet<TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError = HTTPValidationError>(
- params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, }
+ params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -463,7 +465,7 @@ export function useListarFamiliasApiV1FamiliasGet<TData = Awaited<ReturnType<typ
  */
 export const crearFamiliaApiV1FamiliasPost = (
     crearFamiliaPeticion: CrearFamiliaPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -472,21 +474,21 @@ export const crearFamiliaApiV1FamiliasPost = (
       headers: {'Content-Type': 'application/json', },
       data: crearFamiliaPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getCrearFamiliaApiV1FamiliasPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>, TError,{data: CrearFamiliaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>, TError,{data: CrearFamiliaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>, TError,{data: CrearFamiliaPeticion}, TContext> => {
 
 const mutationKey = ['crearFamiliaApiV1FamiliasPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -494,7 +496,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>, {data: CrearFamiliaPeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  crearFamiliaApiV1FamiliasPost(data,)
+          return  crearFamiliaApiV1FamiliasPost(data,requestOptions)
         }
 
         
@@ -510,7 +512,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Alta de familia
  */
 export const useCrearFamiliaApiV1FamiliasPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>, TError,{data: CrearFamiliaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>, TError,{data: CrearFamiliaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>,
         TError,
@@ -527,7 +529,7 @@ export const useCrearFamiliaApiV1FamiliasPost = <TError = void,
  */
 export const listarInsumosApiV1InsumosGet = (
     params?: ListarInsumosApiV1InsumosGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -535,7 +537,7 @@ export const listarInsumosApiV1InsumosGet = (
       {url: `/api/v1/insumos`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -554,16 +556,16 @@ export const getListarInsumosApiV1InsumosGetQueryKey = (params?: ListarInsumosAp
     }
 
     
-export const getListarInsumosApiV1InsumosGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>>, TError = HTTPValidationError>(params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, }
+export const getListarInsumosApiV1InsumosGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>>, TError = HTTPValidationError>(params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarInsumosApiV1InsumosGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>> = ({ signal }) => listarInsumosApiV1InsumosGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>> = ({ signal }) => listarInsumosApiV1InsumosGet(params, requestOptions, signal);
 
       
 
@@ -583,7 +585,7 @@ export function useListarInsumosApiV1InsumosGetInfinite<TData = InfiniteData<Awa
           TError,
           Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarInsumosApiV1InsumosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>>, TError = HTTPValidationError>(
@@ -593,11 +595,11 @@ export function useListarInsumosApiV1InsumosGetInfinite<TData = InfiniteData<Awa
           TError,
           Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarInsumosApiV1InsumosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>>, TError = HTTPValidationError>(
- params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, }
+ params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -605,7 +607,7 @@ export function useListarInsumosApiV1InsumosGetInfinite<TData = InfiniteData<Awa
  */
 
 export function useListarInsumosApiV1InsumosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>>, TError = HTTPValidationError>(
- params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, }
+ params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -621,16 +623,16 @@ export function useListarInsumosApiV1InsumosGetInfinite<TData = InfiniteData<Awa
 
 
 
-export const getListarInsumosApiV1InsumosGetQueryOptions = <TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError = HTTPValidationError>(params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, }
+export const getListarInsumosApiV1InsumosGetQueryOptions = <TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError = HTTPValidationError>(params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarInsumosApiV1InsumosGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>> = ({ signal }) => listarInsumosApiV1InsumosGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>> = ({ signal }) => listarInsumosApiV1InsumosGet(params, requestOptions, signal);
 
       
 
@@ -650,7 +652,7 @@ export function useListarInsumosApiV1InsumosGet<TData = Awaited<ReturnType<typeo
           TError,
           Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarInsumosApiV1InsumosGet<TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError = HTTPValidationError>(
@@ -660,11 +662,11 @@ export function useListarInsumosApiV1InsumosGet<TData = Awaited<ReturnType<typeo
           TError,
           Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarInsumosApiV1InsumosGet<TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError = HTTPValidationError>(
- params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, }
+ params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -672,7 +674,7 @@ export function useListarInsumosApiV1InsumosGet<TData = Awaited<ReturnType<typeo
  */
 
 export function useListarInsumosApiV1InsumosGet<TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError = HTTPValidationError>(
- params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, }
+ params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -693,7 +695,7 @@ export function useListarInsumosApiV1InsumosGet<TData = Awaited<ReturnType<typeo
  */
 export const crearInsumoApiV1InsumosPost = (
     crearInsumoPeticion: CrearInsumoPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -702,21 +704,21 @@ export const crearInsumoApiV1InsumosPost = (
       headers: {'Content-Type': 'application/json', },
       data: crearInsumoPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getCrearInsumoApiV1InsumosPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>, TError,{data: CrearInsumoPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>, TError,{data: CrearInsumoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>, TError,{data: CrearInsumoPeticion}, TContext> => {
 
 const mutationKey = ['crearInsumoApiV1InsumosPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -724,7 +726,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>, {data: CrearInsumoPeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  crearInsumoApiV1InsumosPost(data,)
+          return  crearInsumoApiV1InsumosPost(data,requestOptions)
         }
 
         
@@ -740,7 +742,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Alta de insumo
  */
 export const useCrearInsumoApiV1InsumosPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>, TError,{data: CrearInsumoPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>, TError,{data: CrearInsumoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>,
         TError,
@@ -759,7 +761,7 @@ filtro fijado aquí. No hay tabla ni catálogo aparte.
  */
 export const listarMaterialesApiV1MaterialesGet = (
     params?: ListarMaterialesApiV1MaterialesGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -767,7 +769,7 @@ export const listarMaterialesApiV1MaterialesGet = (
       {url: `/api/v1/materiales`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -786,16 +788,16 @@ export const getListarMaterialesApiV1MaterialesGetQueryKey = (params?: ListarMat
     }
 
     
-export const getListarMaterialesApiV1MaterialesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>>, TError = HTTPValidationError>(params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, }
+export const getListarMaterialesApiV1MaterialesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>>, TError = HTTPValidationError>(params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarMaterialesApiV1MaterialesGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>> = ({ signal }) => listarMaterialesApiV1MaterialesGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>> = ({ signal }) => listarMaterialesApiV1MaterialesGet(params, requestOptions, signal);
 
       
 
@@ -815,7 +817,7 @@ export function useListarMaterialesApiV1MaterialesGetInfinite<TData = InfiniteDa
           TError,
           Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarMaterialesApiV1MaterialesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>>, TError = HTTPValidationError>(
@@ -825,11 +827,11 @@ export function useListarMaterialesApiV1MaterialesGetInfinite<TData = InfiniteDa
           TError,
           Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarMaterialesApiV1MaterialesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>>, TError = HTTPValidationError>(
- params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, }
+ params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -837,7 +839,7 @@ export function useListarMaterialesApiV1MaterialesGetInfinite<TData = InfiniteDa
  */
 
 export function useListarMaterialesApiV1MaterialesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>>, TError = HTTPValidationError>(
- params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, }
+ params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -853,16 +855,16 @@ export function useListarMaterialesApiV1MaterialesGetInfinite<TData = InfiniteDa
 
 
 
-export const getListarMaterialesApiV1MaterialesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError = HTTPValidationError>(params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, }
+export const getListarMaterialesApiV1MaterialesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError = HTTPValidationError>(params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarMaterialesApiV1MaterialesGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>> = ({ signal }) => listarMaterialesApiV1MaterialesGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>> = ({ signal }) => listarMaterialesApiV1MaterialesGet(params, requestOptions, signal);
 
       
 
@@ -882,7 +884,7 @@ export function useListarMaterialesApiV1MaterialesGet<TData = Awaited<ReturnType
           TError,
           Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarMaterialesApiV1MaterialesGet<TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError = HTTPValidationError>(
@@ -892,11 +894,11 @@ export function useListarMaterialesApiV1MaterialesGet<TData = Awaited<ReturnType
           TError,
           Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarMaterialesApiV1MaterialesGet<TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError = HTTPValidationError>(
- params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, }
+ params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -904,7 +906,7 @@ export function useListarMaterialesApiV1MaterialesGet<TData = Awaited<ReturnType
  */
 
 export function useListarMaterialesApiV1MaterialesGet<TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError = HTTPValidationError>(
- params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, }
+ params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -925,7 +927,7 @@ export function useListarMaterialesApiV1MaterialesGet<TData = Awaited<ReturnType
  */
 export const crearMaterialApiV1MaterialesPost = (
     crearMaterialPeticion: CrearMaterialPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -934,21 +936,21 @@ export const crearMaterialApiV1MaterialesPost = (
       headers: {'Content-Type': 'application/json', },
       data: crearMaterialPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getCrearMaterialApiV1MaterialesPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>, TError,{data: CrearMaterialPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>, TError,{data: CrearMaterialPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>, TError,{data: CrearMaterialPeticion}, TContext> => {
 
 const mutationKey = ['crearMaterialApiV1MaterialesPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -956,7 +958,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>, {data: CrearMaterialPeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  crearMaterialApiV1MaterialesPost(data,)
+          return  crearMaterialApiV1MaterialesPost(data,requestOptions)
         }
 
         
@@ -972,7 +974,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Alta de material
  */
 export const useCrearMaterialApiV1MaterialesPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>, TError,{data: CrearMaterialPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>, TError,{data: CrearMaterialPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>,
         TError,
@@ -989,7 +991,7 @@ export const useCrearMaterialApiV1MaterialesPost = <TError = void,
  */
 export const listarContratistasApiV1ContratistasGet = (
     params?: ListarContratistasApiV1ContratistasGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -997,7 +999,7 @@ export const listarContratistasApiV1ContratistasGet = (
       {url: `/api/v1/contratistas`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -1016,16 +1018,16 @@ export const getListarContratistasApiV1ContratistasGetQueryKey = (params?: Lista
     }
 
     
-export const getListarContratistasApiV1ContratistasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>>, TError = HTTPValidationError>(params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, }
+export const getListarContratistasApiV1ContratistasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>>, TError = HTTPValidationError>(params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarContratistasApiV1ContratistasGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>> = ({ signal }) => listarContratistasApiV1ContratistasGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>> = ({ signal }) => listarContratistasApiV1ContratistasGet(params, requestOptions, signal);
 
       
 
@@ -1045,7 +1047,7 @@ export function useListarContratistasApiV1ContratistasGetInfinite<TData = Infini
           TError,
           Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarContratistasApiV1ContratistasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>>, TError = HTTPValidationError>(
@@ -1055,11 +1057,11 @@ export function useListarContratistasApiV1ContratistasGetInfinite<TData = Infini
           TError,
           Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarContratistasApiV1ContratistasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>>, TError = HTTPValidationError>(
- params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, }
+ params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1067,7 +1069,7 @@ export function useListarContratistasApiV1ContratistasGetInfinite<TData = Infini
  */
 
 export function useListarContratistasApiV1ContratistasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>>, TError = HTTPValidationError>(
- params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, }
+ params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -1083,16 +1085,16 @@ export function useListarContratistasApiV1ContratistasGetInfinite<TData = Infini
 
 
 
-export const getListarContratistasApiV1ContratistasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError = HTTPValidationError>(params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, }
+export const getListarContratistasApiV1ContratistasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError = HTTPValidationError>(params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarContratistasApiV1ContratistasGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>> = ({ signal }) => listarContratistasApiV1ContratistasGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>> = ({ signal }) => listarContratistasApiV1ContratistasGet(params, requestOptions, signal);
 
       
 
@@ -1112,7 +1114,7 @@ export function useListarContratistasApiV1ContratistasGet<TData = Awaited<Return
           TError,
           Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarContratistasApiV1ContratistasGet<TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError = HTTPValidationError>(
@@ -1122,11 +1124,11 @@ export function useListarContratistasApiV1ContratistasGet<TData = Awaited<Return
           TError,
           Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarContratistasApiV1ContratistasGet<TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError = HTTPValidationError>(
- params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, }
+ params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1134,7 +1136,7 @@ export function useListarContratistasApiV1ContratistasGet<TData = Awaited<Return
  */
 
 export function useListarContratistasApiV1ContratistasGet<TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError = HTTPValidationError>(
- params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, }
+ params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -1155,7 +1157,7 @@ export function useListarContratistasApiV1ContratistasGet<TData = Awaited<Return
  */
 export const crearContratistaApiV1ContratistasPost = (
     crearContratistaPeticion: CrearContratistaPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -1164,21 +1166,21 @@ export const crearContratistaApiV1ContratistasPost = (
       headers: {'Content-Type': 'application/json', },
       data: crearContratistaPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getCrearContratistaApiV1ContratistasPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>, TError,{data: CrearContratistaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>, TError,{data: CrearContratistaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>, TError,{data: CrearContratistaPeticion}, TContext> => {
 
 const mutationKey = ['crearContratistaApiV1ContratistasPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -1186,7 +1188,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>, {data: CrearContratistaPeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  crearContratistaApiV1ContratistasPost(data,)
+          return  crearContratistaApiV1ContratistasPost(data,requestOptions)
         }
 
         
@@ -1202,7 +1204,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Alta de contratista
  */
 export const useCrearContratistaApiV1ContratistasPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>, TError,{data: CrearContratistaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>, TError,{data: CrearContratistaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>,
         TError,
@@ -1219,7 +1221,7 @@ export const useCrearContratistaApiV1ContratistasPost = <TError = void,
  */
 export const listarConceptosApiV1ConceptosGet = (
     params?: ListarConceptosApiV1ConceptosGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -1227,7 +1229,7 @@ export const listarConceptosApiV1ConceptosGet = (
       {url: `/api/v1/conceptos`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -1246,16 +1248,16 @@ export const getListarConceptosApiV1ConceptosGetQueryKey = (params?: ListarConce
     }
 
     
-export const getListarConceptosApiV1ConceptosGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>>, TError = HTTPValidationError>(params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, }
+export const getListarConceptosApiV1ConceptosGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>>, TError = HTTPValidationError>(params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarConceptosApiV1ConceptosGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>> = ({ signal }) => listarConceptosApiV1ConceptosGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>> = ({ signal }) => listarConceptosApiV1ConceptosGet(params, requestOptions, signal);
 
       
 
@@ -1275,7 +1277,7 @@ export function useListarConceptosApiV1ConceptosGetInfinite<TData = InfiniteData
           TError,
           Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarConceptosApiV1ConceptosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>>, TError = HTTPValidationError>(
@@ -1285,11 +1287,11 @@ export function useListarConceptosApiV1ConceptosGetInfinite<TData = InfiniteData
           TError,
           Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarConceptosApiV1ConceptosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>>, TError = HTTPValidationError>(
- params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, }
+ params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1297,7 +1299,7 @@ export function useListarConceptosApiV1ConceptosGetInfinite<TData = InfiniteData
  */
 
 export function useListarConceptosApiV1ConceptosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>>, TError = HTTPValidationError>(
- params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, }
+ params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -1313,16 +1315,16 @@ export function useListarConceptosApiV1ConceptosGetInfinite<TData = InfiniteData
 
 
 
-export const getListarConceptosApiV1ConceptosGetQueryOptions = <TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError = HTTPValidationError>(params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, }
+export const getListarConceptosApiV1ConceptosGetQueryOptions = <TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError = HTTPValidationError>(params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarConceptosApiV1ConceptosGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>> = ({ signal }) => listarConceptosApiV1ConceptosGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>> = ({ signal }) => listarConceptosApiV1ConceptosGet(params, requestOptions, signal);
 
       
 
@@ -1342,7 +1344,7 @@ export function useListarConceptosApiV1ConceptosGet<TData = Awaited<ReturnType<t
           TError,
           Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarConceptosApiV1ConceptosGet<TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError = HTTPValidationError>(
@@ -1352,11 +1354,11 @@ export function useListarConceptosApiV1ConceptosGet<TData = Awaited<ReturnType<t
           TError,
           Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarConceptosApiV1ConceptosGet<TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError = HTTPValidationError>(
- params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, }
+ params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1364,7 +1366,7 @@ export function useListarConceptosApiV1ConceptosGet<TData = Awaited<ReturnType<t
  */
 
 export function useListarConceptosApiV1ConceptosGet<TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError = HTTPValidationError>(
- params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, }
+ params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -1385,7 +1387,7 @@ export function useListarConceptosApiV1ConceptosGet<TData = Awaited<ReturnType<t
  */
 export const crearConceptoApiV1ConceptosPost = (
     crearConceptoPeticion: CrearConceptoPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -1394,21 +1396,21 @@ export const crearConceptoApiV1ConceptosPost = (
       headers: {'Content-Type': 'application/json', },
       data: crearConceptoPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getCrearConceptoApiV1ConceptosPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>, TError,{data: CrearConceptoPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>, TError,{data: CrearConceptoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>, TError,{data: CrearConceptoPeticion}, TContext> => {
 
 const mutationKey = ['crearConceptoApiV1ConceptosPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -1416,7 +1418,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>, {data: CrearConceptoPeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  crearConceptoApiV1ConceptosPost(data,)
+          return  crearConceptoApiV1ConceptosPost(data,requestOptions)
         }
 
         
@@ -1432,7 +1434,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Alta de concepto
  */
 export const useCrearConceptoApiV1ConceptosPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>, TError,{data: CrearConceptoPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>, TError,{data: CrearConceptoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>,
         TError,
@@ -1450,14 +1452,14 @@ export const useCrearConceptoApiV1ConceptosPost = <TError = void,
  */
 export const explotarConceptoApiV1ConceptosConceptoIdExplosionGet = (
     conceptoId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<ExplosionRespuesta>(
       {url: `/api/v1/conceptos/${conceptoId}/explosion`, method: 'GET', signal
     },
-      );
+      options);
     }
   
 
@@ -1476,16 +1478,16 @@ export const getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryKey = (
     }
 
     
-export const getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>>, TError = void>(conceptoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, }
+export const getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>>, TError = void>(conceptoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryKey(conceptoId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>> = ({ signal }) => explotarConceptoApiV1ConceptosConceptoIdExplosionGet(conceptoId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>> = ({ signal }) => explotarConceptoApiV1ConceptosConceptoIdExplosionGet(conceptoId, requestOptions, signal);
 
       
 
@@ -1505,7 +1507,7 @@ export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<
           TError,
           Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>>, TError = void>(
@@ -1515,11 +1517,11 @@ export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<
           TError,
           Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>>, TError = void>(
- conceptoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, }
+ conceptoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1527,7 +1529,7 @@ export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<
  */
 
 export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>>, TError = void>(
- conceptoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, }
+ conceptoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -1543,16 +1545,16 @@ export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<
 
 
 
-export const getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryOptions = <TData = Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError = void>(conceptoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, }
+export const getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryOptions = <TData = Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError = void>(conceptoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryKey(conceptoId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>> = ({ signal }) => explotarConceptoApiV1ConceptosConceptoIdExplosionGet(conceptoId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>> = ({ signal }) => explotarConceptoApiV1ConceptosConceptoIdExplosionGet(conceptoId, requestOptions, signal);
 
       
 
@@ -1572,7 +1574,7 @@ export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<TData = 
           TError,
           Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<TData = Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError = void>(
@@ -1582,11 +1584,11 @@ export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<TData = 
           TError,
           Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<TData = Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError = void>(
- conceptoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, }
+ conceptoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1594,7 +1596,7 @@ export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<TData = 
  */
 
 export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<TData = Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError = void>(
- conceptoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, }
+ conceptoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -1616,7 +1618,7 @@ export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<TData = 
 export const obtenerCpuApiV1ConceptosConceptoIdCpuGet = (
     conceptoId: string,
     params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -1624,7 +1626,7 @@ export const obtenerCpuApiV1ConceptosConceptoIdCpuGet = (
       {url: `/api/v1/conceptos/${conceptoId}/cpu`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -1646,16 +1648,16 @@ export const getObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryKey = (conceptoId?:
 
     
 export const getObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>>, TError = void>(conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, }
+    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryKey(conceptoId,params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>> = ({ signal }) => obtenerCpuApiV1ConceptosConceptoIdCpuGet(conceptoId,params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>> = ({ signal }) => obtenerCpuApiV1ConceptosConceptoIdCpuGet(conceptoId,params, requestOptions, signal);
 
       
 
@@ -1676,7 +1678,7 @@ export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<TData = Infi
           TError,
           Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>>, TError = void>(
@@ -1687,12 +1689,12 @@ export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<TData = Infi
           TError,
           Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>>, TError = void>(
  conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, }
+    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1701,7 +1703,7 @@ export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<TData = Infi
 
 export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>>, TError = void>(
  conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, }
+    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -1718,16 +1720,16 @@ export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<TData = Infi
 
 
 export const getObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryOptions = <TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError = void>(conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, }
+    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryKey(conceptoId,params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>> = ({ signal }) => obtenerCpuApiV1ConceptosConceptoIdCpuGet(conceptoId,params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>> = ({ signal }) => obtenerCpuApiV1ConceptosConceptoIdCpuGet(conceptoId,params, requestOptions, signal);
 
       
 
@@ -1748,7 +1750,7 @@ export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<TData = Awaited<Retu
           TError,
           Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError = void>(
@@ -1759,12 +1761,12 @@ export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<TData = Awaited<Retu
           TError,
           Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError = void>(
  conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, }
+    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -1773,7 +1775,7 @@ export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<TData = Awaited<Retu
 
 export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError = void>(
  conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, }
+    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -1796,7 +1798,7 @@ export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<TData = Awaited<Retu
 export const publicarCpuApiV1ConceptosConceptoIdCpuPost = (
     conceptoId: string,
     publicarCPUPeticion: PublicarCPUPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -1805,21 +1807,21 @@ export const publicarCpuApiV1ConceptosConceptoIdCpuPost = (
       headers: {'Content-Type': 'application/json', },
       data: publicarCPUPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getPublicarCpuApiV1ConceptosConceptoIdCpuPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>, TError,{conceptoId: string;data: PublicarCPUPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>, TError,{conceptoId: string;data: PublicarCPUPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>, TError,{conceptoId: string;data: PublicarCPUPeticion}, TContext> => {
 
 const mutationKey = ['publicarCpuApiV1ConceptosConceptoIdCpuPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -1827,7 +1829,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>, {conceptoId: string;data: PublicarCPUPeticion}> = (props) => {
           const {conceptoId,data} = props ?? {};
 
-          return  publicarCpuApiV1ConceptosConceptoIdCpuPost(conceptoId,data,)
+          return  publicarCpuApiV1ConceptosConceptoIdCpuPost(conceptoId,data,requestOptions)
         }
 
         
@@ -1843,7 +1845,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Publica una nueva versión del CPU
  */
 export const usePublicarCpuApiV1ConceptosConceptoIdCpuPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>, TError,{conceptoId: string;data: PublicarCPUPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>, TError,{conceptoId: string;data: PublicarCPUPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>,
         TError,

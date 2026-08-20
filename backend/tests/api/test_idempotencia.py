@@ -154,9 +154,14 @@ class TestRespuestas:
 
 class TestContrato:
     def test_las_mutaciones_sensibles_declaran_la_cabecera(self) -> None:
-        """Las que mueven dinero o dejan estado irreversible (§11.3 C, E) y las
-        altas masivas. Que esté en el contrato es lo que hace que Orval le
-        genere el parámetro al front."""
+        """Las que mueven dinero o dejan estado irreversible (§11.3 C, E), las
+        altas masivas, y las que **cruzan a otro sistema** —el alta de usuario
+        y el reseteo de contraseña llaman a la Admin API del proveedor de auth
+        (§5.1), y eso no se deshace con un rollback—.
+
+        Que esté en el contrato es lo que hace que Orval le genere el parámetro
+        al front. Esta lista es exhaustiva a propósito: agregar una mutación
+        sensible sin su cabecera rompe aquí, que es lo que se quiere."""
         spec = crear_app().openapi()
         con_cabecera = {
             f"{metodo.upper()} {ruta}"
@@ -175,6 +180,8 @@ class TestContrato:
             "POST /api/v1/obras/{obra_id}/estimaciones",
             "POST /api/v1/obras/{obra_id}/generar",
             "POST /api/v1/obras/{obra_id}/salidas",
+            "POST /api/v1/usuarios",
+            "POST /api/v1/usuarios/{usuario_id}/contrasena",
         }
 
     def test_es_opcional(self) -> None:

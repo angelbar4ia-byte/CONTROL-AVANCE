@@ -29,6 +29,8 @@ import Consumo from '@/materiales/Consumo';
 import Salidas from '@/materiales/Salidas';
 import Incidencias from '@/incidencias/Incidencias';
 import Evaluaciones from '@/evaluaciones/Evaluaciones';
+import Equipo from '@/equipo/Equipo';
+import Asignaciones from '@/equipo/Asignaciones';
 
 export function App() {
   return (
@@ -108,6 +110,12 @@ function Rutas() {
         <Route path="/incidencias" element={<Incidencias />} />
         <Route path="/evaluaciones" element={<Evaluaciones />} />
         <Route path="/estimacion" element={<Estimacion />} />
+        {/* Equipo (§5.1): «Usuarios» es de Control de obra y Super
+            intendente; «Asignaciones» es compartida (§5.3) y el Supervisor la
+            trae en su sidebar para ver los clusters que le tocaron. */}
+        <Route path="/config/equipo" element={<Equipo />} />
+        <Route path="/equipo" element={<Equipo />} />
+        <Route path="/asignaciones" element={<Asignaciones />} />
         <Route path="*" element={<EnConstruccion />} />
       </Route>
     </Routes>

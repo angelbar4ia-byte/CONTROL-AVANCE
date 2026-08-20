@@ -16,13 +16,13 @@
 | D7 | **Las Fases 7+ se ordenan por un piloto en obra real** | El orden lo decide qué **bloquea el uso**, no qué falta del spec. Consecuencias: la administración de usuarios sube al primer lugar —hoy no se puede dar de alta a nadie y el Login ya lo promete—; presupuesto, procesos y tiempo real bajan; y el móvil se va al final, lo que hace que el piloto sea **web-only**. Eso último solo se sostiene si el residente captura con señal: `PATCH /actividades/{id}/avance` y la feature `avance` de la web ya lo permiten. **Si el residente resulta no tener señal en campo, el móvil deja de ser opcional y salta al frente de la fila** — es el supuesto que hay que confirmar antes de empezar el piloto, no durante. |
 | D8 | **Endurecer no compite con el piloto: es su precondición** | Un piloto mete datos reales de un cliente en producción, así que la Fase 8 (operación segura) va **antes** que cualquier feature nueva. Sin restauración probada, sin poder revertir una migración y sin rastro de quién cambió qué, el riesgo no es técnico sino del cliente. El detonante fue encontrar que **nada se ha desplegado nunca**: las seis fases viven en una rama sin fusionar a `main`, mientras el §12.12 manda trunk-based con `main` siempre desplegable. El endurecimiento que **sostiene** el sistema cuando crece —virtualización, datasets golden, deuda de tipos— es otra cosa y va en la Fase 14. |
 
-## Estado actual (Fase 8 cerrada · Fase 7 por empezar)
+## Estado actual (Fases 7 y 8 cerradas)
 
 | Capa | Entregado | Pendiente |
 |---|---|---|
-| `database/` | 24 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · 6 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
-| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · **725 pruebas**, 176 de ellas de integración contra Postgres real | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
-| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · **221 pruebas** + 4 E2E de humo | Features: cargas, expediente, reportes, revisión física · cablear `Idempotency-Key` · los 6 E2E de workflow |
+| `database/` | 24 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · guardia de privilegios de `usuario` · 6 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
+| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · **787 pruebas**, 193 de ellas de integración contra Postgres real | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
+| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo` (Usuarios y Asignaciones) · **243 pruebas** + 4 E2E de humo + 3 del alta | Features: cargas, expediente, reportes, revisión física, torre · cablear `Idempotency-Key` en las pantallas que faltan · los 6 E2E de workflow |
 | `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules auditadas · config Play | Pantallas de captura y revisión · cola de evidencias a R2 · build de Play Store |
 | CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), ida y vuelta de las 24 migraciones, restauración de respaldo, web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render |
 
@@ -30,36 +30,40 @@
 
 ## Lo inmediato
 
-**Fase 8 cerrada en sus seis frentes.** El sistema ya se puede operar: se
-despliega, se promueve con aprobación, se revierte una migración, se restaura un
-respaldo y queda rastro de quién cambió qué. El procedimiento vive en
-[`OPERACION.md`](OPERACION.md) y no en la cabeza de nadie.
+**Fases 7 y 8 cerradas.** El sistema se puede operar —desplegar, promover,
+revertir, restaurar, con rastro de quién cambió qué— y ya se puede dar de alta a
+alguien sin abrir `psql`, que era lo que bloqueaba el piloto.
 
-Quedan tres cabos, todos anotados y ninguno bloqueante:
+Quedan cuatro cabos, ninguno bloqueante y todos de operación:
 
 1. **Sellar la base de producción** la primera vez que se despliegue este
-   runner: `./database/scripts/migrar.sh --sellar`. Sin eso intentaría reaplicar
-   las 24 sobre un esquema que ya las tiene.
-2. **Crear los servicios de staging en Render** a partir del blueprint nuevo, y
-   darles su proyecto de Supabase y su bucket de R2 propios. Un staging
-   apuntando a la base de prod no es un staging.
-3. **Tags `vX.Y.Z` y changelog** (§12.12), y ejercitar una vez el rollback de un
-   deploy real. La reversión de migraciones y la restauración de respaldo ya se
-   prueban en cada corrida de CI; volver a promover un commit anterior en Render
-   todavía no se ha hecho nunca.
+   runner: `./database/scripts/migrar.sh --sellar`.
+2. **Crear los servicios de staging en Render** desde el blueprint, con su
+   proyecto de Supabase y su bucket de R2 propios.
+3. **`SUPABASE_SERVICE_KEY` en el backend.** Sin ella el alta de usuarios
+   responde 503 y el resto del sistema funciona igual — pero el piloto empieza
+   por dar de alta gente, así que es de las primeras variables que hay que
+   poner. Nunca llega al cliente (§10.7).
+4. **Tags `vX.Y.Z` y changelog** (§12.12), y ejercitar una vez el rollback de un
+   deploy real.
 
-**Y una prueba intermitente que conviene no perder de vista.**
+**Y una prueba intermitente anotada.**
 `test_flujo_completo_deja_la_incidencia_cerrada` falló una vez con un orden
 aleatorio de `pytest-randomly` y pasa siempre en orden fijo. La causa probable
-está a la vista: afirma el orden de los eventos con `order by fecha`, y
-`incidencia_evento` no tiene desempate — cuatro eventos que caen en el mismo
-tick del reloj salen en cualquier orden. Es el mismo problema que la 0019
-resolvió en `carga_snapshot` agregando una columna `orden`, y esa es también la
-solución aquí. No se tocó en esta fase para no mezclarlo con el endurecimiento;
-va como primer arreglo de la Fase 14.
+está a la vista: afirma el orden de los eventos con `order by fecha` y
+`incidencia_evento` no tiene desempate — cuatro eventos en el mismo tick del
+reloj salen en cualquier orden. Es lo mismo que la 0019 resolvió en
+`carga_snapshot` con una columna `orden`, y esa es también la solución aquí. Va
+como primer arreglo de la Fase 14.
 
-Ahora sí, **Fase 7**. El detalle de la Fase 6 —qué se entregó en cada frente y
-por qué— está en [`FASE-6.md`](FASE-6.md), decisiones F6.1 a F6.13.
+Lo que sigue: **Fase 9** (cerrar la Fase 5 en web) o **Fase 10** (Torre de
+control). La Torre es donde aterrizan tres de los cuatro roles y hoy caen en
+Cierres como sustituto; las Cargas son lo que permite subir el catálogo real
+del cliente sin correr scripts. Con la Fase 7 cerrada, el piloto ya puede
+empezar a dar de alta gente mientras se decide.
+
+El detalle de la Fase 6 está en [`FASE-6.md`](FASE-6.md); el procedimiento de
+operación, en [`OPERACION.md`](OPERACION.md).
 
 ---
 
@@ -172,7 +176,9 @@ porque no es trabajo suelto: es algo que cada pantalla nueva trae consigo.
 
 ## Fase 7 — Onboarding: usuarios, alcance y organización
 
-**Por qué va primero.** Hoy no se puede dar de alta a nadie. La pantalla de
+> **Cerrada**, con `/orgs` fuera de alcance a propósito (ver abajo).
+
+**Por qué fue primero.** No se podía dar de alta a nadie. La pantalla de
 Login le promete al usuario que "el alta de usuarios la realiza Control de
 obra" (§5.1) y esa pantalla no existe: los usuarios del piloto habría que
 insertarlos a mano en SQL, junto con sus puentes de alcance
@@ -183,19 +189,34 @@ tiene su política de escritura para Control de obra (`es_config()`), los
 puentes de alcance existen con RLS, y el auth hook (migración 0015) ya copia
 `org_id`, `rol` y `usuario_id` al nivel raíz del JWT.
 
-**La decisión que hay que tomar antes de codear.** Crear una fila en `usuario`
-**no** crea una cuenta en el proveedor de auth: la persona no puede entrar
-hasta que exista un `auth.users` ligado por `usuario.auth_user_id`. Tres
-caminos, y no son equivalentes:
+**La decisión que se tomó: contraseña temporal.** Crear una fila en `usuario`
+no crea una cuenta en el proveedor de auth, y de los tres caminos —invitación
+por correo, contraseña temporal, vinculación al primer acceso— se eligió el
+segundo. Conviene decirlo sin adorno: **también exige la service key en el
+backend**, igual que la invitación; lo que cambia es quién elige la contraseña
+inicial. A cambio no hace falta una plantilla de correo más ni depender de que
+el correo llegue, que en obra no es un detalle menor.
 
-| Camino | A favor | En contra |
-|---|---|---|
-| **Invitación por correo** (Supabase Admin API) | El usuario fija su propia contraseña; es lo que corresponde al §12.4 | Mete la *service key* en el backend —nunca en el cliente (§10.7)— y una plantilla de correo más (Resend ya está) |
-| **Alta con contraseña temporal** | El más simple de construir | Peor higiene: alguien más conoce la contraseña inicial |
-| **Vinculación al primer acceso** | Cero superficie nueva | Deja una ventana con una cuenta sin org ni rol, que es justo lo que el §12.4 no quiere |
+La higiene que se pierde —alguien más conoce la contraseña inicial— se acota
+donde se puede: `usuario.debe_cambiar_password` obliga a cambiarla, la pantalla
+sugiere una legible de doce caracteres (se va a dictar por teléfono), y la
+contraseña **nunca vuelve en una respuesta ni sale en un `repr()`**, que es
+como acabaría en una traza de Sentry.
 
-La invitación es la recomendada; conviene decidirlo en la primera media hora
-de la fase y no a medio camino.
+**Dos escaladas de privilegio que estaban abiertas.** Al ir a construir la
+pantalla aparecieron dos huecos que llevaban ahí desde la migración 0012:
+
+> `usuario_self_update` deja que cada quien edite su perfil, y **RLS filtra
+> filas, no columnas**: la fila propia sigue siendo la fila propia después de
+> `update usuario set rol = 'super_intendente' where id = <yo>`. Por la ruta
+> directa a Supabase (§10.7) eso es una sentencia desde el navegador. Y la
+> escritura de `usuario` es `app.es_config()`, que incluye a Control de obra
+> —correcto— pero nada le impedía otorgar el rol de más privilegio.
+
+Ninguno se arregla con una política: hacen falta reglas por columna y por
+transición, y eso es el trigger de la migración 0025. Va en la base porque es la
+única frontera que cubre también la ruta directa y el `UPDATE` a mano en el
+dashboard.
 
 | Agente | Entregable | DoD |
 |---|---|---|
@@ -205,9 +226,20 @@ de la fase y no a medio camino.
 | **04 Web** | Pantallas **Usuarios** (C) y **Asignaciones** (§5.1 "Equipo"): alta, edición, asignar clusters a un supervisor y proyectos a un control. | Sin lógica de negocio en componentes. |
 | **07 QA** | Pruebas de dominio e integración; E2E del alta completa. | Verde en CI. |
 
+**Lo que quedó fuera y no es deuda escondida: `GET/POST /orgs`.** Crear una
+organización es dar de alta a un *cliente*, no a un usuario, y el piloto empieza
+con la organización ya creada. Construir la pantalla ahora sería adivinar un
+flujo de alta de tenant —facturación, quién crea al primer Super intendente, qué
+semilla se le carga— que nadie ha pedido todavía. Se anota aquí para que su
+ausencia sea una decisión y no un olvido; entra cuando haya un segundo cliente.
+
 **Criterio de cierre:** un Control de obra da de alta a un residente, le asigna
 sus obras, el residente entra con su propia contraseña y captura avance — sin
-que nadie toque SQL.
+que nadie toque SQL. **Cerrado**, con una salvedad: el último tramo —que el
+residente *entre*— se prueba en integración con un doble del proveedor y no
+contra un Supabase real, porque una prueba que crea cuentas de verdad deja
+basura en un proyecto compartido. Falta ejercitarlo una vez a mano contra
+staging, con `SUPABASE_SERVICE_KEY` puesta.
 
 ---
 

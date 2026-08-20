@@ -44,6 +44,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -52,7 +54,7 @@ import { peticion } from '../../cliente';
  */
 export const subirCargaApiV1CargasPost = (
     bodySubirCargaApiV1CargasPost: BodySubirCargaApiV1CargasPost,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       const formData = new FormData();
@@ -70,21 +72,21 @@ if(bodySubirCargaApiV1CargasPost.dry_run !== undefined) {
       headers: {'Content-Type': 'multipart/form-data', },
        data: formData, signal
     },
-      );
+      options);
     }
   
 
 
 export const getSubirCargaApiV1CargasPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof subirCargaApiV1CargasPost>>, TError,{data: BodySubirCargaApiV1CargasPost}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof subirCargaApiV1CargasPost>>, TError,{data: BodySubirCargaApiV1CargasPost}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof subirCargaApiV1CargasPost>>, TError,{data: BodySubirCargaApiV1CargasPost}, TContext> => {
 
 const mutationKey = ['subirCargaApiV1CargasPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -92,7 +94,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof subirCargaApiV1CargasPost>>, {data: BodySubirCargaApiV1CargasPost}> = (props) => {
           const {data} = props ?? {};
 
-          return  subirCargaApiV1CargasPost(data,)
+          return  subirCargaApiV1CargasPost(data,requestOptions)
         }
 
         
@@ -108,7 +110,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Subir un archivo de carga (vista previa o commit)
  */
 export const useSubirCargaApiV1CargasPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof subirCargaApiV1CargasPost>>, TError,{data: BodySubirCargaApiV1CargasPost}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof subirCargaApiV1CargasPost>>, TError,{data: BodySubirCargaApiV1CargasPost}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof subirCargaApiV1CargasPost>>,
         TError,
@@ -126,7 +128,7 @@ export const useSubirCargaApiV1CargasPost = <TError = void,
  */
 export const listarCargasApiV1CargasGet = (
     params?: ListarCargasApiV1CargasGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -134,7 +136,7 @@ export const listarCargasApiV1CargasGet = (
       {url: `/api/v1/cargas`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -153,16 +155,16 @@ export const getListarCargasApiV1CargasGetQueryKey = (params?: ListarCargasApiV1
     }
 
     
-export const getListarCargasApiV1CargasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>>, TError = HTTPValidationError>(params?: ListarCargasApiV1CargasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError, TData>>, }
+export const getListarCargasApiV1CargasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>>, TError = HTTPValidationError>(params?: ListarCargasApiV1CargasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarCargasApiV1CargasGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>> = ({ signal }) => listarCargasApiV1CargasGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>> = ({ signal }) => listarCargasApiV1CargasGet(params, requestOptions, signal);
 
       
 
@@ -182,7 +184,7 @@ export function useListarCargasApiV1CargasGetInfinite<TData = InfiniteData<Await
           TError,
           Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarCargasApiV1CargasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>>, TError = HTTPValidationError>(
@@ -192,11 +194,11 @@ export function useListarCargasApiV1CargasGetInfinite<TData = InfiniteData<Await
           TError,
           Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarCargasApiV1CargasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>>, TError = HTTPValidationError>(
- params?: ListarCargasApiV1CargasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError, TData>>, }
+ params?: ListarCargasApiV1CargasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -204,7 +206,7 @@ export function useListarCargasApiV1CargasGetInfinite<TData = InfiniteData<Await
  */
 
 export function useListarCargasApiV1CargasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>>, TError = HTTPValidationError>(
- params?: ListarCargasApiV1CargasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError, TData>>, }
+ params?: ListarCargasApiV1CargasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -220,16 +222,16 @@ export function useListarCargasApiV1CargasGetInfinite<TData = InfiniteData<Await
 
 
 
-export const getListarCargasApiV1CargasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError = HTTPValidationError>(params?: ListarCargasApiV1CargasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError, TData>>, }
+export const getListarCargasApiV1CargasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError = HTTPValidationError>(params?: ListarCargasApiV1CargasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarCargasApiV1CargasGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>> = ({ signal }) => listarCargasApiV1CargasGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>> = ({ signal }) => listarCargasApiV1CargasGet(params, requestOptions, signal);
 
       
 
@@ -249,7 +251,7 @@ export function useListarCargasApiV1CargasGet<TData = Awaited<ReturnType<typeof 
           TError,
           Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarCargasApiV1CargasGet<TData = Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError = HTTPValidationError>(
@@ -259,11 +261,11 @@ export function useListarCargasApiV1CargasGet<TData = Awaited<ReturnType<typeof 
           TError,
           Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarCargasApiV1CargasGet<TData = Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError = HTTPValidationError>(
- params?: ListarCargasApiV1CargasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError, TData>>, }
+ params?: ListarCargasApiV1CargasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -271,7 +273,7 @@ export function useListarCargasApiV1CargasGet<TData = Awaited<ReturnType<typeof 
  */
 
 export function useListarCargasApiV1CargasGet<TData = Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError = HTTPValidationError>(
- params?: ListarCargasApiV1CargasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError, TData>>, }
+ params?: ListarCargasApiV1CargasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCargasApiV1CargasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -293,14 +295,14 @@ export function useListarCargasApiV1CargasGet<TData = Awaited<ReturnType<typeof 
  */
 export const descargarPlantillaApiV1CargasPlantillasTipoGet = (
     tipo: TipoCarga,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<unknown>(
       {url: `/api/v1/cargas/plantillas/${tipo}`, method: 'GET', signal
     },
-      );
+      options);
     }
   
 
@@ -319,16 +321,16 @@ export const getDescargarPlantillaApiV1CargasPlantillasTipoGetQueryKey = (tipo?:
     }
 
     
-export const getDescargarPlantillaApiV1CargasPlantillasTipoGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>>, TError = HTTPValidationError>(tipo: TipoCarga, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError, TData>>, }
+export const getDescargarPlantillaApiV1CargasPlantillasTipoGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>>, TError = HTTPValidationError>(tipo: TipoCarga, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getDescargarPlantillaApiV1CargasPlantillasTipoGetInfiniteQueryKey(tipo);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>> = ({ signal }) => descargarPlantillaApiV1CargasPlantillasTipoGet(tipo, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>> = ({ signal }) => descargarPlantillaApiV1CargasPlantillasTipoGet(tipo, requestOptions, signal);
 
       
 
@@ -348,7 +350,7 @@ export function useDescargarPlantillaApiV1CargasPlantillasTipoGetInfinite<TData 
           TError,
           Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useDescargarPlantillaApiV1CargasPlantillasTipoGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>>, TError = HTTPValidationError>(
@@ -358,11 +360,11 @@ export function useDescargarPlantillaApiV1CargasPlantillasTipoGetInfinite<TData 
           TError,
           Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useDescargarPlantillaApiV1CargasPlantillasTipoGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>>, TError = HTTPValidationError>(
- tipo: TipoCarga, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError, TData>>, }
+ tipo: TipoCarga, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -370,7 +372,7 @@ export function useDescargarPlantillaApiV1CargasPlantillasTipoGetInfinite<TData 
  */
 
 export function useDescargarPlantillaApiV1CargasPlantillasTipoGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>>, TError = HTTPValidationError>(
- tipo: TipoCarga, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError, TData>>, }
+ tipo: TipoCarga, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -386,16 +388,16 @@ export function useDescargarPlantillaApiV1CargasPlantillasTipoGetInfinite<TData 
 
 
 
-export const getDescargarPlantillaApiV1CargasPlantillasTipoGetQueryOptions = <TData = Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError = HTTPValidationError>(tipo: TipoCarga, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError, TData>>, }
+export const getDescargarPlantillaApiV1CargasPlantillasTipoGetQueryOptions = <TData = Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError = HTTPValidationError>(tipo: TipoCarga, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getDescargarPlantillaApiV1CargasPlantillasTipoGetQueryKey(tipo);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>> = ({ signal }) => descargarPlantillaApiV1CargasPlantillasTipoGet(tipo, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>> = ({ signal }) => descargarPlantillaApiV1CargasPlantillasTipoGet(tipo, requestOptions, signal);
 
       
 
@@ -415,7 +417,7 @@ export function useDescargarPlantillaApiV1CargasPlantillasTipoGet<TData = Awaite
           TError,
           Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useDescargarPlantillaApiV1CargasPlantillasTipoGet<TData = Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError = HTTPValidationError>(
@@ -425,11 +427,11 @@ export function useDescargarPlantillaApiV1CargasPlantillasTipoGet<TData = Awaite
           TError,
           Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useDescargarPlantillaApiV1CargasPlantillasTipoGet<TData = Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError = HTTPValidationError>(
- tipo: TipoCarga, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError, TData>>, }
+ tipo: TipoCarga, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -437,7 +439,7 @@ export function useDescargarPlantillaApiV1CargasPlantillasTipoGet<TData = Awaite
  */
 
 export function useDescargarPlantillaApiV1CargasPlantillasTipoGet<TData = Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError = HTTPValidationError>(
- tipo: TipoCarga, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError, TData>>, }
+ tipo: TipoCarga, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof descargarPlantillaApiV1CargasPlantillasTipoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -459,14 +461,14 @@ export function useDescargarPlantillaApiV1CargasPlantillasTipoGet<TData = Awaite
  */
 export const obtenerCargaApiV1CargasCargaIdGet = (
     cargaId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<LoteRespuesta>(
       {url: `/api/v1/cargas/${cargaId}`, method: 'GET', signal
     },
-      );
+      options);
     }
   
 
@@ -485,16 +487,16 @@ export const getObtenerCargaApiV1CargasCargaIdGetQueryKey = (cargaId?: string,) 
     }
 
     
-export const getObtenerCargaApiV1CargasCargaIdGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>>, TError = void | HTTPValidationError>(cargaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError, TData>>, }
+export const getObtenerCargaApiV1CargasCargaIdGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>>, TError = void | HTTPValidationError>(cargaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getObtenerCargaApiV1CargasCargaIdGetInfiniteQueryKey(cargaId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>> = ({ signal }) => obtenerCargaApiV1CargasCargaIdGet(cargaId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>> = ({ signal }) => obtenerCargaApiV1CargasCargaIdGet(cargaId, requestOptions, signal);
 
       
 
@@ -514,7 +516,7 @@ export function useObtenerCargaApiV1CargasCargaIdGetInfinite<TData = InfiniteDat
           TError,
           Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useObtenerCargaApiV1CargasCargaIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>>, TError = void | HTTPValidationError>(
@@ -524,11 +526,11 @@ export function useObtenerCargaApiV1CargasCargaIdGetInfinite<TData = InfiniteDat
           TError,
           Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useObtenerCargaApiV1CargasCargaIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>>, TError = void | HTTPValidationError>(
- cargaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError, TData>>, }
+ cargaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -536,7 +538,7 @@ export function useObtenerCargaApiV1CargasCargaIdGetInfinite<TData = InfiniteDat
  */
 
 export function useObtenerCargaApiV1CargasCargaIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>>, TError = void | HTTPValidationError>(
- cargaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError, TData>>, }
+ cargaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -552,16 +554,16 @@ export function useObtenerCargaApiV1CargasCargaIdGetInfinite<TData = InfiniteDat
 
 
 
-export const getObtenerCargaApiV1CargasCargaIdGetQueryOptions = <TData = Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError = void | HTTPValidationError>(cargaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError, TData>>, }
+export const getObtenerCargaApiV1CargasCargaIdGetQueryOptions = <TData = Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError = void | HTTPValidationError>(cargaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getObtenerCargaApiV1CargasCargaIdGetQueryKey(cargaId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>> = ({ signal }) => obtenerCargaApiV1CargasCargaIdGet(cargaId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>> = ({ signal }) => obtenerCargaApiV1CargasCargaIdGet(cargaId, requestOptions, signal);
 
       
 
@@ -581,7 +583,7 @@ export function useObtenerCargaApiV1CargasCargaIdGet<TData = Awaited<ReturnType<
           TError,
           Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useObtenerCargaApiV1CargasCargaIdGet<TData = Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError = void | HTTPValidationError>(
@@ -591,11 +593,11 @@ export function useObtenerCargaApiV1CargasCargaIdGet<TData = Awaited<ReturnType<
           TError,
           Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useObtenerCargaApiV1CargasCargaIdGet<TData = Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError = void | HTTPValidationError>(
- cargaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError, TData>>, }
+ cargaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -603,7 +605,7 @@ export function useObtenerCargaApiV1CargasCargaIdGet<TData = Awaited<ReturnType<
  */
 
 export function useObtenerCargaApiV1CargasCargaIdGet<TData = Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError = void | HTTPValidationError>(
- cargaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError, TData>>, }
+ cargaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCargaApiV1CargasCargaIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -626,7 +628,7 @@ export function useObtenerCargaApiV1CargasCargaIdGet<TData = Awaited<ReturnType<
 export const bandejaDeCargaApiV1CargasCargaIdPendientesGet = (
     cargaId: string,
     params?: BandejaDeCargaApiV1CargasCargaIdPendientesGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -634,7 +636,7 @@ export const bandejaDeCargaApiV1CargasCargaIdPendientesGet = (
       {url: `/api/v1/cargas/${cargaId}/pendientes`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -656,16 +658,16 @@ export const getBandejaDeCargaApiV1CargasCargaIdPendientesGetQueryKey = (cargaId
 
     
 export const getBandejaDeCargaApiV1CargasCargaIdPendientesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>>, TError = void | HTTPValidationError>(cargaId: string,
-    params?: BandejaDeCargaApiV1CargasCargaIdPendientesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError, TData>>, }
+    params?: BandejaDeCargaApiV1CargasCargaIdPendientesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getBandejaDeCargaApiV1CargasCargaIdPendientesGetInfiniteQueryKey(cargaId,params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>> = ({ signal }) => bandejaDeCargaApiV1CargasCargaIdPendientesGet(cargaId,params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>> = ({ signal }) => bandejaDeCargaApiV1CargasCargaIdPendientesGet(cargaId,params, requestOptions, signal);
 
       
 
@@ -686,7 +688,7 @@ export function useBandejaDeCargaApiV1CargasCargaIdPendientesGetInfinite<TData =
           TError,
           Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useBandejaDeCargaApiV1CargasCargaIdPendientesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>>, TError = void | HTTPValidationError>(
@@ -697,12 +699,12 @@ export function useBandejaDeCargaApiV1CargasCargaIdPendientesGetInfinite<TData =
           TError,
           Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useBandejaDeCargaApiV1CargasCargaIdPendientesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>>, TError = void | HTTPValidationError>(
  cargaId: string,
-    params?: BandejaDeCargaApiV1CargasCargaIdPendientesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError, TData>>, }
+    params?: BandejaDeCargaApiV1CargasCargaIdPendientesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -711,7 +713,7 @@ export function useBandejaDeCargaApiV1CargasCargaIdPendientesGetInfinite<TData =
 
 export function useBandejaDeCargaApiV1CargasCargaIdPendientesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>>, TError = void | HTTPValidationError>(
  cargaId: string,
-    params?: BandejaDeCargaApiV1CargasCargaIdPendientesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError, TData>>, }
+    params?: BandejaDeCargaApiV1CargasCargaIdPendientesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -728,16 +730,16 @@ export function useBandejaDeCargaApiV1CargasCargaIdPendientesGetInfinite<TData =
 
 
 export const getBandejaDeCargaApiV1CargasCargaIdPendientesGetQueryOptions = <TData = Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError = void | HTTPValidationError>(cargaId: string,
-    params?: BandejaDeCargaApiV1CargasCargaIdPendientesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError, TData>>, }
+    params?: BandejaDeCargaApiV1CargasCargaIdPendientesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getBandejaDeCargaApiV1CargasCargaIdPendientesGetQueryKey(cargaId,params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>> = ({ signal }) => bandejaDeCargaApiV1CargasCargaIdPendientesGet(cargaId,params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>> = ({ signal }) => bandejaDeCargaApiV1CargasCargaIdPendientesGet(cargaId,params, requestOptions, signal);
 
       
 
@@ -758,7 +760,7 @@ export function useBandejaDeCargaApiV1CargasCargaIdPendientesGet<TData = Awaited
           TError,
           Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useBandejaDeCargaApiV1CargasCargaIdPendientesGet<TData = Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError = void | HTTPValidationError>(
@@ -769,12 +771,12 @@ export function useBandejaDeCargaApiV1CargasCargaIdPendientesGet<TData = Awaited
           TError,
           Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useBandejaDeCargaApiV1CargasCargaIdPendientesGet<TData = Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError = void | HTTPValidationError>(
  cargaId: string,
-    params?: BandejaDeCargaApiV1CargasCargaIdPendientesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError, TData>>, }
+    params?: BandejaDeCargaApiV1CargasCargaIdPendientesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -783,7 +785,7 @@ export function useBandejaDeCargaApiV1CargasCargaIdPendientesGet<TData = Awaited
 
 export function useBandejaDeCargaApiV1CargasCargaIdPendientesGet<TData = Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError = void | HTTPValidationError>(
  cargaId: string,
-    params?: BandejaDeCargaApiV1CargasCargaIdPendientesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError, TData>>, }
+    params?: BandejaDeCargaApiV1CargasCargaIdPendientesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bandejaDeCargaApiV1CargasCargaIdPendientesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -805,28 +807,28 @@ export function useBandejaDeCargaApiV1CargasCargaIdPendientesGet<TData = Awaited
  */
 export const revertirCargaApiV1CargasCargaIdRevertirPost = (
     cargaId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<ReversaRespuesta>(
       {url: `/api/v1/cargas/${cargaId}/revertir`, method: 'POST', signal
     },
-      );
+      options);
     }
   
 
 
 export const getRevertirCargaApiV1CargasCargaIdRevertirPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, TError,{cargaId: string}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, TError,{cargaId: string}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, TError,{cargaId: string}, TContext> => {
 
 const mutationKey = ['revertirCargaApiV1CargasCargaIdRevertirPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -834,7 +836,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, {cargaId: string}> = (props) => {
           const {cargaId} = props ?? {};
 
-          return  revertirCargaApiV1CargasCargaIdRevertirPost(cargaId,)
+          return  revertirCargaApiV1CargasCargaIdRevertirPost(cargaId,requestOptions)
         }
 
         
@@ -850,7 +852,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Revertir una carga completa
  */
 export const useRevertirCargaApiV1CargasCargaIdRevertirPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, TError,{cargaId: string}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, TError,{cargaId: string}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>,
         TError,

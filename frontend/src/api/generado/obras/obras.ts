@@ -43,6 +43,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -55,7 +57,7 @@ acota el alcance (§12.4).
  */
 export const listarObrasApiV1ObrasGet = (
     params?: ListarObrasApiV1ObrasGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -63,7 +65,7 @@ export const listarObrasApiV1ObrasGet = (
       {url: `/api/v1/obras`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -82,16 +84,16 @@ export const getListarObrasApiV1ObrasGetQueryKey = (params?: ListarObrasApiV1Obr
     }
 
     
-export const getListarObrasApiV1ObrasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>>, TError = HTTPValidationError>(params?: ListarObrasApiV1ObrasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError, TData>>, }
+export const getListarObrasApiV1ObrasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>>, TError = HTTPValidationError>(params?: ListarObrasApiV1ObrasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarObrasApiV1ObrasGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>> = ({ signal }) => listarObrasApiV1ObrasGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>> = ({ signal }) => listarObrasApiV1ObrasGet(params, requestOptions, signal);
 
       
 
@@ -111,7 +113,7 @@ export function useListarObrasApiV1ObrasGetInfinite<TData = InfiniteData<Awaited
           TError,
           Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarObrasApiV1ObrasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>>, TError = HTTPValidationError>(
@@ -121,11 +123,11 @@ export function useListarObrasApiV1ObrasGetInfinite<TData = InfiniteData<Awaited
           TError,
           Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarObrasApiV1ObrasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>>, TError = HTTPValidationError>(
- params?: ListarObrasApiV1ObrasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError, TData>>, }
+ params?: ListarObrasApiV1ObrasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -133,7 +135,7 @@ export function useListarObrasApiV1ObrasGetInfinite<TData = InfiniteData<Awaited
  */
 
 export function useListarObrasApiV1ObrasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>>, TError = HTTPValidationError>(
- params?: ListarObrasApiV1ObrasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError, TData>>, }
+ params?: ListarObrasApiV1ObrasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -149,16 +151,16 @@ export function useListarObrasApiV1ObrasGetInfinite<TData = InfiniteData<Awaited
 
 
 
-export const getListarObrasApiV1ObrasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError = HTTPValidationError>(params?: ListarObrasApiV1ObrasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError, TData>>, }
+export const getListarObrasApiV1ObrasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError = HTTPValidationError>(params?: ListarObrasApiV1ObrasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarObrasApiV1ObrasGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>> = ({ signal }) => listarObrasApiV1ObrasGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>> = ({ signal }) => listarObrasApiV1ObrasGet(params, requestOptions, signal);
 
       
 
@@ -178,7 +180,7 @@ export function useListarObrasApiV1ObrasGet<TData = Awaited<ReturnType<typeof li
           TError,
           Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarObrasApiV1ObrasGet<TData = Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError = HTTPValidationError>(
@@ -188,11 +190,11 @@ export function useListarObrasApiV1ObrasGet<TData = Awaited<ReturnType<typeof li
           TError,
           Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarObrasApiV1ObrasGet<TData = Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError = HTTPValidationError>(
- params?: ListarObrasApiV1ObrasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError, TData>>, }
+ params?: ListarObrasApiV1ObrasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -200,7 +202,7 @@ export function useListarObrasApiV1ObrasGet<TData = Awaited<ReturnType<typeof li
  */
 
 export function useListarObrasApiV1ObrasGet<TData = Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError = HTTPValidationError>(
- params?: ListarObrasApiV1ObrasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError, TData>>, }
+ params?: ListarObrasApiV1ObrasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasApiV1ObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -222,7 +224,7 @@ export function useListarObrasApiV1ObrasGet<TData = Awaited<ReturnType<typeof li
  */
 export const crearObraApiV1ObrasPost = (
     crearObraPeticion: CrearObraPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -231,21 +233,21 @@ export const crearObraApiV1ObrasPost = (
       headers: {'Content-Type': 'application/json', },
       data: crearObraPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getCrearObraApiV1ObrasPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearObraApiV1ObrasPost>>, TError,{data: CrearObraPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearObraApiV1ObrasPost>>, TError,{data: CrearObraPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof crearObraApiV1ObrasPost>>, TError,{data: CrearObraPeticion}, TContext> => {
 
 const mutationKey = ['crearObraApiV1ObrasPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -253,7 +255,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearObraApiV1ObrasPost>>, {data: CrearObraPeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  crearObraApiV1ObrasPost(data,)
+          return  crearObraApiV1ObrasPost(data,requestOptions)
         }
 
         
@@ -269,7 +271,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Alta de obra
  */
 export const useCrearObraApiV1ObrasPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearObraApiV1ObrasPost>>, TError,{data: CrearObraPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearObraApiV1ObrasPost>>, TError,{data: CrearObraPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof crearObraApiV1ObrasPost>>,
         TError,
@@ -287,14 +289,14 @@ export const useCrearObraApiV1ObrasPost = <TError = void,
  */
 export const obtenerObraApiV1ObrasObraIdGet = (
     obraId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<ObraRespuesta>(
       {url: `/api/v1/obras/${obraId}`, method: 'GET', signal
     },
-      );
+      options);
     }
   
 
@@ -313,16 +315,16 @@ export const getObtenerObraApiV1ObrasObraIdGetQueryKey = (obraId?: string,) => {
     }
 
     
-export const getObtenerObraApiV1ObrasObraIdGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>>, TError = void | HTTPValidationError>(obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError, TData>>, }
+export const getObtenerObraApiV1ObrasObraIdGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>>, TError = void | HTTPValidationError>(obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getObtenerObraApiV1ObrasObraIdGetInfiniteQueryKey(obraId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>> = ({ signal }) => obtenerObraApiV1ObrasObraIdGet(obraId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>> = ({ signal }) => obtenerObraApiV1ObrasObraIdGet(obraId, requestOptions, signal);
 
       
 
@@ -342,7 +344,7 @@ export function useObtenerObraApiV1ObrasObraIdGetInfinite<TData = InfiniteData<A
           TError,
           Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useObtenerObraApiV1ObrasObraIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>>, TError = void | HTTPValidationError>(
@@ -352,11 +354,11 @@ export function useObtenerObraApiV1ObrasObraIdGetInfinite<TData = InfiniteData<A
           TError,
           Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useObtenerObraApiV1ObrasObraIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>>, TError = void | HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -364,7 +366,7 @@ export function useObtenerObraApiV1ObrasObraIdGetInfinite<TData = InfiniteData<A
  */
 
 export function useObtenerObraApiV1ObrasObraIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>>, TError = void | HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -380,16 +382,16 @@ export function useObtenerObraApiV1ObrasObraIdGetInfinite<TData = InfiniteData<A
 
 
 
-export const getObtenerObraApiV1ObrasObraIdGetQueryOptions = <TData = Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError = void | HTTPValidationError>(obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError, TData>>, }
+export const getObtenerObraApiV1ObrasObraIdGetQueryOptions = <TData = Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError = void | HTTPValidationError>(obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getObtenerObraApiV1ObrasObraIdGetQueryKey(obraId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>> = ({ signal }) => obtenerObraApiV1ObrasObraIdGet(obraId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>> = ({ signal }) => obtenerObraApiV1ObrasObraIdGet(obraId, requestOptions, signal);
 
       
 
@@ -409,7 +411,7 @@ export function useObtenerObraApiV1ObrasObraIdGet<TData = Awaited<ReturnType<typ
           TError,
           Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useObtenerObraApiV1ObrasObraIdGet<TData = Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError = void | HTTPValidationError>(
@@ -419,11 +421,11 @@ export function useObtenerObraApiV1ObrasObraIdGet<TData = Awaited<ReturnType<typ
           TError,
           Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useObtenerObraApiV1ObrasObraIdGet<TData = Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError = void | HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -431,7 +433,7 @@ export function useObtenerObraApiV1ObrasObraIdGet<TData = Awaited<ReturnType<typ
  */
 
 export function useObtenerObraApiV1ObrasObraIdGet<TData = Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError = void | HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError, TData>>, }
+ obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerObraApiV1ObrasObraIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -454,7 +456,7 @@ export function useObtenerObraApiV1ObrasObraIdGet<TData = Awaited<ReturnType<typ
 export const actualizarObraApiV1ObrasObraIdPatch = (
     obraId: string,
     actualizarObraPeticion: ActualizarObraPeticion,
- ) => {
+ options?: SecondParameter<typeof peticion>,) => {
       
       
       return peticion<ObraRespuesta>(
@@ -462,21 +464,21 @@ export const actualizarObraApiV1ObrasObraIdPatch = (
       headers: {'Content-Type': 'application/json', },
       data: actualizarObraPeticion
     },
-      );
+      options);
     }
   
 
 
 export const getActualizarObraApiV1ObrasObraIdPatchMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof actualizarObraApiV1ObrasObraIdPatch>>, TError,{obraId: string;data: ActualizarObraPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof actualizarObraApiV1ObrasObraIdPatch>>, TError,{obraId: string;data: ActualizarObraPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof actualizarObraApiV1ObrasObraIdPatch>>, TError,{obraId: string;data: ActualizarObraPeticion}, TContext> => {
 
 const mutationKey = ['actualizarObraApiV1ObrasObraIdPatch'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -484,7 +486,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof actualizarObraApiV1ObrasObraIdPatch>>, {obraId: string;data: ActualizarObraPeticion}> = (props) => {
           const {obraId,data} = props ?? {};
 
-          return  actualizarObraApiV1ObrasObraIdPatch(obraId,data,)
+          return  actualizarObraApiV1ObrasObraIdPatch(obraId,data,requestOptions)
         }
 
         
@@ -500,7 +502,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Editar una obra
  */
 export const useActualizarObraApiV1ObrasObraIdPatch = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof actualizarObraApiV1ObrasObraIdPatch>>, TError,{obraId: string;data: ActualizarObraPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof actualizarObraApiV1ObrasObraIdPatch>>, TError,{obraId: string;data: ActualizarObraPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof actualizarObraApiV1ObrasObraIdPatch>>,
         TError,
@@ -518,7 +520,7 @@ export const useActualizarObraApiV1ObrasObraIdPatch = <TError = void,
  */
 export const crearObrasEnLoteApiV1ObrasBulkPost = (
     crearObrasEnLotePeticion: CrearObrasEnLotePeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -527,21 +529,21 @@ export const crearObrasEnLoteApiV1ObrasBulkPost = (
       headers: {'Content-Type': 'application/json', },
       data: crearObrasEnLotePeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getCrearObrasEnLoteApiV1ObrasBulkPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearObrasEnLoteApiV1ObrasBulkPost>>, TError,{data: CrearObrasEnLotePeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearObrasEnLoteApiV1ObrasBulkPost>>, TError,{data: CrearObrasEnLotePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof crearObrasEnLoteApiV1ObrasBulkPost>>, TError,{data: CrearObrasEnLotePeticion}, TContext> => {
 
 const mutationKey = ['crearObrasEnLoteApiV1ObrasBulkPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -549,7 +551,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearObrasEnLoteApiV1ObrasBulkPost>>, {data: CrearObrasEnLotePeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  crearObrasEnLoteApiV1ObrasBulkPost(data,)
+          return  crearObrasEnLoteApiV1ObrasBulkPost(data,requestOptions)
         }
 
         
@@ -565,7 +567,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Alta masiva de obras
  */
 export const useCrearObrasEnLoteApiV1ObrasBulkPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearObrasEnLoteApiV1ObrasBulkPost>>, TError,{data: CrearObrasEnLotePeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearObrasEnLoteApiV1ObrasBulkPost>>, TError,{data: CrearObrasEnLotePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof crearObrasEnLoteApiV1ObrasBulkPost>>,
         TError,
@@ -585,7 +587,7 @@ CPU vigente e instancia el `ProgramaObra` (§11.3 A.2).
 export const generarObraApiV1ObrasObraIdGenerarPost = (
     obraId: string,
     generarObraPeticion: GenerarObraPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -594,21 +596,21 @@ export const generarObraApiV1ObrasObraIdGenerarPost = (
       headers: {'Content-Type': 'application/json', },
       data: generarObraPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getGenerarObraApiV1ObrasObraIdGenerarPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generarObraApiV1ObrasObraIdGenerarPost>>, TError,{obraId: string;data: GenerarObraPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generarObraApiV1ObrasObraIdGenerarPost>>, TError,{obraId: string;data: GenerarObraPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof generarObraApiV1ObrasObraIdGenerarPost>>, TError,{obraId: string;data: GenerarObraPeticion}, TContext> => {
 
 const mutationKey = ['generarObraApiV1ObrasObraIdGenerarPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -616,7 +618,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof generarObraApiV1ObrasObraIdGenerarPost>>, {obraId: string;data: GenerarObraPeticion}> = (props) => {
           const {obraId,data} = props ?? {};
 
-          return  generarObraApiV1ObrasObraIdGenerarPost(obraId,data,)
+          return  generarObraApiV1ObrasObraIdGenerarPost(obraId,data,requestOptions)
         }
 
         
@@ -632,7 +634,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Generar actividades y programa desde el prototipo
  */
 export const useGenerarObraApiV1ObrasObraIdGenerarPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generarObraApiV1ObrasObraIdGenerarPost>>, TError,{obraId: string;data: GenerarObraPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generarObraApiV1ObrasObraIdGenerarPost>>, TError,{obraId: string;data: GenerarObraPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof generarObraApiV1ObrasObraIdGenerarPost>>,
         TError,
