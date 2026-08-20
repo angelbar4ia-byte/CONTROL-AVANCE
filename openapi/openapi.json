@@ -33,6 +33,335 @@
         ]
       }
     },
+    "/api/v1/usuarios": {
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "El equipo de la organización",
+        "description": "Todos los usuarios visibles (§5.1).\n\nLo puede leer cualquier rol: saber quién es el residente de una obra o a\nqué supervisor escribirle no es información privilegiada, y RLS ya acota el\nlistado a la organización del token (`usuario_select`, migración 0012).",
+        "operationId": "listar_usuarios_api_v1_usuarios_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rol",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Rol"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Acota el listado a un rol del §4.",
+              "title": "Rol"
+            },
+            "description": "Acota el listado a un rol del §4."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UsuarioRespuesta"
+                  },
+                  "title": "Response Listar Usuarios Api V1 Usuarios Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Dar de alta a alguien del equipo",
+        "description": "Crea la cuenta y la fila (§5.1).\n\n`quien` sale del token y nunca del cuerpo: es lo que decide qué roles se\npueden otorgar, así que aceptarlo del cliente sería dejar que se lo\ninvente.",
+        "operationId": "crear_usuario_api_v1_usuarios_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearUsuarioPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios/{usuario_id}": {
+      "patch": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Editar perfil, rol o estatus",
+        "operationId": "actualizar_usuario_api_v1_usuarios__usuario_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "usuario_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Usuario Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarUsuarioPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios/{usuario_id}/contrasena": {
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Fijarle una contraseña temporal nueva",
+        "description": "Para cuando alguien pierde su contraseña (§5.1).\n\nNo sirve para la propia: esta ruta no pide la contraseña actual, y eso solo\nes aceptable operando sobre otra persona. La propia se cambia contra el\nproveedor con la sesión ya iniciada.",
+        "operationId": "resetear_contrasena_api_v1_usuarios__usuario_id__contrasena_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "usuario_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Usuario Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetearContrasenaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios/{usuario_id}/alcance": {
+      "get": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Qué clusters y proyectos tiene asignados",
+        "description": "Los puentes del §4.\n\nLas dos listas se piden siempre, aunque un rol solo pueda tener una: la\npantalla no sabe de antemano qué rol tiene la persona que abrió, y dos\nconsultas sobre índices son más baratas que una ida y vuelta extra.",
+        "operationId": "consultar_alcance_api_v1_usuarios__usuario_id__alcance_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "usuario_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Usuario Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlcanceRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "usuarios"
+        ],
+        "summary": "Asignar o retirar clusters y proyectos",
+        "description": "Reparte el alcance (§5.1 \"Asignaciones\").\n\nLos proyectos de un Control de obra solo los mueve un Super intendente: es\nel alcance de quien administra, y dejarlo en manos de Control sería dejar\nque se amplíe el suyo. Lo dice `puede_asignar_alcance_de` y lo vuelve a\ndecir la política `control_proyecto_*` de la migración 0012.",
+        "operationId": "asignar_alcance_api_v1_usuarios__usuario_id__alcance_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "usuario_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Usuario Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlcancePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/proyectos": {
       "get": {
         "tags": [
@@ -4872,6 +5201,69 @@
         "title": "ActualizarObraPeticion",
         "description": "Edición parcial (§11.2 `PATCH /obras/{id}`).\n\nEl `estatus` no se edita por aquí: lo deriva el avance y lo cierra el\ncierre de obra final (§6, §11.3 D). `cluster_id` tampoco: mover una obra\nde cluster la saca de su proyecto y con eso de su alcance."
       },
+      "ActualizarUsuarioPeticion": {
+        "properties": {
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "cedula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cedula"
+          },
+          "telefono": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telefono"
+          },
+          "rol": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Rol"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "activo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activo",
+            "description": "`false` da de baja. **No borra**: sus capturas y cierres siguen apuntando a esta persona y el expediente tiene que poder decir quién los hizo (§11.3)."
+          }
+        },
+        "type": "object",
+        "title": "ActualizarUsuarioPeticion",
+        "description": "Todo opcional: lo que no viene, no se toca.\n\n`rol` y `activo` no son campos de perfil como los demás — el trigger de la\n0025 los vigila y el dominio los valida—, pero viajan en el mismo PATCH\nporque desde la pantalla son la misma acción: editar a alguien."
+      },
       "AgregarDocumentoPeticion": {
         "properties": {
           "tipo": {
@@ -4916,6 +5308,67 @@
           "respuestas"
         ],
         "title": "AgregarRespuestasPeticion"
+      },
+      "AlcancePeticion": {
+        "properties": {
+          "clusters": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Clusters"
+          },
+          "proyectos": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Proyectos"
+          },
+          "retirar": {
+            "type": "boolean",
+            "title": "Retirar",
+            "description": "Quita en vez de dar.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "AlcancePeticion",
+        "description": "Clusters para un supervisor, proyectos para un control de obra (§4)."
+      },
+      "AlcanceRespuesta": {
+        "properties": {
+          "usuario_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Usuario Id"
+          },
+          "clusters": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Clusters",
+            "description": "`{id, clave, nombre, proyecto_id}`."
+          },
+          "proyectos": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Proyectos",
+            "description": "`{id, clave, nombre}`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "usuario_id"
+        ],
+        "title": "AlcanceRespuesta"
       },
       "AvanceRespuesta": {
         "properties": {
@@ -6321,6 +6774,59 @@
         ],
         "title": "CrearUnidadPeticion"
       },
+      "CrearUsuarioPeticion": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "email": {
+            "type": "string",
+            "minLength": 3,
+            "title": "Email"
+          },
+          "rol": {
+            "$ref": "#/components/schemas/Rol"
+          },
+          "contrasena_temporal": {
+            "type": "string",
+            "minLength": 12,
+            "title": "Contrasena Temporal",
+            "description": "La contraseña con la que entra la primera vez. Se le exigirá cambiarla. No vuelve en ninguna respuesta."
+          },
+          "cedula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cedula"
+          },
+          "telefono": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telefono"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nombre",
+          "email",
+          "rol",
+          "contrasena_temporal"
+        ],
+        "title": "CrearUsuarioPeticion"
+      },
       "CriterioRespuesta": {
         "properties": {
           "id": {
@@ -7172,6 +7678,20 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "IdRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "IdRespuesta"
       },
       "ImpactoIncidencia": {
         "type": "string",
@@ -8772,6 +9292,20 @@
         "title": "RegistrarSalidaPeticion",
         "description": "Movimiento de almacén a registrar (§7.7, §10.5)."
       },
+      "ResetearContrasenaPeticion": {
+        "properties": {
+          "contrasena_temporal": {
+            "type": "string",
+            "minLength": 12,
+            "title": "Contrasena Temporal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contrasena_temporal"
+        ],
+        "title": "ResetearContrasenaPeticion"
+      },
       "RespuestaItem-Input": {
         "properties": {
           "criterio_id": {
@@ -8957,6 +9491,16 @@
           "calidad"
         ],
         "title": "RevisionRespuesta"
+      },
+      "Rol": {
+        "type": "string",
+        "enum": [
+          "residente",
+          "supervisor",
+          "control_obra",
+          "super_intendente"
+        ],
+        "title": "Rol"
       },
       "RutaCriticaRespuesta": {
         "properties": {
@@ -9301,6 +9845,76 @@
           "nombre"
         ],
         "title": "UnidadRespuesta"
+      },
+      "UsuarioRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "rol": {
+            "type": "string",
+            "title": "Rol",
+            "description": "residente | supervisor | control_obra | super_intendente"
+          },
+          "cedula": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cedula"
+          },
+          "telefono": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telefono"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "default": "activo"
+          },
+          "puede_entrar": {
+            "type": "boolean",
+            "title": "Puede Entrar",
+            "description": "Tiene cuenta ligada en el proveedor de auth. Un `false` aquí es alguien que aparece en el equipo y no puede iniciar sesión: normalmente, un alta que quedó a medias."
+          },
+          "debe_cambiar_password": {
+            "type": "boolean",
+            "title": "Debe Cambiar Password",
+            "description": "Su contraseña la eligió alguien más y aún no la ha cambiado (§5.1)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nombre",
+          "email",
+          "rol",
+          "puede_entrar",
+          "debe_cambiar_password"
+        ],
+        "title": "UsuarioRespuesta",
+        "description": "Una persona del equipo, como la ve la pantalla de Equipo (§5.1)."
       },
       "ValidarCierrePeticion": {
         "properties": {

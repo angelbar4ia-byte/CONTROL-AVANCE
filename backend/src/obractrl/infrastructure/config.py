@@ -87,9 +87,19 @@ class Config(BaseSettings):
         base = _base_de_proyecto(self.supabase_url)
         return f"{base}/auth/v1/.well-known/jwks.json" if base else ""
 
-    # --- Supabase (solo para la ruta directa del front) -----------------
+    # --- Supabase -------------------------------------------------------
     supabase_url: str = ""
     supabase_anon_key: str = ""
+    supabase_service_key: str = Field(
+        default="",
+        description=(
+            "Llave de servicio del proyecto. **Solo el backend**: nunca llega "
+            "al cliente (§10.7), porque salta RLS por completo. La usa el "
+            "adaptador de la Admin API para crear la cuenta de un usuario "
+            "nuevo (§5.1) y nada más. Sin ella, el alta responde 503 y el "
+            "resto del sistema funciona igual."
+        ),
+    )
 
     # --- Jobs (Arq + Redis) ---------------------------------------------
     redis_url: str = "redis://localhost:6379/0"
