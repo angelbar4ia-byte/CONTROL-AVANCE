@@ -179,6 +179,7 @@ class TestContrato:
             "POST /api/v1/obras/bulk",
             "POST /api/v1/obras/{obra_id}/estimaciones",
             "POST /api/v1/obras/{obra_id}/generar",
+            "POST /api/v1/actividades",
             "POST /api/v1/obras/{obra_id}/salidas",
             "POST /api/v1/usuarios",
             "POST /api/v1/usuarios/{usuario_id}/contrasena",

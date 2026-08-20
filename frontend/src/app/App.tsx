@@ -34,6 +34,8 @@ import Asignaciones from '@/equipo/Asignaciones';
 import Cargas from '@/cargas/Cargas';
 import Expediente from '@/expediente/Expediente';
 import Torre from '@/torre/Torre';
+import ExtraCatalogo from '@/extras/ExtraCatalogo';
+import Revisiones from '@/revisiones/Revisiones';
 
 export function App() {
   return (
@@ -80,6 +82,12 @@ function Rutas() {
             roles que la traen en su sidebar (§5.3). Lo que cambia es el
             alcance, que ya resolvió RLS. */}
         <Route path="/torre" element={<Torre />} />
+        {/* Los huecos de una obra real (§11.2): el trabajo que no estaba en el
+            prototipo y la evidencia de calidad. La revisión física es «móvil ·
+            Control de obra» en el spec, pero el móvil es la Fase 15 y sin esta
+            pantalla el expediente llega al cierre sin evidencia (§11.3 D). */}
+        <Route path="/extra-catalogo" element={<ExtraCatalogo />} />
+        <Route path="/revisiones" element={<Revisiones />} />
         {/* Las features se registran aquí conforme se implementan. */}
         {/* Proyecto → Cluster → Obra: una sola pantalla montada en la ruta
             que cada rol trae en su sidebar (§5.1, §5.3) — "Mis obras" y

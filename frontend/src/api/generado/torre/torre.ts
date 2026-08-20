@@ -7,6 +7,7 @@
  */
 import {
   useInfiniteQuery,
+  useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
@@ -15,12 +16,15 @@ import type {
   DefinedUseInfiniteQueryResult,
   DefinedUseQueryResult,
   InfiniteData,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
   UseInfiniteQueryOptions,
   UseInfiniteQueryResult,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
@@ -29,7 +33,9 @@ import type {
   ActividadDetalleRespuesta,
   ActividadRespuesta,
   ActividadesDeObraApiV1ObrasObraIdActividadesGetParams,
+  DarDeAltaExtraPeticion,
   EstadoDeObraRespuesta,
+  ExtraRespuesta,
   HTTPValidationError,
   TorreDeControlApiV1TorreGetParams
 } from '.././modelo';
@@ -566,3 +572,78 @@ export function useActividadApiV1ActividadesActividadIdGet<TData = Awaited<Retur
 
 
 
+/**
+ * Registra trabajo que apareció en obra y no estaba en el prototipo.
+
+Idempotente porque un doble clic crearía **dos** actividades con la misma
+orden de cambio, y las dos se estimarían: el extra duplicado se paga dos
+veces y nadie lo nota hasta la conciliación.
+
+La obra viaja en el cuerpo y no en la ruta porque la actividad es el
+recurso que se crea; si esa obra no es visible, la política de `actividad`
+rechaza el INSERT (§12.4) — no hace falta preguntarle antes al repo de
+Obras (§11.1).
+ * @summary Alta extra-catálogo con orden de cambio
+ */
+export const darDeAltaExtraApiV1ActividadesPost = (
+    darDeAltaExtraPeticion: DarDeAltaExtraPeticion,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<ExtraRespuesta>(
+      {url: `/api/v1/actividades`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: darDeAltaExtraPeticion, signal
+    },
+      options);
+    }
+  
+
+
+export const getDarDeAltaExtraApiV1ActividadesPostMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof darDeAltaExtraApiV1ActividadesPost>>, TError,{data: DarDeAltaExtraPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof darDeAltaExtraApiV1ActividadesPost>>, TError,{data: DarDeAltaExtraPeticion}, TContext> => {
+
+const mutationKey = ['darDeAltaExtraApiV1ActividadesPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof darDeAltaExtraApiV1ActividadesPost>>, {data: DarDeAltaExtraPeticion}> = (props) => {
+          const {data} = props ?? {};
+
+          return  darDeAltaExtraApiV1ActividadesPost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DarDeAltaExtraApiV1ActividadesPostMutationResult = NonNullable<Awaited<ReturnType<typeof darDeAltaExtraApiV1ActividadesPost>>>
+    export type DarDeAltaExtraApiV1ActividadesPostMutationBody = DarDeAltaExtraPeticion
+    export type DarDeAltaExtraApiV1ActividadesPostMutationError = void
+
+    /**
+ * @summary Alta extra-catálogo con orden de cambio
+ */
+export const useDarDeAltaExtraApiV1ActividadesPost = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof darDeAltaExtraApiV1ActividadesPost>>, TError,{data: DarDeAltaExtraPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof darDeAltaExtraApiV1ActividadesPost>>,
+        TError,
+        {data: DarDeAltaExtraPeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getDarDeAltaExtraApiV1ActividadesPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    

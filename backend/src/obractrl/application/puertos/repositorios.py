@@ -69,6 +69,19 @@ class RepositorioActividades(Protocol):
 
     async def obtener(self, actividad_id: UUID) -> dict | None: ...
 
+    async def obtener_para_captura(self, actividad_id: UUID) -> dict | None:
+        """Como `obtener`, pero bloqueando la fila hasta el commit.
+
+        Lo necesita `CapturarAvance`, que deriva un delta de un absoluto (D6)
+        mientras el móvil escribe deltas por su lado (D5). Sin bloqueo, la
+        carrera deja el total en un valor que nadie capturó.
+        """
+        ...
+
+    async def crear_extra(self, datos: dict) -> UUID:
+        """Alta extra-catálogo (§11.2 `POST /actividades`). Devuelve su id."""
+        ...
+
     async def actualizar_avance(
         self,
         actividad_id: UUID,

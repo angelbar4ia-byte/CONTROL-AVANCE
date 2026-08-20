@@ -628,6 +628,69 @@
         }
       }
     },
+    "/api/v1/actividades": {
+      "post": {
+        "tags": [
+          "torre"
+        ],
+        "summary": "Alta extra-catálogo con orden de cambio",
+        "description": "Registra trabajo que apareció en obra y no estaba en el prototipo.\n\nIdempotente porque un doble clic crearía **dos** actividades con la misma\norden de cambio, y las dos se estimarían: el extra duplicado se paga dos\nveces y nadie lo nota hasta la conciliación.\n\nLa obra viaja en el cuerpo y no en la ruta porque la actividad es el\nrecurso que se crea; si esa obra no es visible, la política de `actividad`\nrechaza el INSERT (§12.4) — no hace falta preguntarle antes al repo de\nObras (§11.1).",
+        "operationId": "dar_de_alta_extra_api_v1_actividades_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DarDeAltaExtraPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtraRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo el residente da de alta trabajo extra (§11.2)."
+          },
+          "422": {
+            "description": "Falta la orden de cambio, o el precio no permite estimar."
+          }
+        }
+      }
+    },
     "/api/v1/proyectos": {
       "get": {
         "tags": [
@@ -5321,6 +5384,18 @@
             ],
             "title": "Notas"
           },
+          "orden_cambio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden Cambio",
+            "description": "Si es extra-catálogo, la OC que lo autorizó (§11.2)."
+          },
           "contratista_nombre": {
             "anyOf": [
               {
@@ -7542,6 +7617,119 @@
         ],
         "title": "CriterioRespuesta"
       },
+      "DarDeAltaExtraPeticion": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Descripcion",
+            "description": "Qué trabajo es. Sin esto el extra no se puede revisar ni estimar."
+          },
+          "orden_cambio": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Orden Cambio",
+            "description": "Orden de cambio que autoriza el trabajo. **Obligatoria**: no hay extra sin autorización (§11.2). La base lo repite como `CHECK`."
+          },
+          "cant_base": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cant Base"
+          },
+          "modo_pago": {
+            "$ref": "#/components/schemas/ModoPago",
+            "default": "destajo"
+          },
+          "precio_unitario": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Precio Unitario",
+            "default": "0"
+          },
+          "precio_destajo": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Precio Destajo",
+            "default": "0"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "frente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frente Id"
+          },
+          "duracion_dias": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Duracion Dias",
+            "default": "1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "descripcion",
+          "orden_cambio",
+          "cant_base"
+        ],
+        "title": "DarDeAltaExtraPeticion",
+        "description": "Trabajo que apareció en obra y no estaba en el prototipo (§11.2)."
+      },
       "DependenciaDTO": {
         "properties": {
           "ref": {
@@ -8347,6 +8535,54 @@
           "precio"
         ],
         "title": "ExplosionRespuesta"
+      },
+      "ExtraRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "orden_cambio": {
+            "type": "string",
+            "title": "Orden Cambio"
+          },
+          "cant_base": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Base"
+          },
+          "modo_pago": {
+            "type": "string",
+            "title": "Modo Pago"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "description": "Nace en `extra_catalogo` y avanza sola al capturar (§8.2)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "descripcion",
+          "orden_cambio",
+          "cant_base",
+          "modo_pago",
+          "estatus"
+        ],
+        "title": "ExtraRespuesta",
+        "description": "Lo que quedó dado de alta (§11.2)."
       },
       "FamiliaRespuesta": {
         "properties": {

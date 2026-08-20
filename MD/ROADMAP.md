@@ -16,13 +16,13 @@
 | D7 | **Las Fases 7+ se ordenan por un piloto en obra real** | El orden lo decide qué **bloquea el uso**, no qué falta del spec. Consecuencias: la administración de usuarios sube al primer lugar —hoy no se puede dar de alta a nadie y el Login ya lo promete—; presupuesto, procesos y tiempo real bajan; y el móvil se va al final, lo que hace que el piloto sea **web-only**. Eso último solo se sostiene si el residente captura con señal: `PATCH /actividades/{id}/avance` y la feature `avance` de la web ya lo permiten. **Si el residente resulta no tener señal en campo, el móvil deja de ser opcional y salta al frente de la fila** — es el supuesto que hay que confirmar antes de empezar el piloto, no durante. |
 | D8 | **Endurecer no compite con el piloto: es su precondición** | Un piloto mete datos reales de un cliente en producción, así que la Fase 8 (operación segura) va **antes** que cualquier feature nueva. Sin restauración probada, sin poder revertir una migración y sin rastro de quién cambió qué, el riesgo no es técnico sino del cliente. El detonante fue encontrar que **nada se ha desplegado nunca**: las seis fases viven en una rama sin fusionar a `main`, mientras el §12.12 manda trunk-based con `main` siempre desplegable. El endurecimiento que **sostiene** el sistema cuando crece —virtualización, datasets golden, deuda de tipos— es otra cosa y va en la Fase 14. |
 
-## Estado actual (Fases 7 a 10 cerradas)
+## Estado actual (Fases 7 a 11 cerradas)
 
 | Capa | Entregado | Pendiente |
 |---|---|---|
-| `database/` | 24 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · guardia de privilegios de `usuario` · 6 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
-| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · **797 pruebas**, 203 de ellas de integración contra Postgres real | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
-| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada) · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **296 pruebas** + 4 E2E de humo + 3 del alta | Features: revisión física, presupuesto, extra-catálogo · los 6 E2E de workflow |
+| `database/` | 26 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · guardia de privilegios de `usuario` · orden de cambio del extra-catálogo · 6 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
+| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · `POST /actividades` extra-catálogo · **824 pruebas**, 220 de ellas de integración contra Postgres real | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
+| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada), `extras`, `revisiones` · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **311 pruebas** + 4 E2E de humo + 3 del alta | Features: presupuesto, cierre de obra · los 6 E2E de workflow |
 | `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules auditadas · config Play | Pantallas de captura y revisión · cola de evidencias a R2 · build de Play Store |
 | CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), ida y vuelta de las 24 migraciones, restauración de respaldo, web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render |
 
@@ -30,7 +30,7 @@
 
 ## Lo inmediato
 
-**Fases 7 a 10 cerradas.** El sistema se puede operar —desplegar, promover,
+**Fases 7 a 11 cerradas.** El sistema se puede operar —desplegar, promover,
 revertir, restaurar, con rastro de quién cambió qué—, ya se puede dar de alta a
 alguien sin abrir `psql`, y un Control de obra puede subir su catálogo real
 desde Excel — las tres cosas que bloqueaban el piloto.
@@ -57,9 +57,9 @@ reloj salen en cualquier orden. Es lo mismo que la 0019 resolvió en
 `carga_snapshot` con una columna `orden`, y esa es también la solución aquí. Va
 como primer arreglo de la Fase 14.
 
-Lo que sigue: **Fase 11** (los huecos de una obra real) — alta extra-catálogo
-con OC, revisión física en web, y decidir si `POST /actividades/{id}/registros`
-sigue teniendo sentido después de D5.
+Lo que sigue: **Fase 12** (cierre de obra, workflow D) — el único de los seis
+workflows del §11.3 sin nada de backend, y la culminación natural del piloto:
+se cierra la obra con la que se empezó.
 
 El detalle de la Fase 6 está en [`FASE-6.md`](FASE-6.md); el procedimiento de
 operación, en [`OPERACION.md`](OPERACION.md).
@@ -450,19 +450,54 @@ transición se desincronizan.
 
 ## Fase 11 — Los huecos de una obra real
 
-Lo que aparece en cuanto una obra de verdad se mueve, y que hoy no tiene a
-dónde ir.
+> **Cerrada.**
 
-- `POST /actividades` — **alta extra-catálogo con OC** (§11.2, rol R). En una
-  obra real siempre hay trabajo que no estaba en el prototipo; hoy no hay forma
-  de registrarlo. Web: pantalla *Extra-catálogo* del §5.1.
-- **Revisión física en web** (C): el endpoint existe desde la Fase 4 y ninguna
-  pantalla lo usa. Mientras el móvil no esté, es la única manera de registrar
-  fotos, comentario y calidad.
-- Revisar si `POST /actividades/{id}/registros` (§11.2) sigue teniendo sentido
-  o si D5 lo dejó sin objeto: el móvil escribe `registro_avance` directo por
-  PowerSync y la web aporta su delta por `PATCH .../avance`. **Puede que la
-  conclusión sea borrarlo del contrato**, y eso también es una entrega.
+Lo que aparece en cuanto una obra de verdad se mueve, y que no tenía a dónde ir.
+
+- ✅ **`POST /actividades`** — alta extra-catálogo con OC (§11.2, rol R), con su
+  pantalla *Extra-catálogo* (§5.1), que el Residente traía en su sidebar desde
+  la Fase 1 sin que llevara a ninguna parte.
+- ✅ **Revisión física en web** (C). El endpoint existía desde la Fase 4 y
+  ninguna pantalla lo usaba. El §11.2 la marca «móvil», pero el móvil es la
+  Fase 15: sin esta pantalla el expediente llega al cierre de obra sin evidencia
+  de calidad (§11.3 D).
+- ✅ **`POST /actividades/{id}/registros`: decidido, y la decisión es no.**
+
+**Qué es «OC», dicho porque el spec no lo dice.** El §11.2 la nombra una sola
+vez y no la define. Se interpreta como **orden de cambio**, y de ahí sale la
+regla entera de esta ruta: *no hay trabajo extra sin orden que lo autorice*.
+Vive como `CHECK` en la migración 0026 —para que la cubra también la ruta
+directa a Supabase (§10.7)— y como regla de dominio, que es la que da el
+mensaje en español. La interpretación está escrita en la propia migración: si
+resulta equivocada, lo que hay que cambiar es la columna, y conviene que el
+razonamiento esté donde está el dato.
+
+La segunda regla es menos obvia y más cara: **un extra sin precio del modo de
+pago elegido no se puede estimar** (§11.3 E), o sea que es trabajo real que
+nadie va a cobrar. Se exige el precio del modo elegido y solo ese.
+
+**Sobre `/registros`: la ruta no se implementa.** El §11.2 la nombraba como
+«registro diario (R)», y después de D5 no queda nada que hiciera que
+`PATCH /actividades/{id}/avance` no haga ya: el PATCH escribe su delta en
+`registro_avance`, que es la única fuente de `cant_ejecutada` (D6). Una segunda
+ruta que escriba lo mismo son dos caminos que mantener sincronizados.
+
+> **Pero la pregunta destapó un bug de verdad.** El PATCH recibe un **absoluto**
+> y deriva el delta restando lo que ya había. Desde D5 hay **otro escritor** —el
+> móvil, por PowerSync, sin pasar por la API— y eso convierte el
+> lee-modifica-escribe en una carrera concreta: la actividad va en 10, la web
+> lee 10 y el residente quiere dejarla en 12; entre la lectura y la escritura el
+> móvil sincroniza un +5. La web calcula delta = +2 sobre el 10 que leyó y el
+> total queda en 17. Ni 12 ni 15: un número que nadie capturó.
+>
+> Resuelto con `select … for update` en la lectura de captura
+> (`obtener_para_captura`), que serializa a los dos escritores — el trigger de
+> agregación actualiza `actividad`, así que la transacción del móvil espera. Con
+> prueba que reproduce el intercalado.
+
+**Criterio de cierre:** no lo tenía escrito; el de facto era que el trabajo que
+aparece en obra tenga dónde registrarse y que lo ejecutado tenga cómo
+documentarse. **Cumplido.**
 
 ---
 

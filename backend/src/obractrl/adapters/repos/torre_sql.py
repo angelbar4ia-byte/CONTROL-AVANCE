@@ -217,7 +217,7 @@ class RepositorioTorreSQL:
                            act.es_critica, act.holgura, act.desfase,
                            act.fecha_inicio, act.fecha_termino, act.duracion_dias,
                            act.modo_pago, act.precio_unitario, act.precio_destajo,
-                           act.dependencias, act.notas,
+                           act.dependencias, act.notas, act.orden_cambio,
                            -- `razon_social`, no `nombre`: un contratista es
                            -- una empresa (§7.3) y esa es la columna que tiene.
                            ct.razon_social as contratista_nombre,
