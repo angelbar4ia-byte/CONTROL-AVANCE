@@ -20,7 +20,7 @@
  * se pinta la tabla completa, que es más simple de leer y de depurar.
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useTorreDeControlApiV1TorreGet } from '@/api/generado/torre/torre';
 import type { EstadoDeObraRespuesta } from '@/api/generado/modelo';
@@ -28,7 +28,7 @@ import type { ErrorApi } from '@/api/cliente';
 import { useSesion } from '@/app/sesion';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { fmtPct } from '@/lib/formato';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { FilasVirtuales, useTablaVirtual } from '@/lib/tablaVirtual';
 import { PanelObraTorre } from './PanelObraTorre';
 import {
   etiquetaUrgencia,
@@ -39,14 +39,6 @@ import {
   tonoUrgencia,
   urgenciaDe,
 } from './reglas';
-
-/** Alto de `.table tbody tr` en el sistema de diseño. */
-const ALTO_FILA = 41;
-
-/** A partir de aquí se virtualiza. Por debajo, el DOM completo es más simple. */
-const UMBRAL_VIRTUAL = 60;
-
-const ALTO_VISIBLE = 560;
 
 export default function Torre() {
   const { sesion } = useSesion();
@@ -64,14 +56,10 @@ export default function Torre() {
   );
   const resumen = useMemo(() => resumirTorre(obras), [obras]);
 
-  const contenedor = useRef<HTMLDivElement>(null);
-  const virtualiza = obras.length > UMBRAL_VIRTUAL;
-  const virtualizador = useVirtualizer({
-    count: virtualiza ? obras.length : 0,
-    getScrollElement: () => contenedor.current,
-    estimateSize: () => ALTO_FILA,
-    overscan: 10,
-  });
+  // Virtualizada desde el día uno (regla 4, §12.9): el §12.1 habla de 60–80
+  // obras activas y el Gantt ya enseñó que el umbral llega antes de lo que uno
+  // cree.
+  const virtual = useTablaVirtual(obras);
 
   if (!sesion) return null;
 
@@ -120,11 +108,7 @@ export default function Torre() {
       </div>
 
       <div className="table-wrap">
-        <div
-          className="table-scroll"
-          ref={contenedor}
-          style={virtualiza ? { maxHeight: ALTO_VISIBLE, overflowY: 'auto' } : undefined}
-        >
+        <div className="table-scroll" ref={virtual.ref} style={virtual.estilo}>
           <table className="table">
             <thead>
               <tr>
@@ -159,16 +143,12 @@ export default function Torre() {
                     </div>
                   </td>
                 </tr>
-              ) : virtualiza ? (
-                <FilasVirtuales
-                  obras={obras}
-                  virtualizador={virtualizador}
-                  onAbrir={setAbierta}
-                />
               ) : (
-                obras.map((obra) => (
-                  <FilaObra key={obra.obra_id} obra={obra} onAbrir={setAbierta} />
-                ))
+                <FilasVirtuales control={virtual}>
+                  {(obra) => (
+                    <FilaObra key={obra.obra_id} obra={obra} onAbrir={setAbierta} />
+                  )}
+                </FilasVirtuales>
               )}
             </tbody>
           </table>
@@ -183,45 +163,6 @@ export default function Torre() {
         />
       )}
     </div>
-  );
-}
-
-/**
- * Las filas virtualizadas dentro de un `<tbody>`.
- *
- * El truco de las dos filas espaciadoras —una arriba y otra abajo, con la
- * altura de lo que no se pinta— existe porque una tabla no admite hijos
- * posicionados en absoluto sin romper el reparto de columnas: `position:
- * absolute` sobre un `<tr>` lo saca del algoritmo de tabla y las celdas dejan
- * de alinearse con el `<thead>`. Con espaciadores, la tabla sigue siendo una
- * tabla y el navegador sigue alineando.
- */
-function FilasVirtuales({
-  obras,
-  virtualizador,
-  onAbrir,
-}: {
-  readonly obras: readonly EstadoDeObraRespuesta[];
-  readonly virtualizador: ReturnType<typeof useVirtualizer<HTMLDivElement, Element>>;
-  readonly onAbrir: (obra: EstadoDeObraRespuesta) => void;
-}) {
-  const visibles = virtualizador.getVirtualItems();
-  const antes = visibles.length > 0 ? (visibles[0]?.start ?? 0) : 0;
-  const despues =
-    visibles.length > 0
-      ? virtualizador.getTotalSize() - (visibles[visibles.length - 1]?.end ?? 0)
-      : 0;
-
-  return (
-    <>
-      {antes > 0 && <tr style={{ height: antes }} aria-hidden="true" />}
-      {visibles.map((item) => {
-        const obra = obras[item.index];
-        if (obra === undefined) return null;
-        return <FilaObra key={obra.obra_id} obra={obra} onAbrir={onAbrir} />;
-      })}
-      {despues > 0 && <tr style={{ height: despues }} aria-hidden="true" />}
-    </>
   );
 }
 

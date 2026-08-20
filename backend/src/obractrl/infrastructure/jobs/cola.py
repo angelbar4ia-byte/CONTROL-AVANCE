@@ -31,6 +31,7 @@ from dataclasses import dataclass, replace
 from typing import Any, Final
 
 from arq.connections import ArqRedis, RedisSettings, create_pool
+from arq.constants import default_queue_name, health_check_key_suffix
 from arq.jobs import Job, JobStatus
 from redis.exceptions import RedisError
 
@@ -106,6 +107,21 @@ class ResultadoTrabajo:
     @property
     def listo(self) -> bool:
         return self.estatus == EstadoTrabajo.LISTO
+
+
+def _clave_de_latido() -> str:
+    """La llave donde el worker escribe su latido.
+
+    Se arma con las constantes de `arq` en vez de leerla de `RedisSettings`,
+    que **no la tiene**: el atributo `health_check_key` vive en el `Worker`, no
+    en los ajustes de conexión. Escribirlo mal costaba un `AttributeError` que
+    `/health` reportaba como `error: AttributeError` en el campo `jobs` — o sea
+    una sonda que decía «no sé» justo sobre lo que existe para vigilar.
+
+    Importarlas en vez de escribir el literal `"arq:queue:health-check"` es lo
+    que hace que un cambio de nombre en `arq` rompa aquí y no en producción.
+    """
+    return f"{default_queue_name}{health_check_key_suffix}"
 
 
 def _ajustes(cfg: Config) -> RedisSettings:
@@ -214,10 +230,9 @@ class ColaDeTrabajos:
         exista ya significa que el worker latió hace poco**: no hay que
         interpretar su contenido ni comparar relojes entre máquinas.
         """
-        ajustes = _ajustes(self._cfg)
         async with self._pool() as pool:
             en_cola = len(await pool.queued_jobs())
-            latido = await pool.exists(ajustes.health_check_key)
+            latido = await pool.exists(_clave_de_latido())
         return en_cola, bool(latido)
 
     def _pool(self) -> _PoolDeArq:

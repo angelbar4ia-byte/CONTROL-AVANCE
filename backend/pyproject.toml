@@ -105,6 +105,21 @@ mypy_path = "src"
 packages = ["obractrl"]
 warn_unused_ignores = true
 
+# `dict` sin parametrizar está permitido, y es una decisión, no un descuido
+# (Fase 14 del ROADMAP).
+#
+# Los repositorios devuelven filas de SQL y los puertos las declaran como
+# `list[dict]`. Escribir `dict[str, Any]` en su lugar son 198 ediciones que **no
+# detectan nada**: `Any` es exactamente lo que ya se sabía que había dentro. Lo
+# que sí hacían esas 198 era enterrar los otros 97 hallazgos —los que apuntan a
+# atributos que no existen y a funciones sin anotar—, y por eso mypy no estaba
+# en CI: no se puede mirar una lista donde dos de cada tres líneas son ruido.
+#
+# El día que una fila de SQL merezca una forma, lo que le corresponde es un
+# `TypedDict` o un dataclass, no un `dict[str, Any]` que promete tipo y no lo
+# da.
+disallow_any_generics = false
+
 [[tool.mypy.overrides]]
 # `botocore` viene con `boto3` y tampoco trae `py.typed`; se firma la URL de
 # R2 con `botocore.config.Config` (§12.2), así que va junto a `boto3.*`.

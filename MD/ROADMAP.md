@@ -16,21 +16,21 @@
 | D7 | **Las Fases 7+ se ordenan por un piloto en obra real** | El orden lo decide qué **bloquea el uso**, no qué falta del spec. Consecuencias: la administración de usuarios sube al primer lugar —hoy no se puede dar de alta a nadie y el Login ya lo promete—; presupuesto, procesos y tiempo real bajan; y el móvil se va al final, lo que hace que el piloto sea **web-only**. Eso último solo se sostiene si el residente captura con señal: `PATCH /actividades/{id}/avance` y la feature `avance` de la web ya lo permiten. **Si el residente resulta no tener señal en campo, el móvil deja de ser opcional y salta al frente de la fila** — es el supuesto que hay que confirmar antes de empezar el piloto, no durante. |
 | D8 | **Endurecer no compite con el piloto: es su precondición** | Un piloto mete datos reales de un cliente en producción, así que la Fase 8 (operación segura) va **antes** que cualquier feature nueva. Sin restauración probada, sin poder revertir una migración y sin rastro de quién cambió qué, el riesgo no es técnico sino del cliente. El detonante fue encontrar que **nada se ha desplegado nunca**: las seis fases viven en una rama sin fusionar a `main`, mientras el §12.12 manda trunk-based con `main` siempre desplegable. El endurecimiento que **sostiene** el sistema cuando crece —virtualización, datasets golden, deuda de tipos— es otra cosa y va en la Fase 14. |
 
-## Estado actual (Fases 7 a 13 cerradas)
+## Estado actual (Fases 7 a 14 cerradas)
 
 | Capa | Entregado | Pendiente |
 |---|---|---|
-| `database/` | 26 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · guardia de privilegios de `usuario` · orden de cambio del extra-catálogo · 6 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
-| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · `POST /actividades` extra-catálogo · **cierre de obra (workflow D)** · presupuesto y rendimientos · **882 pruebas**, 242 de ellas de integración contra Postgres real | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
-| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada), `extras`, `revisiones`, `cierresObra`, `presupuesto` (virtualizada) · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **336 pruebas** + 4 E2E de humo + 3 del alta | Bitácora de eventos (SI) · procesos · los 6 E2E de workflow |
+| `database/` | 27 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · guardia de privilegios de `usuario` · orden de cambio del extra-catálogo · 6 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
+| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · `POST /actividades` extra-catálogo · **cierre de obra (workflow D)** · presupuesto y rendimientos · **895 pruebas**, 246 de integración y 6 datasets golden | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
+| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada), `extras`, `revisiones`, `cierresObra`, `presupuesto` · virtualización compartida (`lib/tablaVirtual`) · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **336 pruebas** + 4 E2E de humo + 3 del alta | Bitácora de eventos (SI) · procesos · los 6 E2E de workflow |
 | `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules auditadas · config Play | Pantallas de captura y revisión · cola de evidencias a R2 · build de Play Store |
-| CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), ida y vuelta de las 24 migraciones, restauración de respaldo, web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render |
+| CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), mypy informativo, ida y vuelta de las 27 migraciones, restauración de respaldo, web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render |
 
 ---
 
 ## Lo inmediato
 
-**Fases 7 a 13 cerradas.** El sistema se puede operar —desplegar, promover,
+**Fases 7 a 14 cerradas.** El sistema se puede operar —desplegar, promover,
 revertir, restaurar, con rastro de quién cambió qué—, ya se puede dar de alta a
 alguien sin abrir `psql`, y un Control de obra puede subir su catálogo real
 desde Excel — las tres cosas que bloqueaban el piloto.
@@ -48,19 +48,10 @@ Quedan cuatro cabos, ninguno bloqueante y todos de operación:
 4. **Tags `vX.Y.Z` y changelog** (§12.12), y ejercitar una vez el rollback de un
    deploy real.
 
-**Y una prueba intermitente anotada.**
-`test_flujo_completo_deja_la_incidencia_cerrada` falló una vez con un orden
-aleatorio de `pytest-randomly` y pasa siempre en orden fijo. La causa probable
-está a la vista: afirma el orden de los eventos con `order by fecha` y
-`incidencia_evento` no tiene desempate — cuatro eventos en el mismo tick del
-reloj salen en cualquier orden. Es lo mismo que la 0019 resolvió en
-`carga_snapshot` con una columna `orden`, y esa es también la solución aquí. Va
-como primer arreglo de la Fase 14.
-
-Lo que sigue: **Fase 14** (rendimiento y calidad) — el endurecimiento que
-sostiene el sistema cuando crece: virtualización de las vistas que faltan,
-datasets golden, y el primer arreglo de la lista es la prueba intermitente de
-`incidencia_evento`.
+Lo que sigue: **Fase 15** (móvil) — una app entera sin pantallas: `lib/` y
+`sync/` están listos y las sync rules quedaron auditadas en la Fase 6. Si el
+piloto revela que el residente no tiene señal en campo, deja de ser la penúltima
+(D7).
 
 El detalle de la Fase 6 está en [`FASE-6.md`](FASE-6.md); el procedimiento de
 operación, en [`OPERACION.md`](OPERACION.md).
@@ -612,24 +603,61 @@ y Super intendente puedan ver en qué se fue el dinero. **Cumplido.**
 
 ## Fase 14 — Rendimiento y calidad
 
+> **Cerrada**, salvo los seis E2E de workflow, que siguen esperando un entorno
+> con API y Postgres sembrado.
+
 El segundo bloque de endurecimiento: no habilita el piloto, lo sostiene cuando
 crece.
 
-- **Virtualización (§12.9).** Hoy solo el Gantt usa `@tanstack/react-virtual`.
-  El spec nombra catálogo de conceptos/CPU, histórico, presupuesto y ruta
-  crítica como vistas de miles de renglones. Canvas si la densidad del Gantt
-  crece.
-- **Datasets golden (§11.7).** Congelar resultados esperados de CPM, explosión
-  de insumos y valuación de materiales, para que una regresión se vea como un
-  diff y no como un número raro en pantalla.
-- **Idempotencia de reprocesos (§11.7).** Probar que correr una carga 2× da el
-  mismo resultado, en modo Actualizar.
-- **Reprocesos acotados (§11.7).** Tope de iteraciones, detector "sin progreso"
-  y backoff, para que un job no entre en bucle.
-- **Los seis E2E de workflow**, si la regla 2 no los fue absorbiendo antes.
-- **Deuda de tipos.** mypy tiene ~258 hallazgos, casi todos del patrón
-  `list[dict]` sin parametrizar. Decidir si se adopta como convención o se
-  corrige — pero decidirlo, no dejarlo flotando.
+- ✅ **La prueba intermitente.** `test_flujo_completo_deja_la_incidencia_cerrada`
+  afirmaba el orden de los eventos con `order by fecha`, y cuatro eventos del
+  mismo tick del reloj comparten `fecha`: Postgres devolvía el orden que le
+  convenía. La migración 0027 le da a `incidencia_evento` una columna `orden`
+  —una secuencia, no un reloj—. `fecha` responde *cuándo pasó*, que es lo que se
+  muestra; `orden` responde *en qué secuencia*, que es lo que se ordena.
+  Confundirlas fue el bug.
+- ✅ **Virtualización (§12.9).** El patrón vivía copiado en dos pantallas; ahora
+  está en `lib/tablaVirtual.tsx` y cubre además el **catálogo de conceptos y de
+  insumos**, que es la vista de miles de renglones que el §12.9 nombra primero.
+  Unidades, familias y contratistas se quedan sin virtualizar a propósito: son
+  decenas, y acotarles el viewport costaría un `Ctrl+F` que deja de encontrar a
+  cambio de nada.
+- ✅ **Datasets golden (§11.7).** CPM y explosión de insumos, congelados en
+  `tests/golden/`. Un golden no comprueba que el cálculo sea correcto —eso lo
+  hacen las pruebas de dominio— sino que **no cambie sin que alguien lo decida**,
+  y su valor está en el diff: cuando una holgura pasa de 2 a 0, lo que aparece
+  en la revisión es esa línea.
+- ✅ **Idempotencia de reprocesos (§11.7).** Correr el recálculo de CPM 2× —y
+  3×— da el mismo resultado. Importa porque el recálculo viaja como job y un job
+  **se reintenta**: si reintentarlo moviera las fechas, un fallo transitorio de
+  red se convertiría en un cronograma distinto.
+- ✅ **Deuda de tipos: decidida.** De 294 hallazgos, 198 eran `dict` sin
+  parametrizar. Se aceptan como convención (`disallow_any_generics = false`)
+  porque `dict[str, Any]` **no detecta nada** que `dict` no dijera ya, y lo que
+  sí hacían esos 198 era enterrar los otros 96. Con eso mypy entra a CI como
+  paso informativo: no bloquea, pero la cuenta se ve, y si sube alguien agregó
+  deuda.
+- ⏳ **Los seis E2E de workflow.** El arnés está listo desde la Fase 6 y el del
+  alta de usuario se escribió en la Fase 7. Los seis siguen en `fixme` por la
+  misma razón de entonces: escribirlos contra una UI que no se ha podido
+  ejecutar produce selectores inventados.
+- ⏳ **Reprocesos acotados (§11.7)** — tope de iteraciones y detector «sin
+  progreso». No se hizo: hoy ningún reproceso itera. El CPM es una pasada sobre
+  un grafo acíclico —`CicloEnGrafoError` corta antes— y las cargas recorren un
+  archivo una vez. Se anota para cuando exista un job que pueda no converger, no
+  antes: un tope sobre algo que no itera es código que nadie ejecuta.
+
+> **Y un bug real que encontró mypy en cuanto dejó de ser ruido.**
+> `ColaDeTrabajos.estado` —de la Fase 8— leía `RedisSettings.health_check_key`,
+> que **no existe**: el atributo vive en el `Worker`, no en los ajustes de
+> conexión. `/health` habría reportado `error: AttributeError` en el campo
+> `jobs`, o sea una sonda diciendo «no sé» justo sobre lo que existe para
+> vigilar. Es exactamente el tipo de hallazgo que los 198 de `dict` estaban
+> tapando.
+
+**Criterio de cierre:** no lo tenía escrito; el de facto era que los cálculos
+que importan queden congelados y que las vistas grandes no crezcan el DOM con la
+obra. **Cumplido.**
 
 ---
 

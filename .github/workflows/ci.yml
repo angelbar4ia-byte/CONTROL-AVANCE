@@ -101,6 +101,20 @@ jobs:
         working-directory: backend
         run: lint-imports
 
+      - name: Tipos (informativo)
+        working-directory: backend
+        # `continue-on-error`: mypy entra a CI **para que se vea**, no para
+        # bloquear. Quedan 96 hallazgos reales —`arg-type`, `no-any-return`,
+        # `attr-defined`— y ponerlos en rojo de golpe obligaría a arreglarlos
+        # todos hoy o a ignorar el rojo, que es lo que pasa siempre. Se mira la
+        # cuenta: si sube, alguien agregó deuda.
+        #
+        # Los 198 de `dict` sin parametrizar se aceptaron como convención
+        # (`disallow_any_generics = false`, ver `pyproject.toml`), que es lo
+        # que hace que estos 96 sean legibles.
+        continue-on-error: true
+        run: mypy src
+
       - name: Pruebas (dominio + integración)
         working-directory: backend
         run: pytest -q

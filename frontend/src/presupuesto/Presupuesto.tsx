@@ -18,8 +18,7 @@
  * otro versionado y otra reversa.
  */
 
-import { useMemo, useRef, useState } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useMemo, useState } from 'react';
 
 import { usePresupuestoDeObrasApiV1PresupuestosObrasGet } from '@/api/generado/presupuesto/presupuesto';
 import type { ResumenDeObraRespuesta } from '@/api/generado/modelo';
@@ -27,6 +26,7 @@ import type { ErrorApi } from '@/api/cliente';
 import { useSesion } from '@/app/sesion';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { fmtMXN, fmtPct } from '@/lib/formato';
+import { FilasVirtuales, useTablaVirtual } from '@/lib/tablaVirtual';
 import { PanelRendimientos } from './PanelRendimientos';
 import {
   esRelevante,
@@ -35,10 +35,6 @@ import {
   textoPorcentaje,
   tonoClasificacion,
 } from './reglas';
-
-const ALTO_FILA = 41;
-const UMBRAL_VIRTUAL = 60;
-const ALTO_VISIBLE = 560;
 
 export default function Presupuesto() {
   const { sesion } = useSesion();
@@ -57,14 +53,7 @@ export default function Presupuesto() {
 
   const resumen = useMemo(() => resumirPresupuesto(filas), [filas]);
 
-  const contenedor = useRef<HTMLDivElement>(null);
-  const virtualiza = filas.length > UMBRAL_VIRTUAL;
-  const virtualizador = useVirtualizer({
-    count: virtualiza ? filas.length : 0,
-    getScrollElement: () => contenedor.current,
-    estimateSize: () => ALTO_FILA,
-    overscan: 10,
-  });
+  const virtual = useTablaVirtual(filas);
 
   if (!sesion) return null;
 
@@ -112,11 +101,7 @@ export default function Presupuesto() {
       </div>
 
       <div className="table-wrap">
-        <div
-          className="table-scroll"
-          ref={contenedor}
-          style={virtualiza ? { maxHeight: ALTO_VISIBLE, overflowY: 'auto' } : undefined}
-        >
+        <div className="table-scroll" ref={virtual.ref} style={virtual.estilo}>
           <table className="table">
             <thead>
               <tr>
@@ -150,16 +135,12 @@ export default function Presupuesto() {
                     </div>
                   </td>
                 </tr>
-              ) : virtualiza ? (
-                <FilasVirtuales
-                  filas={filas}
-                  virtualizador={virtualizador}
-                  onAbrir={setAbierta}
-                />
               ) : (
-                filas.map((fila) => (
-                  <FilaObra key={fila.obra_id} fila={fila} onAbrir={setAbierta} />
-                ))
+                <FilasVirtuales control={virtual}>
+                  {(fila) => (
+                    <FilaObra key={fila.obra_id} fila={fila} onAbrir={setAbierta} />
+                  )}
+                </FilasVirtuales>
               )}
             </tbody>
           </table>
@@ -170,36 +151,6 @@ export default function Presupuesto() {
         <PanelRendimientos obra={abierta} onCerrar={() => setAbierta(null)} />
       )}
     </div>
-  );
-}
-
-/** Ver el comentario del mismo patrón en `torre/Torre.tsx`. */
-function FilasVirtuales({
-  filas,
-  virtualizador,
-  onAbrir,
-}: {
-  readonly filas: readonly ResumenDeObraRespuesta[];
-  readonly virtualizador: ReturnType<typeof useVirtualizer<HTMLDivElement, Element>>;
-  readonly onAbrir: (fila: ResumenDeObraRespuesta) => void;
-}) {
-  const visibles = virtualizador.getVirtualItems();
-  const antes = visibles.length > 0 ? (visibles[0]?.start ?? 0) : 0;
-  const despues =
-    visibles.length > 0
-      ? virtualizador.getTotalSize() - (visibles[visibles.length - 1]?.end ?? 0)
-      : 0;
-
-  return (
-    <>
-      {antes > 0 && <tr style={{ height: antes }} aria-hidden="true" />}
-      {visibles.map((item) => {
-        const fila = filas[item.index];
-        if (fila === undefined) return null;
-        return <FilaObra key={fila.obra_id} fila={fila} onAbrir={onAbrir} />;
-      })}
-      {despues > 0 && <tr style={{ height: despues }} aria-hidden="true" />}
-    </>
   );
 }
 

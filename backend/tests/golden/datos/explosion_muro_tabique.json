@@ -1,0 +1,156 @@
+{
+  "clave": "MURO-TAB",
+  "lineas": [
+    {
+      "cantidad": "52.500000",
+      "cantidad_unitaria": "52.500000",
+      "categoria": "material",
+      "costo_unitario": "7.3500",
+      "es_destajo": false,
+      "importe": "385.8750",
+      "nivel": 1,
+      "referencia": "TABIQUE",
+      "ruta": [
+        "MURO-TAB"
+      ],
+      "tipo_hijo": "insumo"
+    },
+    {
+      "cantidad": "0.032000",
+      "cantidad_unitaria": "0.032000",
+      "categoria": "auxiliar",
+      "costo_unitario": "2745.0350",
+      "es_destajo": false,
+      "importe": "87.8411",
+      "nivel": 1,
+      "referencia": "MORTERO",
+      "ruta": [
+        "MURO-TAB"
+      ],
+      "tipo_hijo": "concepto"
+    },
+    {
+      "cantidad": "0.032000",
+      "cantidad_unitaria": "1.000000",
+      "categoria": "auxiliar",
+      "costo_unitario": "2023.5250",
+      "es_destajo": false,
+      "importe": "64.7528",
+      "nivel": 2,
+      "referencia": "CEM-ARENA",
+      "ruta": [
+        "MURO-TAB",
+        "MORTERO"
+      ],
+      "tipo_hijo": "concepto"
+    },
+    {
+      "cantidad": "11.200000",
+      "cantidad_unitaria": "350.000000",
+      "categoria": "material",
+      "costo_unitario": "4.8500",
+      "es_destajo": false,
+      "importe": "54.3200",
+      "nivel": 3,
+      "referencia": "CEM-GRIS",
+      "ruta": [
+        "MURO-TAB",
+        "MORTERO",
+        "CEM-ARENA"
+      ],
+      "tipo_hijo": "insumo"
+    },
+    {
+      "cantidad": "0.033600",
+      "cantidad_unitaria": "1.050000",
+      "categoria": "material",
+      "costo_unitario": "310.5000",
+      "es_destajo": false,
+      "importe": "10.4328",
+      "nivel": 3,
+      "referencia": "ARENA",
+      "ruta": [
+        "MURO-TAB",
+        "MORTERO",
+        "CEM-ARENA"
+      ],
+      "tipo_hijo": "insumo"
+    },
+    {
+      "cantidad": "0.007040",
+      "cantidad_unitaria": "0.220000",
+      "categoria": "material",
+      "costo_unitario": "22.0000",
+      "es_destajo": false,
+      "importe": "0.1549",
+      "nivel": 2,
+      "referencia": "AGUA",
+      "ruta": [
+        "MURO-TAB",
+        "MORTERO"
+      ],
+      "tipo_hijo": "insumo"
+    },
+    {
+      "cantidad": "0.057600",
+      "cantidad_unitaria": "1.800000",
+      "categoria": "mano_obra",
+      "costo_unitario": "398.1500",
+      "es_destajo": true,
+      "importe": "22.9334",
+      "nivel": 2,
+      "referencia": "AYUDANTE",
+      "ruta": [
+        "MURO-TAB",
+        "MORTERO"
+      ],
+      "tipo_hijo": "insumo"
+    },
+    {
+      "cantidad": "0.650000",
+      "cantidad_unitaria": "0.650000",
+      "categoria": "mano_obra",
+      "costo_unitario": "612.4000",
+      "es_destajo": true,
+      "importe": "398.0600",
+      "nivel": 1,
+      "referencia": "ALBAÑIL",
+      "ruta": [
+        "MURO-TAB"
+      ],
+      "tipo_hijo": "insumo"
+    },
+    {
+      "cantidad": "0.650000",
+      "cantidad_unitaria": "0.650000",
+      "categoria": "mano_obra",
+      "costo_unitario": "398.1500",
+      "es_destajo": true,
+      "importe": "258.7975",
+      "nivel": 1,
+      "referencia": "AYUDANTE",
+      "ruta": [
+        "MURO-TAB"
+      ],
+      "tipo_hijo": "insumo"
+    },
+    {
+      "cantidad": "0.080000",
+      "cantidad_unitaria": "0.080000",
+      "categoria": "equipo",
+      "costo_unitario": "92.5000",
+      "es_destajo": false,
+      "importe": "7.4000",
+      "nivel": 1,
+      "referencia": "ANDAMIO",
+      "ruta": [
+        "MURO-TAB"
+      ],
+      "tipo_hijo": "insumo"
+    }
+  ],
+  "precio": {
+    "destajo": "679.79",
+    "total": "1137.97"
+  }
+}

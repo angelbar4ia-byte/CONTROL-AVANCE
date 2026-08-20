@@ -162,7 +162,10 @@ async def test_flujo_completo_deja_la_incidencia_cerrada(
             await conn.execute(
                 text(
                     "select accion, estatus_previo, estatus_nuevo "
-                    "from incidencia_evento where incidencia_id = :id order by fecha"
+                    # `orden`, no `fecha`: dos eventos del mismo tick comparten `fecha` y
+                    # el orden queda a criterio de Postgres. Es lo que hacía
+                    # que esta prueba fallara una de cada tantas (migración 0027).
+                    "from incidencia_evento where incidencia_id = :id order by orden"
                 ),
                 {"id": str(incidencia_id)},
             )
