@@ -202,6 +202,24 @@ class ColaDeTrabajos:
         except ColaNoDisponible:
             return False
 
+    async def estado(self) -> tuple[int, bool]:
+        """Cuántos trabajos esperan y si el worker sigue latiendo (§11.7).
+
+        POR QUÉ LAS DOS COSAS Y NO SOLO LA PRIMERA
+
+        Una cola con trabajos y sin worker se ve igual que una cola ocupada:
+        crece. La diferencia —la que importa cuando alguien mira la sonda a
+        media noche— está en el latido. `arq` escribe `health_check_key` con un
+        vencimiento de `health_check_interval + 1`, así que **que la llave
+        exista ya significa que el worker latió hace poco**: no hay que
+        interpretar su contenido ni comparar relojes entre máquinas.
+        """
+        ajustes = _ajustes(self._cfg)
+        async with self._pool() as pool:
+            en_cola = len(await pool.queued_jobs())
+            latido = await pool.exists(ajustes.health_check_key)
+        return en_cola, bool(latido)
+
     def _pool(self) -> _PoolDeArq:
         return _PoolDeArq(_ajustes(self._cfg))
 

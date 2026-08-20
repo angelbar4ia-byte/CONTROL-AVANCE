@@ -106,6 +106,16 @@ if [ "$version_origen" != "$version_copia" ]; then
   exit 1
 fi
 
+# Constancia para `/health` (§11.7): la restauración probada es la garantía que
+# vale, y es la que envejece sin que nadie se dé cuenta. Un respaldo reciente
+# con una restauración vieja es justo la señal que hay que poder ver.
+# Por stdin y no por `-c`: psql no sustituye variables dentro de un `-c`.
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q   -v bytes="$(wc -c < "$dump" | tr -d ' ')"   -v origen="$base_origen" <<'SQL'
+insert into app.respaldo (tipo, terminado_en, ok, bytes, origen, detalle)
+values ('restauracion_probada', now(), true, :'bytes'::bigint, :'origen',
+        'esquema comparado objeto por objeto tras pg_restore');
+SQL
+
 echo "Restauración probada: $version_copia migraciones y el esquema completo."
 if [ -n "$guardar" ]; then
   echo "Respaldo conservado en $guardar"

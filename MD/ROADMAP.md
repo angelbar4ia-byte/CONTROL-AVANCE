@@ -16,41 +16,50 @@
 | D7 | **Las Fases 7+ se ordenan por un piloto en obra real** | El orden lo decide qué **bloquea el uso**, no qué falta del spec. Consecuencias: la administración de usuarios sube al primer lugar —hoy no se puede dar de alta a nadie y el Login ya lo promete—; presupuesto, procesos y tiempo real bajan; y el móvil se va al final, lo que hace que el piloto sea **web-only**. Eso último solo se sostiene si el residente captura con señal: `PATCH /actividades/{id}/avance` y la feature `avance` de la web ya lo permiten. **Si el residente resulta no tener señal en campo, el móvil deja de ser opcional y salta al frente de la fila** — es el supuesto que hay que confirmar antes de empezar el piloto, no durante. |
 | D8 | **Endurecer no compite con el piloto: es su precondición** | Un piloto mete datos reales de un cliente en producción, así que la Fase 8 (operación segura) va **antes** que cualquier feature nueva. Sin restauración probada, sin poder revertir una migración y sin rastro de quién cambió qué, el riesgo no es técnico sino del cliente. El detonante fue encontrar que **nada se ha desplegado nunca**: las seis fases viven en una rama sin fusionar a `main`, mientras el §12.12 manda trunk-based con `main` siempre desplegable. El endurecimiento que **sostiene** el sistema cuando crece —virtualización, datasets golden, deuda de tipos— es otra cosa y va en la Fase 14. |
 
-## Estado actual (Fase 8 en curso)
+## Estado actual (Fase 8 cerrada · Fase 7 por empezar)
 
 | Capa | Entregado | Pendiente |
 |---|---|---|
-| `database/` | 22 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · 5 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
-| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · **547 pruebas** | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
+| `database/` | 24 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · 6 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
+| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · **725 pruebas**, 176 de ellas de integración contra Postgres real | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
 | `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · **221 pruebas** + 4 E2E de humo | Features: cargas, expediente, reportes, revisión física · cablear `Idempotency-Key` · los 6 E2E de workflow |
 | `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules auditadas · config Play | Pantallas de captura y revisión · cola de evidencias a R2 · build de Play Store |
-| CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), ida y vuelta de las 22 migraciones, restauración de respaldo, web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Confirmar en verde con el job de backend restaurado |
+| CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), ida y vuelta de las 24 migraciones, restauración de respaldo, web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render |
 
 ---
 
 ## Lo inmediato
 
-**Fase 8 en curso.** El primer frente ya cerró: la rama se fusionó a `main` por
-el PR #18, así que el trunk-based del §12.12 dejó de ser una intención. El
-segundo frente —migraciones reversibles y respaldo probado— está hecho y
-probado; falta sellar la base de producción la primera vez que se despliegue
-(`./scripts/migrar.sh --sellar`) y siguen abiertos los frentes 4 a 6.
+**Fase 8 cerrada en sus seis frentes.** El sistema ya se puede operar: se
+despliega, se promueve con aprobación, se revierte una migración, se restaura un
+respaldo y queda rastro de quién cambió qué. El procedimiento vive en
+[`OPERACION.md`](OPERACION.md) y no en la cabeza de nadie.
 
-**Y un hallazgo que hay que decir sin adornos: el CI llevaba dos commits sin
-probar nada del backend.** El commit `4543909`, al sacar el paso del contrato a
-un script, se llevó por delante ocho pasos del job `backend`: instalar
-dependencias, aplicar migraciones, dar contraseña a `obractrl_api`, ruff,
-`lint-imports`, `pytest` y el aislamiento RLS. El job quedó con un solo paso
-—y sin el `pip install` que necesita—. Está restaurado, con los pasos nuevos de
-la Fase 8 encima.
+Quedan tres cabos, todos anotados y ninguno bloqueante:
 
-La lección no es el descuido: es que **un CI verde no dice qué corrió**. Un job
-al que se le borran los pasos no se pone rojo, se pone verde más rápido. Vale
-la pena mirar la duración de la corrida además del color.
+1. **Sellar la base de producción** la primera vez que se despliegue este
+   runner: `./database/scripts/migrar.sh --sellar`. Sin eso intentaría reaplicar
+   las 24 sobre un esquema que ya las tiene.
+2. **Crear los servicios de staging en Render** a partir del blueprint nuevo, y
+   darles su proyecto de Supabase y su bucket de R2 propios. Un staging
+   apuntando a la base de prod no es un staging.
+3. **Tags `vX.Y.Z` y changelog** (§12.12), y ejercitar una vez el rollback de un
+   deploy real. La reversión de migraciones y la restauración de respaldo ya se
+   prueban en cada corrida de CI; volver a promover un commit anterior en Render
+   todavía no se ha hecho nunca.
 
-Después de la Fase 8, **Fase 7**. El detalle de la Fase 6 —qué se entregó en
-cada frente y por qué— está en [`FASE-6.md`](FASE-6.md), decisiones F6.1 a
-F6.13.
+**Y una prueba intermitente que conviene no perder de vista.**
+`test_flujo_completo_deja_la_incidencia_cerrada` falló una vez con un orden
+aleatorio de `pytest-randomly` y pasa siempre en orden fijo. La causa probable
+está a la vista: afirma el orden de los eventos con `order by fecha`, y
+`incidencia_evento` no tiene desempate — cuatro eventos que caen en el mismo
+tick del reloj salen en cualquier orden. Es el mismo problema que la 0019
+resolvió en `carga_snapshot` agregando una columna `orden`, y esa es también la
+solución aquí. No se tocó en esta fase para no mezclarlo con el endurecimiento;
+va como primer arreglo de la Fase 14.
+
+Ahora sí, **Fase 7**. El detalle de la Fase 6 —qué se entregó en cada frente y
+por qué— está en [`FASE-6.md`](FASE-6.md), decisiones F6.1 a F6.13.
 
 ---
 
@@ -238,19 +247,67 @@ seis a `main`, que es de donde despliega `render.yaml` con `autoDeploy: true`.
    tres reglas del versionado: primero agregar (nullable + backfill), desplegar
    código que tolera ambos esquemas, contraer en un release posterior. Así el
    rollback del código no arrastra a la base.
-4. **Bitácora de negocio (§11.7, §12.12).** La tabla `bitacora` existe con RLS
-   y **nadie la escribe**. Los cambios de configuración y de catálogo —umbral
-   §3.6, IVA, mapeos, motivos— tienen que dejar quién/cuándo/qué, y los
-   sensibles versionarse para no alterar resultados pasados.
-5. **`/health` completo (§11.7).** Hoy cubre BD y cola; el spec pide además
-   disco, jobs y **último respaldo**.
-6. **Staging.** El §12.12 pide promoción `main` → staging → prod con
-   aprobación. Hoy `render.yaml` define un solo entorno.
+4. ✅ **Bitácora de negocio (§11.7, §12.12).** La tabla `bitacora` existía con
+   RLS y nadie la escribía. Ahora la escribe la base: un trigger
+   (`app.bitacora_registrar`, migración 0023) sobre las 17 tablas que **alteran
+   resultados** —configuración, unidades, precios, recetas, catálogos maestros—
+   guarda quién, cuándo y el diff de lo que cambió.
+
+   La alternativa era que cada caso de uso escribiera su renglón. No se
+   descartó por el trabajo, sino porque **la auditoría que se puede olvidar no
+   es auditoría**: un caso de uso nuevo que no llame al registro no rompe
+   ninguna prueba. El trigger cubre además la ruta directa a Supabase (§10.7) y
+   el `UPDATE` que alguien corra a mano en el dashboard, que son los cambios que
+   más falta hace poder rastrear.
+
+   > Y es append-only por construcción: `bitacora` **no tiene política de
+   > `INSERT`, `UPDATE` ni `DELETE`** para nadie. La escribe una función
+   > `SECURITY DEFINER`. Una bitácora que su propio sujeto puede escribir no
+   > prueba nada. Está probado en `database/tests/test_bitacora.sql`.
+
+   Encontró un bug de paso: el `on delete cascade` de `organizacion` borra la
+   fila padre **antes** que los hijos, así que el trigger intentaba escribir con
+   un `org_id` que ya no existía y **dar de baja una organización era
+   imposible**. Ya tiene su guarda y su caso de prueba.
+
+5. ✅ **`/health` completo (§11.7).** Cubría base y cola; ahora también
+   **jobs**, **disco** y **último respaldo**. `jobs` es el que separa "Redis
+   responde" de "hay quien atienda la cola": `SIN WORKER` con trabajos
+   encolados es un worker caído, no una cola ocupada — y ese fallo no produce
+   ningún error visible en la API.
+
+   El último respaldo la sonda no lo puede adivinar: lo escriben
+   `respaldar.sh` y `probar_respaldo.sh` en `app.respaldo` (migración 0024), y
+   se reportan las **dos** fechas por separado. Un respaldo de anoche con una
+   restauración probada de hace seis meses es la situación que hay que ver
+   antes del incidente, no durante.
+
+   `disco` y `ultimo_respaldo` **no** degradan `estatus`: hay que atenderlos,
+   pero no son "la API no puede trabajar", y una sonda que grita por todo deja
+   de leerse.
+
+6. ✅ **Staging (§12.12).** `render.yaml` define ahora dos entornos: cada push
+   a `main` despliega **staging**, y producción tiene `autoDeploy: false` — se
+   promueve a mano eligiendo el commit que ya corrió en staging. Ese clic es la
+   aprobación.
+
+   **Sin rama `staging`**: una segunda rama de larga vida es lo contrario del
+   trunk-based, porque invita a que los dos entornos diverjan y entonces lo que
+   se probó ya no es lo que se promueve. Cada entorno lleva su Redis, su
+   proyecto de Supabase y su bucket de R2 — un staging apuntando a la base de
+   prod es prod con otro nombre y sin cuidado. Staging va sin llaves de Resend a
+   propósito: un correo de staging llega a una persona real.
+
+   El procedimiento completo —desplegar, promover, revertir, respaldar,
+   restaurar, y qué mirar cuando algo va mal— está en
+   [`OPERACION.md`](OPERACION.md).
 
 **Criterio de cierre:** se puede desplegar a producción, revertir el deploy,
 revertir una migración y restaurar un respaldo — y las tres cosas se probaron,
-no se supusieron. Las dos últimas ya se prueban en cada corrida de CI; falta
-ejercitar el rollback de un deploy real.
+no se supusieron. **Cerrado**, con una salvedad honesta: la reversión de
+migraciones y la restauración de respaldo se prueban en cada corrida de CI, y el
+rollback de un deploy es un procedimiento escrito que todavía no se ha
+ejercitado contra Render.
 
 ---
 
