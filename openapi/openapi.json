@@ -400,6 +400,234 @@
         }
       }
     },
+    "/api/v1/torre": {
+      "get": {
+        "tags": [
+          "torre"
+        ],
+        "summary": "Estado de cada obra en el alcance",
+        "description": "Una fila por obra visible, con sus contadores (§5.1).\n\nAgregado a propósito: resolverlo desde el cliente serían cinco peticiones\npor obra, y el §12.1 habla de 60–80 obras activas. El razonamiento completo\nestá en el encabezado de `adapters/repos/torre_sql.py`.",
+        "operationId": "torre_de_control_api_v1_torre_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "proyecto_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Acota a un proyecto.",
+              "title": "Proyecto Id"
+            },
+            "description": "Acota a un proyecto."
+          },
+          {
+            "name": "cluster_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Acota a un cluster.",
+              "title": "Cluster Id"
+            },
+            "description": "Acota a un cluster."
+          },
+          {
+            "name": "solo_pendientes",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Solo las obras con algo esperando: incidencia abierta, cierre por resolver o actividad bloqueada.",
+              "default": false,
+              "title": "Solo Pendientes"
+            },
+            "description": "Solo las obras con algo esperando: incidencia abierta, cierre por resolver o actividad bloqueada."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EstadoDeObraRespuesta"
+                  },
+                  "title": "Response Torre De Control Api V1 Torre Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/actividades": {
+      "get": {
+        "tags": [
+          "torre"
+        ],
+        "summary": "Actividades de una obra",
+        "description": "El detalle de una obra en la Torre (§11.2).\n\nUna obra fuera del alcance devuelve **lista vacía**, no 404: RLS ya la hizo\ninvisible, y un 404 aquí obligaría a una consulta extra solo para\ndistinguir \"no existe\" de \"no la ves\" — que hacia afuera son lo mismo\n(§12.4).",
+        "operationId": "actividades_de_obra_api_v1_obras__obra_id__actividades_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "estatus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/EstatusActividad"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por estatus (§8.2).",
+              "title": "Estatus"
+            },
+            "description": "Filtra por estatus (§8.2)."
+          },
+          {
+            "name": "solo_criticas",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Solo las de la ruta crítica (§7.5).",
+              "default": false,
+              "title": "Solo Criticas"
+            },
+            "description": "Solo las de la ruta crítica (§7.5)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActividadRespuesta"
+                  },
+                  "title": "Response Actividades De Obra Api V1 Obras  Obra Id  Actividades Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}": {
+      "get": {
+        "tags": [
+          "torre"
+        ],
+        "summary": "Detalle de una actividad",
+        "description": "Una actividad con su programación, su costeo y su contexto (§11.2).\n\nAquí sí es 404 y no lista vacía: se pidió **una** cosa concreta y no está.\nQue la causa sea RLS o que no exista es indistinguible a propósito.",
+        "operationId": "actividad_api_v1_actividades__actividad_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActividadDetalleRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/proyectos": {
       "get": {
         "tags": [
@@ -4911,6 +5139,232 @@
         "title": "AbrirIncidenciaPeticion",
         "description": "Alta de incidencia (§11.3 F.1). Cualquier rol la abre."
       },
+      "ActividadDetalleRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "frente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frente Id"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "frente_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frente Nombre"
+          },
+          "cant_base": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Base"
+          },
+          "cant_programada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Programada"
+          },
+          "cant_ejecutada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Ejecutada"
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "bloqueada": {
+            "type": "boolean",
+            "title": "Bloqueada"
+          },
+          "extra": {
+            "type": "boolean",
+            "title": "Extra",
+            "description": "Alta extra-catálogo con OC (§5.1)."
+          },
+          "es_critica": {
+            "type": "boolean",
+            "title": "Es Critica"
+          },
+          "holgura": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holgura"
+          },
+          "desfase": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desfase"
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio"
+          },
+          "fecha_termino": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Termino"
+          },
+          "duracion_dias": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Duracion Dias"
+          },
+          "modo_pago": {
+            "type": "string",
+            "title": "Modo Pago"
+          },
+          "precio_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Unitario"
+          },
+          "precio_destajo": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Destajo"
+          },
+          "obra_clave": {
+            "type": "string",
+            "title": "Obra Clave"
+          },
+          "dependencias": {
+            "items": {},
+            "type": "array",
+            "title": "Dependencias"
+          },
+          "notas": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notas"
+          },
+          "contratista_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista Nombre"
+          },
+          "cuadrilla_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "cant_base",
+          "cant_programada",
+          "cant_ejecutada",
+          "avance_pct",
+          "estatus",
+          "bloqueada",
+          "extra",
+          "es_critica",
+          "duracion_dias",
+          "modo_pago",
+          "precio_unitario",
+          "precio_destajo",
+          "obra_clave"
+        ],
+        "title": "ActividadDetalleRespuesta",
+        "description": "Lo mismo, más lo que solo interesa al abrirla (§11.2 `GET /actividades/{id}`)."
+      },
       "ActividadEnRutaRespuesta": {
         "properties": {
           "actividad_id": {
@@ -5167,6 +5621,189 @@
         ],
         "title": "ActividadProgramadaRespuesta",
         "description": "Fila del Gantt: lo capturado más lo que derivó el motor (§7.6, §6)."
+      },
+      "ActividadRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "frente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frente Id"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "frente_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frente Nombre"
+          },
+          "cant_base": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Base"
+          },
+          "cant_programada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Programada"
+          },
+          "cant_ejecutada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Ejecutada"
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "bloqueada": {
+            "type": "boolean",
+            "title": "Bloqueada"
+          },
+          "extra": {
+            "type": "boolean",
+            "title": "Extra",
+            "description": "Alta extra-catálogo con OC (§5.1)."
+          },
+          "es_critica": {
+            "type": "boolean",
+            "title": "Es Critica"
+          },
+          "holgura": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holgura"
+          },
+          "desfase": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desfase"
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio"
+          },
+          "fecha_termino": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Termino"
+          },
+          "duracion_dias": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Duracion Dias"
+          },
+          "modo_pago": {
+            "type": "string",
+            "title": "Modo Pago"
+          },
+          "precio_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Unitario"
+          },
+          "precio_destajo": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Destajo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "cant_base",
+          "cant_programada",
+          "cant_ejecutada",
+          "avance_pct",
+          "estatus",
+          "bloqueada",
+          "extra",
+          "es_critica",
+          "duracion_dias",
+          "modo_pago",
+          "precio_unitario",
+          "precio_destajo"
+        ],
+        "title": "ActividadRespuesta",
+        "description": "Una actividad de la obra (§11.2 `GET /obras/{id}/actividades`)."
       },
       "ActualizarObraPeticion": {
         "properties": {
@@ -7034,6 +7671,133 @@
         "title": "ErrorDeFilaRespuesta",
         "description": "Un renglón del reporte de errores por fila/columna (§9.3)."
       },
+      "EstadoDeObraRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "obra_clave": {
+            "type": "string",
+            "title": "Obra Clave"
+          },
+          "obra_estatus": {
+            "type": "string",
+            "title": "Obra Estatus"
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct"
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio"
+          },
+          "fecha_fin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Fin"
+          },
+          "cluster_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cluster Id"
+          },
+          "cluster_clave": {
+            "type": "string",
+            "title": "Cluster Clave"
+          },
+          "proyecto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Proyecto Id"
+          },
+          "proyecto_clave": {
+            "type": "string",
+            "title": "Proyecto Clave"
+          },
+          "residente_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residente Nombre"
+          },
+          "actividades": {
+            "type": "integer",
+            "title": "Actividades"
+          },
+          "criticas": {
+            "type": "integer",
+            "title": "Criticas",
+            "description": "En la ruta crítica (§7.5)."
+          },
+          "bloqueadas": {
+            "type": "integer",
+            "title": "Bloqueadas",
+            "description": "Detenidas por una incidencia con impacto `detiene` (§11.3 F)."
+          },
+          "concluidas": {
+            "type": "integer",
+            "title": "Concluidas"
+          },
+          "incidencias_abiertas": {
+            "type": "integer",
+            "title": "Incidencias Abiertas",
+            "description": "Sin cerrar ni rechazar: las que todavía le tocan a alguien."
+          },
+          "incidencias_detienen": {
+            "type": "integer",
+            "title": "Incidencias Detienen"
+          },
+          "cierres_pendientes": {
+            "type": "integer",
+            "title": "Cierres Pendientes",
+            "description": "Solicitados o autorizados: esperan a supervisor o a control (§11.3 C)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "obra_clave",
+          "obra_estatus",
+          "avance_pct",
+          "cluster_id",
+          "cluster_clave",
+          "proyecto_id",
+          "proyecto_clave",
+          "actividades",
+          "criticas",
+          "bloqueadas",
+          "concluidas",
+          "incidencias_abiertas",
+          "incidencias_detienen",
+          "cierres_pendientes"
+        ],
+        "title": "EstadoDeObraRespuesta",
+        "description": "El renglón de la Torre: una obra y lo que le falta (§5.1)."
+      },
       "EstadoReporteRespuesta": {
         "properties": {
           "id": {
@@ -7105,6 +7869,19 @@
         ],
         "title": "EstadoReporteRespuesta",
         "description": "Estado del reporte y, si terminó, cómo se llama el archivo."
+      },
+      "EstatusActividad": {
+        "type": "string",
+        "enum": [
+          "programada",
+          "en_proceso",
+          "casi",
+          "pendiente_cierre",
+          "concluida",
+          "retrasada",
+          "extra_catalogo"
+        ],
+        "title": "EstatusActividad"
       },
       "EstatusIncidencia": {
         "type": "string",
