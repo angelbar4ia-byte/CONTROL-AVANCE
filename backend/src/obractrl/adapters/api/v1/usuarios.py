@@ -31,6 +31,7 @@ from obractrl.adapters.api.casos_uso import (
     ResetearContrasenaDep,
 )
 from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS, exigir_rol
+from obractrl.adapters.api.idempotencia import Idempotencia
 from obractrl.adapters.repos.asignaciones_sql import RepositorioAsignacionesSQL
 from obractrl.adapters.repos.usuarios_sql import RepositorioUsuariosSQL
 from obractrl.application.casos_uso.gestionar_usuarios import (
@@ -167,7 +168,11 @@ async def listar_usuarios(sesion: SesionRLS, rol: FiltroRol = None) -> list[dict
     "/usuarios",
     response_model=IdRespuesta,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[ADMINISTRA],
+    # Idempotente porque el alta cruza a **otro sistema**: un doble clic
+    # llamaría dos veces a la Admin API y, aunque la segunda chocaría contra
+    # `uq_usuario_email_org`, dejaría el rastro de una cuenta creada y borrada
+    # por compensación. Con la clave, la segunda petición ni siquiera entra.
+    dependencies=[ADMINISTRA, Idempotencia],
     summary="Dar de alta a alguien del equipo",
 )
 async def crear_usuario(
@@ -225,7 +230,9 @@ async def actualizar_usuario(
 @router.post(
     "/usuarios/{usuario_id}/contrasena",
     response_model=IdRespuesta,
-    dependencies=[ADMINISTRA],
+    # También cruza al proveedor, y repetirla dejaría a la persona con una
+    # contraseña distinta de la que le acaban de dictar.
+    dependencies=[ADMINISTRA, Idempotencia],
     summary="Fijarle una contraseña temporal nueva",
 )
 async def resetear_contrasena(

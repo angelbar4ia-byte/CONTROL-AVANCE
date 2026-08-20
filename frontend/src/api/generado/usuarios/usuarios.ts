@@ -44,6 +44,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -56,7 +58,7 @@ listado a la organización del token (`usuario_select`, migración 0012).
  */
 export const listarUsuariosApiV1UsuariosGet = (
     params?: ListarUsuariosApiV1UsuariosGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -64,7 +66,7 @@ export const listarUsuariosApiV1UsuariosGet = (
       {url: `/api/v1/usuarios`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -83,16 +85,16 @@ export const getListarUsuariosApiV1UsuariosGetQueryKey = (params?: ListarUsuario
     }
 
     
-export const getListarUsuariosApiV1UsuariosGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>>, TError = HTTPValidationError>(params?: ListarUsuariosApiV1UsuariosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError, TData>>, }
+export const getListarUsuariosApiV1UsuariosGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>>, TError = HTTPValidationError>(params?: ListarUsuariosApiV1UsuariosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarUsuariosApiV1UsuariosGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>> = ({ signal }) => listarUsuariosApiV1UsuariosGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>> = ({ signal }) => listarUsuariosApiV1UsuariosGet(params, requestOptions, signal);
 
       
 
@@ -112,7 +114,7 @@ export function useListarUsuariosApiV1UsuariosGetInfinite<TData = InfiniteData<A
           TError,
           Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarUsuariosApiV1UsuariosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>>, TError = HTTPValidationError>(
@@ -122,11 +124,11 @@ export function useListarUsuariosApiV1UsuariosGetInfinite<TData = InfiniteData<A
           TError,
           Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarUsuariosApiV1UsuariosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>>, TError = HTTPValidationError>(
- params?: ListarUsuariosApiV1UsuariosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError, TData>>, }
+ params?: ListarUsuariosApiV1UsuariosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -134,7 +136,7 @@ export function useListarUsuariosApiV1UsuariosGetInfinite<TData = InfiniteData<A
  */
 
 export function useListarUsuariosApiV1UsuariosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>>, TError = HTTPValidationError>(
- params?: ListarUsuariosApiV1UsuariosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError, TData>>, }
+ params?: ListarUsuariosApiV1UsuariosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -150,16 +152,16 @@ export function useListarUsuariosApiV1UsuariosGetInfinite<TData = InfiniteData<A
 
 
 
-export const getListarUsuariosApiV1UsuariosGetQueryOptions = <TData = Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError = HTTPValidationError>(params?: ListarUsuariosApiV1UsuariosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError, TData>>, }
+export const getListarUsuariosApiV1UsuariosGetQueryOptions = <TData = Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError = HTTPValidationError>(params?: ListarUsuariosApiV1UsuariosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarUsuariosApiV1UsuariosGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>> = ({ signal }) => listarUsuariosApiV1UsuariosGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>> = ({ signal }) => listarUsuariosApiV1UsuariosGet(params, requestOptions, signal);
 
       
 
@@ -179,7 +181,7 @@ export function useListarUsuariosApiV1UsuariosGet<TData = Awaited<ReturnType<typ
           TError,
           Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarUsuariosApiV1UsuariosGet<TData = Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError = HTTPValidationError>(
@@ -189,11 +191,11 @@ export function useListarUsuariosApiV1UsuariosGet<TData = Awaited<ReturnType<typ
           TError,
           Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarUsuariosApiV1UsuariosGet<TData = Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError = HTTPValidationError>(
- params?: ListarUsuariosApiV1UsuariosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError, TData>>, }
+ params?: ListarUsuariosApiV1UsuariosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -201,7 +203,7 @@ export function useListarUsuariosApiV1UsuariosGet<TData = Awaited<ReturnType<typ
  */
 
 export function useListarUsuariosApiV1UsuariosGet<TData = Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError = HTTPValidationError>(
- params?: ListarUsuariosApiV1UsuariosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError, TData>>, }
+ params?: ListarUsuariosApiV1UsuariosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUsuariosApiV1UsuariosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -227,7 +229,7 @@ invente.
  */
 export const crearUsuarioApiV1UsuariosPost = (
     crearUsuarioPeticion: CrearUsuarioPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -236,21 +238,21 @@ export const crearUsuarioApiV1UsuariosPost = (
       headers: {'Content-Type': 'application/json', },
       data: crearUsuarioPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getCrearUsuarioApiV1UsuariosPostMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearUsuarioApiV1UsuariosPost>>, TError,{data: CrearUsuarioPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearUsuarioApiV1UsuariosPost>>, TError,{data: CrearUsuarioPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof crearUsuarioApiV1UsuariosPost>>, TError,{data: CrearUsuarioPeticion}, TContext> => {
 
 const mutationKey = ['crearUsuarioApiV1UsuariosPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -258,7 +260,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearUsuarioApiV1UsuariosPost>>, {data: CrearUsuarioPeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  crearUsuarioApiV1UsuariosPost(data,)
+          return  crearUsuarioApiV1UsuariosPost(data,requestOptions)
         }
 
         
@@ -274,7 +276,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Dar de alta a alguien del equipo
  */
 export const useCrearUsuarioApiV1UsuariosPost = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearUsuarioApiV1UsuariosPost>>, TError,{data: CrearUsuarioPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearUsuarioApiV1UsuariosPost>>, TError,{data: CrearUsuarioPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof crearUsuarioApiV1UsuariosPost>>,
         TError,
@@ -292,7 +294,7 @@ export const useCrearUsuarioApiV1UsuariosPost = <TError = HTTPValidationError,
 export const actualizarUsuarioApiV1UsuariosUsuarioIdPatch = (
     usuarioId: string,
     actualizarUsuarioPeticion: ActualizarUsuarioPeticion,
- ) => {
+ options?: SecondParameter<typeof peticion>,) => {
       
       
       return peticion<IdRespuesta>(
@@ -300,21 +302,21 @@ export const actualizarUsuarioApiV1UsuariosUsuarioIdPatch = (
       headers: {'Content-Type': 'application/json', },
       data: actualizarUsuarioPeticion
     },
-      );
+      options);
     }
   
 
 
 export const getActualizarUsuarioApiV1UsuariosUsuarioIdPatchMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof actualizarUsuarioApiV1UsuariosUsuarioIdPatch>>, TError,{usuarioId: string;data: ActualizarUsuarioPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof actualizarUsuarioApiV1UsuariosUsuarioIdPatch>>, TError,{usuarioId: string;data: ActualizarUsuarioPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof actualizarUsuarioApiV1UsuariosUsuarioIdPatch>>, TError,{usuarioId: string;data: ActualizarUsuarioPeticion}, TContext> => {
 
 const mutationKey = ['actualizarUsuarioApiV1UsuariosUsuarioIdPatch'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -322,7 +324,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof actualizarUsuarioApiV1UsuariosUsuarioIdPatch>>, {usuarioId: string;data: ActualizarUsuarioPeticion}> = (props) => {
           const {usuarioId,data} = props ?? {};
 
-          return  actualizarUsuarioApiV1UsuariosUsuarioIdPatch(usuarioId,data,)
+          return  actualizarUsuarioApiV1UsuariosUsuarioIdPatch(usuarioId,data,requestOptions)
         }
 
         
@@ -338,7 +340,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Editar perfil, rol o estatus
  */
 export const useActualizarUsuarioApiV1UsuariosUsuarioIdPatch = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof actualizarUsuarioApiV1UsuariosUsuarioIdPatch>>, TError,{usuarioId: string;data: ActualizarUsuarioPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof actualizarUsuarioApiV1UsuariosUsuarioIdPatch>>, TError,{usuarioId: string;data: ActualizarUsuarioPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof actualizarUsuarioApiV1UsuariosUsuarioIdPatch>>,
         TError,
@@ -361,7 +363,7 @@ proveedor con la sesión ya iniciada.
 export const resetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost = (
     usuarioId: string,
     resetearContrasenaPeticion: ResetearContrasenaPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -370,21 +372,21 @@ export const resetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost = (
       headers: {'Content-Type': 'application/json', },
       data: resetearContrasenaPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getResetearContrasenaApiV1UsuariosUsuarioIdContrasenaPostMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost>>, TError,{usuarioId: string;data: ResetearContrasenaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost>>, TError,{usuarioId: string;data: ResetearContrasenaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost>>, TError,{usuarioId: string;data: ResetearContrasenaPeticion}, TContext> => {
 
 const mutationKey = ['resetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -392,7 +394,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost>>, {usuarioId: string;data: ResetearContrasenaPeticion}> = (props) => {
           const {usuarioId,data} = props ?? {};
 
-          return  resetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost(usuarioId,data,)
+          return  resetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost(usuarioId,data,requestOptions)
         }
 
         
@@ -408,7 +410,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Fijarle una contraseña temporal nueva
  */
 export const useResetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost>>, TError,{usuarioId: string;data: ResetearContrasenaPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost>>, TError,{usuarioId: string;data: ResetearContrasenaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost>>,
         TError,
@@ -430,14 +432,14 @@ consultas sobre índices son más baratas que una ida y vuelta extra.
  */
 export const consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet = (
     usuarioId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<AlcanceRespuesta>(
       {url: `/api/v1/usuarios/${usuarioId}/alcance`, method: 'GET', signal
     },
-      );
+      options);
     }
   
 
@@ -456,16 +458,16 @@ export const getConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetQueryKey = (usua
     }
 
     
-export const getConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>>, TError = HTTPValidationError>(usuarioId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError, TData>>, }
+export const getConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>>, TError = HTTPValidationError>(usuarioId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetInfiniteQueryKey(usuarioId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>> = ({ signal }) => consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet(usuarioId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>> = ({ signal }) => consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet(usuarioId, requestOptions, signal);
 
       
 
@@ -485,7 +487,7 @@ export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetInfinite<TDat
           TError,
           Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>>, TError = HTTPValidationError>(
@@ -495,11 +497,11 @@ export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetInfinite<TDat
           TError,
           Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>>, TError = HTTPValidationError>(
- usuarioId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError, TData>>, }
+ usuarioId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -507,7 +509,7 @@ export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetInfinite<TDat
  */
 
 export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>>, TError = HTTPValidationError>(
- usuarioId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError, TData>>, }
+ usuarioId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -523,16 +525,16 @@ export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetInfinite<TDat
 
 
 
-export const getConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetQueryOptions = <TData = Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError = HTTPValidationError>(usuarioId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError, TData>>, }
+export const getConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetQueryOptions = <TData = Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError = HTTPValidationError>(usuarioId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetQueryKey(usuarioId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>> = ({ signal }) => consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet(usuarioId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>> = ({ signal }) => consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet(usuarioId, requestOptions, signal);
 
       
 
@@ -552,7 +554,7 @@ export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet<TData = Awai
           TError,
           Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet<TData = Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError = HTTPValidationError>(
@@ -562,11 +564,11 @@ export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet<TData = Awai
           TError,
           Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet<TData = Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError = HTTPValidationError>(
- usuarioId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError, TData>>, }
+ usuarioId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -574,7 +576,7 @@ export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet<TData = Awai
  */
 
 export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet<TData = Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError = HTTPValidationError>(
- usuarioId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError, TData>>, }
+ usuarioId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -602,7 +604,7 @@ decir la política `control_proyecto_*` de la migración 0012.
 export const asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost = (
     usuarioId: string,
     alcancePeticion: AlcancePeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -611,21 +613,21 @@ export const asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost = (
       headers: {'Content-Type': 'application/json', },
       data: alcancePeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getAsignarAlcanceApiV1UsuariosUsuarioIdAlcancePostMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost>>, TError,{usuarioId: string;data: AlcancePeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost>>, TError,{usuarioId: string;data: AlcancePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost>>, TError,{usuarioId: string;data: AlcancePeticion}, TContext> => {
 
 const mutationKey = ['asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -633,7 +635,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost>>, {usuarioId: string;data: AlcancePeticion}> = (props) => {
           const {usuarioId,data} = props ?? {};
 
-          return  asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost(usuarioId,data,)
+          return  asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost(usuarioId,data,requestOptions)
         }
 
         
@@ -649,7 +651,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Asignar o retirar clusters y proyectos
  */
 export const useAsignarAlcanceApiV1UsuariosUsuarioIdAlcancePost = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost>>, TError,{usuarioId: string;data: AlcancePeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost>>, TError,{usuarioId: string;data: AlcancePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost>>,
         TError,

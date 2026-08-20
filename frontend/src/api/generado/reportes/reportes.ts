@@ -34,6 +34,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -48,14 +50,14 @@ trabajo (`adapters/export/trabajos.py`).
  */
 export const exportarEstimacionApiV1EstimacionesEstimacionIdExportGet = (
     estimacionId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<TrabajoRespuesta>(
       {url: `/api/v1/estimaciones/${estimacionId}/export`, method: 'GET', signal
     },
-      );
+      options);
     }
   
 
@@ -74,16 +76,16 @@ export const getExportarEstimacionApiV1EstimacionesEstimacionIdExportGetQueryKey
     }
 
     
-export const getExportarEstimacionApiV1EstimacionesEstimacionIdExportGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>>, TError = HTTPValidationError | void>(estimacionId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError, TData>>, }
+export const getExportarEstimacionApiV1EstimacionesEstimacionIdExportGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>>, TError = HTTPValidationError | void>(estimacionId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getExportarEstimacionApiV1EstimacionesEstimacionIdExportGetInfiniteQueryKey(estimacionId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>> = ({ signal }) => exportarEstimacionApiV1EstimacionesEstimacionIdExportGet(estimacionId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>> = ({ signal }) => exportarEstimacionApiV1EstimacionesEstimacionIdExportGet(estimacionId, requestOptions, signal);
 
       
 
@@ -103,7 +105,7 @@ export function useExportarEstimacionApiV1EstimacionesEstimacionIdExportGetInfin
           TError,
           Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useExportarEstimacionApiV1EstimacionesEstimacionIdExportGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>>, TError = HTTPValidationError | void>(
@@ -113,11 +115,11 @@ export function useExportarEstimacionApiV1EstimacionesEstimacionIdExportGetInfin
           TError,
           Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useExportarEstimacionApiV1EstimacionesEstimacionIdExportGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>>, TError = HTTPValidationError | void>(
- estimacionId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError, TData>>, }
+ estimacionId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -125,7 +127,7 @@ export function useExportarEstimacionApiV1EstimacionesEstimacionIdExportGetInfin
  */
 
 export function useExportarEstimacionApiV1EstimacionesEstimacionIdExportGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>>, TError = HTTPValidationError | void>(
- estimacionId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError, TData>>, }
+ estimacionId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -141,16 +143,16 @@ export function useExportarEstimacionApiV1EstimacionesEstimacionIdExportGetInfin
 
 
 
-export const getExportarEstimacionApiV1EstimacionesEstimacionIdExportGetQueryOptions = <TData = Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError = HTTPValidationError | void>(estimacionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError, TData>>, }
+export const getExportarEstimacionApiV1EstimacionesEstimacionIdExportGetQueryOptions = <TData = Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError = HTTPValidationError | void>(estimacionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getExportarEstimacionApiV1EstimacionesEstimacionIdExportGetQueryKey(estimacionId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>> = ({ signal }) => exportarEstimacionApiV1EstimacionesEstimacionIdExportGet(estimacionId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>> = ({ signal }) => exportarEstimacionApiV1EstimacionesEstimacionIdExportGet(estimacionId, requestOptions, signal);
 
       
 
@@ -170,7 +172,7 @@ export function useExportarEstimacionApiV1EstimacionesEstimacionIdExportGet<TDat
           TError,
           Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useExportarEstimacionApiV1EstimacionesEstimacionIdExportGet<TData = Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError = HTTPValidationError | void>(
@@ -180,11 +182,11 @@ export function useExportarEstimacionApiV1EstimacionesEstimacionIdExportGet<TDat
           TError,
           Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useExportarEstimacionApiV1EstimacionesEstimacionIdExportGet<TData = Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError = HTTPValidationError | void>(
- estimacionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError, TData>>, }
+ estimacionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -192,7 +194,7 @@ export function useExportarEstimacionApiV1EstimacionesEstimacionIdExportGet<TDat
  */
 
 export function useExportarEstimacionApiV1EstimacionesEstimacionIdExportGet<TData = Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError = HTTPValidationError | void>(
- estimacionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError, TData>>, }
+ estimacionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportarEstimacionApiV1EstimacionesEstimacionIdExportGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -215,14 +217,14 @@ encabezado del módulo.
  */
 export const estadoDeReporteApiV1ReportesReporteIdGet = (
     reporteId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<EstadoReporteRespuesta>(
       {url: `/api/v1/reportes/${reporteId}`, method: 'GET', signal
     },
-      );
+      options);
     }
   
 
@@ -241,16 +243,16 @@ export const getEstadoDeReporteApiV1ReportesReporteIdGetQueryKey = (reporteId?: 
     }
 
     
-export const getEstadoDeReporteApiV1ReportesReporteIdGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>>, TError = void | HTTPValidationError>(reporteId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError, TData>>, }
+export const getEstadoDeReporteApiV1ReportesReporteIdGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>>, TError = void | HTTPValidationError>(reporteId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getEstadoDeReporteApiV1ReportesReporteIdGetInfiniteQueryKey(reporteId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>> = ({ signal }) => estadoDeReporteApiV1ReportesReporteIdGet(reporteId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>> = ({ signal }) => estadoDeReporteApiV1ReportesReporteIdGet(reporteId, requestOptions, signal);
 
       
 
@@ -270,7 +272,7 @@ export function useEstadoDeReporteApiV1ReportesReporteIdGetInfinite<TData = Infi
           TError,
           Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useEstadoDeReporteApiV1ReportesReporteIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>>, TError = void | HTTPValidationError>(
@@ -280,11 +282,11 @@ export function useEstadoDeReporteApiV1ReportesReporteIdGetInfinite<TData = Infi
           TError,
           Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useEstadoDeReporteApiV1ReportesReporteIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>>, TError = void | HTTPValidationError>(
- reporteId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError, TData>>, }
+ reporteId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -292,7 +294,7 @@ export function useEstadoDeReporteApiV1ReportesReporteIdGetInfinite<TData = Infi
  */
 
 export function useEstadoDeReporteApiV1ReportesReporteIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>>, TError = void | HTTPValidationError>(
- reporteId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError, TData>>, }
+ reporteId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -308,16 +310,16 @@ export function useEstadoDeReporteApiV1ReportesReporteIdGetInfinite<TData = Infi
 
 
 
-export const getEstadoDeReporteApiV1ReportesReporteIdGetQueryOptions = <TData = Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError = void | HTTPValidationError>(reporteId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError, TData>>, }
+export const getEstadoDeReporteApiV1ReportesReporteIdGetQueryOptions = <TData = Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError = void | HTTPValidationError>(reporteId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getEstadoDeReporteApiV1ReportesReporteIdGetQueryKey(reporteId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>> = ({ signal }) => estadoDeReporteApiV1ReportesReporteIdGet(reporteId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>> = ({ signal }) => estadoDeReporteApiV1ReportesReporteIdGet(reporteId, requestOptions, signal);
 
       
 
@@ -337,7 +339,7 @@ export function useEstadoDeReporteApiV1ReportesReporteIdGet<TData = Awaited<Retu
           TError,
           Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useEstadoDeReporteApiV1ReportesReporteIdGet<TData = Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError = void | HTTPValidationError>(
@@ -347,11 +349,11 @@ export function useEstadoDeReporteApiV1ReportesReporteIdGet<TData = Awaited<Retu
           TError,
           Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useEstadoDeReporteApiV1ReportesReporteIdGet<TData = Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError = void | HTTPValidationError>(
- reporteId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError, TData>>, }
+ reporteId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -359,7 +361,7 @@ export function useEstadoDeReporteApiV1ReportesReporteIdGet<TData = Awaited<Retu
  */
 
 export function useEstadoDeReporteApiV1ReportesReporteIdGet<TData = Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError = void | HTTPValidationError>(
- reporteId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError, TData>>, }
+ reporteId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof estadoDeReporteApiV1ReportesReporteIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -381,14 +383,14 @@ export function useEstadoDeReporteApiV1ReportesReporteIdGet<TData = Awaited<Retu
  */
 export const descargarReporteApiV1ReportesReporteIdDescargarGet = (
     reporteId: string,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<void>(
       {url: `/api/v1/reportes/${reporteId}/descargar`, method: 'GET', signal
     },
-      );
+      options);
     }
   
 
@@ -407,16 +409,16 @@ export const getDescargarReporteApiV1ReportesReporteIdDescargarGetQueryKey = (re
     }
 
     
-export const getDescargarReporteApiV1ReportesReporteIdDescargarGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>>, TError = void | HTTPValidationError>(reporteId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError, TData>>, }
+export const getDescargarReporteApiV1ReportesReporteIdDescargarGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>>, TError = void | HTTPValidationError>(reporteId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getDescargarReporteApiV1ReportesReporteIdDescargarGetInfiniteQueryKey(reporteId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>> = ({ signal }) => descargarReporteApiV1ReportesReporteIdDescargarGet(reporteId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>> = ({ signal }) => descargarReporteApiV1ReportesReporteIdDescargarGet(reporteId, requestOptions, signal);
 
       
 
@@ -436,7 +438,7 @@ export function useDescargarReporteApiV1ReportesReporteIdDescargarGetInfinite<TD
           TError,
           Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useDescargarReporteApiV1ReportesReporteIdDescargarGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>>, TError = void | HTTPValidationError>(
@@ -446,11 +448,11 @@ export function useDescargarReporteApiV1ReportesReporteIdDescargarGetInfinite<TD
           TError,
           Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useDescargarReporteApiV1ReportesReporteIdDescargarGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>>, TError = void | HTTPValidationError>(
- reporteId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError, TData>>, }
+ reporteId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -458,7 +460,7 @@ export function useDescargarReporteApiV1ReportesReporteIdDescargarGetInfinite<TD
  */
 
 export function useDescargarReporteApiV1ReportesReporteIdDescargarGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>>, TError = void | HTTPValidationError>(
- reporteId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError, TData>>, }
+ reporteId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -474,16 +476,16 @@ export function useDescargarReporteApiV1ReportesReporteIdDescargarGetInfinite<TD
 
 
 
-export const getDescargarReporteApiV1ReportesReporteIdDescargarGetQueryOptions = <TData = Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError = void | HTTPValidationError>(reporteId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError, TData>>, }
+export const getDescargarReporteApiV1ReportesReporteIdDescargarGetQueryOptions = <TData = Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError = void | HTTPValidationError>(reporteId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getDescargarReporteApiV1ReportesReporteIdDescargarGetQueryKey(reporteId);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>> = ({ signal }) => descargarReporteApiV1ReportesReporteIdDescargarGet(reporteId, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>> = ({ signal }) => descargarReporteApiV1ReportesReporteIdDescargarGet(reporteId, requestOptions, signal);
 
       
 
@@ -503,7 +505,7 @@ export function useDescargarReporteApiV1ReportesReporteIdDescargarGet<TData = Aw
           TError,
           Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useDescargarReporteApiV1ReportesReporteIdDescargarGet<TData = Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError = void | HTTPValidationError>(
@@ -513,11 +515,11 @@ export function useDescargarReporteApiV1ReportesReporteIdDescargarGet<TData = Aw
           TError,
           Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useDescargarReporteApiV1ReportesReporteIdDescargarGet<TData = Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError = void | HTTPValidationError>(
- reporteId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError, TData>>, }
+ reporteId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -525,7 +527,7 @@ export function useDescargarReporteApiV1ReportesReporteIdDescargarGet<TData = Aw
  */
 
 export function useDescargarReporteApiV1ReportesReporteIdDescargarGet<TData = Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError = void | HTTPValidationError>(
- reporteId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError, TData>>, }
+ reporteId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof descargarReporteApiV1ReportesReporteIdDescargarGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 

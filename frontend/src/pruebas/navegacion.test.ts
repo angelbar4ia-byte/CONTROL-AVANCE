@@ -48,11 +48,27 @@ describe('navegación por rol (§5.1)', () => {
     expect(item?.soloLectura).toBe(true);
   });
 
-  it('Asignaciones es exclusiva del Supervisor (§5.2: solo web)', () => {
+  it('Asignaciones la ven los tres roles que tienen algo que hacer ahí', () => {
+    // Hasta la Fase 7 solo la traía el Supervisor, que la usa para **ver** qué
+    // clusters le tocaron. Al abrirse la pantalla, Control de obra y Super
+    // intendente la necesitan para lo contrario: repartir (§4). El Residente
+    // sigue fuera — llega a su obra por `obra.residente_id`, no por un puente.
     const conAsignaciones = ROLES.filter((rol) =>
       navegacionDe(rol).some((s) => s.items.some((i) => i.a === '/asignaciones')),
     );
-    expect(conAsignaciones).toEqual(['supervisor']);
+    expect(conAsignaciones).toEqual(['supervisor', 'control_obra', 'super_intendente']);
+  });
+
+  it('el alta de usuarios es de Control de obra y Super intendente (§5.1)', () => {
+    // Es lo que la pantalla de Login promete: «el alta de usuarios la realiza
+    // Control de obra». Un residente o un supervisor que viera la entrada
+    // acabaría en un 403.
+    const conUsuarios = ROLES.filter((rol) =>
+      navegacionDe(rol).some((s) =>
+        s.items.some((i) => i.a === '/equipo' || i.a === '/config/equipo'),
+      ),
+    );
+    expect(conUsuarios).toEqual(['control_obra', 'super_intendente']);
   });
 
   it('el cierre de obra final es solo del Super intendente (§6)', () => {

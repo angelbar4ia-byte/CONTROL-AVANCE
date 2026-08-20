@@ -39,6 +39,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -53,7 +55,7 @@ lee las tablas de otro).
 export const registrarRevisionApiV1ObrasObraIdRevisionesPost = (
     obraId: string,
     registrarRevisionPeticion: RegistrarRevisionPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -62,21 +64,21 @@ export const registrarRevisionApiV1ObrasObraIdRevisionesPost = (
       headers: {'Content-Type': 'application/json', },
       data: registrarRevisionPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getRegistrarRevisionApiV1ObrasObraIdRevisionesPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>, TError,{obraId: string;data: RegistrarRevisionPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>, TError,{obraId: string;data: RegistrarRevisionPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>, TError,{obraId: string;data: RegistrarRevisionPeticion}, TContext> => {
 
 const mutationKey = ['registrarRevisionApiV1ObrasObraIdRevisionesPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -84,7 +86,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>, {obraId: string;data: RegistrarRevisionPeticion}> = (props) => {
           const {obraId,data} = props ?? {};
 
-          return  registrarRevisionApiV1ObrasObraIdRevisionesPost(obraId,data,)
+          return  registrarRevisionApiV1ObrasObraIdRevisionesPost(obraId,data,requestOptions)
         }
 
         
@@ -100,7 +102,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Registrar una revisión física en campo
  */
 export const useRegistrarRevisionApiV1ObrasObraIdRevisionesPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>, TError,{obraId: string;data: RegistrarRevisionPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>, TError,{obraId: string;data: RegistrarRevisionPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>,
         TError,
@@ -123,7 +125,7 @@ porque RLS ya acota el alcance (§12.4). Sin `exigir_rol`: el §11.2 pone la
  */
 export const listarRevisionesApiV1RevisionesGet = (
     params?: ListarRevisionesApiV1RevisionesGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -131,7 +133,7 @@ export const listarRevisionesApiV1RevisionesGet = (
       {url: `/api/v1/revisiones`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -150,16 +152,16 @@ export const getListarRevisionesApiV1RevisionesGetQueryKey = (params?: ListarRev
     }
 
     
-export const getListarRevisionesApiV1RevisionesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>>, TError = HTTPValidationError>(params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, }
+export const getListarRevisionesApiV1RevisionesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>>, TError = HTTPValidationError>(params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarRevisionesApiV1RevisionesGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>> = ({ signal }) => listarRevisionesApiV1RevisionesGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>> = ({ signal }) => listarRevisionesApiV1RevisionesGet(params, requestOptions, signal);
 
       
 
@@ -179,7 +181,7 @@ export function useListarRevisionesApiV1RevisionesGetInfinite<TData = InfiniteDa
           TError,
           Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarRevisionesApiV1RevisionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>>, TError = HTTPValidationError>(
@@ -189,11 +191,11 @@ export function useListarRevisionesApiV1RevisionesGetInfinite<TData = InfiniteDa
           TError,
           Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarRevisionesApiV1RevisionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>>, TError = HTTPValidationError>(
- params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, }
+ params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -201,7 +203,7 @@ export function useListarRevisionesApiV1RevisionesGetInfinite<TData = InfiniteDa
  */
 
 export function useListarRevisionesApiV1RevisionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>>, TError = HTTPValidationError>(
- params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, }
+ params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -217,16 +219,16 @@ export function useListarRevisionesApiV1RevisionesGetInfinite<TData = InfiniteDa
 
 
 
-export const getListarRevisionesApiV1RevisionesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError = HTTPValidationError>(params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, }
+export const getListarRevisionesApiV1RevisionesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError = HTTPValidationError>(params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarRevisionesApiV1RevisionesGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>> = ({ signal }) => listarRevisionesApiV1RevisionesGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>> = ({ signal }) => listarRevisionesApiV1RevisionesGet(params, requestOptions, signal);
 
       
 
@@ -246,7 +248,7 @@ export function useListarRevisionesApiV1RevisionesGet<TData = Awaited<ReturnType
           TError,
           Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarRevisionesApiV1RevisionesGet<TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError = HTTPValidationError>(
@@ -256,11 +258,11 @@ export function useListarRevisionesApiV1RevisionesGet<TData = Awaited<ReturnType
           TError,
           Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarRevisionesApiV1RevisionesGet<TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError = HTTPValidationError>(
- params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, }
+ params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -268,7 +270,7 @@ export function useListarRevisionesApiV1RevisionesGet<TData = Awaited<ReturnType
  */
 
 export function useListarRevisionesApiV1RevisionesGet<TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError = HTTPValidationError>(
- params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, }
+ params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 

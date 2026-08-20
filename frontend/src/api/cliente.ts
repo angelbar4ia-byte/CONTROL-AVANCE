@@ -48,18 +48,39 @@ export const claveDeIdempotencia = (): string =>
   globalThis.crypto?.randomUUID?.() ??
   `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
-export const peticion = async <T>(config: {
-  url: string;
-  method: string;
-  params?: Record<string, unknown>;
-  data?: unknown;
-  headers?: Record<string, string>;
-  signal?: AbortSignal;
-}): Promise<T> => {
+/**
+ * Opciones por llamada que los hooks generados dejan pasar.
+ *
+ * Orval las reenvía cuando el mutator declara un **segundo parámetro**: los
+ * hooks quedan como `useAlgo({ mutation, request })` y `request` llega aquí.
+ * Es lo que permite mandar `Idempotency-Key` desde la pantalla sin abandonar
+ * el hook generado (D3: el front programa contra el contrato, no contra la
+ * implementación).
+ */
+export interface OpcionesDePeticion {
+  readonly headers?: Record<string, string>;
+}
+
+export const peticion = async <T>(
+  config: {
+    url: string;
+    method: string;
+    params?: Record<string, unknown>;
+    data?: unknown;
+    headers?: Record<string, string>;
+    signal?: AbortSignal;
+  },
+  opciones?: OpcionesDePeticion,
+): Promise<T> => {
   const { data: sesion } = await supabase.auth.getSession();
   const token = sesion.session?.access_token;
 
-  const url = new URL(`${BASE}/api/v1${config.url}`, window.location.origin);
+  // `config.url` **ya trae** `/api/v1`: los `paths` de `openapi.json` son
+  // absolutos porque el router se monta con ese prefijo (`BASE_API` en
+  // `main.py`), y Orval los copia tal cual. Anteponerlo aquí otra vez pedía
+  // `/api/v1/api/v1/...` — un 404 en cada llamada, invisible para las pruebas
+  // de web porque todas ejercitan reglas puras y ninguna sale por la red.
+  const url = new URL(`${BASE}${config.url}`, window.location.origin);
   for (const [clave, valor] of Object.entries(config.params ?? {})) {
     if (valor !== undefined && valor !== null) {
       url.searchParams.set(clave, String(valor));
@@ -73,6 +94,8 @@ export const peticion = async <T>(config: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...config.headers,
+      // Al final: lo que manda la pantalla gana sobre lo que fijó el generado.
+      ...opciones?.headers,
     },
     body: config.data === undefined ? undefined : JSON.stringify(config.data),
   });

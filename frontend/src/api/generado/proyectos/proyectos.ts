@@ -46,6 +46,8 @@ import type {
 import { peticion } from '../../cliente';
 
 
+type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
 
 
 /**
@@ -55,14 +57,14 @@ consulta el repo directo: RLS ya acota el alcance (§12.4).
  */
 export const listarProyectosApiV1ProyectosGet = (
     
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<ProyectoRespuesta[]>(
       {url: `/api/v1/proyectos`, method: 'GET', signal
     },
-      );
+      options);
     }
   
 
@@ -81,16 +83,16 @@ export const getListarProyectosApiV1ProyectosGetQueryKey = () => {
     }
 
     
-export const getListarProyectosApiV1ProyectosGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>>, TError = unknown>( options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError, TData>>, }
+export const getListarProyectosApiV1ProyectosGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>>, TError = unknown>( options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarProyectosApiV1ProyectosGetInfiniteQueryKey();
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>> = ({ signal }) => listarProyectosApiV1ProyectosGet(signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>> = ({ signal }) => listarProyectosApiV1ProyectosGet(requestOptions, signal);
 
       
 
@@ -110,7 +112,7 @@ export function useListarProyectosApiV1ProyectosGetInfinite<TData = InfiniteData
           TError,
           Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarProyectosApiV1ProyectosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>>, TError = unknown>(
@@ -120,11 +122,11 @@ export function useListarProyectosApiV1ProyectosGetInfinite<TData = InfiniteData
           TError,
           Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarProyectosApiV1ProyectosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError, TData>>, }
+  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -132,7 +134,7 @@ export function useListarProyectosApiV1ProyectosGetInfinite<TData = InfiniteData
  */
 
 export function useListarProyectosApiV1ProyectosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError, TData>>, }
+  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -148,16 +150,16 @@ export function useListarProyectosApiV1ProyectosGetInfinite<TData = InfiniteData
 
 
 
-export const getListarProyectosApiV1ProyectosGetQueryOptions = <TData = Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError, TData>>, }
+export const getListarProyectosApiV1ProyectosGetQueryOptions = <TData = Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarProyectosApiV1ProyectosGetQueryKey();
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>> = ({ signal }) => listarProyectosApiV1ProyectosGet(signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>> = ({ signal }) => listarProyectosApiV1ProyectosGet(requestOptions, signal);
 
       
 
@@ -177,7 +179,7 @@ export function useListarProyectosApiV1ProyectosGet<TData = Awaited<ReturnType<t
           TError,
           Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarProyectosApiV1ProyectosGet<TData = Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError = unknown>(
@@ -187,11 +189,11 @@ export function useListarProyectosApiV1ProyectosGet<TData = Awaited<ReturnType<t
           TError,
           Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarProyectosApiV1ProyectosGet<TData = Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError, TData>>, }
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -199,7 +201,7 @@ export function useListarProyectosApiV1ProyectosGet<TData = Awaited<ReturnType<t
  */
 
 export function useListarProyectosApiV1ProyectosGet<TData = Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError, TData>>, }
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProyectosApiV1ProyectosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -221,7 +223,7 @@ export function useListarProyectosApiV1ProyectosGet<TData = Awaited<ReturnType<t
  */
 export const crearProyectoApiV1ProyectosPost = (
     crearProyectoPeticion: CrearProyectoPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -230,21 +232,21 @@ export const crearProyectoApiV1ProyectosPost = (
       headers: {'Content-Type': 'application/json', },
       data: crearProyectoPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getCrearProyectoApiV1ProyectosPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearProyectoApiV1ProyectosPost>>, TError,{data: CrearProyectoPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearProyectoApiV1ProyectosPost>>, TError,{data: CrearProyectoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof crearProyectoApiV1ProyectosPost>>, TError,{data: CrearProyectoPeticion}, TContext> => {
 
 const mutationKey = ['crearProyectoApiV1ProyectosPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -252,7 +254,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearProyectoApiV1ProyectosPost>>, {data: CrearProyectoPeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  crearProyectoApiV1ProyectosPost(data,)
+          return  crearProyectoApiV1ProyectosPost(data,requestOptions)
         }
 
         
@@ -268,7 +270,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Alta de proyecto
  */
 export const useCrearProyectoApiV1ProyectosPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearProyectoApiV1ProyectosPost>>, TError,{data: CrearProyectoPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearProyectoApiV1ProyectosPost>>, TError,{data: CrearProyectoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof crearProyectoApiV1ProyectosPost>>,
         TError,
@@ -285,7 +287,7 @@ export const useCrearProyectoApiV1ProyectosPost = <TError = void,
  */
 export const listarClustersApiV1ClustersGet = (
     params?: ListarClustersApiV1ClustersGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -293,7 +295,7 @@ export const listarClustersApiV1ClustersGet = (
       {url: `/api/v1/clusters`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -312,16 +314,16 @@ export const getListarClustersApiV1ClustersGetQueryKey = (params?: ListarCluster
     }
 
     
-export const getListarClustersApiV1ClustersGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>>, TError = HTTPValidationError>(params?: ListarClustersApiV1ClustersGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError, TData>>, }
+export const getListarClustersApiV1ClustersGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>>, TError = HTTPValidationError>(params?: ListarClustersApiV1ClustersGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarClustersApiV1ClustersGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>> = ({ signal }) => listarClustersApiV1ClustersGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>> = ({ signal }) => listarClustersApiV1ClustersGet(params, requestOptions, signal);
 
       
 
@@ -341,7 +343,7 @@ export function useListarClustersApiV1ClustersGetInfinite<TData = InfiniteData<A
           TError,
           Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarClustersApiV1ClustersGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>>, TError = HTTPValidationError>(
@@ -351,11 +353,11 @@ export function useListarClustersApiV1ClustersGetInfinite<TData = InfiniteData<A
           TError,
           Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarClustersApiV1ClustersGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>>, TError = HTTPValidationError>(
- params?: ListarClustersApiV1ClustersGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError, TData>>, }
+ params?: ListarClustersApiV1ClustersGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -363,7 +365,7 @@ export function useListarClustersApiV1ClustersGetInfinite<TData = InfiniteData<A
  */
 
 export function useListarClustersApiV1ClustersGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>>, TError = HTTPValidationError>(
- params?: ListarClustersApiV1ClustersGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError, TData>>, }
+ params?: ListarClustersApiV1ClustersGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -379,16 +381,16 @@ export function useListarClustersApiV1ClustersGetInfinite<TData = InfiniteData<A
 
 
 
-export const getListarClustersApiV1ClustersGetQueryOptions = <TData = Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError = HTTPValidationError>(params?: ListarClustersApiV1ClustersGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError, TData>>, }
+export const getListarClustersApiV1ClustersGetQueryOptions = <TData = Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError = HTTPValidationError>(params?: ListarClustersApiV1ClustersGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarClustersApiV1ClustersGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>> = ({ signal }) => listarClustersApiV1ClustersGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>> = ({ signal }) => listarClustersApiV1ClustersGet(params, requestOptions, signal);
 
       
 
@@ -408,7 +410,7 @@ export function useListarClustersApiV1ClustersGet<TData = Awaited<ReturnType<typ
           TError,
           Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarClustersApiV1ClustersGet<TData = Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError = HTTPValidationError>(
@@ -418,11 +420,11 @@ export function useListarClustersApiV1ClustersGet<TData = Awaited<ReturnType<typ
           TError,
           Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarClustersApiV1ClustersGet<TData = Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError = HTTPValidationError>(
- params?: ListarClustersApiV1ClustersGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError, TData>>, }
+ params?: ListarClustersApiV1ClustersGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -430,7 +432,7 @@ export function useListarClustersApiV1ClustersGet<TData = Awaited<ReturnType<typ
  */
 
 export function useListarClustersApiV1ClustersGet<TData = Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError = HTTPValidationError>(
- params?: ListarClustersApiV1ClustersGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError, TData>>, }
+ params?: ListarClustersApiV1ClustersGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarClustersApiV1ClustersGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -451,7 +453,7 @@ export function useListarClustersApiV1ClustersGet<TData = Awaited<ReturnType<typ
  */
 export const crearClusterApiV1ClustersPost = (
     crearClusterPeticion: CrearClusterPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -460,21 +462,21 @@ export const crearClusterApiV1ClustersPost = (
       headers: {'Content-Type': 'application/json', },
       data: crearClusterPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getCrearClusterApiV1ClustersPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearClusterApiV1ClustersPost>>, TError,{data: CrearClusterPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearClusterApiV1ClustersPost>>, TError,{data: CrearClusterPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof crearClusterApiV1ClustersPost>>, TError,{data: CrearClusterPeticion}, TContext> => {
 
 const mutationKey = ['crearClusterApiV1ClustersPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -482,7 +484,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearClusterApiV1ClustersPost>>, {data: CrearClusterPeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  crearClusterApiV1ClustersPost(data,)
+          return  crearClusterApiV1ClustersPost(data,requestOptions)
         }
 
         
@@ -498,7 +500,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Alta de cluster
  */
 export const useCrearClusterApiV1ClustersPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearClusterApiV1ClustersPost>>, TError,{data: CrearClusterPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearClusterApiV1ClustersPost>>, TError,{data: CrearClusterPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof crearClusterApiV1ClustersPost>>,
         TError,
@@ -515,7 +517,7 @@ export const useCrearClusterApiV1ClustersPost = <TError = void,
  */
 export const listarPrototiposApiV1PrototiposGet = (
     params?: ListarPrototiposApiV1PrototiposGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -523,7 +525,7 @@ export const listarPrototiposApiV1PrototiposGet = (
       {url: `/api/v1/prototipos`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -542,16 +544,16 @@ export const getListarPrototiposApiV1PrototiposGetQueryKey = (params?: ListarPro
     }
 
     
-export const getListarPrototiposApiV1PrototiposGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>>, TError = HTTPValidationError>(params?: ListarPrototiposApiV1PrototiposGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError, TData>>, }
+export const getListarPrototiposApiV1PrototiposGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>>, TError = HTTPValidationError>(params?: ListarPrototiposApiV1PrototiposGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarPrototiposApiV1PrototiposGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>> = ({ signal }) => listarPrototiposApiV1PrototiposGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>> = ({ signal }) => listarPrototiposApiV1PrototiposGet(params, requestOptions, signal);
 
       
 
@@ -571,7 +573,7 @@ export function useListarPrototiposApiV1PrototiposGetInfinite<TData = InfiniteDa
           TError,
           Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarPrototiposApiV1PrototiposGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>>, TError = HTTPValidationError>(
@@ -581,11 +583,11 @@ export function useListarPrototiposApiV1PrototiposGetInfinite<TData = InfiniteDa
           TError,
           Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarPrototiposApiV1PrototiposGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>>, TError = HTTPValidationError>(
- params?: ListarPrototiposApiV1PrototiposGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError, TData>>, }
+ params?: ListarPrototiposApiV1PrototiposGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -593,7 +595,7 @@ export function useListarPrototiposApiV1PrototiposGetInfinite<TData = InfiniteDa
  */
 
 export function useListarPrototiposApiV1PrototiposGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>>, TError = HTTPValidationError>(
- params?: ListarPrototiposApiV1PrototiposGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError, TData>>, }
+ params?: ListarPrototiposApiV1PrototiposGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -609,16 +611,16 @@ export function useListarPrototiposApiV1PrototiposGetInfinite<TData = InfiniteDa
 
 
 
-export const getListarPrototiposApiV1PrototiposGetQueryOptions = <TData = Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError = HTTPValidationError>(params?: ListarPrototiposApiV1PrototiposGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError, TData>>, }
+export const getListarPrototiposApiV1PrototiposGetQueryOptions = <TData = Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError = HTTPValidationError>(params?: ListarPrototiposApiV1PrototiposGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarPrototiposApiV1PrototiposGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>> = ({ signal }) => listarPrototiposApiV1PrototiposGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>> = ({ signal }) => listarPrototiposApiV1PrototiposGet(params, requestOptions, signal);
 
       
 
@@ -638,7 +640,7 @@ export function useListarPrototiposApiV1PrototiposGet<TData = Awaited<ReturnType
           TError,
           Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarPrototiposApiV1PrototiposGet<TData = Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError = HTTPValidationError>(
@@ -648,11 +650,11 @@ export function useListarPrototiposApiV1PrototiposGet<TData = Awaited<ReturnType
           TError,
           Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarPrototiposApiV1PrototiposGet<TData = Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError = HTTPValidationError>(
- params?: ListarPrototiposApiV1PrototiposGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError, TData>>, }
+ params?: ListarPrototiposApiV1PrototiposGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -660,7 +662,7 @@ export function useListarPrototiposApiV1PrototiposGet<TData = Awaited<ReturnType
  */
 
 export function useListarPrototiposApiV1PrototiposGet<TData = Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError = HTTPValidationError>(
- params?: ListarPrototiposApiV1PrototiposGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError, TData>>, }
+ params?: ListarPrototiposApiV1PrototiposGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarPrototiposApiV1PrototiposGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -681,7 +683,7 @@ export function useListarPrototiposApiV1PrototiposGet<TData = Awaited<ReturnType
  */
 export const crearPrototipoApiV1PrototiposPost = (
     crearPrototipoPeticion: CrearPrototipoPeticion,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -690,21 +692,21 @@ export const crearPrototipoApiV1PrototiposPost = (
       headers: {'Content-Type': 'application/json', },
       data: crearPrototipoPeticion, signal
     },
-      );
+      options);
     }
   
 
 
 export const getCrearPrototipoApiV1PrototiposPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearPrototipoApiV1PrototiposPost>>, TError,{data: CrearPrototipoPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearPrototipoApiV1PrototiposPost>>, TError,{data: CrearPrototipoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
 ): UseMutationOptions<Awaited<ReturnType<typeof crearPrototipoApiV1PrototiposPost>>, TError,{data: CrearPrototipoPeticion}, TContext> => {
 
 const mutationKey = ['crearPrototipoApiV1PrototiposPost'];
-const {mutation: mutationOptions} = options ?
+const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
       : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
+      : {mutation: { mutationKey, }, request: undefined};
 
       
 
@@ -712,7 +714,7 @@ const {mutation: mutationOptions} = options ?
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearPrototipoApiV1PrototiposPost>>, {data: CrearPrototipoPeticion}> = (props) => {
           const {data} = props ?? {};
 
-          return  crearPrototipoApiV1PrototiposPost(data,)
+          return  crearPrototipoApiV1PrototiposPost(data,requestOptions)
         }
 
         
@@ -728,7 +730,7 @@ const {mutation: mutationOptions} = options ?
  * @summary Alta de prototipo
  */
 export const useCrearPrototipoApiV1PrototiposPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearPrototipoApiV1PrototiposPost>>, TError,{data: CrearPrototipoPeticion}, TContext>, }
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearPrototipoApiV1PrototiposPost>>, TError,{data: CrearPrototipoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof crearPrototipoApiV1PrototiposPost>>,
         TError,
@@ -749,7 +751,7 @@ y no por alcance de obra.
  */
 export const listarFrentesApiV1FrentesGet = (
     params?: ListarFrentesApiV1FrentesGetParams,
- signal?: AbortSignal
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
@@ -757,7 +759,7 @@ export const listarFrentesApiV1FrentesGet = (
       {url: `/api/v1/frentes`, method: 'GET',
         params, signal
     },
-      );
+      options);
     }
   
 
@@ -776,16 +778,16 @@ export const getListarFrentesApiV1FrentesGetQueryKey = (params?: ListarFrentesAp
     }
 
     
-export const getListarFrentesApiV1FrentesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>>, TError = HTTPValidationError>(params?: ListarFrentesApiV1FrentesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError, TData>>, }
+export const getListarFrentesApiV1FrentesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>>, TError = HTTPValidationError>(params?: ListarFrentesApiV1FrentesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarFrentesApiV1FrentesGetInfiniteQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>> = ({ signal }) => listarFrentesApiV1FrentesGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>> = ({ signal }) => listarFrentesApiV1FrentesGet(params, requestOptions, signal);
 
       
 
@@ -805,7 +807,7 @@ export function useListarFrentesApiV1FrentesGetInfinite<TData = InfiniteData<Awa
           TError,
           Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarFrentesApiV1FrentesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>>, TError = HTTPValidationError>(
@@ -815,11 +817,11 @@ export function useListarFrentesApiV1FrentesGetInfinite<TData = InfiniteData<Awa
           TError,
           Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarFrentesApiV1FrentesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>>, TError = HTTPValidationError>(
- params?: ListarFrentesApiV1FrentesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError, TData>>, }
+ params?: ListarFrentesApiV1FrentesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -827,7 +829,7 @@ export function useListarFrentesApiV1FrentesGetInfinite<TData = InfiniteData<Awa
  */
 
 export function useListarFrentesApiV1FrentesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>>, TError = HTTPValidationError>(
- params?: ListarFrentesApiV1FrentesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError, TData>>, }
+ params?: ListarFrentesApiV1FrentesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
@@ -843,16 +845,16 @@ export function useListarFrentesApiV1FrentesGetInfinite<TData = InfiniteData<Awa
 
 
 
-export const getListarFrentesApiV1FrentesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError = HTTPValidationError>(params?: ListarFrentesApiV1FrentesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError, TData>>, }
+export const getListarFrentesApiV1FrentesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError = HTTPValidationError>(params?: ListarFrentesApiV1FrentesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
 ) => {
 
-const {query: queryOptions} = options ?? {};
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
   const queryKey =  queryOptions?.queryKey ?? getListarFrentesApiV1FrentesGetQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>> = ({ signal }) => listarFrentesApiV1FrentesGet(params, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>> = ({ signal }) => listarFrentesApiV1FrentesGet(params, requestOptions, signal);
 
       
 
@@ -872,7 +874,7 @@ export function useListarFrentesApiV1FrentesGet<TData = Awaited<ReturnType<typeo
           TError,
           Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarFrentesApiV1FrentesGet<TData = Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError = HTTPValidationError>(
@@ -882,11 +884,11 @@ export function useListarFrentesApiV1FrentesGet<TData = Awaited<ReturnType<typeo
           TError,
           Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>
         > , 'initialData'
-      >, }
+      >, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useListarFrentesApiV1FrentesGet<TData = Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError = HTTPValidationError>(
- params?: ListarFrentesApiV1FrentesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError, TData>>, }
+ params?: ListarFrentesApiV1FrentesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
@@ -894,7 +896,7 @@ export function useListarFrentesApiV1FrentesGet<TData = Awaited<ReturnType<typeo
  */
 
 export function useListarFrentesApiV1FrentesGet<TData = Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError = HTTPValidationError>(
- params?: ListarFrentesApiV1FrentesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError, TData>>, }
+ params?: ListarFrentesApiV1FrentesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFrentesApiV1FrentesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
