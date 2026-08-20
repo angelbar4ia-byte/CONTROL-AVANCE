@@ -23,6 +23,7 @@ from obractrl.domain.shared.diccionario import TipoSemana
 __all__ = [
     "RegistroNoEncontrado",
     "RepositorioActividades",
+    "RepositorioAsignaciones",
     "RepositorioCalendario",
     "RepositorioCierres",
     "RepositorioClusters",
@@ -821,6 +822,67 @@ class RepositorioUsuarios(Protocol):
         """`{id, nombre, email}` de los usuarios pedidos que existan y estén
         en el alcance. Los que no, simplemente no aparecen."""
         ...
+
+    async def crear(self, datos: dict) -> UUID:
+        """Alta de usuario (§11.2, roles C y SI). Devuelve su id."""
+        ...
+
+    async def obtener(self, usuario_id: UUID) -> dict | None: ...
+
+    async def obtener_auth_user_id(self, usuario_id: UUID) -> UUID | None:
+        """La cuenta ligada del proveedor de auth, para resetear su contraseña."""
+        ...
+
+    async def listar(self, *, rol: str | None = None) -> list[dict]:
+        """El equipo de la organización, activos e inactivos (§5.1)."""
+        ...
+
+    async def actualizar(self, usuario_id: UUID, cambios: dict) -> None:
+        """Edita perfil, rol o estatus. Levanta `RegistroNoEncontrado` si el
+        `UPDATE` no tocó ninguna fila."""
+        ...
+
+    async def marcar_contrasena_temporal(
+        self, usuario_id: UUID, *, temporal: bool
+    ) -> None:
+        """Enciende o apaga `debe_cambiar_password` (§5.1)."""
+        ...
+
+    async def borrar(self, usuario_id: UUID) -> None:
+        """Solo para deshacer un alta a medio camino. Dar de baja es
+        `estatus = 'inactivo'`, no esto."""
+        ...
+
+
+@runtime_checkable
+class RepositorioAsignaciones(Protocol):
+    """Los puentes de alcance del §4: quién ve qué.
+
+    Dos tablas con permisos distintos, y a propósito: `supervisor_cluster` lo
+    escribe Control de obra; `control_proyecto` **solo** el Super intendente,
+    porque decide el alcance de quien administra. El residente no lleva puente:
+    llega a su obra por `obra.residente_id`.
+    """
+
+    async def asignar_cluster(
+        self, *, supervisor_id: UUID, cluster_id: UUID
+    ) -> None: ...
+
+    async def retirar_cluster(self, *, supervisor_id: UUID, cluster_id: UUID) -> None:
+        """Levanta `RegistroNoEncontrado` si no había nada que retirar."""
+        ...
+
+    async def clusters_de(self, supervisor_id: UUID) -> list[dict]: ...
+
+    async def asignar_proyecto(
+        self, *, usuario_id: UUID, proyecto_id: UUID
+    ) -> None: ...
+
+    async def retirar_proyecto(self, *, usuario_id: UUID, proyecto_id: UUID) -> None:
+        """Levanta `RegistroNoEncontrado` si no había nada que retirar."""
+        ...
+
+    async def proyectos_de(self, usuario_id: UUID) -> list[dict]: ...
 
 
 @runtime_checkable

@@ -27,10 +27,12 @@ from obractrl.adapters.api.v1.programacion import router as router_programacion
 from obractrl.adapters.api.v1.proyectos import router as router_proyectos
 from obractrl.adapters.api.v1.reportes import router as router_reportes
 from obractrl.adapters.api.v1.revisiones import router as router_revisiones
+from obractrl.adapters.api.v1.usuarios import router as router_usuarios
 
 api_v1 = APIRouter()
 
 api_v1.include_router(router_identidad)
+api_v1.include_router(router_usuarios)
 api_v1.include_router(router_proyectos)
 api_v1.include_router(router_catalogos)
 api_v1.include_router(router_obras)

@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from obractrl.adapters.api.dependencias import SesionRLS
 from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador, cargador_para
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
+from obractrl.adapters.repos.asignaciones_sql import RepositorioAsignacionesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
@@ -117,6 +118,12 @@ from obractrl.application.casos_uso.gestionar_proyecto import (
     CrearPrototipo,
     CrearProyecto,
 )
+from obractrl.application.casos_uso.gestionar_usuarios import (
+    ActualizarUsuario,
+    AsignarAlcance,
+    CrearUsuario,
+    ResetearContrasena,
+)
 from obractrl.application.casos_uso.notificar_estimacion import (
     NotificarEstimacionValidada,
 )
@@ -131,16 +138,19 @@ from obractrl.application.eventos import (
     IncidenciaDetiene,
 )
 from obractrl.domain.shared.diccionario import TipoCarga
+from obractrl.infrastructure.auth.supabase_admin import AdminDeSupabase
 from obractrl.infrastructure.jobs.cola import ColaDeTrabajos
 from obractrl.infrastructure.notificaciones.resend import ClienteResend
 
 __all__ = [
     "AbrirIncidenciaDep",
     "ActualizarObraDep",
+    "ActualizarUsuarioDep",
     "AgregarDocumentoDep",
     "AgregarRespuestasDep",
     "ArmarExpedienteDep",
     "ArmarReporteDeEstimacionDep",
+    "AsignarAlcanceDep",
     "AutorizarCierreDep",
     "CapturarAvanceDep",
     "CerrarIncidenciaDep",
@@ -160,6 +170,7 @@ __all__ = [
     "CrearPrototipoDep",
     "CrearProyectoDep",
     "CrearUnidadDep",
+    "CrearUsuarioDep",
     "EditarProgramacionActividadDep",
     "EnviarEstimacionDep",
     "ExplotarConceptoDep",
@@ -176,6 +187,7 @@ __all__ = [
     "RegistrarEventoIncidenciaDep",
     "RegistrarRevisionFisicaDep",
     "RegistrarSalidaAlmacenDep",
+    "ResetearContrasenaDep",
     "RevertirCargaDep",
     "SolicitarCierreDep",
     "ValidarCierreDep",
@@ -763,3 +775,52 @@ def obtener_fabrica_de_cargas(sesion: SesionRLS) -> FabricaDeCargas:
 
 
 FabricaDeCargasDep = Annotated[FabricaDeCargas, Depends(obtener_fabrica_de_cargas)]
+
+
+# --- Identidad y equipo (§5.1) -------------------------------------------
+#
+# El proveedor de auth se construye aquí, igual que un repositorio: para el
+# caso de uso es un puerto más. Se instancia por petición y no una vez al
+# arranque porque no guarda estado —abre su cliente HTTP en cada llamada— y así
+# un cambio de variables de entorno no exige redesplegar para tomar efecto.
+
+
+def obtener_crear_usuario(sesion: SesionRLS) -> CrearUsuario:
+    return CrearUsuario(
+        usuarios=RepositorioUsuariosSQL(sesion),
+        auth=AdminDeSupabase(),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_actualizar_usuario(sesion: SesionRLS) -> ActualizarUsuario:
+    return ActualizarUsuario(
+        usuarios=RepositorioUsuariosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_resetear_contrasena(sesion: SesionRLS) -> ResetearContrasena:
+    return ResetearContrasena(
+        usuarios=RepositorioUsuariosSQL(sesion),
+        auth=AdminDeSupabase(),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_asignar_alcance(sesion: SesionRLS) -> AsignarAlcance:
+    return AsignarAlcance(
+        usuarios=RepositorioUsuariosSQL(sesion),
+        asignaciones=RepositorioAsignacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+CrearUsuarioDep = Annotated[CrearUsuario, Depends(obtener_crear_usuario)]
+ActualizarUsuarioDep = Annotated[
+    ActualizarUsuario, Depends(obtener_actualizar_usuario)
+]
+ResetearContrasenaDep = Annotated[
+    ResetearContrasena, Depends(obtener_resetear_contrasena)
+]
+AsignarAlcanceDep = Annotated[AsignarAlcance, Depends(obtener_asignar_alcance)]

@@ -53,9 +53,14 @@ from obractrl.application.casos_uso.gestionar_programacion import (
     ActividadNoProgramable,
     ProgramaBaseNoEncontrado,
 )
+from obractrl.application.casos_uso.gestionar_usuarios import (
+    CorreoYaRegistrado,
+    UsuarioNoEncontrado,
+)
 from obractrl.application.casos_uso.registrar_salida_almacen import (
     MotivoAlmacenNoEncontrado,
 )
+from obractrl.application.puertos.auth import ErrorDelProveedorDeAuth
 from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera
 from obractrl.domain.catalogos.apu import CicloEnExplosion, ErrorDeAPU
@@ -64,6 +69,7 @@ from obractrl.domain.cierres.reglas import ErrorDeCierre
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
 from obractrl.domain.evaluaciones.reglas import ErrorDeEvaluacion
 from obractrl.domain.expediente.reglas import ErrorDeExpediente
+from obractrl.domain.identidad.reglas import ErrorDeIdentidad
 from obractrl.domain.incidencias.reglas import ErrorDeIncidencia
 from obractrl.domain.materiales.reglas import ErrorDeMaterial
 from obractrl.domain.obras.generacion import ErrorDeGeneracion
@@ -929,6 +935,62 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=503,
             tipo="motor-de-pdf-no-disponible",
             titulo="Generación de PDF no disponible",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeIdentidad)
+    async def _identidad(request: Request, exc: ErrorDeIdentidad) -> JSONResponse:
+        # 403 y no 422: no es un dato mal formado, es una acción que quien la
+        # pide no puede hacer —otorgar un rol que no le corresponde, cambiar el
+        # propio—. El cliente no lo arregla reenviando otro cuerpo.
+        return _problema(
+            request,
+            status=403,
+            tipo="regla-de-identidad",
+            titulo="Acción no permitida sobre este usuario",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(UsuarioNoEncontrado)
+    async def _usuario_no_encontrado(
+        request: Request, exc: UsuarioNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="usuario-no-encontrado",
+            titulo="Usuario no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(CorreoYaRegistrado)
+    async def _correo_ya_registrado(
+        request: Request, exc: CorreoYaRegistrado
+    ) -> JSONResponse:
+        # 409 y no 503: es el único fallo del alta que quien la está haciendo
+        # puede resolver solo —ese correo ya tiene cuenta—, y merece un mensaje
+        # que lo diga en vez de un "algo pasó".
+        return _problema(
+            request,
+            status=409,
+            tipo="correo-ya-registrado",
+            titulo="Ese correo ya tiene cuenta",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDelProveedorDeAuth)
+    async def _proveedor_de_auth(
+        request: Request, exc: ErrorDelProveedorDeAuth
+    ) -> JSONResponse:
+        # 503, mismo criterio que la cola y R2: la petición es válida y volverá
+        # a serlo cuando el proveedor responda o cuando el despliegue tenga su
+        # `SUPABASE_SERVICE_KEY` (§12.8). El detalle nombra la variable que
+        # falta, jamás su valor.
+        return _problema(
+            request,
+            status=503,
+            tipo="proveedor-de-auth-no-disponible",
+            titulo="Alta de usuarios no disponible",
             detalle=str(exc),
         )
 
