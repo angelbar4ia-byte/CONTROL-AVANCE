@@ -31,6 +31,8 @@ import Incidencias from '@/incidencias/Incidencias';
 import Evaluaciones from '@/evaluaciones/Evaluaciones';
 import Equipo from '@/equipo/Equipo';
 import Asignaciones from '@/equipo/Asignaciones';
+import Cargas from '@/cargas/Cargas';
+import Expediente from '@/expediente/Expediente';
 
 export function App() {
   return (
@@ -116,6 +118,12 @@ function Rutas() {
         <Route path="/config/equipo" element={<Equipo />} />
         <Route path="/equipo" element={<Equipo />} />
         <Route path="/asignaciones" element={<Asignaciones />} />
+        {/* Fase 5 cerrada en web: los endpoints de cargas y expediente
+            existían desde entonces y ninguna pantalla los usaba. Cargas es de
+            Control de obra (§5.1 Configuración); el expediente lo consultan C
+            y SI desde Reportes (§5.3). */}
+        <Route path="/config/cargas" element={<Cargas />} />
+        <Route path="/expediente" element={<Expediente />} />
         <Route path="*" element={<EnConstruccion />} />
       </Route>
     </Routes>

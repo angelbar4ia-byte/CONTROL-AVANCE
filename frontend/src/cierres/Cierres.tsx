@@ -22,6 +22,7 @@ import {
 import type { CierreRespuesta, EstatusSolicitudCierre } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
 import { useSesion } from '@/app/sesion';
+import { useClavesPorRecurso } from '@/lib/idempotencia';
 import { fmtMXN, fmtNum } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Modal } from '@/lib/Modal';
@@ -46,6 +47,11 @@ function idCorto(id: string): string {
 
 export default function Cierres() {
   const { sesion } = useSesion();
+  // Una clave por (método, ruta): en una lista, el mismo hook opera sobre
+  // recursos distintos y una clave fija haría que el segundo llegara con la
+  // del primero (regla 1 del ROADMAP).
+  const idempotente = useClavesPorRecurso();
+
   const [tab, setTab] = useState<EstatusSolicitudCierre | 'todas'>('todas');
   const [dialogo, setDialogo] = useState<Dialogo>(null);
   const [texto, setTexto] = useState('');
@@ -63,6 +69,7 @@ export default function Cierres() {
       },
       onError: (err) => setError(err.message),
     },
+    ...idempotente,
   });
 
   const validar = useValidarCierreApiV1CierresCierreIdValidarPost<ErrorApi>({
@@ -75,6 +82,7 @@ export default function Cierres() {
       },
       onError: (err) => setError(err.message),
     },
+    ...idempotente,
   });
 
   const rechazar = useRechazarCierreApiV1CierresCierreIdRechazarPost<ErrorApi>({
@@ -87,6 +95,7 @@ export default function Cierres() {
       },
       onError: (err) => setError(err.message),
     },
+    ...idempotente,
   });
 
   if (!sesion) return null;
