@@ -16,13 +16,13 @@
 | D7 | **Las Fases 7+ se ordenan por un piloto en obra real** | El orden lo decide qué **bloquea el uso**, no qué falta del spec. Consecuencias: la administración de usuarios sube al primer lugar —hoy no se puede dar de alta a nadie y el Login ya lo promete—; presupuesto, procesos y tiempo real bajan; y el móvil se va al final, lo que hace que el piloto sea **web-only**. Eso último solo se sostiene si el residente captura con señal: `PATCH /actividades/{id}/avance` y la feature `avance` de la web ya lo permiten. **Si el residente resulta no tener señal en campo, el móvil deja de ser opcional y salta al frente de la fila** — es el supuesto que hay que confirmar antes de empezar el piloto, no durante. |
 | D8 | **Endurecer no compite con el piloto: es su precondición** | Un piloto mete datos reales de un cliente en producción, así que la Fase 8 (operación segura) va **antes** que cualquier feature nueva. Sin restauración probada, sin poder revertir una migración y sin rastro de quién cambió qué, el riesgo no es técnico sino del cliente. El detonante fue encontrar que **nada se ha desplegado nunca**: las seis fases viven en una rama sin fusionar a `main`, mientras el §12.12 manda trunk-based con `main` siempre desplegable. El endurecimiento que **sostiene** el sistema cuando crece —virtualización, datasets golden, deuda de tipos— es otra cosa y va en la Fase 14. |
 
-## Estado actual (Fases 7 a 11 cerradas)
+## Estado actual (Fases 7 a 12 cerradas)
 
 | Capa | Entregado | Pendiente |
 |---|---|---|
 | `database/` | 26 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · guardia de privilegios de `usuario` · orden de cambio del extra-catálogo · 6 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
-| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · `POST /actividades` extra-catálogo · **824 pruebas**, 220 de ellas de integración contra Postgres real | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
-| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada), `extras`, `revisiones` · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **311 pruebas** + 4 E2E de humo + 3 del alta | Features: presupuesto, cierre de obra · los 6 E2E de workflow |
+| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · `POST /actividades` extra-catálogo · **cierre de obra (workflow D)** · **861 pruebas**, 233 de ellas de integración contra Postgres real | `POST /reportes/{tipo}` genérico · presupuesto (§13) · procesos (§7.9) · tiempo real (`WS /ws`) |
+| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada), `extras`, `revisiones`, `cierresObra` · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **324 pruebas** + 4 E2E de humo + 3 del alta | Features: presupuesto, cierre de obra · los 6 E2E de workflow |
 | `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules auditadas · config Play | Pantallas de captura y revisión · cola de evidencias a R2 · build de Play Store |
 | CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), ida y vuelta de las 24 migraciones, restauración de respaldo, web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render |
 
@@ -30,7 +30,7 @@
 
 ## Lo inmediato
 
-**Fases 7 a 11 cerradas.** El sistema se puede operar —desplegar, promover,
+**Fases 7 a 12 cerradas.** El sistema se puede operar —desplegar, promover,
 revertir, restaurar, con rastro de quién cambió qué—, ya se puede dar de alta a
 alguien sin abrir `psql`, y un Control de obra puede subir su catálogo real
 desde Excel — las tres cosas que bloqueaban el piloto.
@@ -57,9 +57,9 @@ reloj salen en cualquier orden. Es lo mismo que la 0019 resolvió en
 `carga_snapshot` con una columna `orden`, y esa es también la solución aquí. Va
 como primer arreglo de la Fase 14.
 
-Lo que sigue: **Fase 12** (cierre de obra, workflow D) — el único de los seis
-workflows del §11.3 sin nada de backend, y la culminación natural del piloto:
-se cierra la obra con la que se empezó.
+Lo que sigue: **Fase 13** (presupuesto y rendimientos) — dos tablas con RLS y
+ni un repositorio ni un endpoint, y un área entera del §5.1 que aparece en el
+sidebar de Control de obra y de Super intendente.
 
 El detalle de la Fase 6 está en [`FASE-6.md`](FASE-6.md); el procedimiento de
 operación, en [`OPERACION.md`](OPERACION.md).
@@ -503,18 +503,53 @@ documentarse. **Cumplido.**
 
 ## Fase 12 — Cierre de obra · Workflow D
 
-Es el **único de los seis workflows del §11.3 sin nada de backend**, y la
-culminación natural del piloto: se cierra la obra con la que se empezó. El
-expediente técnico de la Fase 5 se construyó justamente para sostenerlo
-(§11.3 D).
+> **Cerrada.** Con esto, **los seis workflows del §11.3 tienen backend**.
 
-- Las tablas `cierre_obra` y `cierre_obra_participacion` **ya existen con RLS**
-  desde la migración 0009; falta todo lo demás.
-- `POST /obras/{id}/cierre-obra` (SI) y `POST /cierres-obra/{id}/participar`
-  (todos los roles).
-- Dominio: qué exige un cierre de obra —avance, cierres validados, expediente,
-  evaluación— antes de dejar cerrar.
-- Web: *Cierres de obra* (SI).
+Era el único de los seis sin nada: las tablas existían con RLS desde la
+migración 0009 y no había ruta que las tocara. Es la culminación natural del
+piloto —se cierra la obra con la que se empezó— y el expediente técnico de la
+Fase 5 se construyó justamente para sostenerlo.
+
+- ✅ `POST /obras/{id}/cierre-obra` (SI) y `POST /cierres-obra/{id}/participar`
+  (los cuatro roles), más la bandeja y el detalle del acta.
+- ✅ Dominio: qué exige un cierre antes de dejar firmar.
+- ✅ Web: *Cierres de obra*, compartida aunque solo el SI la abra.
+
+**La decisión que hace útil esta ruta: qué bloquea y qué no.** No todo pendiente
+impide entregar, y confundirlos la rompe por los dos lados — si todo bloquea, el
+cierre es imposible y la gente aprende a saltárselo; si nada bloquea, se firma
+una entrega con dinero sin resolver.
+
+| Bloquean | Solo se informan |
+|---|---|
+| Avance incompleto · actividades sin concluir · cierres de actividad esperando · estimaciones sin validar · incidencias que **detienen** | Incidencias abiertas de impacto menor · expediente sin documentos · evaluación final ausente |
+
+Los primeros describen trabajo o dinero sin resolver; los segundos son cosas que
+deberían estar y cuya falta hay que ver, pero que no impiden que la obra esté
+terminada.
+
+**Abrir con pendientes está permitido y es el punto** (§11.3 D.1): convocar al
+equipo es lo que hace que se resuelvan. Lo que no se puede es firmar con ellos.
+Y la cuarta firma **se valida antes de escribir nada**: registrarla y después
+descubrir que faltaba resolver dejaría un acta completa sobre una obra que no se
+puede entregar.
+
+> **La obra se congela dentro de la transacción, no por evento.** El §11.3 D.3
+> dice «evento `CierreObra` → obra `entregada`», y la tentación es publicarlo
+> por el bus. No se hace, por lo mismo que `IncidenciaDetiene` ya documentaba
+> para el bloqueo: `BusEnProceso` **se traga los fallos de sus manejadores a
+> propósito**, y `entregada` no es un dato derivado que se pueda recalcular —es
+> una frontera de permisos—. Una obra cerrada sin congelar admitiría capturas
+> sobre un acta ya firmada, y nadie se enteraría.
+
+El acta y el estado de la obra salen de **una** consulta con `lateral` sobre
+siete contextos. En viajes separados, además de costar siete, dejarían una
+ventana en la que el estado cambia: se contaría el avance de antes con las
+incidencias de después.
+
+**Criterio de cierre:** los seis workflows del §11.3 tienen backend y el de
+cierre de obra corre de punta a punta. **Cumplido.** Falta su E2E, que va con la
+regla 2 cuando haya un entorno con API y Postgres sembrado.
 
 ---
 

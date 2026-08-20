@@ -23,6 +23,7 @@ from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.asignaciones_sql import RepositorioAsignacionesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
+from obractrl.adapters.repos.cierres_obra_sql import RepositorioCierresDeObraSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
@@ -79,6 +80,11 @@ from obractrl.application.casos_uso.gestionar_cierre import (
     RechazarCierre,
     SolicitarCierre,
     ValidarCierre,
+)
+from obractrl.application.casos_uso.gestionar_cierre_de_obra import (
+    AbrirCierreDeObra,
+    ConsultarCierreDeObra,
+    Participar,
 )
 from obractrl.application.casos_uso.gestionar_estimacion import (
     EnviarEstimacion,
@@ -144,6 +150,7 @@ from obractrl.infrastructure.jobs.cola import ColaDeTrabajos
 from obractrl.infrastructure.notificaciones.resend import ClienteResend
 
 __all__ = [
+    "AbrirCierreDeObraDep",
     "AbrirIncidenciaDep",
     "ActualizarObraDep",
     "ActualizarUsuarioDep",
@@ -157,6 +164,7 @@ __all__ = [
     "CerrarIncidenciaDep",
     "ColaDeTrabajosDep",
     "ConsultarCargaDep",
+    "ConsultarCierreDeObraDep",
     "ConsultarExpedienteDep",
     "ConsultarRutaCriticaDep",
     "CrearClusterDep",
@@ -181,6 +189,7 @@ __all__ = [
     "GenerarObraDesdePrototipoDep",
     "InstanciarProgramaObraDep",
     "ObtenerCPUDep",
+    "ParticiparEnCierreDep",
     "ProgramarIncidenciaDep",
     "PublicarVersionCPUDep",
     "RecalcularRutaCriticaDep",
@@ -836,3 +845,39 @@ def obtener_dar_de_alta_extra(sesion: SesionRLS) -> DarDeAltaExtra:
 
 
 DarDeAltaExtraDep = Annotated[DarDeAltaExtra, Depends(obtener_dar_de_alta_extra)]
+
+
+# --- Cierre de obra final (§11.3 D) --------------------------------------
+
+
+def obtener_abrir_cierre_de_obra(sesion: SesionRLS) -> AbrirCierreDeObra:
+    return AbrirCierreDeObra(
+        cierres=RepositorioCierresDeObraSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_participar_en_cierre(sesion: SesionRLS) -> Participar:
+    return Participar(
+        cierres=RepositorioCierresDeObraSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        # Un bus vacío: hoy nada reacciona a `CierreDeObraCompletado`. Se
+        # inyecta igual para que el caso de uso no tenga que preguntarse si hay
+        # publicador, y para que suscribir el primer manejador sea agregar una
+        # línea aquí y nada más.
+        eventos=BusEnProceso(),
+    )
+
+
+def obtener_consultar_cierre_de_obra(sesion: SesionRLS) -> ConsultarCierreDeObra:
+    return ConsultarCierreDeObra(cierres=RepositorioCierresDeObraSQL(sesion))
+
+
+AbrirCierreDeObraDep = Annotated[
+    AbrirCierreDeObra, Depends(obtener_abrir_cierre_de_obra)
+]
+ParticiparEnCierreDep = Annotated[Participar, Depends(obtener_participar_en_cierre)]
+ConsultarCierreDeObraDep = Annotated[
+    ConsultarCierreDeObra, Depends(obtener_consultar_cierre_de_obra)
+]

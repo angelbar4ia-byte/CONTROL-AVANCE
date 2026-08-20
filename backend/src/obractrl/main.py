@@ -46,6 +46,9 @@ from obractrl.application.casos_uso.gestionar_carga import (
     CargaNoRevertible,
 )
 from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEncontrada
+from obractrl.application.casos_uso.gestionar_cierre_de_obra import (
+    CierreDeObraNoEncontrado,
+)
 from obractrl.application.casos_uso.gestionar_estimacion import EstimacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_evaluacion import EvaluacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_incidencia import IncidenciaNoEncontrada
@@ -65,6 +68,7 @@ from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera
 from obractrl.domain.catalogos.apu import CicloEnExplosion, ErrorDeAPU
 from obractrl.domain.catalogos.reglas import ErrorDeCatalogo
+from obractrl.domain.cierres.obra import ErrorDeCierreDeObra
 from obractrl.domain.cierres.reglas import ErrorDeCierre
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
 from obractrl.domain.evaluaciones.reglas import ErrorDeEvaluacion
@@ -935,6 +939,33 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=503,
             tipo="motor-de-pdf-no-disponible",
             titulo="Generación de PDF no disponible",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeCierreDeObra)
+    async def _cierre_de_obra(
+        request: Request, exc: ErrorDeCierreDeObra
+    ) -> JSONResponse:
+        # 422 y no 409: no es un conflicto de concurrencia, es que la entrega
+        # todavía no se puede firmar —falta gente por participar o falta
+        # trabajo por resolver— y el detalle dice exactamente cuál de las dos.
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-cierre-de-obra",
+            titulo="La obra no se puede entregar todavía",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(CierreDeObraNoEncontrado)
+    async def _cierre_de_obra_no_encontrado(
+        request: Request, exc: CierreDeObraNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="cierre-de-obra-no-encontrado",
+            titulo="Cierre de obra no encontrado",
             detalle=str(exc),
         )
 

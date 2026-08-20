@@ -26,6 +26,7 @@ __all__ = [
     "RepositorioAsignaciones",
     "RepositorioCalendario",
     "RepositorioCierres",
+    "RepositorioCierresDeObra",
     "RepositorioClusters",
     "RepositorioConceptos",
     "RepositorioConfiguracion",
@@ -201,6 +202,49 @@ class RepositorioCierres(Protocol):
         que la implementación resuelve el vínculo; el expediente no toca la
         tabla de otro contexto (§11.1).
         """
+        ...
+
+
+@runtime_checkable
+class RepositorioCierresDeObra(Protocol):
+    """Cierre de obra **final** (§11.3 D), distinto del de actividad (§11.3 C).
+
+    Comparten la palabra y nada más: otro flujo, otros roles, otra tabla. Por
+    eso son dos puertos y no uno con métodos que significan cosas distintas
+    según cuál se llame.
+    """
+
+    async def abrir(self, *, obra_id: UUID, abierto_por: UUID) -> UUID:
+        """Abre el acta en `en_proceso`. Idempotente: una obra tiene un cierre."""
+        ...
+
+    async def obtener(self, cierre_id: UUID) -> dict | None: ...
+
+    async def obtener_de_obra(self, obra_id: UUID) -> dict | None: ...
+
+    async def listar(self, *, estatus: str | None = None) -> list[dict]: ...
+
+    async def cerrar(self, cierre_id: UUID, *, fecha: date, acta: str | None) -> None:
+        """Firma el acta. Levanta `RegistroNoEncontrado` si ya estaba cerrada:
+        es lo que impide cerrarla dos veces desde dos peticiones."""
+        ...
+
+    async def participar(
+        self,
+        *,
+        cierre_obra_id: UUID,
+        usuario_id: UUID,
+        rol: str,
+        comentario: str | None,
+        evidencias: list[str],
+    ) -> UUID: ...
+
+    async def participaciones(self, cierre_obra_id: UUID) -> list[dict]: ...
+
+    async def estado_de_obra(self, obra_id: UUID) -> dict | None:
+        """Lo que `evaluar_pendientes` necesita para decidir si se puede
+        entregar: avance, actividades, cierres, estimaciones, incidencias,
+        expediente y evaluaciones — en una sola consulta."""
         ...
 
 
