@@ -89,3 +89,27 @@ class TestEstadosQueVeElCliente:
         """Arq guarda el resultado un tiempo acotado (`keep_result`); pasado
         eso el reporte deja de existir y hay que volver a pedirlo."""
         assert issubclass(TrabajoNoEncontrado, LookupError)
+
+
+class TestClaveDeLatido:
+    """La llave donde el worker escribe su latido (§11.7).
+
+    Se arma con las constantes de `arq` y no se lee de `RedisSettings`, que
+    **no la tiene**: el atributo vive en el `Worker`. Escribirlo mal costaba un
+    `AttributeError` que `/health` reportaba como `error: AttributeError` en el
+    campo `jobs` — una sonda diciendo «no sé» justo sobre lo que vigila.
+    """
+
+    def test_es_la_que_arq_usa(self) -> None:
+        from arq.constants import default_queue_name, health_check_key_suffix
+
+        from obractrl.infrastructure.jobs.cola import _clave_de_latido
+
+        assert _clave_de_latido() == f"{default_queue_name}{health_check_key_suffix}"
+
+    def test_los_ajustes_de_conexion_no_la_tienen(self) -> None:
+        """Fija el motivo del bug: si algún día `RedisSettings` la expusiera,
+        esta prueba avisaría de que se puede simplificar."""
+        from arq.connections import RedisSettings
+
+        assert not hasattr(RedisSettings(), "health_check_key")

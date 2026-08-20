@@ -13,6 +13,12 @@
 
 import type { ReactNode } from 'react';
 
+import {
+  FilasVirtuales,
+  useTablaVirtual,
+  type ControlTablaVirtual,
+} from '@/lib/tablaVirtual';
+
 import type {
   ContratistaRespuesta,
   ConceptoRespuesta,
@@ -32,23 +38,33 @@ import {
   tonoEstatusCatalogo,
 } from './reglas';
 
-/** Envoltura común: encabezados, cargando y vacío, para no repetirlo seis veces. */
+/**
+ * Envoltura común: encabezados, cargando y vacío, para no repetirlo seis veces.
+ *
+ * `virtual` es opcional a propósito. El §12.9 nombra el **catálogo de
+ * conceptos/CPU** como vista de miles de renglones, y los insumos crecen con él
+ * —un catálogo real trae ambos por millares—. Unidades, familias y contratistas
+ * son decenas: virtualizarlas costaría un viewport acotado y un `Ctrl+F` que
+ * deja de encontrar, a cambio de nada.
+ */
 function TablaCatalogo({
   columnas,
   vacia,
   cargando,
   filas,
+  virtual,
   children,
 }: {
   readonly columnas: readonly string[];
   readonly vacia: string;
   readonly cargando: boolean;
   readonly filas: number;
+  readonly virtual?: ControlTablaVirtual<unknown>;
   readonly children: ReactNode;
 }) {
   return (
     <div className="table-wrap">
-      <div className="table-scroll">
+      <div className="table-scroll" ref={virtual?.ref} style={virtual?.estilo}>
         <table className="table">
           <thead>
             <tr>
@@ -214,14 +230,17 @@ export function TablaInsumos({
   readonly cargando: boolean;
   readonly vacia: string;
 }) {
+  const virtual = useTablaVirtual(resultados);
   return (
     <TablaCatalogo
       columnas={COLUMNAS_INSUMOS}
       cargando={cargando}
       filas={resultados.length}
       vacia={vacia}
+      virtual={virtual as ControlTablaVirtual<unknown>}
     >
-      {resultados.map(({ item, coincidencia }) => {
+      <FilasVirtuales control={virtual}>
+      {({ item, coincidencia }) => {
         const familia = familias.find((f) => f.id === item.familia_id);
         const iva = ivaDelInsumo(item, familia);
         return (
@@ -258,7 +277,8 @@ export function TablaInsumos({
             <Estatus estatus={item.estatus ?? 'activo'} />
           </tr>
         );
-      })}
+      }}
+      </FilasVirtuales>
     </TablaCatalogo>
   );
 }
@@ -281,14 +301,17 @@ export function TablaConceptos({
   /** Ausente cuando el rol no consulta el APU (§11.2: CPU/explosión = C, SI). */
   readonly onAbrirAPU?: (concepto: ConceptoRespuesta) => void;
 }) {
+  const virtual = useTablaVirtual(resultados);
   return (
     <TablaCatalogo
       columnas={COLUMNAS_CONCEPTOS}
       cargando={cargando}
       filas={resultados.length}
       vacia="No hay conceptos con estos filtros."
+      virtual={virtual as ControlTablaVirtual<unknown>}
     >
-      {resultados.map(({ item, coincidencia }) => (
+      <FilasVirtuales control={virtual}>
+      {({ item, coincidencia }) => (
         <tr
           key={item.id}
           style={item.id === conceptoAbierto ? { background: 'var(--c-elev)' } : undefined}
@@ -316,7 +339,8 @@ export function TablaConceptos({
             )}
           </td>
         </tr>
-      ))}
+      )}
+      </FilasVirtuales>
     </TablaCatalogo>
   );
 }

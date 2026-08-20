@@ -1,0 +1,110 @@
+{
+  "ACABADOS": {
+    "desfase": 0.0,
+    "es_critica": true,
+    "fin_tardio": "2026-04-03",
+    "fin_temprano": "2026-04-03",
+    "holgura": 0.0,
+    "inicio_tardio": "2026-03-25",
+    "inicio_temprano": "2026-03-25"
+  },
+  "CIMENT": {
+    "desfase": 17.0,
+    "es_critica": true,
+    "fin_tardio": "2026-03-13",
+    "fin_temprano": "2026-03-13",
+    "holgura": 0.0,
+    "inicio_tardio": "2026-03-07",
+    "inicio_temprano": "2026-03-07"
+  },
+  "EXCAV": {
+    "desfase": 0.0,
+    "es_critica": true,
+    "fin_tardio": "2026-03-07",
+    "fin_temprano": "2026-03-07",
+    "holgura": 0.0,
+    "inicio_tardio": "2026-03-04",
+    "inicio_temprano": "2026-03-04"
+  },
+  "INST_ELEC": {
+    "desfase": 10.0,
+    "es_critica": false,
+    "fin_tardio": "2026-03-25",
+    "fin_temprano": "2026-03-20",
+    "holgura": 5.0,
+    "inicio_tardio": "2026-03-21",
+    "inicio_temprano": "2026-03-16"
+  },
+  "INST_HIDRO": {
+    "desfase": 21.0,
+    "es_critica": false,
+    "fin_tardio": "2026-03-13",
+    "fin_temprano": "2026-03-09",
+    "holgura": 4.0,
+    "inicio_tardio": "2026-03-11",
+    "inicio_temprano": "2026-03-07"
+  },
+  "JARDIN": {
+    "desfase": 15.0,
+    "es_critica": false,
+    "fin_tardio": "2026-04-07",
+    "fin_temprano": "2026-03-15",
+    "holgura": 23.0,
+    "inicio_tardio": "2026-04-05",
+    "inicio_temprano": "2026-03-13"
+  },
+  "LIMPIEZA": {
+    "desfase": 0.0,
+    "es_critica": true,
+    "fin_tardio": "2026-04-08",
+    "fin_temprano": "2026-04-08",
+    "holgura": 0.0,
+    "inicio_tardio": "2026-04-07",
+    "inicio_temprano": "2026-04-07"
+  },
+  "LOSA": {
+    "desfase": 5.0,
+    "es_critica": true,
+    "fin_tardio": "2026-03-25",
+    "fin_temprano": "2026-03-25",
+    "holgura": 0.0,
+    "inicio_tardio": "2026-03-20",
+    "inicio_temprano": "2026-03-20"
+  },
+  "MUROS": {
+    "desfase": 10.0,
+    "es_critica": true,
+    "fin_tardio": "2026-03-20",
+    "fin_temprano": "2026-03-20",
+    "holgura": 0.0,
+    "inicio_tardio": "2026-03-13",
+    "inicio_temprano": "2026-03-13"
+  },
+  "PINTURA": {
+    "desfase": 0.0,
+    "es_critica": true,
+    "fin_tardio": "2026-04-07",
+    "fin_temprano": "2026-04-07",
+    "holgura": 0.0,
+    "inicio_tardio": "2026-04-03",
+    "inicio_temprano": "2026-04-03"
+  },
+  "TRAMITES": {
+    "desfase": 25.0,
+    "es_critica": false,
+    "fin_tardio": "2026-04-08",
+    "fin_temprano": "2026-03-05",
+    "holgura": 34.0,
+    "inicio_tardio": "2026-04-05",
+    "inicio_temprano": "2026-03-02"
+  },
+  "TRAZO": {
+    "desfase": 0.0,
+    "es_critica": true,
+    "fin_tardio": "2026-03-04",
+    "fin_temprano": "2026-03-04",
+    "holgura": 0.0,
+    "inicio_tardio": "2026-03-02",
+    "inicio_temprano": "2026-03-02"
+  }
+}

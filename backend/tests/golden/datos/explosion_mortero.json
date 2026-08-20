@@ -1,0 +1,81 @@
+{
+  "clave": "MORTERO",
+  "lineas": [
+    {
+      "cantidad": "1.000000",
+      "cantidad_unitaria": "1.000000",
+      "categoria": "auxiliar",
+      "costo_unitario": "2023.5250",
+      "es_destajo": false,
+      "importe": "2023.5250",
+      "nivel": 1,
+      "referencia": "CEM-ARENA",
+      "ruta": [
+        "MORTERO"
+      ],
+      "tipo_hijo": "concepto"
+    },
+    {
+      "cantidad": "350.000000",
+      "cantidad_unitaria": "350.000000",
+      "categoria": "material",
+      "costo_unitario": "4.8500",
+      "es_destajo": false,
+      "importe": "1697.5000",
+      "nivel": 2,
+      "referencia": "CEM-GRIS",
+      "ruta": [
+        "MORTERO",
+        "CEM-ARENA"
+      ],
+      "tipo_hijo": "insumo"
+    },
+    {
+      "cantidad": "1.050000",
+      "cantidad_unitaria": "1.050000",
+      "categoria": "material",
+      "costo_unitario": "310.5000",
+      "es_destajo": false,
+      "importe": "326.0250",
+      "nivel": 2,
+      "referencia": "ARENA",
+      "ruta": [
+        "MORTERO",
+        "CEM-ARENA"
+      ],
+      "tipo_hijo": "insumo"
+    },
+    {
+      "cantidad": "0.220000",
+      "cantidad_unitaria": "0.220000",
+      "categoria": "material",
+      "costo_unitario": "22.0000",
+      "es_destajo": false,
+      "importe": "4.8400",
+      "nivel": 1,
+      "referencia": "AGUA",
+      "ruta": [
+        "MORTERO"
+      ],
+      "tipo_hijo": "insumo"
+    },
+    {
+      "cantidad": "1.800000",
+      "cantidad_unitaria": "1.800000",
+      "categoria": "mano_obra",
+      "costo_unitario": "398.1500",
+      "es_destajo": true,
+      "importe": "716.6700",
+      "nivel": 1,
+      "referencia": "AYUDANTE",
+      "ruta": [
+        "MORTERO"
+      ],
+      "tipo_hijo": "insumo"
+    }
+  ],
+  "precio": {
+    "destajo": "716.67",
+    "total": "2745.04"
+  }
+}

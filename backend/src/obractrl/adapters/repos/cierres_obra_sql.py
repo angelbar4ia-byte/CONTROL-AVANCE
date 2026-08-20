@@ -221,7 +221,10 @@ class RepositorioCierresDeObraSQL:
                       from cierre_obra_participacion p
                       left join usuario u on u.id = p.usuario_id
                      where p.cierre_obra_id = :id
-                     order by p.fecha
+                     -- `rol` desempata: cuatro participaciones pueden caer en
+                     -- el mismo tick y sin él el orden sería arbitrario, que
+                     -- es el bug que la 0027 arregló en incidencia_evento.
+                     order by p.fecha, p.rol
                     """
                 ),
                 {"id": str(cierre_obra_id)},
