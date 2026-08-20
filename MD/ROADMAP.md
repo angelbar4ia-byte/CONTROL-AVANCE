@@ -16,40 +16,41 @@
 | D7 | **Las Fases 7+ se ordenan por un piloto en obra real** | El orden lo decide qué **bloquea el uso**, no qué falta del spec. Consecuencias: la administración de usuarios sube al primer lugar —hoy no se puede dar de alta a nadie y el Login ya lo promete—; presupuesto, procesos y tiempo real bajan; y el móvil se va al final, lo que hace que el piloto sea **web-only**. Eso último solo se sostiene si el residente captura con señal: `PATCH /actividades/{id}/avance` y la feature `avance` de la web ya lo permiten. **Si el residente resulta no tener señal en campo, el móvil deja de ser opcional y salta al frente de la fila** — es el supuesto que hay que confirmar antes de empezar el piloto, no durante. |
 | D8 | **Endurecer no compite con el piloto: es su precondición** | Un piloto mete datos reales de un cliente en producción, así que la Fase 8 (operación segura) va **antes** que cualquier feature nueva. Sin restauración probada, sin poder revertir una migración y sin rastro de quién cambió qué, el riesgo no es técnico sino del cliente. El detonante fue encontrar que **nada se ha desplegado nunca**: las seis fases viven en una rama sin fusionar a `main`, mientras el §12.12 manda trunk-based con `main` siempre desplegable. El endurecimiento que **sostiene** el sistema cuando crece —virtualización, datasets golden, deuda de tipos— es otra cosa y va en la Fase 14. |
 
-## Estado actual (Fase 6 en curso)
+## Estado actual (Fase 8 en curso)
 
 | Capa | Entregado | Pendiente |
 |---|---|---|
-| `database/` | 22 migraciones · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · 5 archivos de pruebas de aislamiento | Publicar las sync rules auditadas en el PowerSync de producción |
+| `database/` | 22 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · 5 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
 | `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · **547 pruebas** | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
 | `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · **221 pruebas** + 4 E2E de humo | Features: cargas, expediente, reportes, revisión física · cablear `Idempotency-Key` · los 6 E2E de workflow |
 | `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules auditadas · config Play | Pantallas de captura y revisión · cola de evidencias a R2 · build de Play Store |
-| CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Confirmar en verde tras los arreglos de la primera corrida |
+| CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), ida y vuelta de las 22 migraciones, restauración de respaldo, web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Confirmar en verde con el job de backend restaurado |
 
 ---
 
 ## Lo inmediato
 
-**Confirmar el CI en verde.** Ya corrió una vez y encontró dos cosas, las dos
-por diferencias entre una máquina de desarrollo y un entorno limpio: el
-contrato no era reproducible (`fastapi>=0.115` resolvía distinto en CI) y el
-humo de E2E no arrancaba sin el `.env.local` no versionado. Ambas corregidas
-—`backend/constraints.txt` y `--mode test`— y verificadas en local, la segunda
-reproduciendo las condiciones de CI. Falta ver la corrida en verde.
+**Fase 8 en curso.** El primer frente ya cerró: la rama se fusionó a `main` por
+el PR #18, así que el trunk-based del §12.12 dejó de ser una intención. El
+segundo frente —migraciones reversibles y respaldo probado— está hecho y
+probado; falta sellar la base de producción la primera vez que se despliegue
+(`./scripts/migrar.sh --sellar`) y siguen abiertos los frentes 4 a 6.
 
-Lo que sí funcionó a la primera: Postgres, migraciones, las ~150 pruebas de
-integración y los 5 archivos de aislamiento RLS, que hasta entonces no corrían
-en ninguna parte.
+**Y un hallazgo que hay que decir sin adornos: el CI llevaba dos commits sin
+probar nada del backend.** El commit `4543909`, al sacar el paso del contrato a
+un script, se llevó por delante ocho pasos del job `backend`: instalar
+dependencias, aplicar migraciones, dar contraseña a `obractrl_api`, ruff,
+`lint-imports`, `pytest` y el aislamiento RLS. El job quedó con un solo paso
+—y sin el `pip install` que necesita—. Está restaurado, con los pasos nuevos de
+la Fase 8 encima.
 
-**Y en cuanto esté verde, fusionar a `main`.** Las seis fases viven en
-`fase-1/proyectos-obras-y-captura-offline`, **12 commits por delante de `main`
-y sin fusionar**. El §12.12 manda trunk-based con `main` siempre desplegable y
-`render.yaml` tiene `autoDeploy: true`, así que hoy **nada se ha desplegado
-nunca**: no es que el despliegue falle, es que no ha ocurrido. Es el primer
-frente de la Fase 8 y lo que desbloquea poder hablar de producción (D8).
+La lección no es el descuido: es que **un CI verde no dice qué corrió**. Un job
+al que se le borran los pasos no se pone rojo, se pone verde más rápido. Vale
+la pena mirar la duración de la corrida además del color.
 
-Después de eso, **Fase 7**. El detalle de la Fase 6 —qué se entregó en cada
-frente y por qué— está en [`FASE-6.md`](FASE-6.md), decisiones F6.1 a F6.13.
+Después de la Fase 8, **Fase 7**. El detalle de la Fase 6 —qué se entregó en
+cada frente y por qué— está en [`FASE-6.md`](FASE-6.md), decisiones F6.1 a
+F6.13.
 
 ---
 
@@ -209,28 +210,34 @@ una migración y sin rastro de quién cambió qué no es un riesgo técnico: es 
 riesgo para el cliente. Endurecer no compite con el piloto — es su
 precondición.
 
-Y hay un hallazgo que lo vuelve urgente:
-
-> **Nada se ha desplegado nunca.** Las seis fases viven en la rama
-> `fase-1/proyectos-obras-y-captura-offline`, **12 commits por delante de
-> `main`** y sin fusionar. El §12.12 manda trunk-based con `main` siempre
-> desplegable, y `render.yaml` tiene `autoDeploy: true`. Mientras esto no se
-> resuelva, "desplegar" es una hipótesis.
+El hallazgo que lo volvió urgente —que **nada se había desplegado nunca**, con
+las seis fases en una rama sin fusionar— ya está resuelto: el PR #18 llevó las
+seis a `main`, que es de donde despliega `render.yaml` con `autoDeploy: true`.
 
 **Frentes.**
 
-1. **Trunk-based de verdad (§12.12).** Fusionar a `main` —con CI en verde—,
-   adoptar ramas cortas con PR, y `main` siempre desplegable. Tags `vX.Y.Z` y
-   changelog. Es el primer paso porque todo lo demás se despliega desde ahí.
-2. **Migraciones reversibles y respaldo probado (§12.12).** Hoy hay 22
-   migraciones SQL aplicadas en orden por un script bash, **ninguna con `down`**,
-   y **Alembic es dependencia declarada y no se usa**. Decidir: adoptar Alembic
-   de verdad o formalizar el esquema actual con `down` y un runner con control
-   de versión aplicada. Y probar una restauración, no suponerla: *un respaldo no
-   probado no es un respaldo*.
-3. **Expand → contract.** Escribir la regla y aplicarla: primero agregar
-   (nullable + backfill), desplegar código que tolera ambos esquemas, contraer
-   en un release posterior. Nunca destructivo en el mismo deploy.
+1. ✅ **Trunk-based de verdad (§12.12).** La rama se fusionó a `main` por PR.
+   Falta la parte que se sostiene con disciplina y no con un merge: ramas
+   cortas, `main` siempre desplegable, tags `vX.Y.Z` y changelog.
+2. ✅ **Migraciones reversibles y respaldo probado (§12.12).** Se descartó
+   Alembic —estaba declarado en `pyproject.toml` sin que nadie lo usara, y salió
+   de ahí— y se formalizó el esquema que ya existía: `app.schema_migrations` con
+   el `sha256` de cada archivo, cada `up` en la misma transacción que su
+   renglón, `migrations/down/` completo para las 22, y `revertir.sh` /
+   `probar_respaldo.sh`. El CI aplica, revierte las 22, vuelve a aplicar,
+   respalda, restaura en una base vacía y compara 1 763 objetos de esquema.
+
+   > Un `down` que nunca corrió no es un `down`, es un archivo. Y hay tres que
+   > no son simétricos —el valor de enum de la 0019, la reconciliación de la
+   > 0017, el vínculo con el prototipo de la 0018—: cada uno lo dice en su
+   > encabezado, porque descubrirlo durante un rollback sería tarde.
+
+   Queda un paso operativo: **sellar producción** (`migrar.sh --sellar`) la
+   primera vez que se despliegue, o el runner intentaría reaplicar las 22.
+3. ✅ **Expand → contract.** Escrita en `database/README.md` como una de las
+   tres reglas del versionado: primero agregar (nullable + backfill), desplegar
+   código que tolera ambos esquemas, contraer en un release posterior. Así el
+   rollback del código no arrastra a la base.
 4. **Bitácora de negocio (§11.7, §12.12).** La tabla `bitacora` existe con RLS
    y **nadie la escribe**. Los cambios de configuración y de catálogo —umbral
    §3.6, IVA, mapeos, motivos— tienen que dejar quién/cuándo/qué, y los
@@ -242,7 +249,8 @@ Y hay un hallazgo que lo vuelve urgente:
 
 **Criterio de cierre:** se puede desplegar a producción, revertir el deploy,
 revertir una migración y restaurar un respaldo — y las tres cosas se probaron,
-no se supusieron.
+no se supusieron. Las dos últimas ya se prueban en cada corrida de CI; falta
+ejercitar el rollback de un deploy real.
 
 ---
 

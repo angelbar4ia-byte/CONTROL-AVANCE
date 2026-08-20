@@ -17,7 +17,9 @@ dependencies = [
   "sqlmodel>=0.0.22",
   "sqlalchemy[asyncio]>=2.0.36",
   "asyncpg>=0.30",
-  "alembic>=1.14",
+  # Sin Alembic: las migraciones son SQL plano en `database/migrations/`, con su
+  # `down/` y su bitácora `app.schema_migrations` (ver database/README.md). Es lo
+  # que consume el CLI de Supabase, y estuvo declarado aquí sin que nadie lo use.
 
   # Auth
   "pyjwt[crypto]>=2.10",

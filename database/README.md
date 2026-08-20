@@ -21,11 +21,40 @@ PowerSync y de supabase-js (§10.7, §12.5).
 ```
 database/
 ├─ migrations/     # se aplican en orden por nombre
+│  └─ down/        # la reversa de cada una, mismo nombre de archivo
 ├─ seeds/          # semilla editable (§8.7): el usuario la extiende después
 ├─ tests/          # pruebas de aislamiento RLS
-├─ scripts/        # aplicar migraciones / correr pruebas
+├─ scripts/        # migrar · revertir · probar RLS · probar respaldo
 └─ supabase/       # config.toml del CLI
 ```
+
+### Cómo se versionan
+
+`app.schema_migrations` dice qué tiene aplicado cada base: una fila por
+migración, con el `sha256` del archivo. La escribe `scripts/migrar.sh`, no una
+migración —haría falta para aplicarse a sí misma—, y cada `up` viaja en la
+**misma transacción** que el renglón que lo registra: o queda aplicado y
+anotado, o no queda nada.
+
+De ahí salen tres reglas:
+
+1. **Una migración aplicada es inmutable.** Si el archivo cambia, el hash deja
+   de cuadrar y `migrar.sh` se detiene en vez de aplicar medio esquema. Para
+   corregir algo ya aplicado se escribe una migración nueva.
+2. **Toda migración entra con su `down/`.** El CI lo ejercita en cada corrida:
+   aplica las 22, las revierte todas y las vuelve a aplicar. Un `down` que
+   nunca corrió no es un `down`, es un archivo.
+3. **Expand → contract.** Un cambio destructivo nunca va en el mismo deploy que
+   el código que lo necesita: primero se agrega (columna nullable + backfill),
+   se despliega código que tolera los dos esquemas, y se contrae en un release
+   posterior. Así el rollback del código no exige rollback de la base.
+
+Hay reversas que el `down` **no puede** deshacer del todo, y cada archivo lo
+dice en su encabezado: `alter type ... add value` no tiene inverso en Postgres
+(0019), la reconciliación de `cant_ejecutada` de la 0017 no tiene número
+anterior al que volver, y tirar `actividad.prototipo_nodo_id` pierde el vínculo
+con el prototipo (0018). Revertir esas migraciones en producción con datos
+dentro no es simétrico: hay que leer el encabezado antes.
 
 ### Migraciones
 
@@ -47,6 +76,12 @@ database/
 | `0014_roles_y_grants` | Roles `anon` / `authenticated` / `obractrl_api` |
 | `0015_auth_hook` | Claims de `org_id` y `rol` en el JWT de Supabase (§12.4) |
 | `0016_autoasignacion_control_proyecto` | Quien crea un proyecto queda asignado a él (§4) |
+| `0017_agregacion_registro_avance` | `cant_ejecutada` derivada de Σ deltas (D6 del roadmap) |
+| `0018_actividad_prototipo_nodo` | Vínculo actividad ↔ nodo del prototipo que la originó (§7.4) |
+| `0019_carga_de_almacen` | Orden dentro del lote para revertir una carga (§10.8) |
+| `0020_periodo_bloqueado` | Cierre de periodo por obra |
+| `0021_registro_avance_obra` | `obra_id` derivada, para que las sync rules filtren sin subconsulta (§12.5) |
+| `0022_idempotencia` | Claves de `Idempotency-Key` en la misma transacción que la mutación |
 
 ## Dos decisiones que conviene no romper
 
@@ -116,8 +151,21 @@ Las **sync rules de PowerSync deben reflejar exactamente esta misma lógica**
 ## Uso
 
 ```bash
-# Aplicar todo contra una BD local o de Supabase
+# Aplicar lo que falte contra una BD local o de Supabase
 DATABASE_URL="postgresql://..." ./scripts/migrar.sh
+
+# Ver qué está aplicado y qué falta
+DATABASE_URL="postgresql://..." ./scripts/migrar.sh --estado
+
+# Una base que ya recibió las migraciones con el runner viejo: registrarlas
+# como aplicadas sin volver a correrlas
+DATABASE_URL="postgresql://..." ./scripts/migrar.sh --sellar
+
+# Revertir (BORRA DATOS: respaldo antes)
+DATABASE_URL="postgresql://..." ./scripts/revertir.sh --pasos 1
+
+# Probar que el respaldo se restaura de verdad y el esquema queda idéntico
+DATABASE_URL="postgresql://..." ./scripts/probar_respaldo.sh
 
 # Sembrar el diccionario canónico para una organización
 psql "$DATABASE_URL" -v org_id="'<uuid-org>'" -f seeds/01_semilla_canonica.sql
@@ -135,5 +183,11 @@ Con el CLI de Supabase: `supabase db reset` toma `migrations/` automáticamente.
 ## Pendiente
 
 - Sync rules de PowerSync espejo de `app.obra_visible()` (§12.5) — van con `mobile/`.
-- Migración a Alembic si el backend prefiere versionar desde Python (§12.8);
-  hoy las migraciones son SQL plano, que es lo que consume el CLI de Supabase.
+- **Sellar la base de producción** la primera vez que se despliegue este runner:
+  `./scripts/migrar.sh --sellar`. Sin eso, `migrar.sh` intentaría reaplicar las
+  22 sobre un esquema que ya las tiene.
+
+> Alembic quedó descartado y salió de `backend/pyproject.toml`, donde estaba
+> declarado sin usarse. Versionar desde Python no aporta nada aquí —el esquema
+> vive en SQL plano porque eso es lo que consume el CLI de Supabase— y sí
+> costaría reescribir las 22 migraciones y sellar la base para adoptarlo.

@@ -1,2 +1,8 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Los scripts de shell van SIEMPRE con LF, incluso en un checkout de Windows.
+# Un `#!/usr/bin/env bash\r` hace que Linux busque un intérprete llamado
+# "bash\r" y falle con "no such file or directory" — que es lo último que dice
+# el error, y lo primero que no se entiende.
+*.sh text eol=lf
