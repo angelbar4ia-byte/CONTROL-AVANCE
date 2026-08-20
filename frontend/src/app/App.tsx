@@ -36,6 +36,7 @@ import Expediente from '@/expediente/Expediente';
 import Torre from '@/torre/Torre';
 import ExtraCatalogo from '@/extras/ExtraCatalogo';
 import Revisiones from '@/revisiones/Revisiones';
+import CierresDeObra from '@/cierresObra/CierresDeObra';
 
 export function App() {
   return (
@@ -88,6 +89,10 @@ function Rutas() {
             pantalla el expediente llega al cierre sin evidencia (§11.3 D). */}
         <Route path="/extra-catalogo" element={<ExtraCatalogo />} />
         <Route path="/revisiones" element={<Revisiones />} />
+        {/* Cierre de obra final (§11.3 D): el SI abre el acta y los cuatro
+            roles firman su parte, así que la bandeja es compartida aunque el
+            sidebar solo la traiga en el suyo (§5.1). */}
+        <Route path="/cierres-obra" element={<CierresDeObra />} />
         {/* Las features se registran aquí conforme se implementan. */}
         {/* Proyecto → Cluster → Obra: una sola pantalla montada en la ruta
             que cada rol trae en su sidebar (§5.1, §5.3) — "Mis obras" y

@@ -3123,6 +3123,320 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/cierre-obra": {
+      "post": {
+        "tags": [
+          "cierres-obra"
+        ],
+        "summary": "Abrir el cierre de obra final",
+        "description": "Crea el acta y **reúne los pendientes** (§11.3 D.1).\n\nAbrir con pendientes está permitido y es el punto: convocar al equipo es lo\nque hace que se resuelvan. Lo que no se puede es firmar con ellos.\n\nIdempotente por partida doble: la cabecera evita la segunda petición y\n`uq_cierre_obra` garantiza que una obra tenga un solo cierre — reabrirlo\ndevuelve el que ya estaba.",
+        "operationId": "abrir_cierre_de_obra_api_v1_obras__obra_id__cierre_obra_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreDeObraRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo el super intendente abre el cierre (§11.2)."
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cierres-obra/{cierre_id}/participar": {
+      "post": {
+        "tags": [
+          "cierres-obra"
+        ],
+        "summary": "Registrar la parte de tu rol en el acta",
+        "description": "Cada rol registra lo suyo (§11.3 D.2).\n\nEl rol sale del token, nunca del cuerpo: es lo que decide qué parte del acta\nse está firmando, así que aceptarlo del cliente sería dejar que alguien\nfirmara por otro.\n\nCon la cuarta participación el acta se completa y la obra queda\n**entregada** y congelada (§11.3 D.3) — en la misma transacción, no por\nevento: el razonamiento está en el caso de uso.",
+        "operationId": "participar_api_v1_cierres_obra__cierre_id__participar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cierre_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cierre Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParticiparPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreDeObraRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El cierre no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Ese rol ya participó, la obra ya está cerrada, o al completarse el acta quedaban pendientes que impiden entregar."
+          }
+        }
+      }
+    },
+    "/api/v1/cierres-obra": {
+      "get": {
+        "tags": [
+          "cierres-obra"
+        ],
+        "summary": "Bandeja de cierres de obra",
+        "description": "Los cierres visibles (§5.1).\n\nSin `exigir_rol`: el §11.2 pone la `(SI)` sobre el alta, y el acta la miran\nlos cuatro roles —cada uno tiene que ir a firmar la suya—. RLS ya acota a\nlas obras que cada quien ve.",
+        "operationId": "listar_cierres_de_obra_api_v1_cierres_obra_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "estatus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "en_proceso | cerrada",
+              "title": "Estatus"
+            },
+            "description": "en_proceso | cerrada"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResumenDeCierreRespuesta"
+                  },
+                  "title": "Response Listar Cierres De Obra Api V1 Cierres Obra Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cierres-obra/{cierre_id}": {
+      "get": {
+        "tags": [
+          "cierres-obra"
+        ],
+        "summary": "Estado del acta y lo que falta",
+        "operationId": "obtener_cierre_de_obra_api_v1_cierres_obra__cierre_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cierre_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cierre Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreDeObraRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El cierre no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cierres-obra/{cierre_id}/participaciones": {
+      "get": {
+        "tags": [
+          "cierres-obra"
+        ],
+        "summary": "Quién ha firmado y qué dijo",
+        "description": "Las partes ya registradas (§11.3 D.2).\n\nVa aparte del estado y no anidada dentro porque son dos preguntas con\nritmos distintos: el estado se consulta al abrir la pantalla y las partes\nsolo cuando alguien quiere leer lo que escribieron los demás.",
+        "operationId": "listar_participaciones_api_v1_cierres_obra__cierre_id__participaciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cierre_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cierre Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ParticipacionRespuesta"
+                  },
+                  "title": "Response Listar Participaciones Api V1 Cierres Obra  Cierre Id  Participaciones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El cierre no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/estimaciones": {
       "post": {
         "tags": [
@@ -4612,7 +4926,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/PendienteRespuesta"
+                    "$ref": "#/components/schemas/obractrl__adapters__api__v1__cargas__PendienteRespuesta"
                   },
                   "title": "Response Bandeja De Carga Api V1 Cargas  Carga Id  Pendientes Get"
                 }
@@ -6414,6 +6728,70 @@
         },
         "type": "object",
         "title": "CerrarIncidenciaPeticion"
+      },
+      "CierreDeObraRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "description": "en_proceso | cerrada"
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/obractrl__adapters__api__v1__cierres_obra__PendienteRespuesta"
+            },
+            "type": "array",
+            "title": "Pendientes"
+          },
+          "participaron": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Participaron"
+          },
+          "faltan": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Faltan",
+            "description": "Roles que todavía no registran su parte (§11.3 D.2)."
+          },
+          "puede_cerrarse": {
+            "type": "boolean",
+            "title": "Puede Cerrarse",
+            "description": "Participaron todos y no queda ningún pendiente bloqueante."
+          },
+          "cerro_la_obra": {
+            "type": "boolean",
+            "title": "Cerro La Obra",
+            "description": "`true` solo en la participación que completó el acta: permite decir «la obra quedó entregada» en vez de «guardado».",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "estatus",
+          "pendientes",
+          "participaron",
+          "faltan",
+          "puede_cerrarse"
+        ],
+        "title": "CierreDeObraRespuesta",
+        "description": "Estado del acta (§11.3 D)."
       },
       "CierreDelExpedienteRespuesta": {
         "properties": {
@@ -9479,18 +9857,28 @@
         ],
         "title": "ObraRespuesta"
       },
-      "PendienteRespuesta": {
+      "ParticipacionRespuesta": {
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
             "title": "Id"
           },
-          "tipo": {
+          "rol": {
             "type": "string",
-            "title": "Tipo"
+            "title": "Rol"
           },
-          "entidad": {
+          "aportacion": {
+            "type": "string",
+            "title": "Aportacion",
+            "description": "Qué aporta ese rol al acta: entrega, visto bueno, calidad, firma."
+          },
+          "usuario_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Usuario Id"
+          },
+          "usuario_nombre": {
             "anyOf": [
               {
                 "type": "string"
@@ -9499,9 +9887,9 @@
                 "type": "null"
               }
             ],
-            "title": "Entidad"
+            "title": "Usuario Nombre"
           },
-          "valor_origen": {
+          "comentario": {
             "anyOf": [
               {
                 "type": "string"
@@ -9510,46 +9898,67 @@
                 "type": "null"
               }
             ],
-            "title": "Valor Origen"
+            "title": "Comentario"
           },
-          "propuesta": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Propuesta"
+          "evidencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidencias"
           },
-          "critico": {
-            "type": "boolean",
-            "title": "Critico"
-          },
-          "resuelto": {
-            "type": "boolean",
-            "title": "Resuelto"
-          },
-          "origen_ref": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Origen Ref"
+          "fecha": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha"
           }
         },
         "type": "object",
         "required": [
           "id",
-          "tipo",
-          "entidad",
-          "valor_origen",
-          "propuesta",
-          "critico",
-          "resuelto",
-          "origen_ref"
+          "rol",
+          "aportacion",
+          "usuario_id",
+          "fecha"
         ],
-        "title": "PendienteRespuesta",
-        "description": "Renglón de la bandeja: el sistema propone, el humano confirma (§10.3)."
+        "title": "ParticipacionRespuesta"
+      },
+      "ParticiparPeticion": {
+        "properties": {
+          "comentario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comentario"
+          },
+          "evidencias": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidencias",
+            "description": "Claves ya subidas a R2 con `POST /evidencias/presigned` (§12.2)."
+          },
+          "acta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acta",
+            "description": "Texto del acta. Lo aporta la firma del Super intendente; en los demás roles se ignora, porque el acta es del cierre y no de cada parte."
+          }
+        },
+        "type": "object",
+        "title": "ParticiparPeticion"
       },
       "PerfilRespuesta": {
         "properties": {
@@ -10427,6 +10836,83 @@
         ],
         "title": "RespuestaItem"
       },
+      "ResumenDeCierreRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "obra_clave": {
+            "type": "string",
+            "title": "Obra Clave"
+          },
+          "obra_estatus": {
+            "type": "string",
+            "title": "Obra Estatus"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "fecha": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha"
+          },
+          "acta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acta"
+          },
+          "abierto_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Abierto Por"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "obra_clave",
+          "obra_estatus",
+          "estatus",
+          "created_at"
+        ],
+        "title": "ResumenDeCierreRespuesta",
+        "description": "Renglón de la bandeja de cierres de obra (§5.1)."
+      },
       "ReversaRespuesta": {
         "properties": {
           "carga_id": {
@@ -11090,6 +11576,108 @@
           "retiradas"
         ],
         "title": "VersionPublicadaRespuesta"
+      },
+      "obractrl__adapters__api__v1__cargas__PendienteRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "entidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entidad"
+          },
+          "valor_origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Origen"
+          },
+          "propuesta": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Propuesta"
+          },
+          "critico": {
+            "type": "boolean",
+            "title": "Critico"
+          },
+          "resuelto": {
+            "type": "boolean",
+            "title": "Resuelto"
+          },
+          "origen_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen Ref"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tipo",
+          "entidad",
+          "valor_origen",
+          "propuesta",
+          "critico",
+          "resuelto",
+          "origen_ref"
+        ],
+        "title": "PendienteRespuesta",
+        "description": "Renglón de la bandeja: el sistema propone, el humano confirma (§10.3)."
+      },
+      "obractrl__adapters__api__v1__cierres_obra__PendienteRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "detalle": {
+            "type": "string",
+            "title": "Detalle"
+          },
+          "bloquea": {
+            "type": "boolean",
+            "title": "Bloquea",
+            "description": "Los que bloquean impiden cerrar; los demás se muestran para que alguien los mire. Un expediente vacío no es lo mismo que una estimación sin validar."
+          },
+          "cuantos": {
+            "type": "integer",
+            "title": "Cuantos",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "detalle",
+          "bloquea"
+        ],
+        "title": "PendienteRespuesta",
+        "description": "Algo que falta para poder firmar la entrega (§11.3 D.1)."
       }
     },
     "securitySchemes": {

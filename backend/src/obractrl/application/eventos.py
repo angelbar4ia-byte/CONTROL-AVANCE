@@ -32,6 +32,7 @@ from uuid import UUID
 __all__ = [
     "ActividadCerrada",
     "BusEnProceso",
+    "CierreDeObraCompletado",
     "EstimacionValidada",
     "IncidenciaDetiene",
     "Manejador",
@@ -85,6 +86,24 @@ class IncidenciaDetiene:
     incidencia_id: UUID
     refs_bloqueadas: tuple[str, ...] = ()
     bloquear: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class CierreDeObraCompletado:
+    """§11.3 D.3 — los cuatro roles firmaron y la obra queda entregada.
+
+    **Lo que este evento NO hace es congelar la obra.** Eso lo escribe
+    `Participar` dentro de su unidad de trabajo, por el mismo razonamiento que
+    explica `IncidenciaDetiene`: el bus se traga los fallos de sus manejadores,
+    y `entregada` es una frontera de permisos —no un dato derivado—. Una obra
+    cerrada sin congelar admitiría capturas sobre un acta ya firmada.
+
+    El evento existe para lo que sí es derivado y puede reintentarse: avisar,
+    archivar, recalcular indicadores.
+    """
+
+    obra_id: UUID
+    cierre_id: UUID
 
 
 @dataclass(frozen=True, slots=True)

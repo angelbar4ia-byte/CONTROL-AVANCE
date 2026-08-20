@@ -36,7 +36,7 @@ import type {
   HTTPValidationError,
   ListarCargasApiV1CargasGetParams,
   LoteRespuesta,
-  PendienteRespuesta,
+  ObractrlAdaptersApiV1CargasPendienteRespuesta,
   ReversaRespuesta,
   TipoCarga
 } from '.././modelo';
@@ -632,7 +632,7 @@ export const bandejaDeCargaApiV1CargasCargaIdPendientesGet = (
 ) => {
       
       
-      return peticion<PendienteRespuesta[]>(
+      return peticion<ObractrlAdaptersApiV1CargasPendienteRespuesta[]>(
       {url: `/api/v1/cargas/${cargaId}/pendientes`, method: 'GET',
         params, signal
     },
