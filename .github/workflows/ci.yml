@@ -122,7 +122,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # La misma que `frontend/.nvmrc`. No es un detalle: una prueba que
+          # tocaba `Response.blob()` pasó en local con Node 26 y falló aquí con
+          # Node 20, porque el `Blob` no se comporta igual en los dos. Que las
+          # dos versiones estén escritas en el repo es lo que permite
+          # reproducir un rojo de CI sin adivinar.
+          node-version-file: frontend/.nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 

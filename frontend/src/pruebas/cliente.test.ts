@@ -36,12 +36,22 @@ interface Llamada {
 
 let llamadas: Llamada[] = [];
 
+/**
+ * Arma la respuesta que verá `peticion`.
+ *
+ * `cuerpo` como **string** viaja crudo (para simular un binario); como objeto
+ * se serializa a JSON. Aquí no se construye ningún `Blob`, y no es un detalle
+ * de estilo: el `Blob` global lo pone jsdom y el `Response` lo pone undici, que
+ * no lo reconoce y lo convierte con `String()` — el cuerpo acababa siendo el
+ * texto literal `"[object Blob]"`. Pasaba en local por casualidad de versiones
+ * y fallaba en CI, que es la peor combinación posible.
+ */
 function responderCon(cuerpo: unknown, opciones: ResponseInit = {}): void {
   // Un 204 no admite cuerpo: el constructor de `Response` lo rechaza, igual
   // que lo haría un servidor.
   const sinCuerpo = opciones.status === 204;
   const respuesta = new Response(
-    sinCuerpo ? null : cuerpo instanceof Blob ? cuerpo : JSON.stringify(cuerpo),
+    sinCuerpo ? null : typeof cuerpo === 'string' ? cuerpo : JSON.stringify(cuerpo),
     {
       status: 200,
       headers: { 'content-type': 'application/json' },
@@ -170,7 +180,7 @@ describe('multipart', () => {
 
 describe('descargas binarias', () => {
   it('un xlsx vuelve como archivo con su nombre, no como JSON roto', async () => {
-    responderCon(new Blob(['PK']), {
+    responderCon('PK', {
       headers: {
         'content-type':
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -184,11 +194,20 @@ describe('descargas binarias', () => {
     });
 
     expect(archivo.nombre).toBe('plantilla_obras.xlsx');
-    expect(archivo.blob).toBeInstanceOf(Blob);
+    // Se afirma sobre lo que el objeto **tiene**, no sobre de qué clase es ni
+    // sobre métodos opcionales. `toBeInstanceOf(Blob)` pasaba en local y
+    // fallaba en CI —el `Blob` global lo pone jsdom y el que devuelve
+    // `Response.blob()` lo crea undici: dos clases para el mismo dato— y
+    // `.text()` tampoco está en todas las implementaciones. `size` sí, y es lo
+    // que prueba que llegaron los bytes en vez de un JSON malinterpretado.
+    expect(archivo.blob.size).toBe(2);
+    // El tipo sale de la cabecera, no del blob: es lo que decide la rama
+    // binaria de `peticion`.
+    expect(archivo.tipo).toContain('spreadsheetml');
   });
 
   it('un nombre con acentos viaja en la forma extendida', async () => {
-    responderCon(new Blob(['%PDF']), {
+    responderCon('%PDF', {
       headers: {
         'content-type': 'application/pdf',
         'content-disposition':
@@ -205,7 +224,7 @@ describe('descargas binarias', () => {
   });
 
   it('sin Content-Disposition hay un nombre usable', async () => {
-    responderCon(new Blob(['x']), {
+    responderCon('x', {
       headers: { 'content-type': 'application/octet-stream' },
     });
 
