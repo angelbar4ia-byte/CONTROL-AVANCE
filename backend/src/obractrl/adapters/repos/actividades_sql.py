@@ -23,7 +23,7 @@ import json
 from datetime import date
 from decimal import Decimal
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -92,6 +92,101 @@ class RepositorioActividadesSQL:
             )
         ).mappings().first()
         return dict(fila) if fila is not None else None
+
+    async def obtener_para_captura(self, actividad_id: UUID) -> dict[str, Any] | None:
+        """Como `obtener`, pero **bloqueando la fila** hasta el commit.
+
+        POR QUÉ HACE FALTA, Y POR QUÉ NO BASTA `obtener`
+
+        `PATCH /actividades/{id}/avance` recibe un **absoluto** y el caso de uso
+        deriva el delta restando lo que ya había (D6). Eso es un
+        lee-modifica-escribe, y desde D5 hay **otro escritor**: el móvil manda
+        sus deltas por PowerSync directo a Postgres, sin pasar por la API.
+
+        Con `READ COMMITTED` —el default— la carrera es concreta: la actividad
+        va en 10, la web lee 10 y el residente quiere dejarla en 12; entre la
+        lectura y la escritura, el móvil sincroniza un +5 y la deja en 15. La
+        web calcula delta = +2 sobre el 10 que leyó, y el total queda en 17. Ni
+        12 ni 15: un número que nadie capturó.
+
+        El `for update` serializa las dos escrituras. El trigger
+        `app.registro_avance_agregar` actualiza `actividad`, así que la
+        transacción del móvil espera aquí y el delta se calcula sobre el total
+        de verdad.
+
+        `nowait` **no** se usa a propósito: esperar unos milisegundos es mejor
+        que devolverle un error al residente por algo que se resuelve solo.
+        """
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, obra_id, cant_base, cant_programada,
+                           cant_ejecutada, avance_pct, estatus, bloqueada,
+                           precio_unitario, precio_destajo, modo_pago
+                    from actividad
+                    where id = :id
+                    for update
+                    """
+                ),
+                {"id": str(actividad_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def crear_extra(self, datos: dict[str, Any]) -> UUID:
+        """Alta extra-catálogo (§11.2 `POST /actividades`, rol R).
+
+        El uuid se genera en Python y no con `RETURNING`, igual que en
+        `proyectos_sql` — aunque aquí la razón es otra: `actividad_scope` usa
+        `app.obra_visible(obra_id)`, que consulta `obra` y no `actividad`, así
+        que un `RETURNING` funcionaría. Se genera antes por consistencia con el
+        resto de los repos que crean, y para que el caso de uso pueda
+        registrarlo antes de commitear.
+
+        `cant_programada` nace igual a `cant_base`: un extra se autoriza por la
+        cantidad que se va a ejecutar, no hay una "cantidad de proyecto"
+        anterior de la que desviarse. Y `cant_ejecutada` queda en cero — el
+        avance entra por su camino de siempre (§6, D6).
+        """
+        actividad_id = uuid4()
+        await self._sesion.execute(
+            text(
+                """
+                insert into actividad
+                    (id, org_id, obra_id, concepto_id, frente_id, descripcion,
+                     cant_base, cant_programada, cant_ejecutada,
+                     precio_unitario, precio_destajo, modo_pago,
+                     duracion_dias, estatus, extra, orden_cambio)
+                values
+                    (:id, cast(current_setting('app.org_id') as uuid), :obra_id,
+                     cast(:concepto_id as uuid), cast(:frente_id as uuid),
+                     :descripcion, :cant_base, :cant_base, 0,
+                     :precio_unitario, :precio_destajo,
+                     cast(:modo_pago as modo_pago), :duracion_dias,
+                     cast(:estatus as estatus_actividad), true, :orden_cambio)
+                """
+            ),
+            {
+                "id": str(actividad_id),
+                "obra_id": str(datos["obra_id"]),
+                "concepto_id": (
+                    str(datos["concepto_id"]) if datos.get("concepto_id") else None
+                ),
+                "frente_id": (
+                    str(datos["frente_id"]) if datos.get("frente_id") else None
+                ),
+                "descripcion": datos["descripcion"],
+                "cant_base": datos["cant_base"],
+                "precio_unitario": datos["precio_unitario"],
+                "precio_destajo": datos["precio_destajo"],
+                "modo_pago": datos["modo_pago"],
+                "duracion_dias": datos["duracion_dias"],
+                "estatus": datos["estatus"],
+                "orden_cambio": datos["orden_cambio"],
+            },
+        )
+        return actividad_id
 
     async def actualizar_avance(
         self,

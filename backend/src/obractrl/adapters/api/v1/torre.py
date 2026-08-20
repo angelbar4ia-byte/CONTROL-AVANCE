@@ -26,12 +26,16 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from obractrl.adapters.api.dependencias import SesionRLS
+from obractrl.adapters.api.casos_uso import DarDeAltaExtraDep
+from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS, exigir_rol
+from obractrl.adapters.api.idempotencia import Idempotencia
 from obractrl.adapters.repos.torre_sql import RepositorioTorreSQL
-from obractrl.domain.shared.diccionario import EstatusActividad
+from obractrl.application.casos_uso.dar_de_alta_extra import ComandoDarDeAltaExtra
+from obractrl.domain.obras.extra_catalogo import ActividadExtra
+from obractrl.domain.shared.diccionario import EstatusActividad, ModoPago, Rol
 
 router = APIRouter(tags=["torre"])
 
@@ -101,12 +105,65 @@ class ActividadRespuesta(BaseModel):
     precio_destajo: Decimal
 
 
+class DarDeAltaExtraPeticion(BaseModel):
+    """Trabajo que apareció en obra y no estaba en el prototipo (§11.2)."""
+
+    obra_id: UUID
+    descripcion: str = Field(
+        min_length=1,
+        description="Qué trabajo es. Sin esto el extra no se puede revisar ni estimar.",
+    )
+    orden_cambio: str = Field(
+        min_length=1,
+        description=(
+            "Orden de cambio que autoriza el trabajo. **Obligatoria**: no hay "
+            "extra sin autorización (§11.2). La base lo repite como `CHECK`."
+        ),
+    )
+    cant_base: Decimal = Field(gt=0)
+    modo_pago: ModoPago = ModoPago.DESTAJO
+    precio_unitario: Decimal = Field(default=Decimal(0), ge=0)
+    precio_destajo: Decimal = Field(default=Decimal(0), ge=0)
+    concepto_id: UUID | None = None
+    frente_id: UUID | None = None
+    duracion_dias: Decimal = Field(default=Decimal(1), gt=0)
+
+
+class ExtraRespuesta(BaseModel):
+    """Lo que quedó dado de alta (§11.2)."""
+
+    id: UUID
+    obra_id: UUID
+    descripcion: str
+    orden_cambio: str
+    cant_base: Decimal
+    modo_pago: str
+    estatus: str = Field(
+        description="Nace en `extra_catalogo` y avanza sola al capturar (§8.2)."
+    )
+
+    @classmethod
+    def desde_dominio(cls, extra_id: UUID, extra: ActividadExtra) -> ExtraRespuesta:
+        return cls(
+            id=extra_id,
+            obra_id=UUID(extra.obra_id),
+            descripcion=extra.descripcion,
+            orden_cambio=extra.orden_cambio,
+            cant_base=extra.cant_base,
+            modo_pago=extra.modo_pago.value,
+            estatus=extra.estatus.value,
+        )
+
+
 class ActividadDetalleRespuesta(ActividadRespuesta):
     """Lo mismo, más lo que solo interesa al abrirla (§11.2 `GET /actividades/{id}`)."""
 
     obra_clave: str
     dependencias: list = Field(default_factory=list)
     notas: str | None = None
+    orden_cambio: str | None = Field(
+        default=None, description="Si es extra-catálogo, la OC que lo autorizó (§11.2)."
+    )
     contratista_nombre: str | None = None
     cuadrilla_nombre: str | None = None
 
@@ -195,3 +252,50 @@ async def actividad(actividad_id: UUID, sesion: SesionRLS) -> dict:
             ),
         )
     return fila
+
+
+@router.post(
+    "/actividades",
+    response_model=ExtraRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Alta extra-catálogo con orden de cambio",
+    # Solo el Residente (§11.2). El dominio lo vuelve a comprobar: aquí el 403
+    # es legible, allá la regla queda escrita donde vive.
+    dependencies=[Depends(exigir_rol(Rol.RESIDENTE)), Idempotencia],
+    responses={
+        403: {"description": "Solo el residente da de alta trabajo extra (§11.2)."},
+        422: {"description": "Falta la orden de cambio, o el precio no permite estimar."},
+    },
+)
+async def dar_de_alta_extra(
+    peticion: DarDeAltaExtraPeticion,
+    ctx: ContextoActual,
+    caso: DarDeAltaExtraDep,
+) -> ExtraRespuesta:
+    """Registra trabajo que apareció en obra y no estaba en el prototipo.
+
+    Idempotente porque un doble clic crearía **dos** actividades con la misma
+    orden de cambio, y las dos se estimarían: el extra duplicado se paga dos
+    veces y nadie lo nota hasta la conciliación.
+
+    La obra viaja en el cuerpo y no en la ruta porque la actividad es el
+    recurso que se crea; si esa obra no es visible, la política de `actividad`
+    rechaza el INSERT (§12.4) — no hace falta preguntarle antes al repo de
+    Obras (§11.1).
+    """
+    resultado = await caso.ejecutar(
+        ComandoDarDeAltaExtra(
+            obra_id=peticion.obra_id,
+            descripcion=peticion.descripcion,
+            orden_cambio=peticion.orden_cambio,
+            cant_base=peticion.cant_base,
+            rol=Rol(ctx.rol),
+            modo_pago=peticion.modo_pago,
+            precio_unitario=peticion.precio_unitario,
+            precio_destajo=peticion.precio_destajo,
+            concepto_id=peticion.concepto_id,
+            frente_id=peticion.frente_id,
+            duracion_dias=peticion.duracion_dias,
+        )
+    )
+    return ExtraRespuesta.desde_dominio(resultado.id, resultado.actividad)

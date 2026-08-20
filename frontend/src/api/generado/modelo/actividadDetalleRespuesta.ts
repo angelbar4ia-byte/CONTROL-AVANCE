@@ -14,6 +14,7 @@ import type { ActividadDetalleRespuestaDesfase } from './actividadDetalleRespues
 import type { ActividadDetalleRespuestaFechaInicio } from './actividadDetalleRespuestaFechaInicio';
 import type { ActividadDetalleRespuestaFechaTermino } from './actividadDetalleRespuestaFechaTermino';
 import type { ActividadDetalleRespuestaNotas } from './actividadDetalleRespuestaNotas';
+import type { ActividadDetalleRespuestaOrdenCambio } from './actividadDetalleRespuestaOrdenCambio';
 import type { ActividadDetalleRespuestaContratistaNombre } from './actividadDetalleRespuestaContratistaNombre';
 import type { ActividadDetalleRespuestaCuadrillaNombre } from './actividadDetalleRespuestaCuadrillaNombre';
 
@@ -54,6 +55,8 @@ export interface ActividadDetalleRespuesta {
   obra_clave: string;
   dependencias?: unknown[];
   notas?: ActividadDetalleRespuestaNotas;
+  /** Si es extra-catálogo, la OC que lo autorizó (§11.2). */
+  orden_cambio?: ActividadDetalleRespuestaOrdenCambio;
   contratista_nombre?: ActividadDetalleRespuestaContratistaNombre;
   cuadrilla_nombre?: ActividadDetalleRespuestaCuadrillaNombre;
 }

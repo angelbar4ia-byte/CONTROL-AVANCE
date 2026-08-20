@@ -131,6 +131,13 @@ const CONTROL_OBRA: readonly SeccionNav[] = [
     ],
   },
   {
+    // El §11.2 la marca «móvil · Control de obra», pero el móvil es la Fase 15
+    // y sin esta entrada el expediente llega al cierre de obra sin evidencia de
+    // calidad (§11.3 D).
+    titulo: 'Calidad',
+    items: [{ a: '/revisiones', etiqueta: 'Revisión física', icono: ClipboardCheck }],
+  },
+  {
     titulo: 'Reportes',
     items: [
       { a: '/evaluaciones', etiqueta: 'Evaluaciones', icono: Star },

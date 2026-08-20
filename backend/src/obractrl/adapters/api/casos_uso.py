@@ -55,6 +55,7 @@ from obractrl.application.casos_uso.calcular_cpu import (
     PublicarVersionCPU,
 )
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
+from obractrl.application.casos_uso.dar_de_alta_extra import DarDeAltaExtra
 from obractrl.application.casos_uso.exportar_estimacion import (
     ArmarReporteDeEstimacion,
 )
@@ -171,6 +172,7 @@ __all__ = [
     "CrearProyectoDep",
     "CrearUnidadDep",
     "CrearUsuarioDep",
+    "DarDeAltaExtraDep",
     "EditarProgramacionActividadDep",
     "EnviarEstimacionDep",
     "ExplotarConceptoDep",
@@ -824,3 +826,13 @@ ResetearContrasenaDep = Annotated[
     ResetearContrasena, Depends(obtener_resetear_contrasena)
 ]
 AsignarAlcanceDep = Annotated[AsignarAlcance, Depends(obtener_asignar_alcance)]
+
+
+def obtener_dar_de_alta_extra(sesion: SesionRLS) -> DarDeAltaExtra:
+    return DarDeAltaExtra(
+        actividades=RepositorioActividadesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+DarDeAltaExtraDep = Annotated[DarDeAltaExtra, Depends(obtener_dar_de_alta_extra)]

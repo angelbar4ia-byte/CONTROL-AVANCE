@@ -75,7 +75,12 @@ class CapturarAvance:
         self._uow = uow
 
     async def ejecutar(self, cmd: ComandoCapturarAvance) -> CapturaAvance:
-        actividad = await self._actividades.obtener(cmd.actividad_id)
+        # Con bloqueo, no con `obtener`: esto es un lee-modifica-escribe y desde
+        # D5 hay otro escritor —el móvil, por PowerSync, sin pasar por la API—.
+        # Sin el bloqueo, un delta que llegue en medio hace que el total quede
+        # en un número que nadie capturó. El razonamiento está entero en
+        # `RepositorioActividadesSQL.obtener_para_captura`.
+        actividad = await self._actividades.obtener_para_captura(cmd.actividad_id)
         if actividad is None:
             # RLS ya filtró por alcance: "no existe" y "no la puedes ver" son
             # indistinguibles a propósito, para no filtrar existencia (§12.4).
