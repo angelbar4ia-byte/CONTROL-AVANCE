@@ -19,11 +19,16 @@ export const queryClient = new QueryClient({
     mutations: {
       // Reintentar a ciegas duplicaría cierres y estimaciones (§11.3 C, E).
       //
-      // La API ya acepta `Idempotency-Key` en esas mutaciones y con una clave
-      // el reintento sería seguro, pero **la clave la tiene que fijar quien
-      // llama**: una generada por petición cambiaría en cada intento y no
-      // desduplicaría nada. Ver `claveDeIdempotencia` en `api/cliente.ts`.
-      // Mientras las pantallas no la manden, el reintento sigue apagado.
+      // Las pantallas ya mandan su `Idempotency-Key` en las mutaciones que el
+      // backend protege, así que **para esas** el reintento sería seguro. Pero
+      // esto es un default **global** y solo doce rutas del contrato declaran
+      // la cabecera: encenderlo aquí también reintentaría el alta de un
+      // concepto o de un proyecto, que no están protegidas y se duplicarían.
+      //
+      // Así que se queda en 0, y la decisión ya no depende de las pantallas:
+      // depende de cuántas rutas del backend sean idempotentes. Una pantalla
+      // que quiera reintento lo pide en su propio `mutation: { retry }`, donde
+      // sí se sabe si la ruta lo aguanta.
       retry: 0,
     },
   },

@@ -16,13 +16,13 @@
 | D7 | **Las Fases 7+ se ordenan por un piloto en obra real** | El orden lo decide qué **bloquea el uso**, no qué falta del spec. Consecuencias: la administración de usuarios sube al primer lugar —hoy no se puede dar de alta a nadie y el Login ya lo promete—; presupuesto, procesos y tiempo real bajan; y el móvil se va al final, lo que hace que el piloto sea **web-only**. Eso último solo se sostiene si el residente captura con señal: `PATCH /actividades/{id}/avance` y la feature `avance` de la web ya lo permiten. **Si el residente resulta no tener señal en campo, el móvil deja de ser opcional y salta al frente de la fila** — es el supuesto que hay que confirmar antes de empezar el piloto, no durante. |
 | D8 | **Endurecer no compite con el piloto: es su precondición** | Un piloto mete datos reales de un cliente en producción, así que la Fase 8 (operación segura) va **antes** que cualquier feature nueva. Sin restauración probada, sin poder revertir una migración y sin rastro de quién cambió qué, el riesgo no es técnico sino del cliente. El detonante fue encontrar que **nada se ha desplegado nunca**: las seis fases viven en una rama sin fusionar a `main`, mientras el §12.12 manda trunk-based con `main` siempre desplegable. El endurecimiento que **sostiene** el sistema cuando crece —virtualización, datasets golden, deuda de tipos— es otra cosa y va en la Fase 14. |
 
-## Estado actual (Fases 7 y 8 cerradas)
+## Estado actual (Fases 7, 8 y 9 cerradas)
 
 | Capa | Entregado | Pendiente |
 |---|---|---|
 | `database/` | 24 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · guardia de privilegios de `usuario` · 6 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
 | `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · **787 pruebas**, 193 de ellas de integración contra Postgres real | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
-| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo` (Usuarios y Asignaciones) · **243 pruebas** + 4 E2E de humo + 3 del alta | Features: cargas, expediente, reportes, revisión física, torre · cablear `Idempotency-Key` en las pantallas que faltan · los 6 E2E de workflow |
+| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes` · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **273 pruebas** + 4 E2E de humo + 3 del alta | Features: revisión física, torre, presupuesto · los 6 E2E de workflow |
 | `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules auditadas · config Play | Pantallas de captura y revisión · cola de evidencias a R2 · build de Play Store |
 | CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), ida y vuelta de las 24 migraciones, restauración de respaldo, web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render |
 
@@ -30,9 +30,10 @@
 
 ## Lo inmediato
 
-**Fases 7 y 8 cerradas.** El sistema se puede operar —desplegar, promover,
-revertir, restaurar, con rastro de quién cambió qué— y ya se puede dar de alta a
-alguien sin abrir `psql`, que era lo que bloqueaba el piloto.
+**Fases 7, 8 y 9 cerradas.** El sistema se puede operar —desplegar, promover,
+revertir, restaurar, con rastro de quién cambió qué—, ya se puede dar de alta a
+alguien sin abrir `psql`, y un Control de obra puede subir su catálogo real
+desde Excel — las tres cosas que bloqueaban el piloto.
 
 Quedan cuatro cabos, ninguno bloqueante y todos de operación:
 
@@ -56,11 +57,9 @@ reloj salen en cualquier orden. Es lo mismo que la 0019 resolvió en
 `carga_snapshot` con una columna `orden`, y esa es también la solución aquí. Va
 como primer arreglo de la Fase 14.
 
-Lo que sigue: **Fase 9** (cerrar la Fase 5 en web) o **Fase 10** (Torre de
-control). La Torre es donde aterrizan tres de los cuatro roles y hoy caen en
-Cierres como sustituto; las Cargas son lo que permite subir el catálogo real
-del cliente sin correr scripts. Con la Fase 7 cerrada, el piloto ya puede
-empezar a dar de alta gente mientras se decide.
+Lo que sigue: **Fase 10** (Torre de control). Es donde aterrizan tres de los
+cuatro roles del §5.1 y hoy caen en Cierres como sustituto, con un comentario en
+`App.tsx` que lo dice.
 
 El detalle de la Fase 6 está en [`FASE-6.md`](FASE-6.md); el procedimiento de
 operación, en [`OPERACION.md`](OPERACION.md).
@@ -345,23 +344,62 @@ ejercitado contra Render.
 
 ## Fase 9 — Cerrar la Fase 5 en web
 
+> **Cerrada.** Reportes quedó resuelto dentro de Expediente y Estimación, no
+> como pantalla aparte (ver abajo).
+
 Deuda de D1: el vertical de cargas, expediente y reportes llegó hasta la API y
-se detuvo. Los endpoints existen, están en el contrato y los hooks de Orval ya
-están generados, así que es trabajo de UI y no de integración. Para un piloto
-con datos reales, la bandeja de cargas es además lo que permite subir los
-catálogos del cliente sin que un operador corra scripts.
+se detuvo. Los endpoints existían, estaban en el contrato y los hooks de Orval
+ya estaban generados, así que era trabajo de UI y no de integración.
 
-- **Cargas** — bandeja de pendientes del §10.3: subir archivo, ver el reporte
-  de errores **por fila** (número, columna, valor, motivo), revertir el lote
-  como unidad, descargar plantilla.
-- **Expediente** — por obra: documentos, la vista agregada y el PDF.
-- **Reportes** — encolar, consultar estado y descargar el archivo.
+- ✅ **Cargas** — bandeja del §10.3: plantillas por tipo, subida con **vista
+  previa obligatoria** antes de aplicar (§10.2), reporte de errores por fila
+  —número, columna, valor, motivo— y reversa del lote como unidad (§10.8).
+- ✅ **Expediente** — por obra: documentos, evidencias, cierres, estimaciones y
+  las dos sumas de montos validados. El documento se sube **directo a R2** con
+  presigned URL; no pasa por la API (§12.2).
+- ✅ **Reportes** — encolar, seguir y descargar. No como pantalla propia: los
+  dos reportes del sistema salen de un contexto —el XLSX desde una estimación,
+  el PDF desde un expediente— y una bandeja separada obligaría a ir a otro lado
+  a buscar lo que se acaba de pedir. `SeguimientoDeReporte` es un componente que
+  vive donde se encola, sondea mientras el trabajo está vivo y se apaga solo.
 
-Al cerrar cada pantalla se le cablea su `Idempotency-Key` y se le escribe su
-E2E (reglas 1 y 2), incluido el rezago de las pantallas que ya existían.
+**Tres bugs del transporte que bloqueaban todo esto**, y que ninguna prueba veía
+porque las de web ejercitaban reglas puras y ninguna salía por la red:
+
+1. `peticion` anteponía `/api/v1` a rutas que ya lo traían: toda llamada iba a
+   `/api/v1/api/v1/...` (corregido en la Fase 7, al mandar la primera cabecera).
+2. Un `FormData` se serializaba con `JSON.stringify` y se le fijaba
+   `multipart/form-data` **sin boundary** — un multipart que ningún servidor
+   puede separar. Sin esto, subir una carga era imposible.
+3. Las descargas binarias pasaban por `respuesta.json()`, que sobre un `.xlsx`
+   truena con un error de sintaxis que no dice nada. Ahora vuelven como archivo
+   con su nombre, tomado del `Content-Disposition`.
+
+`src/pruebas/cliente.test.ts` cubre los tres, que es lo que faltaba: una suite
+que mire **lo que se manda**, no solo lo que se calcula.
+
+**Y la regla 1 queda cumplida.** Las doce mutaciones que el backend protege ya
+mandan su `Idempotency-Key`. Los formularios usan una clave fija por montaje;
+las pantallas de lista, una por (método, ruta) —`lib/idempotencia.ts`—, porque
+el mismo hook autoriza el cierre 1 y después el 2, y una clave fija haría que el
+segundo llegara con la del primero y el backend respondiera 422.
+
+> Lo que **no** se enciende es `retry` global en `queryClient`, y la razón
+> cambió: ya no depende de las pantallas sino de que solo doce rutas del
+> contrato son idempotentes. Un `retry` global reintentaría también el alta de
+> un concepto, que no está protegida y se duplicaría. Queda en 0, y quien
+> necesite reintento lo pide en su propio `mutation: { retry }`, donde sí se
+> sabe si la ruta lo aguanta.
+
+De paso, dos cosas que estaban a medias: la pantalla de Estimación pedía el UUID
+de la obra escrito a mano —su docstring decía que `GET /obras` no existía, y
+existe desde la Fase 1— y no tenía forma de exportar el XLSX que el backend ya
+sabía generar.
 
 **Criterio de cierre:** la Fase 5 queda cerrada según D1 y un Control de obra
-carga su catálogo real desde Excel.
+carga su catálogo real desde Excel. **Cumplido**, con la salvedad de que
+resolver los pendientes de la bandeja (§10.3) desde la UI no está: el contrato
+no publica la ruta que los cierra. La pantalla los muestra y lo dice.
 
 ---
 

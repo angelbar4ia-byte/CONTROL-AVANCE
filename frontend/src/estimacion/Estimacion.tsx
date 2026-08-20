@@ -4,20 +4,23 @@
  * Pantalla compartida (§5.3): Residente y Supervisor generan y envían;
  * Control de obra valida. Ruta `/estimacion` (`shell/navegacion.ts`).
  *
- * ## Limitación conocida: resolución de `obra_id`
+ * ## La obra se elige, ya no se pega
  *
- * `GET /obras/{id}/estimaciones` exige `obra_id` en la URL, pero el
- * contrato actual no expone ningún listado de obras (`GET /obras` está en
- * el spec §11.2 pero no implementado; tampoco `obra` es un catálogo
- * whitelisted en `lib/supabase.ts` §10.7, porque no es catálogo sino dato
- * de dominio). Sin un mecanismo para resolver "la obra activa del
- * Residente/Supervisor", esta pantalla usa un **selector simple**: el
- * usuario pega el UUID de la obra. Cuando exista `GET /me` con
- * `obras_en_alcance` resuelto a una lista (o `GET /obras`), este campo debe
- * reemplazarse por un selector real.
+ * Esta pantalla nació pidiendo el UUID de la obra escrito a mano, porque
+ * `GET /obras` no existía todavía. Existe desde la Fase 1 y `SelectorObra`
+ * (`lib/`) lo consume: el listado ya viene acotado por RLS al alcance del rol
+ * (§4, §12.4), así que elegir de una lista es además más seguro que teclear un
+ * id que podría ser de otra obra.
+ *
+ * ## El XLSX es un job
+ *
+ * `GET /estimaciones/{id}/export` **encola** y devuelve un identificador; el
+ * archivo se baja después por `/reportes/{id}/descargar` (§11.2, §12.2). Por
+ * eso el botón dice "Exportar" y aparece una tarjeta de seguimiento, en vez de
+ * una descarga que no llegaría.
  */
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 
 import {
   useEnviarEstimacionApiV1EstimacionesEstimacionIdPatch,
@@ -25,21 +28,31 @@ import {
   useListarEstimacionesApiV1ObrasObraIdEstimacionesGet,
   useValidarEstimacionApiV1EstimacionesEstimacionIdValidarPost,
 } from '@/api/generado/estimacion/estimacion';
+import { useExportarEstimacionApiV1EstimacionesEstimacionIdExportGet } from '@/api/generado/reportes/reportes';
 import { ModoPago } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
 import { useSesion } from '@/app/sesion';
 import { fmtMXN, fmtSemana } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
+import { SelectorObra } from '@/lib/SelectorObra';
+import { useClavesPorRecurso } from '@/lib/idempotencia';
+import { SeguimientoDeReporte } from '@/reportes/SeguimientoDeReporte';
 import { accionesDisponiblesEstimacion, etiquetaModo, puedeGenerar, tonoEstatusEstimacion } from './reglas';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default function Estimacion() {
   const { sesion } = useSesion();
-  const [obraIdInput, setObraIdInput] = useState('');
   const [obraId, setObraId] = useState('');
   const [modo, setModo] = useState<ModoPago>(ModoPago.destajo);
   const [error, setError] = useState<string | null>(null);
+  const [reporteId, setReporteId] = useState<string | null>(null);
+  const [estimacionAExportar, setEstimacionAExportar] = useState('');
+  // Una clave por (método, ruta): en una lista el mismo hook opera sobre
+  // recursos distintos y una clave fija haría que el segundo llegara con la
+  // del primero (regla 1 del ROADMAP).
+  const idempotente = useClavesPorRecurso();
+
 
   const obraIdValido = UUID_RE.test(obraId);
 
@@ -55,6 +68,7 @@ export default function Estimacion() {
       },
       onError: (err) => setError(err.message),
     },
+    ...idempotente,
   });
 
   const enviar = useEnviarEstimacionApiV1EstimacionesEstimacionIdPatch<ErrorApi>({
@@ -65,6 +79,7 @@ export default function Estimacion() {
       },
       onError: (err) => setError(err.message),
     },
+    ...idempotente,
   });
 
   const validar = useValidarEstimacionApiV1EstimacionesEstimacionIdValidarPost<ErrorApi>({
@@ -75,14 +90,28 @@ export default function Estimacion() {
       },
       onError: (err) => setError(err.message),
     },
+    ...idempotente,
   });
+
+  // `enabled: false`: exportar es una acción del operador, no algo que deba
+  // encolarse al abrir la pantalla. Se dispara con `refetch`.
+  const exportar = useExportarEstimacionApiV1EstimacionesEstimacionIdExportGet(
+    estimacionAExportar,
+    { query: { enabled: false } },
+  );
 
   if (!sesion) return null;
   const rol = sesion.rol;
 
-  function alConfirmarObra(evento: FormEvent) {
-    evento.preventDefault();
-    setObraId(obraIdInput.trim());
+  async function encolarExport(estimacionId: string) {
+    setError(null);
+    setEstimacionAExportar(estimacionId);
+    const resultado = await exportar.refetch();
+    if (resultado.error) {
+      setError((resultado.error as ErrorApi).message);
+      return;
+    }
+    if (resultado.data) setReporteId(resultado.data.id);
   }
 
   const filas = consulta.data ?? [];
@@ -128,23 +157,25 @@ export default function Estimacion() {
         </div>
       )}
 
-      <form onSubmit={alConfirmarObra} className="filterbar">
-        <div className="field" style={{ maxWidth: 420 }}>
-          <label className="field__label" htmlFor="obra-id">
-            ID de obra
-          </label>
-          <input
-            id="obra-id"
-            className="input input--mono"
-            placeholder="uuid de la obra"
-            value={obraIdInput}
-            onChange={(e) => setObraIdInput(e.target.value)}
-          />
-        </div>
-        <button type="submit" className="btn">
-          Cargar estimaciones
-        </button>
-      </form>
+      <div className="filterbar">
+        <SelectorObra
+          id="estimacion-obra"
+          etiqueta="Obra"
+          valor={obraId}
+          onCambio={(id) => {
+            setObraId(id);
+            setReporteId(null);
+          }}
+        />
+      </div>
+
+      {reporteId && (
+        <SeguimientoDeReporte
+          reporteId={reporteId}
+          titulo="Estimación en Excel"
+          onCerrar={() => setReporteId(null)}
+        />
+      )}
 
       <div className="table-wrap">
         <div className="table-scroll">
@@ -220,7 +251,14 @@ export default function Estimacion() {
                               Validar
                             </button>
                           )}
-                          {acciones.length === 0 && <span className="text-faint text-sm">—</span>}
+                          <button
+                            type="button"
+                            className="btn btn--sm"
+                            disabled={exportar.isFetching}
+                            onClick={() => void encolarExport(estimacion.id)}
+                          >
+                            Exportar
+                          </button>
                         </div>
                       </td>
                     </tr>

@@ -17,7 +17,7 @@ import type {
   PrototipoRespuesta,
   ProyectoRespuesta,
 } from '@/api/generado/modelo';
-import type { ErrorApi } from '@/api/cliente';
+import { claveDeIdempotencia, type ErrorApi } from '@/api/cliente';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Modal } from '@/lib/Modal';
 import { CampoSelect, CampoTexto } from './Campos';
@@ -51,6 +51,11 @@ export function AltaMasivaObras({
   const [texto, setTexto] = useState('');
   const [error, setError] = useState<{ mensaje: string; campo?: string } | null>(null);
 
+  // `Idempotency-Key` fija por operación (regla 1 del ROADMAP): se genera al
+  // montar y se manda igual en cada intento. Generarla dentro de `peticion` no
+  // desduplicaría nada — y esto es además lo que protege del doble clic.
+  const clave = useMemo(claveDeIdempotencia, []);
+
   const crear = useCrearObrasEnLoteApiV1ObrasBulkPost<ErrorApi>({
     mutation: {
       onSuccess: (obras) => {
@@ -59,6 +64,7 @@ export function AltaMasivaObras({
       },
       onError: (err) => setError({ mensaje: err.message, campo: err.campo }),
     },
+    request: { headers: { 'Idempotency-Key': clave } },
   });
 
   const prototiposDelCluster = useMemo(

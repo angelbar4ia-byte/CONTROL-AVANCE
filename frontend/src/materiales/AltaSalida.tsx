@@ -7,7 +7,7 @@
  * signo capturado no concuerda con el del motivo elegido (§10.5).
  */
 
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 
 import { useRegistrarSalidaApiV1ObrasObraIdSalidasPost } from '@/api/generado/materiales/materiales';
 import {
@@ -15,7 +15,7 @@ import {
   useListarConceptosApiV1ConceptosGet,
   useListarMaterialesApiV1MaterialesGet,
 } from '@/api/generado/catalogos/catalogos';
-import type { ErrorApi } from '@/api/cliente';
+import { claveDeIdempotencia, type ErrorApi } from '@/api/cliente';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Sheet } from '@/lib/Sheet';
 import { SelectorObra } from '@/lib/SelectorObra';
@@ -48,6 +48,11 @@ export function AltaSalida({ obraIdInicial, onCerrar, onRegistrada }: Props) {
   const conceptos = useListarConceptosApiV1ConceptosGet();
   const contratistas = useListarContratistasApiV1ContratistasGet();
 
+  // `Idempotency-Key` fija por operación (regla 1 del ROADMAP): se genera al
+  // montar y se manda igual en cada intento. Generarla dentro de `peticion` no
+  // desduplicaría nada — y esto es además lo que protege del doble clic.
+  const clave = useMemo(claveDeIdempotencia, []);
+
   const registrar = useRegistrarSalidaApiV1ObrasObraIdSalidasPost<ErrorApi>({
     mutation: {
       onSuccess: () => {
@@ -56,6 +61,7 @@ export function AltaSalida({ obraIdInicial, onCerrar, onRegistrada }: Props) {
       },
       onError: (err) => setError(err.message),
     },
+    request: { headers: { 'Idempotency-Key': clave } },
   });
 
   function cambiar<K extends keyof FormularioSalida>(campo: K, valor: FormularioSalida[K]) {

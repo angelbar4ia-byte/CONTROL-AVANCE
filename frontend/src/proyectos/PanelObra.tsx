@@ -13,6 +13,8 @@
 
 import { useState, type FormEvent } from 'react';
 
+import { useClavesPorRecurso } from '@/lib/idempotencia';
+
 import {
   useActualizarObraApiV1ObrasObraIdPatch,
   useGenerarObraApiV1ObrasObraIdGenerarPost,
@@ -55,6 +57,11 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
   const [generada, setGenerada] = useState<ObraGeneradaRespuesta | null>(null);
   const [error, setError] = useState<{ mensaje: string; campo?: string } | null>(null);
 
+  // Una clave por (método, ruta): generar la obra A y la obra B son
+  // operaciones distintas, y reintentar la A reusa la suya (regla 1 del
+  // ROADMAP). Generar dos veces la misma obra duplicaría sus actividades.
+  const idempotente = useClavesPorRecurso();
+
   const editar = useActualizarObraApiV1ObrasObraIdPatch<ErrorApi>({
     mutation: {
       onSuccess: () => {
@@ -74,6 +81,7 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
       },
       onError: (err) => setError({ mensaje: err.message, campo: err.campo }),
     },
+    ...idempotente,
   });
 
   const editable = puedeEditarObra(rol, obra);
