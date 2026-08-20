@@ -16,13 +16,13 @@
 | D7 | **Las Fases 7+ se ordenan por un piloto en obra real** | El orden lo decide qué **bloquea el uso**, no qué falta del spec. Consecuencias: la administración de usuarios sube al primer lugar —hoy no se puede dar de alta a nadie y el Login ya lo promete—; presupuesto, procesos y tiempo real bajan; y el móvil se va al final, lo que hace que el piloto sea **web-only**. Eso último solo se sostiene si el residente captura con señal: `PATCH /actividades/{id}/avance` y la feature `avance` de la web ya lo permiten. **Si el residente resulta no tener señal en campo, el móvil deja de ser opcional y salta al frente de la fila** — es el supuesto que hay que confirmar antes de empezar el piloto, no durante. |
 | D8 | **Endurecer no compite con el piloto: es su precondición** | Un piloto mete datos reales de un cliente en producción, así que la Fase 8 (operación segura) va **antes** que cualquier feature nueva. Sin restauración probada, sin poder revertir una migración y sin rastro de quién cambió qué, el riesgo no es técnico sino del cliente. El detonante fue encontrar que **nada se ha desplegado nunca**: las seis fases viven en una rama sin fusionar a `main`, mientras el §12.12 manda trunk-based con `main` siempre desplegable. El endurecimiento que **sostiene** el sistema cuando crece —virtualización, datasets golden, deuda de tipos— es otra cosa y va en la Fase 14. |
 
-## Estado actual (Fases 7, 8 y 9 cerradas)
+## Estado actual (Fases 7 a 10 cerradas)
 
 | Capa | Entregado | Pendiente |
 |---|---|---|
 | `database/` | 24 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · guardia de privilegios de `usuario` · 6 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
-| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · **787 pruebas**, 193 de ellas de integración contra Postgres real | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
-| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes` · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **273 pruebas** + 4 E2E de humo + 3 del alta | Features: revisión física, torre, presupuesto · los 6 E2E de workflow |
+| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · **797 pruebas**, 203 de ellas de integración contra Postgres real | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
+| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada) · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **296 pruebas** + 4 E2E de humo + 3 del alta | Features: revisión física, presupuesto, extra-catálogo · los 6 E2E de workflow |
 | `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules auditadas · config Play | Pantallas de captura y revisión · cola de evidencias a R2 · build de Play Store |
 | CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), ida y vuelta de las 24 migraciones, restauración de respaldo, web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render |
 
@@ -30,7 +30,7 @@
 
 ## Lo inmediato
 
-**Fases 7, 8 y 9 cerradas.** El sistema se puede operar —desplegar, promover,
+**Fases 7 a 10 cerradas.** El sistema se puede operar —desplegar, promover,
 revertir, restaurar, con rastro de quién cambió qué—, ya se puede dar de alta a
 alguien sin abrir `psql`, y un Control de obra puede subir su catálogo real
 desde Excel — las tres cosas que bloqueaban el piloto.
@@ -57,9 +57,9 @@ reloj salen en cualquier orden. Es lo mismo que la 0019 resolvió en
 `carga_snapshot` con una columna `orden`, y esa es también la solución aquí. Va
 como primer arreglo de la Fase 14.
 
-Lo que sigue: **Fase 10** (Torre de control). Es donde aterrizan tres de los
-cuatro roles del §5.1 y hoy caen en Cierres como sustituto, con un comentario en
-`App.tsx` que lo dice.
+Lo que sigue: **Fase 11** (los huecos de una obra real) — alta extra-catálogo
+con OC, revisión física en web, y decidir si `POST /actividades/{id}/registros`
+sigue teniendo sentido después de D5.
 
 El detalle de la Fase 6 está en [`FASE-6.md`](FASE-6.md); el procedimiento de
 operación, en [`OPERACION.md`](OPERACION.md).
@@ -405,22 +405,46 @@ no publica la ruta que los cierra. La pantalla los muestra y lo dice.
 
 ## Fase 10 — Torre de control
 
-Es la pantalla donde **aterrizan tres de los cuatro roles** (§5.1: Supervisor,
-Control de obra y Super intendente la tienen como primera entrada). Hoy caen en
-Cierres como sustituto, con un comentario en `App.tsx` que lo dice. Es la
-pantalla compartida por excelencia del §5.3: una sola implementación que cambia
-por rol y alcance.
+> **Cerrada.**
 
-- Backend: `GET /obras/{id}/actividades` y `GET /actividades/{id}`, que hoy no
-  existen y la Torre necesita.
-- Web: estado por obra —avance, ruta crítica, incidencias abiertas, cierres
-  pendientes, semana activa— filtrado por el alcance del rol. Virtualizada
-  desde el día uno (regla 4).
-- Sin tiempo real todavía: primero con recarga de TanStack Query. El `WS /ws`
-  entra en la Fase 16, cuando haya algo que valga la pena empujar.
+Es la pantalla donde **aterrizan tres de los cuatro roles** (§5.1: Supervisor,
+Control de obra y Super intendente la tienen como primera entrada). Caían en
+Cierres como sustituto, con un comentario en `App.tsx` que lo decía.
+
+- ✅ **Backend**: `GET /obras/{id}/actividades` y `GET /actividades/{id}`, que
+  no existían. Y uno que el roadmap no había previsto: **`GET /torre`**.
+- ✅ **Web**: estado por obra —avance, ruta crítica, incidencias abiertas,
+  cierres pendientes— filtrado por el alcance del rol. **Virtualizada** pasado
+  el umbral (regla 4, §12.9).
+- Sin tiempo real: recarga de TanStack Query. El `WS /ws` sigue en la Fase 16.
+
+**Por qué `GET /torre` y no cinco llamadas del cliente.** La Torre necesita seis
+números por obra. Resolverlo desde el navegador serían cinco peticiones por
+obra, y el §12.1 habla de 60–80 obras activas: cuatrocientas peticiones para
+pintar una pantalla, cada una con su ida y vuelta de RLS. Es una consulta con
+`count(*) filter` y `lateral`, y **no filtra por `org_id` a mano**: los conteos
+pasan por las mismas políticas que la tabla, así que un supervisor cuenta sobre
+lo que ve y nada más. Eso es exactamente lo que prueba
+`test_torre_endtoend.py`.
+
+**Tres estados, no cinco.** *Detenida* (algo impide trabajar), *pendiente* (algo
+espera a una persona) y *al corriente*. El avance **no** entra en la
+clasificación: una obra al 5 % puede ir en tiempo, y teñirla de rojo por el
+número enseña a ignorar los rojos. El orden de la lista sale de lo mismo —
+primero lo que estorba, después lo que espera—, resuelto en SQL para no traer
+ochenta filas y filtrarlas en el cliente.
+
+Dos errores de esquema que la prueba de integración atrapó y que un mock no
+habría visto: `estatus_actividad` no tiene `'cerrada'` sino `'concluida'`, y
+`contratista` no tiene `nombre` sino `razon_social`. También que
+`estatus <> 'cerrada'` contaba las incidencias **rechazadas** como trabajo
+pendiente.
 
 **Criterio de cierre:** un supervisor abre la app y ve, en una pantalla, dónde
-está cada obra suya y qué le toca hacer hoy.
+está cada obra suya y qué le toca hacer hoy. **Cumplido** — con la salvedad de
+que las acciones se hacen en sus pantallas (Cierres, Incidencias): la Torre
+lleva a ellas y no las duplica, porque dos copias de las mismas reglas de
+transición se desincronizan.
 
 ---
 

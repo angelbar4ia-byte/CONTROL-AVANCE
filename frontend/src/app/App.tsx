@@ -33,6 +33,7 @@ import Equipo from '@/equipo/Equipo';
 import Asignaciones from '@/equipo/Asignaciones';
 import Cargas from '@/cargas/Cargas';
 import Expediente from '@/expediente/Expediente';
+import Torre from '@/torre/Torre';
 
 export function App() {
   return (
@@ -66,15 +67,19 @@ function Rutas() {
           />
         }
       >
-        {/* La ruta inicial depende del rol. El Residente entra a sus obras;
-            los demás a Cierres —hoy la única pantalla compartida real; la
-            Torre de control (§5.1) todavía no está implementada. */}
+        {/* La ruta inicial depende del rol (§5.1): el Residente entra a sus
+            obras; los otros tres a la Torre de control, que es la primera
+            entrada de su sidebar. */}
         <Route
           index
           element={
-            <Navigate to={sesion.rol === 'residente' ? '/obras' : '/cierres'} replace />
+            <Navigate to={sesion.rol === 'residente' ? '/obras' : '/torre'} replace />
           }
         />
+        {/* Torre de control: una sola implementación montada para los tres
+            roles que la traen en su sidebar (§5.3). Lo que cambia es el
+            alcance, que ya resolvió RLS. */}
+        <Route path="/torre" element={<Torre />} />
         {/* Las features se registran aquí conforme se implementan. */}
         {/* Proyecto → Cluster → Obra: una sola pantalla montada en la ruta
             que cada rol trae en su sidebar (§5.1, §5.3) — "Mis obras" y

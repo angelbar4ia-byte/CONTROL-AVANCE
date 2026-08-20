@@ -59,6 +59,27 @@ describe('navegación por rol (§5.1)', () => {
     expect(conAsignaciones).toEqual(['supervisor', 'control_obra', 'super_intendente']);
   });
 
+  it('la Torre es la primera entrada de los tres roles que la tienen (§5.1)', () => {
+    // Y es primera de verdad, no una más: es a donde caen al entrar. Si dejara
+    // de estarlo, `App.tsx` los mandaría a una ruta que su sidebar no marca
+    // como activa.
+    const conTorre = ROLES.filter((rol) =>
+      navegacionDe(rol).some((s) => s.items.some((i) => i.a === '/torre')),
+    );
+    expect(conTorre).toEqual(['supervisor', 'control_obra', 'super_intendente']);
+
+    for (const rol of conTorre) {
+      const primera = navegacionDe(rol)[0]?.items[0];
+      expect(primera?.a, `la Torre no abre el sidebar de ${rol}`).toBe('/torre');
+    }
+  });
+
+  it('el Residente no tiene Torre: entra a sus obras (§5.1)', () => {
+    const items = navegacionDe('residente').flatMap((s) => s.items);
+    expect(items.some((i) => i.a === '/torre')).toBe(false);
+    expect(items.some((i) => i.a === '/obras')).toBe(true);
+  });
+
   it('el alta de usuarios es de Control de obra y Super intendente (§5.1)', () => {
     // Es lo que la pantalla de Login promete: «el alta de usuarios la realiza
     // Control de obra». Un residente o un supervisor que viera la entrada
