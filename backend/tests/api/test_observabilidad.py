@@ -264,6 +264,45 @@ class TestSondas:
         assert cuerpo["postgres"] != "ok"
         assert cuerpo["cola"] != "ok"
 
+    def test_reporta_disco_jobs_y_respaldo(self, cliente: TestClient) -> None:
+        """El §11.7 pide los cinco, no solo base y cola.
+
+        Los tres nuevos responden aunque la infraestructura no esté: el disco
+        no depende de nadie, y los jobs y el respaldo reportan su fallo en vez
+        de desaparecer del cuerpo — un campo ausente se lee como "no lo miré".
+        """
+        cuerpo = cliente.get("/health/dependencias").json()
+        for campo in ("jobs", "disco", "ultimo_respaldo"):
+            assert campo in cuerpo, f"la sonda ya no reporta {campo}"
+            assert cuerpo[campo], f"{campo} vino vacío"
+        # El disco no depende de Postgres ni de Redis: siempre tiene respuesta.
+        assert "GB libres" in cuerpo["disco"]
+
+    def test_el_disco_y_el_respaldo_no_degradan_el_estatus(
+        self, cliente: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`estatus` es el único campo sobre el que alerta un monitor, así que
+        significa "la API no puede trabajar". Un disco casi lleno o un respaldo
+        que nadie registró hay que atenderlos, pero no son eso — y una sonda que
+        grita por todo deja de leerse."""
+        import obractrl.main as modulo
+
+        async def _ok() -> str:
+            return "ok"
+
+        async def _sin_registro() -> str:
+            return "respaldo: sin registro · restauración probada: sin registro"
+
+        monkeypatch.setattr(modulo, "_postgres_responde", _ok)
+        monkeypatch.setattr(modulo, "_redis_responde", _ok)
+        monkeypatch.setattr(modulo, "_ultimo_respaldo", _sin_registro)
+        monkeypatch.setattr(modulo, "_disco_disponible", lambda: "0.2 GB libres · 99% usado")
+
+        cuerpo = cliente.get("/health/dependencias").json()
+        assert cuerpo["estatus"] == "ok"
+        assert "sin registro" in cuerpo["ultimo_respaldo"]
+        assert "99%" in cuerpo["disco"]
+
     def test_no_expone_la_cadena_de_conexion(self, cliente: TestClient) -> None:
         """El mensaje de asyncpg puede traer el DSN con contraseña; se reporta
         la clase del fallo, que es lo que dice si es red, credencial o esquema."""

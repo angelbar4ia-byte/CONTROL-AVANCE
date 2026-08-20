@@ -1,7 +1,35 @@
-# Render — ObraCtrl (§12.8)
-# Un servicio por entorno: dev / staging / prod. El deploy es por Git:
-# al hacer push, Render construye y publica.
+# Render — ObraCtrl (§12.8, §12.12)
+#
+# DOS ENTORNOS, UNA SOLA RAMA
+#
+# El §12.12 pide promoción `main` → staging → prod **con aprobación**. Aquí eso
+# se lee así:
+#
+#   · Todo push a `main` despliega **staging**, solo. Es lo que hace que `main`
+#     sea "siempre desplegable" en lugar de una aspiración: si algo se rompe, se
+#     rompe en staging y con datos de mentira.
+#   · **Prod no se despliega solo** (`autoDeploy: false`). Se promueve a mano
+#     desde el dashboard de Render, eligiendo el commit que ya se vio funcionar
+#     en staging. Ese clic es la aprobación: no hay un segundo `git push` que
+#     pueda equivocarse de rama, y el rollback es volver a promover el commit
+#     anterior.
+#
+# No hay una rama `staging`. Una segunda rama de larga vida es lo contrario del
+# trunk-based del §12.12: invita a que staging y prod diverjan, y entonces lo
+# que se probó ya no es lo que se promueve. Aquí el commit que se promueve es
+# byte por byte el que corrió en staging.
+#
+# QUÉ NO COMPARTEN LOS DOS ENTORNOS
+#
+# Nada que tenga estado: cada uno con su Redis (declarado abajo) y con su
+# **proyecto de Supabase**, que se configura en `DATABASE_URL` y no se versiona.
+# Un staging apuntando a la base de prod no es un staging: es prod con otro
+# nombre y sin cuidado. Lo mismo con el bucket de R2 y con el proyecto de
+# Sentry.
 services:
+  # ============================================================
+  # PRODUCCIÓN — se promueve a mano (§12.12)
+  # ============================================================
   - type: web
     name: obractrl-api
     runtime: docker
@@ -9,12 +37,15 @@ services:
     dockerContext: .
     plan: starter
     region: oregon
+    branch: main
     healthCheckPath: /health
-    autoDeploy: true
+    # La aprobación del §12.12. Sin esto, un merge a `main` llega a los datos
+    # reales de un cliente sin que nadie lo haya mirado.
+    autoDeploy: false
     envVars:
       - key: ENTORNO
         value: prod
-      - key: DATABASE_URL          # Supabase, con el rol obractrl_api (no owner)
+      - key: DATABASE_URL          # Supabase de PROD, rol obractrl_api (no owner)
         sync: false
       - key: JWT_SECRET
         sync: false
@@ -56,8 +87,13 @@ services:
     dockerContext: .
     plan: starter
     region: oregon
+    branch: main
+    # Se promueve junto con la API y a mano, por la misma razón: worker y API
+    # comparten el esquema de la base, y desplegar uno solo deja media versión
+    # corriendo contra la otra mitad.
+    autoDeploy: false
     # El composition root de los jobs es `obractrl/trabajador.py`, hermano
-    # de `main.py` (§12.11). Apuntaba a un módulo que no existe.
+    # de `main.py` (§12.11).
     dockerCommand: arq obractrl.trabajador.WorkerSettings
     envVars:
       - key: ENTORNO
@@ -80,3 +116,83 @@ services:
     region: oregon
     maxmemoryPolicy: noeviction   # Arq no puede perder trabajos encolados
     ipAllowList: []               # solo red interna de Render
+
+  # ============================================================
+  # STAGING — cada push a `main` aterriza aquí
+  # ============================================================
+  - type: web
+    name: obractrl-api-staging
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    branch: main
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ENTORNO
+        value: staging
+      # Proyecto de Supabase DISTINTO al de prod. Si esta variable termina
+      # apuntando a la base de producción, staging deja de ser staging y se
+      # vuelve el camino más rápido para borrar datos de un cliente.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: CORS_ORIGENES
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false
+      - key: R2_BUCKET             # bucket propio: las evidencias no se mezclan
+        sync: false
+      - key: R2_ACCESS_KEY
+        sync: false
+      - key: R2_SECRET_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      # Sin llaves de Resend a propósito: un correo de staging es un correo
+      # real que llega a una persona real. Sin ellas el aviso se registra y no
+      # se manda, que es justo el comportamiento que se quiere aquí.
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: obractrl-redis-staging
+          property: connectionString
+
+  - type: worker
+    name: obractrl-worker-staging
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    branch: main
+    autoDeploy: true
+    dockerCommand: arq obractrl.trabajador.WorkerSettings
+    envVars:
+      - key: ENTORNO
+        value: staging
+      - key: DATABASE_URL
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: obractrl-redis-staging
+          property: connectionString
+
+  # Redis propio: compartirlo con prod haría que un job de staging pudiera ser
+  # tomado por el worker de producción — la cola no distingue de dónde vino.
+  - type: redis
+    name: obractrl-redis-staging
+    plan: starter
+    region: oregon
+    maxmemoryPolicy: noeviction
+    ipAllowList: []

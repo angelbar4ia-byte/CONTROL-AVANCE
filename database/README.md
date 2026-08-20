@@ -24,7 +24,7 @@ database/
 │  └─ down/        # la reversa de cada una, mismo nombre de archivo
 ├─ seeds/          # semilla editable (§8.7): el usuario la extiende después
 ├─ tests/          # pruebas de aislamiento RLS
-├─ scripts/        # migrar · revertir · probar RLS · probar respaldo
+├─ scripts/        # migrar · revertir · respaldar · probar RLS · probar respaldo
 └─ supabase/       # config.toml del CLI
 ```
 
@@ -82,6 +82,8 @@ dentro no es simétrico: hay que leer el encabezado antes.
 | `0020_periodo_bloqueado` | Cierre de periodo por obra |
 | `0021_registro_avance_obra` | `obra_id` derivada, para que las sync rules filtren sin subconsulta (§12.5) |
 | `0022_idempotencia` | Claves de `Idempotency-Key` en la misma transacción que la mutación |
+| `0023_bitacora_de_negocio` | Trigger que escribe `bitacora` en cada cambio de configuración o catálogo (§11.7, §12.12) |
+| `0024_registro_de_respaldos` | `app.respaldo`: de dónde saca `/health` el último respaldo y la última restauración probada |
 
 ## Dos decisiones que conviene no romper
 
@@ -163,6 +165,9 @@ DATABASE_URL="postgresql://..." ./scripts/migrar.sh --sellar
 
 # Revertir (BORRA DATOS: respaldo antes)
 DATABASE_URL="postgresql://..." ./scripts/revertir.sh --pasos 1
+
+# Respaldar dejando constancia en app.respaldo (la lee /health)
+DATABASE_URL="postgresql://..." ./scripts/respaldar.sh /ruta/obractrl.dump
 
 # Probar que el respaldo se restaura de verdad y el esquema queda idéntico
 DATABASE_URL="postgresql://..." ./scripts/probar_respaldo.sh

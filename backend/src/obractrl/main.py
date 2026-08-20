@@ -13,6 +13,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -171,7 +172,7 @@ def crear_app() -> FastAPI:
     @app.get(
         "/health/dependencias",
         tags=["salud"],
-        summary="Estado de Postgres y de la cola de trabajos",
+        summary="Estado de la base, la cola, los jobs, el disco y el respaldo",
     )
     async def health_dependencias() -> dict[str, str]:
         """Sonda **de readiness**: sí toca la base y sí toca Redis (§11.7).
@@ -188,17 +189,37 @@ def crear_app() -> FastAPI:
         monitor pueda alertar sobre un solo campo.
 
         No expone cadenas de conexión: solo `ok` o la clase del fallo (§12.4).
+
+        **Los valores son frases, no estructuras.** Quien abre esta ruta es una
+        persona en medio de un incidente; lo que necesita es leer "3 en cola,
+        sin worker" de un vistazo. El monitor automático tiene `estatus`, que
+        es el único campo con valores cerrados y el único sobre el que conviene
+        alertar.
         """
         # En paralelo: son independientes, y en serie la sonda tardaría la
-        # suma de los dos timeouts justo cuando todo está caído — que es
-        # cuando alguien la está mirando.
-        postgres, redis = await asyncio.gather(
-            _postgres_responde(), _redis_responde()
+        # suma de los timeouts justo cuando todo está caído — que es cuando
+        # alguien la está mirando.
+        postgres, redis, jobs, respaldo = await asyncio.gather(
+            _postgres_responde(),
+            _redis_responde(),
+            _jobs_responden(),
+            _ultimo_respaldo(),
         )
+        disco = _disco_disponible()
+
+        # `estatus` agrega solo lo que significa "la API no puede trabajar".
+        # El disco y el respaldo se reportan pero no degradan: un disco al 85 %
+        # o un respaldo de anteayer son cosas que hay que atender, no
+        # incidentes que justifiquen despertar a nadie — y una sonda que grita
+        # por todo deja de leerse.
+        sano = postgres == "ok" and redis == "ok"
         return {
-            "estatus": "ok" if postgres == "ok" and redis == "ok" else "degradado",
+            "estatus": "ok" if sano else "degradado",
             "postgres": postgres,
             "cola": redis,
+            "jobs": jobs,
+            "disco": disco,
+            "ultimo_respaldo": respaldo,
         }
 
     return app
@@ -224,6 +245,90 @@ async def _redis_responde() -> str:
             return "ok" if await ColaDeTrabajos().disponible() else "no responde"
     except Exception as exc:  # noqa: BLE001 — es una sonda, no una ruta crítica
         return f"error: {type(exc).__name__}"
+
+
+async def _jobs_responden() -> str:
+    """Cuántos trabajos esperan y si el worker sigue vivo (§11.7).
+
+    El §11.7 pide el estado de los jobs, no solo el de Redis, y son preguntas
+    distintas: Redis puede responder perfectamente mientras el worker está
+    caído y la cola crece sin que nadie la atienda. Ese es justo el fallo que
+    no produce ningún error visible en la API.
+    """
+    try:
+        async with asyncio.timeout(_TIMEOUT_SONDA):
+            en_cola, latido = await ColaDeTrabajos().estado()
+    except Exception as exc:  # noqa: BLE001 — es una sonda, no una ruta crítica
+        return f"error: {type(exc).__name__}"
+    worker = "worker latiendo" if latido else "SIN WORKER"
+    return f"{en_cola} en cola · {worker}"
+
+
+def _disco_disponible() -> str:
+    """Espacio libre donde se arman los archivos temporales (§11.7).
+
+    Los export de XLSX y los PDF del expediente se escriben en disco antes de
+    subirse. Un disco lleno no rompe la API: rompe *un tipo de petición*, con
+    un error que no se parece a "no queda espacio". Por eso la sonda lo dice
+    antes.
+    """
+    try:
+        import shutil
+        import tempfile
+
+        uso = shutil.disk_usage(tempfile.gettempdir())
+    except Exception as exc:  # noqa: BLE001 — es una sonda, no una ruta crítica
+        return f"error: {type(exc).__name__}"
+    libre_gb = uso.free / 1024**3
+    usado_pct = round(100 * uso.used / uso.total) if uso.total else 0
+    return f"{libre_gb:.1f} GB libres · {usado_pct}% usado"
+
+
+async def _ultimo_respaldo() -> str:
+    """Cuándo se respaldó y cuándo se probó restaurar (§11.7, §12.12).
+
+    Las dos fechas, porque son dos garantías distintas y la segunda es la que
+    vale: un respaldo que nunca se restauró es una carpeta que crece. Los
+    renglones los escriben `database/scripts/respaldar.sh` y
+    `probar_respaldo.sh` (migración 0024).
+
+    "sin registro" es una respuesta verdadera y accionable: significa que nadie
+    ha respaldado desde esta base, no que haga mucho tiempo.
+    """
+    try:
+        async with asyncio.timeout(_TIMEOUT_SONDA):
+            sesion_maker = obtener_sessionmaker()
+            async with sesion_maker() as sesion:
+                filas = (
+                    await sesion.execute(
+                        text(
+                            "select tipo, max(terminado_en) as cuando "
+                            "  from app.respaldo "
+                            " where ok "
+                            " group by tipo"
+                        )
+                    )
+                ).all()
+    except Exception as exc:  # noqa: BLE001 — es una sonda, no una ruta crítica
+        return f"error: {type(exc).__name__}"
+
+    cuando = {fila.tipo: fila.cuando for fila in filas}
+    return (
+        f"respaldo: {_hace_cuanto(cuando.get('respaldo'))}"
+        f" · restauración probada: "
+        f"{_hace_cuanto(cuando.get('restauracion_probada'))}"
+    )
+
+
+def _hace_cuanto(momento: datetime | None) -> str:
+    if momento is None:
+        return "sin registro"
+    horas = (datetime.now(UTC) - momento).total_seconds() / 3600
+    if horas < 1:
+        return "hace menos de 1 h"
+    if horas < 48:
+        return f"hace {horas:.0f} h"
+    return f"hace {horas / 24:.0f} d"
 
 
 def _hay_es256() -> str:

@@ -224,7 +224,13 @@ diagnostica nada. El estado agregado dice `degradado` para que un
 monitor pueda alertar sobre un solo campo.
 
 No expone cadenas de conexión: solo `ok` o la clase del fallo (§12.4).
- * @summary Estado de Postgres y de la cola de trabajos
+
+**Los valores son frases, no estructuras.** Quien abre esta ruta es una
+persona en medio de un incidente; lo que necesita es leer "3 en cola,
+sin worker" de un vistazo. El monitor automático tiene `estatus`, que
+es el único campo con valores cerrados y el único sobre el que conviene
+alertar.
+ * @summary Estado de la base, la cola, los jobs, el disco y el respaldo
  */
 export const healthDependenciasHealthDependenciasGet = (
     
@@ -301,7 +307,7 @@ export function useHealthDependenciasHealthDependenciasGetInfinite<TData = Infin
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Estado de Postgres y de la cola de trabajos
+ * @summary Estado de la base, la cola, los jobs, el disco y el respaldo
  */
 
 export function useHealthDependenciasHealthDependenciasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>>, TError = unknown>(
@@ -368,7 +374,7 @@ export function useHealthDependenciasHealthDependenciasGet<TData = Awaited<Retur
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Estado de Postgres y de la cola de trabajos
+ * @summary Estado de la base, la cola, los jobs, el disco y el respaldo
  */
 
 export function useHealthDependenciasHealthDependenciasGet<TData = Awaited<ReturnType<typeof healthDependenciasHealthDependenciasGet>>, TError = unknown>(

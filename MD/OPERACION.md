@@ -1,0 +1,167 @@
+# ObraCtrl — Operación
+
+> Qué hacer cuando hay que desplegar, promover, revertir o restaurar.
+> Trazabilidad: §12.8 (entornos) · §12.12 (entrega y respaldo) · §11.7 (sondas).
+
+Este documento existe porque la Fase 8 partió de un hallazgo incómodo: **nada
+se había desplegado nunca**. Un procedimiento que solo vive en la cabeza de
+quien lo escribió no es un procedimiento — y se descubre justo el día que esa
+persona no está.
+
+---
+
+## Los dos entornos
+
+| | Staging | Producción |
+|---|---|---|
+| Rama | `main` | `main` (el mismo commit) |
+| Deploy | automático en cada push | **manual**, desde el dashboard |
+| Base | proyecto de Supabase propio | proyecto de Supabase propio |
+| Redis | propio | propio |
+| R2 | bucket propio | bucket propio |
+| Correo | sin llaves de Resend | Resend configurado |
+
+No hay una rama `staging`. Una segunda rama de larga vida es lo contrario del
+trunk-based del §12.12: staging y prod divergen, y entonces lo que se probó ya
+no es lo que se promueve. El commit que se promueve es byte por byte el que
+corrió en staging.
+
+---
+
+## Desplegar
+
+### 1 · A staging — no hay nada que hacer
+
+Un push a `main` con CI en verde lo despliega. Después:
+
+```bash
+curl https://<staging>/health              # ¿arrancó y con qué versión?
+curl https://<staging>/health/dependencias # base, cola, jobs, disco, respaldo
+```
+
+`/health/dependencias` dice `estatus: ok` solo si Postgres y Redis responden.
+`disco` y `ultimo_respaldo` se reportan pero **no** degradan el estatus: hay que
+atenderlos, no despertar a nadie por ellos.
+
+### 2 · Migraciones
+
+Las migraciones **no** corren solas en el deploy, y es a propósito: un contenedor
+que migra al arrancar puede migrar dos veces si Render levanta dos instancias, y
+un fallo a mitad deja el esquema en un estado que nadie eligió.
+
+```bash
+DATABASE_URL="postgresql://...supabase..." ./database/scripts/migrar.sh --estado
+DATABASE_URL="postgresql://...supabase..." ./database/scripts/migrar.sh
+```
+
+> **La primera vez sobre una base que ya tenía el esquema** (aplicado con el
+> runner viejo, que no llevaba control de versión), hay que **sellarla** antes o
+> intentaría reaplicarlo todo:
+>
+> ```bash
+> DATABASE_URL=... ./database/scripts/migrar.sh --sellar
+> ```
+
+El orden importa y lo fija la regla **expand → contract** (`database/README.md`):
+primero se aplica la migración que *agrega*, después se promueve el código, y la
+migración que *quita* va en un release posterior. Así el rollback del código
+nunca exige rollback de la base.
+
+### 3 · Promover a producción
+
+En el dashboard de Render, sobre `obractrl-api` y `obractrl-worker`: *Manual
+Deploy → Deploy a specific commit* y se elige **el commit que ya corrió en
+staging**. Los dos, no uno: comparten el esquema de la base, y desplegar solo la
+API deja media versión hablando con la otra mitad.
+
+Ese clic es la aprobación del §12.12.
+
+---
+
+## Revertir
+
+### Revertir el deploy
+
+Volver a promover el commit anterior, igual que arriba. Es la vía rápida y no
+toca la base — por eso expand → contract importa: si el código anterior tolera
+el esquema nuevo, esto basta.
+
+### Revertir una migración
+
+```bash
+DATABASE_URL=... ./database/scripts/revertir.sh --pasos 1
+```
+
+**Esto borra datos.** Pide confirmación escrita salvo con `--si`. Antes de
+correrlo en producción: respaldo, y respaldo probado.
+
+Hay migraciones cuya reversa **no es simétrica**, y cada una lo dice en el
+encabezado de su archivo en `database/migrations/down/`. Léelo antes, no después:
+
+- **0017** — la reconciliación de `cant_ejecutada` no tiene número anterior al
+  que volver. Y sin su trigger, la captura offline deja de mover el avance en el
+  servidor: revertirla con el móvil en campo es perder capturas en silencio.
+- **0018** — tirar `actividad.prototipo_nodo_id` pierde el vínculo con el
+  prototipo, no solo la columna.
+- **0019** — Postgres no tiene `alter type ... drop value`: el valor del enum se
+  queda.
+- **0021** — las sync rules de PowerSync filtran por esa columna; hay que
+  publicar también las reglas anteriores o el móvil deja de sincronizar.
+- **0023** — los renglones de bitácora ya escritos **no** se borran. Revertir el
+  mecanismo no revierte la historia.
+
+---
+
+## Respaldo
+
+```bash
+DATABASE_URL=... ./database/scripts/respaldar.sh /ruta/obractrl-$(date +%F).dump \
+  --origen "cron nocturno"
+```
+
+Deja constancia en `app.respaldo`, que es de donde `/health/dependencias` saca
+`ultimo_respaldo`. El renglón se abre **antes** del `pg_dump` y se cierra
+después: un respaldo que se murió a la mitad queda con `ok=false`, que es
+justamente lo que hay que poder ver.
+
+### Probar la restauración
+
+```bash
+DATABASE_URL=... ./database/scripts/probar_respaldo.sh
+```
+
+Respalda, restaura en una base vacía y compara los dos esquemas objeto por
+objeto. La comparación es el punto: un `pg_restore` puede terminar en 0 y haber
+perdido objetos.
+
+> Un respaldo no probado no es un respaldo. Por eso esto corre en **cada
+> corrida de CI** y no solo cuando alguien se acuerda — y por eso `/health`
+> reporta las dos fechas por separado: un respaldo de anoche con una
+> restauración probada de hace seis meses es exactamente la situación que hay
+> que poder ver antes del incidente.
+
+---
+
+## Cuando algo va mal
+
+1. `/health` — ¿el proceso está vivo? Dice versión, entorno y cómo quedó
+   configurada la verificación del JWT. Un despliegue sin `SUPABASE_URL` se
+   manifiesta como 401 en todas las rutas y aquí se distingue de un token malo.
+2. `/health/dependencias` — base, cola, **jobs**, disco y respaldo. `jobs` es el
+   que separa "Redis responde" de "hay quien atienda la cola": `SIN WORKER` con
+   trabajos encolados es un worker caído, no una cola ocupada.
+3. Sentry — API y worker reportan por separado. Un reporte que truena en la cola
+   no deja rastro en ninguna respuesta HTTP.
+4. `bitacora` — quién cambió qué configuración o catálogo, y cuándo. Es de
+   negocio y está separada del log técnico (§11.7): la escribe la base por
+   trigger y **nadie puede escribirla a mano ni alterarla**, que es lo que la
+   vuelve evidencia.
+
+---
+
+## Lo que todavía no está
+
+- **Tags `vX.Y.Z` y changelog** (§12.12). Hoy se promueve por commit.
+- **Rollback de un deploy real, probado.** La reversión de migraciones y la
+  restauración de respaldo sí se prueban en cada corrida de CI; volver a
+  promover un commit anterior en Render aún no se ha ejercitado.
