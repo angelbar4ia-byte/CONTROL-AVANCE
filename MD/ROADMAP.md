@@ -16,13 +16,13 @@
 | D7 | **Las Fases 7+ se ordenan por un piloto en obra real** | El orden lo decide qué **bloquea el uso**, no qué falta del spec. Consecuencias: la administración de usuarios sube al primer lugar —hoy no se puede dar de alta a nadie y el Login ya lo promete—; presupuesto, procesos y tiempo real bajan; y el móvil se va al final, lo que hace que el piloto sea **web-only**. Eso último solo se sostiene si el residente captura con señal: `PATCH /actividades/{id}/avance` y la feature `avance` de la web ya lo permiten. **Si el residente resulta no tener señal en campo, el móvil deja de ser opcional y salta al frente de la fila** — es el supuesto que hay que confirmar antes de empezar el piloto, no durante. |
 | D8 | **Endurecer no compite con el piloto: es su precondición** | Un piloto mete datos reales de un cliente en producción, así que la Fase 8 (operación segura) va **antes** que cualquier feature nueva. Sin restauración probada, sin poder revertir una migración y sin rastro de quién cambió qué, el riesgo no es técnico sino del cliente. El detonante fue encontrar que **nada se ha desplegado nunca**: las seis fases viven en una rama sin fusionar a `main`, mientras el §12.12 manda trunk-based con `main` siempre desplegable. El endurecimiento que **sostiene** el sistema cuando crece —virtualización, datasets golden, deuda de tipos— es otra cosa y va en la Fase 14. |
 
-## Estado actual (Fases 7 a 12 cerradas)
+## Estado actual (Fases 7 a 13 cerradas)
 
 | Capa | Entregado | Pendiente |
 |---|---|---|
 | `database/` | 26 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · guardia de privilegios de `usuario` · orden de cambio del extra-catálogo · 6 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
-| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · `POST /actividades` extra-catálogo · **cierre de obra (workflow D)** · **861 pruebas**, 233 de ellas de integración contra Postgres real | `POST /reportes/{tipo}` genérico · presupuesto (§13) · procesos (§7.9) · tiempo real (`WS /ws`) |
-| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada), `extras`, `revisiones`, `cierresObra` · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **324 pruebas** + 4 E2E de humo + 3 del alta | Features: presupuesto, cierre de obra · los 6 E2E de workflow |
+| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · `POST /actividades` extra-catálogo · **cierre de obra (workflow D)** · presupuesto y rendimientos · **882 pruebas**, 242 de ellas de integración contra Postgres real | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
+| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada), `extras`, `revisiones`, `cierresObra`, `presupuesto` (virtualizada) · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **336 pruebas** + 4 E2E de humo + 3 del alta | Bitácora de eventos (SI) · procesos · los 6 E2E de workflow |
 | `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules auditadas · config Play | Pantallas de captura y revisión · cola de evidencias a R2 · build de Play Store |
 | CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), ida y vuelta de las 24 migraciones, restauración de respaldo, web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render |
 
@@ -30,7 +30,7 @@
 
 ## Lo inmediato
 
-**Fases 7 a 12 cerradas.** El sistema se puede operar —desplegar, promover,
+**Fases 7 a 13 cerradas.** El sistema se puede operar —desplegar, promover,
 revertir, restaurar, con rastro de quién cambió qué—, ya se puede dar de alta a
 alguien sin abrir `psql`, y un Control de obra puede subir su catálogo real
 desde Excel — las tres cosas que bloqueaban el piloto.
@@ -57,9 +57,10 @@ reloj salen en cualquier orden. Es lo mismo que la 0019 resolvió en
 `carga_snapshot` con una columna `orden`, y esa es también la solución aquí. Va
 como primer arreglo de la Fase 14.
 
-Lo que sigue: **Fase 13** (presupuesto y rendimientos) — dos tablas con RLS y
-ni un repositorio ni un endpoint, y un área entera del §5.1 que aparece en el
-sidebar de Control de obra y de Super intendente.
+Lo que sigue: **Fase 14** (rendimiento y calidad) — el endurecimiento que
+sostiene el sistema cuando crece: virtualización de las vistas que faltan,
+datasets golden, y el primer arreglo de la lista es la prueba intermitente de
+`incidencia_evento`.
 
 El detalle de la Fase 6 está en [`FASE-6.md`](FASE-6.md); el procedimiento de
 operación, en [`OPERACION.md`](OPERACION.md).
@@ -555,15 +556,57 @@ regla 2 cuando haya un entorno con API y Postgres sembrado.
 
 ## Fase 13 — Presupuesto y rendimientos
 
-Tablas con RLS (`presupuesto`, `partida_presupuesto`) y **ni un repositorio ni
-un endpoint**. Es un área entera del §5.1 que aparece en el sidebar de Control
-de obra y de Super intendente.
+> **Cerrada.**
 
-- Repos y endpoints de presupuesto por obra y por partida.
-- Rendimientos: lo ejecutado contra lo presupuestado, por concepto y por
+Tablas con RLS (`presupuesto`, `partida_presupuesto`) desde la migración 0006 y
+**ni un repositorio ni un endpoint**. Un área entera del §5.1 que aparece en el
+sidebar de Control de obra y de Super intendente.
+
+- ✅ Endpoints de presupuesto por obra y su historial de versiones.
+- ✅ Rendimientos: lo ejecutado contra lo presupuestado, por concepto y por
   cuadrilla.
-- Web: *Presupuesto de obras* y *Rendimientos*, pantallas compartidas (§5.3),
-  virtualizadas (regla 4).
+- ✅ Web: *Presupuesto de obras* y *Rendimientos* — una sola pantalla en las
+  tres rutas que los sidebars ya traían (§5.3), **virtualizada** (regla 4).
+
+**El presupuesto es del prototipo, no de la obra.** `presupuesto` cuelga de
+`prototipo`, y tiene sentido: describe el modelo de vivienda, y todas las obras
+que lo instancian comparten el mismo. Consecuencia que la pantalla dice en vez
+de esconder: una obra **URBA** —sin prototipo (§7.2)— no tiene presupuesto, y eso
+no es un error.
+
+**Solo lectura, y no por falta de tiempo.** El presupuesto entra por carga de
+Excel y se versiona ahí (§10.8). Un `POST` que dejara capturarlo a mano abriría
+un segundo camino de alta con otro versionado y otra reversa para el mismo dato.
+
+**Las dos caras que faltan son el punto.** El comparativo incluye lo
+presupuestado y **no ejecutado** —trabajo que no se hizo— y lo ejecutado **sin
+presupuestar** —los extra-catálogo de la Fase 11—. Son justo los dos que
+explican por qué una obra costó lo que costó, y los dos que un `left join` desde
+el presupuesto habría dejado fuera.
+
+Tres decisiones del dominio que ninguna consulta puede tomar:
+
+1. **Un porcentaje alto sobre un monto chico no es noticia.** Sin un piso de
+   monto, un concepto de cien pesos con 20 % encabezaría la lista y empujaría
+   fuera de vista uno de un millón con 3 %.
+2. **`no_ejecutado` no es `bajo_costo`.** Gastar de menos porque el trabajo no
+   se hizo no es un ahorro, y la acción que abre es otra: ahí se revisa el
+   precio, aquí se pregunta por qué no se hizo. La pantalla tampoco lo pinta de
+   verde.
+3. **Sin presupuesto no hay porcentaje.** Un extra no se desvió «infinito por
+   ciento»: la pregunta no aplica, y escribir un cero diría lo contrario.
+
+El umbral es el del §3.6 y es **configurable por organización**: la constante del
+dominio es el default, y el endpoint acepta el valor de la org.
+
+De paso, un límite de Postgres que apareció al escribirlo: **`FULL JOIN` no
+admite `is not distinct from`** —la condición tiene que ser hash o merge
+joinable— y esa condición hacía falta, porque las actividades extra no tienen
+concepto y su clave es `null`. Se resuelve con el conjunto de claves (`union`) y
+dos `left join`.
+
+**Criterio de cierre:** no lo tenía escrito; el de facto era que Control de obra
+y Super intendente puedan ver en qué se fue el dinero. **Cumplido.**
 
 ---
 

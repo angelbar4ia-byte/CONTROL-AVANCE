@@ -37,6 +37,7 @@ import Torre from '@/torre/Torre';
 import ExtraCatalogo from '@/extras/ExtraCatalogo';
 import Revisiones from '@/revisiones/Revisiones';
 import CierresDeObra from '@/cierresObra/CierresDeObra';
+import Presupuesto from '@/presupuesto/Presupuesto';
 
 export function App() {
   return (
@@ -93,6 +94,12 @@ function Rutas() {
             roles firman su parte, así que la bandeja es compartida aunque el
             sidebar solo la traiga en el suyo (§5.1). */}
         <Route path="/cierres-obra" element={<CierresDeObra />} />
+        {/* Presupuesto y rendimientos (§5.1): una sola pantalla montada en las
+            tres rutas que los sidebars de C y SI ya traían (§5.3). El detalle
+            por concepto y por cuadrilla se abre desde su fila. */}
+        <Route path="/presupuesto" element={<Presupuesto />} />
+        <Route path="/config/presupuesto" element={<Presupuesto />} />
+        <Route path="/rendimientos" element={<Presupuesto />} />
         {/* Las features se registran aquí conforme se implementan. */}
         {/* Proyecto → Cluster → Obra: una sola pantalla montada en la ruta
             que cada rol trae en su sidebar (§5.1, §5.3) — "Mis obras" y
