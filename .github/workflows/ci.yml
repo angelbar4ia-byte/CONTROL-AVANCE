@@ -66,6 +66,48 @@ jobs:
         working-directory: backend
         # `-c constraints.txt` fija lo que define el contrato. Sin eso, CI
         # resolvía una versión de FastAPI distinta de la probada y el paso
+        # del contrato fallaba sin que nadie hubiera tocado un endpoint.
+        run: pip install -e ".[dev]" -c constraints.txt
+
+      - name: Aplicar migraciones
+        run: bash database/scripts/migrar.sh
+
+      - name: Ida y vuelta de las migraciones
+        # Un `down` que nunca corrió no es un `down`: es un archivo. Aquí se
+        # revierten las 22 en orden inverso contra una base con el esquema
+        # puesto, y se vuelven a aplicar. Si un down deja un objeto colgado, el
+        # up de vuelta choca contra él y este paso se pone rojo (§12.12).
+        run: |
+          bash database/scripts/revertir.sh --pasos 22 --si
+          bash database/scripts/migrar.sh
+
+      - name: Restauración de respaldo probada
+        # Un respaldo no probado no es un respaldo. Esto hace pg_dump de la base
+        # ya migrada, la restaura en otra vacía y compara los dos esquemas
+        # objeto por objeto (§12.12).
+        run: bash database/scripts/probar_respaldo.sh
+
+      - name: Dar contraseña a obractrl_api
+        # La 0014 crea el rol sin contraseña a propósito —nunca en un archivo
+        # versionado—, así que falla cerrado hasta que cada entorno la fija.
+        # Este es el entorno de CI fijando la suya.
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "alter role obractrl_api with password 'ci'"
+
+      - name: Ruff
+        working-directory: backend
+        run: ruff check .
+
+      - name: Regla de dependencia (§12.11)
+        working-directory: backend
+        run: lint-imports
+
+      - name: Pruebas (dominio + integración)
+        working-directory: backend
+        run: pytest -q
+
+      - name: Aislamiento RLS (§12.4)
+        run: bash database/scripts/probar.sh
+
       - name: El contrato está al día
         working-directory: backend
         # El script vive en el repo, así que esto corre igual en local:
