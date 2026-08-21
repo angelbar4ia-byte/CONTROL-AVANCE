@@ -98,6 +98,11 @@ cd database && DATABASE_URL="postgresql://..." ./scripts/migrar.sh && ./scripts/
 cd backend && pip install -e ".[dev]" && pytest tests/domain -q
 lint-imports              # la regla de dependencia se verifica en CI (§12.11)
 
+# Sin Postgres, `tests/integracion/` ni siquiera se importa (ver su conftest),
+# así que un cambio de firma en `adapters/api/casos_uso.py` no se nota hasta
+# CI. Esto sí lo ve, y tarda segundos:
+mypy tests/integracion | grep call-arg || echo "sin llamadas rotas"
+
 # Frontend
 cd frontend && npm install && npm run typecheck && npm test && npm run build
 
