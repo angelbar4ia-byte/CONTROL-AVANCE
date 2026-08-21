@@ -3,7 +3,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-: "${DATABASE_URL:?Falta DATABASE_URL}"
+# Un DSN mal formado hace que psql se conecte a localhost sin avisar.
+# shellcheck source=scripts/_dsn.sh
+. "$(dirname "${BASH_SOURCE[0]}")/_dsn.sh"
+exigir_dsn
 
 for f in tests/*.sql; do
   echo "-> $f"
