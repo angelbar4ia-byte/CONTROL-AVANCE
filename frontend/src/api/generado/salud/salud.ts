@@ -45,8 +45,10 @@ despliegue mal configurado solo se manifiesta como 401 en todas las
 rutas y no hay forma de distinguir "la variable no llegó" de "el
 token es malo" —y la Shell de Render es de pago.
 
-No expone secretos: `jwks_url` es un endpoint público del proveedor
-y `auth_modo` solo dice qué camino se tomó.
+No expone secretos: `jwks_url` es un endpoint público del proveedor,
+`auth_modo` solo dice qué camino se tomó y `cors_origenes` es la lista
+de sitios que ya pueden llamar a esta API — quien la lee desde fuera no
+gana nada que no supiera al abrir la web.
  * @summary Health check
  */
 export const healthHealthGet = (

@@ -142,6 +142,60 @@ perdido objetos.
 
 ---
 
+## La web no puede hablar con la API (CORS)
+
+El síntoma en el navegador:
+
+```
+Access to fetch at 'https://…onrender.com/api/v1/usuarios'
+from origin 'https://…vercel.app' has been blocked by CORS policy:
+No 'Access-Control-Allow-Origin' header is present on the requested resource.
+```
+
+**El mensaje engaña.** Dice que *falta una cabecera*, que es lo que ve el
+navegador; lo que pasó es que el servidor respondió `400 Disallowed CORS
+origin` porque ese origen no está en la lista. Se comprueba en un comando:
+
+```bash
+curl -i -X OPTIONS https://TU-API.onrender.com/api/v1/usuarios \
+  -H "Origin: https://TU-WEB.vercel.app" \
+  -H "Access-Control-Request-Method: POST"
+```
+
+Y la lista contra la que se comparó la publica la sonda, sin abrir el panel de
+Render:
+
+```bash
+curl -s https://TU-API.onrender.com/health | jq .cors_origenes
+```
+
+**El arreglo** es una variable del servicio web, no un despliegue de código:
+
+```
+CORS_ORIGENES=https://control-avance-chi.vercel.app
+```
+
+Varios orígenes van separados por comas —la web de producción y la de staging,
+por ejemplo—. Después de guardarla, Render reinicia el servicio solo.
+
+Dos cosas que conviene saber antes de pelearse con esto:
+
+- **El dominio de Vercel cambia.** El de producción es estable, pero cada
+  *preview deployment* trae su propio subdominio y **no** va a estar en la
+  lista. Es correcto que falle: la alternativa —permitir `*.vercel.app`—
+  dejaría entrar a la app de cualquiera. Para probar un preview contra la API
+  real, se agrega ese origen a mano y se quita después.
+- **El default es `http://localhost:5173`**, o sea desarrollo. Un despliegue
+  que no fija la variable rechaza a su propia web, que es exactamente lo que
+  pasó la primera vez.
+
+> **Y revisa `ENTORNO`.** Si vale `dev` —el default— la API publica `/docs` en
+> internet con toda su superficie. Con `ENTORNO=prod` se apaga
+> (`docs_url=None`, `main.py`). No es urgente, pero no hay motivo para
+> regalarlo.
+
+---
+
 ## Cuando algo va mal
 
 1. `/health` — ¿el proceso está vivo? Dice versión, entorno y cómo quedó
