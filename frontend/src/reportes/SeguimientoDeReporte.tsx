@@ -6,13 +6,20 @@
  * la descarga llega después. Esta tarjeta es lo que convierte ese identificador
  * en algo que un operador puede mirar.
  *
- * POR QUÉ SONDEA Y NO ESPERA UN EVENTO
+ * POR QUÉ SONDEA, INCLUSO CON TIEMPO REAL
  *
- * El tiempo real (`WS /ws`) es de la Fase 16. Mientras tanto, `refetchInterval`
- * de TanStack Query cada dos segundos y **solo mientras el trabajo está vivo**:
- * en cuanto queda `listo` o `fallido` el intervalo se apaga solo, porque un
- * sondeo que sigue después de terminar es una petición cada dos segundos que no
- * cambia nada.
+ * El canal de avisos existe desde la Fase 16 (`lib/tiempoReal.ts`) y aun así
+ * esto sigue sondeando. No es una omisión: el canal transporta **hechos del
+ * dominio** —una actividad cerrada, una estimación validada— y el progreso de
+ * un job no es uno. Anunciarlo obligaría a que el worker publicara por
+ * organización el avance de cada trabajo —convertir un canal de negocio en un
+ * bus de infraestructura— para ahorrarle unas cuantas peticiones a la única
+ * pantalla que está mirando un identificador.
+ *
+ * Así que `refetchInterval` de TanStack Query cada dos segundos y **solo
+ * mientras el trabajo está vivo**: en cuanto queda `listo` o `fallido` el
+ * intervalo se apaga solo, porque un sondeo que sigue después de terminar es
+ * una petición cada dos segundos que no cambia nada.
  *
  * El estado del trabajo **caduca** (`keep_result` de arq): un identificador
  * viejo responde 404 y eso no es un error del operador. Se dice con esas

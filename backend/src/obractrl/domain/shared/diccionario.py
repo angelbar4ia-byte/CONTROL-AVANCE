@@ -29,6 +29,7 @@ __all__ = [
     "EstatusEstimacion",
     "EstatusIncidencia",
     "EstatusObra",
+    "EstatusProceso",
     "EstatusSolicitudCierre",
     "ImpactoIncidencia",
     "ModoCarga",
@@ -240,6 +241,37 @@ class TipoExpedienteDoc(_Canonico):
     EVIDENCIA = "evidencia"
     BITACORA = "bitacora"
     OTRO = "otro"
+
+
+class EstatusProceso(_Canonico):
+    """Etapas de un proceso de mejora (§7.9 `Proceso`).
+
+    **Este enum no está en el §8.2 y aquí se decide.** El §7.9 le da a
+    `Proceso` un campo `estatus` y lo describe como "mejora de procesos", sin
+    fijar valores; la migración 0010 lo dejó como `text` con default
+    `propuesto`, sin `CHECK`.
+
+    Se fija aquí y **no** como tipo de Postgres a propósito. Un enum de la base
+    es un invariante: cambiarlo cuesta una migración con `down` probado
+    (§12.12). Estos cuatro valores son una convención de tablero que una
+    organización podría querer distinta —"piloto" en vez de "en_curso"— y el
+    §8.7 llama a eso semilla editable, no invariante. Mientras el spec no los
+    fije, el borde valida contra esta lista y la columna sigue siendo `text`:
+    ampliarla es cambiar este enum, no migrar la base.
+    """
+
+    PROPUESTO = "propuesto"
+    """Alguien lo levantó. Es el default de la columna."""
+
+    EN_CURSO = "en_curso"
+    """Se está probando en obra."""
+
+    ADOPTADO = "adoptado"
+    """Quedó como la forma de trabajar."""
+
+    DESCARTADO = "descartado"
+    """Se probó y no sirvió. Se conserva: saber qué no funcionó es la mitad
+    del valor de un tablero de mejora."""
 
 
 class TipoCarga(_Canonico):

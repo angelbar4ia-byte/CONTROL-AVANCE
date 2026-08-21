@@ -159,6 +159,32 @@ perdido objetos.
 
 ---
 
+## Al liberar: mover la línea base del contrato (§12.12)
+
+CI verifica en cada PR que el contrato sea **aditivo** respecto de
+`openapi/publicado.json`, que es el contrato **que está en producción**. Ese
+archivo no se mueve solo: quitar una ruta o volver obligatorio un campo pone el
+build en rojo justamente porque la línea base sigue quieta.
+
+Se mueve **una vez, en el commit del release**, junto con el tag `vX.Y.Z`:
+
+```bash
+cd backend && python scripts/verificar_compatibilidad.py --publicar
+```
+
+Eso declara *este contrato es el que ahora hablan los clientes*. Hacerlo antes
+de desplegar apaga la verificación para el cambio que se está por subir, que es
+justo cuando sirve.
+
+**Para retirar una ruta** no se borra y ya: se marca con `deprecar(...)`
+(`backend/src/obractrl/adapters/api/deprecacion.py`), que le pone su fecha de
+retiro en el contrato y manda `Deprecation`/`Sunset` en cada respuesta. Cuando
+esa fecha pasa —seis meses por omisión, medidos contra el peor caso: un
+teléfono que solo actualiza cuando su dueño entra a Play— se puede quitar y CI
+lo acepta.
+
+---
+
 ## Actualizar la app móvil sin desplegar (§12.12)
 
 Desde la Fase 15 el móvil pregunta al arrancar qué versión soporta el servidor

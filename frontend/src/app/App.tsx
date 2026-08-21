@@ -38,6 +38,9 @@ import ExtraCatalogo from '@/extras/ExtraCatalogo';
 import Revisiones from '@/revisiones/Revisiones';
 import CierresDeObra from '@/cierresObra/CierresDeObra';
 import Presupuesto from '@/presupuesto/Presupuesto';
+import Procesos from '@/procesos/Procesos';
+import Bitacora from '@/bitacora/Bitacora';
+import AvanceTotal from '@/reportes/AvanceTotal';
 
 export function App() {
   return (
@@ -149,6 +152,13 @@ function Rutas() {
             y SI desde Reportes (§5.3). */}
         <Route path="/config/cargas" element={<Cargas />} />
         <Route path="/expediente" element={<Expediente />} />
+        {/* Fase 16: las tres entradas del sidebar del Super intendente (§5.1)
+            que caían en "en construcción" porque su endpoint no existía —
+            procesos (§7.9), bitácora (§12.12) y el reporte por alcance
+            (§11.2 `POST /reportes/{tipo}`). */}
+        <Route path="/procesos" element={<Procesos />} />
+        <Route path="/bitacora" element={<Bitacora />} />
+        <Route path="/avance-total" element={<AvanceTotal />} />
         <Route path="*" element={<EnConstruccion />} />
       </Route>
     </Routes>

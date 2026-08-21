@@ -16,6 +16,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { Wifi, WifiOff } from 'lucide-react';
 
 import { ALCANCE_ROL, NOMBRE_ROL, navegacionDe, type Rol } from './navegacion';
+import { useTiempoReal, type EstadoEnVivo } from '@/lib/tiempoReal';
 import { fmtSemana } from '@/lib/formato';
 import { SelectorDensidad } from './SelectorDensidad';
 
@@ -28,6 +29,10 @@ interface Props {
 }
 
 export function AppShell({ rol, usuario, semana, enLinea }: Props) {
+  // El canal de avisos se abre **aquí y solo aquí** (§11.2): dos suscripciones
+  // serían dos conexiones por pestaña y cada hecho invalidaría dos veces.
+  const enVivo = useTiempoReal();
+
   return (
     <div className="app">
       <Sidebar rol={rol} />
@@ -36,6 +41,7 @@ export function AppShell({ rol, usuario, semana, enLinea }: Props) {
         usuario={usuario}
         semana={semana}
         enLinea={enLinea}
+        enVivo={enVivo}
       />
       <main className="main">
         {/* Cada feature renderiza: filtros → vista principal → cajón (§12.10) */}
@@ -82,7 +88,13 @@ function Sidebar({ rol }: { readonly rol: Rol }) {
   );
 }
 
-function BarraSuperior({ rol, usuario, semana, enLinea }: Props) {
+function BarraSuperior({
+  rol,
+  usuario,
+  semana,
+  enLinea,
+  enVivo,
+}: Props & { readonly enVivo: EstadoEnVivo }) {
   return (
     <header className="topbar">
       <div className="crumbs">
@@ -92,6 +104,22 @@ function BarraSuperior({ rol, usuario, semana, enLinea }: Props) {
       </div>
 
       <div className="topbar-actions">
+        {/* Avisos en vivo (§11.2). Se distingue de "en línea" a propósito: se
+            puede tener red y no tener canal —la API caída, un proxy que corta
+            el streaming— y en ese caso las pantallas siguen funcionando pero
+            dejan de enterarse solas. Decirlo evita que alguien mire una Torre
+            vieja creyéndola actual. */}
+        <span
+          className={enVivo === 'en-vivo' ? 'badge badge--ok' : 'badge badge--outline'}
+          title={
+            enVivo === 'en-vivo'
+              ? 'Recibiendo avisos: la pantalla se actualiza sola'
+              : 'Sin avisos en vivo: los datos se recargan al navegar o al recargar'
+          }
+        >
+          {enVivo === 'en-vivo' ? 'En vivo' : 'Sin avisos'}
+        </span>
+
         {/* Estado online/offline: el Residente captura sin señal (§12.5) */}
         <span
           className={enLinea ? 'badge badge-ok' : 'badge badge-warn'}

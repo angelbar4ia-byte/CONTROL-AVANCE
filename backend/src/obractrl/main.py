@@ -35,9 +35,11 @@ from obractrl.adapters.api.middleware import (
 from obractrl.adapters.api.v1 import api_v1
 from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador
 from obractrl.adapters.excel.lector import ErrorDeArchivo
+from obractrl.adapters.export.catalogo import TipoDeReporteDesconocido
 from obractrl.adapters.export.pdf import MotorDePdfNoDisponible
 from obractrl.adapters.repos.calendario_sql import CalendarioNoConfigurado
 from obractrl.adapters.repos.cargas_sql import TablaNoRevertible
+from obractrl.adapters.repos.procesos_sql import ProcesoNoEncontrado
 from obractrl.application.casos_uso.calcular_cpu import ConceptoNoEncontrado
 from obractrl.application.casos_uso.capturar_avance import (
     ActividadBloqueada,
@@ -98,6 +100,7 @@ from obractrl.infrastructure.observabilidad import (
     iniciar_sentry,
 )
 from obractrl.infrastructure.storage.r2 import AlmacenamientoNoConfigurado
+from obractrl.infrastructure.tiempo_real.canal import canal_de_avisos
 
 BASE_API = "/api/v1"
 
@@ -111,6 +114,11 @@ mal, y ahí una respuesta lenta es tan inútil como ninguna."""
 @asynccontextmanager
 async def ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:
     yield
+    # El canal de avisos primero: su puente con Redis es una tarea de fondo, y
+    # cerrarla antes de que el proceso muera hace que las conexiones SSE
+    # abiertas terminen limpio y el navegador reconecte contra la instancia
+    # nueva en vez de quedarse colgado del socket viejo (§12.12).
+    await canal_de_avisos.cerrar()
     await cerrar_engine()
 
 
@@ -655,6 +663,35 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="incidencia-no-encontrada",
             titulo="Incidencia no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ProcesoNoEncontrado)
+    async def _proceso_no_encontrado(
+        request: Request, exc: ProcesoNoEncontrado
+    ) -> JSONResponse:
+        # Mismo tratamiento que las demás entidades: RLS hace indistinguible
+        # "no existe" de "no lo puedes ver" (§12.4).
+        return _problema(
+            request,
+            status=404,
+            tipo="proceso-no-encontrado",
+            titulo="Proceso no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(TipoDeReporteDesconocido)
+    async def _tipo_de_reporte(
+        request: Request, exc: TipoDeReporteDesconocido
+    ) -> JSONResponse:
+        # 404 y no 422: `{tipo}` es parte de la **ruta**, así que un tipo que
+        # no existe es una ruta que no existe. El detalle enumera los válidos
+        # (`adapters/export/catalogo.py`).
+        return _problema(
+            request,
+            status=404,
+            tipo="reporte-desconocido",
+            titulo="Tipo de reporte desconocido",
             detalle=str(exc),
         )
 

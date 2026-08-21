@@ -22,6 +22,28 @@ cliente sigue el mismo camino que describe el spec.
 §11.2. No es idempotente en sentido estricto —dos llamadas dejan dos trabajos—
 pero tampoco muta nada del dominio: el archivo se genera de lo que ya está en
 la base.
+
+## `POST /reportes/{tipo}`: la puerta genérica (Fase 16)
+
+El §11.2 pide, además de los dos reportes que cuelgan de su recurso, uno
+**por alcance**: `POST /reportes/{tipo}`. Los tipos, sus roles y sus
+parámetros viven en `adapters/export/catalogo.py`, no aquí: agregar un reporte
+tiene que ser un renglón de tabla, no una rama más en este archivo.
+
+Las rutas específicas **siguen existiendo** y no se marcan como obsoletas: el
+§11.2 las nombra por su nombre y la web ya las usa (§12.12, contrato
+aditivo). Lo que agrega el genérico es la única forma de pedir un reporte cuyo
+sujeto es el alcance del usuario y no una entidad — `avance` — y una puerta
+uniforme para un tablero que pide "el reporte X" sin saber qué recurso hay
+detrás.
+
+**`POST /reportes/{tipo}` y `GET /reportes/{id}` comparten jerarquía**, y así
+lo escribe el §11.2. En OpenAPI eso son dos *path items* que solo difieren en
+el nombre del parámetro; en el ruteo no hay ambigüedad posible porque los
+métodos son distintos, y Orval genera los dos hooks sin quejarse. Se deja
+igual al spec a propósito: renombrar una de las dos rutas para que el
+documento quedara más ortodoxo rompería el contrato que la web ya usa
+(§12.12) a cambio de nada que un cliente note.
 """
 
 from __future__ import annotations
@@ -34,6 +56,7 @@ from pydantic import BaseModel, Field
 
 from obractrl.adapters.api.casos_uso import ColaDeTrabajosDep
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
+from obractrl.adapters.export.catalogo import CATALOGO, TipoDeReporte, tipo_de_reporte
 from obractrl.adapters.export.trabajos import EXPORTAR_ESTIMACION_XLSX
 from obractrl.domain.shared.diccionario import Rol
 from obractrl.infrastructure.jobs.cola import (
@@ -117,6 +140,148 @@ def _archivo_de(resultado: ResultadoTrabajo) -> dict | None:
     if not resultado.listo or not isinstance(resultado.valor, dict):
         return None
     return resultado.valor if "contenido" in resultado.valor else None
+
+
+class ParametrosReporte(BaseModel):
+    """Lo que puede necesitar un reporte del catálogo.
+
+    Un solo modelo con todo opcional en vez de uno por tipo: el borde valida
+    contra `TipoDeReporte.requiere`, que es la lista que de verdad manda, y
+    así agregar un reporte no agrega un DTO. Lo que se pierde —que OpenAPI no
+    diga *para este tipo, este campo es obligatorio*— se compensa con
+    `GET /reportes/tipos`, que publica la tabla.
+
+    **Ningún campo de alcance.** No hay `usuario_id` ni `org_id`: el alcance
+    sale del token y lo aplica RLS (§12.4). `proyecto_id` y `cluster_id` son
+    foco dentro de lo visible, no permiso.
+    """
+
+    obra_id: UUID | None = Field(default=None, description="Para `expediente`.")
+    estimacion_id: UUID | None = Field(default=None, description="Para `estimacion`.")
+    proyecto_id: UUID | None = Field(
+        default=None, description="Acota `avance` a un proyecto visible."
+    )
+    cluster_id: UUID | None = Field(
+        default=None, description="Acota `avance` a un cluster visible."
+    )
+
+
+class TipoDeReporteRespuesta(BaseModel):
+    """Un renglón del catálogo, para que el cliente arme su menú."""
+
+    tipo: str
+    descripcion: str
+    formato: str
+    roles: list[str] = Field(
+        description="Vacío = cualquier rol autenticado; el alcance lo pone RLS."
+    )
+    requiere: list[str]
+
+    @classmethod
+    def desde(cls, tipo: TipoDeReporte) -> TipoDeReporteRespuesta:
+        return cls(
+            tipo=tipo.clave,
+            descripcion=tipo.descripcion,
+            formato=tipo.formato,
+            roles=[rol.value for rol in tipo.roles],
+            requiere=list(tipo.requiere),
+        )
+
+
+@router.get(
+    f"{BASE_REPORTES}/tipos",
+    response_model=list[TipoDeReporteRespuesta],
+    summary="Reportes que se pueden pedir",
+)
+async def tipos_de_reporte() -> list[TipoDeReporteRespuesta]:
+    """El catálogo, para que el menú de reportes no sea una lista escrita a
+    mano en el front que se desincroniza al agregar el cuarto."""
+    return [TipoDeReporteRespuesta.desde(tipo) for tipo in CATALOGO.values()]
+
+
+@router.post(
+    f"{BASE_REPORTES}/{{tipo}}",
+    response_model=TrabajoRespuesta,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Encolar un reporte por alcance (§11.2)",
+    responses={
+        403: {"description": "Tu rol no puede pedir este reporte."},
+        404: {"description": "No existe un reporte con ese tipo."},
+        422: {"description": "Falta un parámetro que ese tipo exige."},
+        503: {"description": "La cola de trabajos no está disponible (§12.8)."},
+    },
+)
+async def encolar_reporte(
+    tipo: str,
+    peticion: ParametrosReporte,
+    ctx: ContextoActual,
+    cola: ColaDeTrabajosDep,
+) -> TrabajoRespuesta:
+    """Encola el reporte del catálogo y devuelve su identificador.
+
+    El orden de las validaciones importa: primero **existe**, luego **puedes**,
+    luego **está completo**. Al revés, un 422 por parámetro faltante le
+    confirmaría a alguien sin permiso que ese tipo de reporte existe.
+
+    El rol se comprueba aquí y no con `exigir_rol` porque depende del `{tipo}`
+    de la ruta, que la dependencia no ve. El 403 es el mismo que produciría la
+    ruta específica equivalente — el genérico no es un rodeo para saltarse una
+    guarda.
+    """
+    definicion = tipo_de_reporte(tipo)
+
+    if not definicion.permite(ctx.rol):
+        permitidos = ", ".join(sorted(rol.value for rol in definicion.roles))
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"El rol {ctx.rol!r} no puede pedir el reporte '{tipo}'. "
+                f"Roles permitidos: {permitidos}."
+            ),
+        )
+
+    argumentos = peticion.model_dump(exclude_none=True)
+    faltantes = [campo for campo in definicion.requiere if campo not in argumentos]
+    if faltantes:
+        raise HTTPException(
+            # 422 literal y no `status.HTTP_422_UNPROCESSABLE_ENTITY`: esa
+            # constante está deprecada en la versión de Starlette que fija
+            # `constraints.txt` y su reemplazo no existe en versiones
+            # anteriores. El número no se va a mover.
+            status_code=422,
+            detail=(
+                f"El reporte '{tipo}' exige {', '.join(faltantes)}."
+            ),
+        )
+
+    encolado = await cola.encolar(
+        definicion.trabajo,
+        org_id=str(ctx.org_id),
+        usuario_id=str(ctx.usuario_id),
+        rol=ctx.rol,
+        # Solo lo que ese trabajo entiende: mandarle `estimacion_id` al job de
+        # avance sería un `TypeError` dentro del worker, o sea un reporte
+        # `fallido` sin explicación para quien lo pidió.
+        **{
+            campo: str(valor)
+            for campo, valor in argumentos.items()
+            if campo in _PARAMETROS_ACEPTADOS[tipo]
+        },
+    )
+    return TrabajoRespuesta.desde(encolado)
+
+
+_PARAMETROS_ACEPTADOS: dict[str, frozenset[str]] = {
+    "avance": frozenset({"proyecto_id", "cluster_id"}),
+    "estimacion": frozenset({"estimacion_id"}),
+    "expediente": frozenset({"obra_id"}),
+}
+"""Qué argumentos acepta el job de cada tipo.
+
+Va aquí y no en el catálogo porque es la firma de la función del worker, no
+una propiedad del reporte: `requiere` dice qué **exige** el tipo, esto dice
+qué **entiende** su trabajo. Coinciden hoy salvo en `avance`, cuyos dos
+parámetros son opcionales."""
 
 
 @router.get(

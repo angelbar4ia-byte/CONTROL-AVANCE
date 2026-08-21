@@ -16,27 +16,29 @@
 | D7 | **Las Fases 7+ se ordenan por un piloto en obra real** | El orden lo decide qué **bloquea el uso**, no qué falta del spec. Consecuencias: la administración de usuarios sube al primer lugar —hoy no se puede dar de alta a nadie y el Login ya lo promete—; presupuesto, procesos y tiempo real bajan; y el móvil se va al final, lo que hace que el piloto sea **web-only**. Eso último solo se sostiene si el residente captura con señal: `PATCH /actividades/{id}/avance` y la feature `avance` de la web ya lo permiten. **Si el residente resulta no tener señal en campo, el móvil deja de ser opcional y salta al frente de la fila** — es el supuesto que hay que confirmar antes de empezar el piloto, no durante. |
 | D8 | **Endurecer no compite con el piloto: es su precondición** | Un piloto mete datos reales de un cliente en producción, así que la Fase 8 (operación segura) va **antes** que cualquier feature nueva. Sin restauración probada, sin poder revertir una migración y sin rastro de quién cambió qué, el riesgo no es técnico sino del cliente. El detonante fue encontrar que **nada se ha desplegado nunca**: las seis fases viven en una rama sin fusionar a `main`, mientras el §12.12 manda trunk-based con `main` siempre desplegable. El endurecimiento que **sostiene** el sistema cuando crece —virtualización, datasets golden, deuda de tipos— es otra cosa y va en la Fase 14. |
 
-## Estado actual (Fases 7 a 15 cerradas)
+## Estado actual (Fases 7 a 16 cerradas)
 
 | Capa | Entregado | Pendiente |
 |---|---|---|
 | `database/` | 28 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · guardia de privilegios de `usuario` · orden de cambio del extra-catálogo · **dispositivos de push con su puerta `security definer`** · 7 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
-| `backend/` | Dominio completo (15 contextos) · 62 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 19 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · `POST /actividades` extra-catálogo · **cierre de obra (workflow D)** · presupuesto y rendimientos · **versión mínima del cliente (426) y Expo Push** · **895 pruebas + 30 nuevas de esta fase**, 246 de integración y 6 datasets golden | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
-| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada), `extras`, `revisiones`, `cierresObra`, `presupuesto` · virtualización compartida (`lib/tablaVirtual`) · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **336 pruebas** + 4 E2E de humo + 3 del alta | Bitácora de eventos (SI) · procesos · los 6 E2E de workflow |
+| `backend/` | Dominio completo (15 contextos) · 62 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 19 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · `POST /actividades` extra-catálogo · **cierre de obra (workflow D)** · presupuesto y rendimientos · **versión mínima del cliente (426) y Expo Push** · **procesos (§7.9), bitácora, `POST /reportes/{tipo}` por alcance y tiempo real por SSE** · **730 pruebas sin Postgres** (`pytest` en local) más las 246 de integración que corren en CI · 6 datasets golden | Nada del §11.2: la superficie de la API queda cubierta |
+| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada), `extras`, `revisiones`, `cierresObra`, `presupuesto` · virtualización compartida (`lib/tablaVirtual`) · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **`bitacora`, `procesos` y `avance-total`: las tres entradas de sidebar que faltaban** · avisos en vivo por SSE con indicador propio · **365 pruebas** + 4 E2E de humo + 3 del alta | Los 6 E2E de workflow |
 | `mobile/` | **Las 14 pantallas del §5.2, ninguna placeholder** · captura offline con las reglas del §6 · **cola de evidencias a R2** y **bandeja de salida a la API** · force/soft update y cabeceras de versión · registro de Expo Push · `sync/` (PowerSync + SQLite) con dos tablas local-only · sync-rules auditadas · **38 pruebas** + 3 flujos de Maestro | Assets de tienda · `projectId` real de EAS · correr Maestro contra un emulador · publicar en Play Console |
-| CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), mypy informativo, ida y vuelta de las 27 migraciones, restauración de respaldo, web, humo en navegador, **tipos y pruebas de móvil**, contrato al día · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render · E2E de móvil (necesitan emulador y API sembrada) |
+| CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), mypy informativo, ida y vuelta de las 27 migraciones, restauración de respaldo, web, humo en navegador, **tipos y pruebas de móvil**, contrato al día **y compatible hacia atrás (§12.12)** · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render · E2E de móvil (necesitan emulador y API sembrada) |
 
 ---
 
 ## Lo inmediato
 
-**Fases 7 a 15 cerradas.** El sistema se puede operar —desplegar, promover,
+**Fases 7 a 16 cerradas.** El sistema se puede operar —desplegar, promover,
 revertir, restaurar, con rastro de quién cambió qué—, ya se puede dar de alta a
 alguien sin abrir `psql`, un Control de obra puede subir su catálogo real desde
-Excel, y **el residente ya puede capturar en campo sin señal desde un
-teléfono**.
+Excel, el residente puede capturar en campo sin señal desde un teléfono, y
+**la superficie del §11.2 quedó cubierta**: no hay endpoint del spec sin
+implementar ni entrada de sidebar que caiga en "en construcción".
 
-Quedan cabos, ninguno bloqueante y casi todos de operación:
+Lo que queda ya no es código: es poner el sistema enfrente de una obra real.
+Ninguno de estos cabos bloquea eso, y casi todos son de operación:
 
 1. **Sellar la base de producción** la primera vez que se despliegue este
    runner: `./database/scripts/migrar.sh --sellar`.
@@ -52,8 +54,10 @@ Quedan cabos, ninguno bloqueante y casi todos de operación:
    `projectId` real de EAS y los assets de la ficha (§12.13). El detalle, en
    [`../mobile/README.md`](../mobile/README.md).
 
-Lo que sigue: **Fase 16** — tiempo real (`WS /ws`), procesos (§7.9) y el
-`POST /reportes/{tipo}` genérico. Nada de eso bloquea el piloto.
+Lo que sigue **no es una fase, es el piloto**: meter datos de un cliente real
+y ver qué se rompe. Los dos pendientes que sobreviven a v1 —los seis E2E de
+workflow y la publicación en Play— necesitan las dos cosas que faltan del
+mundo, no del repo: un staging sembrado y una cuenta de Google.
 
 El detalle de la Fase 6 está en [`FASE-6.md`](FASE-6.md); el procedimiento de
 operación, en [`OPERACION.md`](OPERACION.md).
@@ -410,7 +414,8 @@ Cierres como sustituto, con un comentario en `App.tsx` que lo decía.
 - ✅ **Web**: estado por obra —avance, ruta crítica, incidencias abiertas,
   cierres pendientes— filtrado por el alcance del rol. **Virtualizada** pasado
   el umbral (regla 4, §12.9).
-- Sin tiempo real: recarga de TanStack Query. El `WS /ws` sigue en la Fase 16.
+- Sin tiempo real *entonces*: recarga de TanStack Query. La **Fase 16** le puso
+  avisos en vivo por SSE, y la Torre es la primera pantalla que recarga sola.
 
 **Por qué `GET /torre` y no cinco llamadas del cliente.** La Torre necesita seis
 números por obra. Resolverlo desde el navegador serían cinco peticiones por
@@ -761,14 +766,123 @@ volver la cobertura todo sale solo, sin que nadie toque nada y sin duplicados.
 
 ## Fase 16 — Lo que queda del spec
 
-Lo que no bloquea el piloto pero cierra la superficie del §11.2:
+> **Cerrada.** Con esto no queda ningún endpoint del §11.2 sin implementar, ni
+> ninguna entrada de sidebar del §5.1 que lleve a "en construcción".
 
-- **Tiempo real** `WS /ws` (o SSE): Torre, bandejas y notificaciones en vivo.
-- **Procesos** (§7.9, mejora continua): `GET/POST /procesos` — (SI).
-- **`POST /reportes/{tipo}`** genérico: hoy los dos reportes se encolan desde
-  su propia ruta; el spec pide además una genérica por alcance.
-- **Contrato aditivo con ventana de deprecación (§12.12)**, ahora que hay un
-  cliente móvil viejo al que no romper.
+Cuatro cabos sueltos que no bloqueaban el piloto pero dejaban el spec a medias.
+Tres eran superficie faltante; el cuarto era una promesa que el sistema hacía y
+no podía cumplir.
+
+### Tiempo real: SSE, no WebSocket
+
+El §11.2 ofrece las dos —`WS /ws` **o** `GET /events`— y se tomó SSE. El
+tráfico es de una sola dirección: la Torre y las bandejas necesitan enterarse
+de que algo cambió, no mandar nada. Un WebSocket da un canal bidireccional del
+que se usaría la mitad, y con él un protocolo de mensajes, un ping propio y una
+máquina de reconexión que hay que escribir. SSE es HTTP: pasa por el proxy de
+Render y por las VPN corporativas sin negociar un `Upgrade` —justo donde los
+WebSockets fallan en obra—, y la reconexión es del protocolo.
+
+Tres decisiones que valen más que el transporte:
+
+- **El aviso lleva ids, nunca contenido.** Un canal en vivo es el lugar más
+  fácil para filtrar datos sin querer: basta un manejador que serialice el
+  agregado completo para que quien esté suscrito reciba campos que su rol no
+  podría pedir por HTTP. Quien recibe `{"tipo": "actividad_cerrada", …}` vuelve
+  a consultar con su token, y la frontera sigue siendo RLS (§12.4). Por eso la
+  traducción de evento a aviso es **una tabla explícita** —`adapters/api/
+  avisos.py`— y no un `__dict__`: agregar un campo al canal es una decisión, no
+  un descuido.
+- **El cliente invalida, no aplica.** Escribir el cambio en la caché a partir
+  del aviso sería inventar el estado en el navegador, que **no puede saber** qué
+  le permite ver RLS. Invalidando, el dato lo trae la API con las reglas de
+  siempre.
+- **El token va en la cabecera.** `EventSource` no deja poner cabeceras, así
+  que el JWT acabaría en la query string —logs de Render, historial, proxies—.
+  El cliente lee el flujo con `fetch` + streams para mandar `Authorization`,
+  como todo lo demás.
+
+El canal reparte en memoria dentro del proceso y por **Redis pub/sub** entre
+procesos, con el mismo `REDIS_URL` que ya usa Arq. Sin Redis se degrada, no se
+rompe: en un despliegue de una instancia —el del piloto— funciona completo. Y
+la cola de cada suscriptor es acotada: una pestaña dormida pierde avisos en vez
+de tumbar el proceso, que es el intercambio correcto cuando el dato de verdad
+está a una petición de distancia.
+
+### `POST /reportes/{tipo}`: el catálogo es la tabla
+
+Los tipos, sus roles y sus parámetros viven en `adapters/export/catalogo.py`.
+Con un `if/elif` en el router, agregar un reporte serían tres cosas que tocar y
+el olvidado siempre es el rol — por eso hay una prueba de que el genérico **no
+es un rodeo**: pedir `estimacion` como residente da 403, igual que en la ruta
+específica. El orden de las validaciones también se prueba: *existe → puedes →
+está completo*, porque al revés un 422 por parámetro faltante le confirmaría a
+alguien sin permiso que ese reporte existe.
+
+El tercer tipo, `avance`, es el que justifica el endpoint: **no cuelga de
+ninguna entidad**. Su sujeto es el alcance del que pregunta, y sale bien porque
+el contexto RLS viaja al worker. Reusa la consulta de la Torre en vez de
+escribir una propia: si el reporte contara las obras detenidas con otro
+criterio, la junta donde se miran los dos números discutiría cuál está mal.
+
+Sus **dos avances** se llaman distinto porque son distintos —`por_actividades`
+es un conteo, `promedio_simple` es una media— y con obras de distinto tamaño
+difieren muchísimo. El **ponderado por dinero** no está, aquí ni en la
+pantalla: exige decidir contra qué se pondera y el spec no lo fija. Esa
+decisión ya tiene su lugar en Presupuesto.
+
+### Procesos y bitácora: la tabla existía, faltaba la puerta
+
+`proceso` está en la migración 0010 con su RLS de catálogo desde la Fase 1, y
+`bitacora` se escribe sola por trigger desde la Fase 8. Las dos entradas del
+sidebar del SI llevaban a "en construcción" — una auditoría que solo se lee con
+`psql` no cumple lo que el §12.12 pide, porque quien necesita saber quién movió
+el IVA es justamente quien no tiene ese acceso.
+
+- **Procesos**: todos leen, el SI escribe. La asimetría es del §11.2 y es
+  correcta: un proceso de mejora que solo ve quien lo escribió no mejora nada.
+  Se agregó `PATCH` —que el spec no pide— porque sin mover el estatus el
+  tablero se queda en `propuesto` para siempre; y **sin máquina de estados**,
+  porque imponer un orden sería inventar una regla que el §7.9 no da.
+- **`EstatusProceso` se decidió aquí** y **no** como enum de Postgres: cambiar
+  un tipo de la base es una migración con `down` probado, y estos cuatro
+  valores son convención de tablero —semilla editable del §8.7—, no invariante.
+- **Bitácora**: solo lectura, y no por elección de la ruta —la tabla no tiene
+  política de INSERT, UPDATE ni DELETE—. La pantalla pinta el **diff campo por
+  campo**, que es lo que se viene a ver: un volcado del `jsonb` escondería el
+  cambio entre treinta campos iguales.
+
+### Contrato aditivo: la ventana ahora se verifica sola
+
+Desde la Fase 15 hay un cliente que no se puede actualizar a voluntad. Que el
+contrato "no rompa" era una intención escrita en el §12.12 y nada la
+comprobaba: se puede regenerar `openapi.json` correctamente y romper a todos
+los clientes viejos a la vez.
+
+Ahora hay una **línea base** —`openapi/publicado.json`, el contrato que está en
+producción— y un script que compara contra ella en CI. Quitar una operación,
+volver obligatorio un campo, sacar uno de una respuesta o achicar un enum ponen
+el build en rojo; agregar, no. Y la ventana es parte de la regla: una ruta
+deprecada declara su `x-sunset`, quitarla antes de esa fecha falla, y una
+deprecación **sin** fecha también —porque nunca vencería—. El ayudante
+(`adapters/api/deprecacion.py`) marca la ruta y manda `Deprecation`/`Sunset`
+del RFC 8594 en cada respuesta. Hoy no hay ninguna ruta deprecada, que es lo
+correcto: esta fase agrega, no quita. Lo que existe es el mecanismo, listo
+antes de que haga falta improvisarlo bajo presión.
+
+> **Un bug que encontró la suite.** `canal_de_avisos` es una instancia de
+> módulo —tiene que sobrevivir a la petición que abrió la conexión SSE— y su
+> puente con Redis es una tarea de fondo. Al apagar la app, cancelar esa tarea
+> desde un event loop distinto al que la creó levanta `RuntimeError`, y eso
+> tiraba el `lifespan`. Se vio porque cada prueba abre su propio loop; en
+> producción habría aparecido el día que alguien levantara la app dos veces en
+> el mismo proceso, o en un apagado con mala suerte. Cerrar ahora tolera un
+> loop muerto: que el apagado truene por un detalle de limpieza convertiría un
+> deploy normal en un incidente.
+
+**Criterio de cierre:** que no quede endpoint del §11.2 sin implementar, que
+ninguna entrada del §5.1 lleve a una pantalla vacía, y que romper el contrato
+sea imposible sin que CI lo diga. **Cumplido.**
 
 ---
 
@@ -779,7 +893,9 @@ pueda usar y que se pueda operar sin heroísmos. v1 está cerrado cuando:
 
 **Funciona de punta a punta**
 - [ ] Los **seis workflows del §11.3** corren completos, con su E2E verde.
-- [ ] Los **cuatro roles** del §4 tienen su sidebar del §5.1 sin huecos.
+      *(El código está; los E2E esperan un staging sembrado.)*
+- [x] Los **cuatro roles** del §4 tienen su sidebar del §5.1 sin huecos
+      (Fase 16: procesos, bitácora y avance total eran los tres que faltaban).
 - [ ] Un cliente se da de alta, carga sus catálogos, corre un mes de obra y
       cierra una obra — sin que nadie toque SQL.
 
@@ -795,9 +911,10 @@ pueda usar y que se pueda operar sin heroísmos. v1 está cerrado cuando:
 - [ ] RLS verificado por prueba en toda tabla (ya se cumple; mantenerlo).
 
 **Se puede cambiar sin romper**
-- [ ] Contrato aditivo con ventana de deprecación.
-- [ ] Móvil con force/soft update y esquema PowerSync migrable.
-- [ ] Datasets golden congelando los cálculos que importan.
+- [x] Contrato aditivo con ventana de deprecación — verificado en CI contra
+      `openapi/publicado.json` (Fase 16).
+- [x] Móvil con force/soft update y esquema PowerSync migrable (Fase 15).
+- [x] Datasets golden congelando los cálculos que importan (Fase 14).
 
 Lo que queda **fuera de v1** y se anota para no confundirlo con deuda: SSO
 (§12.1 "activable a futuro"), microservicios (§12.1 "futuro"), App Store —el
