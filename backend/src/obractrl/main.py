@@ -29,9 +29,11 @@ from obractrl.adapters.api.idempotencia import (
     PeticionYaProcesada,
 )
 from obractrl.adapters.api.middleware import (
+    MiddlewareDeErroresConCORS,
     MiddlewareDeIdDePeticion,
     MiddlewareDeVersionDeCliente,
 )
+from obractrl.adapters.api.problemas import problema_no_previsto
 from obractrl.adapters.api.v1 import api_v1
 from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador
 from obractrl.adapters.excel.lector import ErrorDeArchivo
@@ -144,6 +146,13 @@ def crear_app() -> FastAPI:
         openapi_url=f"{BASE_API}/openapi.json",
     )
 
+    # Antes que CORS y por eso **más adentro**: `add_middleware` inserta al
+    # principio y la pila se pliega de fuera hacia dentro. Un 500 atrapado aquí
+    # sale como respuesta y sube por CORS, que le pone sus cabeceras; atrapado
+    # por `ServerErrorMiddleware` —que va por fuera de todo— saldría sin ellas
+    # y el navegador lo reportaría como un problema de CORS (§12.8).
+    app.add_middleware(MiddlewareDeErroresConCORS)
+
     # El backend en Render permite el origen de Vercel por entorno (§12.8)
     app.add_middleware(
         CORSMiddleware,
@@ -237,11 +246,12 @@ def crear_app() -> FastAPI:
         # En paralelo: son independientes, y en serie la sonda tardaría la
         # suma de los timeouts justo cuando todo está caído — que es cuando
         # alguien la está mirando.
-        postgres, redis, jobs, respaldo = await asyncio.gather(
+        postgres, redis, jobs, respaldo, esquema = await asyncio.gather(
             _postgres_responde(),
             _redis_responde(),
             _jobs_responden(),
             _ultimo_respaldo(),
+            _version_del_esquema(),
         )
         disco = _disco_disponible()
 
@@ -254,6 +264,7 @@ def crear_app() -> FastAPI:
         return {
             "estatus": "ok" if sano else "degradado",
             "postgres": postgres,
+            "esquema": esquema,
             "cola": redis,
             "jobs": jobs,
             "disco": disco,
@@ -274,6 +285,53 @@ async def _postgres_responde() -> str:
     except Exception as exc:  # noqa: BLE001 — es una sonda, no una ruta crítica
         # La clase basta para saber si es red, credenciales o esquema; el
         # mensaje de asyncpg puede traer el DSN con contraseña.
+        return f"error: {type(exc).__name__}"
+
+
+async def _version_del_esquema() -> str:
+    """Hasta qué migración llegó **esta** base (§12.12).
+
+    Existe por un incidente concreto: la web daba 500 en `/usuarios` porque la
+    base de producción estaba en la 0023 y el código consultaba
+    `debe_cambiar_password`, que agrega la 0025. Desde fuera, eso se veía como
+    un error de CORS en el navegador —el 500 salía sin cabeceras— y desde la
+    sonda como `ultimo_respaldo: error: ProgrammingError`, que es una pista de
+    tercera mano.
+
+    Aquí se responde de frente: la última versión aplicada y cuántas van. Quien
+    opera lo compara con `ls database/migrations/*.sql | tail -1` y sabe en un
+    vistazo si le falta migrar.
+
+    No compara contra un número esperado en el código a propósito: ese número
+    tendría que actualizarse a mano en cada migración y el día que alguien lo
+    olvide, la sonda mentiría — que es peor que no tenerla.
+    """
+    try:
+        async with asyncio.timeout(_TIMEOUT_SONDA):
+            sesion_maker = obtener_sessionmaker()
+            async with sesion_maker() as sesion:
+                if not (
+                    await sesion.execute(
+                        text("select to_regclass('app.schema_migrations')")
+                    )
+                ).scalar():
+                    # Base sin bitácora: o es de antes del runner, o nunca se
+                    # migró. Las dos se arreglan desde `database/scripts/`.
+                    return "sin bitácora de migraciones"
+
+                fila = (
+                    await sesion.execute(
+                        text(
+                            "select max(version) as ultima, count(*) as total "
+                            "from app.schema_migrations"
+                        )
+                    )
+                ).first()
+
+        if fila is None or fila.ultima is None:
+            return "sin migraciones aplicadas"
+        return f"{fila.ultima} ({fila.total} aplicadas)"
+    except Exception as exc:  # noqa: BLE001 — es una sonda, no una ruta crítica
         return f"error: {type(exc).__name__}"
 
 
@@ -1226,16 +1284,11 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             request.url.path,
             type(exc).__name__,
         )
-        return _problema(
-            request,
-            status=500,
-            tipo="error-interno",
-            titulo="Error interno",
-            detalle=(
-                "La petición no se pudo completar por un fallo del servidor. "
-                "El detalle quedó en el log; si el problema persiste, repórtalo "
-                f"con la clase del fallo: {type(exc).__name__}."
-            ),
+        # El cuerpo lo arma `problemas.py`, no este manejador: el mismo 500
+        # lo produce también `MiddlewareDeErroresConCORS`, y dos definiciones
+        # del mismo error acaban diciendo cosas distintas.
+        return problema_no_previsto(
+            str(request.url.path), clase=type(exc).__name__
         )
 
 

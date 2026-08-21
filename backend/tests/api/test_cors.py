@@ -110,6 +110,79 @@ class TestPreflight:
         assert respuesta.headers["access-control-allow-origin"] == PERMITIDO
 
 
+class TestUn500NoSeDisfrazaDeCORS:
+    """La lección del segundo diagnóstico equivocado.
+
+    Con la base de producción sin migrar, `GET /api/v1/usuarios` devolvía 500
+    —`column "debe_cambiar_password" does not exist`—. Pero `ServerErrorMiddleware`
+    va **por fuera** de `CORSMiddleware`, así que ese 500 salía sin
+    `Access-Control-Allow-Origin` y el navegador reportaba, otra vez:
+
+        blocked by CORS policy: No 'Access-Control-Allow-Origin' header
+
+    Un error de esquema disfrazado del error que se acababa de arreglar. Estas
+    pruebas fijan que un 500 llegue al navegador **como un 500**.
+    """
+
+    @pytest.fixture
+    def cliente_que_truena(self, monkeypatch: pytest.MonkeyPatch):
+        """La app real con una ruta que falla, montada encima.
+
+        Se monta aquí y no en `main.py` porque es andamio de la prueba: los
+        middlewares son de la aplicación y cubren cualquier ruta, incluida
+        esta.
+        """
+        cfg = obtener_config()
+        monkeypatch.setattr(cfg, "cors_origenes", [PERMITIDO], raising=False)
+
+        app = crear_app()
+
+        @app.get("/_prueba/truena-con-origen")
+        async def _truena() -> dict[str, str]:
+            raise RuntimeError("select * from usuario where email = 'ana@obractrl.mx'")
+
+        # `raise_server_exceptions=False` para que el 500 se **responda** en vez
+        # de propagarse: lo que se verifica es la respuesta que ve el navegador.
+        with TestClient(app, raise_server_exceptions=False) as c:
+            yield c
+
+    def test_el_500_lleva_la_cabecera_de_CORS(self, cliente_que_truena: TestClient) -> None:
+        respuesta = cliente_que_truena.get(
+            "/_prueba/truena-con-origen", headers={"Origin": PERMITIDO}
+        )
+
+        assert respuesta.status_code == 500
+        # Sin esto el navegador esconde el 500 detrás de un error de CORS y el
+        # operador arregla lo que no estaba roto.
+        assert respuesta.headers["access-control-allow-origin"] == PERMITIDO
+
+    def test_y_sale_como_problem_json_con_su_request_id(
+        self, cliente_que_truena: TestClient
+    ) -> None:
+        respuesta = cliente_que_truena.get(
+            "/_prueba/truena-con-origen", headers={"Origin": PERMITIDO}
+        )
+
+        assert respuesta.headers["content-type"].startswith("application/problem+json")
+        cuerpo = respuesta.json()
+        assert cuerpo["status"] == 500
+        assert cuerpo["request_id"]
+        # Nombra la clase para poder reportarlo…
+        assert "RuntimeError" in cuerpo["detail"]
+        # …y no el mensaje, que aquí traía SQL y un correo (§12.4).
+        assert "select" not in cuerpo["detail"].lower()
+        assert "ana@obractrl.mx" not in cuerpo["detail"]
+
+    def test_el_id_de_petición_también_va_en_la_cabecera(
+        self, cliente_que_truena: TestClient
+    ) -> None:
+        respuesta = cliente_que_truena.get(
+            "/_prueba/truena-con-origen", headers={"Origin": PERMITIDO}
+        )
+
+        assert respuesta.headers["x-request-id"] == respuesta.json()["request_id"]
+
+
 class TestSonda:
     def test_health_publica_los_orígenes_permitidos(self, cliente: TestClient) -> None:
         cuerpo = cliente.get("/health").json()

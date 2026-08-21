@@ -189,6 +189,40 @@ Dos cosas que conviene saber antes de pelearse con esto:
   que no fija la variable rechaza a su propia web, que es exactamente lo que
   pasó la primera vez.
 
+### Si el error de CORS aparece **después** de configurar el origen
+
+Entonces ya no es CORS. Un 500 sin manejar se responde por fuera de la pila de
+CORS, así que sale sin cabeceras y el navegador reporta lo mismo de siempre —
+un error de esquema disfrazado del error que se acaba de arreglar. Pasó aquí:
+`GET /usuarios` daba 500 porque la base estaba sin migrar.
+
+Se distingue en un vistazo: **el error de CORS de verdad no trae código de
+estado; el disfrazado trae un `500`.**
+
+Desde la Fase 16 el 500 sale con sus cabeceras y su `problem+json`
+(`MiddlewareDeErroresConCORS`), así que el navegador muestra el error real. Si
+aun así hay dudas, la sonda dice en qué migración está la base:
+
+```bash
+curl -s https://TU-API.onrender.com/health/dependencias | jq '.postgres, .esquema'
+```
+
+Compáralo con la última del repo:
+
+```bash
+ls database/migrations/*.sql | tail -1
+```
+
+Si la base va atrás, migra —y **no** selles: `--sellar` marca las migraciones
+como aplicadas sin correrlas, y eso solo sirve para una base que ya tiene el
+esquema y le falta la bitácora. Sellar una base atrasada la deja rota y
+convencida de estar al día.
+
+```bash
+cd database
+DATABASE_URL="postgresql://…" ./scripts/migrar.sh
+```
+
 > **Y revisa `ENTORNO`.** Si vale `dev` —el default— la API publica `/docs` en
 > internet con toda su superficie. Con `ENTORNO=prod` se apaga
 > (`docs_url=None`, `main.py`). No es urgente, pero no hay motivo para
