@@ -133,22 +133,22 @@ export default function AvanceTotal() {
               <thead>
                 <tr>
                   <th>Proyecto</th>
-                  <th className="num">Obras</th>
-                  <th className="num">Actividades</th>
-                  <th className="num">Concluidas</th>
-                  <th className="num">Avance</th>
-                  <th className="num">Atención</th>
+                  <th className="is-num">Obras</th>
+                  <th className="is-num">Actividades</th>
+                  <th className="is-num">Concluidas</th>
+                  <th className="is-num">Avance</th>
+                  <th className="is-num">Atención</th>
                 </tr>
               </thead>
               <tbody>
                 {porProyecto(obras).map((fila) => (
                   <tr key={fila.proyecto}>
                     <td className="mono">{fila.proyecto}</td>
-                    <td className="num mono">{fmtNum(fila.obras)}</td>
-                    <td className="num mono">{fmtNum(fila.actividades)}</td>
-                    <td className="num mono">{fmtNum(fila.concluidas)}</td>
-                    <td className="num mono">{fmtNum(fila.avance)} %</td>
-                    <td className="num mono">{fmtNum(fila.conPendientes)}</td>
+                    <td className="is-num mono">{fmtNum(fila.obras)}</td>
+                    <td className="is-num mono">{fmtNum(fila.actividades)}</td>
+                    <td className="is-num mono">{fmtNum(fila.concluidas)}</td>
+                    <td className="is-num mono">{fmtNum(fila.avance)} %</td>
+                    <td className="is-num mono">{fmtNum(fila.conPendientes)}</td>
                   </tr>
                 ))}
               </tbody>

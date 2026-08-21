@@ -213,9 +213,11 @@ function SesionSinVincular({ mensaje }: { readonly mensaje: string }) {
 function EnConstruccion() {
   return (
     <div className="page">
-      <div className="page-head">
-        <div className="eyebrow mono">ObraCtrl</div>
-        <h1 className="title">Pantalla pendiente</h1>
+      <div className="page__header">
+        <div className="page__titlewrap">
+          <div className="page__eyebrow mono">ObraCtrl</div>
+          <h1 className="page__title">Pantalla pendiente</h1>
+        </div>
       </div>
       <div className="empty">
         <div className="empty-title">Aún no implementada</div>

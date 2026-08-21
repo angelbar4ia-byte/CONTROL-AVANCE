@@ -230,3 +230,24 @@ export function rutaPermitida(rol: Rol, ruta: string): boolean {
     seccion.items.some((item) => ruta === item.a || ruta.startsWith(`${item.a}/`)),
   );
 }
+
+export const TABS_MOVILES = 4;
+/**
+ * Cuántas entradas caben abajo en un teléfono.
+ *
+ * Cuatro, no cinco: con el ancho de un teléfono chico (360px) la quinta parte
+ * el texto en dos renglones y la barra deja de leerse de un vistazo, que es lo
+ * único que una tab bar aporta sobre un menú.
+ */
+
+/**
+ * Las entradas que van en la barra inferior del móvil (§12.10 `.mobile-tabbar`).
+ *
+ * Son **las primeras de su sidebar**, no una lista aparte: el §5.1 ya ordenó
+ * cada rol poniendo primero lo que más usa, y mantener dos listas garantiza
+ * que un día digan cosas distintas. El resto de las entradas sigue estando a
+ * un toque, en el cajón que abre la barra superior.
+ */
+export function tabsDe(rol: Rol): readonly ItemNav[] {
+  return POR_ROL[rol].flatMap((seccion) => seccion.items).slice(0, TABS_MOVILES);
+}

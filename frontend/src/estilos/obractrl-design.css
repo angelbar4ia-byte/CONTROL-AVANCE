@@ -192,6 +192,7 @@ a { color: inherit; text-decoration: none; }
   cursor: pointer;
 }
 .role-chip:hover { background: var(--c-elev); }
+.role-chip__sub { font-size: 10.5px; color: var(--c-text-mute); }
 .role-chip__dot {
   width: 18px; height: 18px;
   border-radius: 50%;
@@ -204,6 +205,17 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ===== Sidebar ============================================== */
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 14px 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--c-line);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
 .sidebar {
   border-right: 1px solid var(--c-line);
   background: var(--c-panel);
@@ -284,6 +296,40 @@ a { color: inherit; text-decoration: none; }
   font-weight: 600;
   font-family: var(--f-mono);
   flex-shrink: 0;
+}
+
+/* Botón de menú: solo en pantalla angosta.
+   En escritorio el sidebar está siempre a la vista, así que un botón para
+   abrir lo que ya se ve sería ruido.
+
+   `.topbar .topbar__nav-toggle` y no la clase sola: el botón también lleva
+   `.btn`, que se define más abajo en esta hoja y con la misma especificidad
+   gana por orden — el `display: none` no se aplicaba y el botón salía en
+   escritorio. */
+.topbar .topbar__nav-toggle { display: none; }
+.topbar__brand-name { white-space: nowrap; }
+
+/* La barra no puede empujar la página: sus hijos son flex y, sin esto, un
+   nombre largo en el chip de rol la ensancha por encima del viewport y se
+   lleva consigo al `main` (los dos son celdas de la misma grilla). */
+.topbar { min-width: 0; }
+.crumbs { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.topbar__actions { min-width: 0; }
+.role-chip { min-width: 0; }
+.role-chip > div { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Velo del cajón de navegación. Es un `button` para que sea alcanzable con
+   teclado; el `appearance: none` le quita el aspecto de botón. */
+.scrim {
+  display: none;
+  position: fixed;
+  inset: var(--topbar-h) 0 0 0;
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: oklch(20% 0.012 255 / 0.32);
+  z-index: 80;
+  cursor: pointer;
 }
 
 /* ===== Topnav variant ====================================== */
@@ -523,6 +569,13 @@ a { color: inherit; text-decoration: none; }
 .table tbody tr.is-selected td { background: var(--c-accent-soft); }
 .table tbody tr:last-child td { border-bottom: none; }
 .table td.is-num, .table th.is-num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Fila apagada: una carga revertida, un usuario inactivo, una actividad
+   bloqueada. Cuatro pantallas la pedían y no existía, así que esas filas se
+   veían **iguales** a las vigentes — que es justo lo contrario de lo que la
+   clase intenta decir. Se apaga con color, no con `opacity`: bajar la opacidad
+   arrastra también los badges y los deja ilegibles. */
+.is-muted { color: var(--c-text-mute); }
+.is-muted td, .is-muted .is-key { color: var(--c-text-faint); }
 .table td.is-key { font-family: var(--f-mono); color: var(--c-text-soft); }
 .table td.cell-actions { width: 1%; }
 
@@ -1237,8 +1290,27 @@ a { color: inherit; text-decoration: none; }
   font-family: var(--f-mono);
 }
 
-/* ===== Mobile ============================================== */
+/* ===== Responsive ==========================================
+   Tres tramos, no dos. El salto de 232px de sidebar a "sin nada" dejaba fuera
+   justo el ancho más común de trabajo en obra: una laptop chica o una tablet
+   apaisada, donde el sidebar cabe pero apretado y la tabla se queda sin aire. */
+@media (max-width: 1180px) {
+  :root { --sidebar-w: 188px; }
+  .page { padding: 18px 20px 56px; }
+}
+
+/* Ancho de teléfono en la barra superior: el chip de rol y el texto de los
+   badges se van y quedan el punto y el icono, que es lo que se reconoce. */
+@media (max-width: 640px) {
+  .topbar__solo-ancho { display: none; }
+  .role-chip { padding: 4px; border-color: transparent; }
+  /* La semana y el alcance son contexto, no navegación: en un teléfono ceden
+     su lugar al menú y al estado de sincronización, que sí se accionan. */
+  .crumbs { display: none; }
+}
+
 @media (max-width: 880px) {
+  .split { grid-template-columns: 1fr; }
   .app, .app.nav-top {
     grid-template-columns: 1fr;
     grid-template-rows: var(--topbar-h) 1fr;
@@ -1251,7 +1323,16 @@ a { color: inherit; text-decoration: none; }
     z-index: 90;
     box-shadow: var(--shadow-lg);
   }
+  .app.is-mobile-nav-open .scrim { display: block; }
+  .topbar .topbar__nav-toggle { display: inline-flex; }
+  .topbar__brand { border-right: none; padding-right: 4px; }
+  /* La marca completa no cabe junto al menú y las migas: queda el cuadro. */
+  .topbar__brand-name { display: none; }
   .page { padding: 14px 14px 80px; }
+  /* Una tabla ancha no puede empujar la página: se desplaza dentro de su caja
+     (§12.9). Sin esto, en un teléfono el layout entero se va de lado. */
+  .table-wrap { overflow-x: auto; }
+  .card__body { overflow-x: auto; }
   .page__header { flex-direction: column; align-items: flex-start; }
   .page__actions { flex-wrap: wrap; }
   .mobile-tabbar {
@@ -1279,10 +1360,77 @@ a { color: inherit; text-decoration: none; }
   .mobile-tabbar { display: none; }
 }
 
+/* ===== Lista + detalle =====================================
+   El patrón "elige a alguien de la izquierda y edítalo a la derecha" que usa
+   Asignaciones (§5.1). Estaba en la pantalla desde la Fase 7 y no en la hoja:
+   las dos columnas salían apiladas y sin bordes.
+
+   `minmax(0, 1fr)` en el detalle y no `1fr` a secas: con `1fr` una tabla ancha
+   dentro del detalle ensancha la columna en vez de desplazarse, y se lleva el
+   layout de la página. */
+.split {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.split__list {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  overflow: hidden;
+}
+.split__detail { min-width: 0; }
+
+.list { display: flex; flex-direction: column; }
+.list__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--c-line);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--c-text-soft);
+  cursor: pointer;
+}
+.list__item:last-child { border-bottom: none; }
+.list__item:hover { background: var(--c-elev); color: var(--c-text); }
+.list__item.is-active {
+  background: var(--c-accent-soft);
+  color: var(--c-text);
+  box-shadow: inset 2px 0 0 var(--c-accent);
+}
+
+/* ===== Estado vacío ========================================
+   Lo renderizan doce pantallas desde la Fase 9 y **no estaba en la hoja**:
+   salía como dos párrafos pegados al borde izquierdo. Se define con los
+   nombres que la app ya usa. */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 40px 24px;
+  border: 1px dashed var(--c-line-strong);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  color: var(--c-text-mute);
+}
+.empty-title { font-size: var(--fs-base); font-weight: 500; color: var(--c-text-soft); }
+.empty-sub { font-size: var(--fs-sm); max-width: 52ch; }
+
 /* Utility */
 .row { display: flex; align-items: center; gap: 8px; }
 .col { display: flex; flex-direction: column; gap: 8px; }
+.gap-2 { gap: 2px; }
 .gap-4 { gap: 4px; }
+.gap-8 { gap: 8px; }
 .gap-12 { gap: 12px; }
 .gap-16 { gap: 16px; }
 .mt-8 { margin-top: 8px; }
