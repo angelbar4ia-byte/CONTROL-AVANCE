@@ -5,6 +5,18 @@
 cuadra: una migración que falla con `already exists`, un endpoint que da 500
 por una columna que no está, o después de un `--sellar` de más.
 
+Antes de correrlo, verifica que `DATABASE_URL` sea la que crees que es —sin
+exponer la contraseña—:
+
+```bash
+echo "$DATABASE_URL" | sed -E 's#(:)[^:@/]+(@)#***#'
+```
+
+Debe verse `postgresql://usuario:***@host:5432/base`. Si trae algo pegado que
+no es parte del DSN (una ruta, un nombre de script), el valor se corrompió al
+pegarlo en la terminal — `unset DATABASE_URL` y vuelve a exportarlo como una
+sola línea, sin partirlo en dos.
+
 ```bash
 psql "$DATABASE_URL" -f scripts/inventario.sql
 ```
