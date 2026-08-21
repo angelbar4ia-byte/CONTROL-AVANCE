@@ -78,12 +78,15 @@ autoriza), y el Super intendente ejecuta el **cierre de obra final**.
 
 ## Estado
 
+> El detalle vive en [`MD/ROADMAP.md`](MD/ROADMAP.md), que es donde se
+> actualiza; esta tabla es el resumen.
+
 | | Listo | Falta |
 |---|---|---|
-| `database/` | 14 migraciones, RLS por rol, semillas, generador de calendario · **15 pruebas de aislamiento** | Sync rules en producción |
-| `backend/` | Dominio puro (avance, CPM, cierre, estimación, folios, value objects) · módulos **avance**, **cierres** y **estimación** end-to-end (repos + casos de uso + endpoints) · **92+ pruebas de dominio** | Módulos restantes del §11.2 (proyectos, catálogos, programación, materiales, incidencias, evaluación, cargas, expediente, reportes), cargadores Excel, export de estimación (job) |
-| `frontend/` | Shell de 3 columnas, navegación por rol, tokens, densidad, cliente Supabase y HTTP · **13 pruebas** | Las features de cada dominio |
-| `mobile/` | Tabs por rol, esquema PowerSync, sync rules, config lista para Play | Pantallas reales, login, captura offline |
+| `database/` | 28 migraciones con su `down` y bitácora de versión · RLS por rol en toda tabla · semillas · restauración de respaldo probada en CI · **7 archivos de pruebas de aislamiento** | Publicar las sync rules en el PowerSync de producción · sellar la base de producción |
+| `backend/` | Los 15 contextos del §11.1 end-to-end · cargadores Excel · jobs Arq + Redis · notificaciones (Resend + Expo Push) · `problem+json`, Sentry y sondas · **más de 900 pruebas** | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
+| `frontend/` | Las 18 features del §5.1 · virtualización compartida · **336 pruebas** + humo en navegador | Bitácora de eventos (SI) · procesos · los 6 E2E de workflow |
+| `mobile/` | Las 14 pantallas del §5.2 · captura offline con evidencia · colas a R2 y a la API · force/soft update · Expo Push · **38 pruebas** + 3 flujos de Maestro | Assets y cuenta de Google Play (§12.13) |
 
 ## Verificación
 
@@ -99,7 +102,7 @@ lint-imports              # la regla de dependencia se verifica en CI (§12.11)
 cd frontend && npm install && npm run typecheck && npm test && npm run build
 
 # Móvil
-cd mobile && npm install && npm run typecheck
+cd mobile && npm install && npm run typecheck && npm test
 ```
 
 ## Tres invariantes que conviene no romper

@@ -1,15 +1,12 @@
-import { View } from 'react-native';
+/**
+ * Incidencias — Supervisor: atiende, cierra y rechaza (§11.3 F.3, F.4).
+ *
+ * La pantalla vive en `src/pantallas/Incidencias.tsx`: es compartida entre roles
+ * (§5.3) y esta ruta solo la monta para el Supervisor.
+ */
 
-import { Encabezado } from '@/ui/Encabezado';
+import { Incidencias } from '@/pantallas/Incidencias';
 
 export default function Pantalla() {
-  return (
-    <View className="flex-1 bg-bg px-5 pt-14">
-      <Encabezado
-        eyebrow="Supervisor"
-        titulo="Incidencias"
-        descripcion="Programar y atender incidencias (§6)."
-      />
-    </View>
-  );
+  return <Incidencias papel="supervisor" />;
 }

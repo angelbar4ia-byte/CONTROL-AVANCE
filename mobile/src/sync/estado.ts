@@ -3,8 +3,15 @@
  *
  * El residente no necesita saber de buckets ni de checkpoints: necesita
  * saber si lo que capturó ya salió del teléfono. Este hook resume el
- * `SyncStatus` de PowerSync más el tamaño de la cola de subida en un solo
+ * `SyncStatus` de PowerSync más el tamaño de las colas de subida en un solo
  * valor que la UI pinta sin decidir nada.
+ *
+ * **Las tres colas cuentan como una.** PowerSync tiene la suya (`ps_crud`),
+ * las fotos tienen la de R2 y las operaciones que exigen API tienen la
+ * bandeja de salida. Son tres mecanismos distintos por buenas razones —ver
+ * `sync/powersync.ts`—, pero para quien está en la obra la pregunta es una
+ * sola: *¿ya salió lo que capturé?*. Un indicador que dijera "sincronizado"
+ * con tres fotos sin subir estaría mintiendo con precisión técnica.
  */
 
 import { useEffect, useState } from 'react';
@@ -26,10 +33,20 @@ export type EstadoSync =
 
 export interface ResumenSync {
   readonly estado: EstadoSync;
-  /** Operaciones locales aún sin subir. */
+  /** Todo lo que aún no sale del teléfono: cola de PowerSync + fotos + operaciones. */
   readonly pendientes: number;
+  /** Desglose, para las pantallas que sí necesitan distinguir. */
+  readonly detalle: DetallePendientes;
   readonly ultimaSync: Date | null;
 }
+
+export interface DetallePendientes {
+  readonly cambios: number;
+  readonly fotos: number;
+  readonly operaciones: number;
+}
+
+const SIN_PENDIENTES: DetallePendientes = { cambios: 0, fotos: 0, operaciones: 0 };
 
 function resolverEstado(
   conectado: boolean,
@@ -46,7 +63,7 @@ function resolverEstado(
 export function useEstadoSync(): ResumenSync {
   const db = usePowerSync();
   const estatus = useStatus();
-  const [pendientes, setPendientes] = useState(0);
+  const [detalle, setDetalle] = useState<DetallePendientes>(SIN_PENDIENTES);
 
   const { uploading = false, downloading = false } = estatus.dataFlowStatus;
 
@@ -56,9 +73,20 @@ export function useEstadoSync(): ResumenSync {
     async function refrescar(): Promise<void> {
       try {
         const cola = await db.getUploadQueueStats();
-        if (activo) setPendientes(cola.count);
+        const locales = await db.get<{ fotos: number; operaciones: number }>(
+          `SELECT
+             (SELECT COUNT(*) FROM evidencia_pendiente WHERE estado = 'pendiente') AS fotos,
+             (SELECT COUNT(*) FROM operacion_pendiente WHERE estado = 'pendiente') AS operaciones`,
+        );
+        if (activo) {
+          setDetalle({
+            cambios: cola.count,
+            fotos: locales?.fotos ?? 0,
+            operaciones: locales?.operaciones ?? 0,
+          });
+        }
       } catch {
-        // La cola es informativa: si no se puede leer, no se rompe la
+        // El contador es informativo: si no se puede leer, no se rompe la
         // pantalla de captura.
       }
     }
@@ -79,9 +107,12 @@ export function useEstadoSync(): ResumenSync {
     };
   }, [db, uploading, downloading, estatus.connected]);
 
+  const pendientes = detalle.cambios + detalle.fotos + detalle.operaciones;
+
   return {
     estado: resolverEstado(estatus.connected, uploading || downloading, pendientes),
     pendientes,
+    detalle,
     ultimaSync: estatus.lastSyncedAt ?? null,
   };
 }

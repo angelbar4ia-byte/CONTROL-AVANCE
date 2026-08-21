@@ -1,15 +1,12 @@
-import { View } from 'react-native';
+/**
+ * Fotos — la cola de evidencias hacia R2 (§12.5).
+ *
+ * La pantalla vive en `src/pantallas/FotosPendientes.tsx`: es compartida entre roles
+ * (§5.3) y esta ruta solo la monta para Control de obra.
+ */
 
-import { Encabezado } from '@/ui/Encabezado';
+import { FotosPendientes } from '@/pantallas/FotosPendientes';
 
 export default function Pantalla() {
-  return (
-    <View className="flex-1 bg-bg px-5 pt-14">
-      <Encabezado
-        eyebrow="Control de obra"
-        titulo="Fotos"
-        descripcion="Evidencias; suben directo a R2 en segundo plano (§12.5)."
-      />
-    </View>
-  );
+  return <FotosPendientes />;
 }

@@ -16,26 +16,27 @@
 | D7 | **Las Fases 7+ se ordenan por un piloto en obra real** | El orden lo decide qué **bloquea el uso**, no qué falta del spec. Consecuencias: la administración de usuarios sube al primer lugar —hoy no se puede dar de alta a nadie y el Login ya lo promete—; presupuesto, procesos y tiempo real bajan; y el móvil se va al final, lo que hace que el piloto sea **web-only**. Eso último solo se sostiene si el residente captura con señal: `PATCH /actividades/{id}/avance` y la feature `avance` de la web ya lo permiten. **Si el residente resulta no tener señal en campo, el móvil deja de ser opcional y salta al frente de la fila** — es el supuesto que hay que confirmar antes de empezar el piloto, no durante. |
 | D8 | **Endurecer no compite con el piloto: es su precondición** | Un piloto mete datos reales de un cliente en producción, así que la Fase 8 (operación segura) va **antes** que cualquier feature nueva. Sin restauración probada, sin poder revertir una migración y sin rastro de quién cambió qué, el riesgo no es técnico sino del cliente. El detonante fue encontrar que **nada se ha desplegado nunca**: las seis fases viven en una rama sin fusionar a `main`, mientras el §12.12 manda trunk-based con `main` siempre desplegable. El endurecimiento que **sostiene** el sistema cuando crece —virtualización, datasets golden, deuda de tipos— es otra cosa y va en la Fase 14. |
 
-## Estado actual (Fases 7 a 14 cerradas)
+## Estado actual (Fases 7 a 15 cerradas)
 
 | Capa | Entregado | Pendiente |
 |---|---|---|
-| `database/` | 27 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · guardia de privilegios de `usuario` · orden de cambio del extra-catálogo · 6 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
-| `backend/` | Dominio completo (15 contextos) · 59 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 10 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · `POST /actividades` extra-catálogo · **cierre de obra (workflow D)** · presupuesto y rendimientos · **895 pruebas**, 246 de integración y 6 datasets golden | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
+| `database/` | 28 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · guardia de privilegios de `usuario` · orden de cambio del extra-catálogo · **dispositivos de push con su puerta `security definer`** · 7 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
+| `backend/` | Dominio completo (15 contextos) · 62 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 19 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · `POST /actividades` extra-catálogo · **cierre de obra (workflow D)** · presupuesto y rendimientos · **versión mínima del cliente (426) y Expo Push** · **895 pruebas + 30 nuevas de esta fase**, 246 de integración y 6 datasets golden | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
 | `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada), `extras`, `revisiones`, `cierresObra`, `presupuesto` · virtualización compartida (`lib/tablaVirtual`) · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **336 pruebas** + 4 E2E de humo + 3 del alta | Bitácora de eventos (SI) · procesos · los 6 E2E de workflow |
-| `mobile/` | `lib/` (auth, sesión, jwt, dispositivo, reglas de avance, tabs) · `sync/` (PowerSync + SQLite) · rutas por rol · sync-rules auditadas · config Play | Pantallas de captura y revisión · cola de evidencias a R2 · build de Play Store |
-| CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), mypy informativo, ida y vuelta de las 27 migraciones, restauración de respaldo, web, humo en navegador, tipos de móvil, contrato al día · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render |
+| `mobile/` | **Las 14 pantallas del §5.2, ninguna placeholder** · captura offline con las reglas del §6 · **cola de evidencias a R2** y **bandeja de salida a la API** · force/soft update y cabeceras de versión · registro de Expo Push · `sync/` (PowerSync + SQLite) con dos tablas local-only · sync-rules auditadas · **38 pruebas** + 3 flujos de Maestro | Assets de tienda · `projectId` real de EAS · correr Maestro contra un emulador · publicar en Play Console |
+| CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), mypy informativo, ida y vuelta de las 27 migraciones, restauración de respaldo, web, humo en navegador, **tipos y pruebas de móvil**, contrato al día · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render · E2E de móvil (necesitan emulador y API sembrada) |
 
 ---
 
 ## Lo inmediato
 
-**Fases 7 a 14 cerradas.** El sistema se puede operar —desplegar, promover,
+**Fases 7 a 15 cerradas.** El sistema se puede operar —desplegar, promover,
 revertir, restaurar, con rastro de quién cambió qué—, ya se puede dar de alta a
-alguien sin abrir `psql`, y un Control de obra puede subir su catálogo real
-desde Excel — las tres cosas que bloqueaban el piloto.
+alguien sin abrir `psql`, un Control de obra puede subir su catálogo real desde
+Excel, y **el residente ya puede capturar en campo sin señal desde un
+teléfono**.
 
-Quedan cuatro cabos, ninguno bloqueante y todos de operación:
+Quedan cabos, ninguno bloqueante y casi todos de operación:
 
 1. **Sellar la base de producción** la primera vez que se despliegue este
    runner: `./database/scripts/migrar.sh --sellar`.
@@ -47,11 +48,12 @@ Quedan cuatro cabos, ninguno bloqueante y todos de operación:
    poner. Nunca llega al cliente (§10.7).
 4. **Tags `vX.Y.Z` y changelog** (§12.12), y ejercitar una vez el rollback de un
    deploy real.
+5. **Publicar la app.** El código está; falta la cuenta de Play, el
+   `projectId` real de EAS y los assets de la ficha (§12.13). El detalle, en
+   [`../mobile/README.md`](../mobile/README.md).
 
-Lo que sigue: **Fase 15** (móvil) — una app entera sin pantallas: `lib/` y
-`sync/` están listos y las sync rules quedaron auditadas en la Fase 6. Si el
-piloto revela que el residente no tiene señal en campo, deja de ser la penúltima
-(D7).
+Lo que sigue: **Fase 16** — tiempo real (`WS /ws`), procesos (§7.9) y el
+`POST /reportes/{tipo}` genérico. Nada de eso bloquea el piloto.
 
 El detalle de la Fase 6 está en [`FASE-6.md`](FASE-6.md); el procedimiento de
 operación, en [`OPERACION.md`](OPERACION.md).
@@ -663,21 +665,97 @@ obra. **Cumplido.**
 
 ## Fase 15 — Móvil
 
-Una app entera sin pantallas: `lib/` (auth, sesión, jwt, dispositivo, reglas de
-avance) y `sync/` (PowerSync + SQLite) están listos, y las sync rules quedaron
-auditadas en la Fase 6.
+> **Cerrada**, salvo lo que necesita una cuenta de Google Play o un emulador.
 
-- Captura offline del residente (§11.3 B) y revisión física de Control de obra.
-- Cola de evidencias a R2 con presigned URL: las fotos no viajan por la API.
-- Expo Push (§12.2), lo único de notificaciones que falta —Resend ya está—.
-- **Actualización (§12.12):** canal OTA de EAS vs build nativo, header de
-  versión del cliente, y pantalla de force/soft update. El esquema local de
-  PowerSync debe migrar sin romper la cola de cambios sin sincronizar.
-- E2E con Detox o Maestro; **no** con Playwright.
-- Build y publicación (§12.13): `eas.json` ya tiene los tres perfiles.
+Entraba con `lib/` y `sync/` listos desde la Fase 1 y **once pantallas de
+quince líneas**. Sale con las catorce del §5.2 funcionando y con la pregunta
+que de verdad tenía que responderse: *qué se puede escribir desde un teléfono
+sin señal y qué no*.
+
+### Las tres colas, que son la decisión de la fase
+
+D5 zanjó que el **avance** concilia directo contra Postgres vía PowerSync. Lo
+que no estaba zanjado es que eso **no generaliza**, y descubrirlo fue el
+trabajo:
+
+| Cola | Qué lleva | Por qué esa |
+|---|---|---|
+| `ps_crud` de PowerSync | Avance y revisión física | Escriben directo a Postgres con RLS de frontera. No hay efecto de dominio que perder: `revision_fisica` es una entidad propia (§7.8) que no dispara nada. |
+| `evidencia_pendiente` (local-only) | Fotos hacia R2 | Una foto de 3 MB no puede bloquear una captura de 200 bytes. Y la ruta `file:///…` de *este* teléfono no significa nada en otro, así que no sincroniza: lo que viaja es la **clave** del objeto. |
+| `operacion_pendiente` (local-only) | `POST` a la API | Abrir una incidencia con `impacto=detiene` **bloquea actividades y replanea el CPM** (§11.3 F.5), y eso vive en el caso de uso, no en un trigger. |
+
+Ese tercer renglón es el hallazgo. Un `INSERT` directo de `incidencia` desde
+el móvil habría creado la fila y **no habría bloqueado nada**: el resultado no
+sería un error visible sino algo peor —una obra que se ve libre estando
+detenida—. La bandeja de salida guarda el `POST` con su `Idempotency-Key`
+generada **al capturar**, y por eso el reintento es seguro: si la red se cae
+después de que el servidor escribió, la misma clave devuelve 409 y la app lo
+lee como éxito, que es lo que es.
+
+Para el residente las tres son una sola pregunta —*¿ya salió lo que capturé?*—
+y por eso el indicador del encabezado las suma. Un "sincronizado" con tres
+fotos sin subir sería una mentira técnicamente precisa.
+
+- ✅ **Las catorce pantallas (§5.2).** Residente, Supervisor y Control de
+  obra. Las compartidas se implementaron **una vez** y cambian por rol (§5.3):
+  Obras, Incidencias y Ruta crítica viven en `src/pantallas/` con una prop
+  `papel`, no duplicadas por grupo de tabs.
+- ✅ **Captura offline con evidencia** (§11.3 B) y **revisión física** (§7.8),
+  las dos cosas que el §12.5 nombra por su nombre.
+- ✅ **Cola de evidencias a R2** con `POST /evidencias/presigned`. Tres etapas
+  —encolar, subir, coser— y la separación importa: si la app muere entre subir
+  y coser, la clave ya está persistida y el siguiente intento no vuelve a
+  mandar los 3 MB. La foto se copia a `documentDirectory` y no al caché, que
+  el sistema vacía cuando falta espacio: sin eso, una evidencia se sacaba y
+  nunca llegaba.
+- ✅ **Actualización (§12.12).** `GET /cliente/version` publica la mínima y la
+  recomendada; el middleware responde **426** a quien esté por debajo; la app
+  bloquea, sugiere o calla. Se mueve con una variable de entorno, sin
+  desplegar y sin pasar por la tienda — que es el punto, porque un build nuevo
+  llegaría tarde justo a quien ya no puede usar la app. **Si no se puede
+  preguntar, no se bloquea:** sin señal el estado es `ok`, nunca
+  `obligatoria`.
+- ✅ **Expo Push (§12.2).** Migración 0028, registro y baja del token, y el
+  aviso de `EstimacionValidada` saliendo ya por los dos canales. El push **no
+  lleva el monto**: aparece en la pantalla de bloqueo y pasa por servidores de
+  Expo y de Google (§12.4).
+- ✅ **38 pruebas de móvil en CI** y **3 flujos de Maestro** con `testID`
+  reales en los componentes.
+- ⏳ **Publicar en Play.** Falta lo que no es código: cuenta de desarrollador,
+  `projectId` de EAS, assets de la ficha y los formularios de la consola
+  (§12.13). Está enumerado en `mobile/README.md`.
+- ⏳ **Correr Maestro contra un emulador.** Los flujos están escritos contra
+  componentes reales, pero necesitan un APK instalado y una API con datos
+  sembrados — el mismo pendiente de staging que tienen los seis E2E de web.
+
+> **La política RLS más estrecha del esquema.** `dispositivo_push` no se
+> cuelga de `app.obra_visible()`: cada quien ve **solo sus** dispositivos, ni
+> siquiera el Super intendente los ajenos. Un token de push no es un dato, es
+> una capacidad de escritura sobre la pantalla de alguien. Y como el envío sí
+> necesita el token del destinatario, la excepción es **una** función
+> `security definer` con nombre propio (`app.tokens_push_de`) que devuelve
+> tokens y nada más, filtrando por organización — en vez de aflojar la
+> política y volver legibles todos los tokens desde cualquier `select`.
+
+> **Y dos bugs que estaban esperando.**
+> 1. **La app no compilaba sus pruebas, y nadie lo sabía.** `nativewind`
+>    estaba como `^4.1.23` y resolvía a 4.2.6, cuyo `react-native-css-interop`
+>    exige `react-native-worklets/plugin` — de Reanimated **4**, y aquí hay 3.
+>    Todo el pipeline de Babel se caía. El job de móvil solo corría `tsc`, que
+>    no pasa por Babel, así que el rojo no existía. Se fijó la versión exacta,
+>    con el mismo criterio de `constraints.txt` en el backend.
+> 2. **La ida y vuelta de migraciones probaba 22 de 27.** El paso de CI tenía
+>    `--pasos 22` escrito a mano desde la Fase 6. Las cinco más nuevas —las
+>    que más probable es que tengan un `down` malo— nunca se revertían. Ahora
+>    el número se cuenta.
+
+**Criterio de cierre:** un residente puede trabajar una jornada completa sin
+señal —ver sus obras, capturar avance con foto, levantar una incidencia— y al
+volver la cobertura todo sale solo, sin que nadie toque nada y sin duplicados.
+**Cumplido**, salvo la publicación en la tienda, que no es código.
 
 > Si el piloto revela que el residente no tiene señal en campo, esta fase deja
-> de ser la penúltima (D7).
+> de ser la penúltima (D7). Ya no aplica: se adelantó.
 
 ---
 

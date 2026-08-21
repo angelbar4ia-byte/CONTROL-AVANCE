@@ -69,6 +69,7 @@ export default function Login() {
           <View>
             <Text className="mb-1 text-sm text-text-soft">Correo</Text>
             <TextInput
+              testID="correo"
               value={correo}
               onChangeText={setCorreo}
               autoCapitalize="none"
@@ -85,6 +86,7 @@ export default function Login() {
           <View>
             <Text className="mb-1 text-sm text-text-soft">Contraseña</Text>
             <TextInput
+              testID="contrasena"
               value={contrasena}
               onChangeText={setContrasena}
               secureTextEntry

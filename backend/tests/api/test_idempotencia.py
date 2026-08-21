@@ -185,6 +185,16 @@ class TestContrato:
             "POST /api/v1/obras/{obra_id}/salidas",
             "POST /api/v1/usuarios",
             "POST /api/v1/usuarios/{usuario_id}/contrasena",
+            # Fase 15: las cuatro de incidencia. No mueven dinero, pero el
+            # móvil las captura sin señal y las **reenvía** desde su bandeja
+            # de salida (`mobile/src/salida/bandeja.ts`). Sin la cabecera, una
+            # respuesta que se pierde en la red se convierte en dos
+            # incidencias —y con `impacto=detiene`, en dos bloqueos de las
+            # mismas actividades (§11.3 F.5)—.
+            "POST /api/v1/incidencias",
+            "POST /api/v1/incidencias/{incidencia_id}/eventos",
+            "POST /api/v1/incidencias/{incidencia_id}/cerrar",
+            "POST /api/v1/incidencias/{incidencia_id}/rechazar",
         }
 
     def test_es_opcional(self) -> None:

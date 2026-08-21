@@ -147,6 +147,7 @@ from obractrl.application.eventos import (
 from obractrl.domain.shared.diccionario import TipoCarga
 from obractrl.infrastructure.auth.supabase_admin import AdminDeSupabase
 from obractrl.infrastructure.jobs.cola import ColaDeTrabajos
+from obractrl.infrastructure.notificaciones.expo import ClienteExpoPush
 from obractrl.infrastructure.notificaciones.resend import ClienteResend
 
 __all__ = [
@@ -307,6 +308,10 @@ def _bus_de_estimacion(sesion: SesionRLS) -> BusEnProceso:
         obras=RepositorioObrasSQL(sesion),
         usuarios=RepositorioUsuariosSQL(sesion),
         correo=ClienteResend(),
+        # Los dos canales del §12.2. Ninguno depende del otro: sin Expo
+        # configurado, `ClienteExpoPush` registra y devuelve 0, y el correo
+        # sale igual.
+        push=ClienteExpoPush(),
     )
 
     async def _notificar(evento: EstimacionValidada) -> None:

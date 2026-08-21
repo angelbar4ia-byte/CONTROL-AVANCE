@@ -880,6 +880,21 @@ class RepositorioUsuarios(Protocol):
         en el alcance. Los que no, simplemente no aparecen."""
         ...
 
+    async def tokens_push_de(self, usuario_ids: list[UUID]) -> list[str]:
+        """Tokens de Expo Push activos de esos usuarios (§12.2).
+
+        Vive junto a `correos_de` porque resuelve la misma pregunta —a qué
+        canal le hablo a esta persona— y así Notificaciones sigue sin conocer
+        la tabla `dispositivo_push`, igual que no conoce `usuario` (§11.1).
+
+        Devuelve **solo tokens**, sin decir de quién es cada uno: el emisor no
+        necesita saberlo y un token es una capacidad sobre la pantalla ajena.
+        La política RLS ni siquiera deja leer el dispositivo de otro; la
+        excepción es una función `security definer` con nombre propio
+        (migración 0028).
+        """
+        ...
+
     async def crear(self, datos: dict) -> UUID:
         """Alta de usuario (§11.2, roles C y SI). Devuelve su id."""
         ...

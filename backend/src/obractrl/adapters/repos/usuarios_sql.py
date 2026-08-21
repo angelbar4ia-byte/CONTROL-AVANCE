@@ -75,6 +75,27 @@ class RepositorioUsuariosSQL:
         ).mappings().all()
         return [dict(fila) for fila in filas]
 
+    async def tokens_push_de(self, usuario_ids: list[UUID]) -> list[str]:
+        """Tokens de Expo Push activos (§12.2, migración 0028).
+
+        Pasa por `app.tokens_push_de`, que es `security definer`, y no por un
+        `select` a `dispositivo_push`: la política `dispositivo_push_propio`
+        solo deja ver los dispositivos **propios**, así que una consulta
+        directa devolvería vacío justo cuando hay que avisarle a alguien más.
+        La función es la única puerta a los tokens ajenos y filtra por
+        organización con el mismo `app.current_org_id()` de RLS.
+        """
+        if not usuario_ids:
+            return []
+
+        filas = (
+            await self._sesion.execute(
+                text("select token from app.tokens_push_de(cast(:ids as uuid[]))"),
+                {"ids": [str(uid) for uid in usuario_ids]},
+            )
+        ).all()
+        return [str(fila.token) for fila in filas]
+
     async def crear(self, datos: dict[str, Any]) -> UUID:
         """Alta de usuario (§11.2, roles C y SI).
 

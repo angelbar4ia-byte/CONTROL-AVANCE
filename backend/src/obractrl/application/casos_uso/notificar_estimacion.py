@@ -1,4 +1,4 @@
-"""Caso de uso: avisar por correo que una estimación quedó validada.
+"""Caso de uso: avisar que una estimación quedó validada.
 
 Spec §11.1 ("`EstimacionValidada` → **notificar (Resend)** + bloquear el
 periodo") · §11.3 E.5 · §12.2 (Resend) · §12.11.
@@ -6,12 +6,19 @@ periodo") · §11.3 E.5 · §12.2 (Resend) · §12.11.
 Lo dispara el evento `EstimacionValidada`, que `ValidarEstimacion` publica
 **después** de commitear (§11.1). Por eso todo aquí falla hacia adentro:
 
-- `EnviadorDeCorreo.enviar` no levanta, devuelve si salió o no
-  (`application/puertos/notificaciones.py`).
+- `EnviadorDeCorreo.enviar` y `EnviadorDePush.enviar` no levantan: devuelven
+  si salió o no (`application/puertos/notificaciones.py`).
 - Si no hay destinatarios con correo, se registra y se sigue.
 - Y aunque algo levantara, `BusEnProceso` se lo traga con traza
   (`application/eventos.py`): una notificación fallida no puede tumbar la
   validación de una estimación que ya está en la base.
+
+**Dos canales, un solo intento (§12.2).** Sale correo *y* push, y ninguno
+depende del otro: el residente que está en obra ve la notificación en el
+teléfono y quien administra la ve en su bandeja. Si un usuario no tiene
+dispositivo registrado no pasa nada —recibe solo el correo—, y al revés
+también. El resultado se reporta como "salió por al menos un canal", que es
+lo que de verdad importa: que alguien se haya enterado.
 
 **El bloqueo del periodo NO vive aquí**, aunque el §11.1 nombre las dos cosas
 en la misma línea. Va dentro de la transacción de `ValidarEstimacion`, por el
@@ -29,7 +36,12 @@ import logging
 from uuid import UUID
 
 from obractrl.application.eventos import EstimacionValidada
-from obractrl.application.puertos.notificaciones import Correo, EnviadorDeCorreo
+from obractrl.application.puertos.notificaciones import (
+    Aviso,
+    Correo,
+    EnviadorDeCorreo,
+    EnviadorDePush,
+)
 from obractrl.application.puertos.repositorios import (
     RepositorioEstimaciones,
     RepositorioObras,
@@ -57,11 +69,16 @@ class NotificarEstimacionValidada:
         obras: RepositorioObras,
         usuarios: RepositorioUsuarios,
         correo: EnviadorDeCorreo,
+        push: EnviadorDePush | None = None,
     ) -> None:
         self._estimaciones = estimaciones
         self._obras = obras
         self._usuarios = usuarios
         self._correo = correo
+        # Opcional a propósito: un entorno sin Expo configurado sigue
+        # notificando por correo, y las pruebas que solo verifican el correo
+        # no tienen que construir un doble de push (§12.8).
+        self._push = push
 
     async def ejecutar(self, evento: EstimacionValidada) -> bool:
         estimacion = await self._estimaciones.obtener(evento.estimacion_id)
@@ -87,17 +104,32 @@ class NotificarEstimacionValidada:
             for fila in destinatarios
             if str(fila.get("email") or "").strip()
         )
-        if not correos:
+
+        ids = [fila["id"] for fila in destinatarios]
+        tokens = tuple(await self._usuarios.tokens_push_de(ids)) if self._push else ()
+
+        if not correos and not tokens:
             _log.warning(
                 "La estimación %s se validó pero no hay a quién notificarle: "
-                "ningún participante tiene correo registrado.",
+                "ningún participante tiene correo ni dispositivo registrado.",
                 evento.estimacion_id,
             )
             return False
 
-        return await self._correo.enviar(
+        salio_correo = bool(correos) and await self._correo.enviar(
             _armar_correo(estimacion=estimacion, obra=obra, para=correos)
         )
+
+        salio_push = False
+        if self._push is not None and tokens:
+            salio_push = (
+                await self._push.enviar(
+                    _armar_aviso(estimacion=estimacion, obra=obra, tokens=tokens)
+                )
+                > 0
+            )
+
+        return salio_correo or salio_push
 
 
 def _ids_unicos(*valores: object) -> list[UUID]:
@@ -139,4 +171,26 @@ def _armar_correo(*, estimacion: dict, obra: dict, para: tuple[str, ...]) -> Cor
         html=html,
         texto=texto,
         etiquetas={"tipo": "estimacion_validada"},
+    )
+
+
+def _armar_aviso(*, estimacion: dict, obra: dict, tokens: tuple[str, ...]) -> Aviso:
+    """Redacta el push. Dos líneas y ningún importe.
+
+    El correo sí lleva el monto: llega a una bandeja que exige contraseña. El
+    push aparece en la pantalla de bloqueo, a la vista de cualquiera que tome
+    el teléfono, y además pasa por servidores de Expo y de Google (§12.4). Lo
+    que viaja es el folio y a dónde ir; el monto se ve al abrir la app, donde
+    ya hay sesión.
+    """
+    folio = estimacion.get("folio") or "(sin folio)"
+    clave = obra.get("clave") or "(obra sin clave)"
+    semana = estimacion["semana"]
+    anio = estimacion["anio"]
+
+    return Aviso(
+        tokens=tokens,
+        titulo=f"Estimación {folio} validada",
+        cuerpo=f"Obra {clave} · semana {semana:02d}/{anio}. El periodo queda bloqueado.",
+        datos={"tipo": "estimacion_validada", "estimacion_id": str(estimacion.get("id", ""))},
     )

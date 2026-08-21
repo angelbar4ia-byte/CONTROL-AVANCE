@@ -1,15 +1,12 @@
-import { View } from 'react-native';
+/**
+ * Más — Supervisor (§5.2).
+ *
+ * La pantalla vive en `src/pantallas/Mas.tsx`: es compartida entre roles
+ * (§5.3) y esta ruta solo la monta para el Supervisor.
+ */
 
-import { Encabezado } from '@/ui/Encabezado';
+import { Mas } from '@/pantallas/Mas';
 
 export default function Pantalla() {
-  return (
-    <View className="flex-1 bg-bg px-5 pt-14">
-      <Encabezado
-        eyebrow="Supervisor"
-        titulo="Más"
-        descripcion="Obras supervisadas. Asignaciones es solo web (§5.2)."
-      />
-    </View>
-  );
+  return <Mas papel="supervisor" />;
 }

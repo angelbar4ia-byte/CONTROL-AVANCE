@@ -6,6 +6,11 @@
  * hacia Postgres lo hace PowerSync solo, en background, cuando hay
  * conexión (`src/sync/conector.ts`).
  *
+ * Las fotos no se escriben aquí: se encolan aparte y sus claves de R2 se
+ * cosen sobre `registro_avance.evidencias` cuando suben (§12.5,
+ * `src/evidencias/cola.ts`). El avance queda guardado al instante aunque la
+ * evidencia tarde: el número es el dato, la foto es su respaldo.
+ *
  * Los topes de §6 se validan aquí mismo, antes de escribir a SQLite, con
  * las mismas fórmulas que el backend
  * (`backend/src/obractrl/domain/avance/reglas.py`), portadas en
@@ -27,6 +32,8 @@ import {
 } from 'react-native';
 import { usePowerSync, useQuery } from '@powersync/react-native';
 
+import type { FotoTomada } from '@/evidencias/captura';
+import { encolar as encolarFoto } from '@/evidencias/cola';
 import { obtenerDeviceId } from '@/lib/dispositivo';
 import { generarId } from '@/lib/id';
 import {
@@ -36,12 +43,15 @@ import {
 } from '@/lib/reglasAvance';
 import { useSesion } from '@/lib/sesion';
 import { TOKENS } from '@/lib/tabs';
+import { useEmpujarSalida } from '@/salida/ProveedorSalida';
 import { Barra } from '@/ui/Barra';
 import { Encabezado } from '@/ui/Encabezado';
 import { Estatus } from '@/ui/Estatus';
+import { Fotos } from '@/ui/Fotos';
 
 interface FilaActividad {
   id: string;
+  obra_id: string;
   descripcion: string;
   cant_base: number;
   cant_programada: number;
@@ -60,7 +70,7 @@ interface FilaActividad {
  * completa, sin dos consultas distintas.
  */
 const CONSULTA = `
-  SELECT a.id, a.descripcion, a.cant_base, a.cant_programada, a.cant_ejecutada,
+  SELECT a.id, a.obra_id, a.descripcion, a.cant_base, a.cant_programada, a.cant_ejecutada,
          a.avance_pct, a.estatus, a.bloqueada, a.org_id, o.clave AS obra_clave,
          (SELECT COUNT(*) FROM registro_avance r
            WHERE r.actividad_id = a.id AND r.sync_status = 'pendiente') AS sin_subir
@@ -74,6 +84,7 @@ const CONSULTA = `
 export default function Pantalla() {
   const { sesion } = useSesion();
   const db = usePowerSync();
+  const empujar = useEmpujarSalida();
 
   const { obraId, obraClave } = useLocalSearchParams<{
     obraId?: string;
@@ -89,6 +100,7 @@ export default function Pantalla() {
   const [seleccionada, setSeleccionada] = useState<FilaActividad | null>(null);
   const [delta, setDelta] = useState('');
   const [comentario, setComentario] = useState('');
+  const [fotos, setFotos] = useState<FotoTomada[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -96,6 +108,7 @@ export default function Pantalla() {
     setSeleccionada(actividad);
     setDelta('');
     setComentario('');
+    setFotos([]);
     setError(null);
   }
 
@@ -173,7 +186,23 @@ export default function Pantalla() {
         );
       });
 
+      // Fuera de la transacción a propósito: la cola de fotos es local-only y
+      // no participa de la escritura que va a subir por PowerSync. Si el
+      // encolado fallara, el avance ya está guardado — que es lo que no se
+      // puede perder.
+      for (const foto of fotos) {
+        await encolarFoto(db, {
+          entidad: 'registro_avance',
+          entidadId: idRegistro,
+          obraId: seleccionada.obra_id,
+          uri: foto.uri,
+          nombre: foto.nombre,
+          contentType: foto.contentType,
+        });
+      }
+
       setSeleccionada(null);
+      empujar();
     } catch {
       setError('No se pudo guardar la captura en el dispositivo. Intenta de nuevo.');
     } finally {
@@ -211,6 +240,7 @@ export default function Pantalla() {
           }
           renderItem={({ item }) => (
             <Pressable
+              testID="actividad"
               onPress={() => abrirCaptura(item)}
               disabled={item.bloqueada === 1}
               className="mb-3 rounded-lg border border-line bg-surface p-4 active:opacity-70 disabled:opacity-50"
@@ -265,6 +295,7 @@ export default function Pantalla() {
 
                 <Text className="mb-1 mt-4 text-sm text-text-soft">Cantidad ejecutada hoy</Text>
                 <TextInput
+                  testID="delta"
                   value={delta}
                   onChangeText={setDelta}
                   keyboardType="decimal-pad"
@@ -277,6 +308,7 @@ export default function Pantalla() {
 
                 <Text className="mb-1 mt-3 text-sm text-text-soft">Comentario (opcional)</Text>
                 <TextInput
+                  testID="comentario"
                   value={comentario}
                   onChangeText={setComentario}
                   placeholder="Nota para la bitácora"
@@ -286,6 +318,9 @@ export default function Pantalla() {
                   numberOfLines={3}
                   className="rounded-md border border-line bg-bg px-3 py-3 text-base text-text"
                 />
+
+                <Text className="mb-1 mt-3 text-sm text-text-soft">Evidencia (opcional)</Text>
+                <Fotos fotos={fotos} onCambio={setFotos} deshabilitado={guardando} maximo={5} />
 
                 {error ? <Text className="mt-2 text-sm text-danger">{error}</Text> : null}
 

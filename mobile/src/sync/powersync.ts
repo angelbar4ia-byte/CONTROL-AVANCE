@@ -18,7 +18,9 @@
  * ## Fotos
  *
  * No viajan por PowerSync ni por la API: se guardan local y se suben directo
- * a R2 en segundo plano con una presigned URL (§12.5).
+ * a R2 en segundo plano con una presigned URL (§12.5). La cola que lo hace
+ * vive en `evidencia_pendiente`, una tabla **local-only** de este mismo
+ * esquema — ver su nota más abajo.
  */
 
 import { column, Schema, Table } from '@powersync/react-native';
@@ -94,6 +96,9 @@ export const esquemaLocal = new Schema({
     creada_por: column.text,
     fecha_creada: column.text,
     fecha_limite: column.text,
+    // Claves de R2, no binarios (§12.5). Sin esta columna la foto de una
+    // incidencia no tendría dónde anotarse al terminar de subir.
+    evidencias: column.text,
   }),
 
   // Revisión física de Control de obra en campo (§7.8)
@@ -124,6 +129,84 @@ export const esquemaLocal = new Schema({
     descripcion: column.text,
     unidad_id: column.text,
   }),
+
+  /**
+   * Cola de evidencias fotográficas pendientes de subir a R2 (§12.5).
+   *
+   * **`localOnly`, y eso es el diseño, no una optimización.** Si esta tabla
+   * sincronizara, la ruta del archivo en *este* teléfono
+   * (`file:///data/user/0/...`) viajaría a Postgres y de ahí a los demás
+   * dispositivos, donde no apunta a nada. Lo que sí se comparte es el
+   * resultado: la **clave** del objeto en R2, que se escribe en
+   * `registro_avance.evidencias`, `revision_fisica.fotos` o
+   * `incidencia.evidencias` cuando la subida termina (§7.8, §7.9).
+   *
+   * Al ser local-only tampoco entra en la cola `ps_crud`, así que una foto
+   * de 3 MB nunca bloquea la subida de una captura de avance de 200 bytes.
+   * Son dos colas con prioridades distintas a propósito.
+   */
+  evidencia_pendiente: new Table(
+    {
+      /** `registro_avance` | `revision_fisica` | `incidencia` (§7.9 Evidencia). */
+      entidad: column.text,
+      entidad_id: column.text,
+      /** Agrupa el objeto bajo la obra dentro del bucket (§12.4). */
+      obra_id: column.text,
+      /** `file://` en el almacenamiento de la app. Nunca sale del dispositivo. */
+      uri_local: column.text,
+      nombre: column.text,
+      content_type: column.text,
+      /** Clave del objeto en R2; se llena al subir. Esto sí se comparte. */
+      clave: column.text,
+      /** `pendiente` | `subida` | `fallida`. */
+      estado: column.text,
+      intentos: column.integer,
+      error: column.text,
+      creada_en: column.text,
+      subida_en: column.text,
+    },
+    { localOnly: true },
+  ),
+
+  /**
+   * Bandeja de salida: operaciones que **tienen que pasar por la API** pero se
+   * capturan sin señal (§11.3 C y F).
+   *
+   * También `localOnly`, y por la misma razón que la cola de fotos: lo que
+   * sincroniza es el resultado, no el recado. Aquí vive el `POST` pendiente
+   * con su cuerpo y su `Idempotency-Key`; cuando sale, lo que aparece en el
+   * teléfono es la entidad que el servidor creó, bajando por sync normal.
+   *
+   * Por qué existe, si ya hay una cola de PowerSync: porque no todo se puede
+   * escribir directo a Postgres. Abrir una incidencia con `impacto=detiene`
+   * bloquea actividades y replanea el CPM (§11.3 F.5), y eso vive en el caso
+   * de uso, no en un trigger. Un `INSERT` directo crearía la incidencia y no
+   * bloquearía nada — el peor resultado posible: la obra parece libre. Ver
+   * `src/salida/bandeja.ts`.
+   */
+  operacion_pendiente: new Table(
+    {
+      /** Ruta de la API, ya con sus parámetros resueltos. */
+      ruta: column.text,
+      metodo: column.text,
+      /** Cuerpo JSON serializado. */
+      cuerpo: column.text,
+      /** `Idempotency-Key` (§11.2): es lo que hace seguro el reintento. */
+      clave_idem: column.text,
+      /** Texto que se le muestra al usuario en la bandeja ("Incidencia: fuga en baño"). */
+      etiqueta: column.text,
+      obra_id: column.text,
+      /** Ids de `evidencia_pendiente` cuyas claves se inyectan al enviar. */
+      fotos: column.text,
+      /** `pendiente` | `enviada` | `fallida`. */
+      estado: column.text,
+      intentos: column.integer,
+      error: column.text,
+      creada_en: column.text,
+      enviada_en: column.text,
+    },
+    { localOnly: true },
+  ),
 });
 
 export type EsquemaLocal = (typeof esquemaLocal)['types'];
@@ -142,4 +225,9 @@ export const ESTRATEGIA_CONFLICTOS = {
   revision_fisica: 'acumular',
   actividad: 'servidor-manda',
   incidencia: 'last-write-wins',
+  // No sincronizan: son local-only. De la primera llega al servidor la clave
+  // del objeto en R2, dentro de la entidad dueña; de la segunda, un `POST` a
+  // la API cuya respuesta baja después por sync normal.
+  evidencia_pendiente: 'local',
+  operacion_pendiente: 'local',
 } as const;

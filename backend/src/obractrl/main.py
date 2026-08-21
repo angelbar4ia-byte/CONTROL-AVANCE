@@ -28,7 +28,10 @@ from obractrl.adapters.api.idempotencia import (
     ClaveReusada,
     PeticionYaProcesada,
 )
-from obractrl.adapters.api.middleware import MiddlewareDeIdDePeticion
+from obractrl.adapters.api.middleware import (
+    MiddlewareDeIdDePeticion,
+    MiddlewareDeVersionDeCliente,
+)
 from obractrl.adapters.api.v1 import api_v1
 from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador
 from obractrl.adapters.excel.lector import ErrorDeArchivo
@@ -144,6 +147,13 @@ def crear_app() -> FastAPI:
         # error, que es justo cuando el front lo necesita para reportarla.
         expose_headers=["X-Request-Id"],
     )
+
+    # El orden de `add_middleware` es de adentro hacia afuera: el último que
+    # se agrega es el primero que ve la petición. La versión de cliente va
+    # antes que el id porque un 426 también debe salir con su `X-Request-Id`
+    # —es justo el que se reporta cuando alguien dice "no me deja entrar"—
+    # (§12.12, §11.7).
+    app.add_middleware(MiddlewareDeVersionDeCliente)
 
     # Se agrega al final para que quede por fuera de CORS: así hasta una
     # respuesta rechazada por origen sale con su id (§11.7).

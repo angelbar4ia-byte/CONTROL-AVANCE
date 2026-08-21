@@ -6,6 +6,56 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/v1/cliente/version": {
+      "get": {
+        "tags": [
+          "cliente"
+        ],
+        "summary": "Versión mínima y recomendada del cliente móvil",
+        "description": "Devuelve la política de versiones vigente (§12.12).\n\nHoy iOS y Android comparten valores porque solo se publica en Play\n(§12.13). El parámetro existe desde ahora para que el día que haya App\nStore —con su propio lag de revisión— no haya que romper el contrato:\nagregar valores por plataforma será cambiar la configuración, no el\nendpoint.",
+        "operationId": "version_soportada_api_v1_cliente_version_get",
+        "parameters": [
+          {
+            "name": "plataforma",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "android",
+                "ios"
+              ],
+              "type": "string",
+              "description": "Plataforma del cliente; cada tienda tiene su propio ritmo.",
+              "default": "android",
+              "title": "Plataforma"
+            },
+            "description": "Plataforma del cliente; cada tienda tiene su propio ritmo."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionSoportadaRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/me": {
       "get": {
         "tags": [
@@ -31,6 +81,94 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/dispositivos/push": {
+      "post": {
+        "tags": [
+          "dispositivos"
+        ],
+        "summary": "Registrar el token de Expo Push de este dispositivo",
+        "description": "Alta idempotente del token (§12.2).\n\nResponde **200 y no 201** porque casi siempre es una revalidación del\nmismo token: un 201 en cada arranque mentiría sobre lo que pasó.\n\n`org_id` y `usuario_id` salen del token JWT, nunca del cuerpo (§12.4): si\nel cliente pudiera elegirlos, registraría su teléfono a nombre de otro y\nrecibiría las notificaciones de sus obras. La política RLS\n`dispositivo_push_propio` lo refuerza aunque esta ruta se equivoque.",
+        "operationId": "registrar_dispositivo_api_v1_dispositivos_push_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrarDispositivoPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DispositivoRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/dispositivos/push/{token}": {
+      "delete": {
+        "tags": [
+          "dispositivos"
+        ],
+        "summary": "Dar de baja el token de este dispositivo",
+        "description": "Baja al cerrar sesión.\n\nDesactiva en vez de borrar, igual que hace el envío ante un\n`DeviceNotRegistered` (ver la migración 0028): la fila es el rastro de que\nese dispositivo existió, y volver a entrar la reactiva sin parecer un alta\nnueva.\n\n**No responde 404 si no existe.** Cerrar sesión no puede fallar porque el\ntoken ya no estuviera: el resultado que el cliente pidió —que ese aparato\ndeje de recibir— se cumple igual. RLS acota el `update` al dueño (§12.4),\nasí que nadie da de baja el dispositivo de otro aunque adivine el token.",
+        "operationId": "dar_de_baja_api_v1_dispositivos_push__token__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/usuarios": {
@@ -4242,6 +4380,26 @@
             "HTTPBearer": []
           }
         ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -4262,6 +4420,9 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Esta clave de idempotencia ya se procesó (§11.2)."
           },
           "422": {
             "description": "Datos inválidos (§6)."
@@ -4416,6 +4577,24 @@
               "format": "uuid",
               "title": "Incidencia Id"
             }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
           }
         ],
         "requestBody": {
@@ -4481,6 +4660,24 @@
               "format": "uuid",
               "title": "Incidencia Id"
             }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
           }
         ],
         "requestBody": {
@@ -4546,6 +4743,24 @@
               "format": "uuid",
               "title": "Incidencia Id"
             }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
           }
         ],
         "requestBody": {
@@ -8453,6 +8668,24 @@
         "title": "DependenciaDTO",
         "description": "Precedencia entre actividades (§7.5, §6)."
       },
+      "DispositivoRespuesta": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "activo": {
+            "type": "boolean",
+            "title": "Activo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "activo"
+        ],
+        "title": "DispositivoRespuesta"
+      },
       "DocumentoRespuesta": {
         "properties": {
           "id": {
@@ -11071,6 +11304,44 @@
         ],
         "title": "RechazarIncidenciaPeticion"
       },
+      "RegistrarDispositivoPeticion": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 8,
+            "title": "Token",
+            "description": "`ExponentPushToken[...]` que emitió Expo para esta instalación."
+          },
+          "plataforma": {
+            "type": "string",
+            "enum": [
+              "android",
+              "ios"
+            ],
+            "title": "Plataforma",
+            "default": "android"
+          },
+          "version_app": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version App",
+            "description": "Versión visible del cliente (§12.12). Diagnóstico, no autorización."
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "RegistrarDispositivoPeticion",
+        "description": "Lo que manda la app al entrar (`mobile/src/lib/push.ts`)."
+      },
       "RegistrarRevisionPeticion": {
         "properties": {
           "fecha": {
@@ -12403,6 +12674,39 @@
           "created_at"
         ],
         "title": "VersionRespuesta"
+      },
+      "VersionSoportadaRespuesta": {
+        "properties": {
+          "minima": {
+            "type": "string",
+            "title": "Minima",
+            "description": "Por debajo de esta versión la app debe bloquearse (§12.12)."
+          },
+          "recomendada": {
+            "type": "string",
+            "title": "Recomendada",
+            "description": "Última publicada; por debajo se sugiere actualizar."
+          },
+          "url_tienda": {
+            "type": "string",
+            "title": "Url Tienda",
+            "description": "A dónde mandar al usuario para actualizar."
+          },
+          "mensaje": {
+            "type": "string",
+            "title": "Mensaje",
+            "description": "Texto que la app muestra tal cual; permite explicar el motivo sin publicar."
+          }
+        },
+        "type": "object",
+        "required": [
+          "minima",
+          "recomendada",
+          "url_tienda",
+          "mensaje"
+        ],
+        "title": "VersionSoportadaRespuesta",
+        "description": "Lo que la app necesita para decidir entre bloquear, sugerir o callarse."
       },
       "obractrl__adapters__api__v1__cargas__PendienteRespuesta": {
         "properties": {
