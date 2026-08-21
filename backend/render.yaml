@@ -53,7 +53,11 @@ services:
         sync: false
       - key: SUPABASE_ANON_KEY     # anon key; la service key NUNCA sale (§10.7)
         sync: false
-      - key: CORS_ORIGENES         # origen de Vercel por entorno (§12.8)
+      # Origen de Vercel por entorno (§12.8). Separado por comas si hay
+      # varios: `https://mi-web.vercel.app,https://staging.vercel.app`.
+      # SIN ella la API rechaza a su propia web con `Disallowed CORS origin`,
+      # que el navegador reporta como una cabecera ausente (ver OPERACION.md).
+      - key: CORS_ORIGENES
         sync: false
       - key: R2_ENDPOINT
         sync: false

@@ -14,7 +14,14 @@ la causa: el servidor sí respondió —400, `Disallowed CORS origin`— porque 
 origen no estaba en `CORS_ORIGENES` y la lista seguía en su default de
 desarrollo. Diagnosticarlo tomó abrir un `curl` con `-X OPTIONS`.
 
-Estas pruebas fijan las dos mitades de eso:
+Y tuvo un segundo acto: al fijar `CORS_ORIGENES` en Render, el servicio dejó
+de arrancar con `SettingsError: error parsing value for field "cors_origenes"`.
+pydantic-settings aplica `json.loads()` a los campos de tipo complejo **antes**
+de cualquier validador, así que un valor separado por comas lo tiraba. Ver
+`ListaDeTexto` en `infrastructure/config.py`.
+
+Estas pruebas fijan las tres mitades de eso —dos del borde y una de la
+configuración:
 
 1. Que un origen permitido reciba `Access-Control-Allow-Origin` y uno no
    permitido no — el comportamiento en sí, que hoy da Starlette y mañana podría
@@ -122,18 +129,75 @@ class TestSonda:
 
 
 class TestConfiguracion:
-    def test_la_variable_acepta_una_lista_separada_por_comas(self) -> None:
-        # Es como se escribe en Render: `CORS_ORIGENES=https://a,https://b`.
-        from obractrl.infrastructure.config import Config
+    """La variable se lee **desde el entorno**, que es como llega en Render.
 
-        cfg = Config(cors_origenes="https://uno.example, https://dos.example")
+    La primera versión de estas pruebas construía `Config(cors_origenes="a,b")`
+    —un kwarg— y pasaba en verde mientras el despliegue **no arrancaba**:
+
+        SettingsError: error parsing value for field "cors_origenes"
+                       from source "EnvSettingsSource"
+
+    Con un kwarg no hay fuente de entorno, así que el `json.loads()` que
+    pydantic-settings aplica a los campos de tipo complejo nunca ocurría y el
+    validador corría tranquilo. La prueba comprobaba una ruta que ningún
+    servidor recorre.
+
+    Por eso todas las de aquí usan `monkeypatch.setenv` y limpian la caché de
+    `obtener_config`: es la única forma de que la prueba pase por donde pasa el
+    proceso al arrancar.
+    """
+
+    @staticmethod
+    def _config_desde_entorno(monkeypatch: pytest.MonkeyPatch, valor: str | None):
+        from obractrl.infrastructure.config import Config, obtener_config
+
+        if valor is None:
+            monkeypatch.delenv("CORS_ORIGENES", raising=False)
+        else:
+            monkeypatch.setenv("CORS_ORIGENES", valor)
+        obtener_config.cache_clear()
+        return Config()
+
+    def test_una_lista_separada_por_comas(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # La forma que documenta OPERACION.md y la que se escribe sin pensar.
+        cfg = self._config_desde_entorno(
+            monkeypatch, "https://uno.example, https://dos.example"
+        )
 
         assert cfg.cors_origenes == ["https://uno.example", "https://dos.example"]
 
-    def test_el_default_es_solo_desarrollo(self) -> None:
+    def test_un_solo_origen(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # El caso exacto del incidente: un origen, sin comas, sin corchetes.
+        cfg = self._config_desde_entorno(monkeypatch, PERMITIDO)
+
+        assert cfg.cors_origenes == [PERMITIDO]
+
+    def test_también_la_forma_json(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Es la convención de pydantic-settings: quien la conozca la va a usar
+        # y no tiene por qué tumbar el arranque.
+        cfg = self._config_desde_entorno(
+            monkeypatch, '["https://uno.example","https://dos.example"]'
+        )
+
+        assert cfg.cors_origenes == ["https://uno.example", "https://dos.example"]
+
+    def test_los_algoritmos_del_JWT_tienen_la_misma_trampa(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # `jwt_algoritmos` es el otro campo de lista de la configuración.
+        # Nadie lo fija hoy, y por eso mismo el día que alguien lo haga sería
+        # otro arranque caído sin explicación.
+        from obractrl.infrastructure.config import Config, obtener_config
+
+        monkeypatch.setenv("JWT_ALGORITMOS", "ES256,RS256")
+        obtener_config.cache_clear()
+
+        assert Config().jwt_algoritmos == ["ES256", "RS256"]
+
+    def test_el_default_es_solo_desarrollo(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Y por eso un despliegue que no la fija rechaza a su propio front:
         # exactamente lo que pasó. El default no se cambia a "todo" —eso
         # abriría la API a cualquier sitio—, se documenta en OPERACION.md.
-        from obractrl.infrastructure.config import Config
+        cfg = self._config_desde_entorno(monkeypatch, None)
 
-        assert Config().cors_origenes == ["http://localhost:5173"]
+        assert cfg.cors_origenes == ["http://localhost:5173"]
