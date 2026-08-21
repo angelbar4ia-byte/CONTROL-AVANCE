@@ -1,0 +1,74 @@
+# Captura de avance sin señal — la promesa del §12.5, workflow B del §11.3.
+#
+# Es el flujo que justifica que exista la app. Si esto falla, el residente no
+# puede trabajar en una obra sin cobertura, que es donde trabaja.
+#
+# El orden importa: se entra CON red —el login habla con Supabase Auth y no
+# hay forma de entrar sin ella (§12.4)— y recién después se corta. Cortar
+# antes probaría otra cosa: que no se puede iniciar sesión offline, que ya se
+# sabe y es correcto.
+appId: com.obractrl.app
+env:
+  USUARIO: ${MAESTRO_USUARIO}
+  CONTRASENA: ${MAESTRO_CONTRASENA}
+---
+- launchApp:
+    clearState: true
+
+# --- Login (§12.4) --------------------------------------------------------
+- assertVisible: 'ObraCtrl'
+- tapOn:
+    id: 'correo'
+- inputText: ${USUARIO}
+- tapOn:
+    id: 'contrasena'
+- inputText: ${CONTRASENA}
+- tapOn: 'Entrar'
+
+# El destino lo decide el rol del JWT, no una elección (§5.2).
+- assertVisible: 'Mis obras'
+
+# Esperar a la primera sincronización: sin datos locales no hay nada que
+# capturar, y el indicador es el único que sabe cuándo terminó.
+- extendedWaitUntil:
+    visible: 'Sincronizado'
+    timeout: 60000
+
+# --- Se corta la red ------------------------------------------------------
+- setAirplaneMode: enabled
+- assertVisible: 'Sin red'
+
+# --- Captura offline (§11.3 B) -------------------------------------------
+- tapOn:
+    index: 0
+    id: 'obra'
+- assertVisible: 'Avances'
+
+- tapOn:
+    index: 0
+    id: 'actividad'
+- tapOn:
+    id: 'delta'
+- inputText: '5'
+- tapOn:
+    id: 'comentario'
+- inputText: 'Capturado en modo avión (E2E)'
+- tapOn: 'Guardar'
+
+# Lo capturado se ve al instante: el reflejo local es lo que evita que el
+# residente vuelva a capturar creyendo que no se guardó.
+- assertVisible: '.*sin subir.*'
+
+# --- Sobrevive a cerrar la app --------------------------------------------
+# Esto es lo que distingue "se guardó" de "está en memoria". Sin este paso, la
+# prueba pasaría igual con un `useState`.
+- stopApp
+- launchApp
+- assertVisible: '.*sin subir.*'
+
+# --- Vuelve la red y sube -------------------------------------------------
+- setAirplaneMode: disabled
+- extendedWaitUntil:
+    visible: 'Sincronizado'
+    timeout: 90000
+- assertNotVisible: '.*sin subir.*'

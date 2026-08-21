@@ -24,6 +24,7 @@ from obractrl.adapters.api.casos_uso import (
     RegistrarEventoIncidenciaDep,
 )
 from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS, exigir_rol
+from obractrl.adapters.api.idempotencia import Idempotencia
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.application.casos_uso.gestionar_incidencia import (
     ComandoAbrirIncidencia,
@@ -145,7 +146,17 @@ class IncidenciaRespuesta(BaseModel):
     response_model=IncidenciaRespuesta,
     status_code=status.HTTP_201_CREATED,
     summary="Abrir una incidencia",
-    responses={422: {"description": "Datos inválidos (§6)."}},
+    # `Idempotency-Key` (§11.2) porque el móvil la captura sin señal y la
+    # reenvía desde su bandeja de salida (`mobile/src/salida/bandeja.ts`): si
+    # la red se cae después de que el servidor escribió pero antes de que
+    # llegue la respuesta, el reintento tiene que ser un no-op y no una
+    # segunda incidencia — que con `impacto=detiene` sería además un segundo
+    # bloqueo de las mismas actividades (§11.3 F.5).
+    dependencies=[Idempotencia],
+    responses={
+        409: {"description": "Esta clave de idempotencia ya se procesó (§11.2)."},
+        422: {"description": "Datos inválidos (§6)."},
+    },
 )
 async def abrir_incidencia(
     peticion: AbrirIncidenciaPeticion,
@@ -202,6 +213,7 @@ async def programar_incidencia(
     "/incidencias/{incidencia_id}/eventos",
     response_model=IncidenciaRespuesta,
     summary="Comentar o transicionar una incidencia",
+    dependencies=[Idempotencia],
     responses={
         404: {"description": "La incidencia no existe o está fuera de tu alcance."},
         409: {"description": "Transición de incidencia no permitida."},
@@ -231,7 +243,7 @@ async def registrar_evento_incidencia(
     "/incidencias/{incidencia_id}/cerrar",
     response_model=IncidenciaRespuesta,
     summary="Cerrar una incidencia",
-    dependencies=[Depends(exigir_rol(Rol.SUPERVISOR, Rol.CONTROL_OBRA))],
+    dependencies=[Depends(exigir_rol(Rol.SUPERVISOR, Rol.CONTROL_OBRA)), Idempotencia],
     responses={
         404: {"description": "La incidencia no existe o está fuera de tu alcance."},
         409: {"description": "Transición de incidencia no permitida."},
@@ -260,7 +272,7 @@ async def cerrar_incidencia(
     "/incidencias/{incidencia_id}/rechazar",
     response_model=IncidenciaRespuesta,
     summary="Rechazar una incidencia",
-    dependencies=[Depends(exigir_rol(Rol.SUPERVISOR, Rol.CONTROL_OBRA))],
+    dependencies=[Depends(exigir_rol(Rol.SUPERVISOR, Rol.CONTROL_OBRA)), Idempotencia],
     responses={
         404: {"description": "La incidencia no existe o está fuera de tu alcance."},
         409: {"description": "Transición de incidencia no permitida."},

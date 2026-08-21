@@ -1,15 +1,12 @@
-import { View } from 'react-native';
+/**
+ * Obras — Control de obra (§4, §5.2).
+ *
+ * La pantalla vive en `src/pantallas/Obras.tsx`: es compartida entre roles
+ * (§5.3) y esta ruta solo la monta para Control de obra.
+ */
 
-import { Encabezado } from '@/ui/Encabezado';
+import { Obras } from '@/pantallas/Obras';
 
 export default function Pantalla() {
-  return (
-    <View className="flex-1 bg-bg px-5 pt-14">
-      <Encabezado
-        eyebrow="Control de obra"
-        titulo="Obras"
-        descripcion="Obras de mis proyectos asignados (§4)."
-      />
-    </View>
-  );
+  return <Obras papel="control_obra" />;
 }

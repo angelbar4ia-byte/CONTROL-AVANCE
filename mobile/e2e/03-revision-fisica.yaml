@@ -1,0 +1,64 @@
+# Revisión física de Control de obra (§7.8, §12.5).
+#
+# La otra cosa que el §12.5 exige que funcione sin señal. A diferencia de la
+# incidencia, esta sí escribe directo en SQLite y sube por PowerSync: no
+# dispara efectos de dominio, así que no necesita pasar por la API.
+#
+# Se prueba además la pantalla *Fotos*, que es donde se ve si la evidencia
+# llegó a R2. Sin ella, una foto rechazada moría en un log.
+appId: com.obractrl.app
+env:
+  USUARIO: ${MAESTRO_USUARIO_CONTROL}
+  CONTRASENA: ${MAESTRO_CONTRASENA_CONTROL}
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: 'correo'
+- inputText: ${USUARIO}
+- tapOn:
+    id: 'contrasena'
+- inputText: ${CONTRASENA}
+- tapOn: 'Entrar'
+
+# Control de obra entra a su propio grupo de tabs (§5.2).
+- assertVisible: 'Obras'
+- extendedWaitUntil:
+    visible: 'Sincronizado'
+    timeout: 60000
+
+- setAirplaneMode: enabled
+
+- tapOn: 'Revisión'
+- tapOn:
+    index: 0
+    id: 'actividad'
+
+- tapOn: '2 · Deficiente'
+- tapOn:
+    id: 'comentario'
+- inputText: 'Remate mal terminado (E2E)'
+- tapOn: 'Cámara'
+- tapOn:
+    id: 'com.android.camera2:id/shutter_button'
+    optional: true
+- tapOn:
+    id: 'com.android.camera2:id/done_button'
+    optional: true
+- tapOn: 'Registrar revisión'
+
+# La revisión existe desde el primer segundo, aunque la foto no haya salido.
+- assertVisible: '.*última 2/5.*'
+
+- tapOn: 'Fotos'
+- assertVisible: 'Por subir'
+
+- setAirplaneMode: disabled
+- tapOn: 'Intentar ahora'
+- extendedWaitUntil:
+    visible: 'En el expediente'
+    timeout: 120000
+
+# Y la calificación se refleja en el promedio de la obra.
+- tapOn: 'Calidad'
+- assertVisible: '.*por rehacer o deficiente.*'

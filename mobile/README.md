@@ -13,8 +13,13 @@ mobile/
 │  └─ (control)/         Obras · Revisión · Fotos · Calidad
 ├─ src/
 │  ├─ sync/              esquema local, conector y estado de PowerSync
-│  ├─ lib/               sesión, auth, guardia por rol, reglas de avance
-│  └─ ui/                encabezado, indicador de sync, chip de perfil
+│  ├─ salida/            bandeja de operaciones que exigen API (§11.3 C, F)
+│  ├─ evidencias/        captura de fotos y su cola hacia R2 (§12.5)
+│  ├─ pantallas/         pantallas compartidas entre roles (§5.3)
+│  ├─ lib/               sesión, auth, guardias por rol y por versión, reglas
+│  └─ ui/                encabezado, formularios, indicador de sync
+├─ tests/                pruebas unitarias (jest-expo)
+├─ e2e/                  flujos de Maestro — necesitan dispositivo
 ├─ sync-rules.yaml       reglas de sincronización de PowerSync
 ├─ app.json              config de Expo (applicationId, permisos)
 └─ eas.json              perfiles de build y submit
@@ -71,10 +76,38 @@ Por eso `registro_avance` guarda `delta_ejecutado` y no un total — los deltas
 se acumulan sin conflicto y `actividad.cant_ejecutada` se deriva de su suma en
 el servidor.
 
+### Tres colas, un solo indicador
+
+Lo que sale del teléfono viaja por tres caminos distintos, y la razón de cada
+uno está en qué pasa si se elige mal:
+
+| Cola | Qué lleva | Por qué esa y no otra |
+|---|---|---|
+| `ps_crud` (PowerSync) | Avance y revisión física | Escriben directo a Postgres con RLS de frontera (D5); no hay efecto de dominio que perder. |
+| `evidencia_pendiente` | Fotos hacia R2 | Una foto de 3 MB no puede bloquear una captura de 200 bytes. Local-only: la ruta del archivo no significa nada en otro teléfono. |
+| `operacion_pendiente` | `POST` a la API | Abrir una incidencia con `impacto=detiene` **bloquea actividades y replanea el CPM** (§11.3 F.5), y eso vive en el caso de uso. Un `INSERT` directo dejaría la obra viéndose libre estando detenida. |
+
+Para quien está en la obra son una sola pregunta —¿ya salió lo que capturé?— y
+por eso el indicador del encabezado las suma. Un "sincronizado" con tres fotos
+sin subir estaría mintiendo con precisión técnica.
+
+Lo que hace segura la tercera es el **`Idempotency-Key` (§11.2)**, generado al
+capturar y no al enviar: si la red se cae después de que el servidor escribió,
+el reintento manda la misma clave, el backend contesta 409 y la app lo lee
+como éxito — porque lo es.
+
 ### Fotos
 
-No viajan por PowerSync ni por la API: se guardan local y suben directo a R2
-en segundo plano con una presigned URL.
+No viajan por PowerSync ni por la API: se guardan en `documentDirectory` —no
+en el caché, que el sistema vacía cuando falta espacio— y suben directo a R2
+con una presigned URL que emite `POST /evidencias/presigned`. Lo que se
+comparte es la **clave** del objeto, que se cose sobre
+`registro_avance.evidencias`, `revision_fisica.fotos` o
+`incidencia.evidencias` cuando la subida termina.
+
+La pantalla *Fotos* de Control de obra es esa cola, visible: sin ella, una
+foto rechazada por el servidor moría en un `console.warn` y nadie se enteraba
+hasta que faltaba en el cierre.
 
 ## Publicación en Google Play (§12.13)
 
@@ -133,11 +166,47 @@ Dos canales:
 | **Build nativo a tienda** | SDK, permisos, módulos nativos | Días (revisión) |
 
 La API **no rompe clientes viejos**: cambios aditivos y deprecación con
-ventana. El cliente manda su versión en un header y el servidor puede exigir
-actualización mínima (force-update).
+ventana. El cliente manda su versión en tres cabeceras —`X-Cliente-Version`,
+`X-Cliente-Plataforma`, `X-Cliente-Runtime` (`src/lib/version.ts`)— y el
+servidor decide:
+
+- `GET /api/v1/cliente/version` devuelve la **mínima** y la **recomendada**;
+  la app bloquea, sugiere o calla (`src/lib/actualizacion.ts`).
+- El middleware del backend responde **426** a quien esté por debajo de la
+  mínima, con `X-Version-Minima` en la respuesta.
+
+Se cambia sin desplegar: `MOVIL_VERSION_MINIMA` es una variable de entorno del
+backend. Un build nuevo tardaría días en llegar por Play, y llegaría tarde
+justo a quien ya no puede usar la app.
+
+**Si no se puede preguntar, no se bloquea.** Sin señal o con la API caída el
+estado es `ok`, nunca `obligatoria`: bloquear la app porque no hubo respuesta
+dejaría al residente sin capturar en el único escenario donde el offline es
+todo el punto.
+
+`comparar()` en `src/lib/version.ts` y `version_es_menor()` en
+`backend/.../middleware.py` **tienen que dar lo mismo**, y por eso sus casos
+están duplicados en `mobile/tests/version.test.ts` y
+`backend/tests/api/test_version_de_cliente.py`. Si divergen, el servidor
+responde 426 a una app que se cree al día — que por lo tanto no muestra la
+pantalla que lo explicaría.
 
 Los cambios de esquema de PowerSync deben ser compatibles con clientes que
-aún tienen datos locales viejos y **cola de cambios sin sincronizar**.
+aún tienen datos locales viejos y **cola de cambios sin sincronizar**. Las dos
+tablas nuevas de la Fase 15 (`evidencia_pendiente`, `operacion_pendiente`) son
+`localOnly`, así que agregarlas no tocó nada de lo que estaba en tránsito.
+
+## Notificaciones (§12.2)
+
+`src/lib/push.ts` registra el `ExponentPushToken` en
+`POST /api/v1/dispositivos/push` al entrar y lo da de baja al salir. Lo
+segundo es lo que se olvida y lo que importa: sin la baja, el teléfono que un
+residente devuelve a la empresa sigue recibiendo los avisos de sus antiguas
+obras.
+
+Todo falla hacia adentro: sin permiso, sin `projectId` de EAS o sin red, se
+registra en consola y ya. El push es un extra; la app existe para capturar sin
+señal.
 
 ## Diseño (§12.10)
 
@@ -155,18 +224,17 @@ de fila sube a 44px: en móvil manda el objetivo táctil, no la densidad.
 
 | Listo | Falta |
 |---|---|
-| Login real + sesión persistida en `expo-secure-store` | Pantallas de Supervisor y Control (hoy son placeholders) |
-| Tabs por rol (§5.2) con guardia de sesión/rol | Cola de evidencias (fotos) a R2 |
-| Captura offline de avance con las reglas del §6 | Extra-catálogo, incidencias, cierres, ruta crítica |
-| Conector de PowerSync + indicador de sincronización | Suma de deltas en el servidor (ver abajo) |
-| Sync rules espejo de RLS · tokens NativeWind | Assets de tienda |
+| Las 14 pantallas del §5.2, ninguna placeholder | Assets de tienda (icono, gráfico destacado, capturas) |
+| Captura offline de avance con las reglas del §6 | `projectId` real de EAS en `app.json` |
+| Cola de evidencias a R2 y bandeja de salida a la API | Correr los flujos de Maestro contra un emulador |
+| Force/soft update y cabeceras de versión (§12.12) | Publicar en Play Console |
+| Registro de Expo Push (§12.2) | |
+| 38 pruebas unitarias · 3 flujos de Maestro | |
 
-> **Pendiente del lado servidor:** `registro_avance` guarda deltas, pero hoy
-> nada en Postgres los acumula en `actividad.cant_ejecutada` — el trigger
-> `app.actividad_recalcular` deriva `avance_pct`/estatus *a partir de*
-> `cant_ejecutada`, que solo escribe el caso de uso `capturar_avance`. Cuando
-> el móvil suba sus registros, hace falta que backend/datos cierren ese paso
-> (trigger de agregación o job de conciliación).
+La suma de deltas del lado servidor —que este README anotaba como pendiente—
+la resolvió la **migración 0017**: `actividad.cant_ejecutada` se deriva de la
+suma de los deltas de `registro_avance`, así que un registro llegado por
+PowerSync mueve el avance y el auto-estatus igual que uno llegado por la web.
 
 ## Desarrollo
 
@@ -186,3 +254,12 @@ Se leen de `app.json → expo.extra` y, si no están, de variables de entorno
 | `EXPO_PUBLIC_SUPABASE_URL` | Auth administrado (§12.4) |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Auth administrado (§12.4) |
 | `EXPO_PUBLIC_POWERSYNC_URL` | Servicio de sync. Sin ella la app corre **solo local** |
+| `EXPO_PUBLIC_API_URL` | API de FastAPI: firma de evidencias, bandeja de cierres, push y versión mínima. Sin ella esas pantallas lo dicen, no lo fingen |
+
+```bash
+npm test                 # unitarias (jest-expo)
+npx tsc --noEmit         # tipos
+```
+
+Los flujos de `e2e/` necesitan emulador y una API sembrada; no corren en CI y
+su `README.md` explica por qué.

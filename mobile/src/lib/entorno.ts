@@ -35,3 +35,19 @@ export const CLAVE_ANON_SUPABASE = resolver(
 export const URL_POWERSYNC = resolver('powersyncUrl', process.env.EXPO_PUBLIC_POWERSYNC_URL);
 
 export const haySyncConfigurado = URL_POWERSYNC.length > 0;
+
+/**
+ * URL base de la API de FastAPI (§12.2).
+ *
+ * El móvil habla con la API **solo** para lo que no es captura offline: la
+ * firma de subida de evidencias (`POST /evidencias/presigned`), las bandejas
+ * de cierres del Supervisor y el registro del token de push. La captura de
+ * avance y la revisión física **no** pasan por aquí: concilian contra
+ * Postgres vía PowerSync (D5 del ROADMAP, §11.3 workflow B).
+ *
+ * Vacía en un entorno sin API: `lib/api.ts` responde con un error nombrable
+ * en vez de intentar un `fetch` contra `undefined/...`.
+ */
+export const URL_API = resolver('apiUrl', process.env.EXPO_PUBLIC_API_URL).replace(/\/+$/, '');
+
+export const hayApiConfigurada = URL_API.length > 0;

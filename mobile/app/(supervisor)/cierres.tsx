@@ -1,15 +1,12 @@
-import { View } from 'react-native';
+/**
+ * Cierres — Supervisor: autoriza o rechaza (§11.3 C.2).
+ *
+ * La pantalla vive en `src/pantallas/Cierres.tsx`: es compartida entre roles
+ * (§5.3) y esta ruta solo la monta para el Supervisor.
+ */
 
-import { Encabezado } from '@/ui/Encabezado';
+import { Cierres } from '@/pantallas/Cierres';
 
 export default function Pantalla() {
-  return (
-    <View className="flex-1 bg-bg px-5 pt-14">
-      <Encabezado
-        eyebrow="Supervisor"
-        titulo="Cierres"
-        descripcion="El Supervisor autoriza el cierre de actividad (§4)."
-      />
-    </View>
-  );
+  return <Cierres />;
 }

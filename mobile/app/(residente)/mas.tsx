@@ -1,15 +1,12 @@
-import { View } from 'react-native';
+/**
+ * Más — Residente (§5.2).
+ *
+ * La pantalla vive en `src/pantallas/Mas.tsx`: es compartida entre roles
+ * (§5.3) y esta ruta solo la monta para el Residente.
+ */
 
-import { Encabezado } from '@/ui/Encabezado';
+import { Mas } from '@/pantallas/Mas';
 
 export default function Pantalla() {
-  return (
-    <View className="flex-1 bg-bg px-5 pt-14">
-      <Encabezado
-        eyebrow="Residente"
-        titulo="Más"
-        descripcion="Frentes · Extra-catálogo · Materiales · Autoevaluación · Estimación · Expediente."
-      />
-    </View>
-  );
+  return <Mas papel="residente" />;
 }

@@ -72,6 +72,20 @@ services:
         sync: false
       - key: RESEND_REMITENTE
         sync: false
+      # Expo Push (§12.2). Opcional: Expo acepta envíos sin token salvo que el
+      # proyecto tenga activada "enhanced security". Sin ella el push se
+      # registra y no se manda, igual que el correo sin Resend.
+      - key: EXPO_ACCESS_TOKEN
+        sync: false
+      # Versión mínima del cliente móvil (§12.12). Es la palanca que se mueve
+      # SIN desplegar: subirla hace que la API responda 426 a los binarios
+      # viejos y que la app muestre su pantalla de actualización. El default
+      # del código es 0.0.0 —no bloquear a nadie—, así que ponerla aquí es una
+      # decisión explícita, que es como debe ser.
+      - key: MOVIL_VERSION_MINIMA
+        sync: false
+      - key: MOVIL_VERSION_RECOMENDADA
+        sync: false
       - key: REDIS_URL
         fromService:
           type: redis

@@ -1,0 +1,70 @@
+# Incidencia levantada sin señal, con foto — bandeja de salida + cola de R2.
+#
+# Prueba el camino que NO es PowerSync: abrir una incidencia con
+# `impacto=detiene` bloquea actividades y replanea el CPM (§11.3 F.5), así que
+# viaja como `POST` a la API desde `src/salida/bandeja.ts`. Lo que se verifica
+# aquí es que capturarla sin red la deje visible —marcada como "por enviar"— y
+# que salga sola al reconectar.
+#
+# La foto va por su propia cola (§12.5) y su clave se inyecta en el cuerpo del
+# POST al enviarse: se comprueba que la incidencia NO espere a la foto.
+appId: com.obractrl.app
+env:
+  USUARIO: ${MAESTRO_USUARIO}
+  CONTRASENA: ${MAESTRO_CONTRASENA}
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: 'correo'
+- inputText: ${USUARIO}
+- tapOn:
+    id: 'contrasena'
+- inputText: ${CONTRASENA}
+- tapOn: 'Entrar'
+- extendedWaitUntil:
+    visible: 'Sincronizado'
+    timeout: 60000
+
+- setAirplaneMode: enabled
+
+- tapOn: 'Incidencias'
+- tapOn: 'Nueva incidencia'
+
+- tapOn: 'Falta material'
+- tapOn: 'Detiene la obra'
+- assertVisible: '.*bloquea sus actividades.*'
+
+- tapOn:
+    id: 'titulo'
+- inputText: 'Sin cemento en frente ALB (E2E)'
+- tapOn:
+    id: 'descripcion'
+- inputText: 'Levantada en modo avión'
+
+# La cámara del sistema: se toma y se acepta. En emulador da la imagen
+# sintética de Android, que sirve igual — lo que se prueba es la cola, no la
+# foto.
+- tapOn: 'Cámara'
+- tapOn:
+    id: 'com.android.camera2:id/shutter_button'
+    optional: true
+- tapOn:
+    id: 'com.android.camera2:id/done_button'
+    optional: true
+
+- tapOn: 'Guardar'
+
+# Visible de inmediato aunque no haya salido: sin esto, el residente la
+# capturaría dos veces.
+- assertVisible: 'Por enviar'
+- assertVisible: '.*Sin cemento en frente ALB.*'
+
+- setAirplaneMode: disabled
+- extendedWaitUntil:
+    notVisible: 'Por enviar'
+    timeout: 120000
+
+# Ya no es una operación pendiente sino una incidencia real, bajada por sync.
+- assertVisible: '.*Sin cemento en frente ALB.*'
+- assertVisible: 'Detiene la obra'

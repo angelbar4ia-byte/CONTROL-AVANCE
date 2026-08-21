@@ -159,6 +159,43 @@ perdido objetos.
 
 ---
 
+## Actualizar la app móvil sin desplegar (§12.12)
+
+Desde la Fase 15 el móvil pregunta al arrancar qué versión soporta el servidor
+(`GET /api/v1/cliente/version`) y manda la suya en cada petición
+(`X-Cliente-Version`). Dos variables del servicio web deciden qué pasa:
+
+| Variable | Efecto |
+|---|---|
+| `MOVIL_VERSION_MINIMA` | Por debajo de esta versión la API responde **426** y la app se bloquea con la pantalla de actualización. |
+| `MOVIL_VERSION_RECOMENDADA` | Por debajo de esta, la app solo avisa en "Más". No bloquea nada. |
+
+**Cambiarlas no requiere desplegar código ni publicar en Play.** Es la palanca
+que existe para el caso en que un cambio de contrato deje de tolerar a los
+clientes viejos: un build nuevo tardaría días en llegar por la tienda, y
+llegaría tarde justo a quien ya no puede usar la app.
+
+Por eso el default del código es `0.0.0` —no bloquear a nadie—: dejar gente
+afuera tiene que ser una decisión explícita, nunca el efecto de un entorno a
+medio configurar.
+
+**Antes de subir la mínima:**
+
+1. Publicar la versión nueva y esperar a que la mayoría actualice. Play
+   Console muestra la distribución por `versionCode`; `dispositivo_push`
+   guarda `version_app`, que dice lo mismo por usuario activo.
+2. Confirmar que el binario nuevo está en la tienda. Bloquear antes de eso
+   deja al residente con una pantalla que le pide algo que no existe.
+3. Recordar que **lo capturado no se pierde**: la base local y las tres colas
+   de salida sobreviven a la actualización (§12.5), y la pantalla de bloqueo
+   lo dice con todas sus letras.
+
+Para un fix de JS no hace falta nada de esto: `npm run update` en `mobile/`
+publica un OTA de EAS y la app lo descarga sola en el siguiente arranque.
+Revertirlo es un rollback de canal, también sin tienda.
+
+---
+
 ## Lo que todavía no está
 
 - **Tags `vX.Y.Z` y changelog** (§12.12). Hoy se promueve por commit.

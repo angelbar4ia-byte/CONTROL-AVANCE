@@ -74,11 +74,16 @@ jobs:
 
       - name: Ida y vuelta de las migraciones
         # Un `down` que nunca corrió no es un `down`: es un archivo. Aquí se
-        # revierten las 22 en orden inverso contra una base con el esquema
-        # puesto, y se vuelven a aplicar. Si un down deja un objeto colgado, el
-        # up de vuelta choca contra él y este paso se pone rojo (§12.12).
+        # revierten en orden inverso contra una base con el esquema puesto, y
+        # se vuelven a aplicar. Si un down deja un objeto colgado, el up de
+        # vuelta choca contra él y este paso se pone rojo (§12.12).
+        #
+        # El número de pasos se cuenta en vez de escribirse: estaba fijo en 22
+        # cuando ya había 27 migraciones, así que las cinco más nuevas —las
+        # que más probable es que tengan un `down` malo— nunca se revertían.
         run: |
-          bash database/scripts/revertir.sh --pasos 22 --si
+          PASOS=$(ls database/migrations/*.sql | wc -l)
+          bash database/scripts/revertir.sh --pasos "$PASOS" --si
           bash database/scripts/migrar.sh
 
       - name: Restauración de respaldo probada
@@ -213,3 +218,10 @@ jobs:
       - name: Tipos
         working-directory: mobile
         run: npx tsc --noEmit
+
+      - name: Pruebas
+        working-directory: mobile
+        # Reglas de captura (§6), comparación de versiones (§12.12) y la
+        # clasificación de fallos de las dos colas de salida (§12.5). Nada de
+        # esto necesita dispositivo: son módulos puros y dobles de la base.
+        run: npm test -- --ci

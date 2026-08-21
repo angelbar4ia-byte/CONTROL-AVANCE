@@ -120,6 +120,46 @@ class Config(BaseSettings):
         ),
     )
 
+    # --- Expo Push (§12.2) ----------------------------------------------
+    #
+    # Expo acepta envíos **sin** token de acceso; el `EXPO_ACCESS_TOKEN` solo
+    # hace falta si en el proyecto de Expo se activó "enhanced security". Por
+    # eso el default es vacío y no un valor de mentira: en la mayoría de los
+    # despliegues no se necesita, y exigirlo haría fallar el push por una
+    # variable que nadie tenía que poner.
+    expo_access_token: str = ""
+
+    # --- Versión mínima del cliente móvil (§12.12) -----------------------
+    #
+    # Estas cuatro se cambian **sin desplegar código**, que es justo el punto:
+    # el día que un cambio de contrato deje de tolerar a los clientes viejos,
+    # mover `MOVIL_VERSION_MINIMA` en Render surte efecto en el siguiente
+    # arranque de cada app. Un build nuevo tardaría días en llegar por Play,
+    # y llegaría tarde precisamente a quien ya no puede usar la app.
+    #
+    # El default de `minima` es `0.0.0` a propósito: **no bloquear a nadie**.
+    # Un entorno recién levantado no debe dejar fuera a los clientes por
+    # olvido de configurar; el bloqueo tiene que ser una decisión explícita.
+    movil_version_minima: str = Field(
+        default="0.0.0",
+        description="Por debajo de esta versión la API responde 426 y la app se bloquea (§12.12).",
+    )
+    movil_version_recomendada: str = Field(
+        default="1.0.0",
+        description="Última publicada en la tienda; por debajo la app solo sugiere actualizar.",
+    )
+    movil_url_tienda: str = Field(
+        default="https://play.google.com/store/apps/details?id=com.obractrl.app",
+        description="Destino del botón 'Actualizar' (§12.13).",
+    )
+    movil_mensaje_actualizacion: str = Field(
+        default=(
+            "Actualiza ObraCtrl para seguir capturando avances. Lo que ya "
+            "capturaste sigue guardado en el teléfono."
+        ),
+        description="Texto que la app muestra tal cual; permite explicar el motivo sin publicar.",
+    )
+
     # --- Evidencias (Cloudflare R2) -------------------------------------
     r2_endpoint: str = ""
     r2_bucket: str = "obractrl-evidencias"

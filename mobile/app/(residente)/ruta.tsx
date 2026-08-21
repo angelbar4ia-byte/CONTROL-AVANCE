@@ -1,15 +1,12 @@
-import { View } from 'react-native';
+/**
+ * Ruta crítica — Residente (§7.5, §11.3 A).
+ *
+ * La pantalla vive en `src/pantallas/Ruta.tsx`: es compartida entre roles
+ * (§5.3) y esta ruta solo la monta para el Residente.
+ */
 
-import { Encabezado } from '@/ui/Encabezado';
+import { Ruta } from '@/pantallas/Ruta';
 
 export default function Pantalla() {
-  return (
-    <View className="flex-1 bg-bg px-5 pt-14">
-      <Encabezado
-        eyebrow="Residente"
-        titulo="Mi ruta crítica"
-        descripcion="Actividades críticas y holgura (§6)."
-      />
-    </View>
-  );
+  return <Ruta papel="residente" />;
 }

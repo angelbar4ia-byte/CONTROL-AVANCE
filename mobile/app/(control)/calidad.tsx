@@ -1,15 +1,12 @@
-import { View } from 'react-native';
+/**
+ * Calidad — promedio de las revisiones físicas (§7.8).
+ *
+ * La pantalla vive en `src/pantallas/Calidad.tsx`: es compartida entre roles
+ * (§5.3) y esta ruta solo la monta para Control de obra.
+ */
 
-import { Encabezado } from '@/ui/Encabezado';
+import { Calidad } from '@/pantallas/Calidad';
 
 export default function Pantalla() {
-  return (
-    <View className="flex-1 bg-bg px-5 pt-14">
-      <Encabezado
-        eyebrow="Control de obra"
-        titulo="Calidad"
-        descripcion="Calificación de calidad de los trabajos (§7.8)."
-      />
-    </View>
-  );
+  return <Calidad />;
 }

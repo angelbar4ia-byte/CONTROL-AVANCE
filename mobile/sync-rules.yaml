@@ -78,8 +78,12 @@ bucket_definitions:
                usuario_id, evidencias, comentario, sync_status, device_id,
                capturado_en
           FROM registro_avance WHERE obra_id = bucket.obra_id
+      # `evidencias` son claves de objetos en R2, no binarios: unos cientos
+      # de bytes por incidencia. Sin ellas, la foto que sube el residente no
+      # tendría dónde anotarse en el dispositivo (§12.5).
       - SELECT id, org_id, obra_id, frente_id, tipo, impacto, titulo,
-               descripcion, estatus, creada_por, fecha_creada, fecha_limite
+               descripcion, estatus, creada_por, fecha_creada, fecha_limite,
+               evidencias
           FROM incidencia WHERE obra_id = bucket.obra_id
       - SELECT id, org_id, obra_id, actividad_id, usuario_id, fecha, fotos,
                comentario, calidad, sync_status
