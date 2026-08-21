@@ -8,10 +8,12 @@ repositorio.
 
 from __future__ import annotations
 
+import json
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 __all__ = ["Config", "obtener_config"]
 
@@ -30,6 +32,26 @@ def _base_de_proyecto(url: str) -> str:
         if base.endswith(sufijo):
             return base[: -len(sufijo)].rstrip("/")
     return base
+
+
+ListaDeTexto = Annotated[list[str], NoDecode]
+"""Lista que se escribe **separada por comas** en una variable de entorno.
+
+`NoDecode` no es decoración: sin él, pydantic-settings intenta un
+`json.loads()` sobre el valor **antes** de que corra ningún validador, porque
+el campo es de tipo complejo. Con `CORS_ORIGENES=https://mi-web.vercel.app` eso
+levanta `SettingsError` y **el proceso no arranca** — que es exactamente lo que
+pasó la primera vez que se configuró CORS en Render:
+
+    SettingsError: error parsing value for field "cors_origenes"
+                   from source "EnvSettingsSource"
+
+El `field_validator(mode="before")` que parte por comas existía desde la Fase 6
+y nunca llegaba a ejecutarse por env. Funcionaba al construir `Config(...)` en
+una prueba —ahí no hay fuente de entorno— y por eso la suite decía que sí.
+
+Con `NoDecode`, la cadena llega cruda al validador y él decide cómo leerla.
+"""
 
 
 class Config(BaseSettings):
@@ -60,7 +82,7 @@ class Config(BaseSettings):
     # `jwt_secret` solo sigue existiendo para proyectos que aún emiten HS256
     # con secreto compartido; si `jwt_jwks_url` está puesta, se ignora.
     jwt_secret: str = Field(default="cambiar-en-produccion")
-    jwt_algoritmos: list[str] = ["ES256", "RS256", "HS256"]
+    jwt_algoritmos: ListaDeTexto = ["ES256", "RS256", "HS256"]
     jwt_audiencia: str = "authenticated"
     jwt_holgura_segundos: int = Field(
         default=60,
@@ -167,18 +189,43 @@ class Config(BaseSettings):
     r2_secret_key: str = ""
 
     # --- CORS: orígenes de Vercel por entorno (§12.8) -------------------
-    cors_origenes: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    cors_origenes: ListaDeTexto = Field(default_factory=lambda: ["http://localhost:5173"])
 
     # --- Observabilidad --------------------------------------------------
     sentry_dsn: str = ""
 
-    @field_validator("cors_origenes", mode="before")
+    @field_validator("cors_origenes", "jwt_algoritmos", mode="before")
     @classmethod
-    def _separar_origenes(cls, v: object) -> object:
-        """Permite `CORS_ORIGENES=https://a.com,https://b.com`."""
-        if isinstance(v, str):
-            return [o.strip() for o in v.split(",") if o.strip()]
-        return v
+    def _separar_lista(cls, v: object) -> object:
+        """Lee una lista escrita como texto en una variable de entorno.
+
+        Se aceptan las dos formas que un operador puede escribir, porque las
+        dos son razonables y equivocarse cuesta un despliegue caído:
+
+            CORS_ORIGENES=https://a.com,https://b.com
+            CORS_ORIGENES=["https://a.com","https://b.com"]
+
+        La segunda es la convención de pydantic-settings y alguien que la
+        conozca la va a usar; la primera es la que documenta `OPERACION.md` y
+        la que se escribe sin pensar. Un JSON mal formado **no** se descarta en
+        silencio: se parte por comas, que para `["https://a.com"]` deja un
+        valor visiblemente raro en `/health` en vez de una lista vacía que
+        rechaza a todo el mundo sin decir por qué.
+        """
+        if not isinstance(v, str):
+            return v
+
+        texto = v.strip()
+        if texto.startswith("["):
+            try:
+                cargado = json.loads(texto)
+            except json.JSONDecodeError:
+                pass
+            else:
+                if isinstance(cargado, list):
+                    return [str(x).strip() for x in cargado if str(x).strip()]
+
+        return [parte.strip() for parte in texto.split(",") if parte.strip()]
 
     @property
     def es_produccion(self) -> bool:
