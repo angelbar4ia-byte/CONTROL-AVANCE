@@ -19,9 +19,11 @@ ASGI puro fija el contexto en el mismo `Task` que atiende la petición.
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from obractrl.adapters.api.problemas import problema_no_previsto
 from obractrl.infrastructure.observabilidad import (
     nuevo_id_de_peticion,
     poner_id_de_peticion,
@@ -30,10 +32,13 @@ from obractrl.infrastructure.observabilidad import (
 __all__ = [
     "CABECERA_ID_PETICION",
     "CABECERA_VERSION_CLIENTE",
+    "MiddlewareDeErroresConCORS",
     "MiddlewareDeIdDePeticion",
     "MiddlewareDeVersionDeCliente",
     "version_es_menor",
 ]
+
+_log = logging.getLogger(__name__)
 
 CABECERA_ID_PETICION = "x-request-id"
 
@@ -235,3 +240,80 @@ async def _responder_426(enviar: Enviar, *, version: str, minima: str) -> None:
         }
     )
     await enviar({"type": "http.response.body", "body": cuerpo})
+
+
+class MiddlewareDeErroresConCORS:
+    """Convierte un fallo no previsto en respuesta **dentro** de la pila de CORS.
+
+    ## El problema, que costó dos diagnósticos equivocados
+
+    Un 500 sin manejar lo atrapa `ServerErrorMiddleware`, que Starlette pone
+    **por fuera** de todo —incluido `CORSMiddleware`—. La respuesta sale sin
+    `Access-Control-Allow-Origin`, así que el navegador no reporta el 500: dice
+
+        blocked by CORS policy: No 'Access-Control-Allow-Origin' header
+
+    Y ahí empieza la cacería equivocada. Pasó dos veces con el mismo
+    despliegue: la primera era CORS de verdad; la segunda, un error de SQL por
+    una base sin migrar que se disfrazó de lo mismo. El mensaje del navegador
+    era idéntico y la causa no tenía nada que ver.
+
+    ## La solución
+
+    Este middleware se agrega **antes** que `CORSMiddleware`, y en Starlette
+    eso significa más adentro: `add_middleware` inserta al principio de la
+    lista y la lista se pliega de fuera hacia dentro. Así la excepción se
+    convierte en respuesta aquí, y esa respuesta **sube por CORS**, que le pone
+    sus cabeceras.
+
+    El navegador entonces ve un 500 con su `problem+json` y su `request_id`:
+    algo que se puede reportar y buscar en el log.
+
+    ## Qué no decide
+
+    El cuerpo. Lo arma `adapters/api/problemas.py`, el mismo que usa el
+    manejador de `Exception` de `main.py`, que es el que sabe **no** filtrar el
+    mensaje de la excepción (§12.4).
+    """
+
+    def __init__(self, app: Callable[..., Awaitable[None]]) -> None:
+        self._app = app
+
+    async def __call__(
+        self, alcance: Alcance, recibir: Recibir, enviar: Enviar
+    ) -> None:
+        if alcance["type"] != "http":
+            await self._app(alcance, recibir, enviar)
+            return
+
+        empezo = False
+
+        async def _marcar(mensaje: dict[str, Any]) -> None:
+            nonlocal empezo
+            if mensaje["type"] == "http.response.start":
+                empezo = True
+            await enviar(mensaje)
+
+        try:
+            await self._app(alcance, recibir, _marcar)
+        except Exception as exc:
+            if empezo:
+                # La respuesta ya salió a medias —un streaming que truena a la
+                # mitad, por ejemplo—: sustituirla rompería el protocolo. Se
+                # deja subir para que `ServerErrorMiddleware` la registre.
+                raise
+
+            _log.exception(
+                "Fallo no previsto en %s %s",
+                alcance.get("method", "?"),
+                alcance.get("path", "?"),
+            )
+            respuesta = problema_no_previsto(
+                str(alcance.get("path", "")), clase=type(exc).__name__
+            )
+            await respuesta(alcance, _sin_cuerpo, enviar)
+
+
+async def _sin_cuerpo() -> dict[str, Any]:
+    """`receive` de la respuesta de error: ya no hay cuerpo que leer."""
+    return {"type": "http.disconnect"}
