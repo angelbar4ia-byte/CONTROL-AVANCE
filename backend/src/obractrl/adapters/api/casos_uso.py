@@ -17,7 +17,8 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from obractrl.adapters.api.dependencias import SesionRLS
+from obractrl.adapters.api.avisos import suscribir_avisos
+from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS
 from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador, cargador_para
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.asignaciones_sql import RepositorioAsignacionesSQL
@@ -149,6 +150,7 @@ from obractrl.infrastructure.auth.supabase_admin import AdminDeSupabase
 from obractrl.infrastructure.jobs.cola import ColaDeTrabajos
 from obractrl.infrastructure.notificaciones.expo import ClienteExpoPush
 from obractrl.infrastructure.notificaciones.resend import ClienteResend
+from obractrl.infrastructure.tiempo_real.canal import canal_de_avisos
 
 __all__ = [
     "AbrirCierreDeObraDep",
@@ -232,7 +234,7 @@ def obtener_autorizar_cierre(sesion: SesionRLS) -> AutorizarCierre:
     )
 
 
-def obtener_validar_cierre(sesion: SesionRLS) -> ValidarCierre:
+def obtener_validar_cierre(sesion: SesionRLS, ctx: ContextoActual) -> ValidarCierre:
     """Validar un cierre publica `ActividadCerrada` (§11.3 C.4).
 
     El **borde** es quien decide que ese evento recalcula el CPM: el caso de
@@ -243,12 +245,13 @@ def obtener_validar_cierre(sesion: SesionRLS) -> ValidarCierre:
         actividades=RepositorioActividadesSQL(sesion),
         cierres=RepositorioCierresSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
-        eventos=_bus_de_cierre(sesion),
+        eventos=_bus_de_cierre(sesion, ctx),
     )
 
 
-def _bus_de_cierre(sesion: SesionRLS) -> BusEnProceso:
-    """`ActividadCerrada` → recalcular la ruta crítica de su obra (§11.1)."""
+def _bus_de_cierre(sesion: SesionRLS, ctx: ContextoActual) -> BusEnProceso:
+    """`ActividadCerrada` → recalcular la ruta crítica de su obra (§11.1) y
+    anunciarlo en vivo (§11.2)."""
     recalcular = obtener_recalcular_ruta_critica(sesion)
 
     async def _recalcular_cpm(evento: ActividadCerrada) -> None:
@@ -258,7 +261,7 @@ def _bus_de_cierre(sesion: SesionRLS) -> BusEnProceso:
 
     bus = BusEnProceso()
     bus.suscribir(ActividadCerrada, _recalcular_cpm)
-    return bus
+    return suscribir_avisos(bus, ctx=ctx, canal=canal_de_avisos)
 
 
 def obtener_rechazar_cierre(sesion: SesionRLS) -> RechazarCierre:
@@ -290,7 +293,7 @@ def obtener_enviar_estimacion(sesion: SesionRLS) -> EnviarEstimacion:
     )
 
 
-def _bus_de_estimacion(sesion: SesionRLS) -> BusEnProceso:
+def _bus_de_estimacion(sesion: SesionRLS, ctx: ContextoActual) -> BusEnProceso:
     """`EstimacionValidada` → notificar por Resend (§11.1, §11.3 E.5).
 
     Mismo cableado que `_bus_de_cierre` y `_bus_de_incidencia`: el borde
@@ -319,14 +322,16 @@ def _bus_de_estimacion(sesion: SesionRLS) -> BusEnProceso:
 
     bus = BusEnProceso()
     bus.suscribir(EstimacionValidada, _notificar)
-    return bus
+    return suscribir_avisos(bus, ctx=ctx, canal=canal_de_avisos)
 
 
-def obtener_validar_estimacion(sesion: SesionRLS) -> ValidarEstimacion:
+def obtener_validar_estimacion(
+    sesion: SesionRLS, ctx: ContextoActual
+) -> ValidarEstimacion:
     return ValidarEstimacion(
         estimaciones=RepositorioEstimacionesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
-        eventos=_bus_de_estimacion(sesion),
+        eventos=_bus_de_estimacion(sesion, ctx),
     )
 
 
@@ -357,7 +362,7 @@ RegistrarSalidaAlmacenDep = Annotated[
 ]
 
 
-def _bus_de_incidencia(sesion: SesionRLS) -> BusEnProceso:
+def _bus_de_incidencia(sesion: SesionRLS, ctx: ContextoActual) -> BusEnProceso:
     """`IncidenciaDetiene` → recalcular la ruta crítica de su obra (§11.3 F.5).
 
     Mismo cableado que `_bus_de_cierre`, y por la misma razón: el flujo de
@@ -375,15 +380,17 @@ def _bus_de_incidencia(sesion: SesionRLS) -> BusEnProceso:
 
     bus = BusEnProceso()
     bus.suscribir(IncidenciaDetiene, _recalcular_cpm)
-    return bus
+    return suscribir_avisos(bus, ctx=ctx, canal=canal_de_avisos)
 
 
-def obtener_abrir_incidencia(sesion: SesionRLS) -> AbrirIncidencia:
+def obtener_abrir_incidencia(
+    sesion: SesionRLS, ctx: ContextoActual
+) -> AbrirIncidencia:
     return AbrirIncidencia(
         actividades=RepositorioActividadesSQL(sesion),
         incidencias=RepositorioIncidenciasSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
-        eventos=_bus_de_incidencia(sesion),
+        eventos=_bus_de_incidencia(sesion, ctx),
     )
 
 
@@ -401,21 +408,25 @@ def obtener_registrar_evento_incidencia(sesion: SesionRLS) -> RegistrarEventoInc
     )
 
 
-def obtener_cerrar_incidencia(sesion: SesionRLS) -> CerrarIncidencia:
+def obtener_cerrar_incidencia(
+    sesion: SesionRLS, ctx: ContextoActual
+) -> CerrarIncidencia:
     return CerrarIncidencia(
         actividades=RepositorioActividadesSQL(sesion),
         incidencias=RepositorioIncidenciasSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
-        eventos=_bus_de_incidencia(sesion),
+        eventos=_bus_de_incidencia(sesion, ctx),
     )
 
 
-def obtener_rechazar_incidencia(sesion: SesionRLS) -> RechazarIncidencia:
+def obtener_rechazar_incidencia(
+    sesion: SesionRLS, ctx: ContextoActual
+) -> RechazarIncidencia:
     return RechazarIncidencia(
         actividades=RepositorioActividadesSQL(sesion),
         incidencias=RepositorioIncidenciasSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
-        eventos=_bus_de_incidencia(sesion),
+        eventos=_bus_de_incidencia(sesion, ctx),
     )
 
 
@@ -862,16 +873,17 @@ def obtener_abrir_cierre_de_obra(sesion: SesionRLS) -> AbrirCierreDeObra:
     )
 
 
-def obtener_participar_en_cierre(sesion: SesionRLS) -> Participar:
+def obtener_participar_en_cierre(sesion: SesionRLS, ctx: ContextoActual) -> Participar:
     return Participar(
         cierres=RepositorioCierresDeObraSQL(sesion),
         obras=RepositorioObrasSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
-        # Un bus vacío: hoy nada reacciona a `CierreDeObraCompletado`. Se
-        # inyecta igual para que el caso de uso no tenga que preguntarse si hay
-        # publicador, y para que suscribir el primer manejador sea agregar una
-        # línea aquí y nada más.
-        eventos=BusEnProceso(),
+        # Ya no está vacío: desde la Fase 16, `CierreDeObraCompletado` se
+        # anuncia en vivo (§11.2). Sigue sin tener manejadores de negocio —lo
+        # que el cierre debía congelar lo escribe `Participar` dentro de su
+        # unidad de trabajo—, y ese sigue siendo el motivo de que el bus se
+        # inyecte siempre: suscribir el primero es agregar una línea aquí.
+        eventos=suscribir_avisos(BusEnProceso(), ctx=ctx, canal=canal_de_avisos),
     )
 
 

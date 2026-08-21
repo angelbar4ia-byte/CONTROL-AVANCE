@@ -44,6 +44,7 @@ __all__ = [
     "RepositorioPrototipos",
     "RepositorioProyectos",
     "RepositorioRevisiones",
+    "RepositorioTorre",
     "RepositorioUnidades",
     "RepositorioUsuarios",
     "UnidadDeTrabajo",
@@ -1000,4 +1001,28 @@ class RepositorioEvaluaciones(Protocol):
 
     async def listar_criterios(self, *, aplica_a: str | None = None) -> list[dict]:
         """Catálogo `criterio_evaluacion` vigente (§11.2 `GET /criterios-evaluacion`)."""
+        ...
+
+
+@runtime_checkable
+class RepositorioTorre(Protocol):
+    """Estado agregado de las obras visibles (§5.1, §11.2 `/torre`).
+
+    Lo declara la aplicación porque el **reporte de avance** lo necesita
+    (`ArmarReporteDeAvance`), no porque la Torre lo use: su endpoint consulta
+    el repositorio directo, como toda lectura sin orquestación de dominio.
+
+    Existe un solo método aquí —el que el caso de uso usa— y no la superficie
+    completa de `RepositorioTorreSQL`. Un puerto es lo que el interior
+    necesita, no el espejo del adaptador.
+    """
+
+    async def estado_de_obras(
+        self,
+        *,
+        proyecto_id: UUID | None = None,
+        cluster_id: UUID | None = None,
+        solo_con_pendientes: bool = False,
+    ) -> list[dict]:
+        """Una fila por obra visible con sus contadores. RLS acota el alcance."""
         ...

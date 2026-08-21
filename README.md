@@ -84,8 +84,8 @@ autoriza), y el Super intendente ejecuta el **cierre de obra final**.
 | | Listo | Falta |
 |---|---|---|
 | `database/` | 28 migraciones con su `down` y bitácora de versión · RLS por rol en toda tabla · semillas · restauración de respaldo probada en CI · **7 archivos de pruebas de aislamiento** | Publicar las sync rules en el PowerSync de producción · sellar la base de producción |
-| `backend/` | Los 15 contextos del §11.1 end-to-end · cargadores Excel · jobs Arq + Redis · notificaciones (Resend + Expo Push) · `problem+json`, Sentry y sondas · **más de 900 pruebas** | `POST /reportes/{tipo}` genérico · procesos (§7.9) · tiempo real (`WS /ws`) |
-| `frontend/` | Las 18 features del §5.1 · virtualización compartida · **336 pruebas** + humo en navegador | Bitácora de eventos (SI) · procesos · los 6 E2E de workflow |
+| `backend/` | Los 15 contextos del §11.1 end-to-end · cargadores Excel · jobs Arq + Redis · notificaciones (Resend + Expo Push) · **tiempo real por SSE** y **reportes por alcance** · `problem+json`, Sentry y sondas · **730 pruebas** + 246 de integración en CI | La superficie del §11.2 queda cubierta |
+| `frontend/` | Las 20 features del §5.1, sin huecos de sidebar · virtualización compartida · avisos en vivo · **365 pruebas** + humo en navegador | Los 6 E2E de workflow |
 | `mobile/` | Las 14 pantallas del §5.2 · captura offline con evidencia · colas a R2 y a la API · force/soft update · Expo Push · **38 pruebas** + 3 flujos de Maestro | Assets y cuenta de Google Play (§12.13) |
 
 ## Verificación
@@ -97,6 +97,11 @@ cd database && DATABASE_URL="postgresql://..." ./scripts/migrar.sh && ./scripts/
 # Backend: dominio puro (no necesita BD)
 cd backend && pip install -e ".[dev]" && pytest tests/domain -q
 lint-imports              # la regla de dependencia se verifica en CI (§12.11)
+
+# Sin Postgres, `tests/integracion/` ni siquiera se importa (ver su conftest),
+# así que un cambio de firma en `adapters/api/casos_uso.py` no se nota hasta
+# CI. Esto sí lo ve, y tarda segundos:
+mypy tests/integracion | grep call-arg || echo "sin llamadas rotas"
 
 # Frontend
 cd frontend && npm install && npm run typecheck && npm test && npm run build

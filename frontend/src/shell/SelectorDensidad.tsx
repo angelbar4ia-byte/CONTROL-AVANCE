@@ -55,7 +55,7 @@ export function SelectorDensidad() {
   return (
     <button
       type="button"
-      className="btn btn-ghost btn-icon"
+      className="btn btn--ghost btn--icon"
       onClick={alternar}
       aria-pressed={esCompacta}
       title={

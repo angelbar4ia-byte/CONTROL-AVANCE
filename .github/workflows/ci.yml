@@ -133,6 +133,20 @@ jobs:
         #   python scripts/verificar_contrato.py
         run: python scripts/verificar_contrato.py
 
+      - name: El contrato no rompe a los clientes publicados (§12.12)
+        working-directory: backend
+        # La otra mitad de la pregunta: el paso de arriba comprueba que el
+        # contrato coincida con el código; este, que el cambio sea **aditivo**
+        # contra `openapi/publicado.json`. Se puede regenerar el contrato
+        # correctamente y, con eso, romper a todos los clientes viejos a la vez
+        # — y desde la Fase 15 hay uno que no se actualiza a voluntad: la app
+        # de Play (§12.13).
+        #
+        # Si el cambio es intencional y ya no hay clientes viejos, la línea
+        # base se mueve al liberar:
+        #   python scripts/verificar_compatibilidad.py --publicar
+        run: python scripts/verificar_compatibilidad.py
+
   frontend:
     name: Web · tipos y pruebas
     runs-on: ubuntu-latest

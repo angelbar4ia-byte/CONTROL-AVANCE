@@ -44,12 +44,20 @@ from obractrl.adapters.export.xlsx import (
     estimacion_a_xlsx,
     nombre_de_archivo_estimacion,
 )
+from obractrl.adapters.export.xlsx_avance import (
+    avance_a_xlsx,
+    nombre_de_archivo_avance,
+)
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
 from obractrl.adapters.repos.expediente_sql import RepositorioExpedienteSQL
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.revisiones_sql import RepositorioRevisionesSQL
+from obractrl.adapters.repos.torre_sql import RepositorioTorreSQL
+from obractrl.application.casos_uso.armar_reporte_de_avance import (
+    ArmarReporteDeAvance,
+)
 from obractrl.application.casos_uso.exportar_estimacion import (
     ArmarReporteDeEstimacion,
 )
@@ -60,14 +68,17 @@ __all__ = [
     "EXPEDIENTE_PDF",
     "EXPORTAR_ESTIMACION_XLSX",
     "FUNCIONES",
+    "REPORTE_DE_AVANCE_XLSX",
     "exportar_estimacion_xlsx",
     "generar_expediente_pdf",
+    "reporte_de_avance_xlsx",
 ]
 
 _log = logging.getLogger(__name__)
 
 EXPORTAR_ESTIMACION_XLSX: Final = "exportar_estimacion_xlsx"
 EXPEDIENTE_PDF: Final = "generar_expediente_pdf"
+REPORTE_DE_AVANCE_XLSX: Final = "reporte_de_avance_xlsx"
 """Nombres con los que se encola y con los que el worker resuelve la función.
 Son constantes y no literales sueltos porque los comparten dos procesos: un
 typo aquí es un trabajo que se encola y nunca corre."""
@@ -151,7 +162,49 @@ async def generar_expediente_pdf(
     )
 
 
-FUNCIONES = (exportar_estimacion_xlsx, generar_expediente_pdf)
+async def reporte_de_avance_xlsx(
+    _ctx: dict[str, Any],
+    *,
+    org_id: str,
+    usuario_id: str,
+    rol: str,
+    proyecto_id: str | None = None,
+    cluster_id: str | None = None,
+) -> dict[str, Any]:
+    """§11.2 `POST /reportes/avance` — el estado de las obras **del alcance**.
+
+    Es el primer reporte que no cuelga de una entidad: no recibe el id de
+    nada, y lo que sale depende de quién lo pidió. Eso funciona porque el
+    contexto RLS viaja en el payload y se vuelve a fijar aquí (ver el
+    encabezado del módulo): el worker ve exactamente las obras que vería ese
+    usuario por HTTP, ni una más.
+
+    `proyecto_id` y `cluster_id` son **foco**, no permiso: acotan dentro de lo
+    que ya se puede ver. Pasar el proyecto de otra organización no amplía
+    nada — devuelve vacío, que es lo correcto.
+    """
+    ctx = _contexto(org_id=org_id, usuario_id=usuario_id, rol=rol)
+    async with sesion_con_rls(ctx) as sesion:
+        caso_uso = ArmarReporteDeAvance(torre=RepositorioTorreSQL(sesion))
+        reporte = await caso_uso.ejecutar(
+            proyecto_id=UUID(proyecto_id) if proyecto_id else None,
+            cluster_id=UUID(cluster_id) if cluster_id else None,
+        )
+
+    _log.info(
+        "Reporte de avance para el rol %s: %d obras, %d requieren atención.",
+        rol,
+        reporte.total_obras,
+        reporte.obras_que_requieren_atencion,
+    )
+    return _archivo(
+        contenido=avance_a_xlsx(reporte),
+        nombre=nombre_de_archivo_avance(reporte),
+        content_type=CONTENT_TYPE_XLSX,
+    )
+
+
+FUNCIONES = (exportar_estimacion_xlsx, generar_expediente_pdf, reporte_de_avance_xlsx)
 """Lo que el worker registra (`obractrl/trabajador.py`). Arq resuelve cada
 trabajo por el `__name__` de la función, que es lo que
 `EXPORTAR_ESTIMACION_XLSX` y `EXPEDIENTE_PDF` deletrean."""

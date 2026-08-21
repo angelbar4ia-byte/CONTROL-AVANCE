@@ -538,7 +538,10 @@ async def test_validar_cierre_recalcula_la_ruta(
         )
 
     async with sesion_con_rls(contexto_control) as sesion:
-        await obtener_validar_cierre(sesion).ejecutar(
+        # El mismo contexto que abrió la sesión: desde la Fase 16 el bus
+        # también anuncia el hecho en vivo (§11.2) y el canal reparte por
+        # organización, que es lo único que el `ctx` aporta aquí.
+        await obtener_validar_cierre(sesion, contexto_control).ejecutar(
             ComandoValidarCierre(
                 cierre_id=creada.id,
                 usuario_id=escenario.control_id,
@@ -629,7 +632,7 @@ async def test_incidencia_que_detiene_bloquea_y_recalcula_la_ruta(
     await _borrar_cpm(escenario.obra_id)
 
     async with sesion_con_rls(contexto_residente) as sesion:
-        creada = await obtener_abrir_incidencia(sesion).ejecutar(
+        creada = await obtener_abrir_incidencia(sesion, contexto_residente).ejecutar(
             ComandoAbrirIncidencia(
                 obra_id=escenario.obra_id,
                 creada_por=escenario.residente_id,
@@ -651,7 +654,7 @@ async def test_incidencia_que_detiene_bloquea_y_recalcula_la_ruta(
     await _llevar_a_cierre_solicitado(contexto_supervisor, creada.id, escenario)
 
     async with sesion_con_rls(contexto_supervisor) as sesion:
-        await obtener_cerrar_incidencia(sesion).ejecutar(
+        await obtener_cerrar_incidencia(sesion, contexto_supervisor).ejecutar(
             ComandoCerrarIncidencia(
                 incidencia_id=creada.id,
                 usuario_id=escenario.supervisor_id,
@@ -682,7 +685,7 @@ async def test_incidencia_sin_impacto_detiene_no_recalcula(
     await _borrar_cpm(escenario.obra_id)
 
     async with sesion_con_rls(contexto_residente) as sesion:
-        await obtener_abrir_incidencia(sesion).ejecutar(
+        await obtener_abrir_incidencia(sesion, contexto_residente).ejecutar(
             ComandoAbrirIncidencia(
                 obra_id=escenario.obra_id,
                 creada_por=escenario.residente_id,

@@ -12,6 +12,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from obractrl.adapters.api.v1.avance import router as router_avance
+from obractrl.adapters.api.v1.bitacora import router as router_bitacora
 from obractrl.adapters.api.v1.cargas import router as router_cargas
 from obractrl.adapters.api.v1.catalogos import router as router_catalogos
 from obractrl.adapters.api.v1.cierres import router as router_cierres
@@ -20,6 +21,7 @@ from obractrl.adapters.api.v1.cliente import router as router_cliente
 from obractrl.adapters.api.v1.dispositivos import router as router_dispositivos
 from obractrl.adapters.api.v1.estimacion import router as router_estimacion
 from obractrl.adapters.api.v1.evaluaciones import router as router_evaluaciones
+from obractrl.adapters.api.v1.eventos import router as router_eventos
 from obractrl.adapters.api.v1.evidencias import router as router_evidencias
 from obractrl.adapters.api.v1.expediente import router as router_expediente
 from obractrl.adapters.api.v1.identidad import router as router_identidad
@@ -27,6 +29,7 @@ from obractrl.adapters.api.v1.incidencias import router as router_incidencias
 from obractrl.adapters.api.v1.materiales import router as router_materiales
 from obractrl.adapters.api.v1.obras import router as router_obras
 from obractrl.adapters.api.v1.presupuesto import router as router_presupuesto
+from obractrl.adapters.api.v1.procesos import router as router_procesos
 from obractrl.adapters.api.v1.programacion import router as router_programacion
 from obractrl.adapters.api.v1.proyectos import router as router_proyectos
 from obractrl.adapters.api.v1.reportes import router as router_reportes
@@ -58,7 +61,11 @@ api_v1.include_router(router_evidencias)
 api_v1.include_router(router_cargas)
 api_v1.include_router(router_expediente)
 api_v1.include_router(router_reportes)
+api_v1.include_router(router_procesos)
+api_v1.include_router(router_bitacora)
+api_v1.include_router(router_eventos)
 
-# Pendientes de implementar (§11.2): `POST /reportes/{tipo}` genérico ·
-# procesos (§7.9) · tiempo real (`WS /ws`).
+# El §11.2 queda cubierto: `POST /reportes/{tipo}` genérico, procesos (§7.9)
+# y tiempo real entraron en la Fase 16. El tiempo real vive en `eventos.py` y
+# es SSE (`GET /events`), la alternativa que el propio §11.2 nombra.
 __all__ = ["api_v1"]

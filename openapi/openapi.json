@@ -5767,6 +5767,92 @@
         }
       }
     },
+    "/api/v1/reportes/tipos": {
+      "get": {
+        "tags": [
+          "reportes"
+        ],
+        "summary": "Reportes que se pueden pedir",
+        "description": "El catálogo, para que el menú de reportes no sea una lista escrita a\nmano en el front que se desincroniza al agregar el cuarto.",
+        "operationId": "tipos_de_reporte_api_v1_reportes_tipos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TipoDeReporteRespuesta"
+                  },
+                  "type": "array",
+                  "title": "Response Tipos De Reporte Api V1 Reportes Tipos Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reportes/{tipo}": {
+      "post": {
+        "tags": [
+          "reportes"
+        ],
+        "summary": "Encolar un reporte por alcance (§11.2)",
+        "description": "Encola el reporte del catálogo y devuelve su identificador.\n\nEl orden de las validaciones importa: primero **existe**, luego **puedes**,\nluego **está completo**. Al revés, un 422 por parámetro faltante le\nconfirmaría a alguien sin permiso que ese tipo de reporte existe.\n\nEl rol se comprueba aquí y no con `exigir_rol` porque depende del `{tipo}`\nde la ruta, que la dependencia no ve. El 403 es el mismo que produciría la\nruta específica equivalente — el genérico no es un rodeo para saltarse una\nguarda.",
+        "operationId": "encolar_reporte_api_v1_reportes__tipo__post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tipo"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParametrosReporte"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrabajoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Tu rol no puede pedir este reporte."
+          },
+          "404": {
+            "description": "No existe un reporte con ese tipo."
+          },
+          "422": {
+            "description": "Falta un parámetro que ese tipo exige."
+          },
+          "503": {
+            "description": "La cola de trabajos no está disponible (§12.8)."
+          }
+        }
+      }
+    },
     "/api/v1/estimaciones/{estimacion_id}/export": {
       "get": {
         "tags": [
@@ -5911,6 +5997,388 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/procesos": {
+      "get": {
+        "tags": [
+          "procesos"
+        ],
+        "summary": "Tablero de mejora de procesos",
+        "description": "Los procesos de la organización (§7.9).\n\nLectura simple sin orquestación de dominio —como `GET /me`— así que\nconsulta el repositorio directo, sin caso de uso: RLS ya acotó el alcance\n(§12.4).",
+        "operationId": "listar_procesos_api_v1_procesos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "estatus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/EstatusProceso"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por etapa del tablero (§7.9).",
+              "title": "Estatus"
+            },
+            "description": "Filtra por etapa del tablero (§7.9)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProcesoRespuesta"
+                  },
+                  "title": "Response Listar Procesos Api V1 Procesos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "procesos"
+        ],
+        "summary": "Proponer un proceso de mejora",
+        "description": "§11.2 — el alta es del Super intendente.\n\n`definido_por` sale del token y no del cuerpo (§12.4): quien define el\nproceso es quien lo está creando, y dejar que el cliente lo eligiera\npermitiría firmar una decisión a nombre de otro.\n\nCommitea aquí porque no hay caso de uso que lo haga —es una escritura sin\ndominio, como el registro de dispositivos—; `sesion_con_rls` no commitea\nsola.",
+        "operationId": "crear_proceso_api_v1_procesos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearProcesoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcesoRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/procesos/{proceso_id}": {
+      "patch": {
+        "tags": [
+          "procesos"
+        ],
+        "summary": "Mover un proceso de etapa",
+        "description": "Avanza o descarta un proceso (ver el encabezado del módulo).\n\n**Sin máquina de estados.** Cualquier etapa puede ir a cualquier otra: un\nproceso adoptado que resultó malo vuelve a `descartado`, y uno descartado\npuede reintentarse el año siguiente. Imponer un orden aquí sería inventar\nuna regla que el §7.9 no da, y la única que importa —quién puede\nmoverlo— ya la aplica `exigir_rol`.",
+        "operationId": "cambiar_estatus_proceso_api_v1_procesos__proceso_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "proceso_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Proceso Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarEstatusPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcesoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El proceso no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bitacora": {
+      "get": {
+        "tags": [
+          "bitacora"
+        ],
+        "summary": "Bitácora de cambios de configuración y catálogo",
+        "description": "Lee la bitácora de la organización, lo más reciente primero.\n\nLectura sin orquestación de dominio: consulta directa, como `GET /me`. El\naislamiento lo pone `bitacora_select` (§12.4).\n\n**`hasta` incluye el día entero.** `fecha` es `timestamptz`, así que\ncomparar contra la fecha pelada dejaría fuera todo lo ocurrido después de\nla medianoche del último día — que es todo. Se compara contra el día\nsiguiente con `<`, no con `<=` a las 23:59:59, para no depender de la\nprecisión del reloj.\n\nEl `count(*)` va en la misma consulta con una ventana en vez de una\nsegunda vuelta: dos consultas con los mismos filtros son dos lugares donde\nel filtro puede quedar desalineado, y aquí eso significaría una paginación\nque miente.",
+        "operationId": "listar_bitacora_api_v1_bitacora_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "entidad",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por tabla (`configuracion`, `cpu`, …).",
+              "title": "Entidad"
+            },
+            "description": "Filtra por tabla (`configuracion`, `cpu`, …)."
+          },
+          {
+            "name": "entidad_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por fila concreta.",
+              "title": "Entidad Id"
+            },
+            "description": "Filtra por fila concreta."
+          },
+          {
+            "name": "usuario_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por autor.",
+              "title": "Usuario Id"
+            },
+            "description": "Filtra por autor."
+          },
+          {
+            "name": "desde",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha mínima, inclusiva.",
+              "title": "Desde"
+            },
+            "description": "Fecha mínima, inclusiva."
+          },
+          {
+            "name": "hasta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha máxima, **inclusiva**: cuenta el día completo.",
+              "title": "Hasta"
+            },
+            "description": "Fecha máxima, **inclusiva**: cuenta el día completo."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Página, base 1 (§11.2).",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Página, base 1 (§11.2)."
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Tamaño de página.",
+              "default": 50,
+              "title": "Size"
+            },
+            "description": "Tamaño de página."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaBitacora"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bitacora/entidades": {
+      "get": {
+        "tags": [
+          "bitacora"
+        ],
+        "summary": "Tablas que aparecen en la bitácora",
+        "description": "Alimenta el filtro de la pantalla (§5.1).\n\nSale de los datos y no de una lista fija en el front: las tablas\nauditadas las decide la migración 0023, y una lista escrita a mano en el\ncliente se desincroniza el día que se agregue una — mostrando un filtro\nque no encuentra nada, o escondiendo cambios que sí se registraron.",
+        "operationId": "entidades_con_bitacora_api_v1_bitacora_entidades_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Response Entidades Con Bitacora Api V1 Bitacora Entidades Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "tags": [
+          "tiempo real"
+        ],
+        "summary": "Avisos en vivo (SSE)",
+        "description": "Abre el flujo de avisos de la organización del token (§11.2).\n\nLa conexión vive hasta que el cliente se va. Se comprueba\n`peticion.is_disconnected()` en cada vuelta porque un generador de\nstreaming **no** se cancela solo cuando el navegador cierra la pestaña:\nsin esa comprobación, cada pestaña cerrada dejaría una tarea despertándose\ncada veinte segundos para escribir en un socket muerto.",
+        "operationId": "eventos_en_vivo_api_v1_events_get",
+        "responses": {
+          "200": {
+            "description": "Flujo `text/event-stream`. Ver el encabezado del módulo.",
+            "content": {
+              "text/event-stream": {}
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/health": {
@@ -7093,6 +7561,19 @@
         ],
         "title": "CPURespuesta"
       },
+      "CambiarEstatusPeticion": {
+        "properties": {
+          "estatus": {
+            "$ref": "#/components/schemas/EstatusProceso",
+            "description": "Nueva etapa (§7.9)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "estatus"
+        ],
+        "title": "CambiarEstatusPeticion"
+      },
       "CapturaAvancePeticion": {
         "properties": {
           "cant_ejecutada": {
@@ -8238,6 +8719,39 @@
         "title": "CrearObrasEnLotePeticion",
         "description": "Alta masiva (§11.2 `POST /obras/bulk`). O entran todas o no entra ninguna."
       },
+      "CrearProcesoPeticion": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nombre",
+            "description": "Cómo se le nombra en el tablero."
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion",
+            "description": "Qué cambia y por qué. Es el campo que hace útil el tablero seis meses después."
+          },
+          "estatus": {
+            "$ref": "#/components/schemas/EstatusProceso",
+            "description": "Etapa inicial; casi siempre `propuesto`.",
+            "default": "propuesto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nombre"
+        ],
+        "title": "CrearProcesoPeticion",
+        "description": "Alta de un proceso de mejora (§11.2, rol SI)."
+      },
       "CrearProgramaBasePeticion": {
         "properties": {
           "prototipo_id": {
@@ -8746,6 +9260,83 @@
         ],
         "title": "DocumentoRespuesta"
       },
+      "EntradaBitacora": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "entidad": {
+            "type": "string",
+            "title": "Entidad",
+            "description": "Tabla afectada, p. ej. `configuracion` o `cpu`."
+          },
+          "entidad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entidad Id"
+          },
+          "usuario_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Id",
+            "description": "Quién lo hizo. Nulo cuando el cambio no vino de una sesión con contexto — una migración o un script de mantenimiento."
+          },
+          "usuario_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Nombre"
+          },
+          "accion": {
+            "type": "string",
+            "title": "Accion",
+            "description": "`insert` | `update` | `delete` (§11.7)."
+          },
+          "datos": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Datos",
+            "description": "Para un update, solo las columnas que cambiaron, con su valor antes y después; para un alta, la fila (migración 0023)."
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fecha"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "entidad",
+          "entidad_id",
+          "accion",
+          "datos",
+          "fecha"
+        ],
+        "title": "EntradaBitacora",
+        "description": "Un renglón: quién, cuándo, qué y sobre qué (§7.9)."
+      },
       "ErrorDeFilaRespuesta": {
         "properties": {
           "fila": {
@@ -9021,6 +9612,17 @@
           "entregada"
         ],
         "title": "EstatusObra"
+      },
+      "EstatusProceso": {
+        "type": "string",
+        "enum": [
+          "propuesto",
+          "en_curso",
+          "adoptado",
+          "descartado"
+        ],
+        "title": "EstatusProceso",
+        "description": "Etapas de un proceso de mejora (§7.9 `Proceso`).\n\n**Este enum no está en el §8.2 y aquí se decide.** El §7.9 le da a\n`Proceso` un campo `estatus` y lo describe como \"mejora de procesos\", sin\nfijar valores; la migración 0010 lo dejó como `text` con default\n`propuesto`, sin `CHECK`.\n\nSe fija aquí y **no** como tipo de Postgres a propósito. Un enum de la base\nes un invariante: cambiarlo cuesta una migración con `down` probado\n(§12.12). Estos cuatro valores son una convención de tablero que una\norganización podría querer distinta —\"piloto\" en vez de \"en_curso\"— y el\n§8.7 llama a eso semilla editable, no invariante. Mientras el spec no los\nfije, el borde valida contra esta lista y la columna sigue siendo `text`:\nampliarla es cambiar este enum, no migrar la base."
       },
       "EstatusSolicitudCierre": {
         "type": "string",
@@ -10407,6 +11009,97 @@
         ],
         "title": "ObraRespuesta"
       },
+      "PaginaBitacora": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "entradas": {
+            "items": {
+              "$ref": "#/components/schemas/EntradaBitacora"
+            },
+            "type": "array",
+            "title": "Entradas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "page",
+          "size",
+          "entradas"
+        ],
+        "title": "PaginaBitacora",
+        "description": "Página con el total, para que la UI pueda decir \"1-50 de 3 240\"."
+      },
+      "ParametrosReporte": {
+        "properties": {
+          "obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Id",
+            "description": "Para `expediente`."
+          },
+          "estimacion_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimacion Id",
+            "description": "Para `estimacion`."
+          },
+          "proyecto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proyecto Id",
+            "description": "Acota `avance` a un proyecto visible."
+          },
+          "cluster_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Id",
+            "description": "Acota `avance` a un cluster visible."
+          }
+        },
+        "type": "object",
+        "title": "ParametrosReporte",
+        "description": "Lo que puede necesitar un reporte del catálogo.\n\nUn solo modelo con todo opcional en vez de uno por tipo: el borde valida\ncontra `TipoDeReporte.requiere`, que es la lista que de verdad manda, y\nasí agregar un reporte no agrega un DTO. Lo que se pierde —que OpenAPI no\ndiga *para este tipo, este campo es obligatorio*— se compensa con\n`GET /reportes/tipos`, que publica la tabla.\n\n**Ningún campo de alcance.** No hay `usuario_id` ni `org_id`: el alcance\nsale del token y lo aplica RLS (§12.4). `proyecto_id` y `cluster_id` son\nfoco dentro de lo visible, no permiso."
+      },
       "ParticipacionRespuesta": {
         "properties": {
           "id": {
@@ -10826,6 +11519,67 @@
         ],
         "title": "PresupuestoRespuesta",
         "description": "El presupuesto vigente del prototipo que la obra instancia (§7.3)."
+      },
+      "ProcesoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "definido_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definido Por"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nombre",
+          "descripcion",
+          "definido_por",
+          "estatus",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProcesoRespuesta"
       },
       "ProgramaBaseCreadoRespuesta": {
         "properties": {
@@ -12310,6 +13064,47 @@
           "basico"
         ],
         "title": "TipoConcepto"
+      },
+      "TipoDeReporteRespuesta": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "formato": {
+            "type": "string",
+            "title": "Formato"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roles",
+            "description": "Vacío = cualquier rol autenticado; el alcance lo pone RLS."
+          },
+          "requiere": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requiere"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "descripcion",
+          "formato",
+          "roles",
+          "requiere"
+        ],
+        "title": "TipoDeReporteRespuesta",
+        "description": "Un renglón del catálogo, para que el cliente arme su menú."
       },
       "TipoExpedienteDoc": {
         "type": "string",
