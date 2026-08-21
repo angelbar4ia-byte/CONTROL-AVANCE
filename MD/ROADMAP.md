@@ -44,13 +44,18 @@ Ninguno de estos cabos bloquea eso, y casi todos son de operación:
    runner: `./database/scripts/migrar.sh --sellar`.
 2. **Crear los servicios de staging en Render** desde el blueprint, con su
    proyecto de Supabase y su bucket de R2 propios.
-3. **`SUPABASE_SERVICE_KEY` en el backend.** Sin ella el alta de usuarios
+3. **`CORS_ORIGENES` y `ENTORNO` en el servicio web.** Sin la primera, la API
+   rechaza a su propia web con `Disallowed CORS origin` —el navegador lo
+   reporta como una cabecera ausente, que es lo que confunde—. Sin
+   `ENTORNO=prod`, `/docs` queda público. Las dos se ponen en Render y el
+   procedimiento está en [`OPERACION.md`](OPERACION.md).
+4. **`SUPABASE_SERVICE_KEY` en el backend.** Sin ella el alta de usuarios
    responde 503 y el resto del sistema funciona igual — pero el piloto empieza
    por dar de alta gente, así que es de las primeras variables que hay que
    poner. Nunca llega al cliente (§10.7).
-4. **Tags `vX.Y.Z` y changelog** (§12.12), y ejercitar una vez el rollback de un
+5. **Tags `vX.Y.Z` y changelog** (§12.12), y ejercitar una vez el rollback de un
    deploy real.
-5. **Publicar la app.** El código está; falta la cuenta de Play, el
+6. **Publicar la app.** El código está; falta la cuenta de Play, el
    `projectId` real de EAS y los assets de la ficha (§12.13). El detalle, en
    [`../mobile/README.md`](../mobile/README.md).
 

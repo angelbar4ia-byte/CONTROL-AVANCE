@@ -179,8 +179,10 @@ def crear_app() -> FastAPI:
         rutas y no hay forma de distinguir "la variable no llegó" de "el
         token es malo" —y la Shell de Render es de pago.
 
-        No expone secretos: `jwks_url` es un endpoint público del proveedor
-        y `auth_modo` solo dice qué camino se tomó.
+        No expone secretos: `jwks_url` es un endpoint público del proveedor,
+        `auth_modo` solo dice qué camino se tomó y `cors_origenes` es la lista
+        de sitios que ya pueden llamar a esta API — quien la lee desde fuera no
+        gana nada que no supiera al abrir la web.
         """
         jwks = cfg.jwks_url_efectiva
         return {
@@ -195,6 +197,14 @@ def crear_app() -> FastAPI:
             # token realmente inválido. Sin esta sonda no se distinguen.
             "es256_disponible": _hay_es256(),
             "jwks_alcanzable": _jwks_alcanzable(jwks),
+            # Los orígenes que el navegador tiene permitido usar (§12.8). No
+            # es secreto —son URLs públicas— y es el dato que convierte un
+            # "Disallowed CORS origin" en un vistazo: desde el navegador, un
+            # origen no permitido se ve como *falta la cabecera*, sin decir
+            # cuál es la lista contra la que se comparó. Mismo criterio que
+            # `jwks_url`: sin esto, un despliegue mal configurado solo se
+            # manifiesta como un error del lado del cliente.
+            "cors_origenes": ", ".join(cfg.cors_origenes) or "(ninguno)",
         }
 
     @app.get(
