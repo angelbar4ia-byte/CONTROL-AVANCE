@@ -148,7 +148,9 @@ def _prototipo_simple(
         [1, None, clave_prototipo, "Prototipo", None, None, None, None, "PROTOTIPO"],
         [1, clave_prototipo, "NIV-1", "Cimentación", None, None, None, None, "NIVEL DE CONSTRUCCION"],
         [1, "NIV-1", "ECO-1", "Estructura", None, None, None, None, "ETAPA DE CONSTRUCCION"],
-        [1, "ECO-1", clave_concepto, "Losa", "M2", 1, 0, 0, "CONCEPTO"],
+        # Sin unidad: "M2" no está sembrada en `catalogos` y generaría un
+        # pendiente de UNIDAD que no es lo que estos tests ejercitan.
+        [1, "ECO-1", clave_concepto, "Losa", None, 1, 0, 0, "CONCEPTO"],
         [1, clave_concepto, "ACE-01", "Alambre", "KG", cantidad_alambre, 20, None, "MATERIAL"],
     ]
 

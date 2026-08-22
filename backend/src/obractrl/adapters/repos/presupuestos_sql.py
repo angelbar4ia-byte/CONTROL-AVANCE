@@ -52,45 +52,46 @@ class RepositorioPresupuestosSQL:
         self, prototipo_id: UUID, *, origen: str, carga_id: UUID | None
     ) -> dict[str, Any]:
         """Retira el vigente anterior e inserta la versión siguiente como
-        vigente, en una sola sentencia — `uq_presupuesto_vigente` es un
-        índice único parcial y no diferible, así que retirar tiene que
-        pasar antes de insertar (mismo orden que `publicar_version_cpu`).
-        La CTE `retirado` se ejecuta aunque nada lea su resultado en el
-        `insert`: es una CTE con efecto de escritura, Postgres no la puede
-        optimizar fuera. Sí se expone como ``anterior_id`` en el resultado
-        —la fila que quedó en `vigente=false`— porque el aplicador necesita
-        registrar esa operación para que la reversa la restaure (§10.8): el
-        `id` nuevo no basta, hay que saber a cuál se le apagó el vigente.
+        vigente, en **dos sentencias separadas y secuenciales** — mismo
+        patrón que `RepositorioConceptos.publicar_version_cpu`.
+
+        No es una sola sentencia con CTEs: `uq_presupuesto_vigente` es un
+        índice único parcial y no diferible, y dos CTEs independientes
+        (`update ... returning` e `insert ... returning`) que no se
+        referencian entre sí **no tienen orden de ejecución garantizado**
+        entre ellas en Postgres — solo lo tienen frente a lo que sí las
+        referencia. Un intento con una sola sentencia violó la restricción
+        en CI: el `insert` alcanzó a correr antes de que el `update`
+        aterrizara. Dos `execute()` awaited, uno tras otro, sí garantizan el
+        orden porque son dos sentencias distintas en la misma transacción.
         """
-        columnas_nuevo = ", ".join(f"nuevo.{c}" for c in _COLUMNAS_VERSION.split(", "))
+        anterior = (
+            await self._sesion.execute(
+                text(
+                    """
+                    update presupuesto
+                       set vigente = false
+                     where org_id = cast(current_setting('app.org_id') as uuid)
+                       and prototipo_id = :prototipo_id
+                       and vigente
+                    returning id
+                    """
+                ),
+                {"prototipo_id": str(prototipo_id)},
+            )
+        ).first()
+
         fila = (
             await self._sesion.execute(
                 text(
                     f"""
-                    with retirado as (
-                        update presupuesto
-                           set vigente = false
-                         where org_id = cast(current_setting('app.org_id') as uuid)
-                           and prototipo_id = :prototipo_id
-                           and vigente
-                        returning id
-                    ),
-                    siguiente as (
-                        select coalesce(max(version), 0) + 1 as v
-                          from presupuesto
-                         where org_id = cast(current_setting('app.org_id') as uuid)
-                           and prototipo_id = :prototipo_id
-                    ),
-                    nuevo as (
-                        insert into presupuesto (org_id, prototipo_id, version, vigente, origen, carga_id)
-                        select cast(current_setting('app.org_id') as uuid), :prototipo_id,
-                               siguiente.v, true, :origen, cast(:carga_id as uuid)
-                          from siguiente
-                        returning {_COLUMNAS_VERSION}
-                    )
-                    select {columnas_nuevo}, retirado.id as anterior_id
-                      from nuevo
-                      left join retirado on true
+                    insert into presupuesto (org_id, prototipo_id, version, vigente, origen, carga_id)
+                    select cast(current_setting('app.org_id') as uuid), :prototipo_id,
+                           coalesce(max(version), 0) + 1, true, :origen, cast(:carga_id as uuid)
+                      from presupuesto
+                     where org_id = cast(current_setting('app.org_id') as uuid)
+                       and prototipo_id = :prototipo_id
+                    returning {_COLUMNAS_VERSION}
                     """
                 ),
                 {
@@ -100,7 +101,7 @@ class RepositorioPresupuestosSQL:
                 },
             )
         ).mappings().one()
-        return dict(fila)
+        return {**fila, "anterior_id": anterior.id if anterior else None}
 
     async def agregar_partidas(
         self, presupuesto_id: UUID, partidas: list[dict[str, Any]]
