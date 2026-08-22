@@ -34,8 +34,8 @@ from obractrl.application.puertos.repositorios import (
     RepositorioInsumos,
     RepositorioMateriales,
     RepositorioObras,
-    RepositorioProyectos,
     RepositorioPrototipos,
+    RepositorioProyectos,
     RepositorioUnidades,
 )
 from obractrl.domain.cargadores.almacen import FilaMovimiento, importe_con_iva
