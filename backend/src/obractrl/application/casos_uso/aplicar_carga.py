@@ -1356,6 +1356,7 @@ class AplicadorPresupuesto:
             "nodos_actualizados": 0,
             "conceptos_en_conflicto": 0,
             "conceptos_omitidos": 0,
+            "conceptos_sin_cambio": 0,
             "partidas": 0,
         }
 
@@ -1470,7 +1471,11 @@ class AplicadorPresupuesto:
             errores=tuple(errores),
             insertados=len(diff.altas),
             actualizados=len(diff.cambios),
-            omitidos=contadores["conceptos_omitidos"] + lectura.omitidos,
+            omitidos=(
+                contadores["conceptos_omitidos"]
+                + contadores["conceptos_sin_cambio"]
+                + lectura.omitidos
+            ),
             detalle=dict(contadores),
         )
 
@@ -1747,7 +1752,7 @@ class AplicadorPresupuesto:
 
         firma_nueva = _firma_explosion(filas_explosion, clave_de_insumo)
 
-        conflicto = False
+        diferente = False
         concepto_id: UUID | None = actual["id"] if actual else None
         if actual is not None:
             firma_vigente = firma_cache.get(nodo.clave)
@@ -1760,7 +1765,21 @@ class AplicadorPresupuesto:
                 filas_previas = await self._conceptos.explosion_directa(concepto_id)
                 firma_vigente = _firma_explosion(filas_previas, clave_de_insumo)
                 firma_cache[nodo.clave] = firma_vigente
-            conflicto = firma_vigente != firma_nueva
+            diferente = firma_vigente != firma_nueva
+
+        conflicto = False
+        if diferente:
+            assert concepto_id is not None  # noqa: S101 — `diferente` implica `actual is not None`
+            # Composición distinta a la vigente: ¿es un prototipo DISTINTO
+            # el que ya depende de ella (conflicto real), o es este mismo
+            # prototipo recargando una corrección (actualización legítima,
+            # nadie más se queda con datos viejos)? La consulta es de solo
+            # lectura — se hace igual en dry_run, para que la vista previa
+            # cuente igual que el commit (§9.3).
+            otros = await self._presupuestos.otros_prototipos_con_partida_vigente(
+                concepto_id, excluir_prototipo_id=prototipo_id
+            )
+            conflicto = bool(otros)
 
         if conflicto:
             contadores["conceptos_en_conflicto"] += 1
@@ -1780,66 +1799,89 @@ class AplicadorPresupuesto:
                     origen_ref=f"fila {nodo.fila}",
                 )
             )
-        else:
+        elif actual is None:
+            # Alta: clave nueva en el catálogo.
             tipo_concepto = (
                 TipoConcepto.AUXILIAR
                 if nodo.tipo is TipoNodoPresupuesto.CONCEPTO_AUXILIAR
                 else TipoConcepto.CONCEPTO
             )
             if not dry_run:
-                if concepto_id is None:
-                    concepto_id = await self._conceptos.crear(
-                        {
-                            "tipo": str(tipo_concepto),
-                            "clave": nodo.clave,
-                            "descripcion": nodo.descripcion,
-                            "unidad_id": unidad_id,
-                            "familia_id": None,
-                        }
-                    )
-                    operaciones.append(
-                        _operacion(
-                            "concepto", concepto_id, "insert", despues={"clave": nodo.clave}
-                        )
-                    )
-                else:
-                    assert actual is not None  # noqa: S101 — narrowing, concepto_id lo garantiza
-                    await self._conceptos.actualizar(
-                        concepto_id,
-                        {
-                            "descripcion": nodo.descripcion,
-                            "unidad_id": unidad_id,
-                            "familia_id": actual.get("familia_id"),
-                        },
-                    )
-                    operaciones.append(
-                        _operacion(
-                            "concepto",
-                            concepto_id,
-                            "update",
-                            antes=_recorte(
-                                actual, ("tipo", "descripcion", "unidad_id", "familia_id", "estatus")
-                            ),
-                            despues={"descripcion": nodo.descripcion, "unidad_id": unidad_id},
-                        )
-                    )
+                concepto_id = await self._conceptos.crear(
+                    {
+                        "tipo": str(tipo_concepto),
+                        "clave": nodo.clave,
+                        "descripcion": nodo.descripcion,
+                        "unidad_id": unidad_id,
+                        "familia_id": None,
+                    }
+                )
+                operaciones.append(
+                    _operacion("concepto", concepto_id, "insert", despues={"clave": nodo.clave})
+                )
                 operaciones.extend(
                     await _publicar_cpu_de_concepto(
                         self._conceptos, concepto_id, filas_explosion, precio
                     )
                 )
 
-            (claves_nuevas if actual is None else claves_actualizadas).add(nodo.clave)
+            claves_nuevas.add(nodo.clave)
             catalogo_conceptos[nodo.clave] = {
                 "id": concepto_id,
-                "tipo": str(tipo_concepto) if actual is None else actual.get("tipo"),
+                "tipo": str(tipo_concepto),
                 "clave": nodo.clave,
                 "descripcion": nodo.descripcion,
                 "unidad_id": unidad_id,
-                "familia_id": actual.get("familia_id") if actual else None,
-                "estatus": actual.get("estatus") if actual else "activo",
+                "familia_id": None,
+                "estatus": "activo",
             }
             firma_cache[nodo.clave] = firma_nueva
+        elif diferente:
+            # Composición distinta pero nadie más vigente depende de ella:
+            # actualización legítima (típicamente este mismo prototipo
+            # recargando una corrección), no conflicto — se publica igual
+            # que un cambio en `AplicadorCPU`.
+            assert actual is not None  # noqa: S101 — `diferente` implica `actual is not None`
+            assert concepto_id is not None  # noqa: S101
+            if not dry_run:
+                await self._conceptos.actualizar(
+                    concepto_id,
+                    {
+                        "descripcion": nodo.descripcion,
+                        "unidad_id": unidad_id,
+                        "familia_id": actual.get("familia_id"),
+                    },
+                )
+                operaciones.append(
+                    _operacion(
+                        "concepto",
+                        concepto_id,
+                        "update",
+                        antes=_recorte(
+                            actual, ("tipo", "descripcion", "unidad_id", "familia_id", "estatus")
+                        ),
+                        despues={"descripcion": nodo.descripcion, "unidad_id": unidad_id},
+                    )
+                )
+                operaciones.extend(
+                    await _publicar_cpu_de_concepto(
+                        self._conceptos, concepto_id, filas_explosion, precio
+                    )
+                )
+
+            claves_actualizadas.add(nodo.clave)
+            catalogo_conceptos[nodo.clave] = {
+                **actual,
+                "descripcion": nodo.descripcion,
+                "unidad_id": unidad_id,
+            }
+            firma_cache[nodo.clave] = firma_nueva
+        else:
+            # Sin conflicto, ya existía, misma composición: "si es idéntico,
+            # no crea versión" (§10.8) — no se toca `concepto`/`explosion`/
+            # `cpu`. `catalogo_conceptos`/`firma_cache` ya están correctos
+            # (vienen del propio `actual`).
+            contadores["conceptos_sin_cambio"] += 1
 
         contadores["partidas"] += 1
         cantidad_partida = nodo.cantidad if nodo.cantidad is not None else Decimal(1)

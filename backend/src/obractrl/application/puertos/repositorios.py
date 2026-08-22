@@ -368,6 +368,19 @@ class RepositorioPresupuestos(Protocol):
 
     async def partidas(self, presupuesto_id: UUID) -> list[dict]: ...
 
+    async def otros_prototipos_con_partida_vigente(
+        self, concepto_id: UUID, *, excluir_prototipo_id: UUID
+    ) -> list[UUID]:
+        """Prototipos (distintos del excluido) cuyo presupuesto **vigente**
+        tiene una partida para este concepto.
+
+        La usa el cargador de presupuesto jerárquico para distinguir un
+        conflicto real (otro prototipo ya depende de la composición vigente)
+        de un prototipo recargando su propia corrección: si nadie más
+        vigente usa el concepto, no hay a quién dejarle una composición
+        vieja — la carga puede actualizarlo sin pedir permiso."""
+        ...
+
     async def versiones_de_prototipo(self, prototipo_id: UUID) -> list[dict]: ...
 
     async def rendimiento_por_concepto(self, obra_id: UUID) -> list[dict]: ...
