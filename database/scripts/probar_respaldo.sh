@@ -18,9 +18,13 @@
 #   DATABASE_URL=... ./probar_respaldo.sh
 #   DATABASE_URL=... ./probar_respaldo.sh --guardar respaldo.dump   conserva el archivo
 set -euo pipefail
-cd "$(dirname "$0")/.."
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$script_dir/.."
 
-: "${DATABASE_URL:?Falta DATABASE_URL}"
+# Un DSN mal formado hace que psql se conecte a localhost sin avisar.
+# shellcheck source=scripts/_dsn.sh
+. "$script_dir/_dsn.sh"
+exigir_dsn
 
 guardar=""
 case "${1:-}" in
@@ -110,7 +114,8 @@ fi
 # vale, y es la que envejece sin que nadie se dé cuenta. Un respaldo reciente
 # con una restauración vieja es justo la señal que hay que poder ver.
 # Por stdin y no por `-c`: psql no sustituye variables dentro de un `-c`.
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q   -v bytes="$(wc -c < "$dump" | tr -d ' ')"   -v origen="$base_origen" <<'SQL'
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q   -v bytes="$(wc -c < "$dump" | tr -d ' 
+')"   -v origen="$base_origen" <<'SQL'
 insert into app.respaldo (tipo, terminado_en, ok, bytes, origen, detalle)
 values ('restauracion_probada', now(), true, :'bytes'::bigint, :'origen',
         'esquema comparado objeto por objeto tras pg_restore');

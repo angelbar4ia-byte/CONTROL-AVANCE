@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # Corre las pruebas de aislamiento RLS. Hacen rollback al terminar.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$script_dir/.."
 
-: "${DATABASE_URL:?Falta DATABASE_URL}"
+# Un DSN mal formado hace que psql se conecte a localhost sin avisar.
+# shellcheck source=scripts/_dsn.sh
+. "$script_dir/_dsn.sh"
+exigir_dsn
 
 for f in tests/*.sql; do
   echo "-> $f"
