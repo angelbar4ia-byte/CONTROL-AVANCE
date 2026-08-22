@@ -20,11 +20,12 @@
 # `--sellar` existe para las bases que ya recibieron las 22 migraciones con el
 # runner viejo: registra el estado real sin volver a ejecutarlas.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$script_dir/.."
 
 # Un DSN mal formado hace que psql se conecte a localhost sin avisar.
 # shellcheck source=scripts/_dsn.sh
-. "$(dirname "${BASH_SOURCE[0]}")/_dsn.sh"
+. "$script_dir/_dsn.sh"
 exigir_dsn
 
 modo="aplicar"
