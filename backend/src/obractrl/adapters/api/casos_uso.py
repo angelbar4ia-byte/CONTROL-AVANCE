@@ -37,8 +37,11 @@ from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
+from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
+from obractrl.adapters.repos.presupuestos_sql import RepositorioPresupuestosSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
+from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
 from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
 from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
 from obractrl.adapters.repos.revisiones_sql import RepositorioRevisionesSQL
@@ -50,6 +53,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorCPU,
     AplicadorDeCarga,
     AplicadorMateriales,
+    AplicadorPresupuesto,
     AplicadorPrototipos,
 )
 from obractrl.application.casos_uso.calcular_cpu import (
@@ -795,6 +799,17 @@ class FabricaDeCargas:
             return AplicadorPrototipos(
                 prototipos=RepositorioPrototiposSQL(sesion),
                 proyectos=RepositorioProyectosSQL(sesion),
+            )
+        if tipo is TipoCarga.PRESUPUESTO:
+            return AplicadorPresupuesto(
+                conceptos=RepositorioConceptosSQL(sesion),
+                insumos=RepositorioInsumosSQL(sesion),
+                unidades=RepositorioUnidadesSQL(sesion),
+                prototipos=RepositorioPrototiposSQL(sesion),
+                prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+                niveles_etapas=RepositorioNivelesEtapasSQL(sesion),
+                presupuestos=RepositorioPresupuestosSQL(sesion),
+                cargas=cargas,
             )
         # `cargador_para` ya rechazó los tipos sin cargador; llegar aquí
         # significa que se agregó uno y se olvidó su aplicador.

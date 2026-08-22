@@ -34,7 +34,10 @@ from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
+from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
+from obractrl.adapters.repos.presupuestos_sql import RepositorioPresupuestosSQL
+from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
 from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
 from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
@@ -44,6 +47,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorCPU,
     AplicadorDeCarga,
     AplicadorMateriales,
+    AplicadorPresupuesto,
     AplicadorPrototipos,
 )
 from obractrl.application.casos_uso.gestionar_carga import (
@@ -123,6 +127,34 @@ def _archivo_prototipos(filas: list[list[object]]) -> bytes:
     return _libro([_CABECERAS_PROTOTIPOS, *filas])
 
 
+_CABECERAS_PRESUPUESTO = [
+    "INDICE", "CLAVE PADRE", "CLAVE HIJO", "DESCRIPCION", "UNIDAD",
+    "CANTIDAD", "PRECIO UNITARIO", "IMPORTE", "TIPO",
+]
+
+
+def _archivo_presupuesto(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_PRESUPUESTO, *filas])
+
+
+def _prototipo_simple(
+    clave_prototipo: str, clave_concepto: str, cantidad_alambre: object
+) -> list[list[object]]:
+    """Árbol mínimo de un prototipo: 1 nivel, 1 etapa, 1 concepto con un
+    material — el bloque que casi todos los tests de este cargador reusan,
+    variando solo `clave_prototipo`/`clave_concepto`/`cantidad_alambre` para
+    forzar coincidencia o conflicto de composición."""
+    return [
+        [1, None, clave_prototipo, "Prototipo", None, None, None, None, "PROTOTIPO"],
+        [1, clave_prototipo, "NIV-1", "Cimentación", None, None, None, None, "NIVEL DE CONSTRUCCION"],
+        [1, "NIV-1", "ECO-1", "Estructura", None, None, None, None, "ETAPA DE CONSTRUCCION"],
+        # Sin unidad: "M2" no está sembrada en `catalogos` y generaría un
+        # pendiente de UNIDAD que no es lo que estos tests ejercitan.
+        [1, "ECO-1", clave_concepto, "Losa", None, 1, 0, 0, "CONCEPTO"],
+        [1, clave_concepto, "ACE-01", "Alambre", "KG", cantidad_alambre, 20, None, "MATERIAL"],
+    ]
+
+
 # --- Escenario de catálogos ----------------------------------------------
 
 
@@ -190,6 +222,17 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
             prototipos=RepositorioPrototiposSQL(sesion),
             proyectos=RepositorioProyectosSQL(sesion),
         )
+    if tipo is TipoCarga.PRESUPUESTO:
+        return AplicadorPresupuesto(
+            conceptos=RepositorioConceptosSQL(sesion),
+            insumos=RepositorioInsumosSQL(sesion),
+            unidades=RepositorioUnidadesSQL(sesion),
+            prototipos=RepositorioPrototiposSQL(sesion),
+            prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+            niveles_etapas=RepositorioNivelesEtapasSQL(sesion),
+            presupuestos=RepositorioPresupuestosSQL(sesion),
+            cargas=cargas,
+        )
     return AplicadorAlmacen(
         materiales=RepositorioMaterialesSQL(sesion),
         insumos=RepositorioInsumosSQL(sesion),
@@ -240,6 +283,18 @@ async def _prototipos(contexto: ContextoSesion) -> dict[str, dict]:
     async with sesion_con_rls(contexto) as sesion:
         filas = await RepositorioPrototiposSQL(sesion).listar()
     return {str(f["clave"]): f for f in filas}
+
+
+async def _conceptos(contexto: ContextoSesion) -> dict[str, dict]:
+    async with sesion_con_rls(contexto) as sesion:
+        filas = await RepositorioConceptosSQL(sesion).listar(solo_activos=False)
+    return {str(f["clave"]): f for f in filas}
+
+
+async def _nodos_de(contexto: ContextoSesion, prototipo_id: uuid.UUID) -> dict[str, dict]:
+    async with sesion_con_rls(contexto) as sesion:
+        filas = await RepositorioPrototipoNodoSQL(sesion).por_prototipo(prototipo_id)
+    return {str(f["clave"]): f for f in filas if f["clave"]}
 
 
 # --- Materiales (§10.6 `CABECERAS_MATERIALES.xlsx`) ----------------------
@@ -932,3 +987,228 @@ async def test_revertir_un_lote_de_prototipos_deshace_altas_y_cambios(
     catalogo = await _prototipos(contexto_control)
     assert "CAS-6" not in catalogo  # la alta del lote se fue
     assert catalogo["CAS-5"]["nombre"] == "Casa modelo E"  # el nombre volvió
+
+
+# --- Presupuesto jerárquico (extensión propia, no está en el §10.6) -------
+#
+# `escenario` ya siembra un proyecto clave `PROY` (§7.2) — se reusa aquí
+# para dar de alta los prototipos que cada test necesita antes de cargar su
+# ingeniería, igual que en producción: primero Prototipos, después el
+# desglose. `ACE-01` (el insumo de todos los conceptos de prueba) se carga
+# una vez por materiales, no se siembra a mano — es el camino real.
+
+
+async def _con_insumo_alambre(contexto_control: ContextoSesion) -> None:
+    await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["ACE-01", "Alambre recocido", "KG", "CEM", "1", "", "SI"]]),
+    )
+
+
+async def _con_prototipos(contexto_control: ContextoSesion, *claves: str) -> None:
+    await _cargar(
+        contexto_control,
+        TipoCarga.PROTOTIPOS,
+        _archivo_prototipos([["PROY", clave, f"Casa {clave}", "", "", ""] for clave in claves]),
+    )
+
+
+async def test_dos_prototipos_comparten_concepto_con_misma_composicion(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Sin conflicto: el catálogo se publica una vez y las dos partidas
+    comparten el mismo precio calculado."""
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-10", "CAS-11")
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(
+            [
+                *_prototipo_simple("CAS-10", "EST-01", 5),
+                *_prototipo_simple("CAS-11", "EST-01", 5),
+            ]
+        ),
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+    assert resultado.pendientes == 0
+
+    conceptos = await _conceptos(contexto_control)
+    assert set(conceptos) == {"EST-01"}
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        cpu_versiones = await RepositorioConceptosSQL(sesion).versiones_cpu(conceptos["EST-01"]["id"])
+    assert len(cpu_versiones) == 1  # solo se publicó una vez
+
+    prototipos = await _prototipos(contexto_control)
+    async with sesion_con_rls(contexto_control) as sesion:
+        presupuestos = RepositorioPresupuestosSQL(sesion)
+        p10 = await presupuestos.vigente_de_prototipo(prototipos["CAS-10"]["id"])
+        p11 = await presupuestos.vigente_de_prototipo(prototipos["CAS-11"]["id"])
+        partidas10 = await presupuestos.partidas(p10["id"])
+        partidas11 = await presupuestos.partidas(p11["id"])
+
+    assert len(partidas10) == 1 and len(partidas11) == 1
+    assert partidas10[0]["precio_unitario"] == partidas11[0]["precio_unitario"]
+
+
+async def test_composicion_distinta_genera_conflicto_y_no_toca_el_catalogo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-20", "CAS-21")
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(
+            [
+                *_prototipo_simple("CAS-20", "EST-02", 5),
+                # Misma clave de concepto, cantidad distinta -> conflicto.
+                *_prototipo_simple("CAS-21", "EST-02", 9),
+            ]
+        ),
+    )
+
+    assert resultado.resumen.errores == 0  # el conflicto es pendiente, no error
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(carga_id=resultado.carga_id)
+    en_conflicto = [b for b in bandeja if b["tipo"] == str(TipoPendiente.CONCEPTO_EN_CONFLICTO)]
+    assert len(en_conflicto) == 1
+    assert en_conflicto[0]["valor_origen"] == "EST-02"
+
+    conceptos = await _conceptos(contexto_control)
+    async with sesion_con_rls(contexto_control) as sesion:
+        cpu_versiones = await RepositorioConceptosSQL(sesion).versiones_cpu(conceptos["EST-02"]["id"])
+    assert len(cpu_versiones) == 1  # el catálogo se quedó con la composición del primero
+
+    prototipos = await _prototipos(contexto_control)
+    async with sesion_con_rls(contexto_control) as sesion:
+        presupuestos = RepositorioPresupuestosSQL(sesion)
+        p20 = await presupuestos.vigente_de_prototipo(prototipos["CAS-20"]["id"])
+        p21 = await presupuestos.vigente_de_prototipo(prototipos["CAS-21"]["id"])
+        partida20 = (await presupuestos.partidas(p20["id"]))[0]
+        partida21 = (await presupuestos.partidas(p21["id"]))[0]
+
+    # Cada prototipo usa el precio de SU propia composición, no el del
+    # catálogo (que se quedó con la del primero).
+    assert partida20["precio_unitario"] != partida21["precio_unitario"]
+
+
+async def test_etapa_sin_concepto_intermedio_crea_concepto_con_su_clave(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-30")
+
+    filas = [
+        [1, None, "CAS-30", "Prototipo", None, None, None, None, "PROTOTIPO"],
+        [1, "CAS-30", "NIV-1", "Cimentación", None, None, None, None, "NIVEL DE CONSTRUCCION"],
+        [1, "NIV-1", "ECO-99", "Etapa simple", None, None, None, None, "ETAPA DE CONSTRUCCION"],
+        [1, "ECO-99", "ACE-01", "Alambre", "KG", 3, 20, None, "MATERIAL"],
+    ]
+    resultado = await _cargar(contexto_control, TipoCarga.PRESUPUESTO, _archivo_presupuesto(filas))
+
+    assert resultado.resumen.errores == 0
+    conceptos = await _conceptos(contexto_control)
+    assert "ECO-99" in conceptos
+
+
+async def test_recargar_el_mismo_prototipo_conserva_los_ids_de_nodo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-40")
+
+    await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(_prototipo_simple("CAS-40", "EST-04", 5)),
+    )
+    prototipos = await _prototipos(contexto_control)
+    nodos_v1 = await _nodos_de(contexto_control, prototipos["CAS-40"]["id"])
+
+    # Recarga con la misma clave de concepto, cantidad distinta (cambia el
+    # catálogo, no la identidad del árbol).
+    await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(_prototipo_simple("CAS-40", "EST-04", 7)),
+    )
+    nodos_v2 = await _nodos_de(contexto_control, prototipos["CAS-40"]["id"])
+
+    assert set(nodos_v1) == set(nodos_v2) == {"NIV-1", "ECO-1", "EST-04"}
+    for clave in nodos_v1:
+        assert nodos_v1[clave]["id"] == nodos_v2[clave]["id"]
+
+
+async def test_prototipo_raiz_sin_match_es_error_critico_y_el_resto_sigue(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-50")
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(
+            [
+                *_prototipo_simple("CAS-NOEXISTE", "EST-05", 5),
+                *_prototipo_simple("CAS-50", "EST-06", 5),
+            ]
+        ),
+    )
+
+    assert resultado.resumen.errores == 1
+    conceptos = await _conceptos(contexto_control)
+    assert "EST-06" in conceptos
+    assert "EST-05" not in conceptos
+
+
+async def test_presupuesto_no_soporta_el_modo_reemplazar(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-60")
+
+    with pytest.raises(ErrorDeProyecto, match="Reemplazar"):
+        await _cargar(
+            contexto_control,
+            TipoCarga.PRESUPUESTO,
+            _archivo_presupuesto(_prototipo_simple("CAS-60", "EST-07", 5)),
+            modo=ModoCarga.REEMPLAZAR,
+        )
+
+
+async def test_revertir_una_carga_de_presupuesto_deshace_arbol_y_version(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-70")
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(_prototipo_simple("CAS-70", "EST-08", 5)),
+    )
+    prototipos = await _prototipos(contexto_control)
+    assert (await _nodos_de(contexto_control, prototipos["CAS-70"]["id"])) != {}
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        await RevertirCarga(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(resultado.carga_id)
+
+    nodos = await _nodos_de(contexto_control, prototipos["CAS-70"]["id"])
+    assert nodos == {}
+    conceptos = await _conceptos(contexto_control)
+    assert "EST-08" not in conceptos
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        vigente = await RepositorioPresupuestosSQL(sesion).vigente_de_prototipo(prototipos["CAS-70"]["id"])
+    assert vigente is None

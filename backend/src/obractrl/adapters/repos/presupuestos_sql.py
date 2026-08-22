@@ -30,6 +30,7 @@ respuesta está aquí y no en una política olvidada.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -38,10 +39,115 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 __all__ = ["RepositorioPresupuestosSQL"]
 
+_COLUMNAS_VERSION = "id, prototipo_id, version, vigente, origen, carga_id, monto_total, created_at"
+
 
 class RepositorioPresupuestosSQL:
     def __init__(self, sesion: AsyncSession) -> None:
         self._sesion = sesion
+
+    # --- Escritura (cargador de presupuesto jerárquico, §10.8) ----------
+
+    async def crear_version(
+        self, prototipo_id: UUID, *, origen: str, carga_id: UUID | None
+    ) -> dict[str, Any]:
+        """Retira el vigente anterior e inserta la versión siguiente como
+        vigente, en **dos sentencias separadas y secuenciales** — mismo
+        patrón que `RepositorioConceptos.publicar_version_cpu`.
+
+        No es una sola sentencia con CTEs: `uq_presupuesto_vigente` es un
+        índice único parcial y no diferible, y dos CTEs independientes
+        (`update ... returning` e `insert ... returning`) que no se
+        referencian entre sí **no tienen orden de ejecución garantizado**
+        entre ellas en Postgres — solo lo tienen frente a lo que sí las
+        referencia. Un intento con una sola sentencia violó la restricción
+        en CI: el `insert` alcanzó a correr antes de que el `update`
+        aterrizara. Dos `execute()` awaited, uno tras otro, sí garantizan el
+        orden porque son dos sentencias distintas en la misma transacción.
+        """
+        anterior = (
+            await self._sesion.execute(
+                text(
+                    """
+                    update presupuesto
+                       set vigente = false
+                     where org_id = cast(current_setting('app.org_id') as uuid)
+                       and prototipo_id = :prototipo_id
+                       and vigente
+                    returning id
+                    """
+                ),
+                {"prototipo_id": str(prototipo_id)},
+            )
+        ).first()
+
+        fila = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    insert into presupuesto (org_id, prototipo_id, version, vigente, origen, carga_id)
+                    select cast(current_setting('app.org_id') as uuid), :prototipo_id,
+                           coalesce(max(version), 0) + 1, true, :origen, cast(:carga_id as uuid)
+                      from presupuesto
+                     where org_id = cast(current_setting('app.org_id') as uuid)
+                       and prototipo_id = :prototipo_id
+                    returning {_COLUMNAS_VERSION}
+                    """
+                ),
+                {
+                    "prototipo_id": str(prototipo_id),
+                    "origen": origen,
+                    "carga_id": str(carga_id) if carga_id else None,
+                },
+            )
+        ).mappings().one()
+        return {**fila, "anterior_id": anterior.id if anterior else None}
+
+    async def agregar_partidas(
+        self, presupuesto_id: UUID, partidas: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Inserta las partidas y devuelve las filas persistidas, completas,
+        para el snapshot del lote (§10.8). Claves esperadas por partida:
+        ``concepto_id``, ``prototipo_nodo_id``, ``cantidad``,
+        ``precio_unitario``, ``importe``, ``orden``.
+        """
+        insertadas: list[dict[str, Any]] = []
+        for partida in partidas:
+            fila = (
+                await self._sesion.execute(
+                    text(
+                        """
+                        insert into partida_presupuesto
+                            (org_id, presupuesto_id, concepto_id, prototipo_nodo_id,
+                             cantidad, precio_unitario, importe, orden)
+                        values
+                            (cast(current_setting('app.org_id') as uuid), :presupuesto_id,
+                             cast(:concepto_id as uuid), cast(:prototipo_nodo_id as uuid),
+                             cast(:cantidad as numeric), cast(:precio_unitario as numeric),
+                             cast(:importe as numeric), :orden)
+                        returning id, concepto_id, prototipo_nodo_id, cantidad,
+                                  precio_unitario, importe, orden
+                        """
+                    ),
+                    {
+                        "presupuesto_id": str(presupuesto_id),
+                        "concepto_id": str(partida["concepto_id"]),
+                        "prototipo_nodo_id": str(partida["prototipo_nodo_id"]),
+                        "cantidad": partida["cantidad"],
+                        "precio_unitario": partida["precio_unitario"],
+                        "importe": partida["importe"],
+                        "orden": partida.get("orden", 0),
+                    },
+                )
+            ).mappings().one()
+            insertadas.append(dict(fila))
+        return insertadas
+
+    async def actualizar_monto_total(self, presupuesto_id: UUID, monto_total: Decimal) -> None:
+        await self._sesion.execute(
+            text("update presupuesto set monto_total = :monto where id = :id"),
+            {"id": str(presupuesto_id), "monto": monto_total},
+        )
 
     # --- Presupuesto ----------------------------------------------------
 

@@ -33,7 +33,10 @@ from obractrl.application.puertos.repositorios import (
     RepositorioFamilias,
     RepositorioInsumos,
     RepositorioMateriales,
+    RepositorioNivelesEtapas,
     RepositorioObras,
+    RepositorioPresupuestos,
+    RepositorioPrototipoNodo,
     RepositorioPrototipos,
     RepositorioProyectos,
     RepositorioUnidades,
@@ -42,6 +45,12 @@ from obractrl.domain.cargadores.almacen import FilaMovimiento, importe_con_iva
 from obractrl.domain.cargadores.cpu import ConceptoCargado
 from obractrl.domain.cargadores.homologacion import Homologador
 from obractrl.domain.cargadores.materiales import FilaMaterial
+from obractrl.domain.cargadores.presupuesto import (
+    ArbolPrototipoCargado,
+    NodoLeido,
+    TipoNodoPresupuesto,
+    es_etapa_con_componentes_directos,
+)
 from obractrl.domain.cargadores.prototipos import FilaPrototipo
 from obractrl.domain.cargadores.reporte import (
     ErrorDeFila,
@@ -49,7 +58,7 @@ from obractrl.domain.cargadores.reporte import (
     PendientePropuesto,
     TipoPendiente,
 )
-from obractrl.domain.cargadores.versionado import Diff, diferenciar
+from obractrl.domain.cargadores.versionado import Cambio, Diff, diferenciar
 from obractrl.domain.catalogos.apu import (
     Componente,
     ErrorDeAPU,
@@ -61,6 +70,7 @@ from obractrl.domain.catalogos.reglas import resolver_iva
 from obractrl.domain.materiales.reglas import ErrorDeMaterial, validar_signo_salida
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto, Prototipo
 from obractrl.domain.shared.diccionario import (
+    CategoriaExplosion,
     ModoCarga,
     TipoConcepto,
     TipoHijoExplosion,
@@ -74,6 +84,7 @@ __all__ = [
     "AplicadorCPU",
     "AplicadorDeCarga",
     "AplicadorMateriales",
+    "AplicadorPresupuesto",
     "AplicadorPrototipos",
 ]
 
@@ -654,7 +665,9 @@ class AplicadorCPU:
                     )
 
                 operaciones.extend(
-                    await self._publicar_cpu(concepto_id, plan)
+                    await _publicar_cpu_de_concepto(
+                        self._conceptos, concepto_id, plan["filas_explosion"], plan["precio"]
+                    )
                 )
 
             for baja in diff.bajas:
@@ -686,72 +699,78 @@ class AplicadorCPU:
             omitidos=diff.omitidos + lectura.omitidos,
         )
 
-    async def _publicar_cpu(
-        self, concepto_id: UUID, plan: dict[str, Any]
-    ) -> list[dict[str, Any]]:
-        """Sustituye la composición y publica la versión nueva de CPU (§10.8).
 
-        El orden importa y es el que la reversa deshace al revés: primero se
-        guarda lo que se va a borrar de `explosion`, luego se retira el CPU
-        vigente y se inserta el nuevo, y al final entran las filas nuevas de
-        `explosion` atadas a ese CPU.
-        """
-        operaciones: list[dict[str, Any]] = []
+async def _publicar_cpu_de_concepto(
+    conceptos: RepositorioConceptos,
+    concepto_id: UUID,
+    filas_explosion: list[dict[str, Any]],
+    precio: PrecioUnitario,
+) -> list[dict[str, Any]]:
+    """Sustituye la composición y publica la versión nueva de CPU (§10.8).
 
-        anteriores = await self._conceptos.explosion_directa(concepto_id)
-        await self._conceptos.eliminar_explosion(concepto_id)
-        for anterior in anteriores:
+    Compartida por `AplicadorCPU` y `AplicadorPresupuesto`: la única
+    diferencia entre publicar el CPU de un concepto por el archivo de CPU o
+    por el árbol de un prototipo es de dónde salió `filas_explosion` — el
+    resto (guardar antes, sustituir, versionar) es idéntico.
+
+    El orden importa y es el que la reversa deshace al revés: primero se
+    guarda lo que se va a borrar de `explosion`, luego se retira el CPU
+    vigente y se inserta el nuevo, y al final entran las filas nuevas de
+    `explosion` atadas a ese CPU.
+    """
+    operaciones: list[dict[str, Any]] = []
+
+    anteriores = await conceptos.explosion_directa(concepto_id)
+    await conceptos.eliminar_explosion(concepto_id)
+    for anterior in anteriores:
+        operaciones.append(
+            _operacion("explosion", anterior["id"], "delete", antes=dict(anterior))
+        )
+
+    versiones = await conceptos.versiones_cpu(concepto_id)
+    vigentes_antes = {
+        fila["id"]: dict(fila) for fila in versiones if bool(fila["vigente"])
+    }
+    nueva, retiradas = publicar_version(
+        [_version_de_dominio(fila) for fila in versiones],
+        precio,
+        variante=None,
+    )
+    for identificador, fila in vigentes_antes.items():
+        if int(fila["version"]) in retiradas:
             operaciones.append(
-                _operacion("explosion", anterior["id"], "delete", antes=dict(anterior))
+                _operacion(
+                    "cpu",
+                    identificador,
+                    "update",
+                    antes={
+                        "precio_unitario": fila["precio_unitario"],
+                        "precio_destajo": fila["precio_destajo"],
+                        "vigente": True,
+                    },
+                    despues={"vigente": False},
+                )
             )
 
-        versiones = await self._conceptos.versiones_cpu(concepto_id)
-        vigentes_antes = {
-            fila["id"]: dict(fila) for fila in versiones if bool(fila["vigente"])
-        }
-        nueva, retiradas = publicar_version(
-            [
-                _version_de_dominio(fila)
-                for fila in versiones
-            ],
-            plan["precio"],
-            variante=None,
-        )
-        for identificador, fila in vigentes_antes.items():
-            if int(fila["version"]) in retiradas:
-                operaciones.append(
-                    _operacion(
-                        "cpu",
-                        identificador,
-                        "update",
-                        antes={
-                            "precio_unitario": fila["precio_unitario"],
-                            "precio_destajo": fila["precio_destajo"],
-                            "vigente": True,
-                        },
-                        despues={"vigente": False},
-                    )
-                )
+    cpu_id = await conceptos.publicar_version_cpu(
+        concepto_id,
+        version=nueva.version,
+        precio_unitario=nueva.precio.total.monto,
+        precio_destajo=nueva.precio.destajo.monto,
+        variante=None,
+        retirar=list(retiradas),
+    )
+    operaciones.append(
+        _operacion("cpu", cpu_id, "insert", despues={"version": nueva.version})
+    )
 
-        cpu_id = await self._conceptos.publicar_version_cpu(
-            concepto_id,
-            version=nueva.version,
-            precio_unitario=nueva.precio.total.monto,
-            precio_destajo=nueva.precio.destajo.monto,
-            variante=None,
-            retirar=list(retiradas),
-        )
-        operaciones.append(
-            _operacion("cpu", cpu_id, "insert", despues={"version": nueva.version})
-        )
+    insertadas = await conceptos.agregar_explosion(
+        concepto_id, cpu_id=cpu_id, filas=filas_explosion
+    )
+    for fila in insertadas:
+        operaciones.append(_operacion("explosion", fila["id"], "insert"))
 
-        insertadas = await self._conceptos.agregar_explosion(
-            concepto_id, cpu_id=cpu_id, filas=plan["filas_explosion"]
-        )
-        for fila in insertadas:
-            operaciones.append(_operacion("explosion", fila["id"], "insert"))
-
-        return operaciones
+    return operaciones
 
 
 def _version_de_dominio(fila: dict[str, Any]) -> VersionCPU:
@@ -1224,3 +1243,645 @@ class AplicadorPrototipos:
             actualizados=len(diff.cambios),
             omitidos=diff.omitidos + lectura.omitidos,
         )
+
+
+# --- Presupuesto jerárquico (extensión propia, no está en el §10.6) -------
+
+_CATEGORIA_POR_TIPO_NODO: dict[TipoNodoPresupuesto, CategoriaExplosion] = {
+    TipoNodoPresupuesto.MATERIAL: CategoriaExplosion.MATERIAL,
+    TipoNodoPresupuesto.DESTAJO: CategoriaExplosion.DESTAJO,
+    TipoNodoPresupuesto.SUBCONTRATO: CategoriaExplosion.SUBCONTRATO,
+}
+
+
+class AplicadorPresupuesto:
+    """Árbol de un prototipo (nivel → etapa → concepto) y su presupuesto
+    (§7.4, §7.3, extensión propia — no está en el §10.6).
+
+    Puebla tres cosas que hasta hoy nadie escribía: el árbol WBS
+    (`prototipo_nodo`), el catálogo compartido de niveles/etapas, y el
+    presupuesto versionado del prototipo. El catálogo de conceptos/APU es el
+    mismo de siempre (`concepto`/`explosion`/`cpu`, `variante=null`) — este
+    aplicador reutiliza `_publicar_cpu_de_concepto`, la misma función que usa
+    `AplicadorCPU`.
+
+    **Conflicto de catálogo, no sobrescritura silenciosa.** Un concepto
+    (misma clave) puede repetirse en varios prototipos. Si la composición
+    coincide con la vigente, se publica igual que siempre. Si difiere, el
+    catálogo **se queda como estaba** —no se toca `concepto`/`explosion`/
+    `cpu`— y se registra `TipoPendiente.CONCEPTO_EN_CONFLICTO` (no crítico)
+    para que alguien lo resuelva a mano. La partida de presupuesto de este
+    prototipo usa siempre el precio calculado de **su propia** composición,
+    haya o no conflicto: nunca hereda en silencio el precio de otro
+    prototipo por un conflicto no resuelto.
+
+    **No hay `Homologador` de proyecto**: este cargador no da de alta
+    prototipos (el archivo no trae proyecto, §7.2) — solo identifica por
+    clave uno ya existente. Uno que no cruza es error de fila crítico; el
+    resto del archivo sigue.
+    """
+
+    def __init__(
+        self,
+        *,
+        conceptos: RepositorioConceptos,
+        insumos: RepositorioInsumos,
+        unidades: RepositorioUnidades,
+        prototipos: RepositorioPrototipos,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        niveles_etapas: RepositorioNivelesEtapas,
+        presupuestos: RepositorioPresupuestos,
+        cargas: RepositorioCargas,
+    ) -> None:
+        self._conceptos = conceptos
+        self._insumos = insumos
+        self._unidades = unidades
+        self._prototipos = prototipos
+        self._prototipo_nodos = prototipo_nodos
+        self._niveles_etapas = niveles_etapas
+        self._presupuestos = presupuestos
+        self._cargas = cargas
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        if modo is ModoCarga.REEMPLAZAR:
+            raise ErrorDeProyecto(
+                "Presupuesto no soporta el modo Reemplazar: recargar ya "
+                "sustituye el árbol del prototipo por una versión nueva "
+                "(§10.2). Usa Actualizar."
+            )
+
+        prototipos_filas = await self._prototipos.listar()
+        prototipo_por_clave = {str(f["clave"]): f for f in prototipos_filas}
+
+        conceptos_filas = await self._conceptos.listar(solo_activos=False)
+        catalogo_conceptos: dict[str, dict[str, Any]] = {
+            str(f["clave"]): dict(f) for f in conceptos_filas
+        }
+        firma_cache: dict[str, str] = {}
+
+        insumos_filas = await self._insumos.listar(solo_activos=False)
+        insumos_por_clave = {str(f["clave"]): f for f in insumos_filas}
+        clave_de_insumo = {f["id"]: str(f["clave"]) for f in insumos_filas}
+        insumos = Homologador.desde(
+            insumos_filas, mapeos=await self._cargas.mapeos("insumo")
+        )
+        costos_insumo = {
+            str(f["clave"]): Decimal(
+                str(f.get("costo_base_actualizado") or f.get("costo_base") or 0)
+            )
+            for f in insumos_filas
+        }
+
+        unidades_filas = await self._unidades.listar(solo_activos=False)
+        unidades = Homologador.desde(
+            unidades_filas, mapeos=await self._cargas.mapeos("unidad")
+        )
+        id_unidad = {str(f["clave"]): f["id"] for f in unidades_filas}
+
+        errores: list[ErrorDeFila] = []
+        pendientes: list[PendientePropuesto] = []
+        operaciones: list[dict[str, Any]] = []
+        claves_nuevas: set[str] = set()
+        claves_actualizadas: set[str] = set()
+        contadores = {
+            "prototipos_tocados": 0,
+            "nodos_creados": 0,
+            "nodos_actualizados": 0,
+            "conceptos_en_conflicto": 0,
+            "conceptos_omitidos": 0,
+            "partidas": 0,
+        }
+
+        for registro in lectura.registros:
+            arbol: ArbolPrototipoCargado = registro  # type: ignore[assignment]
+            prototipo = prototipo_por_clave.get(arbol.clave_prototipo)
+            if prototipo is None:
+                errores.append(
+                    ErrorDeFila(
+                        fila=arbol.raiz.fila,
+                        columna="clave_hijo",
+                        valor=arbol.clave_prototipo,
+                        motivo=(
+                            f"El prototipo {arbol.clave_prototipo!r} no existe. "
+                            f"Carga primero este prototipo con Cargas → "
+                            f"Prototipos (§7.2)."
+                        ),
+                    )
+                )
+                continue
+
+            contadores["prototipos_tocados"] += 1
+            partidas: list[dict[str, Any]] = []
+            # Capturado una vez por prototipo, antes de tocar nada: es el
+            # `antes` que la reversa necesita por nodo (§10.8) — el `id` que
+            # conserva un upsert no basta, hace falta el valor previo.
+            nodos_existentes = {
+                str(f["clave"]): dict(f)
+                for f in await self._prototipo_nodos.por_prototipo(prototipo["id"])
+                if f["clave"]
+            }
+
+            for hijo in arbol.hijos.get(arbol.clave_prototipo, ()):
+                await self._procesar_subarbol(
+                    arbol=arbol,
+                    nodo=hijo,
+                    prototipo_id=prototipo["id"],
+                    parent_id_db=None,
+                    nivel_id_heredado=None,
+                    dry_run=dry_run,
+                    insumos=insumos,
+                    insumos_por_clave=insumos_por_clave,
+                    clave_de_insumo=clave_de_insumo,
+                    costos_insumo=costos_insumo,
+                    unidades=unidades,
+                    id_unidad=id_unidad,
+                    catalogo_conceptos=catalogo_conceptos,
+                    firma_cache=firma_cache,
+                    nodos_existentes=nodos_existentes,
+                    operaciones=operaciones,
+                    partidas=partidas,
+                    errores=errores,
+                    pendientes=pendientes,
+                    contadores=contadores,
+                    claves_nuevas=claves_nuevas,
+                    claves_actualizadas=claves_actualizadas,
+                )
+
+            if not dry_run and partidas:
+                version = await self._presupuestos.crear_version(
+                    prototipo["id"], origen="excel", carga_id=carga_id
+                )
+                if version.get("anterior_id") is not None:
+                    # La versión que este `crear_version` acaba de retirar
+                    # (`vigente=false`): sin registrar esta operación, la
+                    # reversa no sabría devolverla a vigente (§10.8).
+                    operaciones.append(
+                        _operacion(
+                            "presupuesto",
+                            version["anterior_id"],
+                            "update",
+                            antes={"vigente": True},
+                            despues={"vigente": False},
+                        )
+                    )
+                operaciones.append(
+                    _operacion(
+                        "presupuesto",
+                        version["id"],
+                        "insert",
+                        despues={"version": version["version"]},
+                    )
+                )
+                insertadas = await self._presupuestos.agregar_partidas(
+                    version["id"], partidas
+                )
+                for fila in insertadas:
+                    operaciones.append(
+                        _operacion("partida_presupuesto", fila["id"], "insert")
+                    )
+                monto_total = sum(
+                    (Decimal(str(p["importe"])) for p in partidas), Decimal(0)
+                )
+                await self._presupuestos.actualizar_monto_total(version["id"], monto_total)
+
+        # Diff sintético: este cargador no tiene un conjunto plano por clave
+        # que diferenciar (es un árbol, no una lista), pero `hay_cambios`
+        # sigue decidiendo si la carga genera versión propia (§10.8) — y las
+        # claves de concepto tocadas son justo lo que ese resumen necesita
+        # decir.
+        diff = Diff(
+            altas=tuple(Cambio(clave=c, despues={}) for c in sorted(claves_nuevas)),
+            cambios=tuple(
+                Cambio(clave=c, despues={}) for c in sorted(claves_actualizadas)
+            ),
+        )
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            pendientes=tuple(pendientes),
+            errores=tuple(errores),
+            insertados=len(diff.altas),
+            actualizados=len(diff.cambios),
+            omitidos=contadores["conceptos_omitidos"] + lectura.omitidos,
+            detalle=dict(contadores),
+        )
+
+    async def _procesar_subarbol(
+        self,
+        *,
+        arbol: ArbolPrototipoCargado,
+        nodo: NodoLeido,
+        prototipo_id: UUID,
+        parent_id_db: UUID | None,
+        nivel_id_heredado: UUID | None,
+        dry_run: bool,
+        insumos: Homologador,
+        insumos_por_clave: dict[str, dict[str, Any]],
+        clave_de_insumo: dict[Any, str],
+        costos_insumo: dict[str, Decimal],
+        unidades: Homologador,
+        id_unidad: dict[str, Any],
+        catalogo_conceptos: dict[str, dict[str, Any]],
+        firma_cache: dict[str, str],
+        nodos_existentes: dict[str, dict[str, Any]],
+        operaciones: list[dict[str, Any]],
+        partidas: list[dict[str, Any]],
+        errores: list[ErrorDeFila],
+        pendientes: list[PendientePropuesto],
+        contadores: dict[str, int],
+        claves_nuevas: set[str],
+        claves_actualizadas: set[str],
+    ) -> None:
+        """Un nodo del árbol leído → `prototipo_nodo` (+ catálogo, si aplica).
+
+        `NIVEL`/`ETAPA` (que no colapsan en concepto, ver
+        `es_etapa_con_componentes_directos`) recursan hacia sus hijos.
+        `CONCEPTO`/`CONCEPTO_AUXILIAR` (o una etapa que colapsa) son hojas
+        del árbol: sus hijos `MATERIAL`/`DESTAJO`/`SUBCONTRATO` no se
+        convierten en `prototipo_nodo` — se consumen como la explosión del
+        concepto.
+
+        El alta/actualización se decide contra `nodos_existentes` **antes**
+        de escribir, sin importar `dry_run`: es lo que hace que la vista
+        previa cuente igual que el commit (§9.3).
+        """
+        es_concepto_efectivo = nodo.tipo in (
+            TipoNodoPresupuesto.CONCEPTO,
+            TipoNodoPresupuesto.CONCEPTO_AUXILIAR,
+        ) or (
+            nodo.tipo is TipoNodoPresupuesto.ETAPA
+            and es_etapa_con_componentes_directos(arbol, nodo)
+        )
+
+        if es_concepto_efectivo:
+            await self._procesar_concepto(
+                arbol=arbol,
+                nodo=nodo,
+                prototipo_id=prototipo_id,
+                parent_id_db=parent_id_db,
+                dry_run=dry_run,
+                insumos=insumos,
+                insumos_por_clave=insumos_por_clave,
+                clave_de_insumo=clave_de_insumo,
+                costos_insumo=costos_insumo,
+                unidades=unidades,
+                id_unidad=id_unidad,
+                catalogo_conceptos=catalogo_conceptos,
+                firma_cache=firma_cache,
+                nodos_existentes=nodos_existentes,
+                operaciones=operaciones,
+                partidas=partidas,
+                errores=errores,
+                pendientes=pendientes,
+                contadores=contadores,
+                claves_nuevas=claves_nuevas,
+                claves_actualizadas=claves_actualizadas,
+            )
+            return
+
+        anterior = nodos_existentes.get(nodo.clave)
+        es_alta = anterior is None
+        contadores["nodos_creados" if es_alta else "nodos_actualizados"] += 1
+
+        nivel_id_db = nivel_id_heredado
+        etapa_id_db = None
+        nodo_id: UUID | None = anterior["id"] if anterior else None
+
+        if not dry_run:
+            if nodo.tipo is TipoNodoPresupuesto.NIVEL:
+                nivel_id_db = await self._niveles_etapas.upsert_nivel(
+                    clave=nodo.clave, descripcion=nodo.descripcion, orden=nodo.indice or 0
+                )
+            elif nodo.tipo is TipoNodoPresupuesto.ETAPA:
+                etapa_id_db = await self._niveles_etapas.upsert_etapa(
+                    clave=nodo.clave,
+                    descripcion=nodo.descripcion,
+                    nivel_id=nivel_id_heredado,
+                    orden=nodo.indice or 0,
+                )
+
+            nodo_id, _ = await self._prototipo_nodos.upsert(
+                prototipo_id,
+                clave=nodo.clave,
+                datos={
+                    "parent_id": parent_id_db,
+                    "tipo": "nivel" if nodo.tipo is TipoNodoPresupuesto.NIVEL else "etapa",
+                    "nombre": nodo.descripcion,
+                    "nivel_id": nivel_id_db if nodo.tipo is TipoNodoPresupuesto.NIVEL else None,
+                    "etapa_id": etapa_id_db,
+                    "orden": nodo.indice or 0,
+                    "cantidad": nodo.cantidad or 0,
+                },
+            )
+            operaciones.append(
+                _operacion(
+                    "prototipo_nodo",
+                    nodo_id,
+                    "insert" if es_alta else "update",
+                    antes=_recorte(
+                        anterior,
+                        ("parent_id", "tipo", "nombre", "concepto_id", "nivel_id", "etapa_id", "orden", "cantidad"),
+                    )
+                    if anterior
+                    else None,
+                    despues={"clave": nodo.clave, "nombre": nodo.descripcion},
+                )
+            )
+
+        for hijo in arbol.hijos.get(nodo.clave, ()):
+            await self._procesar_subarbol(
+                arbol=arbol,
+                nodo=hijo,
+                prototipo_id=prototipo_id,
+                parent_id_db=nodo_id,
+                nivel_id_heredado=nivel_id_db,
+                dry_run=dry_run,
+                insumos=insumos,
+                insumos_por_clave=insumos_por_clave,
+                clave_de_insumo=clave_de_insumo,
+                costos_insumo=costos_insumo,
+                unidades=unidades,
+                id_unidad=id_unidad,
+                catalogo_conceptos=catalogo_conceptos,
+                firma_cache=firma_cache,
+                nodos_existentes=nodos_existentes,
+                operaciones=operaciones,
+                partidas=partidas,
+                errores=errores,
+                pendientes=pendientes,
+                contadores=contadores,
+                claves_nuevas=claves_nuevas,
+                claves_actualizadas=claves_actualizadas,
+            )
+
+    async def _procesar_concepto(
+        self,
+        *,
+        arbol: ArbolPrototipoCargado,
+        nodo: NodoLeido,
+        prototipo_id: UUID,
+        parent_id_db: UUID | None,
+        dry_run: bool,
+        insumos: Homologador,
+        insumos_por_clave: dict[str, dict[str, Any]],
+        clave_de_insumo: dict[Any, str],
+        costos_insumo: dict[str, Decimal],
+        unidades: Homologador,
+        id_unidad: dict[str, Any],
+        catalogo_conceptos: dict[str, dict[str, Any]],
+        firma_cache: dict[str, str],
+        nodos_existentes: dict[str, dict[str, Any]],
+        operaciones: list[dict[str, Any]],
+        partidas: list[dict[str, Any]],
+        errores: list[ErrorDeFila],
+        pendientes: list[PendientePropuesto],
+        contadores: dict[str, int],
+        claves_nuevas: set[str],
+        claves_actualizadas: set[str],
+    ) -> None:
+        """Un nodo CONCEPTO/CONCEPTO_AUXILIAR (o etapa-colapsada): arma su
+        APU desde sus hijos, decide alta/actualiza/conflicto contra el
+        catálogo, y registra su partida de presupuesto."""
+        componentes: list[Componente] = []
+        filas_explosion: list[dict[str, Any]] = []
+        incompleto = False
+
+        for hijo in arbol.hijos.get(nodo.clave, ()):
+            categoria = _CATEGORIA_POR_TIPO_NODO.get(hijo.tipo)
+            if categoria is None:
+                # No debería pasar: `construir_arboles` solo cuelga hojas de
+                # tipo MATERIAL/DESTAJO/SUBCONTRATO de un concepto.
+                continue
+
+            clave_insumo = insumos.resolver(hijo.clave)
+            if clave_insumo is None:
+                pendientes.append(
+                    _pendiente_de_mapeo("insumo", hijo.clave, hijo.fila, critico=True)
+                )
+                incompleto = True
+                continue
+
+            cantidad = hijo.cantidad if hijo.cantidad is not None else Decimal(0)
+            try:
+                del_dominio = Componente(
+                    categoria=categoria,
+                    cantidad=cantidad,
+                    clave_insumo=clave_insumo,
+                    costo_unitario=hijo.precio_unitario or None,
+                    orden=len(componentes),
+                )
+            except ErrorDeAPU as exc:
+                errores.append(
+                    ErrorDeFila(
+                        fila=hijo.fila,
+                        columna="cantidad",
+                        valor=str(hijo.cantidad),
+                        motivo=str(exc),
+                    )
+                )
+                incompleto = True
+                continue
+
+            componentes.append(del_dominio)
+            costo = (
+                del_dominio.costo_unitario
+                if del_dominio.costo_unitario is not None
+                else costos_insumo.get(clave_insumo, Decimal(0))
+            )
+            filas_explosion.append(
+                {
+                    "tipo_hijo": str(TipoHijoExplosion.INSUMO),
+                    "insumo_id": insumos_por_clave[clave_insumo]["id"],
+                    "categoria": str(categoria),
+                    "cantidad": del_dominio.cantidad,
+                    "rendimiento": del_dominio.cantidad,
+                    "costo_unitario": costo,
+                    "importe": del_dominio.cantidad * costo,
+                    "orden": len(filas_explosion),
+                }
+            )
+
+        if incompleto:
+            # Un APU con un hueco daría un precio menor al real (§7.3, mismo
+            # criterio que `AplicadorCPU`): el concepto se omite entero, y
+            # con él su partida — no hay precio confiable que registrar.
+            contadores["conceptos_omitidos"] += 1
+            return
+
+        try:
+            precio = calcular_cpu(
+                nodo.clave, composiciones={nodo.clave: componentes}, costos_insumo=costos_insumo
+            )
+        except ErrorDeAPU as exc:
+            errores.append(
+                ErrorDeFila(fila=nodo.fila, columna="clave_hijo", valor=nodo.clave, motivo=str(exc))
+            )
+            contadores["conceptos_omitidos"] += 1
+            return
+
+        actual = catalogo_conceptos.get(nodo.clave)
+
+        unidad_id = actual.get("unidad_id") if actual else None
+        if nodo.unidad:
+            clave_unidad = unidades.resolver(nodo.unidad)
+            if clave_unidad is not None:
+                unidad_id = id_unidad.get(clave_unidad)
+            elif actual is None:
+                pendientes.append(
+                    PendientePropuesto(
+                        tipo=TipoPendiente.UNIDAD,
+                        entidad="unidad",
+                        valor_origen=nodo.unidad,
+                        propuesta={"concepto": nodo.clave},
+                        origen_ref=f"fila {nodo.fila}",
+                    )
+                )
+
+        firma_nueva = _firma_explosion(filas_explosion, clave_de_insumo)
+
+        conflicto = False
+        concepto_id: UUID | None = actual["id"] if actual else None
+        if actual is not None:
+            firma_vigente = firma_cache.get(nodo.clave)
+            if firma_vigente is None:
+                # Sin firma en caché, `actual` solo puede venir del catálogo
+                # real (no de una simulación en dry_run de este mismo
+                # archivo — esa siempre deja firma en caché al procesar,
+                # línea de abajo): `concepto_id` es un id real.
+                assert concepto_id is not None  # noqa: S101
+                filas_previas = await self._conceptos.explosion_directa(concepto_id)
+                firma_vigente = _firma_explosion(filas_previas, clave_de_insumo)
+                firma_cache[nodo.clave] = firma_vigente
+            conflicto = firma_vigente != firma_nueva
+
+        if conflicto:
+            contadores["conceptos_en_conflicto"] += 1
+            pendientes.append(
+                PendientePropuesto(
+                    tipo=TipoPendiente.CONCEPTO_EN_CONFLICTO,
+                    entidad="concepto",
+                    valor_origen=nodo.clave,
+                    propuesta={
+                        "prototipo": arbol.clave_prototipo,
+                        "accion": (
+                            "Composición distinta a la del catálogo; corrige a "
+                            "mano o vuelve a cargar el prototipo correcto."
+                        ),
+                    },
+                    critico=False,
+                    origen_ref=f"fila {nodo.fila}",
+                )
+            )
+        else:
+            tipo_concepto = (
+                TipoConcepto.AUXILIAR
+                if nodo.tipo is TipoNodoPresupuesto.CONCEPTO_AUXILIAR
+                else TipoConcepto.CONCEPTO
+            )
+            if not dry_run:
+                if concepto_id is None:
+                    concepto_id = await self._conceptos.crear(
+                        {
+                            "tipo": str(tipo_concepto),
+                            "clave": nodo.clave,
+                            "descripcion": nodo.descripcion,
+                            "unidad_id": unidad_id,
+                            "familia_id": None,
+                        }
+                    )
+                    operaciones.append(
+                        _operacion(
+                            "concepto", concepto_id, "insert", despues={"clave": nodo.clave}
+                        )
+                    )
+                else:
+                    assert actual is not None  # noqa: S101 — narrowing, concepto_id lo garantiza
+                    await self._conceptos.actualizar(
+                        concepto_id,
+                        {
+                            "descripcion": nodo.descripcion,
+                            "unidad_id": unidad_id,
+                            "familia_id": actual.get("familia_id"),
+                        },
+                    )
+                    operaciones.append(
+                        _operacion(
+                            "concepto",
+                            concepto_id,
+                            "update",
+                            antes=_recorte(
+                                actual, ("tipo", "descripcion", "unidad_id", "familia_id", "estatus")
+                            ),
+                            despues={"descripcion": nodo.descripcion, "unidad_id": unidad_id},
+                        )
+                    )
+                operaciones.extend(
+                    await _publicar_cpu_de_concepto(
+                        self._conceptos, concepto_id, filas_explosion, precio
+                    )
+                )
+
+            (claves_nuevas if actual is None else claves_actualizadas).add(nodo.clave)
+            catalogo_conceptos[nodo.clave] = {
+                "id": concepto_id,
+                "tipo": str(tipo_concepto) if actual is None else actual.get("tipo"),
+                "clave": nodo.clave,
+                "descripcion": nodo.descripcion,
+                "unidad_id": unidad_id,
+                "familia_id": actual.get("familia_id") if actual else None,
+                "estatus": actual.get("estatus") if actual else "activo",
+            }
+            firma_cache[nodo.clave] = firma_nueva
+
+        contadores["partidas"] += 1
+        cantidad_partida = nodo.cantidad if nodo.cantidad is not None else Decimal(1)
+        precio_unitario = precio.total.monto
+
+        anterior_nodo = nodos_existentes.get(nodo.clave)
+        contadores["nodos_creados" if anterior_nodo is None else "nodos_actualizados"] += 1
+
+        if not dry_run:
+            nodo_id, _ = await self._prototipo_nodos.upsert(
+                prototipo_id,
+                clave=nodo.clave,
+                datos={
+                    "parent_id": parent_id_db,
+                    "tipo": "concepto",
+                    "nombre": nodo.descripcion,
+                    "concepto_id": concepto_id,
+                    "orden": nodo.indice or 0,
+                    "cantidad": cantidad_partida,
+                },
+            )
+            operaciones.append(
+                _operacion(
+                    "prototipo_nodo",
+                    nodo_id,
+                    "insert" if anterior_nodo is None else "update",
+                    antes=_recorte(
+                        anterior_nodo,
+                        ("parent_id", "tipo", "nombre", "concepto_id", "nivel_id", "etapa_id", "orden", "cantidad"),
+                    )
+                    if anterior_nodo
+                    else None,
+                    despues={"clave": nodo.clave, "concepto_id": str(concepto_id)},
+                )
+            )
+            partidas.append(
+                {
+                    "concepto_id": concepto_id,
+                    "prototipo_nodo_id": nodo_id,
+                    "cantidad": cantidad_partida,
+                    "precio_unitario": precio_unitario,
+                    "importe": cantidad_partida * precio_unitario,
+                    "orden": nodo.indice or 0,
+                }
+            )

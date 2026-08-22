@@ -29,6 +29,7 @@ __all__ = [
     "CPU",
     "MAPA_CPU",
     "MATERIALES",
+    "PRESUPUESTO",
     "PROTOTIPOS",
     "ColumnaPorLetra",
     "ErrorDeCabecera",
@@ -321,6 +322,30 @@ PROTOTIPOS = EspecificacionArchivo(
         "m2": "m2",
         "niveles": "niveles",
         "recamaras": "recamaras",
+    },
+)
+
+# --- Presupuesto jerárquico (extensión propia, no está en el §10.6) ------
+#
+# Árbol de un prototipo por CLAVE PADRE → CLAVE HIJO (§7.4): tampoco lo
+# describe el §10.6, así que sus campos propios necesitan alias explícito
+# igual que PROTOTIPOS. `clave`/`descripcion`/`unidad`/`cantidad`/
+# `precio_unitario`/`tipo` ya resuelven por el mapa global (§8.6); solo
+# `clave_padre`/`clave_hijo`/`indice`/`importe` no viven ahí.
+
+PRESUPUESTO = EspecificacionArchivo(
+    tipo="Presupuesto jerárquico",
+    archivo="CABECERAS_PRESUPUESTO.xlsx",
+    hoja=None,
+    obligatorias=("clave_hijo", "descripcion", "tipo"),
+    opcionales=("indice", "clave_padre", "unidad", "cantidad", "precio_unitario", "importe"),
+    alias={
+        "indice": "indice",
+        "clave padre": "clave_padre",
+        "clave_padre": "clave_padre",
+        "clave hijo": "clave_hijo",
+        "clave_hijo": "clave_hijo",
+        "importe": "importe",
     },
 )
 

@@ -27,6 +27,7 @@ from obractrl.domain.cargadores.cabeceras import (
     ALMACEN,
     MAPA_CPU,
     MATERIALES,
+    PRESUPUESTO,
     PROTOTIPOS,
     ErrorDeCabecera,
     indice_de_letra,
@@ -35,6 +36,11 @@ from obractrl.domain.cargadores.cabeceras import (
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.homologacion import Homologador
 from obractrl.domain.cargadores.materiales import validar_material
+from obractrl.domain.cargadores.presupuesto import (
+    TipoNodoPresupuesto,
+    construir_arboles,
+    es_etapa_con_componentes_directos,
+)
 from obractrl.domain.cargadores.prototipos import validar_prototipo
 from obractrl.domain.cargadores.reporte import ErrorEnFila, TipoPendiente
 from obractrl.domain.cargadores.versionado import diferenciar
@@ -245,6 +251,126 @@ def test_prototipo_sin_columnas_opcionales_queda_en_none_no_en_cero() -> None:
     assert prototipo.m2 is None
     assert prototipo.niveles is None
     assert prototipo.recamaras is None
+
+
+# --- Presupuesto jerárquico (extensión propia, no está en el §10.6) ------
+
+_MAPA_PRESUPUESTO = resolver_encabezados(
+    ["INDICE", "CLAVE PADRE", "CLAVE HIJO", "DESCRIPCION", "UNIDAD",
+     "CANTIDAD", "PRECIO UNITARIO", "IMPORTE", "TIPO"],
+    PRESUPUESTO,
+)
+
+
+def _fila_presupuesto(
+    indice: object = "",
+    padre: object = "",
+    hijo: str = "",
+    descripcion: str = "",
+    unidad: object = "",
+    cantidad: object = "",
+    pu: object = "",
+    importe: object = "",
+    tipo: str = "",
+) -> list[object]:
+    return [indice, padre, hijo, descripcion, unidad, cantidad, pu, importe, tipo]
+
+
+def test_dos_prototipos_con_clave_de_nodo_identica_se_resuelven_independientes() -> None:
+    """`NIV-00001` se repite igual en cada prototipo del archivo real: el
+    árbol de uno no puede colgar del otro por coincidencia de clave."""
+    filas = [
+        (2, _fila_presupuesto(1, None, "CAS-1", "Zafiro", tipo="PROTOTIPO")),
+        (3, _fila_presupuesto(1, "CAS-1", "NIV-1", "Cimentación", tipo="NIVEL DE CONSTRUCCION")),
+        (4, _fila_presupuesto(1, None, "CAS-2", "Otro", tipo="PROTOTIPO")),
+        (5, _fila_presupuesto(1, "CAS-2", "NIV-1", "Cimentación", tipo="NIVEL DE CONSTRUCCION")),
+    ]
+    arboles, errores, pendientes, omitidos = construir_arboles(filas, _MAPA_PRESUPUESTO)
+
+    assert not errores
+    assert not pendientes
+    assert omitidos == 0
+    assert {a.clave_prototipo for a in arboles} == {"CAS-1", "CAS-2"}
+    for arbol in arboles:
+        hijos = arbol.hijos.get(arbol.clave_prototipo, ())
+        assert [h.clave for h in hijos] == ["NIV-1"]
+
+
+def test_una_fila_con_padre_que_no_aparecio_antes_es_error_de_fila() -> None:
+    filas = [
+        (2, _fila_presupuesto(1, None, "CAS-1", "Zafiro", tipo="PROTOTIPO")),
+        (3, _fila_presupuesto(1, "NIV-FANTASMA", "ECO-1", "Estructura", tipo="ETAPA DE CONSTRUCCION")),
+    ]
+    _arboles, errores, _pendientes, _omitidos = construir_arboles(filas, _MAPA_PRESUPUESTO)
+
+    assert len(errores) == 1
+    assert errores[0].fila == 3
+    assert errores[0].columna == "clave_padre"
+
+
+def test_un_tipo_desconocido_va_a_la_bandeja_y_el_resto_sigue() -> None:
+    filas = [
+        (2, _fila_presupuesto(1, None, "CAS-1", "Zafiro", tipo="PROTOTIPO")),
+        (3, _fila_presupuesto(1, "CAS-1", "NIV-1", "Cimentación", tipo="NIVEL RARO")),
+        (4, _fila_presupuesto(2, "CAS-1", "NIV-2", "Planta baja", tipo="NIVEL DE CONSTRUCCION")),
+    ]
+    arboles, errores, pendientes, _omitidos = construir_arboles(filas, _MAPA_PRESUPUESTO)
+
+    assert len(errores) == 1
+    assert errores[0].fila == 3
+    assert len(pendientes) == 1
+    assert pendientes[0].tipo is TipoPendiente.FILA_NO_PARSEADA
+    (arbol,) = arboles
+    assert [h.clave for h in arbol.hijos.get("CAS-1", ())] == ["NIV-2"]
+
+
+def test_prototipo_repetido_en_el_archivo_gana_el_ultimo() -> None:
+    filas = [
+        (2, _fila_presupuesto(1, None, "CAS-1", "Zafiro v1", tipo="PROTOTIPO")),
+        (3, _fila_presupuesto(1, "CAS-1", "NIV-1", "Cimentación", tipo="NIVEL DE CONSTRUCCION")),
+        (4, _fila_presupuesto(1, None, "CAS-1", "Zafiro v2", tipo="PROTOTIPO")),
+        (5, _fila_presupuesto(1, "CAS-1", "NIV-2", "Planta baja", tipo="NIVEL DE CONSTRUCCION")),
+    ]
+    arboles, errores, _pendientes, omitidos = construir_arboles(filas, _MAPA_PRESUPUESTO)
+
+    assert not errores
+    assert omitidos == 1
+    (arbol,) = arboles
+    assert arbol.raiz.descripcion == "Zafiro v2"
+    assert [h.clave for h in arbol.hijos.get("CAS-1", ())] == ["NIV-2"]
+
+
+def test_una_etapa_con_hijos_puro_material_actua_como_concepto() -> None:
+    filas = [
+        (2, _fila_presupuesto(1, None, "CAS-1", "Zafiro", tipo="PROTOTIPO")),
+        (3, _fila_presupuesto(1, "CAS-1", "NIV-1", "Cimentación", tipo="NIVEL DE CONSTRUCCION")),
+        (4, _fila_presupuesto(1, "NIV-1", "ECO-1", "Planta baja", cantidad=1, tipo="ETAPA DE CONSTRUCCION")),
+        (5, _fila_presupuesto(1, "ECO-1", "ELE-1", "Pija", "PZ", 1, "0.5", "0.5", tipo="MATERIAL")),
+        (6, _fila_presupuesto(2, "ECO-1", "SUB-1", "Subcontrato", "SERV", 1, "100", "100", tipo="SUBCONTRATO")),
+    ]
+    arboles, errores, _pendientes, _omitidos = construir_arboles(filas, _MAPA_PRESUPUESTO)
+    assert not errores
+    (arbol,) = arboles
+    etapa = arbol.nodos["ECO-1"]
+    assert es_etapa_con_componentes_directos(arbol, etapa) is True
+
+
+def test_una_etapa_con_un_concepto_hijo_no_actua_como_concepto() -> None:
+    filas = [
+        (2, _fila_presupuesto(1, None, "CAS-1", "Zafiro", tipo="PROTOTIPO")),
+        (3, _fila_presupuesto(1, "CAS-1", "NIV-1", "Cimentación", tipo="NIVEL DE CONSTRUCCION")),
+        (4, _fila_presupuesto(1, "NIV-1", "ECO-1", "Planta baja", tipo="ETAPA DE CONSTRUCCION")),
+        (5, _fila_presupuesto(1, "ECO-1", "EST-1", "Losa", "M2", 1, "0", "0", tipo="CONCEPTO")),
+    ]
+    arboles, errores, _pendientes, _omitidos = construir_arboles(filas, _MAPA_PRESUPUESTO)
+    assert not errores
+    (arbol,) = arboles
+    etapa = arbol.nodos["ECO-1"]
+    assert es_etapa_con_componentes_directos(arbol, etapa) is False
+
+
+def test_tipos_de_nodo_normalizan_variantes_con_acentos_y_mayusculas() -> None:
+    assert TipoNodoPresupuesto("etapa de construccion") is TipoNodoPresupuesto.ETAPA
 
 
 # --- CPU / Conceptos (§10.6, formato plano) ------------------------------

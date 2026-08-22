@@ -9,19 +9,24 @@ Cada clase implementa el puerto `LectorDeCarga`
 regla vive en `domain.cargadores`; aquí solo se recorre el `.xlsx`.
 
 Los cargadores del §10.6 que **no** están implementados —mano de obra,
-subcontratos, obras/lotes, contratistas, niveles, etapas, presupuesto
-jerárquico y estimaciones— no tienen entrada en `CARGADORES`: pedir uno de
-esos tipos falla explícito en vez de cargar cualquier cosa.
+subcontratos, obras/lotes, contratistas, niveles, etapas y estimaciones— no
+tienen entrada en `CARGADORES`: pedir uno de esos tipos falla explícito en
+vez de cargar cualquier cosa.
 """
 
 from __future__ import annotations
 
 from obractrl.adapters.excel.lector import LIMITES, Limites
-from obractrl.adapters.excel.pipeline import leer_filas_crudas, leer_por_nombre
+from obractrl.adapters.excel.pipeline import (
+    leer_filas,
+    leer_filas_crudas,
+    leer_por_nombre,
+)
 from obractrl.domain.cargadores import cabeceras
 from obractrl.domain.cargadores.almacen import validar_movimiento
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.materiales import validar_material
+from obractrl.domain.cargadores.presupuesto import construir_arboles
 from obractrl.domain.cargadores.prototipos import validar_prototipo
 from obractrl.domain.cargadores.reporte import LecturaCarga
 from obractrl.domain.shared.diccionario import TipoCarga
@@ -32,6 +37,7 @@ __all__ = [
     "CargadorAlmacen",
     "CargadorCPU",
     "CargadorMateriales",
+    "CargadorPresupuesto",
     "CargadorPrototipos",
     "TipoDeCargaSinCargador",
     "cargador_para",
@@ -134,6 +140,31 @@ class CargadorPrototipos:
         )
 
 
+class CargadorPresupuesto:
+    """Presupuesto jerárquico — `CABECERAS_PRESUPUESTO.xlsx` (extensión
+    propia). Árbol de un prototipo (nivel → etapa → concepto) por
+    `CLAVE PADRE → CLAVE HIJO` entre filas consecutivas — no una tabla plana
+    ni bloques de un nivel, así que usa `construir_arboles` en vez de
+    `leer_por_nombre`/`agrupar_conceptos`."""
+
+    tipo = TipoCarga.PRESUPUESTO
+    especificacion = cabeceras.PRESUPUESTO
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        mapa, filas = leer_filas(contenido, self.especificacion, limites=self._limites)
+        arboles, errores, pendientes, omitidos = construir_arboles(filas, mapa)
+        return LecturaCarga(
+            registros=tuple(arboles),
+            errores=errores,
+            pendientes=pendientes,
+            filas_leidas=len(filas),
+            omitidos=omitidos,
+        )
+
+
 def _es_fila_de_encabezados(fila: object) -> bool:
     """¿Esta fila es la de títulos y no un dato?
 
@@ -154,6 +185,7 @@ CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.CATALOGO_CONCEPTOS: CargadorCPU,
     TipoCarga.ALMACEN: CargadorAlmacen,
     TipoCarga.PROTOTIPOS: CargadorPrototipos,
+    TipoCarga.PRESUPUESTO: CargadorPresupuesto,
 }
 """Tipos del §8.2 que hoy tienen cargador. Los demás no se inventan."""
 
