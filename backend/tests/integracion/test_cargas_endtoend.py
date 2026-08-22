@@ -797,6 +797,7 @@ async def test_revertir_una_carga_de_almacen_borra_sus_movimientos(
     assert salidas == []
     catalogo = await _insumos(contexto_control)
     assert catalogo["CEM-01"]["costo_ultimo"] is None
+    assert catalogo["CEM-01"]["origen"] == "base"
 
 
 # --- Prototipos (extensión propia, no está en el §10.6) -------------------
@@ -931,4 +932,3 @@ async def test_revertir_un_lote_de_prototipos_deshace_altas_y_cambios(
     catalogo = await _prototipos(contexto_control)
     assert "CAS-6" not in catalogo  # la alta del lote se fue
     assert catalogo["CAS-5"]["nombre"] == "Casa modelo E"  # el nombre volvió
-    assert catalogo["CEM-01"]["origen"] == "base"
