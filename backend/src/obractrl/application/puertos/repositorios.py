@@ -285,6 +285,10 @@ class RepositorioPrototipos(Protocol):
 
     async def listar(self, proyecto_id: UUID | None = None) -> list[dict]: ...
 
+    # Solo la usa el cargador masivo (§7.2): la edición individual no tiene
+    # endpoint PATCH todavía, así que este método no tiene otro llamador.
+    async def actualizar(self, prototipo_id: UUID, campos: dict) -> None: ...
+
 
 @runtime_checkable
 class RepositorioFrentes(Protocol):

@@ -13051,7 +13051,8 @@
           "presupuesto",
           "programa_base",
           "obras",
-          "almacen"
+          "almacen",
+          "prototipos"
         ],
         "title": "TipoCarga"
       },

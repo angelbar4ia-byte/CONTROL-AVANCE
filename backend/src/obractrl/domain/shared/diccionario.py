@@ -295,6 +295,13 @@ class TipoCarga(_Canonico):
     `database/migrations/20260814000019_carga_de_almacen.sql`.
     """
 
+    PROTOTIPOS = "prototipos"
+    """Varios prototipos a la vez, en vez de darlos de alta uno a uno
+    (§7.2). A diferencia de `ALMACEN`, el §10.6 no describe este archivo:
+    es una extensión nueva del catálogo de cargadores. Espejo en la base:
+    `database/migrations/20260814000029_carga_de_prototipos.sql`.
+    """
+
 
 class EstatusCarga(_Canonico):
     PENDIENTE = "pendiente"

@@ -21,6 +21,7 @@ import Avances from '@/avance/Avances';
 import Cierres from '@/cierres/Cierres';
 import Estimacion from '@/estimacion/Estimacion';
 import Obras from '@/proyectos/Obras';
+import Prototipos from '@/proyectos/Prototipos';
 import Frentes from '@/proyectos/Frentes';
 import Catalogos from '@/catalogos/Catalogos';
 import Programacion from '@/programacion/Programacion';
@@ -151,6 +152,10 @@ function Rutas() {
             Control de obra (§5.1 Configuración); el expediente lo consultan C
             y SI desde Reportes (§5.3). */}
         <Route path="/config/cargas" element={<Cargas />} />
+        {/* Prototipos (§7.2): la carga masiva y el alta individual escriben
+            la misma tabla; esta pantalla lista lo que cualquiera de las dos
+            dejó, para Control de obra y Super intendente (§11.2). */}
+        <Route path="/config/prototipos" element={<Prototipos />} />
         <Route path="/expediente" element={<Expediente />} />
         {/* Fase 16: las tres entradas del sidebar del Super intendente (§5.1)
             que caían en "en construcción" porque su endpoint no existía —

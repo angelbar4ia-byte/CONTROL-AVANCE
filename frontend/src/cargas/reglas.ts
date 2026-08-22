@@ -23,6 +23,7 @@ const ETIQUETA_TIPO: Record<string, string> = {
   programa_base: 'Programa base',
   obras: 'Obras',
   almacen: 'Salidas de almacén',
+  prototipos: 'Prototipos',
 };
 
 export const TIPOS: readonly TipoCarga[] = Object.values(TipoCarga);

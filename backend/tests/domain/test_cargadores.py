@@ -27,6 +27,7 @@ from obractrl.domain.cargadores.cabeceras import (
     ALMACEN,
     MAPA_CPU,
     MATERIALES,
+    PROTOTIPOS,
     ErrorDeCabecera,
     indice_de_letra,
     resolver_encabezados,
@@ -34,6 +35,7 @@ from obractrl.domain.cargadores.cabeceras import (
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.homologacion import Homologador
 from obractrl.domain.cargadores.materiales import validar_material
+from obractrl.domain.cargadores.prototipos import validar_prototipo
 from obractrl.domain.cargadores.reporte import ErrorEnFila, TipoPendiente
 from obractrl.domain.cargadores.versionado import diferenciar
 from obractrl.domain.shared.diccionario import CategoriaExplosion, ModoCarga
@@ -194,6 +196,55 @@ def test_una_columna_ausente_queda_en_none_no_en_cero() -> None:
     material = validar_material(["CEM-01", "Cemento gris"], mapa, 2)
     assert material.costo_base is None
     assert material.iva is None
+
+
+# --- Prototipos (extensión propia, no está en el §10.6) ------------------
+
+_MAPA_PROTOTIPOS = resolver_encabezados(
+    ["Proyecto", "Clave", "Nombre", "M2", "Niveles", "Recamaras"],
+    PROTOTIPOS,
+)
+
+
+def test_una_fila_de_prototipo_completa_queda_validada() -> None:
+    prototipo = validar_prototipo(
+        ["PROY", " cas-01 ", " Casa modelo A ", "85.5", "2", "3"],
+        _MAPA_PROTOTIPOS,
+        5,
+    )
+    assert prototipo.proyecto_clave == "PROY"
+    assert prototipo.llave == "CAS-01"  # `Clave` normaliza (§3.3)
+    assert prototipo.nombre == "Casa modelo A"
+    assert prototipo.m2 == Decimal("85.5")
+    assert prototipo.niveles == 2
+    assert prototipo.recamaras == 3
+    assert prototipo.fila == 5
+
+
+def test_una_fila_sin_proyecto_es_error_de_fila() -> None:
+    with pytest.raises(ErrorEnFila) as capturado:
+        validar_prototipo(["", "CAS-01", "Casa modelo A", "", "", ""], _MAPA_PROTOTIPOS, 3)
+    assert capturado.value.con_fila(3).columna == "proyecto_clave"
+
+
+def test_una_fila_sin_clave_de_prototipo_es_error_de_fila() -> None:
+    with pytest.raises(ErrorEnFila) as capturado:
+        validar_prototipo(["PROY", "", "Casa modelo A", "", "", ""], _MAPA_PROTOTIPOS, 4)
+    assert capturado.value.con_fila(4).columna == "clave"
+
+
+def test_una_fila_sin_nombre_de_prototipo_es_error_de_fila() -> None:
+    with pytest.raises(ErrorEnFila) as capturado:
+        validar_prototipo(["PROY", "CAS-01", "", "", "", ""], _MAPA_PROTOTIPOS, 6)
+    assert capturado.value.con_fila(6).columna == "nombre"
+
+
+def test_prototipo_sin_columnas_opcionales_queda_en_none_no_en_cero() -> None:
+    mapa = resolver_encabezados(["Proyecto", "Clave", "Nombre"], PROTOTIPOS)
+    prototipo = validar_prototipo(["PROY", "CAS-01", "Casa modelo A"], mapa, 2)
+    assert prototipo.m2 is None
+    assert prototipo.niveles is None
+    assert prototipo.recamaras is None
 
 
 # --- CPU / Conceptos (§10.6, formato plano) ------------------------------
