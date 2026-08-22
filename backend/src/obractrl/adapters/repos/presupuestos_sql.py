@@ -149,6 +149,29 @@ class RepositorioPresupuestosSQL:
             {"id": str(presupuesto_id), "monto": monto_total},
         )
 
+    async def otros_prototipos_con_partida_vigente(
+        self, concepto_id: UUID, *, excluir_prototipo_id: UUID
+    ) -> list[UUID]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select distinct p.prototipo_id
+                      from partida_presupuesto pp
+                      join presupuesto p on p.id = pp.presupuesto_id and p.vigente
+                     where p.org_id = cast(current_setting('app.org_id') as uuid)
+                       and pp.concepto_id = :concepto_id
+                       and p.prototipo_id != :excluir_prototipo_id
+                    """
+                ),
+                {
+                    "concepto_id": str(concepto_id),
+                    "excluir_prototipo_id": str(excluir_prototipo_id),
+                },
+            )
+        ).all()
+        return [fila.prototipo_id for fila in filas]
+
     # --- Presupuesto ----------------------------------------------------
 
     async def vigente_de_prototipo(self, prototipo_id: UUID) -> dict[str, Any] | None:
