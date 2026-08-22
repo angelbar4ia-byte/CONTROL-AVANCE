@@ -75,6 +75,32 @@ class RepositorioPrototiposSQL:
         ).mappings().first()
         return dict(fila) if fila is not None else None
 
+    async def actualizar(self, prototipo_id: UUID, campos: dict[str, Any]) -> None:
+        """Solo la usa el cargador masivo (§7.2, extensión propia): un
+        renglón cuya clave ya existía en el archivo actualiza `nombre`, `m2`,
+        `niveles` y `recamaras` — nunca `proyecto_id` ni `clave`, que son la
+        identidad de la fila y no algo que una carga reasigne.
+        """
+        await self._sesion.execute(
+            text(
+                """
+                update prototipo
+                   set nombre    = :nombre,
+                       m2        = :m2,
+                       niveles   = :niveles,
+                       recamaras = :recamaras
+                 where id = :id
+                """
+            ),
+            {
+                "id": str(prototipo_id),
+                "nombre": campos["nombre"],
+                "m2": campos.get("m2"),
+                "niveles": campos.get("niveles"),
+                "recamaras": campos.get("recamaras"),
+            },
+        )
+
     async def listar(self, proyecto_id: UUID | None = None) -> list[dict[str, Any]]:
         filas = (
             await self._sesion.execute(

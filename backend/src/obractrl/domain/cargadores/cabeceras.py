@@ -29,6 +29,7 @@ __all__ = [
     "CPU",
     "MAPA_CPU",
     "MATERIALES",
+    "PROTOTIPOS",
     "ColumnaPorLetra",
     "ErrorDeCabecera",
     "EspecificacionArchivo",
@@ -295,6 +296,32 @@ CPU = EspecificacionArchivo(
         "precio_unitario",
         "familia",
     ),
+)
+
+# --- Prototipos (extensión propia, no está en el §10.6 original) ---------
+#
+# A diferencia de ALMACEN y MATERIALES, este archivo no lo describe el §10.6:
+# es el bulk-load que le faltaba a `POST /prototipos` (§7.2). Por eso ninguno
+# de sus campos vive en el mapa global (§8.6) — todos necesitan su propio
+# alias, incluida la identidad (`"nombre": "nombre"`), porque
+# `canonizar_encabezado` no tiene fallback implícito.
+
+PROTOTIPOS = EspecificacionArchivo(
+    tipo="Prototipos",
+    archivo="CABECERAS_PROTOTIPOS.xlsx",
+    hoja=None,
+    obligatorias=("proyecto_clave", "clave", "nombre"),
+    opcionales=("m2", "niveles", "recamaras"),
+    alias={
+        "proyecto": "proyecto_clave",
+        "proyecto_clave": "proyecto_clave",
+        "clave proyecto": "proyecto_clave",
+        "clave_proyecto": "proyecto_clave",
+        "nombre": "nombre",
+        "m2": "m2",
+        "niveles": "niveles",
+        "recamaras": "recamaras",
+    },
 )
 
 COLUMNAS_CPU: tuple[ColumnaPorLetra, ...] = (

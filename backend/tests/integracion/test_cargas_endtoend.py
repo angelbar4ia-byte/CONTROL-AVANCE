@@ -35,6 +35,8 @@ from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
+from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
+from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
 from obractrl.application.casos_uso.aplicar_carga import (
@@ -42,6 +44,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorCPU,
     AplicadorDeCarga,
     AplicadorMateriales,
+    AplicadorPrototipos,
 )
 from obractrl.application.casos_uso.gestionar_carga import (
     ComandoEjecutarCarga,
@@ -51,6 +54,7 @@ from obractrl.application.casos_uso.gestionar_carga import (
 )
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera
 from obractrl.domain.cargadores.reporte import TipoPendiente
+from obractrl.domain.proyectos.reglas import ErrorDeProyecto
 from obractrl.domain.shared.diccionario import EstatusCarga, ModoCarga, TipoCarga
 from obractrl.infrastructure.db.sesion import ContextoSesion, sesion_con_rls
 from tests.integracion.conftest import DATABASE_URL_ADMIN, Escenario
@@ -110,6 +114,13 @@ _CABECERAS_ALMACEN = [
 
 def _archivo_almacen(filas: list[list[object]]) -> bytes:
     return _libro([_CABECERAS_ALMACEN, *filas], hoja="Consulta")
+
+
+_CABECERAS_PROTOTIPOS = ["Proyecto", "Clave", "Nombre", "M2", "Niveles", "Recamaras"]
+
+
+def _archivo_prototipos(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_PROTOTIPOS, *filas])
 
 
 # --- Escenario de catálogos ----------------------------------------------
@@ -174,6 +185,11 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
             familias=RepositorioFamiliasSQL(sesion),
             cargas=cargas,
         )
+    if tipo is TipoCarga.PROTOTIPOS:
+        return AplicadorPrototipos(
+            prototipos=RepositorioPrototiposSQL(sesion),
+            proyectos=RepositorioProyectosSQL(sesion),
+        )
     return AplicadorAlmacen(
         materiales=RepositorioMaterialesSQL(sesion),
         insumos=RepositorioInsumosSQL(sesion),
@@ -217,6 +233,12 @@ async def _cargar(
 async def _insumos(contexto: ContextoSesion) -> dict[str, dict]:
     async with sesion_con_rls(contexto) as sesion:
         filas = await RepositorioInsumosSQL(sesion).listar(solo_activos=False)
+    return {str(f["clave"]): f for f in filas}
+
+
+async def _prototipos(contexto: ContextoSesion) -> dict[str, dict]:
+    async with sesion_con_rls(contexto) as sesion:
+        filas = await RepositorioPrototiposSQL(sesion).listar()
     return {str(f["clave"]): f for f in filas}
 
 
@@ -776,3 +798,137 @@ async def test_revertir_una_carga_de_almacen_borra_sus_movimientos(
     catalogo = await _insumos(contexto_control)
     assert catalogo["CEM-01"]["costo_ultimo"] is None
     assert catalogo["CEM-01"]["origen"] == "base"
+
+
+# --- Prototipos (extensión propia, no está en el §10.6) -------------------
+#
+# `escenario` ya siembra un proyecto clave `PROY` y un prototipo `CAS-1`
+# (§7.2) — se reusan aquí en vez de crear otros, igual que `catalogos` reusa
+# lo mínimo para materiales/almacén.
+
+
+async def test_carga_de_prototipos_alimenta_y_actualiza_el_catalogo(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PROTOTIPOS,
+        _archivo_prototipos(
+            [
+                ["PROY", "CAS-1", "Casa modelo A editada", "90", "2", "3"],
+                ["PROY", "CAS-2", "Casa modelo B", "75", "1", "2"],
+            ]
+        ),
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.insertados == 1
+    assert resultado.resumen.actualizados == 1
+    assert resultado.resumen.errores == 0
+
+    catalogo = await _prototipos(contexto_control)
+    assert catalogo["CAS-1"]["nombre"] == "Casa modelo A editada"
+    assert catalogo["CAS-1"]["m2"] == Decimal("90.00")
+    assert catalogo["CAS-1"]["proyecto_id"] == escenario.proyecto_id  # no se reasigna
+    assert catalogo["CAS-2"]["proyecto_id"] == escenario.proyecto_id
+    assert catalogo["CAS-2"]["niveles"] == 1
+
+
+async def test_el_mismo_archivo_de_prototipos_no_se_aplica_dos_veces(
+    contexto_control: ContextoSesion,
+) -> None:
+    contenido = _archivo_prototipos([["PROY", "CAS-2", "Casa modelo B", "", "", ""]])
+    primera = await _cargar(contexto_control, TipoCarga.PROTOTIPOS, contenido)
+    segunda = await _cargar(contexto_control, TipoCarga.PROTOTIPOS, contenido)
+
+    assert primera.reutilizada is False
+    assert segunda.reutilizada is True
+    assert len(await _prototipos(contexto_control)) == 2  # CAS-1 (escenario) + CAS-2
+
+
+async def test_la_vista_previa_de_prototipos_cuenta_igual_pero_no_escribe(
+    contexto_control: ContextoSesion,
+) -> None:
+    """§9.3: el dry-run tiene que dar los mismos números que el commit —
+
+    incluido un error de **dominio** (niveles inválidos), que solo se
+    detecta al construir `Prototipo.crear()` y no en la validación de fila.
+    """
+    contenido = _archivo_prototipos([["PROY", "CAS-9", "Casa sin niveles", "", "0", ""]])
+    previa = await _cargar(contexto_control, TipoCarga.PROTOTIPOS, contenido, dry_run=True)
+
+    assert previa.estatus is EstatusCarga.PREVISUALIZADO
+    assert previa.resumen.insertados == 0
+    assert previa.resumen.errores == 1
+    assert "CAS-9" not in await _prototipos(contexto_control)
+
+    aplicada = await _cargar(contexto_control, TipoCarga.PROTOTIPOS, contenido)
+    assert aplicada.resumen.insertados == previa.resumen.insertados
+    assert aplicada.resumen.errores == previa.resumen.errores
+    assert "CAS-9" not in await _prototipos(contexto_control)
+
+
+async def test_un_proyecto_que_no_existe_es_error_de_fila_y_el_resto_entra(
+    contexto_control: ContextoSesion,
+) -> None:
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PROTOTIPOS,
+        _archivo_prototipos(
+            [
+                ["NOPE", "CAS-9", "Casa fantasma", "", "", ""],
+                ["PROY", "CAS-4", "Casa real", "", "", ""],
+            ]
+        ),
+    )
+
+    assert resultado.resumen.insertados == 1
+    assert resultado.resumen.errores == 1
+    assert {(e.fila, e.columna) for e in resultado.errores} == {(2, "proyecto_clave")}
+    catalogo = await _prototipos(contexto_control)
+    assert "CAS-9" not in catalogo
+    assert "CAS-4" in catalogo
+
+
+async def test_prototipos_no_soporta_el_modo_reemplazar(
+    contexto_control: ContextoSesion,
+) -> None:
+    """`prototipo` no tiene `estatus`: no hay baja lógica que ejecutar."""
+    with pytest.raises(ErrorDeProyecto, match="Reemplazar"):
+        await _cargar(
+            contexto_control,
+            TipoCarga.PROTOTIPOS,
+            _archivo_prototipos([["PROY", "CAS-2", "Casa modelo B", "", "", ""]]),
+            modo=ModoCarga.REEMPLAZAR,
+        )
+    assert "CAS-2" not in await _prototipos(contexto_control)
+
+
+async def test_revertir_un_lote_de_prototipos_deshace_altas_y_cambios(
+    contexto_control: ContextoSesion,
+) -> None:
+    await _cargar(
+        contexto_control,
+        TipoCarga.PROTOTIPOS,
+        _archivo_prototipos([["PROY", "CAS-5", "Casa modelo E", "", "", ""]]),
+    )
+    segunda = await _cargar(
+        contexto_control,
+        TipoCarga.PROTOTIPOS,
+        _archivo_prototipos(
+            [
+                ["PROY", "CAS-5", "Casa modelo E renombrada", "", "", ""],
+                ["PROY", "CAS-6", "Casa modelo F", "", "", ""],
+            ]
+        ),
+    )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        reversa = await RevertirCarga(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(segunda.carga_id, usuario_id=contexto_control.usuario_id)
+
+    assert reversa["operaciones_revertidas"] == 2
+    catalogo = await _prototipos(contexto_control)
+    assert "CAS-6" not in catalogo  # la alta del lote se fue
+    assert catalogo["CAS-5"]["nombre"] == "Casa modelo E"  # el nombre volvió

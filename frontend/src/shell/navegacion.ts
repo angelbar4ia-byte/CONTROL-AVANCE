@@ -161,6 +161,7 @@ const CONTROL_OBRA: readonly SeccionNav[] = [
       { a: '/config/programas-base', etiqueta: 'Programas base', icono: GitBranch },
       { a: '/config/presupuesto', etiqueta: 'Presupuesto', icono: FileSpreadsheet },
       { a: '/config/creador-obra', etiqueta: 'Creador de obra', icono: Building2 },
+      { a: '/config/prototipos', etiqueta: 'Prototipos', icono: Layers },
       { a: '/config/catalogos', etiqueta: 'Catálogos', icono: FolderTree },
       { a: '/config/cargas', etiqueta: 'Cargas de datos', icono: Upload },
     ],

@@ -50,6 +50,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorCPU,
     AplicadorDeCarga,
     AplicadorMateriales,
+    AplicadorPrototipos,
 )
 from obractrl.application.casos_uso.calcular_cpu import (
     ExplotarConcepto,
@@ -789,6 +790,11 @@ class FabricaDeCargas:
                 familias=RepositorioFamiliasSQL(sesion),
                 cargas=cargas,
                 tasa_iva=tasa,
+            )
+        if tipo is TipoCarga.PROTOTIPOS:
+            return AplicadorPrototipos(
+                prototipos=RepositorioPrototiposSQL(sesion),
+                proyectos=RepositorioProyectosSQL(sesion),
             )
         # `cargador_para` ya rechazó los tipos sin cargador; llegar aquí
         # significa que se agregó uno y se olvidó su aplicador.

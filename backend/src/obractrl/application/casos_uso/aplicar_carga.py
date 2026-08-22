@@ -34,12 +34,15 @@ from obractrl.application.puertos.repositorios import (
     RepositorioInsumos,
     RepositorioMateriales,
     RepositorioObras,
+    RepositorioPrototipos,
+    RepositorioProyectos,
     RepositorioUnidades,
 )
 from obractrl.domain.cargadores.almacen import FilaMovimiento, importe_con_iva
 from obractrl.domain.cargadores.cpu import ConceptoCargado
 from obractrl.domain.cargadores.homologacion import Homologador
 from obractrl.domain.cargadores.materiales import FilaMaterial
+from obractrl.domain.cargadores.prototipos import FilaPrototipo
 from obractrl.domain.cargadores.reporte import (
     ErrorDeFila,
     LecturaCarga,
@@ -56,6 +59,7 @@ from obractrl.domain.catalogos.apu import (
 )
 from obractrl.domain.catalogos.reglas import resolver_iva
 from obractrl.domain.materiales.reglas import ErrorDeMaterial, validar_signo_salida
+from obractrl.domain.proyectos.reglas import ErrorDeProyecto, Prototipo
 from obractrl.domain.shared.diccionario import (
     ModoCarga,
     TipoConcepto,
@@ -70,6 +74,7 @@ __all__ = [
     "AplicadorCPU",
     "AplicadorDeCarga",
     "AplicadorMateriales",
+    "AplicadorPrototipos",
 ]
 
 _ESTATUS_BAJA = "inactivo"
@@ -1067,3 +1072,155 @@ class AplicadorAlmacen:
                 )
             )
         return operaciones
+
+
+# --- Prototipos (extensión propia, no está en el §10.6) -------------------
+
+_CAMPOS_PROTOTIPO = ("nombre", "m2", "niveles", "recamaras")
+"""Campos que este cargador gobierna. `proyecto_id` y `clave` son la
+identidad de la fila (§3.3): un renglón cuya clave ya existe **nunca**
+reasigna su proyecto por carga, solo actualiza estos cuatro."""
+
+
+class AplicadorPrototipos:
+    """Prototipos — bulk-load de `POST /prototipos` (§7.2).
+
+    Sin `Homologador`: el único cruce es el proyecto por su clave, y una
+    clave que no existe exacto es un error de fila, no algo que adivinar
+    (mismo criterio que "la clave manda" en materiales, §3.3).
+
+    No soporta el modo Reemplazar: `prototipo` no tiene columna `estatus`,
+    así que no hay baja lógica que ejecutar sobre lo que el archivo ya no
+    trae.
+    """
+
+    def __init__(
+        self,
+        *,
+        prototipos: RepositorioPrototipos,
+        proyectos: RepositorioProyectos,
+    ) -> None:
+        self._prototipos = prototipos
+        self._proyectos = proyectos
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        if modo is ModoCarga.REEMPLAZAR:
+            raise ErrorDeProyecto(
+                "Prototipos no soporta el modo Reemplazar: no tiene baja "
+                "lógica (§10.2). Usa Actualizar o Acumular."
+            )
+
+        vigentes_filas = await self._prototipos.listar()
+        por_clave = {str(f["clave"]): f for f in vigentes_filas}
+
+        proyectos_filas = await self._proyectos.listar()
+        proyecto_id_por_clave = {str(p["clave"]): p["id"] for p in proyectos_filas}
+
+        errores: list[ErrorDeFila] = []
+        entrantes: dict[str, dict[str, Any]] = {}
+        proyecto_id_por_llave: dict[str, Any] = {}
+
+        # La validación de dominio (`Prototipo.crear`) corre aquí, **antes**
+        # del diff y sin importar `dry_run`: si se dejara para el commit, la
+        # vista previa contaría una fila con `niveles=0` como alta válida y
+        # el aplicar real la rechazaría — números distintos entre los dos,
+        # que es justo lo que "el dry-run tiene que dar los mismos números
+        # que el commit" (§9.3) prohíbe.
+        for registro in lectura.registros:
+            prototipo: FilaPrototipo = registro  # type: ignore[assignment]
+            actual = por_clave.get(prototipo.llave, {})
+
+            proyecto_id = proyecto_id_por_clave.get(prototipo.proyecto_clave)
+            if proyecto_id is None and not actual:
+                # Solo bloquea el alta: un renglón que ya existe se puede
+                # actualizar aunque el archivo traiga un `proyecto_clave`
+                # que ya no cruza (no se reasigna, ver `_CAMPOS_PROTOTIPO`).
+                errores.append(
+                    ErrorDeFila(
+                        fila=prototipo.fila,
+                        columna="proyecto_clave",
+                        valor=prototipo.proyecto_clave,
+                        motivo=(
+                            f"proyecto_clave: no existe un proyecto con la "
+                            f"clave {prototipo.proyecto_clave!r} (créalo primero "
+                            f"en Creador de obra)."
+                        ),
+                    )
+                )
+                continue
+
+            proyecto_id_efectivo = proyecto_id or actual.get("proyecto_id")
+            try:
+                dominio = Prototipo.crear(
+                    proyecto_id=str(proyecto_id_efectivo),
+                    clave=prototipo.llave,
+                    nombre=prototipo.nombre,
+                    m2=_o_vigente(prototipo.m2, actual, "m2"),
+                    niveles=_o_vigente(prototipo.niveles, actual, "niveles"),
+                    recamaras=_o_vigente(prototipo.recamaras, actual, "recamaras"),
+                )
+            except ErrorDeProyecto as exc:
+                errores.append(ErrorDeFila(fila=prototipo.fila, motivo=str(exc)))
+                continue
+
+            proyecto_id_por_llave[prototipo.llave] = dominio.proyecto_id
+            entrantes[prototipo.llave] = {
+                "nombre": dominio.nombre,
+                "m2": dominio.m2,
+                "niveles": dominio.niveles,
+                "recamaras": dominio.recamaras,
+            }
+
+        vigentes = {
+            clave: {campo: fila.get(campo) for campo in _CAMPOS_PROTOTIPO}
+            for clave, fila in por_clave.items()
+        }
+        diff = diferenciar(vigentes=vigentes, entrantes=entrantes, modo=modo)
+
+        operaciones: list[dict[str, Any]] = []
+        if not dry_run:
+            for alta in diff.altas:
+                nuevo_id = await self._prototipos.crear(
+                    {
+                        "proyecto_id": proyecto_id_por_llave[alta.clave],
+                        "clave": alta.clave,
+                        "nombre": alta.despues["nombre"],
+                        "m2": alta.despues["m2"],
+                        "niveles": alta.despues["niveles"],
+                        "recamaras": alta.despues["recamaras"],
+                    }
+                )
+                operaciones.append(
+                    _operacion(
+                        "prototipo", nuevo_id, "insert", despues=dict(alta.despues)
+                    )
+                )
+
+            for cambio in diff.cambios:
+                fila = por_clave[cambio.clave]
+                await self._prototipos.actualizar(fila["id"], dict(cambio.despues))
+                operaciones.append(
+                    _operacion(
+                        "prototipo",
+                        fila["id"],
+                        "update",
+                        antes=_recorte(fila, _CAMPOS_PROTOTIPO),
+                        despues=dict(cambio.despues),
+                    )
+                )
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            errores=tuple(errores),
+            insertados=len(diff.altas),
+            actualizados=len(diff.cambios),
+            omitidos=diff.omitidos + lectura.omitidos,
+        )

@@ -20,4 +20,5 @@ export const TipoCarga = {
   programa_base: 'programa_base',
   obras: 'obras',
   almacen: 'almacen',
+  prototipos: 'prototipos',
 } as const;

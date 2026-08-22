@@ -70,7 +70,14 @@ def _convertir(valor: object) -> object:
 
 _ELIMINAR: dict[str, str] = {
     tabla: f"delete from {tabla} where id = cast(:id as uuid)"
-    for tabla in ("insumo", "concepto", "cpu", "explosion", "salida_almacen")
+    for tabla in (
+        "insumo",
+        "concepto",
+        "cpu",
+        "explosion",
+        "salida_almacen",
+        "prototipo",
+    )
 }
 
 _RESTAURAR: dict[str, str] = {
@@ -112,6 +119,16 @@ _RESTAURAR: dict[str, str] = {
             vigente         = cast(a.j->>'vigente' as boolean)
         from a
         where cpu.id = cast(:id as uuid)
+    """,
+    "prototipo": """
+        with a as (select cast(:antes as jsonb) as j)
+        update prototipo set
+            nombre    = a.j->>'nombre',
+            m2        = cast(a.j->>'m2' as numeric),
+            niveles   = cast(a.j->>'niveles' as smallint),
+            recamaras = cast(a.j->>'recamaras' as smallint)
+        from a
+        where prototipo.id = cast(:id as uuid)
     """,
 }
 

@@ -22,6 +22,7 @@ from obractrl.domain.cargadores import cabeceras
 from obractrl.domain.cargadores.almacen import validar_movimiento
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.materiales import validar_material
+from obractrl.domain.cargadores.prototipos import validar_prototipo
 from obractrl.domain.cargadores.reporte import LecturaCarga
 from obractrl.domain.shared.diccionario import TipoCarga
 from obractrl.domain.shared.normalizacion import canonizar_encabezado
@@ -31,6 +32,7 @@ __all__ = [
     "CargadorAlmacen",
     "CargadorCPU",
     "CargadorMateriales",
+    "CargadorPrototipos",
     "TipoDeCargaSinCargador",
     "cargador_para",
 ]
@@ -114,6 +116,24 @@ class CargadorCPU:
         )
 
 
+class CargadorPrototipos:
+    """Prototipos — `CABECERAS_PROTOTIPOS.xlsx` (extensión propia, §7.2)."""
+
+    tipo = TipoCarga.PROTOTIPOS
+    especificacion = cabeceras.PROTOTIPOS
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            validar_prototipo,
+            limites=self._limites,
+        )
+
+
 def _es_fila_de_encabezados(fila: object) -> bool:
     """¿Esta fila es la de títulos y no un dato?
 
@@ -133,6 +153,7 @@ CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.MATERIALES: CargadorMateriales,
     TipoCarga.CATALOGO_CONCEPTOS: CargadorCPU,
     TipoCarga.ALMACEN: CargadorAlmacen,
+    TipoCarga.PROTOTIPOS: CargadorPrototipos,
 }
 """Tipos del §8.2 que hoy tienen cargador. Los demás no se inventan."""
 
