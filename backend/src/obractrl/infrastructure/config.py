@@ -124,7 +124,7 @@ class Config(BaseSettings):
     )
 
     # --- Jobs (Arq + Redis) ---------------------------------------------
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str = ""
 
     # --- Notificaciones (Resend, §12.2) ---------------------------------
     #
