@@ -39,8 +39,11 @@ __all__ = [
     "RepositorioIncidencias",
     "RepositorioInsumos",
     "RepositorioMateriales",
+    "RepositorioNivelesEtapas",
     "RepositorioObras",
+    "RepositorioPresupuestos",
     "RepositorioProgramas",
+    "RepositorioPrototipoNodo",
     "RepositorioPrototipos",
     "RepositorioProyectos",
     "RepositorioRevisiones",
@@ -288,6 +291,112 @@ class RepositorioPrototipos(Protocol):
     # Solo la usa el cargador masivo (§7.2): la edición individual no tiene
     # endpoint PATCH todavía, así que este método no tiene otro llamador.
     async def actualizar(self, prototipo_id: UUID, campos: dict) -> None: ...
+
+
+@runtime_checkable
+class RepositorioPrototipoNodo(Protocol):
+    """Árbol WBS del prototipo (§7.4): nivel/etapa/concepto.
+
+    Hasta el cargador de presupuesto jerárquico (§10.6) nadie escribía esta
+    tabla — `RepositorioObras.arbol_prototipo` solo la lee (§11.1, otra
+    fachada, otro contexto). La clave de un nodo (`NIV-`, `ECO-`) no es
+    única por organización: se repite igual en cada prototipo, así que la
+    identidad natural es `(prototipo_id, clave)` (`uq_prototipo_nodo_clave`,
+    migración 0030).
+    """
+
+    async def por_prototipo(self, prototipo_id: UUID) -> list[dict]:
+        """Nodos vigentes del árbol de un prototipo, con clave.
+
+        La usa el aplicador para capturar el ``antes`` de cada nodo que va a
+        tocar —antes de llamar `upsert`— porque el `id` que conserva un
+        upsert no basta para revertir: la reversa necesita los valores
+        previos, no solo saber que la fila ya existía (§10.8).
+        """
+        ...
+
+    async def upsert(
+        self, prototipo_id: UUID, *, clave: str | None, datos: dict
+    ) -> tuple[UUID, bool]:
+        """Inserta o actualiza por `(org_id, prototipo_id, clave)`.
+
+        Conserva el `id` existente en una recarga —a propósito: lo
+        referencian por igualdad literal `programa_base_item.
+        prototipo_nodo_id` y `actividad.prototipo_nodo_id`
+        (`domain.programacion.reglas`); regenerar ids en cada carga
+        rompería esas referencias en silencio. `clave=None` (si algún nodo
+        no trae una) siempre inserta: sin identidad natural no hay con qué
+        hacer match. Devuelve `(id, es_alta)`.
+        """
+        ...
+
+
+@runtime_checkable
+class RepositorioNivelesEtapas(Protocol):
+    """Catálogo de niveles y etapas de construcción (§10.1), compartido por
+    toda la organización — no por prototipo, `uq_nivel_clave`/
+    `uq_etapa_clave` son `(org_id, clave)`.
+
+    Sin escritor hasta el cargador de presupuesto jerárquico. La primera
+    carga que trae una clave define su descripción; una carga posterior con
+    la misma clave y otra descripción **no la sobreescribe** (es texto, no
+    afecta ningún cálculo — a diferencia de una composición de concepto en
+    conflicto, que si se sobreescribiera silenciosamente sí distorsionaría
+    un precio).
+    """
+
+    async def upsert_nivel(self, *, clave: str, descripcion: str, orden: int) -> UUID: ...
+
+    async def upsert_etapa(
+        self, *, clave: str, descripcion: str, nivel_id: UUID | None, orden: int
+    ) -> UUID: ...
+
+
+@runtime_checkable
+class RepositorioPresupuestos(Protocol):
+    """Presupuesto de un prototipo y sus partidas (§7.3, §7.4).
+
+    Solo lectura hasta el cargador de presupuesto jerárquico — `presupuesto`
+    entra por carga de Excel y se versiona ahí (§10.8); un endpoint que lo
+    dejara capturar a mano abriría un segundo camino de alta con otro
+    versionado (`adapters/api/v1/presupuesto.py`, docstring del router).
+    """
+
+    async def vigente_de_prototipo(self, prototipo_id: UUID) -> dict | None: ...
+
+    async def presupuesto_de_obra(self, obra_id: UUID) -> dict | None: ...
+
+    async def partidas(self, presupuesto_id: UUID) -> list[dict]: ...
+
+    async def versiones_de_prototipo(self, prototipo_id: UUID) -> list[dict]: ...
+
+    async def rendimiento_por_concepto(self, obra_id: UUID) -> list[dict]: ...
+
+    async def rendimiento_por_cuadrilla(self, obra_id: UUID) -> list[dict]: ...
+
+    async def resumen_por_obra(self, *, proyecto_id: UUID | None = None) -> list[dict]: ...
+
+    async def crear_version(
+        self, prototipo_id: UUID, *, origen: str, carga_id: UUID | None
+    ) -> dict:
+        """Retira el vigente anterior (si hay) e inserta la versión
+        siguiente como vigente (§10.8). Mismo orden que
+        `RepositorioConceptos.publicar_version_cpu`: `uq_presupuesto_vigente`
+        es un índice único parcial y no diferible, así que primero se retira
+        y luego se inserta. El resultado incluye ``anterior_id`` —el `id`
+        de la versión que quedó en `vigente=false`, o `None` si no había
+        ninguna— para que el aplicador pueda registrar esa operación y la
+        reversa la restaure."""
+        ...
+
+    async def agregar_partidas(
+        self, presupuesto_id: UUID, partidas: list[dict]
+    ) -> list[dict]:
+        """Inserta las partidas y devuelve las filas persistidas, completas,
+        para el snapshot del lote (§10.8)."""
+        ...
+
+    async def actualizar_monto_total(self, presupuesto_id: UUID, monto_total: Decimal) -> None: ...
 
 
 @runtime_checkable

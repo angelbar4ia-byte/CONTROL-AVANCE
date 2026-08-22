@@ -77,8 +77,19 @@ _ELIMINAR: dict[str, str] = {
         "explosion",
         "salida_almacen",
         "prototipo",
+        "prototipo_nodo",
+        "presupuesto",
+        "partida_presupuesto",
     )
 }
+# `nivel`/`etapa_constructiva` NO están aquí a propósito: el cargador de
+# presupuesto jerárquico los puebla, pero son catálogo compartido por
+# organización (`uq_nivel_clave`/`uq_etapa_clave`, no por prototipo) — la
+# misma clave la puede haber creado un prototipo de OTRA carga ya
+# confirmada. Revertir esta carga no puede saber si borrar es seguro, así
+# que se queda (mismo criterio que un valor de enum de más: inerte, no
+# estorba). Solo se revierten `prototipo_nodo`/`presupuesto`/
+# `partida_presupuesto`, que sí son propios de este prototipo y esta carga.
 
 _RESTAURAR: dict[str, str] = {
     "insumo": """
@@ -129,6 +140,27 @@ _RESTAURAR: dict[str, str] = {
             recamaras = cast(a.j->>'recamaras' as smallint)
         from a
         where prototipo.id = cast(:id as uuid)
+    """,
+    "prototipo_nodo": """
+        with a as (select cast(:antes as jsonb) as j)
+        update prototipo_nodo set
+            parent_id   = cast(a.j->>'parent_id' as uuid),
+            tipo        = cast(a.j->>'tipo' as tipo_prototipo_nodo),
+            nombre      = a.j->>'nombre',
+            concepto_id = cast(a.j->>'concepto_id' as uuid),
+            nivel_id    = cast(a.j->>'nivel_id' as uuid),
+            etapa_id    = cast(a.j->>'etapa_id' as uuid),
+            orden       = cast(a.j->>'orden' as integer),
+            cantidad    = cast(a.j->>'cantidad' as numeric)
+        from a
+        where prototipo_nodo.id = cast(:id as uuid)
+    """,
+    "presupuesto": """
+        with a as (select cast(:antes as jsonb) as j)
+        update presupuesto set
+            vigente = cast(a.j->>'vigente' as boolean)
+        from a
+        where presupuesto.id = cast(:id as uuid)
     """,
 }
 

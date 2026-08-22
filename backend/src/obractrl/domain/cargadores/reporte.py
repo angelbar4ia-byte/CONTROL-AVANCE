@@ -60,6 +60,12 @@ class TipoPendiente(StrEnum):
     MOTIVO_ALMACEN = "motivo_almacen"
     """Motivo de almacén no catalogado (§10.5): sin él no hay bucket de KPI."""
 
+    CONCEPTO_EN_CONFLICTO = "concepto_en_conflicto"
+    """Dos prototipos traen composiciones distintas para la misma clave de
+    concepto (extensión propia, cargador de presupuesto jerárquico). El
+    catálogo compartido se queda como estaba — no se sobreescribe en
+    automático — hasta que alguien lo resuelva a mano."""
+
 
 @dataclass(frozen=True, slots=True)
 class ErrorDeFila:

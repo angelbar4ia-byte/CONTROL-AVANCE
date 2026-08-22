@@ -30,6 +30,7 @@ respuesta está aquí y no en una política olvidada.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -38,10 +39,114 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 __all__ = ["RepositorioPresupuestosSQL"]
 
+_COLUMNAS_VERSION = "id, prototipo_id, version, vigente, origen, carga_id, monto_total, created_at"
+
 
 class RepositorioPresupuestosSQL:
     def __init__(self, sesion: AsyncSession) -> None:
         self._sesion = sesion
+
+    # --- Escritura (cargador de presupuesto jerárquico, §10.8) ----------
+
+    async def crear_version(
+        self, prototipo_id: UUID, *, origen: str, carga_id: UUID | None
+    ) -> dict[str, Any]:
+        """Retira el vigente anterior e inserta la versión siguiente como
+        vigente, en una sola sentencia — `uq_presupuesto_vigente` es un
+        índice único parcial y no diferible, así que retirar tiene que
+        pasar antes de insertar (mismo orden que `publicar_version_cpu`).
+        La CTE `retirado` se ejecuta aunque nada lea su resultado en el
+        `insert`: es una CTE con efecto de escritura, Postgres no la puede
+        optimizar fuera. Sí se expone como ``anterior_id`` en el resultado
+        —la fila que quedó en `vigente=false`— porque el aplicador necesita
+        registrar esa operación para que la reversa la restaure (§10.8): el
+        `id` nuevo no basta, hay que saber a cuál se le apagó el vigente.
+        """
+        columnas_nuevo = ", ".join(f"nuevo.{c}" for c in _COLUMNAS_VERSION.split(", "))
+        fila = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    with retirado as (
+                        update presupuesto
+                           set vigente = false
+                         where org_id = cast(current_setting('app.org_id') as uuid)
+                           and prototipo_id = :prototipo_id
+                           and vigente
+                        returning id
+                    ),
+                    siguiente as (
+                        select coalesce(max(version), 0) + 1 as v
+                          from presupuesto
+                         where org_id = cast(current_setting('app.org_id') as uuid)
+                           and prototipo_id = :prototipo_id
+                    ),
+                    nuevo as (
+                        insert into presupuesto (org_id, prototipo_id, version, vigente, origen, carga_id)
+                        select cast(current_setting('app.org_id') as uuid), :prototipo_id,
+                               siguiente.v, true, :origen, cast(:carga_id as uuid)
+                          from siguiente
+                        returning {_COLUMNAS_VERSION}
+                    )
+                    select {columnas_nuevo}, retirado.id as anterior_id
+                      from nuevo
+                      left join retirado on true
+                    """
+                ),
+                {
+                    "prototipo_id": str(prototipo_id),
+                    "origen": origen,
+                    "carga_id": str(carga_id) if carga_id else None,
+                },
+            )
+        ).mappings().one()
+        return dict(fila)
+
+    async def agregar_partidas(
+        self, presupuesto_id: UUID, partidas: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Inserta las partidas y devuelve las filas persistidas, completas,
+        para el snapshot del lote (§10.8). Claves esperadas por partida:
+        ``concepto_id``, ``prototipo_nodo_id``, ``cantidad``,
+        ``precio_unitario``, ``importe``, ``orden``.
+        """
+        insertadas: list[dict[str, Any]] = []
+        for partida in partidas:
+            fila = (
+                await self._sesion.execute(
+                    text(
+                        """
+                        insert into partida_presupuesto
+                            (org_id, presupuesto_id, concepto_id, prototipo_nodo_id,
+                             cantidad, precio_unitario, importe, orden)
+                        values
+                            (cast(current_setting('app.org_id') as uuid), :presupuesto_id,
+                             cast(:concepto_id as uuid), cast(:prototipo_nodo_id as uuid),
+                             cast(:cantidad as numeric), cast(:precio_unitario as numeric),
+                             cast(:importe as numeric), :orden)
+                        returning id, concepto_id, prototipo_nodo_id, cantidad,
+                                  precio_unitario, importe, orden
+                        """
+                    ),
+                    {
+                        "presupuesto_id": str(presupuesto_id),
+                        "concepto_id": str(partida["concepto_id"]),
+                        "prototipo_nodo_id": str(partida["prototipo_nodo_id"]),
+                        "cantidad": partida["cantidad"],
+                        "precio_unitario": partida["precio_unitario"],
+                        "importe": partida["importe"],
+                        "orden": partida.get("orden", 0),
+                    },
+                )
+            ).mappings().one()
+            insertadas.append(dict(fila))
+        return insertadas
+
+    async def actualizar_monto_total(self, presupuesto_id: UUID, monto_total: Decimal) -> None:
+        await self._sesion.execute(
+            text("update presupuesto set monto_total = :monto where id = :id"),
+            {"id": str(presupuesto_id), "monto": monto_total},
+        )
 
     # --- Presupuesto ----------------------------------------------------
 
