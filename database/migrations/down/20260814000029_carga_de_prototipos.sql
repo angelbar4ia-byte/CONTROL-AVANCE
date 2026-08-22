@@ -1,0 +1,9 @@
+-- down · 0029 · Carga masiva de prototipos
+--
+-- EL VALOR DEL ENUM SE QUEDA
+--
+-- Mismo caso que la 0019 (`almacen`): Postgres no tiene
+-- `alter type ... drop value`. Quitar `'prototipos'` de `tipo_carga`
+-- obligaría a recrear el tipo entero y reescribir cada columna que lo usa
+-- —y a fallar si alguna carga ya lo tiene—. Un valor de enum de más es
+-- inerte: nada lo emite si el código que lo emitía se revirtió. Se queda.
