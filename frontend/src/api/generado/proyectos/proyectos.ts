@@ -39,6 +39,7 @@ import type {
   ListarClustersApiV1ClustersGetParams,
   ListarFrentesApiV1FrentesGetParams,
   ListarPrototiposApiV1PrototiposGetParams,
+  NodoPrototipoRespuesta,
   PrototipoRespuesta,
   ProyectoRespuesta
 } from '.././modelo';
@@ -743,6 +744,175 @@ export const useCrearPrototipoApiV1PrototiposPost = <TError = void,
       return useMutation(mutationOptions, queryClient);
     }
     /**
+ * Nodos del prototipo en recorrido padre-antes-que-hijos (§7.4), listos
+para anidar en el front sin volver a ordenar. Los da de alta el
+cargador de presupuesto jerárquico (§10.6); un prototipo sin ingeniería
+cargada todavía devuelve una lista vacía, no un error.
+ * @summary Árbol WBS del prototipo: nivel → etapa → concepto
+ */
+export const listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet = (
+    prototipoId: string,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<NodoPrototipoRespuesta[]>(
+      {url: `/api/v1/prototipos/${prototipoId}/nodos`, method: 'GET', signal
+    },
+      options);
+    }
+  
+
+
+
+export const getListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetInfiniteQueryKey = (prototipoId?: string,) => {
+    return [
+    'infinite', `/api/v1/prototipos/${prototipoId}/nodos`
+    ] as const;
+    }
+
+export const getListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetQueryKey = (prototipoId?: string,) => {
+    return [
+    `/api/v1/prototipos/${prototipoId}/nodos`
+    ] as const;
+    }
+
+    
+export const getListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>>, TError = HTTPValidationError>(prototipoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetInfiniteQueryKey(prototipoId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>> = ({ signal }) => listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet(prototipoId, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(prototipoId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>>
+export type ListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetInfiniteQueryError = HTTPValidationError
+
+
+export function useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>>, TError = HTTPValidationError>(
+ prototipoId: string, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>>, TError = HTTPValidationError>(
+ prototipoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>>, TError = HTTPValidationError>(
+ prototipoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Árbol WBS del prototipo: nivel → etapa → concepto
+ */
+
+export function useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>>, TError = HTTPValidationError>(
+ prototipoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetInfiniteQueryOptions(prototipoId,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetQueryOptions = <TData = Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError = HTTPValidationError>(prototipoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetQueryKey(prototipoId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>> = ({ signal }) => listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet(prototipoId, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(prototipoId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>>
+export type ListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetQueryError = HTTPValidationError
+
+
+export function useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet<TData = Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError = HTTPValidationError>(
+ prototipoId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet<TData = Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError = HTTPValidationError>(
+ prototipoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet<TData = Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError = HTTPValidationError>(
+ prototipoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Árbol WBS del prototipo: nivel → etapa → concepto
+ */
+
+export function useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet<TData = Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError = HTTPValidationError>(
+ prototipoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGetQueryOptions(prototipoId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
  * Todos los roles: el catálogo de frentes alimenta filtros y Gantt (§8.3).
 
 Es semilla editable de organización (§8.7), así que RLS lo acota por org

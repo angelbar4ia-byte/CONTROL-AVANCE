@@ -315,6 +315,15 @@ class RepositorioPrototipoNodo(Protocol):
         """
         ...
 
+    async def arbol(self, prototipo_id: UUID) -> list[dict]:
+        """Los mismos nodos que `por_prototipo`, en recorrido en profundidad
+        padre-antes-que-hijos (mismo criterio que
+        `RepositorioObras.arbol_prototipo`, §11.1): lo que pinta la pantalla
+        de Prototipos y, con los `programa_base_item` superpuestos por
+        `prototipo_nodo_id`, la de Programas base.
+        """
+        ...
+
     async def upsert(
         self, prototipo_id: UUID, *, clave: str | None, datos: dict
     ) -> tuple[UUID, bool]:

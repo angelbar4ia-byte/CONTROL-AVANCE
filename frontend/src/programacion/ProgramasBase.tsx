@@ -11,7 +11,7 @@
  * Programación (`POST /obras/{id}/programa`). Aquí no se instancia nada.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 
 import {
   useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet,
@@ -19,11 +19,13 @@ import {
 } from '@/api/generado/programacion/programacion';
 import {
   useListarFrentesApiV1FrentesGet,
+  useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet,
   useListarPrototiposApiV1PrototiposGet,
 } from '@/api/generado/proyectos/proyectos';
 import type {
   FrenteRespuesta,
   ItemProgramaBaseRespuesta,
+  NodoPrototipoRespuesta,
   ProgramaBaseRespuesta,
   PrototipoRespuesta,
 } from '@/api/generado/modelo';
@@ -31,6 +33,8 @@ import type { ErrorApi } from '@/api/cliente';
 import { useSesion } from '@/app/sesion';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { fmtNum } from '@/lib/formato';
+import { ArbolPrototipo } from '@/proyectos/ArbolPrototipo';
+import { armarArbolPrototipo } from '@/proyectos/nodosPrototipo';
 import { AltaProgramaBase } from './AltaProgramaBase';
 import { etiquetaTipoDependencia, puedeAdministrarProgramasBase } from './reglas';
 
@@ -72,6 +76,65 @@ export default function ProgramasBase() {
     ErrorApi
   >(abierto ?? '', { query: { enabled: abierto !== null } });
 
+  const baseAbierta = useMemo(() => bases.find((base) => base.id === abierto) ?? null, [bases, abierto]);
+
+  const nodosQ = useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet<
+    NodoPrototipoRespuesta[],
+    ErrorApi
+  >(baseAbierta?.prototipo_id ?? '', { query: { enabled: baseAbierta !== null } });
+
+  const items = useMemo(() => itemsQ.data ?? [], [itemsQ.data]);
+  const arbol = useMemo(() => armarArbolPrototipo(nodosQ.data ?? []), [nodosQ.data]);
+
+  const itemPorNodo = useMemo(() => {
+    const mapa = new Map<string, ItemProgramaBaseRespuesta>();
+    for (const item of items) {
+      if (item.prototipo_nodo_id) mapa.set(item.prototipo_nodo_id, item);
+    }
+    return mapa;
+  }, [items]);
+
+  // Renglones que no se pueden colgar del árbol —sin `prototipo_nodo_id`, o
+  // apuntando a un nodo que ya no está en su prototipo— para no perderlos de
+  // la vista en vez de dejarlos desaparecer en silencio.
+  const itemsSinNodo = useMemo(() => {
+    const idsDelArbol = new Set((nodosQ.data ?? []).map((nodo) => nodo.id));
+    return items.filter(
+      (item) => !item.prototipo_nodo_id || !idsDelArbol.has(item.prototipo_nodo_id),
+    );
+  }, [items, nodosQ.data]);
+
+  function renglonDeNodo(nodo: NodoPrototipoRespuesta): ReactNode {
+    const item = itemPorNodo.get(nodo.id);
+    if (!item) return null;
+    const frente = frentes.find((f) => f.id === item.frente_id);
+    const dependencias = item.dependencias
+      .map(
+        (dependencia) =>
+          `${dependencia.ref.slice(0, 8)} (${etiquetaTipoDependencia(dependencia.tipo)}${
+            (dependencia.lag_dias ?? 0) !== 0 ? `, lag ${dependencia.lag_dias}` : ''
+          })`,
+      )
+      .join(' · ');
+    return (
+      <>
+        <span className="tree__meta tnum" title="Duración (días)">
+          {fmtNum(item.duracion_dias)} d
+        </span>
+        {frente && (
+          <span className="badge badge--outline" title={`${frente.clave} · ${frente.nombre}`}>
+            {frente.clave}
+          </span>
+        )}
+        {item.dependencias.length > 0 && (
+          <span className="badge badge--outline" title={dependencias}>
+            {item.dependencias.length} dep.
+          </span>
+        )}
+      </>
+    );
+  }
+
   if (!sesion || rol === null) return null;
 
   if (!administra) {
@@ -90,7 +153,7 @@ export default function ProgramasBase() {
     );
   }
 
-  const errores = [prototiposQ.error, basesQ.error, itemsQ.error].filter(
+  const errores = [prototiposQ.error, basesQ.error, itemsQ.error, nodosQ.error].filter(
     (error): error is ErrorApi => error !== null && error !== undefined,
   );
 
@@ -217,66 +280,75 @@ export default function ProgramasBase() {
 
       {abierto !== null && (
         <div className="table-wrap mt-16">
-          <div className="table-scroll">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th className="is-num">Orden</th>
-                  <th className="is-num">Duración (días)</th>
-                  <th>Frente</th>
-                  <th>Nodo del prototipo</th>
-                  <th>Dependencias</th>
-                </tr>
-              </thead>
-              <tbody>
-                {itemsQ.isLoading ? (
-                  <tr>
-                    <td colSpan={5}>
-                      <div className="text-mute text-sm" style={{ padding: '24px 0' }}>
-                        Cargando renglones…
-                      </div>
-                    </td>
-                  </tr>
-                ) : (itemsQ.data ?? []).length === 0 ? (
-                  <tr>
-                    <td colSpan={5}>
-                      <div className="text-mute text-sm" style={{ padding: '24px 0' }}>
-                        Este programa base no tiene renglones.
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  (itemsQ.data ?? []).map((item) => {
-                    const frente = frentes.find((f) => f.id === item.frente_id);
-                    return (
-                      <tr key={item.id}>
-                        <td className="is-num mono tnum">{item.orden}</td>
-                        <td className="is-num mono tnum">{fmtNum(item.duracion_dias)}</td>
-                        <td>
-                          {frente ? `${frente.clave} · ${frente.nombre}` : (item.frente_id ?? '—')}
-                        </td>
-                        <td className="mono text-xs">{item.prototipo_nodo_id ?? '—'}</td>
-                        <td className="text-xs">
-                          {item.dependencias.length === 0
-                            ? '—'
-                            : item.dependencias
-                                .map(
-                                  (dependencia) =>
-                                    `${dependencia.ref.slice(0, 8)} (${etiquetaTipoDependencia(dependencia.tipo)}${
-                                      (dependencia.lag_dias ?? 0) !== 0
-                                        ? `, lag ${dependencia.lag_dias}`
-                                        : ''
-                                    })`,
-                                )
-                                .join(' · ')}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+          {itemsQ.isLoading || nodosQ.isLoading ? (
+            <div className="text-mute text-sm" style={{ padding: '24px 0' }}>
+              Cargando renglones…
+            </div>
+          ) : items.length === 0 ? (
+            <div className="text-mute text-sm" style={{ padding: '24px 0' }}>
+              Este programa base no tiene renglones.
+            </div>
+          ) : (
+            <>
+              {/* Cada renglón cuelga de su nodo del árbol (nivel → etapa →
+                  concepto, §7.4): es la misma estructura de Prototipos, con
+                  duración/frente/dependencias superpuestos por
+                  `prototipo_nodo_id`. */}
+              <ArbolPrototipo nodos={arbol} extra={renglonDeNodo} expandirTodo />
+
+              {itemsSinNodo.length > 0 && (
+                <div className="mt-16">
+                  <div className="text-mute text-xs" style={{ padding: '4px 8px' }}>
+                    Renglones sin nodo del árbol ({itemsSinNodo.length}) — no están ligados a
+                    ningún nivel/etapa/concepto del prototipo, o el nodo al que apuntaban ya no
+                    existe:
+                  </div>
+                  <div className="table-scroll">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th className="is-num">Orden</th>
+                          <th className="is-num">Duración (días)</th>
+                          <th>Frente</th>
+                          <th>Dependencias</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {itemsSinNodo.map((item) => {
+                          const frente = frentes.find((f) => f.id === item.frente_id);
+                          return (
+                            <tr key={item.id}>
+                              <td className="is-num mono tnum">{item.orden}</td>
+                              <td className="is-num mono tnum">{fmtNum(item.duracion_dias)}</td>
+                              <td>
+                                {frente
+                                  ? `${frente.clave} · ${frente.nombre}`
+                                  : (item.frente_id ?? '—')}
+                              </td>
+                              <td className="text-xs">
+                                {item.dependencias.length === 0
+                                  ? '—'
+                                  : item.dependencias
+                                      .map(
+                                        (dependencia) =>
+                                          `${dependencia.ref.slice(0, 8)} (${etiquetaTipoDependencia(dependencia.tipo)}${
+                                            (dependencia.lag_dias ?? 0) !== 0
+                                              ? `, lag ${dependencia.lag_dias}`
+                                              : ''
+                                          })`,
+                                      )
+                                      .join(' · ')}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -29,6 +29,7 @@ from obractrl.adapters.api.casos_uso import (
 from obractrl.adapters.api.dependencias import SesionRLS, exigir_rol
 from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
 from obractrl.adapters.repos.frentes_sql import RepositorioFrentesSQL
+from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
 from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
 from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
 from obractrl.application.casos_uso.gestionar_proyecto import (
@@ -282,6 +283,41 @@ async def crear_prototipo(
         )
     )
     return PrototipoRespuesta.desde_dominio(creado.id, creado.prototipo)
+
+
+class NodoPrototipoRespuesta(BaseModel):
+    id: UUID
+    parent_id: UUID | None = None
+    tipo: Literal["nivel", "etapa", "concepto"]
+    nombre: str
+    clave: str | None = None
+    concepto_id: UUID | None = None
+    nivel_id: UUID | None = None
+    etapa_id: UUID | None = None
+    orden: int = 0
+    cantidad: Decimal | None = None
+    ponderacion: Decimal | None = None
+
+    @classmethod
+    def desde_fila(cls, fila: dict) -> NodoPrototipoRespuesta:
+        return cls(**fila)
+
+
+@router.get(
+    "/prototipos/{prototipo_id}/nodos",
+    response_model=list[NodoPrototipoRespuesta],
+    summary="Árbol WBS del prototipo: nivel → etapa → concepto",
+    dependencies=[CONFIGURA],
+)
+async def listar_nodos_de_prototipo(
+    prototipo_id: UUID, sesion: SesionRLS
+) -> list[NodoPrototipoRespuesta]:
+    """Nodos del prototipo en recorrido padre-antes-que-hijos (§7.4), listos
+    para anidar en el front sin volver a ordenar. Los da de alta el
+    cargador de presupuesto jerárquico (§10.6); un prototipo sin ingeniería
+    cargada todavía devuelve una lista vacía, no un error."""
+    filas = await RepositorioPrototipoNodoSQL(sesion).arbol(prototipo_id)
+    return [NodoPrototipoRespuesta.desde_fila(fila) for fila in filas]
 
 
 # --- Frentes -------------------------------------------------------------

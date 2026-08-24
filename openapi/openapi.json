@@ -1094,6 +1094,59 @@
         }
       }
     },
+    "/api/v1/prototipos/{prototipo_id}/nodos": {
+      "get": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Árbol WBS del prototipo: nivel → etapa → concepto",
+        "description": "Nodos del prototipo en recorrido padre-antes-que-hijos (§7.4), listos\npara anidar en el front sin volver a ordenar. Los da de alta el\ncargador de presupuesto jerárquico (§10.6); un prototipo sin ingeniería\ncargada todavía devuelve una lista vacía, no un error.",
+        "operationId": "listar_nodos_de_prototipo_api_v1_prototipos__prototipo_id__nodos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "prototipo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Prototipo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NodoPrototipoRespuesta"
+                  },
+                  "title": "Response Listar Nodos De Prototipo Api V1 Prototipos  Prototipo Id  Nodos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/frentes": {
       "get": {
         "tags": [
@@ -10876,6 +10929,123 @@
           "final"
         ],
         "title": "NivelEvaluacion"
+      },
+      "NodoPrototipoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "nivel",
+              "etapa",
+              "concepto"
+            ],
+            "title": "Tipo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "default": 0
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "ponderacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ponderacion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tipo",
+          "nombre"
+        ],
+        "title": "NodoPrototipoRespuesta"
       },
       "ObraGeneradaRespuesta": {
         "properties": {

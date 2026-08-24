@@ -44,6 +44,50 @@ class RepositorioPrototipoNodoSQL:
         ).mappings().all()
         return [dict(fila) for fila in filas]
 
+    async def arbol(self, prototipo_id: UUID) -> list[dict[str, Any]]:
+        """Los mismos nodos que `por_prototipo`, en recorrido en profundidad.
+
+        `orden` solo es comparable entre hermanos (es una columna por nivel,
+        no una posición global): un `ORDER BY orden` plano intercalaría
+        ramas distintas. El CTE recursivo arma la ruta de "orden"s desde la
+        raíz y ordena por esa ruta — mismo patrón ya probado en
+        `RepositorioObras.arbol_prototipo` (§11.1, ese lee para el workflow
+        A; este lee para pintar la pantalla).
+        """
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    with recursive arbol as (
+                        select id, parent_id, tipo, nombre, clave,
+                               concepto_id, nivel_id, etapa_id, orden,
+                               cantidad, ponderacion,
+                               array[orden] as ruta
+                        from prototipo_nodo
+                        where org_id = cast(current_setting('app.org_id') as uuid)
+                          and prototipo_id = :prototipo_id
+                          and parent_id is null
+
+                        union all
+
+                        select h.id, h.parent_id, h.tipo, h.nombre, h.clave,
+                               h.concepto_id, h.nivel_id, h.etapa_id, h.orden,
+                               h.cantidad, h.ponderacion,
+                               a.ruta || h.orden
+                        from prototipo_nodo h
+                        join arbol a on h.parent_id = a.id
+                    )
+                    select id, parent_id, tipo, nombre, clave, concepto_id,
+                           nivel_id, etapa_id, orden, cantidad, ponderacion
+                    from arbol
+                    order by ruta
+                    """
+                ),
+                {"prototipo_id": str(prototipo_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
     async def upsert(
         self, prototipo_id: UUID, *, clave: str | None, datos: dict[str, Any]
     ) -> tuple[UUID, bool]:
