@@ -1255,6 +1255,28 @@ _CATEGORIA_POR_TIPO_NODO: dict[TipoNodoPresupuesto, CategoriaExplosion] = {
 }
 
 
+def _clave_catalogo_concepto(nodo: NodoLeido, arbol: ArbolPrototipoCargado) -> str:
+    """La clave que identifica el concepto en el catálogo **compartido**.
+
+    Para `CONCEPTO`/`CONCEPTO_AUXILIAR` es la propia clave del archivo
+    (`EST-`, `SUB-`...): es catálogo real, la misma composición vale para
+    cualquier prototipo que la use — por diseño (§7.3).
+
+    Para una etapa que colapsa en concepto
+    (`es_etapa_con_componentes_directos`) **no existe tal cosa**: dos
+    prototipos comparten la misma clave de etapa (`ECO-...`) para un paso
+    que no tiene por qué costar lo mismo en cada uno —es la estructura del
+    archivo real, no una excepción—, así que no hay "la vigente" que
+    compartir. Se aísla con la clave del prototipo para que cada uno tenga
+    su propia fila de `concepto`/`explosion`/`cpu` y nunca compitan por
+    cuál es la buena: ni conflicto que resolver, ni riesgo de que el
+    catálogo compartido termine con la composición de un prototipo ajeno.
+    """
+    if nodo.tipo is TipoNodoPresupuesto.ETAPA:
+        return f"{nodo.clave}~{arbol.clave_prototipo}"
+    return nodo.clave
+
+
 class AplicadorPresupuesto:
     """Árbol de un prototipo (nivel → etapa → concepto) y su presupuesto
     (§7.4, §7.3, extensión propia — no está en el §10.6).
@@ -1722,9 +1744,13 @@ class AplicadorPresupuesto:
             contadores["conceptos_omitidos"] += 1
             return
 
+        clave_catalogo = _clave_catalogo_concepto(nodo, arbol)
+
         try:
             precio = calcular_cpu(
-                nodo.clave, composiciones={nodo.clave: componentes}, costos_insumo=costos_insumo
+                clave_catalogo,
+                composiciones={clave_catalogo: componentes},
+                costos_insumo=costos_insumo,
             )
         except ErrorDeAPU as exc:
             errores.append(
@@ -1733,7 +1759,7 @@ class AplicadorPresupuesto:
             contadores["conceptos_omitidos"] += 1
             return
 
-        actual = catalogo_conceptos.get(nodo.clave)
+        actual = catalogo_conceptos.get(clave_catalogo)
 
         unidad_id = actual.get("unidad_id") if actual else None
         if nodo.unidad:
@@ -1756,7 +1782,7 @@ class AplicadorPresupuesto:
         diferente = False
         concepto_id: UUID | None = actual["id"] if actual else None
         if actual is not None:
-            firma_vigente = firma_cache.get(nodo.clave)
+            firma_vigente = firma_cache.get(clave_catalogo)
             if firma_vigente is None:
                 # Sin firma en caché, `actual` solo puede venir del catálogo
                 # real (no de una simulación en dry_run de este mismo
@@ -1765,7 +1791,7 @@ class AplicadorPresupuesto:
                 assert concepto_id is not None  # noqa: S101
                 filas_previas = await self._conceptos.explosion_directa(concepto_id)
                 firma_vigente = _firma_explosion(filas_previas, clave_de_insumo)
-                firma_cache[nodo.clave] = firma_vigente
+                firma_cache[clave_catalogo] = firma_vigente
             diferente = firma_vigente != firma_nueva
 
         conflicto = False
@@ -1798,7 +1824,7 @@ class AplicadorPresupuesto:
                 PendientePropuesto(
                     tipo=TipoPendiente.CONCEPTO_EN_CONFLICTO,
                     entidad="concepto",
-                    valor_origen=nodo.clave,
+                    valor_origen=clave_catalogo,
                     propuesta={
                         "prototipo": arbol.clave_prototipo,
                         "accion": (
@@ -1821,14 +1847,16 @@ class AplicadorPresupuesto:
                 concepto_id = await self._conceptos.crear(
                     {
                         "tipo": str(tipo_concepto),
-                        "clave": nodo.clave,
+                        "clave": clave_catalogo,
                         "descripcion": nodo.descripcion,
                         "unidad_id": unidad_id,
                         "familia_id": None,
                     }
                 )
                 operaciones.append(
-                    _operacion("concepto", concepto_id, "insert", despues={"clave": nodo.clave})
+                    _operacion(
+                        "concepto", concepto_id, "insert", despues={"clave": clave_catalogo}
+                    )
                 )
                 operaciones.extend(
                     await _publicar_cpu_de_concepto(
@@ -1836,17 +1864,17 @@ class AplicadorPresupuesto:
                     )
                 )
 
-            claves_nuevas.add(nodo.clave)
-            catalogo_conceptos[nodo.clave] = {
+            claves_nuevas.add(clave_catalogo)
+            catalogo_conceptos[clave_catalogo] = {
                 "id": concepto_id,
                 "tipo": str(tipo_concepto),
-                "clave": nodo.clave,
+                "clave": clave_catalogo,
                 "descripcion": nodo.descripcion,
                 "unidad_id": unidad_id,
                 "familia_id": None,
                 "estatus": "activo",
             }
-            firma_cache[nodo.clave] = firma_nueva
+            firma_cache[clave_catalogo] = firma_nueva
         elif diferente:
             # Composición distinta pero nadie más vigente depende de ella:
             # actualización legítima (típicamente este mismo prototipo
@@ -1880,13 +1908,13 @@ class AplicadorPresupuesto:
                     )
                 )
 
-            claves_actualizadas.add(nodo.clave)
-            catalogo_conceptos[nodo.clave] = {
+            claves_actualizadas.add(clave_catalogo)
+            catalogo_conceptos[clave_catalogo] = {
                 **actual,
                 "descripcion": nodo.descripcion,
                 "unidad_id": unidad_id,
             }
-            firma_cache[nodo.clave] = firma_nueva
+            firma_cache[clave_catalogo] = firma_nueva
         else:
             # Sin conflicto, ya existía, misma composición: "si es idéntico,
             # no crea versión" (§10.8) — no se toca `concepto`/`explosion`/
