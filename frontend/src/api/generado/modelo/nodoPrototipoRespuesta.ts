@@ -13,6 +13,7 @@ import type { NodoPrototipoRespuestaNivelId } from './nodoPrototipoRespuestaNive
 import type { NodoPrototipoRespuestaEtapaId } from './nodoPrototipoRespuestaEtapaId';
 import type { NodoPrototipoRespuestaCantidad } from './nodoPrototipoRespuestaCantidad';
 import type { NodoPrototipoRespuestaPonderacion } from './nodoPrototipoRespuestaPonderacion';
+import type { NodoPrototipoRespuestaConceptoTipo } from './nodoPrototipoRespuestaConceptoTipo';
 
 export interface NodoPrototipoRespuesta {
   id: string;
@@ -26,4 +27,6 @@ export interface NodoPrototipoRespuesta {
   orden?: number;
   cantidad?: NodoPrototipoRespuestaCantidad;
   ponderacion?: NodoPrototipoRespuestaPonderacion;
+  /** `tipo` no distingue concepto de concepto auxiliar —los dos se guardan como 'concepto', §10.1—; este campo sí, tomado del catálogo. `null` en nodos sin `concepto_id` (nivel/etapa). */
+  concepto_tipo?: NodoPrototipoRespuestaConceptoTipo;
 }

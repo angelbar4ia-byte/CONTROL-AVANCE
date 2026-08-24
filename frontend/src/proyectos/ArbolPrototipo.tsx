@@ -1,7 +1,7 @@
 /**
- * Árbol WBS de un prototipo: nivel → etapa → concepto (§7.4), con los
- * estilos `.tree*` del sistema de diseño — mismo patrón que `ArbolProyecto`
- * y `ArbolExplosion`.
+ * Árbol WBS de un prototipo: prototipo → nivel → etapa → concepto/concepto
+ * auxiliar (§7.4, §10.1), con los estilos `.tree*` del sistema de diseño —
+ * mismo patrón que `ArbolProyecto` y `ArbolExplosion`.
  *
  * Se detiene en concepto: sus componentes (material/mano de obra/
  * subcontrato) arman su APU, pero eso es la explosión del CPU (§7.3,
@@ -15,40 +15,52 @@
  */
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { Building2, ChevronDown, ChevronRight, Layers, Milestone } from 'lucide-react';
+import {
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  Home,
+  Layers,
+  Milestone,
+  Puzzle,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-import type {
-  NodoPrototipoRespuesta,
-  PartidaRespuesta,
-  PresupuestoRespuesta,
-} from '@/api/generado/modelo';
+import type { PartidaRespuesta, PresupuestoRespuesta } from '@/api/generado/modelo';
 import { fmtMXN, fmtNum } from '@/lib/formato';
-import { sumarImportesPorNodo, type NodoArbolPrototipo } from './nodosPrototipo';
+import {
+  sumarImportesPorNodo,
+  type NodoArbolPrototipo,
+  type TipoNodoArbol,
+} from './nodosPrototipo';
 
 interface Props {
-  readonly nodos: readonly NodoArbolPrototipo[];
+  readonly raiz: NodoArbolPrototipo;
   /**
    * El presupuesto vigente del prototipo (§7.3): de aquí salen las columnas
    * de unidad/cantidad/PU/importe de cada concepto —unidas por
-   * `prototipo_nodo_id`—, el importe acumulado de cada nivel/etapa y el
-   * total del pie. Sin él —prototipo todavía sin presupuesto cargado— el
-   * concepto solo muestra su cantidad del árbol, si trae una.
+   * `prototipo_nodo_id`— y el importe acumulado de prototipo/nivel/etapa.
+   * El importe de la raíz usa `monto_total` directo (la cifra que ya
+   * calculó y guardó el backend) en vez de sumar en el cliente. Sin
+   * presupuesto —prototipo todavía sin cargar— el concepto solo muestra su
+   * cantidad del árbol, si trae una.
    */
   readonly presupuesto?: PresupuestoRespuesta;
   /** Contenido extra a la derecha del nombre (renglón de programa, etc). */
-  readonly extra?: (nodo: NodoPrototipoRespuesta) => ReactNode;
+  readonly extra?: (nodo: NodoArbolPrototipo) => ReactNode;
   /** Árboles chicos se leen mejor todos desplegados de entrada. */
   readonly expandirTodo?: boolean;
 }
 
-const ICONO_POR_TIPO: Record<NodoPrototipoRespuesta['tipo'], LucideIcon> = {
+const ICONO_POR_TIPO: Record<TipoNodoArbol, LucideIcon> = {
+  prototipo: Home,
   nivel: Building2,
   etapa: Milestone,
   concepto: Layers,
+  concepto_auxiliar: Puzzle,
 };
 
-export function ArbolPrototipo({ nodos, presupuesto, extra, expandirTodo = false }: Props) {
+export function ArbolPrototipo({ raiz, presupuesto, extra, expandirTodo = false }: Props) {
   const partidaPorNodo = useMemo(() => {
     const mapa = new Map<string, PartidaRespuesta>();
     for (const partida of presupuesto?.partidas ?? []) {
@@ -57,12 +69,15 @@ export function ArbolPrototipo({ nodos, presupuesto, extra, expandirTodo = false
     return mapa;
   }, [presupuesto]);
 
-  const importePorNodo = useMemo(
-    () => sumarImportesPorNodo(nodos, partidaPorNodo),
-    [nodos, partidaPorNodo],
-  );
+  const importePorNodo = useMemo(() => {
+    const mapa = new Map(sumarImportesPorNodo(raiz, partidaPorNodo));
+    // La raíz usa el monto_total que ya calculó el backend, no la suma del
+    // cliente: es la cifra vigente y persistida, no una re-derivación.
+    if (presupuesto) mapa.set(raiz.id, Number(presupuesto.monto_total));
+    return mapa;
+  }, [raiz, partidaPorNodo, presupuesto]);
 
-  if (nodos.length === 0) {
+  if (raiz.hijos.length === 0) {
     return (
       <div className="text-mute text-sm" style={{ padding: '16px 8px' }}>
         Este prototipo no tiene ingeniería cargada todavía: su árbol está vacío (§7.4).
@@ -80,29 +95,14 @@ export function ArbolPrototipo({ nodos, presupuesto, extra, expandirTodo = false
         <span className="tree__col-importe">Importe</span>
       </div>
 
-      {nodos.map((nodo) => (
-        <Nodo
-          key={nodo.nodo.id}
-          nodo={nodo}
-          partidaPorNodo={partidaPorNodo}
-          importePorNodo={importePorNodo}
-          extra={extra}
-          expandirTodo={expandirTodo}
-        />
-      ))}
-
-      {presupuesto && (
-        <div className="tree__total">
-          <span className="tree__caret" aria-hidden />
-          <span className="tree__name text-mute">
-            Presupuesto vigente · versión {presupuesto.version}
-          </span>
-          <span className="tree__col-unidad" aria-hidden />
-          <span className="tree__col-cantidad" aria-hidden />
-          <span className="tree__col-pu" aria-hidden />
-          <span className="tree__col-importe tnum">{fmtMXN(presupuesto.monto_total)}</span>
-        </div>
-      )}
+      <Nodo
+        nodo={raiz}
+        partidaPorNodo={partidaPorNodo}
+        importePorNodo={importePorNodo}
+        extra={extra}
+        expandirTodo={expandirTodo}
+        abiertoDeEntrada
+      />
     </div>
   );
 }
@@ -113,27 +113,28 @@ function Nodo({
   importePorNodo,
   extra,
   expandirTodo,
+  abiertoDeEntrada = false,
 }: {
   readonly nodo: NodoArbolPrototipo;
   readonly partidaPorNodo: ReadonlyMap<string, PartidaRespuesta>;
   readonly importePorNodo: ReadonlyMap<string, number>;
-  readonly extra?: ((nodo: NodoPrototipoRespuesta) => ReactNode) | undefined;
+  readonly extra?: ((nodo: NodoArbolPrototipo) => ReactNode) | undefined;
   readonly expandirTodo: boolean;
+  /** La raíz (el prototipo) arranca abierta: sin eso el árbol se ve vacío. */
+  readonly abiertoDeEntrada?: boolean;
 }) {
-  const [abierto, setAbierto] = useState(expandirTodo);
+  const [abierto, setAbierto] = useState(expandirTodo || abiertoDeEntrada);
   const anidable = nodo.hijos.length > 0;
-  const id = `prototipo-nodo-${nodo.nodo.id}`;
-  const Icono = ICONO_POR_TIPO[nodo.nodo.tipo];
-  const esConcepto = nodo.nodo.tipo === 'concepto';
-  const partida = esConcepto ? partidaPorNodo.get(nodo.nodo.id) : undefined;
-  const cantidadCruda = nodo.nodo.cantidad;
-  const importe = importePorNodo.get(nodo.nodo.id) ?? 0;
+  const id = `prototipo-nodo-${nodo.id}`;
+  const Icono = ICONO_POR_TIPO[nodo.tipo];
+  const esConcepto = nodo.tipo === 'concepto' || nodo.tipo === 'concepto_auxiliar';
+  const partida = esConcepto ? partidaPorNodo.get(nodo.id) : undefined;
+  const cantidadCruda = nodo.cantidad;
+  const importe = importePorNodo.get(nodo.id) ?? 0;
 
   const cantidadMostrada =
     partida?.cantidad ??
-    (cantidadCruda !== undefined && cantidadCruda !== null && Number(cantidadCruda) !== 0
-      ? cantidadCruda
-      : null);
+    (cantidadCruda !== null && Number(cantidadCruda) !== 0 ? cantidadCruda : null);
 
   const contenido = (
     <>
@@ -142,7 +143,12 @@ function Nodo({
       </span>
       <Icono className="tree__icon" size={16} strokeWidth={1.6} aria-hidden />
       <span className="tree__name">
-        {nodo.nodo.clave && <span className="mono">{nodo.nodo.clave}</span>} {nodo.nodo.nombre}
+        {nodo.clave && <span className="mono">{nodo.clave}</span>} {nodo.nombre}
+        {nodo.tipo === 'concepto_auxiliar' && (
+          <span className="badge badge--outline" style={{ marginLeft: 6 }}>
+            auxiliar
+          </span>
+        )}
       </span>
       <span className="tree__meta tree__col-unidad" title="Unidad">
         {esConcepto ? (partida?.unidad_clave ?? '') : ''}
@@ -156,7 +162,7 @@ function Nodo({
       <span className="tree__meta tnum tree__col-importe" title="Importe">
         {importe > 0 ? fmtMXN(importe) : ''}
       </span>
-      {extra?.(nodo.nodo)}
+      {extra?.(nodo)}
     </>
   );
 
@@ -180,7 +186,7 @@ function Nodo({
         <div className="tree__children" id={id}>
           {nodo.hijos.map((hijo) => (
             <Nodo
-              key={hijo.nodo.id}
+              key={hijo.id}
               nodo={hijo}
               partidaPorNodo={partidaPorNodo}
               importePorNodo={importePorNodo}

@@ -38,7 +38,7 @@ from obractrl.application.casos_uso.gestionar_proyecto import (
     ComandoCrearProyecto,
 )
 from obractrl.domain.proyectos.reglas import Cluster, Prototipo, Proyecto
-from obractrl.domain.shared.diccionario import Rol
+from obractrl.domain.shared.diccionario import Rol, TipoConcepto
 
 router = APIRouter(tags=["proyectos"])
 
@@ -297,6 +297,14 @@ class NodoPrototipoRespuesta(BaseModel):
     orden: int = 0
     cantidad: Decimal | None = None
     ponderacion: Decimal | None = None
+    concepto_tipo: TipoConcepto | None = Field(
+        default=None,
+        description=(
+            "`tipo` no distingue concepto de concepto auxiliar —los dos se "
+            "guardan como 'concepto', §10.1—; este campo sí, tomado del "
+            "catálogo. `null` en nodos sin `concepto_id` (nivel/etapa)."
+        ),
+    )
 
     @classmethod
     def desde_fila(cls, fila: dict) -> NodoPrototipoRespuesta:
