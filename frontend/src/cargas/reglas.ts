@@ -19,11 +19,11 @@ const ETIQUETA_TIPO: Record<string, string> = {
   contratistas: 'Contratistas',
   unidades: 'Unidades',
   familias: 'Familias',
-  presupuesto: 'Presupuesto',
+  presupuesto: 'Presupuesto (ingeniería por prototipo)',
   programa_base: 'Programa base',
   obras: 'Obras',
   almacen: 'Salidas de almacén',
-  prototipos: 'Prototipos',
+  prototipos: 'Prototipos (alta masiva)',
 };
 
 export const TIPOS: readonly TipoCarga[] = Object.values(TipoCarga);
