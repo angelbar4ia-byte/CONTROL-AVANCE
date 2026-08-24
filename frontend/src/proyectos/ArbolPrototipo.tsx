@@ -9,16 +9,23 @@
  * sin que este componente tenga que conocer esos contratos.
  */
 
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Building2, ChevronDown, ChevronRight, Layers, Milestone } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-import type { NodoPrototipoRespuesta } from '@/api/generado/modelo';
-import { fmtNum } from '@/lib/formato';
+import type { NodoPrototipoRespuesta, PartidaRespuesta } from '@/api/generado/modelo';
+import { fmtMXN, fmtNum } from '@/lib/formato';
 import type { NodoArbolPrototipo } from './nodosPrototipo';
 
 interface Props {
   readonly nodos: readonly NodoArbolPrototipo[];
+  /**
+   * Partidas del presupuesto vigente del prototipo (§7.3): de aquí salen
+   * las columnas de unidad/cantidad/PU/importe de cada concepto, unidas por
+   * `prototipo_nodo_id`. Sin ellas —prototipo todavía sin presupuesto
+   * cargado— el concepto solo muestra su cantidad del árbol, si trae una.
+   */
+  readonly partidas?: readonly PartidaRespuesta[];
   /** Contenido extra a la derecha del nombre (renglón de programa, etc). */
   readonly extra?: (nodo: NodoPrototipoRespuesta) => ReactNode;
   /** Árboles chicos se leen mejor todos desplegados de entrada. */
@@ -31,7 +38,15 @@ const ICONO_POR_TIPO: Record<NodoPrototipoRespuesta['tipo'], LucideIcon> = {
   concepto: Layers,
 };
 
-export function ArbolPrototipo({ nodos, extra, expandirTodo = false }: Props) {
+export function ArbolPrototipo({ nodos, partidas, extra, expandirTodo = false }: Props) {
+  const partidaPorNodo = useMemo(() => {
+    const mapa = new Map<string, PartidaRespuesta>();
+    for (const partida of partidas ?? []) {
+      if (partida.prototipo_nodo_id) mapa.set(partida.prototipo_nodo_id, partida);
+    }
+    return mapa;
+  }, [partidas]);
+
   if (nodos.length === 0) {
     return (
       <div className="text-mute text-sm" style={{ padding: '16px 8px' }}>
@@ -43,7 +58,13 @@ export function ArbolPrototipo({ nodos, extra, expandirTodo = false }: Props) {
   return (
     <div className="tree">
       {nodos.map((nodo) => (
-        <Nodo key={nodo.nodo.id} nodo={nodo} extra={extra} expandirTodo={expandirTodo} />
+        <Nodo
+          key={nodo.nodo.id}
+          nodo={nodo}
+          partidaPorNodo={partidaPorNodo}
+          extra={extra}
+          expandirTodo={expandirTodo}
+        />
       ))}
     </div>
   );
@@ -51,10 +72,12 @@ export function ArbolPrototipo({ nodos, extra, expandirTodo = false }: Props) {
 
 function Nodo({
   nodo,
+  partidaPorNodo,
   extra,
   expandirTodo,
 }: {
   readonly nodo: NodoArbolPrototipo;
+  readonly partidaPorNodo: ReadonlyMap<string, PartidaRespuesta>;
   readonly extra?: ((nodo: NodoPrototipoRespuesta) => ReactNode) | undefined;
   readonly expandirTodo: boolean;
 }) {
@@ -62,7 +85,9 @@ function Nodo({
   const anidable = nodo.hijos.length > 0;
   const id = `prototipo-nodo-${nodo.nodo.id}`;
   const Icono = ICONO_POR_TIPO[nodo.nodo.tipo];
-  const cantidad = nodo.nodo.cantidad;
+  const esConcepto = nodo.nodo.tipo === 'concepto';
+  const partida = esConcepto ? partidaPorNodo.get(nodo.nodo.id) : undefined;
+  const cantidadCruda = nodo.nodo.cantidad;
 
   const contenido = (
     <>
@@ -73,11 +98,33 @@ function Nodo({
       <span className="tree__name">
         {nodo.nodo.clave && <span className="mono">{nodo.nodo.clave}</span>} {nodo.nodo.nombre}
       </span>
-      {cantidad !== undefined && cantidad !== null && Number(cantidad) !== 0 && (
-        <span className="tree__meta tnum" title="Cantidad en este nodo del árbol">
-          {fmtNum(cantidad)}
-        </span>
-      )}
+      {esConcepto &&
+        (partida ? (
+          <>
+            {partida.unidad_clave && (
+              <span className="tree__meta" title="Unidad">
+                {partida.unidad_clave}
+              </span>
+            )}
+            <span className="tree__meta tnum" title="Cantidad">
+              {fmtNum(partida.cantidad)}
+            </span>
+            <span className="tree__meta tnum" title="Precio unitario">
+              {fmtMXN(partida.precio_unitario)}
+            </span>
+            <span className="tree__meta tnum" title="Importe">
+              {fmtMXN(partida.importe)}
+            </span>
+          </>
+        ) : (
+          cantidadCruda !== undefined &&
+          cantidadCruda !== null &&
+          Number(cantidadCruda) !== 0 && (
+            <span className="tree__meta tnum" title="Cantidad en este nodo del árbol">
+              {fmtNum(cantidadCruda)}
+            </span>
+          )
+        ))}
       {extra?.(nodo.nodo)}
     </>
   );
@@ -101,7 +148,13 @@ function Nodo({
       {anidable && abierto && (
         <div className="tree__children" id={id}>
           {nodo.hijos.map((hijo) => (
-            <Nodo key={hijo.nodo.id} nodo={hijo} extra={extra} expandirTodo={expandirTodo} />
+            <Nodo
+              key={hijo.nodo.id}
+              nodo={hijo}
+              partidaPorNodo={partidaPorNodo}
+              extra={extra}
+              expandirTodo={expandirTodo}
+            />
           ))}
         </div>
       )}
