@@ -52,6 +52,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorAlmacen,
     AplicadorCPU,
     AplicadorDeCarga,
+    AplicadorDePrototipos,
     AplicadorMateriales,
     AplicadorPresupuesto,
     AplicadorPrototipos,
@@ -795,21 +796,27 @@ class FabricaDeCargas:
                 cargas=cargas,
                 tasa_iva=tasa,
             )
-        if tipo is TipoCarga.PROTOTIPOS:
-            return AplicadorPrototipos(
-                prototipos=RepositorioPrototiposSQL(sesion),
-                proyectos=RepositorioProyectosSQL(sesion),
-            )
-        if tipo is TipoCarga.PRESUPUESTO:
-            return AplicadorPresupuesto(
-                conceptos=RepositorioConceptosSQL(sesion),
-                insumos=RepositorioInsumosSQL(sesion),
-                unidades=RepositorioUnidadesSQL(sesion),
-                prototipos=RepositorioPrototiposSQL(sesion),
-                prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
-                niveles_etapas=RepositorioNivelesEtapasSQL(sesion),
-                presupuestos=RepositorioPresupuestosSQL(sesion),
-                cargas=cargas,
+        if tipo in (TipoCarga.PROTOTIPOS, TipoCarga.PRESUPUESTO):
+            # Un solo tipo de carga en la pantalla, dos formatos de archivo:
+            # el alta plana y la ingeniería por prototipo. `CargadorPrototipos`
+            # ya distinguió cuál llegó; `AplicadorDePrototipos` lo despacha.
+            # `PRESUPUESTO` sigue aceptándose por si alguien lo pide por API,
+            # pero el árbol y el plano funcionan igual en cualquiera de los dos.
+            return AplicadorDePrototipos(
+                plano=AplicadorPrototipos(
+                    prototipos=RepositorioPrototiposSQL(sesion),
+                    proyectos=RepositorioProyectosSQL(sesion),
+                ),
+                ingenieria=AplicadorPresupuesto(
+                    conceptos=RepositorioConceptosSQL(sesion),
+                    insumos=RepositorioInsumosSQL(sesion),
+                    unidades=RepositorioUnidadesSQL(sesion),
+                    prototipos=RepositorioPrototiposSQL(sesion),
+                    prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+                    niveles_etapas=RepositorioNivelesEtapasSQL(sesion),
+                    presupuestos=RepositorioPresupuestosSQL(sesion),
+                    cargas=cargas,
+                ),
             )
         # `cargador_para` ya rechazó los tipos sin cargador; llegar aquí
         # significa que se agregó uno y se olvidó su aplicador.
