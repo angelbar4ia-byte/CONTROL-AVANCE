@@ -919,6 +919,33 @@ a { color: inherit; text-decoration: none; }
 }
 .tree__node--hover:hover .tree__hover-actions { display: inline-flex; }
 
+/* Cabecera de columnas y total (árbol de prototipo, §7.3/§7.4): las mismas
+   4 columnas de ancho fijo se repiten en la cabecera, cada fila y el total,
+   para que alineen sin importar cuánto indente un nivel/etapa/concepto. */
+.tree__header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 8px 6px;
+  font-size: 10px;
+  font-family: var(--f-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--c-text-soft);
+  border-bottom: 1px solid var(--c-line-soft);
+  margin-bottom: 4px;
+}
+.tree__header-label { flex: 1; min-width: 0; padding-left: 38px; }
+.tree__col-unidad { display: inline-block; width: 40px; text-align: right; }
+.tree__col-cantidad { display: inline-block; width: 76px; text-align: right; }
+.tree__col-pu { display: inline-block; width: 92px; text-align: right; }
+.tree__col-importe { display: inline-block; width: 104px; text-align: right; }
+.tree__total {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 8px 4px;
+  margin-top: 4px;
+  border-top: 1px solid var(--c-line-strong);
+  font-weight: 600;
+}
+
 /* ===== Inline edit ========================================= */
 .inline-edit {
   display: inline-block;

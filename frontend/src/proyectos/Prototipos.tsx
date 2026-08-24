@@ -215,7 +215,7 @@ export default function Prototipos() {
               Cargando árbol…
             </div>
           ) : (
-            <ArbolPrototipo nodos={arbol} partidas={presupuestoQ.data?.partidas} />
+            <ArbolPrototipo nodos={arbol} presupuesto={presupuestoQ.data} expandirTodo />
           )}
         </div>
       )}

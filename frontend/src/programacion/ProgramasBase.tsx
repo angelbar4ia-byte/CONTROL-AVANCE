@@ -314,7 +314,7 @@ export default function ProgramasBase() {
                   `prototipo_nodo_id`. */}
               <ArbolPrototipo
                 nodos={arbol}
-                partidas={presupuestoQ.data?.partidas}
+                presupuesto={presupuestoQ.data}
                 extra={renglonDeNodo}
                 expandirTodo
               />

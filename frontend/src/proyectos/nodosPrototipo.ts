@@ -10,7 +10,7 @@
  * anida. Vive fuera del componente para poder fijarla con pruebas.
  */
 
-import type { NodoPrototipoRespuesta } from '@/api/generado/modelo';
+import type { NodoPrototipoRespuesta, PartidaRespuesta } from '@/api/generado/modelo';
 
 export interface NodoArbolPrototipo {
   readonly nodo: NodoPrototipoRespuesta;
@@ -51,4 +51,30 @@ export function armarArbolPrototipo(
 /** Cuántos nodos tiene el árbol, contando los anidados. */
 export function contarNodosDelArbol(nodos: readonly NodoArbolPrototipo[]): number {
   return nodos.reduce((total, nodo) => total + 1 + contarNodosDelArbol(nodo.hijos), 0);
+}
+
+/**
+ * Importe de cada nodo: el propio si es concepto con partida, o la suma de
+ * sus hijos si es nivel/etapa — así una etapa muestra cuánto cuesta en
+ * total sin tener que sumar sus conceptos a mano. Unidad/cantidad/PU no se
+ * agregan igual (mezclar M2 de un concepto con KG de otro no dice nada), por
+ * eso solo el importe sube por el árbol.
+ */
+export function sumarImportesPorNodo(
+  nodos: readonly NodoArbolPrototipo[],
+  partidaPorNodo: ReadonlyMap<string, PartidaRespuesta>,
+): ReadonlyMap<string, number> {
+  const totales = new Map<string, number>();
+
+  function sumar(nodo: NodoArbolPrototipo): number {
+    const total =
+      nodo.nodo.tipo === 'concepto'
+        ? Number(partidaPorNodo.get(nodo.nodo.id)?.importe ?? 0)
+        : nodo.hijos.reduce((acumulado, hijo) => acumulado + sumar(hijo), 0);
+    totales.set(nodo.nodo.id, total);
+    return total;
+  }
+
+  for (const raiz of nodos) sumar(raiz);
+  return totales;
 }

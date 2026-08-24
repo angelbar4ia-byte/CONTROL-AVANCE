@@ -10,7 +10,11 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import type { NodoPrototipoRespuesta, PartidaRespuesta } from '@/api/generado/modelo';
+import type {
+  NodoPrototipoRespuesta,
+  PartidaRespuesta,
+  PresupuestoRespuesta,
+} from '@/api/generado/modelo';
 import { armarArbolPrototipo, contarNodosDelArbol } from '@/proyectos/nodosPrototipo';
 import { ArbolPrototipo } from '@/proyectos/ArbolPrototipo';
 
@@ -123,11 +127,34 @@ describe('ArbolPrototipo', () => {
       orden: 1,
     };
 
+    function presupuestoCon(partidas: PartidaRespuesta[]): PresupuestoRespuesta {
+      return {
+        id: 'presupuesto-1',
+        prototipo_id: 'proto-1',
+        prototipo_clave: 'CAS-1',
+        version: 3,
+        origen: 'excel',
+        monto_total: '99999',
+        created_at: '2026-01-01T00:00:00Z',
+        partidas,
+      };
+    }
+
+    it('muestra la cabecera de columnas', () => {
+      render(
+        <ArbolPrototipo nodos={armarArbolPrototipo([NIV, ECO, EST])} expandirTodo />,
+      );
+      expect(screen.getByText('Unidad')).toBeInTheDocument();
+      expect(screen.getByText('Cantidad')).toBeInTheDocument();
+      expect(screen.getByText('P.U.')).toBeInTheDocument();
+      expect(screen.getByText('Importe')).toBeInTheDocument();
+    });
+
     it('muestra unidad, cantidad, PU e importe del concepto con partida', () => {
       render(
         <ArbolPrototipo
           nodos={armarArbolPrototipo([NIV, ECO, EST])}
-          partidas={[PARTIDA]}
+          presupuesto={presupuestoCon([PARTIDA])}
           expandirTodo
         />,
       );
@@ -135,30 +162,49 @@ describe('ArbolPrototipo', () => {
       expect(screen.getByText('M2')).toBeInTheDocument();
       expect(screen.getByText('12.50')).toBeInTheDocument();
       expect(screen.getByText('$1,500.00')).toBeInTheDocument();
-      expect(screen.getByText('$18,750.00')).toBeInTheDocument();
+      // Aparece tres veces: la fila del concepto y el acumulado de su etapa
+      // y su nivel (solo hay un concepto, así que los tres totales igualan).
+      expect(screen.getAllByText('$18,750.00')).toHaveLength(3);
     });
 
     it('sin partida para su nodo, el concepto cae a su cantidad cruda del árbol', () => {
       render(
-        <ArbolPrototipo nodos={armarArbolPrototipo([NIV, ECO, EST])} partidas={[]} expandirTodo />,
+        <ArbolPrototipo
+          nodos={armarArbolPrototipo([NIV, ECO, EST])}
+          presupuesto={presupuestoCon([])}
+          expandirTodo
+        />,
       );
 
       expect(screen.getByText('1.00')).toBeInTheDocument();
       expect(screen.queryByText('$1,500.00')).toBeNull();
     });
 
-    it('nivel y etapa no muestran columnas de presupuesto aunque haya partidas', () => {
-      const partidaDeOtroNodo: PartidaRespuesta = { ...PARTIDA, prototipo_nodo_id: 'niv-1' };
+    it('nivel y etapa no muestran unidad/cantidad/PU propios, solo el importe acumulado', () => {
       render(
         <ArbolPrototipo
           nodos={armarArbolPrototipo([NIV, ECO, EST])}
-          partidas={[partidaDeOtroNodo]}
+          presupuesto={presupuestoCon([PARTIDA])}
           expandirTodo
         />,
       );
 
-      expect(screen.queryByText('M2')).toBeNull();
-      expect(screen.queryByText('$1,500.00')).toBeNull();
+      // "M2" y el P.U. son del concepto, uno solo — nivel/etapa no lo repiten.
+      expect(screen.getAllByText('M2')).toHaveLength(1);
+      expect(screen.getAllByText('$1,500.00')).toHaveLength(1);
+    });
+
+    it('muestra el total del presupuesto vigente en el pie', () => {
+      render(
+        <ArbolPrototipo
+          nodos={armarArbolPrototipo([NIV, ECO, EST])}
+          presupuesto={presupuestoCon([PARTIDA])}
+          expandirTodo
+        />,
+      );
+
+      expect(screen.getByText(/versión 3/)).toBeInTheDocument();
+      expect(screen.getByText('$99,999.00')).toBeInTheDocument();
     });
   });
 });
