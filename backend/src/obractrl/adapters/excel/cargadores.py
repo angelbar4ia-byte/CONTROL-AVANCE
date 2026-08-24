@@ -16,7 +16,9 @@ vez de cargar cualquier cosa.
 
 from __future__ import annotations
 
-from obractrl.adapters.excel.lector import LIMITES, Limites
+from collections.abc import Sequence
+
+from obractrl.adapters.excel.lector import LIMITES, ErrorDeArchivo, Limites
 from obractrl.adapters.excel.pipeline import (
     leer_filas,
     leer_filas_crudas,
@@ -24,11 +26,12 @@ from obractrl.adapters.excel.pipeline import (
 )
 from obractrl.domain.cargadores import cabeceras
 from obractrl.domain.cargadores.almacen import validar_movimiento
+from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera, resolver_encabezados
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.materiales import validar_material
 from obractrl.domain.cargadores.presupuesto import construir_arboles
 from obractrl.domain.cargadores.prototipos import validar_prototipo
-from obractrl.domain.cargadores.reporte import LecturaCarga
+from obractrl.domain.cargadores.reporte import ErrorEnFila, LecturaCarga
 from obractrl.domain.shared.diccionario import TipoCarga
 from obractrl.domain.shared.normalizacion import canonizar_encabezado
 
@@ -123,7 +126,23 @@ class CargadorCPU:
 
 
 class CargadorPrototipos:
-    """Prototipos — `CABECERAS_PROTOTIPOS.xlsx` (extensión propia, §7.2)."""
+    """Prototipos, en cualquiera de sus **dos formatos** (extensión propia).
+
+    Los dos alimentan lo mismo —el catálogo de prototipos— y por eso son un
+    solo tipo de carga en la pantalla, no dos que el usuario tenga que
+    distinguir de memoria:
+
+    - **Alta plana** (`CABECERAS_PROTOTIPOS.xlsx`): una fila por prototipo,
+      con su proyecto. Da de alta el encabezado (§7.2).
+    - **Ingeniería por prototipo** (`CABECERAS_PRESUPUESTO.xlsx`): el árbol
+      nivel → etapa → concepto con su APU, que además arma el presupuesto
+      del prototipo (§7.4).
+
+    Cuál es cuál lo dice el **archivo**, no el usuario: se resuelven sus
+    encabezados contra cada contrato y gana el que cumple. No hay ambigüedad
+    posible — el árbol exige `CLAVE HIJO`/`TIPO`, que el plano no trae, y el
+    plano exige `Proyecto`/`Nombre`, que el árbol no trae.
+    """
 
     tipo = TipoCarga.PROTOTIPOS
     especificacion = cabeceras.PROTOTIPOS
@@ -132,11 +151,59 @@ class CargadorPrototipos:
         self._limites = limites
 
     def leer(self, contenido: bytes) -> LecturaCarga:
-        return leer_por_nombre(
-            contenido,
-            self.especificacion,
-            validar_prototipo,
-            limites=self._limites,
+        crudas = leer_filas_crudas(contenido, None, limites=self._limites)
+        if not crudas:
+            raise ErrorDeArchivo(
+                f"{self.especificacion.archivo}: la hoja no trae ninguna fila."
+            )
+
+        (_, encabezados), *filas = crudas
+        try:
+            mapa_arbol = resolver_encabezados(encabezados, cabeceras.PRESUPUESTO)
+        except ErrorDeCabecera:
+            # No es el árbol: se exige el contrato plano, y si tampoco
+            # cumple, su `ErrorDeCabecera` es el que sube — es el formato
+            # que el usuario quiso subir si no traía las columnas del árbol.
+            return self._leer_plano(encabezados, filas)
+
+        arboles, errores, pendientes, omitidos = construir_arboles(filas, mapa_arbol)
+        return LecturaCarga(
+            registros=tuple(arboles),
+            errores=errores,
+            pendientes=pendientes,
+            filas_leidas=len(filas),
+            omitidos=omitidos,
+        )
+
+    def _leer_plano(
+        self, encabezados: Sequence[object], filas: list[tuple[int, Sequence[object]]]
+    ) -> LecturaCarga:
+        """El pipeline de `leer_por_nombre`, pero sobre filas ya leídas.
+
+        No se puede llamar a `leer_por_nombre` aquí: volvería a abrir el
+        libro para re-leer lo que ya está en memoria, y el `.xlsx` real
+        pesa miles de filas.
+        """
+        mapa = resolver_encabezados(encabezados, self.especificacion)
+        registros: dict[str, object] = {}
+        errores = []
+        omitidos = 0
+
+        for numero, fila in filas:
+            try:
+                registro = validar_prototipo(fila, mapa, numero)
+            except ErrorEnFila as exc:
+                errores.append(exc.con_fila(numero))
+                continue
+            if registro.llave in registros:
+                omitidos += 1
+            registros[registro.llave] = registro
+
+        return LecturaCarga(
+            registros=tuple(registros.values()),
+            errores=tuple(errores),
+            filas_leidas=len(filas),
+            omitidos=omitidos,
         )
 
 

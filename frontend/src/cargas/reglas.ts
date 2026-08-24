@@ -26,7 +26,21 @@ const ETIQUETA_TIPO: Record<string, string> = {
   prototipos: 'Prototipos (alta masiva)',
 };
 
-export const TIPOS: readonly TipoCarga[] = Object.values(TipoCarga);
+const TIPOS_CUBIERTOS_POR_OTRO: readonly string[] = ['presupuesto'];
+/**
+ * Tipos que el backend sigue aceptando pero que **no** se ofrecen aparte en
+ * la pantalla, porque otro los cubre.
+ *
+ * `presupuesto` es el árbol de ingeniería por prototipo, y "Prototipos (alta
+ * masiva)" ya reconoce ese archivo además del alta plana: cuál es cuál lo
+ * decide el propio `.xlsx` por sus encabezados, no el usuario. Ofrecer los
+ * dos obligaría a acertarle al desplegable antes de subir, que es justo el
+ * error que se quiso quitar.
+ */
+
+export const TIPOS: readonly TipoCarga[] = Object.values(TipoCarga).filter(
+  (tipo) => !TIPOS_CUBIERTOS_POR_OTRO.includes(tipo),
+);
 export const MODOS: readonly ModoCarga[] = Object.values(ModoCarga);
 
 export function etiquetaTipo(tipo: string): string {

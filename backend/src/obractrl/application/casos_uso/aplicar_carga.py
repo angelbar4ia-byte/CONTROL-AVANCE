@@ -83,6 +83,7 @@ __all__ = [
     "AplicadorAlmacen",
     "AplicadorCPU",
     "AplicadorDeCarga",
+    "AplicadorDePrototipos",
     "AplicadorMateriales",
     "AplicadorPresupuesto",
     "AplicadorPrototipos",
@@ -1927,3 +1928,38 @@ class AplicadorPresupuesto:
                     "orden": nodo.indice or 0,
                 }
             )
+
+
+class AplicadorDePrototipos:
+    """Despacha al aplicador que corresponde al **formato** del archivo.
+
+    `TipoCarga.PROTOTIPOS` acepta dos archivos distintos —el alta plana y la
+    ingeniería por prototipo (ver `CargadorPrototipos`)— porque para el
+    usuario son la misma tarea: poblar prototipos. Cuál llegó lo dice lo que
+    el lector entregó, no un segundo campo en la pantalla que hubiera que
+    mantener en sincronía con el archivo.
+    """
+
+    def __init__(
+        self, *, plano: AplicadorPrototipos, ingenieria: AplicadorPresupuesto
+    ) -> None:
+        self._plano = plano
+        self._ingenieria = ingenieria
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        # Un archivo vacío o que no dejó ningún registro válido cae al plano:
+        # da el mismo resultado (nada que aplicar) y evita una rama muerta.
+        es_arbol = bool(lectura.registros) and isinstance(
+            lectura.registros[0], ArbolPrototipoCargado
+        )
+        aplicador = self._ingenieria if es_arbol else self._plano
+        return await aplicador.aplicar(
+            lectura, modo=modo, dry_run=dry_run, carga_id=carga_id
+        )

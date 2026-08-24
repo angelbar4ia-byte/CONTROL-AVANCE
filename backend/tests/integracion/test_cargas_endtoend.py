@@ -46,6 +46,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorAlmacen,
     AplicadorCPU,
     AplicadorDeCarga,
+    AplicadorDePrototipos,
     AplicadorMateriales,
     AplicadorPresupuesto,
     AplicadorPrototipos,
@@ -217,21 +218,22 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
             familias=RepositorioFamiliasSQL(sesion),
             cargas=cargas,
         )
-    if tipo is TipoCarga.PROTOTIPOS:
-        return AplicadorPrototipos(
-            prototipos=RepositorioPrototiposSQL(sesion),
-            proyectos=RepositorioProyectosSQL(sesion),
-        )
-    if tipo is TipoCarga.PRESUPUESTO:
-        return AplicadorPresupuesto(
-            conceptos=RepositorioConceptosSQL(sesion),
-            insumos=RepositorioInsumosSQL(sesion),
-            unidades=RepositorioUnidadesSQL(sesion),
-            prototipos=RepositorioPrototiposSQL(sesion),
-            prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
-            niveles_etapas=RepositorioNivelesEtapasSQL(sesion),
-            presupuestos=RepositorioPresupuestosSQL(sesion),
-            cargas=cargas,
+    if tipo in (TipoCarga.PROTOTIPOS, TipoCarga.PRESUPUESTO):
+        return AplicadorDePrototipos(
+            plano=AplicadorPrototipos(
+                prototipos=RepositorioPrototiposSQL(sesion),
+                proyectos=RepositorioProyectosSQL(sesion),
+            ),
+            ingenieria=AplicadorPresupuesto(
+                conceptos=RepositorioConceptosSQL(sesion),
+                insumos=RepositorioInsumosSQL(sesion),
+                unidades=RepositorioUnidadesSQL(sesion),
+                prototipos=RepositorioPrototiposSQL(sesion),
+                prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+                niveles_etapas=RepositorioNivelesEtapasSQL(sesion),
+                presupuestos=RepositorioPresupuestosSQL(sesion),
+                cargas=cargas,
+            ),
         )
     return AplicadorAlmacen(
         materiales=RepositorioMaterialesSQL(sesion),
@@ -1212,3 +1214,54 @@ async def test_revertir_una_carga_de_presupuesto_deshace_arbol_y_version(
     async with sesion_con_rls(contexto_control) as sesion:
         vigente = await RepositorioPresupuestosSQL(sesion).vigente_de_prototipo(prototipos["CAS-70"]["id"])
     assert vigente is None
+
+
+# --- Un solo tipo de carga, dos formatos de archivo ----------------------
+
+
+async def test_el_arbol_de_ingenieria_se_carga_bajo_el_tipo_prototipos(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """El formato lo dice el archivo, no el desplegable.
+
+    Antes había que acertarle al tipo antes de subir: el árbol bajo
+    "Prototipos" moría con "faltan las columnas obligatorias
+    proyecto_clave, clave, nombre". Ahora los dos formatos entran por el
+    mismo tipo y `CargadorPrototipos` reconoce cuál llegó.
+    """
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-80")
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PROTOTIPOS,  # el tipo del alta plana, con el archivo del árbol
+        _archivo_presupuesto(_prototipo_simple("CAS-80", "EST-09", 5)),
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+    assert "EST-09" in await _conceptos(contexto_control)
+
+    prototipos = await _prototipos(contexto_control)
+    assert set(await _nodos_de(contexto_control, prototipos["CAS-80"]["id"])) == {
+        "NIV-1",
+        "ECO-1",
+        "EST-09",
+    }
+
+
+async def test_el_alta_plana_sigue_funcionando_bajo_el_mismo_tipo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """La otra mitad de la detección: el archivo plano no se confunde con
+    el árbol ni pierde su camino."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PROTOTIPOS,
+        _archivo_prototipos([["PROY", "CAS-81", "Casa plana", "90", "2", "3"]]),
+    )
+
+    assert resultado.resumen.errores == 0
+    assert resultado.resumen.insertados == 1
+    catalogo = await _prototipos(contexto_control)
+    assert catalogo["CAS-81"]["nombre"] == "Casa plana"
