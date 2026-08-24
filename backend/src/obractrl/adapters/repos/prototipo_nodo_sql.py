@@ -53,6 +53,11 @@ class RepositorioPrototipoNodoSQL:
         raíz y ordena por esa ruta — mismo patrón ya probado en
         `RepositorioObras.arbol_prototipo` (§11.1, ese lee para el workflow
         A; este lee para pintar la pantalla).
+
+        `tipo_prototipo_nodo` no distingue concepto de concepto auxiliar
+        —los dos se guardan como `'concepto'`, el archivo real solo lo dice
+        en `concepto.tipo` (§10.1)—, así que el `left join` trae
+        `concepto_tipo` para que la pantalla sí pueda distinguirlos.
         """
         filas = (
             await self._sesion.execute(
@@ -77,10 +82,12 @@ class RepositorioPrototipoNodoSQL:
                         from prototipo_nodo h
                         join arbol a on h.parent_id = a.id
                     )
-                    select id, parent_id, tipo, nombre, clave, concepto_id,
-                           nivel_id, etapa_id, orden, cantidad, ponderacion
-                    from arbol
-                    order by ruta
+                    select a.id, a.parent_id, a.tipo, a.nombre, a.clave,
+                           a.concepto_id, a.nivel_id, a.etapa_id, a.orden,
+                           a.cantidad, a.ponderacion, c.tipo as concepto_tipo
+                    from arbol a
+                    left join concepto c on c.id = a.concepto_id
+                    order by a.ruta
                     """
                 ),
                 {"prototipo_id": str(prototipo_id)},

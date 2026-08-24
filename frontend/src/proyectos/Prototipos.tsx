@@ -63,7 +63,16 @@ export default function Prototipos() {
 
   const proyectos = useMemo(() => proyectosQ.data ?? [], [proyectosQ.data]);
   const prototipos = useMemo(() => prototiposQ.data ?? [], [prototiposQ.data]);
-  const arbol = useMemo(() => armarArbolPrototipo(nodosQ.data ?? []), [nodosQ.data]);
+
+  const prototipoAbierto = useMemo(
+    () => prototipos.find((prototipo) => prototipo.id === arbolAbierto) ?? null,
+    [prototipos, arbolAbierto],
+  );
+  const arbol = useMemo(
+    () =>
+      prototipoAbierto ? armarArbolPrototipo(prototipoAbierto, nodosQ.data ?? []) : null,
+    [prototipoAbierto, nodosQ.data],
+  );
 
   if (!sesion || rol === null) return null;
 
@@ -215,7 +224,7 @@ export default function Prototipos() {
               Cargando árbol…
             </div>
           ) : (
-            <ArbolPrototipo nodos={arbol} presupuesto={presupuestoQ.data} expandirTodo />
+            arbol && <ArbolPrototipo raiz={arbol} presupuesto={presupuestoQ.data} expandirTodo />
           )}
         </div>
       )}

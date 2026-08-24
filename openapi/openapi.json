@@ -11089,6 +11089,17 @@
               }
             ],
             "title": "Ponderacion"
+          },
+          "concepto_tipo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TipoConcepto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`tipo` no distingue concepto de concepto auxiliar —los dos se guardan como 'concepto', §10.1—; este campo sí, tomado del catálogo. `null` en nodos sin `concepto_id` (nivel/etapa)."
           }
         },
         "type": "object",

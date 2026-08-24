@@ -36,7 +36,7 @@ import { useSesion } from '@/app/sesion';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { fmtNum } from '@/lib/formato';
 import { ArbolPrototipo } from '@/proyectos/ArbolPrototipo';
-import { armarArbolPrototipo } from '@/proyectos/nodosPrototipo';
+import { armarArbolPrototipo, type NodoArbolPrototipo } from '@/proyectos/nodosPrototipo';
 import { AltaProgramaBase } from './AltaProgramaBase';
 import { etiquetaTipoDependencia, puedeAdministrarProgramasBase } from './reglas';
 
@@ -93,7 +93,16 @@ export default function ProgramasBase() {
   });
 
   const items = useMemo(() => itemsQ.data ?? [], [itemsQ.data]);
-  const arbol = useMemo(() => armarArbolPrototipo(nodosQ.data ?? []), [nodosQ.data]);
+
+  const prototipoAbierto = useMemo(
+    () => prototipos.find((prototipo) => prototipo.id === baseAbierta?.prototipo_id) ?? null,
+    [prototipos, baseAbierta],
+  );
+  const arbol = useMemo(
+    () =>
+      prototipoAbierto ? armarArbolPrototipo(prototipoAbierto, nodosQ.data ?? []) : null,
+    [prototipoAbierto, nodosQ.data],
+  );
 
   const itemPorNodo = useMemo(() => {
     const mapa = new Map<string, ItemProgramaBaseRespuesta>();
@@ -113,7 +122,7 @@ export default function ProgramasBase() {
     );
   }, [items, nodosQ.data]);
 
-  function renglonDeNodo(nodo: NodoPrototipoRespuesta): ReactNode {
+  function renglonDeNodo(nodo: NodoArbolPrototipo): ReactNode {
     const item = itemPorNodo.get(nodo.id);
     if (!item) return null;
     const frente = frentes.find((f) => f.id === item.frente_id);
@@ -312,12 +321,14 @@ export default function ProgramasBase() {
                   concepto, §7.4): es la misma estructura de Prototipos, con
                   duración/frente/dependencias superpuestos por
                   `prototipo_nodo_id`. */}
-              <ArbolPrototipo
-                nodos={arbol}
-                presupuesto={presupuestoQ.data}
-                extra={renglonDeNodo}
-                expandirTodo
-              />
+              {arbol && (
+                <ArbolPrototipo
+                  raiz={arbol}
+                  presupuesto={presupuestoQ.data}
+                  extra={renglonDeNodo}
+                  expandirTodo
+                />
+              )}
 
               {itemsSinNodo.length > 0 && (
                 <div className="mt-16">

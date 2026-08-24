@@ -278,6 +278,7 @@ export * from './nodoPrototipoRespuesta';
 export * from './nodoPrototipoRespuestaCantidad';
 export * from './nodoPrototipoRespuestaClave';
 export * from './nodoPrototipoRespuestaConceptoId';
+export * from './nodoPrototipoRespuestaConceptoTipo';
 export * from './nodoPrototipoRespuestaEtapaId';
 export * from './nodoPrototipoRespuestaNivelId';
 export * from './nodoPrototipoRespuestaParentId';

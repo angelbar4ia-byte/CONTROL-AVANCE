@@ -79,3 +79,58 @@ async def test_arbol_de_un_prototipo_sin_ingenieria_cargada_es_vacio(
     async with sesion_con_rls(contexto_residente) as sesion:
         nodos = await RepositorioPrototipoNodoSQL(sesion).arbol(escenario.prototipo_id)
     assert nodos == []
+
+
+async def test_concepto_tipo_distingue_auxiliar_de_concepto_normal(
+    escenario: Escenario, contexto_residente: ContextoSesion
+) -> None:
+    """`prototipo_nodo.tipo` guarda 'concepto' para los dos (§10.1) — quien
+    quiera distinguirlos necesita `concepto.tipo` por el `left join`."""
+    nivel, concepto_normal, concepto_aux = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    concepto_id_normal, concepto_id_aux = uuid.uuid4(), uuid.uuid4()
+
+    admin = create_async_engine(DATABASE_URL_ADMIN)
+    async with admin.begin() as conn:
+        for cid, clave, tipo in (
+            (concepto_id_normal, f"EST-{uuid.uuid4().hex[:6]}", "concepto"),
+            (concepto_id_aux, f"AUX-{uuid.uuid4().hex[:6]}", "auxiliar"),
+        ):
+            await conn.execute(
+                text(
+                    "insert into concepto (id, org_id, clave, descripcion, tipo) "
+                    "values (:id, :org, :clave, 'Concepto de prueba', "
+                    "cast(:tipo as tipo_concepto))"
+                ),
+                {"id": str(cid), "org": str(escenario.org_id), "clave": clave, "tipo": tipo},
+            )
+        for nid, parent, tipo, concepto_id, nombre in (
+            (nivel, None, "nivel", None, "Nivel"),
+            (concepto_normal, nivel, "concepto", concepto_id_normal, "Concepto normal"),
+            (concepto_aux, nivel, "concepto", concepto_id_aux, "Concepto auxiliar"),
+        ):
+            await conn.execute(
+                text(
+                    "insert into prototipo_nodo "
+                    "(id, org_id, prototipo_id, parent_id, tipo, nombre, concepto_id, orden) "
+                    "values (:id, :org, :prototipo, :parent, "
+                    "cast(:tipo as tipo_prototipo_nodo), :nombre, :concepto_id, 1)"
+                ),
+                {
+                    "id": str(nid),
+                    "org": str(escenario.org_id),
+                    "prototipo": str(escenario.prototipo_id),
+                    "parent": str(parent) if parent else None,
+                    "tipo": tipo,
+                    "nombre": nombre,
+                    "concepto_id": str(concepto_id) if concepto_id else None,
+                },
+            )
+    await admin.dispose()
+
+    async with sesion_con_rls(contexto_residente) as sesion:
+        nodos = await RepositorioPrototipoNodoSQL(sesion).arbol(escenario.prototipo_id)
+
+    por_nombre = {n["nombre"]: n for n in nodos}
+    assert por_nombre["Nivel"]["concepto_tipo"] is None
+    assert por_nombre["Concepto normal"]["concepto_tipo"] == "concepto"
+    assert por_nombre["Concepto auxiliar"]["concepto_tipo"] == "auxiliar"

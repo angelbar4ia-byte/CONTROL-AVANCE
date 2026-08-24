@@ -1,6 +1,7 @@
 /**
- * Árbol WBS del prototipo: armado (`arbolPrototipo.ts`) y render
- * (`ArbolPrototipo.tsx`) — nivel → etapa → concepto (§7.4).
+ * Árbol WBS del prototipo: armado (`nodosPrototipo.ts`) y render
+ * (`ArbolPrototipo.tsx`) — prototipo → nivel → etapa →
+ * concepto/concepto auxiliar (§7.4, §10.1).
  *
  * Mismo patrón que `proyectos-arbol.test.tsx`: las reglas de armado se
  * prueban aparte de la UI, y la UI se prueba por su patrón de disclosure,
@@ -15,8 +16,10 @@ import type {
   PartidaRespuesta,
   PresupuestoRespuesta,
 } from '@/api/generado/modelo';
-import { armarArbolPrototipo, contarNodosDelArbol } from '@/proyectos/nodosPrototipo';
+import { armarArbolPrototipo, sumarImportesPorNodo } from '@/proyectos/nodosPrototipo';
 import { ArbolPrototipo } from '@/proyectos/ArbolPrototipo';
+
+const PROTOTIPO = { id: 'proto-1', clave: 'CAS-1', nombre: 'Casa modelo' };
 
 function nodo(datos: Partial<NodoPrototipoRespuesta> & { id: string }): NodoPrototipoRespuesta {
   return {
@@ -46,39 +49,95 @@ const EST = nodo({
   nombre: 'Losa de cimentación',
   orden: 1,
   cantidad: '1',
+  concepto_tipo: 'concepto',
+});
+const AUX = nodo({
+  id: 'aux-1',
+  parent_id: 'eco-1',
+  tipo: 'concepto',
+  clave: 'AUX-01',
+  nombre: 'Mezcla de mortero',
+  orden: 2,
+  concepto_tipo: 'auxiliar',
 });
 
 describe('armarArbolPrototipo', () => {
-  it('anida por parent_id en recorrido padre-antes-que-hijos', () => {
-    const arbol = armarArbolPrototipo([NIV, ECO, EST]);
+  it('la raíz es el prototipo, con nivel → etapa → concepto anidados', () => {
+    const raiz = armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST]);
 
-    expect(arbol).toHaveLength(1);
-    expect(arbol[0]?.nodo.id).toBe('niv-1');
-    expect(arbol[0]?.hijos).toHaveLength(1);
-    expect(arbol[0]?.hijos[0]?.nodo.id).toBe('eco-1');
-    expect(arbol[0]?.hijos[0]?.hijos[0]?.nodo.id).toBe('est-1');
+    expect(raiz).toEqual({
+      id: 'proto-1',
+      tipo: 'prototipo',
+      clave: 'CAS-1',
+      nombre: 'Casa modelo',
+      cantidad: null,
+      hijos: expect.any(Array),
+    });
+    expect(raiz.hijos).toHaveLength(1);
+    expect(raiz.hijos[0]?.id).toBe('niv-1');
+    expect(raiz.hijos[0]?.hijos[0]?.id).toBe('eco-1');
+    expect(raiz.hijos[0]?.hijos[0]?.hijos[0]?.id).toBe('est-1');
   });
 
-  it('cuelga de la raíz un nodo cuyo padre no vino en la lista', () => {
+  it('distingue concepto auxiliar de concepto normal por concepto_tipo', () => {
+    const raiz = armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST, AUX]);
+    const [normal, auxiliar] = raiz.hijos[0]?.hijos[0]?.hijos ?? [];
+
+    expect(normal?.tipo).toBe('concepto');
+    expect(auxiliar?.tipo).toBe('concepto_auxiliar');
+  });
+
+  it('cuelga de la raíz del prototipo un nodo cuyo padre no vino en la lista', () => {
     const huerfano = nodo({ id: 'eco-2', parent_id: 'niv-fuera-de-alcance', tipo: 'etapa' });
-    const arbol = armarArbolPrototipo([NIV, huerfano]);
+    const raiz = armarArbolPrototipo(PROTOTIPO, [NIV, huerfano]);
 
-    expect(arbol.map((n) => n.nodo.id).sort()).toEqual(['eco-2', 'niv-1']);
+    expect(raiz.hijos.map((n) => n.id).sort()).toEqual(['eco-2', 'niv-1']);
   });
 
-  it('cuenta todos los nodos, incluyendo los anidados', () => {
-    expect(contarNodosDelArbol(armarArbolPrototipo([NIV, ECO, EST]))).toBe(3);
+  it('con la lista de nodos vacía, la raíz no tiene hijos', () => {
+    expect(armarArbolPrototipo(PROTOTIPO, []).hijos).toEqual([]);
+  });
+});
+
+describe('sumarImportesPorNodo', () => {
+  it('sube el importe de los conceptos hasta la raíz', () => {
+    const raiz = armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST]);
+    const partidaPorNodo = new Map<string, PartidaRespuesta>([
+      [
+        'est-1',
+        {
+          id: 'p1',
+          prototipo_nodo_id: 'est-1',
+          cantidad: '1',
+          precio_unitario: '100',
+          importe: '100',
+          orden: 1,
+        },
+      ],
+    ]);
+
+    const totales = sumarImportesPorNodo(raiz, partidaPorNodo);
+    expect(totales.get('est-1')).toBe(100);
+    expect(totales.get('eco-1')).toBe(100);
+    expect(totales.get('niv-1')).toBe(100);
+    expect(totales.get('proto-1')).toBe(100);
   });
 
-  it('con la lista vacía da un árbol vacío', () => {
-    expect(armarArbolPrototipo([])).toEqual([]);
+  it('sin partidas, todos los totales son cero', () => {
+    const raiz = armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST]);
+    const totales = sumarImportesPorNodo(raiz, new Map());
+    expect(totales.get('proto-1')).toBe(0);
   });
 });
 
 describe('ArbolPrototipo', () => {
-  it('arranca plegado: el concepto no se ve hasta desplegar', () => {
-    render(<ArbolPrototipo nodos={armarArbolPrototipo([NIV, ECO, EST])} />);
+  it('la raíz (el prototipo) arranca abierta; nivel y etapa siguen plegados', () => {
+    render(<ArbolPrototipo raiz={armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST])} />);
 
+    expect(screen.getByRole('button', { name: /CAS-1 Casa modelo/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
     expect(screen.getByRole('button', { name: /Cimentación/ })).toHaveAttribute(
       'aria-expanded',
       'false',
@@ -87,7 +146,7 @@ describe('ArbolPrototipo', () => {
   });
 
   it('despliega nivel → etapa → concepto al ir abriendo cada uno', () => {
-    render(<ArbolPrototipo nodos={armarArbolPrototipo([NIV, ECO, EST])} />);
+    render(<ArbolPrototipo raiz={armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST])} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Cimentación/ }));
     fireEvent.click(screen.getByRole('button', { name: /Estructura/ }));
@@ -96,14 +155,27 @@ describe('ArbolPrototipo', () => {
   });
 
   it('expandirTodo muestra el concepto sin desplegar a mano', () => {
-    render(<ArbolPrototipo nodos={armarArbolPrototipo([NIV, ECO, EST])} expandirTodo />);
+    render(<ArbolPrototipo raiz={armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST])} expandirTodo />);
     expect(screen.getByText('Losa de cimentación')).toBeInTheDocument();
+  });
+
+  it('marca el concepto auxiliar con una etiqueta, distinta del concepto normal', () => {
+    render(
+      <ArbolPrototipo
+        raiz={armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST, AUX])}
+        expandirTodo
+      />,
+    );
+
+    expect(screen.getByText('Losa de cimentación')).toBeInTheDocument();
+    expect(screen.getByText('Mezcla de mortero')).toBeInTheDocument();
+    expect(screen.getByText('auxiliar')).toBeInTheDocument();
   });
 
   it('pinta el contenido de `extra` junto al nodo que corresponde', () => {
     render(
       <ArbolPrototipo
-        nodos={armarArbolPrototipo([NIV, ECO, EST])}
+        raiz={armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST])}
         expandirTodo
         extra={(n) => (n.id === 'est-1' ? <span>5 d</span> : null)}
       />,
@@ -112,7 +184,7 @@ describe('ArbolPrototipo', () => {
   });
 
   it('avisa cuando el prototipo no tiene ingeniería cargada', () => {
-    render(<ArbolPrototipo nodos={[]} />);
+    render(<ArbolPrototipo raiz={armarArbolPrototipo(PROTOTIPO, [])} />);
     expect(screen.getByText(/no tiene ingeniería cargada todavía/)).toBeInTheDocument();
   });
 
@@ -141,9 +213,7 @@ describe('ArbolPrototipo', () => {
     }
 
     it('muestra la cabecera de columnas', () => {
-      render(
-        <ArbolPrototipo nodos={armarArbolPrototipo([NIV, ECO, EST])} expandirTodo />,
-      );
+      render(<ArbolPrototipo raiz={armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST])} expandirTodo />);
       expect(screen.getByText('Unidad')).toBeInTheDocument();
       expect(screen.getByText('Cantidad')).toBeInTheDocument();
       expect(screen.getByText('P.U.')).toBeInTheDocument();
@@ -153,7 +223,7 @@ describe('ArbolPrototipo', () => {
     it('muestra unidad, cantidad, PU e importe del concepto con partida', () => {
       render(
         <ArbolPrototipo
-          nodos={armarArbolPrototipo([NIV, ECO, EST])}
+          raiz={armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST])}
           presupuesto={presupuestoCon([PARTIDA])}
           expandirTodo
         />,
@@ -162,15 +232,15 @@ describe('ArbolPrototipo', () => {
       expect(screen.getByText('M2')).toBeInTheDocument();
       expect(screen.getByText('12.50')).toBeInTheDocument();
       expect(screen.getByText('$1,500.00')).toBeInTheDocument();
-      // Aparece tres veces: la fila del concepto y el acumulado de su etapa
-      // y su nivel (solo hay un concepto, así que los tres totales igualan).
+      // El importe del concepto y el de su etapa/nivel coinciden (un solo
+      // concepto en el árbol) — el de la raíz usa monto_total, distinto.
       expect(screen.getAllByText('$18,750.00')).toHaveLength(3);
     });
 
     it('sin partida para su nodo, el concepto cae a su cantidad cruda del árbol', () => {
       render(
         <ArbolPrototipo
-          nodos={armarArbolPrototipo([NIV, ECO, EST])}
+          raiz={armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST])}
           presupuesto={presupuestoCon([])}
           expandirTodo
         />,
@@ -183,7 +253,7 @@ describe('ArbolPrototipo', () => {
     it('nivel y etapa no muestran unidad/cantidad/PU propios, solo el importe acumulado', () => {
       render(
         <ArbolPrototipo
-          nodos={armarArbolPrototipo([NIV, ECO, EST])}
+          raiz={armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST])}
           presupuesto={presupuestoCon([PARTIDA])}
           expandirTodo
         />,
@@ -194,16 +264,18 @@ describe('ArbolPrototipo', () => {
       expect(screen.getAllByText('$1,500.00')).toHaveLength(1);
     });
 
-    it('muestra el total del presupuesto vigente en el pie', () => {
+    it('la raíz (el prototipo) muestra monto_total, no la suma del cliente', () => {
       render(
         <ArbolPrototipo
-          nodos={armarArbolPrototipo([NIV, ECO, EST])}
+          raiz={armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST])}
           presupuesto={presupuestoCon([PARTIDA])}
           expandirTodo
         />,
       );
 
-      expect(screen.getByText(/versión 3/)).toBeInTheDocument();
+      // monto_total (99 999) es deliberadamente distinto a la suma real de
+      // partidas (18 750): así la prueba distingue "vino del backend" de
+      // "se recalculó en el cliente".
       expect(screen.getByText('$99,999.00')).toBeInTheDocument();
     });
   });
