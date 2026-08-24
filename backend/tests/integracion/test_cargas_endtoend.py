@@ -156,6 +156,21 @@ def _prototipo_simple(
     ]
 
 
+def _etapa_colapsada(
+    clave_prototipo: str, clave_etapa: str, cantidad_alambre: object
+) -> list[list[object]]:
+    """Árbol mínimo con una etapa SIN concepto intermedio (`ECO-...` con
+    material colgado directo): la otra forma real del archivo, que
+    `_clave_catalogo_concepto` aísla por prototipo en el catálogo porque su
+    clave se repite igual en cada uno pero la dosificación no."""
+    return [
+        [1, None, clave_prototipo, "Prototipo", None, None, None, None, "PROTOTIPO"],
+        [1, clave_prototipo, "NIV-1", "Cimentación", None, None, None, None, "NIVEL DE CONSTRUCCION"],
+        [1, "NIV-1", clave_etapa, "Etapa simple", None, None, None, None, "ETAPA DE CONSTRUCCION"],
+        [1, clave_etapa, "ACE-01", "Alambre", "KG", cantidad_alambre, 20, None, "MATERIAL"],
+    ]
+
+
 # --- Escenario de catálogos ----------------------------------------------
 
 
@@ -1118,7 +1133,80 @@ async def test_etapa_sin_concepto_intermedio_crea_concepto_con_su_clave(
 
     assert resultado.resumen.errores == 0
     conceptos = await _conceptos(contexto_control)
-    assert "ECO-99" in conceptos
+    # Namespaceado por prototipo en el catálogo compartido (ver el siguiente
+    # test): la clave de archivo sola no basta como clave de `concepto`.
+    assert "ECO-99~CAS-30" in conceptos
+
+
+async def test_etapa_colapsada_con_cantidades_distintas_no_es_conflicto(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """La etapa sin concepto intermedio (test anterior) es la forma NORMAL
+    del archivo real, y su clave se repite igual en cada prototipo — pero
+    la cantidad de material que trae cada uno varía a propósito
+    (dosificación distinta), no es un desacuerdo que resolver. Antes de
+    namespacear por prototipo (`_clave_catalogo_concepto`) esto generaba un
+    falso `CONCEPTO_EN_CONFLICTO` en la mayoría de las filas de un archivo
+    real."""
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-31", "CAS-32")
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(
+            [
+                *_etapa_colapsada("CAS-31", "ECO-99", 5),
+                *_etapa_colapsada("CAS-32", "ECO-99", 9),
+            ]
+        ),
+    )
+
+    assert resultado.resumen.errores == 0
+    async with sesion_con_rls(contexto_control) as sesion:
+        bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(carga_id=resultado.carga_id)
+    assert not [b for b in bandeja if b["tipo"] == str(TipoPendiente.CONCEPTO_EN_CONFLICTO)]
+
+    conceptos = await _conceptos(contexto_control)
+    assert {"ECO-99~CAS-31", "ECO-99~CAS-32"} <= set(conceptos)
+    assert conceptos["ECO-99~CAS-31"]["id"] != conceptos["ECO-99~CAS-32"]["id"]
+
+    prototipos = await _prototipos(contexto_control)
+    async with sesion_con_rls(contexto_control) as sesion:
+        presupuestos = RepositorioPresupuestosSQL(sesion)
+        p31 = await presupuestos.vigente_de_prototipo(prototipos["CAS-31"]["id"])
+        p32 = await presupuestos.vigente_de_prototipo(prototipos["CAS-32"]["id"])
+        partida31 = (await presupuestos.partidas(p31["id"]))[0]
+        partida32 = (await presupuestos.partidas(p32["id"]))[0]
+
+    # Cada prototipo con su propio precio (5 kg vs 9 kg de alambre a 20).
+    assert partida31["precio_unitario"] != partida32["precio_unitario"]
+
+
+async def test_recargar_una_etapa_colapsada_conserva_su_concepto_namespaceado(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """El namespaceo por prototipo (test anterior) no debe volverse un alta
+    nueva en cada recarga: debe resolver siempre al MISMO `concepto`."""
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-33")
+
+    await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(_etapa_colapsada("CAS-33", "ECO-99", 5)),
+    )
+    id_v1 = (await _conceptos(contexto_control))["ECO-99~CAS-33"]["id"]
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(_etapa_colapsada("CAS-33", "ECO-99", 7)),
+    )
+
+    assert resultado.pendientes == 0  # recarga propia: actualización legítima, no conflicto
+    id_v2 = (await _conceptos(contexto_control))["ECO-99~CAS-33"]["id"]
+    assert id_v2 == id_v1
 
 
 async def test_recargar_el_mismo_prototipo_conserva_los_ids_de_nodo(
