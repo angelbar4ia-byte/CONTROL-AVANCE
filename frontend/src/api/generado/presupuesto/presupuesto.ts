@@ -213,6 +213,174 @@ export function usePresupuestoDeObraApiV1ObrasObraIdPresupuestoGet<TData = Await
 
 
 /**
+ * El mismo presupuesto que `GET /obras/{id}/presupuesto`, pero sin pasar
+por una obra — para pantallas que ya están paradas sobre el prototipo
+(el árbol de Prototipos, Programas base) y no tienen una obra a mano.
+ * @summary Presupuesto vigente del prototipo
+ */
+export const presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet = (
+    prototipoId: string,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<PresupuestoRespuesta>(
+      {url: `/api/v1/prototipos/${prototipoId}/presupuesto`, method: 'GET', signal
+    },
+      options);
+    }
+  
+
+
+
+export const getPresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetInfiniteQueryKey = (prototipoId?: string,) => {
+    return [
+    'infinite', `/api/v1/prototipos/${prototipoId}/presupuesto`
+    ] as const;
+    }
+
+export const getPresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetQueryKey = (prototipoId?: string,) => {
+    return [
+    `/api/v1/prototipos/${prototipoId}/presupuesto`
+    ] as const;
+    }
+
+    
+export const getPresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>>, TError = void | HTTPValidationError>(prototipoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetInfiniteQueryKey(prototipoId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>> = ({ signal }) => presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet(prototipoId, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(prototipoId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type PresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>>
+export type PresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetInfiniteQueryError = void | HTTPValidationError
+
+
+export function usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>>, TError = void | HTTPValidationError>(
+ prototipoId: string, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>,
+          TError,
+          Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>>, TError = void | HTTPValidationError>(
+ prototipoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>,
+          TError,
+          Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>>, TError = void | HTTPValidationError>(
+ prototipoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Presupuesto vigente del prototipo
+ */
+
+export function usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>>, TError = void | HTTPValidationError>(
+ prototipoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getPresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetInfiniteQueryOptions(prototipoId,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getPresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetQueryOptions = <TData = Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError = void | HTTPValidationError>(prototipoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetQueryKey(prototipoId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>> = ({ signal }) => presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet(prototipoId, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(prototipoId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type PresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetQueryResult = NonNullable<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>>
+export type PresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetQueryError = void | HTTPValidationError
+
+
+export function usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet<TData = Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError = void | HTTPValidationError>(
+ prototipoId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>,
+          TError,
+          Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet<TData = Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError = void | HTTPValidationError>(
+ prototipoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>,
+          TError,
+          Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet<TData = Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError = void | HTTPValidationError>(
+ prototipoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Presupuesto vigente del prototipo
+ */
+
+export function usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet<TData = Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError = void | HTTPValidationError>(
+ prototipoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof presupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getPresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGetQueryOptions(prototipoId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
  * Qué versión estuvo vigente y de qué carga vino (§10.8).
  * @summary Historial de versiones del presupuesto
  */

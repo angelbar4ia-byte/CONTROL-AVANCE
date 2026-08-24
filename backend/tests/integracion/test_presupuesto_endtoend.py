@@ -172,6 +172,27 @@ class TestPresupuesto:
         # uuids.
         assert all(p["concepto_descripcion"] for p in partidas)
 
+    async def test_vigente_de_prototipo_no_necesita_pasar_por_una_obra(
+        self, escenario: Escenario, contexto_control: ContextoSesion
+    ) -> None:
+        """`GET /prototipos/{id}/presupuesto` (el árbol de Prototipos y
+        Programas base, que no tienen una obra a mano) resuelve igual que
+        `presupuesto_de_obra`, con `unidad_clave`/`precio_unitario`/
+        `importe` por partida — las columnas que la pantalla necesita."""
+        ids = await _sembrar_presupuesto(escenario)
+
+        async with sesion_con_rls(contexto_control) as sesion:
+            repo = RepositorioPresupuestosSQL(sesion)
+            cabecera = await repo.vigente_de_prototipo(escenario.prototipo_id)
+            assert cabecera is not None
+            partidas = await repo.partidas(uuid.UUID(str(cabecera["id"])))
+
+        assert str(cabecera["id"]) == str(ids["presupuesto"])
+        excav = next(p for p in partidas if p["concepto_id"] == ids["concepto_excav"])
+        assert excav["cantidad"] == Decimal("100")
+        assert excav["precio_unitario"] == Decimal("1000")
+        assert excav["importe"] == Decimal("100000")
+
     async def test_una_obra_sin_presupuesto_devuelve_nada_y_no_revienta(
         self, escenario: Escenario, contexto_control: ContextoSesion
     ) -> None:

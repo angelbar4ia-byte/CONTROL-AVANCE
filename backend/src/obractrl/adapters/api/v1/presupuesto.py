@@ -226,6 +226,41 @@ async def presupuesto_de_obra(
 
 
 @router.get(
+    "/prototipos/{prototipo_id}/presupuesto",
+    response_model=PresupuestoRespuesta,
+    summary="Presupuesto vigente del prototipo",
+    dependencies=[CONSULTA_PRESUPUESTO],
+    responses={
+        404: {
+            "description": (
+                "El prototipo no existe, está fuera de tu alcance, o todavía "
+                "no tiene un presupuesto cargado (§10)."
+            )
+        }
+    },
+)
+async def presupuesto_de_prototipo(
+    prototipo_id: UUID, sesion: SesionRLS
+) -> PresupuestoRespuesta:
+    """El mismo presupuesto que `GET /obras/{id}/presupuesto`, pero sin pasar
+    por una obra — para pantallas que ya están paradas sobre el prototipo
+    (el árbol de Prototipos, Programas base) y no tienen una obra a mano."""
+    repo = RepositorioPresupuestosSQL(sesion)
+    cabecera = await repo.vigente_de_prototipo(prototipo_id)
+    if cabecera is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                f"No hay presupuesto para el prototipo {prototipo_id}: no "
+                f"existe, está fuera de tu alcance, o todavía no tiene uno "
+                f"cargado (§10)."
+            ),
+        )
+    partidas = await repo.partidas(UUID(str(cabecera["id"])))
+    return PresupuestoRespuesta(**cabecera, partidas=partidas)  # type: ignore[arg-type]
+
+
+@router.get(
     "/prototipos/{prototipo_id}/presupuestos",
     response_model=list[VersionRespuesta],
     summary="Historial de versiones del presupuesto",

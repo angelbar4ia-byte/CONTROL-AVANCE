@@ -2935,6 +2935,58 @@
         }
       }
     },
+    "/api/v1/prototipos/{prototipo_id}/presupuesto": {
+      "get": {
+        "tags": [
+          "presupuesto"
+        ],
+        "summary": "Presupuesto vigente del prototipo",
+        "description": "El mismo presupuesto que `GET /obras/{id}/presupuesto`, pero sin pasar\npor una obra — para pantallas que ya están paradas sobre el prototipo\n(el árbol de Prototipos, Programas base) y no tienen una obra a mano.",
+        "operationId": "presupuesto_de_prototipo_api_v1_prototipos__prototipo_id__presupuesto_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "prototipo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Prototipo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresupuestoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El prototipo no existe, está fuera de tu alcance, o todavía no tiene un presupuesto cargado (§10)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/prototipos/{prototipo_id}/presupuestos": {
       "get": {
         "tags": [

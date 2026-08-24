@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import type { NodoPrototipoRespuesta } from '@/api/generado/modelo';
+import type { NodoPrototipoRespuesta, PartidaRespuesta } from '@/api/generado/modelo';
 import { armarArbolPrototipo, contarNodosDelArbol } from '@/proyectos/nodosPrototipo';
 import { ArbolPrototipo } from '@/proyectos/ArbolPrototipo';
 
@@ -110,5 +110,55 @@ describe('ArbolPrototipo', () => {
   it('avisa cuando el prototipo no tiene ingeniería cargada', () => {
     render(<ArbolPrototipo nodos={[]} />);
     expect(screen.getByText(/no tiene ingeniería cargada todavía/)).toBeInTheDocument();
+  });
+
+  describe('con presupuesto', () => {
+    const PARTIDA: PartidaRespuesta = {
+      id: 'partida-1',
+      prototipo_nodo_id: 'est-1',
+      unidad_clave: 'M2',
+      cantidad: '12.5',
+      precio_unitario: '1500',
+      importe: '18750',
+      orden: 1,
+    };
+
+    it('muestra unidad, cantidad, PU e importe del concepto con partida', () => {
+      render(
+        <ArbolPrototipo
+          nodos={armarArbolPrototipo([NIV, ECO, EST])}
+          partidas={[PARTIDA]}
+          expandirTodo
+        />,
+      );
+
+      expect(screen.getByText('M2')).toBeInTheDocument();
+      expect(screen.getByText('12.50')).toBeInTheDocument();
+      expect(screen.getByText('$1,500.00')).toBeInTheDocument();
+      expect(screen.getByText('$18,750.00')).toBeInTheDocument();
+    });
+
+    it('sin partida para su nodo, el concepto cae a su cantidad cruda del árbol', () => {
+      render(
+        <ArbolPrototipo nodos={armarArbolPrototipo([NIV, ECO, EST])} partidas={[]} expandirTodo />,
+      );
+
+      expect(screen.getByText('1.00')).toBeInTheDocument();
+      expect(screen.queryByText('$1,500.00')).toBeNull();
+    });
+
+    it('nivel y etapa no muestran columnas de presupuesto aunque haya partidas', () => {
+      const partidaDeOtroNodo: PartidaRespuesta = { ...PARTIDA, prototipo_nodo_id: 'niv-1' };
+      render(
+        <ArbolPrototipo
+          nodos={armarArbolPrototipo([NIV, ECO, EST])}
+          partidas={[partidaDeOtroNodo]}
+          expandirTodo
+        />,
+      );
+
+      expect(screen.queryByText('M2')).toBeNull();
+      expect(screen.queryByText('$1,500.00')).toBeNull();
+    });
   });
 });

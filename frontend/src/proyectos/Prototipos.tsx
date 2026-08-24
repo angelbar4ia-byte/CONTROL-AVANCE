@@ -9,6 +9,7 @@
 
 import { useMemo, useState } from 'react';
 
+import { usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet } from '@/api/generado/presupuesto/presupuesto';
 import {
   useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet,
   useListarPrototiposApiV1PrototiposGet,
@@ -16,6 +17,7 @@ import {
 } from '@/api/generado/proyectos/proyectos';
 import type {
   NodoPrototipoRespuesta,
+  PresupuestoRespuesta,
   PrototipoRespuesta,
   ProyectoRespuesta,
 } from '@/api/generado/modelo';
@@ -52,6 +54,13 @@ export default function Prototipos() {
     ErrorApi
   >(arbolAbierto ?? '', { query: { enabled: arbolAbierto !== null } });
 
+  const presupuestoQ = usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet<
+    PresupuestoRespuesta,
+    ErrorApi
+  >(arbolAbierto ?? '', {
+    query: { enabled: arbolAbierto !== null, retry: false },
+  });
+
   const proyectos = useMemo(() => proyectosQ.data ?? [], [proyectosQ.data]);
   const prototipos = useMemo(() => prototiposQ.data ?? [], [prototiposQ.data]);
   const arbol = useMemo(() => armarArbolPrototipo(nodosQ.data ?? []), [nodosQ.data]);
@@ -74,8 +83,11 @@ export default function Prototipos() {
     );
   }
 
-  const errores = [proyectosQ.error, prototiposQ.error, nodosQ.error].filter(
-    (error): error is ErrorApi => error !== null && error !== undefined,
+  // Un prototipo sin presupuesto cargado todavía responde 404: no es un
+  // error, es el estado normal antes de la primera carga de ingeniería
+  // (§10) — el árbol lo muestra igual, solo sin unidad/PU/importe.
+  const errores = [proyectosQ.error, prototiposQ.error, nodosQ.error, presupuestoQ.error].filter(
+    (error): error is ErrorApi => error !== null && error !== undefined && error.status !== 404,
   );
 
   function proyectoDe(proyectoId: string): ProyectoRespuesta | undefined {
@@ -203,7 +215,7 @@ export default function Prototipos() {
               Cargando árbol…
             </div>
           ) : (
-            <ArbolPrototipo nodos={arbol} />
+            <ArbolPrototipo nodos={arbol} partidas={presupuestoQ.data?.partidas} />
           )}
         </div>
       )}

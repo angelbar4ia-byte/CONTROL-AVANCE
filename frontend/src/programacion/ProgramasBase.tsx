@@ -17,6 +17,7 @@ import {
   useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet,
   useListarProgramasBaseApiV1ProgramasBaseGet,
 } from '@/api/generado/programacion/programacion';
+import { usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet } from '@/api/generado/presupuesto/presupuesto';
 import {
   useListarFrentesApiV1FrentesGet,
   useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet,
@@ -26,6 +27,7 @@ import type {
   FrenteRespuesta,
   ItemProgramaBaseRespuesta,
   NodoPrototipoRespuesta,
+  PresupuestoRespuesta,
   ProgramaBaseRespuesta,
   PrototipoRespuesta,
 } from '@/api/generado/modelo';
@@ -82,6 +84,13 @@ export default function ProgramasBase() {
     NodoPrototipoRespuesta[],
     ErrorApi
   >(baseAbierta?.prototipo_id ?? '', { query: { enabled: baseAbierta !== null } });
+
+  const presupuestoQ = usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet<
+    PresupuestoRespuesta,
+    ErrorApi
+  >(baseAbierta?.prototipo_id ?? '', {
+    query: { enabled: baseAbierta !== null, retry: false },
+  });
 
   const items = useMemo(() => itemsQ.data ?? [], [itemsQ.data]);
   const arbol = useMemo(() => armarArbolPrototipo(nodosQ.data ?? []), [nodosQ.data]);
@@ -153,8 +162,17 @@ export default function ProgramasBase() {
     );
   }
 
-  const errores = [prototiposQ.error, basesQ.error, itemsQ.error, nodosQ.error].filter(
-    (error): error is ErrorApi => error !== null && error !== undefined,
+  // Un prototipo sin presupuesto cargado todavía responde 404: no es un
+  // error, es el estado normal antes de la primera carga de ingeniería
+  // (§10) — el árbol se ve igual, solo sin unidad/PU/importe.
+  const errores = [
+    prototiposQ.error,
+    basesQ.error,
+    itemsQ.error,
+    nodosQ.error,
+    presupuestoQ.error,
+  ].filter(
+    (error): error is ErrorApi => error !== null && error !== undefined && error.status !== 404,
   );
 
   return (
@@ -294,7 +312,12 @@ export default function ProgramasBase() {
                   concepto, §7.4): es la misma estructura de Prototipos, con
                   duración/frente/dependencias superpuestos por
                   `prototipo_nodo_id`. */}
-              <ArbolPrototipo nodos={arbol} extra={renglonDeNodo} expandirTodo />
+              <ArbolPrototipo
+                nodos={arbol}
+                partidas={presupuestoQ.data?.partidas}
+                extra={renglonDeNodo}
+                expandirTodo
+              />
 
               {itemsSinNodo.length > 0 && (
                 <div className="mt-16">
