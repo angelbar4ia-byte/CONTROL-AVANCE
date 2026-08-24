@@ -10,15 +10,22 @@
 import { useMemo, useState } from 'react';
 
 import {
+  useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet,
   useListarPrototiposApiV1PrototiposGet,
   useListarProyectosApiV1ProyectosGet,
 } from '@/api/generado/proyectos/proyectos';
-import type { PrototipoRespuesta, ProyectoRespuesta } from '@/api/generado/modelo';
+import type {
+  NodoPrototipoRespuesta,
+  PrototipoRespuesta,
+  ProyectoRespuesta,
+} from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
 import { useSesion } from '@/app/sesion';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { fmtNum } from '@/lib/formato';
 import { AltaPrototipo } from './AltaPrototipo';
+import { ArbolPrototipo } from './ArbolPrototipo';
+import { armarArbolPrototipo } from './nodosPrototipo';
 import { puedeConfigurarEstructura } from './reglas';
 
 export default function Prototipos() {
@@ -29,6 +36,7 @@ export default function Prototipos() {
   const [proyectoId, setProyectoId] = useState('');
   const [alta, setAlta] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [arbolAbierto, setArbolAbierto] = useState<string | null>(null);
 
   const proyectosQ = useListarProyectosApiV1ProyectosGet<ProyectoRespuesta[], ErrorApi>({
     query: { enabled: administra },
@@ -39,8 +47,14 @@ export default function Prototipos() {
     { query: { enabled: administra } },
   );
 
+  const nodosQ = useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet<
+    NodoPrototipoRespuesta[],
+    ErrorApi
+  >(arbolAbierto ?? '', { query: { enabled: arbolAbierto !== null } });
+
   const proyectos = useMemo(() => proyectosQ.data ?? [], [proyectosQ.data]);
   const prototipos = useMemo(() => prototiposQ.data ?? [], [prototiposQ.data]);
+  const arbol = useMemo(() => armarArbolPrototipo(nodosQ.data ?? []), [nodosQ.data]);
 
   if (!sesion || rol === null) return null;
 
@@ -60,7 +74,7 @@ export default function Prototipos() {
     );
   }
 
-  const errores = [proyectosQ.error, prototiposQ.error].filter(
+  const errores = [proyectosQ.error, prototiposQ.error, nodosQ.error].filter(
     (error): error is ErrorApi => error !== null && error !== undefined,
   );
 
@@ -102,7 +116,10 @@ export default function Prototipos() {
         <select
           className="select"
           value={proyectoId}
-          onChange={(e) => setProyectoId(e.target.value)}
+          onChange={(e) => {
+            setProyectoId(e.target.value);
+            setArbolAbierto(null);
+          }}
           aria-label="Filtrar por proyecto"
         >
           <option value="">Todos los proyectos</option>
@@ -125,12 +142,13 @@ export default function Prototipos() {
                 <th className="is-num">m²</th>
                 <th className="is-num">Niveles</th>
                 <th className="is-num">Recámaras</th>
+                <th>Ingeniería</th>
               </tr>
             </thead>
             <tbody>
               {prototiposQ.isLoading ? (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <div className="text-mute text-sm" style={{ padding: '24px 0' }}>
                       Cargando…
                     </div>
@@ -138,7 +156,7 @@ export default function Prototipos() {
                 </tr>
               ) : prototipos.length === 0 ? (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <div className="text-mute text-sm" style={{ padding: '24px 0' }}>
                       Todavía no hay prototipos con estos filtros.
                     </div>
@@ -157,6 +175,18 @@ export default function Prototipos() {
                       <td className="is-num mono tnum">{fmtNum(prototipo.m2)}</td>
                       <td className="is-num mono tnum">{prototipo.niveles ?? '—'}</td>
                       <td className="is-num mono tnum">{prototipo.recamaras ?? '—'}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn--sm"
+                          aria-expanded={arbolAbierto === prototipo.id}
+                          onClick={() =>
+                            setArbolAbierto(arbolAbierto === prototipo.id ? null : prototipo.id)
+                          }
+                        >
+                          {arbolAbierto === prototipo.id ? 'Ocultar árbol' : 'Ver árbol'}
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
@@ -165,6 +195,18 @@ export default function Prototipos() {
           </table>
         </div>
       </div>
+
+      {arbolAbierto !== null && (
+        <div className="table-wrap mt-16">
+          {nodosQ.isLoading ? (
+            <div className="text-mute text-sm" style={{ padding: '24px 0' }}>
+              Cargando árbol…
+            </div>
+          ) : (
+            <ArbolPrototipo nodos={arbol} />
+          )}
+        </div>
+      )}
 
       {alta && (
         <AltaPrototipo
