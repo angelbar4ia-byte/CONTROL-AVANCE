@@ -1769,8 +1769,18 @@ class AplicadorPresupuesto:
             diferente = firma_vigente != firma_nueva
 
         conflicto = False
-        if diferente:
-            assert concepto_id is not None  # noqa: S101 — `diferente` implica `actual is not None`
+        if diferente and concepto_id is None:
+            # `actual` es un alta de ESTE MISMO archivo que dry_run dejó sin
+            # id real (no se llamó `crear()`, §9.3: la vista previa no
+            # escribe). Sin fila en la base no hay `otros_prototipos_con_
+            # partida_vigente` que consultar — pero dos prototipos del mismo
+            # archivo proponiendo la primera composición de una clave nueva
+            # y no coincidiendo entre sí es exactamente el mismo desacuerdo
+            # que el conflicto real: ninguno de los dos es "el vigente"
+            # todavía. Se resuelve igual, sin tocar nada.
+            conflicto = True
+        elif diferente:
+            assert concepto_id is not None  # noqa: S101 — cubierto arriba
             # Composición distinta a la vigente: ¿es un prototipo DISTINTO
             # el que ya depende de ella (conflicto real), o es este mismo
             # prototipo recargando una corrección (actualización legítima,
