@@ -86,12 +86,20 @@ def _decimal_opcional(
 
 
 def validar_mano_obra(
-    fila: Sequence[object], mapa: MapaColumnas, numero: int = 0
+    fila: Sequence[object],
+    mapa: MapaColumnas,
+    numero: int = 0,
+    *,
+    tipo: TipoInsumo = TipoInsumo.MANO_OBRA,
 ) -> FilaManoObra:
     """Fila del archivo → `FilaManoObra`, o :class:`ErrorEnFila`.
 
     La **clave** es obligatoria y se normaliza con `Clave` (§3.3): sin ella
     no hay con qué deduplicar ni contra qué cruzar.
+
+    ``tipo`` distingue mano de obra de subcontratos (§10.6): mismas
+    cabeceras, mismo validador — lo fija `CargadorSubcontratos` vía
+    `functools.partial`.
     """
     celda_clave = mapa.valor(fila, "clave")
     if esta_vacio(celda_clave):
@@ -120,5 +128,6 @@ def validar_mano_obra(
         cuadrilla=texto_limpio(mapa.valor(fila, "cuadrilla")) or None,
         rendimiento_teorico=_decimal_opcional(fila, mapa, "rendimiento_teorico"),
         costo_base=_decimal_opcional(fila, mapa, "costo_base"),
+        tipo=tipo,
         fila=numero,
     )

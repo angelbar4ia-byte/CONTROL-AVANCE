@@ -287,6 +287,19 @@ def test_una_fila_de_mano_de_obra_completa_queda_validada() -> None:
     assert destajo.fila == 9
 
 
+def test_mano_de_obra_con_tipo_subcontrato_queda_marcada_como_tal() -> None:
+    """`catalogo_de_SUBCONTRATOS.xlsx` reusa este validador vía
+    `functools.partial(validar_mano_obra, tipo=SUBCONTRATO)` (§10.6):
+    ``tipo`` no lo trae la fila, lo fija quien llama."""
+    subcontrato = validar_mano_obra(
+        ["Subcontrato", "US-01", "sub-001", "Instalación eléctrica"],
+        resolver_encabezados(["TIPO", "CLAVE USUARIO", "CLAVE", "DESCTRIPCIÓN"], MANO_DE_OBRA),
+        1,
+        tipo=TipoInsumo.SUBCONTRATO,
+    )
+    assert subcontrato.tipo == TipoInsumo.SUBCONTRATO
+
+
 def test_mano_de_obra_sin_rendimiento_queda_en_none_no_en_cero() -> None:
     mapa = resolver_encabezados(["CLAVE", "DESCTRIPCIÓN"], MANO_DE_OBRA)
     destajo = validar_mano_obra(["dest-02", "Pintura"], mapa, 2)

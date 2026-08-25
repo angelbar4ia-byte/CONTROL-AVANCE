@@ -8,15 +8,16 @@ Cada clase implementa el puerto `LectorDeCarga`
 §10.6 con su especificación de columnas y su validador de dominio. Toda la
 regla vive en `domain.cargadores`; aquí solo se recorre el `.xlsx`.
 
-Los cargadores del §10.6 que **no** están implementados —subcontratos,
-obras/lotes, contratistas, niveles, etapas y estimaciones— no tienen
-entrada en `CARGADORES`: pedir uno de esos tipos falla explícito en vez de
-cargar cualquier cosa.
+Los cargadores del §10.6 que **no** están implementados —obras/lotes,
+contratistas, niveles, etapas y estimaciones— no tienen entrada en
+`CARGADORES`: pedir uno de esos tipos falla explícito en vez de cargar
+cualquier cosa.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from functools import partial
 
 from obractrl.adapters.excel.lector import LIMITES, ErrorDeArchivo, Limites
 from obractrl.adapters.excel.pipeline import (
@@ -34,7 +35,7 @@ from obractrl.domain.cargadores.materiales import validar_material
 from obractrl.domain.cargadores.presupuesto import construir_arboles
 from obractrl.domain.cargadores.prototipos import validar_prototipo
 from obractrl.domain.cargadores.reporte import ErrorEnFila, LecturaCarga
-from obractrl.domain.shared.diccionario import TipoCarga
+from obractrl.domain.shared.diccionario import TipoCarga, TipoInsumo
 from obractrl.domain.shared.normalizacion import canonizar_encabezado
 
 __all__ = [
@@ -46,6 +47,7 @@ __all__ = [
     "CargadorMateriales",
     "CargadorPresupuesto",
     "CargadorPrototipos",
+    "CargadorSubcontratos",
     "TipoDeCargaSinCargador",
     "cargador_para",
 ]
@@ -88,6 +90,29 @@ class CargadorManoObra:
             contenido,
             self.especificacion,
             validar_mano_obra,
+            limites=self._limites,
+        )
+
+
+class CargadorSubcontratos:
+    """Subcontratos — `catalogo_de_SUBCONTRATOS.xlsx` (§10.6).
+
+    Mismas cabeceras que `CABECERAS_MANO_DE_OBRA.xlsx` pero su propia hoja
+    (`cabeceras.SUBCONTRATOS`, §10.6): reusa el mismo validador, fijando
+    ``tipo=SUBCONTRATO`` vía `functools.partial` en vez de duplicarlo.
+    """
+
+    tipo = TipoCarga.SUBCONTRATOS
+    especificacion = cabeceras.SUBCONTRATOS
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            partial(validar_mano_obra, tipo=TipoInsumo.SUBCONTRATO),
             limites=self._limites,
         )
 
@@ -300,6 +325,7 @@ def _es_fila_de_encabezados(fila: object) -> bool:
 CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.MATERIALES: CargadorMateriales,
     TipoCarga.MANO_DE_OBRA: CargadorManoObra,
+    TipoCarga.SUBCONTRATOS: CargadorSubcontratos,
     TipoCarga.CUADRILLAS: CargadorCuadrillas,
     TipoCarga.CATALOGO_CONCEPTOS: CargadorCPU,
     TipoCarga.ALMACEN: CargadorAlmacen,

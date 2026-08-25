@@ -441,10 +441,13 @@ cargas_sql._RESTAURAR`)."""
 
 
 class AplicadorManoObra:
-    """Mano de obra / destajos (§10.6).
+    """Mano de obra / destajos y Subcontratos (§10.6) — mismo cargador.
 
-    Copia estructural de `AplicadorMateriales`: un destajo es un `Insumo`
-    con ``tipo='mano_obra'`` (§7.3), mismo catálogo, mismo diff/versionado.
+    `CABECERAS_MANO_DE_OBRA.xlsx` y `catalogo_de_SUBCONTRATOS.xlsx` traen
+    exactamente las mismas cabeceras; lo único que cambia es el tipo de
+    insumo (constructor ``tipo``, §10.1). Copia estructural de
+    `AplicadorMateriales`: cada fila es un `Insumo` (§7.3), mismo catálogo,
+    mismo diff/versionado.
     Además homologa —o da de alta, mismo criterio que unidad/familia
     (§8.7)— la `cuadrilla` que ejecuta el destajo, y si el archivo trae
     rendimiento teórico se lo asienta también a la cuadrilla ("la cuadrilla
@@ -461,12 +464,17 @@ class AplicadorManoObra:
         familias: RepositorioFamilias,
         cuadrillas: RepositorioCuadrillas,
         cargas: RepositorioCargas,
+        tipo: TipoInsumo = TipoInsumo.MANO_OBRA,
     ) -> None:
         self._insumos = insumos
         self._unidades = unidades
         self._familias = familias
         self._cuadrillas = cuadrillas
         self._cargas = cargas
+        # MANO_OBRA o SUBCONTRATO (§10.6): mismo archivo, mismo flujo; el
+        # tipo de insumo que gobierna es lo único que cambia entre los dos
+        # cargadores (`CargadorManoObra`/`CargadorSubcontratos`).
+        self._tipo = tipo
 
     async def aplicar(
         self,
@@ -477,7 +485,7 @@ class AplicadorManoObra:
         carga_id: UUID,
     ) -> Aplicacion:
         vigentes_filas = await self._insumos.listar(
-            tipo=str(TipoInsumo.MANO_OBRA), solo_activos=False
+            tipo=str(self._tipo), solo_activos=False
         )
         por_clave = {str(fila["clave"]): fila for fila in vigentes_filas}
 
@@ -572,7 +580,7 @@ class AplicadorManoObra:
             for alta in diff.altas:
                 nuevo_id = await self._insumos.crear(
                     {
-                        "tipo": str(TipoInsumo.MANO_OBRA),
+                        "tipo": str(self._tipo),
                         "clave": alta.clave,
                         "descripcion": alta.despues["descripcion"],
                         "unidad_id": alta.despues["unidad_id"],

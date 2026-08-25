@@ -17,6 +17,7 @@ const ETIQUETA_TIPO: Record<string, string> = {
   catalogo_conceptos: 'Catálogo de conceptos',
   materiales: 'Materiales',
   mano_de_obra: 'Mano de obra / Destajos',
+  subcontratos: 'Subcontratos',
   cuadrillas: 'Cuadrillas',
   contratistas: 'Contratistas',
   unidades: 'Unidades',

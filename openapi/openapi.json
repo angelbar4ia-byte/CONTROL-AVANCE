@@ -13751,7 +13751,8 @@
           "almacen",
           "prototipos",
           "mano_de_obra",
-          "cuadrillas"
+          "cuadrillas",
+          "subcontratos"
         ],
         "title": "TipoCarga"
       },
@@ -13844,7 +13845,8 @@
           "material",
           "mano_obra",
           "equipo",
-          "herramienta"
+          "herramienta",
+          "subcontrato"
         ],
         "title": "TipoInsumo"
       },

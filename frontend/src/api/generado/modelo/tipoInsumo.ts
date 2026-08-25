@@ -15,4 +15,5 @@ export const TipoInsumo = {
   mano_obra: 'mano_obra',
   equipo: 'equipo',
   herramienta: 'herramienta',
+  subcontrato: 'subcontrato',
 } as const;

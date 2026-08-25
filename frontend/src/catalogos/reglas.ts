@@ -52,6 +52,7 @@ const ETIQUETA_TIPO_INSUMO: Record<string, string> = {
   mano_obra: 'Mano de obra',
   equipo: 'Equipo',
   herramienta: 'Herramienta',
+  subcontrato: 'Subcontrato',
 };
 
 /** Etiqueta legible de `insumo.tipo` (§7.3, invariante del §8.7). */
