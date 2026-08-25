@@ -11,10 +11,13 @@
 import { useMemo, useState, type FormEvent } from 'react';
 
 import { useCrearObraApiV1ObrasPost } from '@/api/generado/obras/obras';
+import { useListarUsuariosApiV1UsuariosGet } from '@/api/generado/usuarios/usuarios';
+import { Rol } from '@/api/generado/modelo';
 import type {
   ClusterRespuesta,
   PrototipoRespuesta,
   ProyectoRespuesta,
+  UsuarioRespuesta,
 } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
 import { ErrorBanner } from '@/lib/ErrorBanner';
@@ -71,6 +74,16 @@ export function AltaObra({
       onError: (err) => setError({ mensaje: err.message, campo: err.campo }),
     },
   });
+
+  // Residente sale de Equipo, no se teclea a mano: un uuid copiado mal manda
+  // a un residente equivocado sin que nadie lo note hasta que ya no ve su obra.
+  const usuariosQ = useListarUsuariosApiV1UsuariosGet<UsuarioRespuesta[], ErrorApi>({
+    rol: Rol.residente,
+  });
+  const residentes = useMemo(
+    () => (usuariosQ.data ?? []).filter((usuario) => usuario.estatus === 'activo'),
+    [usuariosQ.data],
+  );
 
   const prototiposDelCluster = useMemo(
     () => prototiposDeProyecto(prototipos, proyectoDeCluster(clusters, clusterId)),
@@ -164,13 +177,24 @@ export function AltaObra({
             }
           />
 
-          <CampoTexto
+          <CampoSelect
             id="obra-residente"
-            etiqueta="Residente (uuid)"
+            etiqueta="Residente"
             valor={residenteId}
             onCambio={setResidenteId}
-            mono
-            pista="Define el alcance del Residente sobre esta obra (§4)."
+            opciones={residentes.map((usuario) => ({
+              valor: usuario.id,
+              etiqueta: usuario.nombre,
+            }))}
+            vacio={
+              usuariosQ.isLoading
+                ? 'Cargando…'
+                : residentes.length === 0
+                  ? 'No hay usuarios con rol Residente'
+                  : 'Sin asignar'
+            }
+            deshabilitado={usuariosQ.isLoading || residentes.length === 0}
+            pista="Define el alcance del Residente sobre esta obra (§4). Sale de Equipo — se puede asignar después."
           />
 
           <div className="row gap-12">
