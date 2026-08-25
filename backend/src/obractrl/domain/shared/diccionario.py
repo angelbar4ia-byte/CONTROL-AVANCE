@@ -107,6 +107,7 @@ class TipoInsumo(_Canonico):
     MANO_OBRA = "mano_obra"
     EQUIPO = "equipo"
     HERRAMIENTA = "herramienta"
+    SUBCONTRATO = "subcontrato"
 
 
 class TipoConcepto(_Canonico):
@@ -318,6 +319,13 @@ class TipoCarga(_Canonico):
     precio, con historial versionado (§10.8) como el CPU de un concepto.
     Espejo en la base:
     `database/migrations/20260814000032_cargador_de_cuadrillas.sql`.
+    """
+
+    SUBCONTRATOS = "subcontratos"
+    """`catalogo_de_SUBCONTRATOS.xlsx` (§10.6): mismas cabeceras que
+    `MANO_DE_OBRA`, `TIPO=Subcontrato`, claves `SUB-xxxxx`. Alimenta el
+    catálogo de insumos con `tipo=subcontrato`. Espejo en la base:
+    `database/migrations/20260814000034_carga_de_subcontratos.sql`.
     """
 
 

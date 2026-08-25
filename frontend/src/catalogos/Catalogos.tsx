@@ -99,6 +99,7 @@ const TIPOS_INSUMO: readonly TipoInsumo[] = [
   TipoInsumo.mano_obra,
   TipoInsumo.equipo,
   TipoInsumo.herramienta,
+  TipoInsumo.subcontrato,
 ];
 
 const TIPOS_CONCEPTO: readonly TipoConcepto[] = [

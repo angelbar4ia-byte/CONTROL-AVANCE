@@ -1,0 +1,3 @@
+-- down · 0034 · Carga de subcontratos
+-- Los valores de enum se quedan (Postgres no tiene drop value), mismo
+-- criterio que 0019/0029/0030/0031/0032.

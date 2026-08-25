@@ -65,7 +65,12 @@ from obractrl.application.casos_uso.gestionar_carga import (
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera
 from obractrl.domain.cargadores.reporte import TipoPendiente
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto
-from obractrl.domain.shared.diccionario import EstatusCarga, ModoCarga, TipoCarga
+from obractrl.domain.shared.diccionario import (
+    EstatusCarga,
+    ModoCarga,
+    TipoCarga,
+    TipoInsumo,
+)
 from obractrl.infrastructure.db.sesion import ContextoSesion, sesion_con_rls
 from tests.integracion.conftest import DATABASE_URL_ADMIN, Escenario
 
@@ -104,6 +109,12 @@ _CABECERAS_MANO_OBRA = [
 
 def _archivo_mano_obra(filas: list[list[object]]) -> bytes:
     return _libro([_CABECERAS_MANO_OBRA, *filas], hoja="DESTAJOS")
+
+
+def _archivo_subcontratos(filas: list[list[object]]) -> bytes:
+    """`catalogo_de_SUBCONTRATOS.xlsx`: mismas cabeceras que mano de obra,
+    hoja propia (`SUBCONTRATOS`, no `DESTAJOS`)."""
+    return _libro([_CABECERAS_MANO_OBRA, *filas], hoja="SUBCONTRATOS")
 
 
 _CABECERAS_CUADRILLAS = [
@@ -259,6 +270,15 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
             familias=RepositorioFamiliasSQL(sesion),
             cuadrillas=RepositorioCuadrillasSQL(sesion),
             cargas=cargas,
+        )
+    if tipo is TipoCarga.SUBCONTRATOS:
+        return AplicadorManoObra(
+            insumos=RepositorioInsumosSQL(sesion),
+            unidades=RepositorioUnidadesSQL(sesion),
+            familias=RepositorioFamiliasSQL(sesion),
+            cuadrillas=RepositorioCuadrillasSQL(sesion),
+            cargas=cargas,
+            tipo=TipoInsumo.SUBCONTRATO,
         )
     if tipo is TipoCarga.CUADRILLAS:
         return AplicadorCuadrillas(
@@ -726,6 +746,39 @@ async def test_carga_de_mano_de_obra_alimenta_el_catalogo_de_insumos(
     assert "CUAD-01" in cuadrillas
     assert destajo["cuadrilla_id"] == cuadrillas["CUAD-01"]["id"]
     assert cuadrillas["CUAD-01"]["rendimiento"] == Decimal("12.500000")
+
+
+# --- Subcontratos (§10.6 `catalogo_de_SUBCONTRATOS.xlsx`) ----------------
+
+
+async def test_carga_de_subcontratos_alimenta_el_catalogo_de_insumos_como_subcontrato(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Mismo cargador que mano de obra (`AplicadorManoObra`, `tipo` fijo por
+    constructor), pero su propia hoja (`SUBCONTRATOS`, no `DESTAJOS`) y su
+    propio `insumo.tipo` — un subcontrato no es mano de obra (§10.1)."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.SUBCONTRATOS,
+        _archivo_subcontratos(
+            [
+                [
+                    "Subcontrato", "US-01", "sub-00001", "Instalación eléctrica",
+                    "UN-01", "ton", None, "8", None, "1500.00", "CEM",
+                ]
+            ]
+        ),
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.insertados == 1
+    assert resultado.pendientes == 0
+
+    catalogo = await _insumos(contexto_control)
+    subcontrato = catalogo["SUB-00001"]
+    assert subcontrato["tipo"] == "subcontrato"
+    assert subcontrato["descripcion"] == "Instalación eléctrica"
+    assert subcontrato["costo_base"] == Decimal("1500.0000")
 
 
 async def test_recargar_mano_de_obra_actualiza_el_rendimiento_de_la_cuadrilla(

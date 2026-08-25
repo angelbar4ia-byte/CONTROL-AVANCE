@@ -159,7 +159,7 @@ from obractrl.application.eventos import (
     EstimacionValidada,
     IncidenciaDetiene,
 )
-from obractrl.domain.shared.diccionario import TipoCarga
+from obractrl.domain.shared.diccionario import TipoCarga, TipoInsumo
 from obractrl.infrastructure.auth.supabase_admin import AdminDeSupabase
 from obractrl.infrastructure.jobs.cola import ColaDeTrabajos
 from obractrl.infrastructure.notificaciones.expo import ClienteExpoPush
@@ -840,6 +840,15 @@ class FabricaDeCargas:
                 familias=RepositorioFamiliasSQL(sesion),
                 cuadrillas=RepositorioCuadrillasSQL(sesion),
                 cargas=cargas,
+            )
+        if tipo is TipoCarga.SUBCONTRATOS:
+            return AplicadorManoObra(
+                insumos=RepositorioInsumosSQL(sesion),
+                unidades=RepositorioUnidadesSQL(sesion),
+                familias=RepositorioFamiliasSQL(sesion),
+                cuadrillas=RepositorioCuadrillasSQL(sesion),
+                cargas=cargas,
+                tipo=TipoInsumo.SUBCONTRATO,
             )
         if tipo is TipoCarga.CUADRILLAS:
             return AplicadorCuadrillas(

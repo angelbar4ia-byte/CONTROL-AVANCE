@@ -33,6 +33,7 @@ __all__ = [
     "MATERIALES",
     "PRESUPUESTO",
     "PROTOTIPOS",
+    "SUBCONTRATOS",
     "ColumnaPorLetra",
     "ErrorDeCabecera",
     "EspecificacionArchivo",
@@ -290,11 +291,12 @@ MATERIALES = EspecificacionArchivo(
 # El archivo real de producción trae "DESCTRIPCIÓN" — un typo propio del
 # archivo, no del §10.6 ni de este código; se homologa igual que
 # "COSTO BASE M.N." en materiales. TIPO y CLAVE USUARIO no se guardan: el
-# primero no aporta nada (todo el archivo es de un solo tipo, los
-# subcontratos van en otro archivo del §10.6) y el segundo es la
-# referencia del sistema externo del cliente, no algo que el catálogo
-# interno necesite. RENDIMIENTO REAL tampoco se lee — sale de cruzar
-# contra la duración real de la obra, un cálculo posterior.
+# primero no aporta nada (todo el archivo es de un solo tipo — los
+# subcontratos van en `catalogo_de_SUBCONTRATOS.xlsx`, mismas cabeceras,
+# ver SUBCONTRATOS abajo) y el segundo es la referencia del sistema externo
+# del cliente, no algo que el catálogo interno necesite. RENDIMIENTO REAL
+# tampoco se lee — sale de cruzar contra la duración real de la obra, un
+# cálculo posterior.
 
 MANO_DE_OBRA = EspecificacionArchivo(
     tipo="Mano de obra / Destajos",
@@ -310,6 +312,20 @@ MANO_DE_OBRA = EspecificacionArchivo(
         "costo unitario": "costo_base",
         "costo_unitario": "costo_base",
     },
+)
+
+# `catalogo_de_SUBCONTRATOS.xlsx` trae exactamente las mismas cabeceras que
+# `CABECERAS_MANO_DE_OBRA.xlsx` (TIPO=Subcontrato en vez de Individual,
+# claves SUB-xxxxx) pero en su propia hoja — no reusar el objeto de arriba
+# tal cual: su `hoja="DESTAJOS"` no existe en este archivo.
+
+SUBCONTRATOS = EspecificacionArchivo(
+    tipo="Subcontratos",
+    archivo="catalogo_de_SUBCONTRATOS.xlsx",
+    hoja="SUBCONTRATOS",
+    obligatorias=MANO_DE_OBRA.obligatorias,
+    opcionales=MANO_DE_OBRA.opcionales,
+    alias=dict(MANO_DE_OBRA.alias),
 )
 
 CUADRILLAS = EspecificacionArchivo(
