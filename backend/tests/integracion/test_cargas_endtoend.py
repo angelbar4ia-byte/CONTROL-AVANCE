@@ -1118,8 +1118,12 @@ async def test_un_insumo_desconocido_en_el_cpu_se_da_de_alta_solo(
 ) -> None:
     """A diferencia de un concepto, un insumo que no cruza ya no detiene el
     APU (§7.3, §8.7): se da de alta con lo que trae la fila componente
-    —clave, descripción, tipo, unidad, costo— y el concepto entra completo,
-    sin pendiente."""
+    —clave, descripción, tipo, unidad, costo— y el concepto entra completo.
+
+    El concepto sigue abriendo su propio pendiente informativo de
+    "CPU nuevo" (§10.3, ajeno a este cambio: lo abre todo alta de concepto,
+    tenga o no un insumo por resolver) — lo que esta prueba verifica es que
+    ya **no** hay, además, el pendiente crítico de insumo no reconocido."""
     await _sembrar_insumos(contexto_control)
 
     resultado = await _cargar(
@@ -1143,7 +1147,12 @@ async def test_un_insumo_desconocido_en_el_cpu_se_da_de_alta_solo(
 
     assert resultado.estatus is EstatusCarga.APLICADO
     assert resultado.resumen.insertados == 1
-    assert resultado.pendientes == 0
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(
+            carga_id=resultado.carga_id
+        )
+    assert not [b for b in bandeja if b["entidad"] == "insumo"]
 
     async with sesion_con_rls(contexto_control) as sesion:
         conceptos = await RepositorioConceptosSQL(sesion).listar()
