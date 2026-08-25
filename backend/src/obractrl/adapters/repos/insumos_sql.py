@@ -33,7 +33,8 @@ __all__ = ["RepositorioInsumosSQL"]
 _COLUMNAS = """
     id, tipo, clave, descripcion, unidad_id, familia_id,
     costo_base, costo_base_actualizado, costo_promedio_almacen, costo_ultimo,
-    origen, iva_aplica, factor_conversion, estatus
+    origen, iva_aplica, factor_conversion, estatus,
+    cuadrilla_id, rendimiento_teorico
 """
 
 _CAMPOS_EDITABLES: dict[str, str] = {
@@ -52,6 +53,10 @@ _CAMPOS_EDITABLES: dict[str, str] = {
     "iva_aplica": "iva_aplica = cast(:iva_aplica as boolean)",
     "factor_conversion": "factor_conversion = cast(:factor_conversion as numeric)",
     "estatus": "estatus = cast(:estatus as estatus_registro)",
+    "cuadrilla_id": "cuadrilla_id = cast(:cuadrilla_id as uuid)",
+    "rendimiento_teorico": (
+        "rendimiento_teorico = cast(:rendimiento_teorico as numeric)"
+    ),
 }
 """Campos que una edición puede tocar. La `clave` no está: es la identidad
 del registro (§3.3). El diccionario es también la lista blanca que evita
@@ -68,7 +73,8 @@ class RepositorioInsumosSQL:
         Claves esperadas: ``tipo``, ``clave`` y ``descripcion``, ya
         normalizados por `domain.catalogos.reglas.Insumo`. Opcionales:
         ``unidad_id``, ``familia_id``, ``costo_base``, ``iva_aplica``,
-        ``factor_conversion``.
+        ``factor_conversion``, ``cuadrilla_id``, ``rendimiento_teorico``
+        (§10.6, mano de obra).
         """
         return (
             await self._sesion.execute(
@@ -76,7 +82,8 @@ class RepositorioInsumosSQL:
                     """
                     insert into insumo
                         (org_id, tipo, clave, descripcion, unidad_id, familia_id,
-                         costo_base, iva_aplica, factor_conversion)
+                         costo_base, iva_aplica, factor_conversion,
+                         cuadrilla_id, rendimiento_teorico)
                     values (cast(current_setting('app.org_id') as uuid),
                             cast(:tipo as tipo_insumo), :clave, :descripcion,
                             cast(:unidad_id as uuid), cast(:familia_id as uuid),
@@ -86,7 +93,9 @@ class RepositorioInsumosSQL:
                             -- perdería sus decimales en silencio.
                             coalesce(cast(:costo_base as numeric), 0),
                             cast(:iva_aplica as boolean),
-                            coalesce(cast(:factor_conversion as numeric), 1))
+                            coalesce(cast(:factor_conversion as numeric), 1),
+                            cast(:cuadrilla_id as uuid),
+                            cast(:rendimiento_teorico as numeric))
                     returning id
                     """
                 ),
@@ -103,6 +112,10 @@ class RepositorioInsumosSQL:
                     "costo_base": datos.get("costo_base"),
                     "iva_aplica": datos.get("iva_aplica"),
                     "factor_conversion": datos.get("factor_conversion"),
+                    "cuadrilla_id": (
+                        str(datos["cuadrilla_id"]) if datos.get("cuadrilla_id") else None
+                    ),
+                    "rendimiento_teorico": datos.get("rendimiento_teorico"),
                 },
             )
         ).scalar_one()

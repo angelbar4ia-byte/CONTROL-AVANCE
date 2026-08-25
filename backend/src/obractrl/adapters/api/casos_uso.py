@@ -30,6 +30,7 @@ from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
+from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
 from obractrl.adapters.repos.evaluaciones_sql import RepositorioEvaluacionesSQL
 from obractrl.adapters.repos.expediente_sql import RepositorioExpedienteSQL
@@ -53,6 +54,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorCPU,
     AplicadorDeCarga,
     AplicadorDePrototipos,
+    AplicadorManoObra,
     AplicadorMateriales,
     AplicadorPresupuesto,
     AplicadorPrototipos,
@@ -782,6 +784,14 @@ class FabricaDeCargas:
                 insumos=RepositorioInsumosSQL(sesion),
                 unidades=RepositorioUnidadesSQL(sesion),
                 familias=RepositorioFamiliasSQL(sesion),
+                cargas=cargas,
+            )
+        if tipo is TipoCarga.MANO_DE_OBRA:
+            return AplicadorManoObra(
+                insumos=RepositorioInsumosSQL(sesion),
+                unidades=RepositorioUnidadesSQL(sesion),
+                familias=RepositorioFamiliasSQL(sesion),
+                cuadrillas=RepositorioCuadrillasSQL(sesion),
                 cargas=cargas,
             )
         if tipo is TipoCarga.CATALOGO_CONCEPTOS:

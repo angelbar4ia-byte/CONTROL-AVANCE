@@ -90,6 +90,11 @@ _ELIMINAR: dict[str, str] = {
 # que se queda (mismo criterio que un valor de enum de más: inerte, no
 # estorba). Solo se revierten `prototipo_nodo`/`presupuesto`/
 # `partida_presupuesto`, que sí son propios de este prototipo y esta carga.
+#
+# `cuadrilla` tampoco está aquí, mismo criterio: el cargador de mano de obra
+# (§10.6) la da de alta como catálogo compartido por organización
+# (`uq_cuadrilla_clave`), no por carga — otra carga de mano de obra ya
+# confirmada puede depender de la misma cuadrilla.
 
 _RESTAURAR: dict[str, str] = {
     "insumo": """
@@ -105,6 +110,8 @@ _RESTAURAR: dict[str, str] = {
             origen                 = coalesce(a.j->>'origen', 'base'),
             iva_aplica             = cast(a.j->>'iva_aplica' as boolean),
             factor_conversion      = coalesce(cast(a.j->>'factor_conversion' as numeric), 1),
+            cuadrilla_id           = cast(a.j->>'cuadrilla_id' as uuid),
+            rendimiento_teorico    = cast(a.j->>'rendimiento_teorico' as numeric),
             -- El modo Reemplazar da de baja lógica lo que el archivo ya no
             -- trae (§10.2); sin esta línea la reversa no la desharía.
             estatus                = cast(coalesce(a.j->>'estatus', 'activo') as estatus_registro)

@@ -31,6 +31,7 @@ from obractrl.adapters.excel.cargadores import cargador_para
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
+from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
@@ -47,6 +48,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorCPU,
     AplicadorDeCarga,
     AplicadorDePrototipos,
+    AplicadorManoObra,
     AplicadorMateriales,
     AplicadorPresupuesto,
     AplicadorPrototipos,
@@ -87,6 +89,18 @@ _CABECERAS_MATERIALES = ["Clave", "Descripción", "Unidad", "Clase", "Costo base
 
 def _archivo_materiales(filas: list[list[object]]) -> bytes:
     return _libro([_CABECERAS_MATERIALES, *filas])
+
+
+_CABECERAS_MANO_OBRA = [
+    "TIPO", "CLAVE USUARIO", "CLAVE", "DESCTRIPCIÓN", "CLAVE UNIDAD", "UNIDAD",
+    "CUADRILLA", "RENDIMIENTO TEORICO", "RENDIMIENTO REAL", "COSTO UNITARIO", "FAMILIA",
+]
+"""§10.6, archivo real `CABECERAS_MANO_DE_OBRA.xlsx`, hoja `DESTAJOS`.
+`DESCTRIPCIÓN` es el typo real del archivo, no del test."""
+
+
+def _archivo_mano_obra(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_MANO_OBRA, *filas], hoja="DESTAJOS")
 
 
 _CABECERAS_CPU = [
@@ -225,6 +239,14 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
             familias=RepositorioFamiliasSQL(sesion),
             cargas=cargas,
         )
+    if tipo is TipoCarga.MANO_DE_OBRA:
+        return AplicadorManoObra(
+            insumos=RepositorioInsumosSQL(sesion),
+            unidades=RepositorioUnidadesSQL(sesion),
+            familias=RepositorioFamiliasSQL(sesion),
+            cuadrillas=RepositorioCuadrillasSQL(sesion),
+            cargas=cargas,
+        )
     if tipo is TipoCarga.CATALOGO_CONCEPTOS:
         return AplicadorCPU(
             conceptos=RepositorioConceptosSQL(sesion),
@@ -299,6 +321,12 @@ async def _insumos(contexto: ContextoSesion) -> dict[str, dict]:
 async def _unidades(contexto: ContextoSesion) -> dict[str, dict]:
     async with sesion_con_rls(contexto) as sesion:
         filas = await RepositorioUnidadesSQL(sesion).listar(solo_activos=False)
+    return {str(f["clave"]): f for f in filas}
+
+
+async def _cuadrillas(contexto: ContextoSesion) -> dict[str, dict]:
+    async with sesion_con_rls(contexto) as sesion:
+        filas = await RepositorioCuadrillasSQL(sesion).listar(solo_activos=False)
     return {str(f["clave"]): f for f in filas}
 
 
@@ -637,6 +665,97 @@ async def test_un_archivo_sin_las_cabeceras_del_contrato_se_rechaza_entero(
             TipoCarga.MATERIALES,
             _libro([["Columna A", "Columna B"], ["x", "y"]]),
         )
+
+
+# --- Mano de obra / Destajos (§10.6 `CABECERAS_MANO_DE_OBRA.xlsx`) -------
+
+
+async def test_carga_de_mano_de_obra_alimenta_el_catalogo_de_insumos(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Un destajo es un `Insumo` con `tipo='mano_obra'` (§7.3). La cuadrilla
+    nueva se da de alta sola —mismo criterio que unidad/familia (§8.7)— y
+    "asume" el rendimiento teórico que trae el archivo."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.MANO_DE_OBRA,
+        _archivo_mano_obra(
+            [
+                [
+                    "Individual", "US-01", "dest-01", "Aplanado fino", "UN-01", "ton",
+                    "CUAD-01", "12.5", None, "85.30", "CEM",
+                ]
+            ]
+        ),
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.insertados == 1
+    assert resultado.pendientes == 0
+
+    catalogo = await _insumos(contexto_control)
+    destajo = catalogo["DEST-01"]
+    assert destajo["tipo"] == "mano_obra"
+    assert destajo["descripcion"] == "Aplanado fino"
+    assert destajo["unidad_id"] == catalogos.unidad_id
+    assert destajo["familia_id"] == catalogos.familia_id
+    assert destajo["costo_base"] == Decimal("85.3000")
+    assert destajo["rendimiento_teorico"] == Decimal("12.500000")
+
+    cuadrillas = await _cuadrillas(contexto_control)
+    assert "CUAD-01" in cuadrillas
+    assert destajo["cuadrilla_id"] == cuadrillas["CUAD-01"]["id"]
+    assert cuadrillas["CUAD-01"]["rendimiento"] == Decimal("12.500000")
+
+
+async def test_recargar_mano_de_obra_actualiza_el_rendimiento_de_la_cuadrilla(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """"La cuadrilla asume el rendimiento" del destajo que se le asigna: una
+    recarga con otro rendimiento lo actualiza, no crea otra cuadrilla."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.MANO_DE_OBRA,
+        _archivo_mano_obra(
+            [["Individual", "US-01", "dest-01", "Aplanado fino", "UN-01", "ton", "CUAD-01", "10", None, "80", "CEM"]]
+        ),
+    )
+    await _cargar(
+        contexto_control,
+        TipoCarga.MANO_DE_OBRA,
+        _archivo_mano_obra(
+            [["Individual", "US-01", "dest-01", "Aplanado fino", "UN-01", "ton", "CUAD-01", "15", None, "80", "CEM"]]
+        ),
+    )
+
+    cuadrillas = await _cuadrillas(contexto_control)
+    assert len(cuadrillas) == 1
+    assert cuadrillas["CUAD-01"]["rendimiento"] == Decimal("15.000000")
+
+
+async def test_revertir_mano_de_obra_deja_el_insumo_sin_cuadrilla_ni_rendimiento(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§10.8: la reversa del alta borra el insumo entero; no hay nada que
+    "dejar en null" porque el registro nunca existió antes de este lote."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.MANO_DE_OBRA,
+        _archivo_mano_obra(
+            [["Individual", "US-01", "dest-01", "Aplanado fino", "UN-01", "ton", "CUAD-01", "10", None, "80", "CEM"]]
+        ),
+    )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        reversa = await RevertirCarga(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(resultado.carga_id, usuario_id=contexto_control.usuario_id)
+
+    assert reversa["operaciones_revertidas"] == 1
+    assert await _insumos(contexto_control) == {}
+    # La cuadrilla es catálogo compartido por organización (§10.6): revertir
+    # este lote no se la lleva, igual que `nivel`/`etapa_constructiva`.
+    assert "CUAD-01" in await _cuadrillas(contexto_control)
 
 
 # --- CPU / Conceptos (§10.6 `CABECERAS_CPU.xlsx`) ------------------------

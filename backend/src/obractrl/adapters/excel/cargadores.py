@@ -8,10 +8,10 @@ Cada clase implementa el puerto `LectorDeCarga`
 §10.6 con su especificación de columnas y su validador de dominio. Toda la
 regla vive en `domain.cargadores`; aquí solo se recorre el `.xlsx`.
 
-Los cargadores del §10.6 que **no** están implementados —mano de obra,
-subcontratos, obras/lotes, contratistas, niveles, etapas y estimaciones— no
-tienen entrada en `CARGADORES`: pedir uno de esos tipos falla explícito en
-vez de cargar cualquier cosa.
+Los cargadores del §10.6 que **no** están implementados —subcontratos,
+obras/lotes, contratistas, niveles, etapas y estimaciones— no tienen
+entrada en `CARGADORES`: pedir uno de esos tipos falla explícito en vez de
+cargar cualquier cosa.
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ from obractrl.domain.cargadores import cabeceras
 from obractrl.domain.cargadores.almacen import validar_movimiento
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera, resolver_encabezados
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
+from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra
 from obractrl.domain.cargadores.materiales import validar_material
 from obractrl.domain.cargadores.presupuesto import construir_arboles
 from obractrl.domain.cargadores.prototipos import validar_prototipo
@@ -39,6 +40,7 @@ __all__ = [
     "CARGADORES",
     "CargadorAlmacen",
     "CargadorCPU",
+    "CargadorManoObra",
     "CargadorMateriales",
     "CargadorPresupuesto",
     "CargadorPrototipos",
@@ -65,6 +67,25 @@ class CargadorMateriales:
             contenido,
             self.especificacion,
             validar_material,
+            limites=self._limites,
+        )
+
+
+class CargadorManoObra:
+    """Mano de obra / destajos — `CABECERAS_MANO_DE_OBRA.xlsx`, hoja
+    `DESTAJOS` (§10.6)."""
+
+    tipo = TipoCarga.MANO_DE_OBRA
+    especificacion = cabeceras.MANO_DE_OBRA
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            validar_mano_obra,
             limites=self._limites,
         )
 
@@ -249,6 +270,7 @@ def _es_fila_de_encabezados(fila: object) -> bool:
 
 CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.MATERIALES: CargadorMateriales,
+    TipoCarga.MANO_DE_OBRA: CargadorManoObra,
     TipoCarga.CATALOGO_CONCEPTOS: CargadorCPU,
     TipoCarga.ALMACEN: CargadorAlmacen,
     TipoCarga.PROTOTIPOS: CargadorPrototipos,

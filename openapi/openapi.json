@@ -13331,7 +13331,8 @@
           "programa_base",
           "obras",
           "almacen",
-          "prototipos"
+          "prototipos",
+          "mano_de_obra"
         ],
         "title": "TipoCarga"
       },

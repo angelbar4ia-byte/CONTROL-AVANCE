@@ -31,6 +31,7 @@ __all__ = [
     "RepositorioConceptos",
     "RepositorioConfiguracion",
     "RepositorioContratistas",
+    "RepositorioCuadrillas",
     "RepositorioEstimaciones",
     "RepositorioEvaluaciones",
     "RepositorioExpediente",
@@ -846,6 +847,30 @@ class RepositorioFamilias(Protocol):
     async def listar(
         self, *, aplica_a: str | None = None, solo_activos: bool = True
     ) -> list[dict]: ...
+
+
+@runtime_checkable
+class RepositorioCuadrillas(Protocol):
+    """Cuadrillas (§7.3, §10.6): grupos de trabajadores a los que se les
+    asigna un destajo.
+
+    Hasta el cargador de mano de obra (§10.6) nadie escribía esta tabla
+    (migración 0005) — solo se leía para reportes (`rendimiento_por_
+    cuadrilla`, Torre de control). Sin pantalla de alta propia todavía: el
+    único escritor es este cargador, que la da de alta con lo mínimo
+    (clave, nombre) igual que unidad/familia — `contratista_id`/
+    `frente_id`/`lider`/`integrantes` quedan para cuando exista esa
+    pantalla.
+    """
+
+    async def crear(self, datos: dict) -> UUID: ...
+
+    async def listar(self, *, solo_activos: bool = True) -> list[dict]: ...
+
+    async def actualizar_rendimiento(self, cuadrilla_id: UUID, rendimiento: Decimal) -> None:
+        """La cuadrilla "asume" el rendimiento teórico de la mano de obra
+        que se le asigna (§10.6) — no se toca si el archivo no lo trae."""
+        ...
 
 
 @runtime_checkable
