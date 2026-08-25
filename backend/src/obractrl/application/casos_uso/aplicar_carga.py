@@ -31,6 +31,7 @@ from obractrl.application.puertos.cargadores import RepositorioCargas
 from obractrl.application.puertos.repositorios import (
     RepositorioConceptos,
     RepositorioContratistas,
+    RepositorioCuadrillas,
     RepositorioFamilias,
     RepositorioInsumos,
     RepositorioMateriales,
@@ -45,6 +46,7 @@ from obractrl.application.puertos.repositorios import (
 from obractrl.domain.cargadores.almacen import FilaMovimiento, importe_con_iva
 from obractrl.domain.cargadores.cpu import ConceptoCargado
 from obractrl.domain.cargadores.homologacion import Homologador
+from obractrl.domain.cargadores.mano_de_obra import FilaManoObra
 from obractrl.domain.cargadores.materiales import FilaMaterial
 from obractrl.domain.cargadores.presupuesto import (
     ArbolPrototipoCargado,
@@ -85,6 +87,7 @@ __all__ = [
     "AplicadorCPU",
     "AplicadorDeCarga",
     "AplicadorDePrototipos",
+    "AplicadorManoObra",
     "AplicadorMateriales",
     "AplicadorPresupuesto",
     "AplicadorPrototipos",
@@ -411,6 +414,218 @@ def _o_vigente(valor: Any, actual: dict[str, Any], campo: str) -> Any:
     verdad; una carga lo actualiza, no lo vacía).
     """
     return actual.get(campo) if valor is None else valor
+
+
+# --- Mano de obra / Destajos (§10.6 `CABECERAS_MANO_DE_OBRA.xlsx`) --------
+
+_CAMPOS_MANO_OBRA = (
+    "descripcion",
+    "unidad_id",
+    "familia_id",
+    "costo_base",
+    "cuadrilla_id",
+    "rendimiento_teorico",
+)
+"""Campos que este cargador gobierna. Sin el trío de valuación de almacén
+(§10.5) ni `iva_aplica`: ese archivo no trae esas columnas — son de
+materiales, no de mano de obra."""
+
+_CAMPOS_RESTAURABLES_MANO_OBRA = (
+    *_CAMPOS_MANO_OBRA,
+    "estatus",
+)
+"""Lo que el snapshot guarda como ``antes`` (`adapters/repos/
+cargas_sql._RESTAURAR`)."""
+
+
+class AplicadorManoObra:
+    """Mano de obra / destajos (§10.6).
+
+    Copia estructural de `AplicadorMateriales`: un destajo es un `Insumo`
+    con ``tipo='mano_obra'`` (§7.3), mismo catálogo, mismo diff/versionado.
+    Además homologa —o da de alta, mismo criterio que unidad/familia
+    (§8.7)— la `cuadrilla` que ejecuta el destajo, y si el archivo trae
+    rendimiento teórico se lo asienta también a la cuadrilla ("la cuadrilla
+    asume el rendimiento" del destajo que se le asigna): un efecto
+    colateral fuera del diff de insumo, porque la cuadrilla no es lo que
+    esta carga está versionando.
+    """
+
+    def __init__(
+        self,
+        *,
+        insumos: RepositorioInsumos,
+        unidades: RepositorioUnidades,
+        familias: RepositorioFamilias,
+        cuadrillas: RepositorioCuadrillas,
+        cargas: RepositorioCargas,
+    ) -> None:
+        self._insumos = insumos
+        self._unidades = unidades
+        self._familias = familias
+        self._cuadrillas = cuadrillas
+        self._cargas = cargas
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        vigentes_filas = await self._insumos.listar(
+            tipo=str(TipoInsumo.MANO_OBRA), solo_activos=False
+        )
+        por_clave = {str(fila["clave"]): fila for fila in vigentes_filas}
+
+        unidades_filas = await self._unidades.listar(solo_activos=False)
+        unidades = Homologador.desde(
+            unidades_filas, mapeos=await self._cargas.mapeos("unidad")
+        )
+        id_unidad = {str(f["clave"]): f["id"] for f in unidades_filas}
+
+        # Sin ámbito propio de "mano_obra" en `familia.aplica_a` (§10.1 solo
+        # define material/concepto): un destajo es un insumo igual que un
+        # material, así que comparte el mismo árbol de familias que ellos.
+        familias_filas = await self._familias.listar(
+            aplica_a="material", solo_activos=False
+        )
+        familias = Homologador.desde(
+            familias_filas, mapeos=await self._cargas.mapeos("familia")
+        )
+        id_familia = {str(f["clave"]): f["id"] for f in familias_filas}
+
+        cuadrillas_filas = await self._cuadrillas.listar(solo_activos=False)
+        cuadrillas = Homologador.desde(
+            cuadrillas_filas, mapeos=await self._cargas.mapeos("cuadrilla")
+        )
+        id_cuadrilla = {str(f["clave"]): f["id"] for f in cuadrillas_filas}
+
+        pendientes: list[PendientePropuesto] = []
+        entrantes: dict[str, dict[str, Any]] = {}
+        nuevas_unidades: dict[str, UUID | None] = {}
+        nuevas_familias: dict[str, UUID | None] = {}
+        nuevas_cuadrillas: dict[str, UUID | None] = {}
+        rendimientos_por_cuadrilla: dict[UUID, Decimal] = {}
+
+        for registro in lectura.registros:
+            destajo: FilaManoObra = registro  # type: ignore[assignment]
+            actual = por_clave.get(destajo.llave, {})
+
+            unidad_id = actual.get("unidad_id")
+            if destajo.unidad:
+                unidad_id = await _resolver_o_dar_de_alta(
+                    destajo.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    creadas=nuevas_unidades,
+                    crear=self._unidades.crear,
+                    dry_run=dry_run,
+                )
+
+            familia_id = actual.get("familia_id")
+            if destajo.familia:
+                familia_id = await _resolver_o_dar_de_alta(
+                    destajo.familia,
+                    homologador=familias,
+                    id_por_clave=id_familia,
+                    creadas=nuevas_familias,
+                    crear=self._familias.crear,
+                    dry_run=dry_run,
+                )
+
+            cuadrilla_id = actual.get("cuadrilla_id")
+            if destajo.cuadrilla:
+                cuadrilla_id = await _resolver_o_dar_de_alta(
+                    destajo.cuadrilla,
+                    homologador=cuadrillas,
+                    id_por_clave=id_cuadrilla,
+                    creadas=nuevas_cuadrillas,
+                    crear=self._cuadrillas.crear,
+                    dry_run=dry_run,
+                )
+                if cuadrilla_id is not None and destajo.rendimiento_teorico is not None:
+                    rendimientos_por_cuadrilla[cuadrilla_id] = destajo.rendimiento_teorico
+
+            entrantes[destajo.llave] = {
+                "descripcion": destajo.descripcion,
+                "unidad_id": unidad_id,
+                "familia_id": familia_id,
+                "costo_base": _o_vigente(destajo.costo_base, actual, "costo_base"),
+                "cuadrilla_id": cuadrilla_id,
+                "rendimiento_teorico": _o_vigente(
+                    destajo.rendimiento_teorico, actual, "rendimiento_teorico"
+                ),
+            }
+
+        vigentes = {
+            clave: {campo: fila.get(campo) for campo in _CAMPOS_MANO_OBRA}
+            for clave, fila in por_clave.items()
+        }
+        diff = diferenciar(vigentes=vigentes, entrantes=entrantes, modo=modo)
+
+        operaciones: list[dict[str, Any]] = []
+        if not dry_run:
+            for alta in diff.altas:
+                nuevo_id = await self._insumos.crear(
+                    {
+                        "tipo": str(TipoInsumo.MANO_OBRA),
+                        "clave": alta.clave,
+                        "descripcion": alta.despues["descripcion"],
+                        "unidad_id": alta.despues["unidad_id"],
+                        "familia_id": alta.despues["familia_id"],
+                        "costo_base": alta.despues["costo_base"],
+                        "cuadrilla_id": alta.despues["cuadrilla_id"],
+                        "rendimiento_teorico": alta.despues["rendimiento_teorico"],
+                    }
+                )
+                operaciones.append(
+                    _operacion("insumo", nuevo_id, "insert", despues=dict(alta.despues))
+                )
+
+            for cambio in diff.cambios:
+                fila = por_clave[cambio.clave]
+                await self._insumos.actualizar(fila["id"], dict(cambio.despues))
+                operaciones.append(
+                    _operacion(
+                        "insumo",
+                        fila["id"],
+                        "update",
+                        antes=_recorte(fila, _CAMPOS_RESTAURABLES_MANO_OBRA),
+                        despues=dict(cambio.despues),
+                    )
+                )
+
+            for baja in diff.bajas:
+                fila = por_clave[baja.clave]
+                await self._insumos.actualizar(fila["id"], {"estatus": _ESTATUS_BAJA})
+                operaciones.append(
+                    _operacion(
+                        "insumo",
+                        fila["id"],
+                        "update",
+                        antes=_recorte(fila, _CAMPOS_RESTAURABLES_MANO_OBRA),
+                        despues={"estatus": _ESTATUS_BAJA},
+                    )
+                )
+
+            for cuadrilla_id, rendimiento in rendimientos_por_cuadrilla.items():
+                await self._cuadrillas.actualizar_rendimiento(cuadrilla_id, rendimiento)
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            pendientes=tuple(pendientes),
+            insertados=len(diff.altas),
+            actualizados=len(diff.cambios) + len(diff.bajas),
+            omitidos=diff.omitidos + lectura.omitidos,
+            detalle={
+                "unidades_creadas": len(nuevas_unidades),
+                "familias_creadas": len(nuevas_familias),
+                "cuadrillas_creadas": len(nuevas_cuadrillas),
+            },
+        )
 
 
 # --- CPU / Conceptos (§10.6 `CABECERAS_CPU.xlsx`) -------------------------

@@ -16,6 +16,7 @@ import type { LoteRespuesta } from '@/api/generado/modelo';
 const ETIQUETA_TIPO: Record<string, string> = {
   catalogo_conceptos: 'Catálogo de conceptos',
   materiales: 'Materiales',
+  mano_de_obra: 'Mano de obra / Destajos',
   contratistas: 'Contratistas',
   unidades: 'Unidades',
   familias: 'Familias',

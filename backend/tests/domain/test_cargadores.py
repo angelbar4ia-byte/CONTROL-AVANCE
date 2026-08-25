@@ -25,6 +25,7 @@ from obractrl.domain.cargadores.almacen import (
 )
 from obractrl.domain.cargadores.cabeceras import (
     ALMACEN,
+    MANO_DE_OBRA,
     MAPA_CPU,
     MATERIALES,
     PRESUPUESTO,
@@ -35,6 +36,7 @@ from obractrl.domain.cargadores.cabeceras import (
 )
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.homologacion import Homologador
+from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra
 from obractrl.domain.cargadores.materiales import validar_material
 from obractrl.domain.cargadores.presupuesto import (
     TipoNodoPresupuesto,
@@ -44,7 +46,7 @@ from obractrl.domain.cargadores.presupuesto import (
 from obractrl.domain.cargadores.prototipos import validar_prototipo
 from obractrl.domain.cargadores.reporte import ErrorEnFila, TipoPendiente
 from obractrl.domain.cargadores.versionado import diferenciar
-from obractrl.domain.shared.diccionario import CategoriaExplosion, ModoCarga
+from obractrl.domain.shared.diccionario import CategoriaExplosion, ModoCarga, TipoInsumo
 from obractrl.domain.shared.normalizacion import (
     ValorNoConvertible,
     a_booleano,
@@ -231,6 +233,81 @@ def test_una_columna_ausente_queda_en_none_no_en_cero() -> None:
     material = validar_material(["CEM-01", "Cemento gris"], mapa, 2)
     assert material.costo_base is None
     assert material.iva is None
+
+
+# --- Mano de obra / Destajos (§10.6 `CABECERAS_MANO_DE_OBRA.xlsx`) --------
+
+_MAPA_MANO_OBRA = resolver_encabezados(
+    [
+        "TIPO",
+        "CLAVE USUARIO",
+        "CLAVE",
+        "DESCTRIPCIÓN",
+        "CLAVE UNIDAD",
+        "UNIDAD",
+        "CUADRILLA",
+        "RENDIMIENTO TEORICO",
+        "RENDIMIENTO REAL",
+        "COSTO UNITARIO",
+        "FAMILIA",
+    ],
+    MANO_DE_OBRA,
+)
+
+
+def test_una_fila_de_mano_de_obra_completa_queda_validada() -> None:
+    """``DESCTRIPCIÓN`` es el typo real del archivo, no del test (§10.6)."""
+    destajo = validar_mano_obra(
+        [
+            "Individual",
+            "US-001",
+            "dest-01",
+            " Aplanado fino ",
+            "UN-01",
+            "m2",
+            "CUAD-01",
+            "12.5",
+            None,
+            "85.30",
+            "Acabados",
+        ],
+        _MAPA_MANO_OBRA,
+        9,
+    )
+    assert destajo.llave == "DEST-01"
+    assert destajo.descripcion == "Aplanado fino"
+    assert destajo.unidad == "m2"
+    assert destajo.familia == "Acabados"
+    assert destajo.cuadrilla == "CUAD-01"
+    assert destajo.rendimiento_teorico == Decimal("12.5")
+    assert destajo.costo_base == Decimal("85.30")
+    assert destajo.tipo == TipoInsumo.MANO_OBRA
+    assert destajo.fila == 9
+
+
+def test_mano_de_obra_sin_rendimiento_queda_en_none_no_en_cero() -> None:
+    mapa = resolver_encabezados(["CLAVE", "DESCTRIPCIÓN"], MANO_DE_OBRA)
+    destajo = validar_mano_obra(["dest-02", "Pintura"], mapa, 2)
+    assert destajo.rendimiento_teorico is None
+    assert destajo.cuadrilla is None
+    assert destajo.costo_base is None
+
+
+def test_mano_de_obra_sin_clave_es_error_de_fila() -> None:
+    with pytest.raises(ErrorEnFila) as capturado:
+        validar_mano_obra(["", "Pintura"], _MAPA_MANO_OBRA, 3)
+    assert capturado.value.con_fila(3).columna == "clave"
+
+
+def test_mano_de_obra_con_rendimiento_negativo_es_error() -> None:
+    with pytest.raises(ErrorEnFila, match="negativo"):
+        validar_mano_obra(
+            [
+                None, None, "dest-03", "Pintura", None, "m2", None, "-1", None, None, None,
+            ],
+            _MAPA_MANO_OBRA,
+            4,
+        )
 
 
 # --- Prototipos (extensión propia, no está en el §10.6) ------------------

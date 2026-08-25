@@ -302,6 +302,14 @@ class TipoCarga(_Canonico):
     `database/migrations/20260814000029_carga_de_prototipos.sql`.
     """
 
+    MANO_DE_OBRA = "mano_de_obra"
+    """`CABECERAS_MANO_DE_OBRA.xlsx` (hoja `DESTAJOS`, §10.6): "clave,
+    clave_usuario, descripción, unidad, cuadrilla, rendimiento_teórico/
+    real, costo_unitario, familia". Alimenta el catálogo de insumos con
+    `tipo=mano_obra` — hasta ahora solo `MATERIALES` lo hacía. Espejo en la
+    base: `database/migrations/20260814000031_carga_de_mano_de_obra.sql`.
+    """
+
 
 class EstatusCarga(_Canonico):
     PENDIENTE = "pendiente"

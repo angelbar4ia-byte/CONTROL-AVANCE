@@ -27,6 +27,7 @@ __all__ = [
     "ALMACEN",
     "COLUMNAS_CPU",
     "CPU",
+    "MANO_DE_OBRA",
     "MAPA_CPU",
     "MATERIALES",
     "PRESUPUESTO",
@@ -275,6 +276,38 @@ MATERIALES = EspecificacionArchivo(
         "iva": "iva",
         "iva aplica": "iva",
         "iva_aplica": "iva",
+    },
+)
+
+# --- Mano de obra / Destajos (§10.6) --------------------------------------
+#
+# Cita literal del §10.6: "Mano de obra (Destajos) (`CABECERAS_MANO_DE_
+# OBRA.xlsx`, `DESTAJOS`): TIPO, clave usuario (mapeo), clave oficial
+# (`MOA-`), descripción, unidad, cuadrilla, rendimiento teórico/real, costo
+# unitario, familia."
+#
+# El archivo real de producción trae "DESCTRIPCIÓN" — un typo propio del
+# archivo, no del §10.6 ni de este código; se homologa igual que
+# "COSTO BASE M.N." en materiales. TIPO y CLAVE USUARIO no se guardan: el
+# primero no aporta nada (todo el archivo es de un solo tipo, los
+# subcontratos van en otro archivo del §10.6) y el segundo es la
+# referencia del sistema externo del cliente, no algo que el catálogo
+# interno necesite. RENDIMIENTO REAL tampoco se lee — sale de cruzar
+# contra la duración real de la obra, un cálculo posterior.
+
+MANO_DE_OBRA = EspecificacionArchivo(
+    tipo="Mano de obra / Destajos",
+    archivo="CABECERAS_MANO_DE_OBRA.xlsx",
+    hoja="DESTAJOS",
+    obligatorias=("clave", "descripcion"),
+    opcionales=("unidad", "familia", "cuadrilla", "rendimiento_teorico", "costo_base"),
+    alias={
+        "desctripcion": "descripcion",
+        "cuadrilla": "cuadrilla",
+        "rendimiento teorico": "rendimiento_teorico",
+        "rendimiento_teorico": "rendimiento_teorico",
+        "costo unitario": "costo_base",
+        "costo_unitario": "costo_base",
     },
 )
 
