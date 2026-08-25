@@ -571,7 +571,7 @@ async def test_eliminar_una_vista_previa_borra_su_registro(
     )
 
     async with sesion_con_rls(contexto_control) as sesion:
-        await EliminarCarga(cargas=RepositorioCargasSQL(sesion)).ejecutar(resultado.carga_id)
+        await EliminarCarga(cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)).ejecutar(resultado.carga_id)
 
     async with sesion_con_rls(contexto_control) as sesion:
         assert await RepositorioCargasSQL(sesion).obtener(resultado.carga_id) is None
@@ -596,7 +596,7 @@ async def test_no_se_puede_eliminar_una_carga_aplicada_sin_revertir(
 
     async with sesion_con_rls(contexto_control) as sesion:
         with pytest.raises(CargaNoEliminable, match="revierte primero"):
-            await EliminarCarga(cargas=RepositorioCargasSQL(sesion)).ejecutar(
+            await EliminarCarga(cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)).ejecutar(
                 resultado.carga_id
             )
     # Sigue ahí, y el material sigue en el catálogo.
@@ -621,7 +621,7 @@ async def test_eliminar_una_carga_ya_revertida_borra_su_registro(
         ).ejecutar(resultado.carga_id)
 
     async with sesion_con_rls(contexto_control) as sesion:
-        await EliminarCarga(cargas=RepositorioCargasSQL(sesion)).ejecutar(resultado.carga_id)
+        await EliminarCarga(cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)).ejecutar(resultado.carga_id)
 
     async with sesion_con_rls(contexto_control) as sesion:
         assert await RepositorioCargasSQL(sesion).obtener(resultado.carga_id) is None

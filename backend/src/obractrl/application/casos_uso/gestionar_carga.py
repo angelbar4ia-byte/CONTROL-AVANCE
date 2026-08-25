@@ -260,8 +260,9 @@ class EliminarCarga:
     primero, eliminar después — son dos pasos a propósito, no uno.
     """
 
-    def __init__(self, *, cargas: RepositorioCargas) -> None:
+    def __init__(self, *, cargas: RepositorioCargas, uow: UnidadDeTrabajo) -> None:
         self._cargas = cargas
+        self._uow = uow
 
     async def ejecutar(self, carga_id: UUID) -> None:
         carga = await self._cargas.obtener(carga_id)
@@ -279,7 +280,9 @@ class EliminarCarga:
                 "(§10.8), o se perdería la única forma de deshacer sus "
                 "cambios."
             )
-        await self._cargas.eliminar(carga_id)
+        async with self._uow:
+            await self._cargas.eliminar(carga_id)
+            await self._uow.commit()
 
 
 class ConsultarCarga:

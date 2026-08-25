@@ -736,7 +736,10 @@ def obtener_revertir_carga(sesion: SesionRLS) -> RevertirCarga:
 
 
 def obtener_eliminar_carga(sesion: SesionRLS) -> EliminarCarga:
-    return EliminarCarga(cargas=RepositorioCargasSQL(sesion))
+    return EliminarCarga(
+        cargas=RepositorioCargasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
 
 
 ConsultarCargaDep = Annotated[ConsultarCarga, Depends(obtener_consultar_carga)]
