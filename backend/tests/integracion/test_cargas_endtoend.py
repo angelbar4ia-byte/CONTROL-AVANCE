@@ -1113,10 +1113,17 @@ async def test_carga_de_cpu_crea_concepto_explosion_y_version(
     assert explosion[0]["cantidad"] == explosion[0]["rendimiento"] == Decimal("12.500000")
 
 
-async def test_un_insumo_desconocido_detiene_el_concepto_y_abre_pendiente_critico(
+async def test_un_insumo_desconocido_en_el_cpu_se_da_de_alta_solo(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
-    """Un APU con un hueco publicaría un precio menor al real (§7.3)."""
+    """A diferencia de un concepto, un insumo que no cruza ya no detiene el
+    APU (§7.3, §8.7): se da de alta con lo que trae la fila componente
+    —clave, descripción, tipo, unidad, costo— y el concepto entra completo.
+
+    El concepto sigue abriendo su propio pendiente informativo de
+    "CPU nuevo" (§10.3, ajeno a este cambio: lo abre todo alta de concepto,
+    tenga o no un insumo por resolver) — lo que esta prueba verifica es que
+    ya **no** hay, además, el pendiente crítico de insumo no reconocido."""
     await _sembrar_insumos(contexto_control)
 
     resultado = await _cargar(
@@ -1126,24 +1133,38 @@ async def test_un_insumo_desconocido_detiene_el_concepto_y_abre_pendiente_critic
             [
                 _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
                 _fila_cpu(insumo="MAT-01", cantidad="12.5", pu="20", tipo="Material"),
-                _fila_cpu(insumo="NO-EXISTE", cantidad="1", pu="10", tipo="Material"),
+                _fila_cpu(
+                    insumo="SUB-01",
+                    descripcion="Impermeabilizante",
+                    unidad="m2",
+                    cantidad="1",
+                    pu="500",
+                    tipo="Subcontrato",
+                ),
             ]
         ),
     )
 
-    assert resultado.resumen.insertados == 0
-    assert resultado.pendientes == 1
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.insertados == 1
 
     async with sesion_con_rls(contexto_control) as sesion:
         bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(
             carga_id=resultado.carga_id
         )
-        conceptos = await RepositorioConceptosSQL(sesion).listar()
+    assert not [b for b in bandeja if b["entidad"] == "insumo"]
 
-    assert bandeja[0]["tipo"] == str(TipoPendiente.MAPEO_NO_RECONOCIDO)
-    assert bandeja[0]["entidad"] == "insumo"
-    assert bandeja[0]["critico"] is True
-    assert [c for c in conceptos if str(c["clave"]) == "EST-01"] == []
+    async with sesion_con_rls(contexto_control) as sesion:
+        conceptos = await RepositorioConceptosSQL(sesion).listar()
+    assert "EST-01" in {str(c["clave"]) for c in conceptos}
+
+    subcontrato = (await _insumos(contexto_control))["SUB-01"]
+    assert subcontrato["tipo"] == "subcontrato"
+    assert subcontrato["descripcion"] == "Impermeabilizante"
+    assert subcontrato["costo_base"] == Decimal("500.0000")
+    # "m2" no estaba sembrada: se dio de alta sola, mismo criterio que la
+    # unidad/familia del propio concepto (§8.7).
+    assert "m2" in await _unidades(contexto_control)
 
 
 async def test_recargar_el_cpu_con_otra_receta_publica_version_2_y_se_revierte(
