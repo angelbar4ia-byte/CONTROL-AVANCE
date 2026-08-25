@@ -1061,9 +1061,14 @@ class AplicadorCuadrillas:
     siempre — "lo que cobra la cuadrilla es el 100% de su costo". Cero
     matemática nueva: se reutiliza tal cual lo que ya prueba `AplicadorCPU`.
 
-    Un integrante cuyo insumo no está en el catálogo detiene la cuadrilla
-    entera (mismo criterio que un componente de concepto sin insumo, §10.3):
-    un PU con un hueco es peor que no cargarlo.
+    Un integrante (``MOOP-...``) es el individuo que ejecuta la obra dentro
+    de la cuadrilla (el grupo) — no el destajo de `AplicadorManoObra` ni
+    un insumo de un CPU. Confirmado con el usuario: este catálogo de
+    personal **nunca se ha cargado por ningún otro archivo**, así que un
+    integrante que no cruza se da de alta solo, con lo mínimo (clave,
+    descripción, ``tipo=mano_obra``) — mismo criterio que unidad/familia
+    (§8.7): el riesgo de un individuo de más no es el de un concepto o un
+    precio en conflicto, se corrige después con un alta/homologación.
     """
 
     def __init__(
@@ -1091,8 +1096,8 @@ class AplicadorCuadrillas:
         por_clave = {str(f["clave"]): f for f in cuadrillas_filas}
 
         insumos_filas = await self._insumos.listar(solo_activos=False)
-        insumos_por_clave = {str(f["clave"]): f for f in insumos_filas}
         clave_de_insumo = {f["id"]: str(f["clave"]) for f in insumos_filas}
+        id_insumo = {str(f["clave"]): f["id"] for f in insumos_filas}
         insumos = Homologador.desde(
             insumos_filas, mapeos=await self._cargas.mapeos("insumo")
         )
@@ -1114,7 +1119,7 @@ class AplicadorCuadrillas:
         entrantes: dict[str, dict[str, Any]] = {}
         planes: dict[str, dict[str, Any]] = {}
         nuevas_unidades: dict[str, UUID | None] = {}
-        nuevas_cuadrillas: dict[str, UUID | None] = {}
+        nuevos_insumos: dict[str, UUID | None] = {}
 
         for registro in lectura.registros:
             bloque: CuadrillaCargada = registro  # type: ignore[assignment]
@@ -1125,18 +1130,31 @@ class AplicadorCuadrillas:
             incompleto = False
 
             for integrante in bloque.componentes:
-                clave_insumo = insumos.resolver(str(integrante.clave_insumo))
-                if clave_insumo is None:
-                    pendientes.append(
-                        _pendiente_de_mapeo(
-                            "insumo",
-                            str(integrante.clave_insumo),
-                            integrante.fila,
-                            critico=True,
-                        )
+                clave_insumo = str(integrante.clave_insumo)
+
+                async def _dar_de_alta_integrante(
+                    _datos: dict[str, Any],
+                    *,
+                    clave: str = clave_insumo,
+                    descripcion: str = integrante.descripcion or clave_insumo,
+                ) -> UUID:
+                    return await self._insumos.crear(
+                        {
+                            "tipo": str(TipoInsumo.MANO_OBRA),
+                            "clave": clave,
+                            "descripcion": descripcion,
+                        }
                     )
-                    incompleto = True
-                    continue
+
+                insumo_id = await _resolver_o_dar_de_alta(
+                    clave_insumo,
+                    homologador=insumos,
+                    id_por_clave=id_insumo,
+                    creadas=nuevos_insumos,
+                    crear=_dar_de_alta_integrante,
+                    dry_run=dry_run,
+                )
+
                 try:
                     del_dominio = Componente(
                         categoria=CategoriaExplosion.MANO_OBRA,
@@ -1165,7 +1183,7 @@ class AplicadorCuadrillas:
                 )
                 filas_integrantes.append(
                     {
-                        "insumo_id": insumos_por_clave[clave_insumo]["id"],
+                        "insumo_id": insumo_id,
                         "cantidad": del_dominio.cantidad,
                         "costo_unitario": costo,
                         "importe": del_dominio.cantidad * costo,
@@ -1251,7 +1269,6 @@ class AplicadorCuadrillas:
                             "unidad_id": cambio.despues["unidad_id"],
                         }
                     )
-                    nuevas_cuadrillas[cambio.clave] = cuadrilla_id
                     operaciones.append(
                         _operacion(
                             "cuadrilla", cuadrilla_id, "insert", despues={"clave": cambio.clave}
@@ -1305,7 +1322,7 @@ class AplicadorCuadrillas:
             omitidos=diff.omitidos + lectura.omitidos,
             detalle={
                 "unidades_creadas": len(nuevas_unidades),
-                "cuadrillas_creadas": len(nuevas_cuadrillas),
+                "integrantes_creados": len(nuevos_insumos),
             },
         )
 
