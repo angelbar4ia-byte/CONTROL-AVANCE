@@ -5516,6 +5516,52 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "cargas"
+        ],
+        "summary": "Eliminar el registro de una carga",
+        "description": "Limpia el historial de una vista previa vieja o una carga ya\nrevertida (§10.8) — no de una que sigue aplicada sin deshacer.",
+        "operationId": "eliminar_carga_api_v1_cargas__carga_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "carga_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Carga Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La carga no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La carga se aplicó y no se ha revertido: revertirla primero (§10.8)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/cargas/{carga_id}/pendientes": {

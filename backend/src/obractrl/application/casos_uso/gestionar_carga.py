@@ -35,11 +35,13 @@ from obractrl.domain.cargadores.reporte import ErrorDeFila, ResumenCarga
 from obractrl.domain.shared.diccionario import EstatusCarga, ModoCarga, TipoCarga
 
 __all__ = [
+    "CargaNoEliminable",
     "CargaNoEncontrada",
     "CargaNoRevertible",
     "ComandoEjecutarCarga",
     "ConsultarCarga",
     "EjecutarCarga",
+    "EliminarCarga",
     "ResultadoCarga",
     "RevertirCarga",
 ]
@@ -51,6 +53,11 @@ class CargaNoEncontrada(LookupError):
 
 class CargaNoRevertible(RuntimeError):
     """El lote no se puede revertir: no llegó a aplicarse o ya se revirtió."""
+
+
+class CargaNoEliminable(RuntimeError):
+    """El lote se aplicó y no se ha revertido: borrar su registro ahora
+    dejaría el catálogo modificado sin ninguna forma de deshacerlo."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -238,6 +245,41 @@ class RevertirCarga:
             await self._uow.commit()
 
         return {"carga_id": carga_id, "operaciones_revertidas": len(operaciones)}
+
+
+class EliminarCarga:
+    """Borra el registro de una carga que no tiene nada pendiente de
+    revertir: una vista previa que nunca escribió (§9.3), una que falló
+    antes de aplicar, o una que ya se revirtió. `carga_snapshot` y
+    `pendiente` se van en cascada (`on delete cascade` desde el diseño
+    original de estas tablas, §10.8) — no hay nada más que limpiar a mano.
+
+    Una carga aplicada y **sin** revertir no se puede eliminar directo:
+    borrar su snapshot sin deshacer los cambios que hizo dejaría el
+    catálogo modificado y sin ninguna forma de revertirlo. Revertir
+    primero, eliminar después — son dos pasos a propósito, no uno.
+    """
+
+    def __init__(self, *, cargas: RepositorioCargas) -> None:
+        self._cargas = cargas
+
+    async def ejecutar(self, carga_id: UUID) -> None:
+        carga = await self._cargas.obtener(carga_id)
+        if carga is None:
+            raise CargaNoEncontrada(
+                f"No existe la carga {carga_id} o está fuera de tu alcance."
+            )
+        aplicada_sin_revertir = (
+            str(carga["estatus"]) == str(EstatusCarga.APLICADO)
+            and carga.get("revertida_en") is None
+        )
+        if aplicada_sin_revertir:
+            raise CargaNoEliminable(
+                "Esta carga se aplicó y no se ha revertido: revierte primero "
+                "(§10.8), o se perdería la única forma de deshacer sus "
+                "cambios."
+            )
+        await self._cargas.eliminar(carga_id)
 
 
 class ConsultarCarga:

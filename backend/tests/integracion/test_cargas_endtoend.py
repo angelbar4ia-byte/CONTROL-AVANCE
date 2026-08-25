@@ -296,6 +296,12 @@ async def _insumos(contexto: ContextoSesion) -> dict[str, dict]:
     return {str(f["clave"]): f for f in filas}
 
 
+async def _unidades(contexto: ContextoSesion) -> dict[str, dict]:
+    async with sesion_con_rls(contexto) as sesion:
+        filas = await RepositorioUnidadesSQL(sesion).listar(solo_activos=False)
+    return {str(f["clave"]): f for f in filas}
+
+
 async def _prototipos(contexto: ContextoSesion) -> dict[str, dict]:
     async with sesion_con_rls(contexto) as sesion:
         filas = await RepositorioPrototiposSQL(sesion).listar()
@@ -434,25 +440,23 @@ async def test_una_fila_mala_se_reporta_y_el_resto_del_archivo_entra(
     assert set(await _insumos(contexto_control)) == {"CEM-01", "GRA-01"}
 
 
-async def test_una_unidad_desconocida_cae_en_la_bandeja_y_no_se_inventa(
+async def test_una_unidad_desconocida_se_da_de_alta_en_vez_de_bloquear(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
-    """§10.3: el sistema propone, el humano confirma."""
+    """Una unidad nueva no es el mismo riesgo que un concepto o un precio: se
+    da de alta con el propio texto del archivo en vez de solo pendiente."""
     resultado = await _cargar(
         contexto_control,
         TipoCarga.MATERIALES,
         _archivo_materiales([["CEM-01", "Cemento gris", "sacos", "CEM", "250", "", "SI"]]),
     )
 
-    assert resultado.pendientes == 1
-    async with sesion_con_rls(contexto_control) as sesion:
-        bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(
-            carga_id=resultado.carga_id
-        )
-    assert bandeja[0]["tipo"] == str(TipoPendiente.UNIDAD)
-    assert bandeja[0]["valor_origen"] == "sacos"
-    # El material entra igual, pero sin unidad adivinada.
-    assert (await _insumos(contexto_control))["CEM-01"]["unidad_id"] is None
+    assert resultado.pendientes == 0
+    assert resultado.resumen.errores == 0
+
+    unidades = await _unidades(contexto_control)
+    assert "sacos" in unidades
+    assert (await _insumos(contexto_control))["CEM-01"]["unidad_id"] == unidades["sacos"]["id"]
 
 
 async def test_la_vista_previa_cuenta_igual_pero_no_escribe(
@@ -550,6 +554,77 @@ async def test_una_carga_revertida_no_se_revierte_dos_veces(
             await RevertirCarga(
                 cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
             ).ejecutar(resultado.carga_id)
+
+
+async def test_eliminar_una_vista_previa_borra_su_registro(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Una vista previa nunca escribió nada (§9.3): no hay riesgo en borrar
+    su registro del historial."""
+    from obractrl.application.casos_uso.gestionar_carga import EliminarCarga
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "250", "", "SI"]]),
+        dry_run=True,
+    )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        await EliminarCarga(cargas=RepositorioCargasSQL(sesion)).ejecutar(resultado.carga_id)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        assert await RepositorioCargasSQL(sesion).obtener(resultado.carga_id) is None
+    assert await _insumos(contexto_control) == {}  # nunca se aplicó
+
+
+async def test_no_se_puede_eliminar_una_carga_aplicada_sin_revertir(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Borrar el snapshot sin deshacer los cambios dejaría el catálogo
+    modificado sin ninguna forma de revertirlo."""
+    from obractrl.application.casos_uso.gestionar_carga import (
+        CargaNoEliminable,
+        EliminarCarga,
+    )
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "250", "", "SI"]]),
+    )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        with pytest.raises(CargaNoEliminable, match="revierte primero"):
+            await EliminarCarga(cargas=RepositorioCargasSQL(sesion)).ejecutar(
+                resultado.carga_id
+            )
+    # Sigue ahí, y el material sigue en el catálogo.
+    async with sesion_con_rls(contexto_control) as sesion:
+        assert await RepositorioCargasSQL(sesion).obtener(resultado.carga_id) is not None
+    assert "CEM-01" in await _insumos(contexto_control)
+
+
+async def test_eliminar_una_carga_ya_revertida_borra_su_registro(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    from obractrl.application.casos_uso.gestionar_carga import EliminarCarga
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _archivo_materiales([["CEM-01", "Cemento gris", "ton", "CEM", "250", "", "SI"]]),
+    )
+    async with sesion_con_rls(contexto_control) as sesion:
+        await RevertirCarga(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(resultado.carga_id)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        await EliminarCarga(cargas=RepositorioCargasSQL(sesion)).ejecutar(resultado.carga_id)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        assert await RepositorioCargasSQL(sesion).obtener(resultado.carga_id) is None
 
 
 async def test_un_archivo_sin_las_cabeceras_del_contrato_se_rechaza_entero(

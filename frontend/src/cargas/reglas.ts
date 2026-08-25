@@ -68,11 +68,15 @@ export function modoDestructivo(modo: string): boolean {
   return modo === 'reemplazar';
 }
 
+// Los valores literales son los de `EstatusCarga` (backend): "aplicado",
+// "previsualizado", "error" — no "aplicada"/"vista_previa"/"con_errores".
+// `estatus: string` en el contrato (sin enum) hace que TypeScript no
+// pueda avisar de un typo aquí; nada lo iba a atrapar salvo leerlo dos
+// veces contra el dominio real.
 const TONO_ESTATUS: Record<string, string> = {
-  aplicada: 'ok',
-  vista_previa: 'info',
-  con_errores: 'danger',
-  revertida: 'warn',
+  aplicado: 'ok',
+  previsualizado: 'info',
+  error: 'danger',
 };
 
 export function tonoEstatus(estatus: string): string {
@@ -91,7 +95,19 @@ export function etiquetaEstatus(estatus: string): string {
  * esos casos sería prometer una operación que responde 409.
  */
 export function seePuedeRevertir(lote: LoteRespuesta): boolean {
-  return lote.estatus === 'aplicada' && !lote.revertida;
+  return lote.estatus === 'aplicado' && !lote.revertida;
+}
+
+/**
+ * ¿Este lote se puede borrar del historial? (§10.8)
+ *
+ * Una vista previa (o una carga que falló) nunca escribió nada: no hay
+ * riesgo en borrar su registro. Una carga aplicada solo se puede borrar
+ * **después** de revertirla — borrar el snapshot sin deshacer sus cambios
+ * dejaría el catálogo modificado y sin ninguna forma de revertirlo.
+ */
+export function sePuedeEliminar(lote: LoteRespuesta): boolean {
+  return lote.estatus !== 'aplicado' || lote.revertida;
 }
 
 /**

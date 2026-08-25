@@ -155,11 +155,10 @@ class Componente:
                 "Un componente apunta a un insumo o a un concepto, nunca a los "
                 "dos ni a ninguno (§7.3, `ck_explosion_hijo`)."
             )
-        if self.cantidad < 0:
-            raise ErrorDeAPU(
-                f"La cantidad/rendimiento de un componente no puede ser "
-                f"negativa: {self.cantidad}."
-            )
+        # La cantidad/rendimiento SÍ acepta negativos a propósito: un
+        # componente de deducción (material recuperado, ajuste) resta del
+        # importe del concepto en vez de sumar. El costo unitario, no —
+        # un precio no tiene un "menos" que signifique algo (§7.3).
         if self.costo_unitario is not None and self.costo_unitario < 0:
             raise ErrorDeAPU(
                 f"El costo unitario de un componente no puede ser negativo: "

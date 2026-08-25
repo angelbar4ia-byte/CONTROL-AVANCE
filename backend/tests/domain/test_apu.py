@@ -71,13 +71,15 @@ class TestComponente:
         with pytest.raises(ErrorDeAPU, match="nunca a los dos"):
             Componente(categoria=CategoriaExplosion.MATERIAL, cantidad=Decimal(1))
 
-    def test_la_cantidad_no_puede_ser_negativa(self) -> None:
-        with pytest.raises(ErrorDeAPU, match="cantidad"):
-            Componente(
-                categoria=CategoriaExplosion.MATERIAL,
-                cantidad=Decimal(-1),
-                clave_insumo="MAT-1",
-            )
+    def test_la_cantidad_acepta_negativos_para_deducciones(self) -> None:
+        """Un componente de deducción (material recuperado, ajuste) resta del
+        importe del concepto en vez de sumar — no es un dato inválido."""
+        componente = Componente(
+            categoria=CategoriaExplosion.MATERIAL,
+            cantidad=Decimal(-1),
+            clave_insumo="MAT-1",
+        )
+        assert componente.cantidad == Decimal("-1.0000")
 
     def test_el_costo_no_puede_ser_negativo(self) -> None:
         with pytest.raises(ErrorDeAPU, match="costo unitario"):

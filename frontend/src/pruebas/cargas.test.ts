@@ -19,6 +19,7 @@ import {
   modoDestructivo,
   resumenDe,
   seePuedeRevertir,
+  sePuedeEliminar,
   tonoEstatus,
 } from '@/cargas/reglas';
 import type { LoteRespuesta } from '@/api/generado/modelo';
@@ -28,7 +29,9 @@ function lote(parcial: Partial<LoteRespuesta> = {}): LoteRespuesta {
     id: 'l-1',
     tipo: 'catalogo_conceptos',
     modo: 'actualizar',
-    estatus: 'aplicada',
+    // Los valores reales de `EstatusCarga` (backend): "aplicado",
+    // "previsualizado", "error" — no "aplicada"/"vista_previa"/"con_errores".
+    estatus: 'aplicado',
     archivo_nombre: 'conceptos.xlsx',
     archivo_hash: 'abc123',
     version_generada: 3,
@@ -49,11 +52,29 @@ describe('qué se puede revertir (§10.8)', () => {
   });
 
   it('una vista previa, no: no escribió nada', () => {
-    expect(seePuedeRevertir(lote({ estatus: 'vista_previa' }))).toBe(false);
+    expect(seePuedeRevertir(lote({ estatus: 'previsualizado' }))).toBe(false);
   });
 
   it('una con errores, no', () => {
-    expect(seePuedeRevertir(lote({ estatus: 'con_errores' }))).toBe(false);
+    expect(seePuedeRevertir(lote({ estatus: 'error' }))).toBe(false);
+  });
+});
+
+describe('qué se puede eliminar (§10.8)', () => {
+  it('una vista previa, sí: nunca escribió nada', () => {
+    expect(sePuedeEliminar(lote({ estatus: 'previsualizado' }))).toBe(true);
+  });
+
+  it('una con errores, sí', () => {
+    expect(sePuedeEliminar(lote({ estatus: 'error' }))).toBe(true);
+  });
+
+  it('una aplicada y sin revertir, no: se perdería la forma de deshacerla', () => {
+    expect(sePuedeEliminar(lote())).toBe(false);
+  });
+
+  it('una aplicada y ya revertida, sí: sus cambios ya se deshicieron', () => {
+    expect(sePuedeEliminar(lote({ revertida: true }))).toBe(true);
   });
 });
 
@@ -88,12 +109,12 @@ describe('tipos (§10.6)', () => {
 });
 
 describe('estatus', () => {
-  it('aplicada y con_errores no se ven igual', () => {
-    expect(tonoEstatus('aplicada')).not.toBe(tonoEstatus('con_errores'));
+  it('aplicado y error no se ven igual', () => {
+    expect(tonoEstatus('aplicado')).not.toBe(tonoEstatus('error'));
   });
 
   it('el guion bajo no llega a la pantalla', () => {
-    expect(etiquetaEstatus('vista_previa')).toBe('vista previa');
+    expect(etiquetaEstatus('mapeo_no_reconocido')).toBe('mapeo no reconocido');
   });
 });
 
