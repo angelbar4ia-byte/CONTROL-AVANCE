@@ -971,6 +971,7 @@ async def test_eliminar_version_de_cuadrilla_borra_la_retirada_pero_no_la_vigent
 
     async with sesion_con_rls(contexto_control) as sesion:
         await RepositorioCuadrillasSQL(sesion).eliminar_version(cuadrilla["id"], v1["id"])
+        await sesion.commit()
 
     async with sesion_con_rls(contexto_control) as sesion:
         restantes = await RepositorioCuadrillasSQL(sesion).versiones(cuadrilla["id"])
@@ -1217,6 +1218,7 @@ async def test_eliminar_version_de_cpu_borra_la_retirada_pero_no_la_vigente(
 
     async with sesion_con_rls(contexto_control) as sesion:
         await RepositorioConceptosSQL(sesion).eliminar_version_cpu(concepto["id"], version=1)
+        await sesion.commit()
 
     async with sesion_con_rls(contexto_control) as sesion:
         restantes = await RepositorioConceptosSQL(sesion).versiones_cpu(concepto["id"])
