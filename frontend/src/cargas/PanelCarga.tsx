@@ -42,6 +42,9 @@ export function PanelCarga({ lote, onCerrar, onRevertida, onEliminada }: Props) 
   const [error, setError] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
   const [confirmandoEliminar, setConfirmandoEliminar] = useState(false);
+  // Si el intento sin cadena chocó con cargas más nuevas (§10.8), se ofrece
+  // la salida real en vez de solo el mensaje de error.
+  const [conDependientes, setConDependientes] = useState(false);
 
   const pendientesQ = useBandejaDeCargaApiV1CargasCargaIdPendientesGet(lote.id, {
     solo_abiertos: true,
@@ -52,9 +55,13 @@ export function PanelCarga({ lote, onCerrar, onRevertida, onEliminada }: Props) 
       onSuccess: () => {
         setError(null);
         setConfirmando(false);
+        setConDependientes(false);
         onRevertida();
       },
-      onError: (err) => setError(err.message),
+      onError: (err) => {
+        setError(err.message);
+        setConDependientes(err.tipo === 'carga-con-dependientes');
+      },
     },
   });
 
@@ -194,20 +201,44 @@ export function PanelCarga({ lote, onCerrar, onRevertida, onEliminada }: Props) 
                 No borra el registro del lote: queda marcado como revertido, que
                 es lo que permite auditar qué se cargó y qué se deshizo.
               </div>
+              {conDependientes && (
+                <div className="badge badge--warn" style={{ marginTop: 8 }}>
+                  Hay cargas más nuevas que dependen de esta (el mensaje de
+                  arriba dice cuáles). Se pueden revertir todas juntas, de la
+                  más nueva a la más vieja.
+                </div>
+              )}
               {confirmando ? (
                 <div className="row gap-8" style={{ marginTop: 8 }}>
                   <button
                     type="button"
                     className="btn btn--sm btn--danger"
                     disabled={revertir.isPending}
-                    onClick={() => revertir.mutate({ cargaId: lote.id })}
+                    onClick={() => revertir.mutate({ cargaId: lote.id, params: {} })}
                   >
                     {revertir.isPending ? 'Revirtiendo…' : 'Sí, revertir'}
                   </button>
+                  {conDependientes && (
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--danger"
+                      disabled={revertir.isPending}
+                      onClick={() =>
+                        revertir.mutate({ cargaId: lote.id, params: { en_cadena: true } })
+                      }
+                    >
+                      {revertir.isPending
+                        ? 'Revirtiendo…'
+                        : 'Revertir esta carga y las que dependen de ella'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="btn btn--sm"
-                    onClick={() => setConfirmando(false)}
+                    onClick={() => {
+                      setConfirmando(false);
+                      setConDependientes(false);
+                    }}
                   >
                     Cancelar
                   </button>

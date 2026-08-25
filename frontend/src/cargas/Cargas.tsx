@@ -41,12 +41,22 @@ export default function Cargas() {
   const [seleccionado, setSeleccionado] = useState<LoteRespuesta | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [bajando, setBajando] = useState<string | null>(null);
+  // Con un tipo específico elegido, la lista se colapsa a la carga más
+  // reciente: la mayoría de las anteriores ya no se pueden revertir solas
+  // (§10.8, `CargaConDependientes`), así que verlas todas siempre es ruido.
+  // En "Todas" se deja el comportamiento de siempre — agrupar tipos
+  // mezclados es una pregunta distinta que no se resuelve aquí.
+  const [verAnteriores, setVerAnteriores] = useState(false);
 
   const consulta = useListarCargasApiV1CargasGet<LoteRespuesta[], ErrorApi>(
     tipo === 'todos' ? undefined : { tipo },
   );
 
   const filas = consulta.data ?? [];
+  // El backend ya las entrega por `fecha desc` (más nueva primero).
+  const filasVisibles =
+    tipo === 'todos' || verAnteriores ? filas : filas.slice(0, 1);
+  const anteriores = tipo === 'todos' ? 0 : Math.max(filas.length - 1, 0);
 
   // El contrato publica `GET /cargas/{id}`, pero tras revertir basta con
   // recargar el historial: el cajón se recupera de la lista, igual que en
@@ -126,7 +136,10 @@ export default function Cargas() {
           <button
             type="button"
             className={`tabs__tab ${tipo === 'todos' ? 'is-active' : ''}`}
-            onClick={() => setTipo('todos')}
+            onClick={() => {
+              setTipo('todos');
+              setVerAnteriores(false);
+            }}
           >
             Todas
           </button>
@@ -135,7 +148,10 @@ export default function Cargas() {
               key={t}
               type="button"
               className={`tabs__tab ${tipo === t ? 'is-active' : ''}`}
-              onClick={() => setTipo(t)}
+              onClick={() => {
+                setTipo(t);
+                setVerAnteriores(false);
+              }}
             >
               {etiquetaTipo(t)}
             </button>
@@ -178,7 +194,7 @@ export default function Cargas() {
                   </td>
                 </tr>
               ) : (
-                filas.map((lote) => {
+                filasVisibles.map((lote) => {
                   const resumen = resumenDe(lote);
                   return (
                     <tr key={lote.id} className={lote.revertida ? 'is-muted' : ''}>
@@ -216,6 +232,17 @@ export default function Cargas() {
           </table>
         </div>
       </div>
+
+      {anteriores > 0 && (
+        <button
+          type="button"
+          className="btn btn--sm"
+          style={{ marginTop: 8 }}
+          onClick={() => setVerAnteriores((v) => !v)}
+        >
+          {verAnteriores ? 'Ocultar cargas anteriores' : `Ver ${anteriores} carga(s) anteriores`}
+        </button>
+      )}
 
       {subiendo && (
         <SubirCarga

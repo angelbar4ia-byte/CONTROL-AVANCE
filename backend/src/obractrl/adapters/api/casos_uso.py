@@ -78,6 +78,7 @@ from obractrl.application.casos_uso.gestionar_carga import (
     EjecutarCarga,
     EliminarCarga,
     RevertirCarga,
+    RevertirCargaEnCadena,
 )
 from obractrl.application.casos_uso.gestionar_catalogos import (
     CrearConcepto,
@@ -216,6 +217,7 @@ __all__ = [
     "RegistrarSalidaAlmacenDep",
     "ResetearContrasenaDep",
     "RevertirCargaDep",
+    "RevertirCargaEnCadenaDep",
     "SolicitarCierreDep",
     "ValidarCierreDep",
     "ValidarEstimacionDep",
@@ -748,6 +750,13 @@ def obtener_revertir_carga(sesion: SesionRLS) -> RevertirCarga:
     )
 
 
+def obtener_revertir_carga_en_cadena(sesion: SesionRLS) -> RevertirCargaEnCadena:
+    return RevertirCargaEnCadena(
+        cargas=RepositorioCargasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_eliminar_carga(sesion: SesionRLS) -> EliminarCarga:
     return EliminarCarga(
         cargas=RepositorioCargasSQL(sesion),
@@ -757,6 +766,9 @@ def obtener_eliminar_carga(sesion: SesionRLS) -> EliminarCarga:
 
 ConsultarCargaDep = Annotated[ConsultarCarga, Depends(obtener_consultar_carga)]
 RevertirCargaDep = Annotated[RevertirCarga, Depends(obtener_revertir_carga)]
+RevertirCargaEnCadenaDep = Annotated[
+    RevertirCargaEnCadena, Depends(obtener_revertir_carga_en_cadena)
+]
 EliminarCargaDep = Annotated[EliminarCarga, Depends(obtener_eliminar_carga)]
 
 

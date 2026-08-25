@@ -52,6 +52,7 @@ __all__ = [
     "RepositorioUnidades",
     "RepositorioUsuarios",
     "UnidadDeTrabajo",
+    "VersionVigenteNoEliminable",
 ]
 
 
@@ -66,6 +67,16 @@ class RegistroNoEncontrado(LookupError):
     `adapters/` —eso violaría la regla de dependencia que exige
     `import-linter` (§12.11): la aplicación no toca la infraestructura
     directamente, solo sus propias abstracciones.
+    """
+
+
+class VersionVigenteNoEliminable(ValueError):
+    """Se intentó borrar la versión vigente de un histórico versionado
+    (cuadrilla, CPU, §10.8).
+
+    Borrar la vigente dejaría el catálogo sin precio actual; solo se
+    eliminan versiones ya retiradas. No es un `RegistroNoEncontrado`: la
+    versión existe, lo que no se permite es borrar *esa* en particular.
     """
 
 
@@ -908,6 +919,16 @@ class RepositorioCuadrillas(Protocol):
         persistidas, completas, para el snapshot del lote (§10.8)."""
         ...
 
+    async def eliminar_version(self, cuadrilla_id: UUID, version_id: UUID) -> None:
+        """Borra una versión ya retirada del historial (mantenimiento, no
+        ligado a una carga). Su `cuadrilla_integrante` se va con
+        `on delete cascade`.
+
+        Levanta `RegistroNoEncontrado` si `version_id` no existe (o no es de
+        `cuadrilla_id`) y `VersionVigenteNoEliminable` si es la vigente.
+        """
+        ...
+
 
 @runtime_checkable
 class RepositorioInsumos(Protocol):
@@ -1028,6 +1049,22 @@ class RepositorioConceptos(Protocol):
         insertar el nuevo vigente antes de bajar el anterior violaría la
         restricción. Quién retira a quién ya lo decidió el dominio
         (`apu.publicar_version`).
+        """
+        ...
+
+    async def eliminar_version_cpu(
+        self, concepto_id: UUID, *, version: int, variante: str | None = None
+    ) -> None:
+        """Borra una versión de CPU ya retirada (mantenimiento, no ligado a
+        una carga). Su `explosion` (la atada a ese `cpu_id`) se va con
+        `on delete cascade`.
+
+        Se identifica por ``version`` + ``variante``, como
+        `publicar_version_cpu` — no por el id interno de la fila, que el
+        dominio (`VersionCPU`) no conoce (§3.3: clave/versión mandan).
+
+        Levanta `RegistroNoEncontrado` si esa versión no existe y
+        `VersionVigenteNoEliminable` si es la vigente.
         """
         ...
 

@@ -661,6 +661,24 @@ async def listar_versiones_de_cuadrilla(
     return [VersionCuadrillaRespuesta.desde_fila(fila) for fila in filas]
 
 
+@router.delete(
+    "/cuadrillas/{cuadrilla_id}/versiones/{version_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar una versión retirada del historial",
+    dependencies=[CATALOGOS],
+    responses={
+        404: {"description": "La versión no existe para esa cuadrilla."},
+        409: {"description": "Es la versión vigente: no se puede eliminar."},
+    },
+)
+async def eliminar_version_de_cuadrilla(
+    sesion: SesionRLS, cuadrilla_id: UUID, version_id: UUID
+) -> None:
+    """Mantenimiento directo del historial (§10.8): no crea ni revierte
+    ninguna carga, solo limpia una versión ya retirada."""
+    await RepositorioCuadrillasSQL(sesion).eliminar_version(cuadrilla_id, version_id)
+
+
 # --- Conceptos y APU (§7.3) ----------------------------------------------
 
 
@@ -918,6 +936,26 @@ async def obtener_cpu(
 ) -> CPURespuesta:
     return CPURespuesta.desde_dominio(
         await caso_uso.ejecutar(concepto_id, variante=variante)
+    )
+
+
+@router.delete(
+    "/conceptos/{concepto_id}/cpu/{version}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar una versión de CPU retirada del historial",
+    dependencies=[CATALOGOS],
+    responses={
+        404: {"description": "Esa versión no existe para el concepto."},
+        409: {"description": "Es la versión vigente: no se puede eliminar."},
+    },
+)
+async def eliminar_version_de_cpu(
+    sesion: SesionRLS, concepto_id: UUID, version: int, variante: FiltroVariante = None
+) -> None:
+    """Mantenimiento directo del historial (§10.8): no crea ni revierte
+    ninguna carga, solo limpia una versión ya retirada."""
+    await RepositorioConceptosSQL(sesion).eliminar_version_cpu(
+        concepto_id, version=version, variante=variante
     )
 
 

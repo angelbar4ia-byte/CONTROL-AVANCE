@@ -35,6 +35,7 @@ from obractrl.domain.cargadores.reporte import ErrorDeFila, ResumenCarga
 from obractrl.domain.shared.diccionario import EstatusCarga, ModoCarga, TipoCarga
 
 __all__ = [
+    "CargaConDependientes",
     "CargaNoEliminable",
     "CargaNoEncontrada",
     "CargaNoRevertible",
@@ -44,6 +45,7 @@ __all__ = [
     "EliminarCarga",
     "ResultadoCarga",
     "RevertirCarga",
+    "RevertirCargaEnCadena",
 ]
 
 
@@ -53,6 +55,31 @@ class CargaNoEncontrada(LookupError):
 
 class CargaNoRevertible(RuntimeError):
     """El lote no se puede revertir: no llegó a aplicarse o ya se revirtió."""
+
+
+class CargaConDependientes(RuntimeError):
+    """Hay cargas más nuevas que dependen de lo que esta carga tocó (§10.8).
+
+    Revertirla sola dejaría una referencia rota — el mismo `IntegrityError`
+    que `ReversaEnConflicto` (`adapters.repos.cargas_sql`) traduce cuando se
+    llega a intentarlo de todos modos. Aquí se corta antes: hay que revertir
+    esas cargas primero, o revertir la cadena completa con
+    `RevertirCargaEnCadena`.
+    """
+
+    def __init__(self, carga_id: UUID, dependientes: list[dict[str, Any]]) -> None:
+        detalle = "; ".join(
+            f"{d['tipo']} · {d['archivo_nombre']} ({d['fecha']:%d/%m/%Y})"
+            for d in dependientes
+        )
+        super().__init__(
+            f"La carga {carga_id} no se puede revertir sola: "
+            f"{len(dependientes)} carga(s) más reciente(s) dependen de lo que "
+            f"tocó — {detalle}. Revierte esas primero, o revierte la cadena "
+            f"completa (§10.8)."
+        )
+        self.carga_id = carga_id
+        self.dependientes = dependientes
 
 
 class CargaNoEliminable(RuntimeError):
@@ -202,12 +229,53 @@ def _resultado_reutilizado(previa: dict[str, Any]) -> ResultadoCarga:
     )
 
 
+async def _validar_revertible(cargas: RepositorioCargas, carga_id: UUID) -> dict[str, Any]:
+    """Existe, se aplicó y no se ha revertido — lo que `RevertirCarga` y
+    `RevertirCargaEnCadena` exigen por igual antes de tocar nada (§10.8)."""
+    carga = await cargas.obtener(carga_id)
+    if carga is None:
+        # RLS hace indistinguible "no existe" de "no la puedes ver" (§12.4).
+        raise CargaNoEncontrada(
+            f"No existe la carga {carga_id} o está fuera de tu alcance."
+        )
+    if str(carga["estatus"]) != str(EstatusCarga.APLICADO):
+        raise CargaNoRevertible(
+            f"La carga está en estatus {carga['estatus']!r}: solo se revierte "
+            f"lo que se aplicó (§10.8)."
+        )
+    if carga.get("revertida_en") is not None:
+        raise CargaNoRevertible(f"La carga ya se revirtió el {carga['revertida_en']}.")
+    return carga
+
+
+async def _revertir_una(
+    cargas: RepositorioCargas, carga_id: UUID, *, usuario_id: UUID | None
+) -> int:
+    """Deshace las operaciones de una carga y la marca revertida.
+
+    Sin transacción propia a propósito: quien llama decide el alcance —una
+    sola carga (`RevertirCarga`) o una cadena completa como una sola unidad
+    (`RevertirCargaEnCadena`, §10.8)."""
+    operaciones = await cargas.snapshots(carga_id)
+    # En orden inverso: el repositorio ya las devuelve así. Importa — el CPU
+    # vigente anterior no se puede volver a marcar vigente antes de borrar
+    # el nuevo (`uq_cpu_vigente`).
+    for operacion in operaciones:
+        await cargas.revertir_operacion(operacion)
+    await cargas.marcar_revertida(carga_id, usuario_id=usuario_id)
+    return len(operaciones)
+
+
 class RevertirCarga:
     """Deshace un lote completo (§10.8).
 
     "Una carga se revierte/elimina **como unidad** (el lote completo),
     dejando los datos como estaban antes de esa carga. No se borra registro
     por registro: se revierte el lote."
+
+    Antes de tocar nada, exige que ninguna carga más nueva dependa de lo que
+    esta tocó (`CargaConDependientes`): revertirla sola dejaría una
+    referencia rota. La salida para ese caso es `RevertirCargaEnCadena`.
     """
 
     def __init__(self, *, cargas: RepositorioCargas, uow: UnidadDeTrabajo) -> None:
@@ -217,34 +285,74 @@ class RevertirCarga:
     async def ejecutar(
         self, carga_id: UUID, *, usuario_id: UUID | None = None
     ) -> dict[str, Any]:
-        carga = await self._cargas.obtener(carga_id)
-        if carga is None:
-            # RLS hace indistinguible "no existe" de "no la puedes ver" (§12.4).
-            raise CargaNoEncontrada(
-                f"No existe la carga {carga_id} o está fuera de tu alcance."
-            )
-        if str(carga["estatus"]) != str(EstatusCarga.APLICADO):
-            raise CargaNoRevertible(
-                f"La carga está en estatus {carga['estatus']!r}: solo se revierte "
-                f"lo que se aplicó (§10.8)."
-            )
-        if carga.get("revertida_en") is not None:
-            raise CargaNoRevertible(
-                f"La carga ya se revirtió el {carga['revertida_en']}."
-            )
+        await _validar_revertible(self._cargas, carga_id)
 
-        operaciones = await self._cargas.snapshots(carga_id)
+        dependientes = await self._cargas.dependientes_de(carga_id)
+        if dependientes:
+            raise CargaConDependientes(carga_id, dependientes)
 
         async with self._uow:
-            # En orden inverso: el repositorio ya las devuelve así. Importa —
-            # el CPU vigente anterior no se puede volver a marcar vigente
-            # antes de borrar el nuevo (`uq_cpu_vigente`).
-            for operacion in operaciones:
-                await self._cargas.revertir_operacion(operacion)
-            await self._cargas.marcar_revertida(carga_id, usuario_id=usuario_id)
+            operaciones_revertidas = await _revertir_una(
+                self._cargas, carga_id, usuario_id=usuario_id
+            )
             await self._uow.commit()
 
-        return {"carga_id": carga_id, "operaciones_revertidas": len(operaciones)}
+        return {"carga_id": carga_id, "operaciones_revertidas": operaciones_revertidas}
+
+
+class RevertirCargaEnCadena:
+    """Deshace una carga **y** todas las que dependen de lo que tocó, como
+    una sola unidad (§10.8).
+
+    Es la salida de `CargaConDependientes`: en vez de obligar a revertir
+    cada carga posterior a mano en el orden correcto, cierra la cadena
+    completa (BFS sobre `dependientes_de`, cadenas cortas en la práctica —
+    un `WITH RECURSIVE` sería de más) y la revierte entera, de la más nueva
+    a la más vieja, en una sola transacción: o queda revertida completa, o
+    no se movió nada.
+    """
+
+    def __init__(self, *, cargas: RepositorioCargas, uow: UnidadDeTrabajo) -> None:
+        self._cargas = cargas
+        self._uow = uow
+
+    async def _cerrar_cadena(self, carga_id: UUID) -> list[dict[str, Any]]:
+        vistas: dict[UUID, dict[str, Any]] = {}
+        frontera = [carga_id]
+        while frontera:
+            actual = frontera.pop()
+            for dependiente in await self._cargas.dependientes_de(actual):
+                if dependiente["id"] in vistas or dependiente["id"] == carga_id:
+                    continue
+                vistas[dependiente["id"]] = dependiente
+                frontera.append(dependiente["id"])
+        return list(vistas.values())
+
+    async def ejecutar(
+        self, carga_id: UUID, *, usuario_id: UUID | None = None
+    ) -> dict[str, Any]:
+        raiz = await _validar_revertible(self._cargas, carga_id)
+        dependientes = await self._cerrar_cadena(carga_id)
+
+        # La más nueva primero: una carga no se puede revertir mientras algo
+        # que ella tocó siga con una fila viva más nueva encima (§10.8).
+        orden = [*sorted(dependientes, key=lambda d: d["fecha"], reverse=True), raiz]
+
+        async with self._uow:
+            total = 0
+            revertidas: list[UUID] = []
+            for carga in orden:
+                total += await _revertir_una(
+                    self._cargas, carga["id"], usuario_id=usuario_id
+                )
+                revertidas.append(carga["id"])
+            await self._uow.commit()
+
+        return {
+            "carga_id": carga_id,
+            "cargas_revertidas": revertidas,
+            "operaciones_revertidas": total,
+        }
 
 
 class EliminarCarga:

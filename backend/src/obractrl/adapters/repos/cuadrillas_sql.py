@@ -27,6 +27,11 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from obractrl.application.puertos.repositorios import (
+    RegistroNoEncontrado,
+    VersionVigenteNoEliminable,
+)
+
 __all__ = ["RepositorioCuadrillasSQL"]
 
 _COLUMNAS = """
@@ -247,3 +252,29 @@ class RepositorioCuadrillasSQL:
             ).mappings().one()
             insertadas.append(dict(registro))
         return insertadas
+
+    async def eliminar_version(self, cuadrilla_id: UUID, version_id: UUID) -> None:
+        """Borra una versión ya retirada (mantenimiento directo, §10.8, no
+        ligado a una carga). `cuadrilla_integrante` se va con
+        `on delete cascade`."""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    "select vigente from cuadrilla_version "
+                    "where id = cast(:id as uuid) and cuadrilla_id = cast(:cuadrilla_id as uuid)"
+                ),
+                {"id": str(version_id), "cuadrilla_id": str(cuadrilla_id)},
+            )
+        ).mappings().first()
+        if fila is None:
+            raise RegistroNoEncontrado(
+                f"La versión {version_id} no existe para la cuadrilla {cuadrilla_id}."
+            )
+        if fila["vigente"]:
+            raise VersionVigenteNoEliminable(
+                f"La versión {version_id} es la vigente: no se puede eliminar (§10.8)."
+            )
+        await self._sesion.execute(
+            text("delete from cuadrilla_version where id = cast(:id as uuid)"),
+            {"id": str(version_id)},
+        )

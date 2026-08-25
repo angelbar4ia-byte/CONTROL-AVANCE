@@ -55,10 +55,12 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorPrototipos,
 )
 from obractrl.application.casos_uso.gestionar_carga import (
+    CargaConDependientes,
     ComandoEjecutarCarga,
     EjecutarCarga,
     ResultadoCarga,
     RevertirCarga,
+    RevertirCargaEnCadena,
 )
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera
 from obractrl.domain.cargadores.reporte import TipoPendiente
@@ -934,6 +936,51 @@ async def test_revertir_una_recarga_de_cuadrilla_deja_vigente_la_version_anterio
     assert versiones[0]["precio_unitario"] == Decimal("1584.0000")
 
 
+async def test_eliminar_version_de_cuadrilla_borra_la_retirada_pero_no_la_vigente(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Mantenimiento directo del historial (§10.8), sin pasar por una carga:
+    una versión retirada se puede borrar; la vigente no."""
+    from obractrl.application.puertos.repositorios import (
+        RegistroNoEncontrado,
+        VersionVigenteNoEliminable,
+    )
+
+    await _sembrar_insumos_de_cuadrilla(contexto_control)
+    await _cargar(contexto_control, TipoCarga.CUADRILLAS, _archivo_cuadrillas(_FILAS_CUADRILLA_V1))
+    filas_v2 = [
+        ["CUA0001", "CUA0001", "Cuadrilla (Oficial + Ayudante)", "jor", None, 1700, None],
+        ["CUA0001", "MOOP-0049", "Oficial Albañil", "jor", 1, 900, 900],
+        ["CUA0001", "MOOP-0026", "Ayudante general", "jor", 1, 600, 600],
+        ["CUA0001", "MOOP-0079", "Contratista", "%mo", 0.1, 1500, 150],
+    ]
+    await _cargar(contexto_control, TipoCarga.CUADRILLAS, _archivo_cuadrillas(filas_v2))
+
+    cuadrilla = (await _cuadrillas(contexto_control))["CUA0001"]
+    async with sesion_con_rls(contexto_control) as sesion:
+        repo = RepositorioCuadrillasSQL(sesion)
+        versiones = await repo.versiones(cuadrilla["id"])
+    v1 = next(v for v in versiones if v["version"] == 1)
+    v2 = next(v for v in versiones if v["version"] == 2)
+    assert v1["vigente"] is False
+    assert v2["vigente"] is True
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        with pytest.raises(VersionVigenteNoEliminable):
+            await RepositorioCuadrillasSQL(sesion).eliminar_version(cuadrilla["id"], v2["id"])
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        await RepositorioCuadrillasSQL(sesion).eliminar_version(cuadrilla["id"], v1["id"])
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        restantes = await RepositorioCuadrillasSQL(sesion).versiones(cuadrilla["id"])
+    assert [v["version"] for v in restantes] == [2]
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        with pytest.raises(RegistroNoEncontrado):
+            await RepositorioCuadrillasSQL(sesion).eliminar_version(cuadrilla["id"], v1["id"])
+
+
 # --- CPU / Conceptos (§10.6 `CABECERAS_CPU.xlsx`) ------------------------
 
 
@@ -1068,6 +1115,118 @@ async def test_recargar_el_cpu_con_otra_receta_publica_version_2_y_se_revierte(
     assert [(v["version"], v["vigente"]) for v in versiones] == [(1, True)]
     assert len(explosion) == 1
     assert explosion[0]["cantidad"] == Decimal("12.500000")
+
+
+async def _cargar_concepto_y_su_recarga(
+    contexto_control: ContextoSesion,
+) -> tuple[ResultadoCarga, ResultadoCarga]:
+    """El alta de EST-01 y una carga posterior que recarga su CPU —la pareja
+    que reproduce el conflicto real de reversa fuera de orden (§10.8)."""
+    await _sembrar_insumos(contexto_control)
+
+    primera = await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_cpu(
+            [
+                _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
+                _fila_cpu(insumo="MAT-01", cantidad="12.5", pu="20", tipo="Material"),
+            ]
+        ),
+    )
+    segunda = await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_cpu(
+            [
+                _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
+                _fila_cpu(insumo="MAT-01", cantidad="14", pu="20", tipo="Material"),
+            ]
+        ),
+    )
+    return primera, segunda
+
+
+async def test_revertir_el_alta_de_un_concepto_con_una_recarga_posterior_bloquea(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """El alta de un concepto no se puede revertir sola mientras una carga
+    posterior que recargó su CPU siga aplicada (§10.8): antes se detecta
+    (`CargaConDependientes`, 409 claro) y no se llega ni a intentar el
+    `IntegrityError` crudo que `ReversaEnConflicto` traduciría."""
+    primera, segunda = await _cargar_concepto_y_su_recarga(contexto_control)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        with pytest.raises(CargaConDependientes) as capturado:
+            await RevertirCarga(
+                cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+            ).ejecutar(primera.carga_id, usuario_id=contexto_control.usuario_id)
+
+    assert [d["id"] for d in capturado.value.dependientes] == [segunda.carga_id]
+    # No se tocó nada: el concepto sigue como lo dejó la recarga.
+    assert "EST-01" in await _conceptos(contexto_control)
+
+
+async def test_revertir_en_cadena_deshace_el_alta_y_su_recarga_juntas(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """La salida de `CargaConDependientes` (§10.8): revierte la carga pedida
+    y la que depende de ella, de la más nueva a la más vieja, como una sola
+    unidad — el concepto vuelve a no existir, las dos cargas quedan
+    revertidas."""
+    primera, segunda = await _cargar_concepto_y_su_recarga(contexto_control)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        resultado = await RevertirCargaEnCadena(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(primera.carga_id, usuario_id=contexto_control.usuario_id)
+
+    assert resultado["cargas_revertidas"] == [segunda.carga_id, primera.carga_id]
+    assert resultado["operaciones_revertidas"] > 0
+    assert "EST-01" not in await _conceptos(contexto_control)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        cargas = RepositorioCargasSQL(sesion)
+        fila_primera = await cargas.obtener(primera.carga_id)
+        fila_segunda = await cargas.obtener(segunda.carga_id)
+    assert fila_primera is not None and fila_primera["revertida_en"] is not None
+    assert fila_segunda is not None and fila_segunda["revertida_en"] is not None
+
+
+async def test_eliminar_version_de_cpu_borra_la_retirada_pero_no_la_vigente(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Mismo mantenimiento directo que en cuadrillas (§10.8), para CPU:
+    identificado por versión + variante, no por el id interno de la fila
+    (el dominio no lo conoce, §3.3)."""
+    from obractrl.application.puertos.repositorios import (
+        RegistroNoEncontrado,
+        VersionVigenteNoEliminable,
+    )
+
+    await _cargar_concepto_y_su_recarga(contexto_control)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        concepto = next(c for c in await RepositorioConceptosSQL(sesion).listar() if str(c["clave"]) == "EST-01")
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        with pytest.raises(VersionVigenteNoEliminable):
+            await RepositorioConceptosSQL(sesion).eliminar_version_cpu(
+                concepto["id"], version=2
+            )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        await RepositorioConceptosSQL(sesion).eliminar_version_cpu(concepto["id"], version=1)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        restantes = await RepositorioConceptosSQL(sesion).versiones_cpu(concepto["id"])
+    assert [v["version"] for v in restantes] == [2]
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        with pytest.raises(RegistroNoEncontrado):
+            await RepositorioConceptosSQL(sesion).eliminar_version_cpu(
+                concepto["id"], version=1
+            )
 
 
 # --- Movimientos de almacén (§10.6 `IMPORTAADOR_ALMACEN.xlsx`) -----------
