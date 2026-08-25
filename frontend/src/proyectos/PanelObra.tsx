@@ -11,7 +11,7 @@
  * que el padre lo remonte con `key={obra.id}` al cambiar de obra.
  */
 
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 
 import { useClavesPorRecurso } from '@/lib/idempotencia';
 
@@ -19,19 +19,21 @@ import {
   useActualizarObraApiV1ObrasObraIdPatch,
   useGenerarObraApiV1ObrasObraIdGenerarPost,
 } from '@/api/generado/obras/obras';
-import { ModoPago } from '@/api/generado/modelo';
+import { useListarUsuariosApiV1UsuariosGet } from '@/api/generado/usuarios/usuarios';
+import { ModoPago, Rol as RolUsuario } from '@/api/generado/modelo';
 import type {
   ClusterRespuesta,
   ObraGeneradaRespuesta,
   ObraRespuesta,
   PrototipoRespuesta,
+  UsuarioRespuesta,
 } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
 import { colorAvance, fmtFecha, fmtNum, fmtPct } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Sheet } from '@/lib/Sheet';
 import type { Rol } from '@/shell/navegacion';
-import { CampoTexto } from './Campos';
+import { CampoSelect, CampoTexto } from './Campos';
 import { cambiosDeObra, formularioDeObra, hayCambios } from './formulario';
 import {
   etiquetaEstatusObra,
@@ -84,6 +86,22 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
     ...idempotente,
   });
 
+  // Cualquier rol puede leer `GET /usuarios` (§5.1: quién es el residente de
+  // una obra no es información privilegiada) — así que aquí se resuelve el
+  // nombre para todos, no solo para quien puede editar.
+  const usuariosQ = useListarUsuariosApiV1UsuariosGet<UsuarioRespuesta[], ErrorApi>({
+    rol: RolUsuario.residente,
+  });
+  const residenteActual = (usuariosQ.data ?? []).find((u) => u.id === obra.residente_id);
+  // El actual entra siempre a las opciones, esté activo o no: si dejó de
+  // ser residente, el <select> no debe mostrar "Sin asignar" en su lugar,
+  // que sería peor que ver a alguien inactivo ya asignado.
+  const residentesActivos = useMemo(() => {
+    const activos = (usuariosQ.data ?? []).filter((u) => u.estatus === 'activo');
+    if (residenteActual && residenteActual.estatus !== 'activo') return [residenteActual, ...activos];
+    return activos;
+  }, [usuariosQ.data, residenteActual]);
+
   const editable = puedeEditarObra(rol, obra);
   const impedimento = impedimentoParaGenerar(rol, obra);
   const cambios = cambiosDeObra(obra, formulario);
@@ -130,7 +148,15 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
             }
             mono={obra.prototipo_id !== null && !prototipo}
           />
-          <Dato etiqueta="Residente" valor={obra.residente_id ?? 'Sin asignar'} mono={obra.residente_id !== null} />
+          <Dato
+            etiqueta="Residente"
+            valor={
+              obra.residente_id === null
+                ? 'Sin asignar'
+                : (residenteActual?.nombre ?? obra.residente_id)
+            }
+            mono={obra.residente_id !== null && !residenteActual}
+          />
           <Dato etiqueta="Inicio" valor={fmtFecha(obra.fecha_inicio)} />
           <Dato etiqueta="Fin" valor={fmtFecha(obra.fecha_fin)} />
           <Dato etiqueta="m²" valor={fmtNum(obra.m2)} />
@@ -156,12 +182,16 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
                 onCambio={(clave) => setFormulario((f) => ({ ...f, clave }))}
                 mono
               />
-              <CampoTexto
+              <CampoSelect
                 id="editar-residente"
-                etiqueta="Residente (uuid)"
+                etiqueta="Residente"
                 valor={formulario.residenteId}
                 onCambio={(residenteId) => setFormulario((f) => ({ ...f, residenteId }))}
-                mono
+                opciones={residentesActivos.map((usuario) => ({
+                  valor: usuario.id,
+                  etiqueta: usuario.nombre,
+                }))}
+                vacio="Sin asignar"
                 pista="Vacío libera la obra."
               />
               <div className="row gap-12">

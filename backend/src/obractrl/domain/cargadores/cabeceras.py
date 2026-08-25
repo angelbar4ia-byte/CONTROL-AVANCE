@@ -260,6 +260,12 @@ MATERIALES = EspecificacionArchivo(
     alias={
         "costo base": "costo_base",
         "costo_base": "costo_base",
+        # El archivo real trae "COSTO BASE M.N." (moneda nacional): es el
+        # costo base del catálogo. "COSTO BASE M.E." (moneda extranjera) y
+        # "COSTO UNITARIO" (duplica M.N. en el archivo real) se dejan sin
+        # mapear a propósito — dos alias al mismo campo canónico son
+        # ambigüedad real (§8.6) y el archivo se rechazaría entero.
+        "costo base m.n.": "costo_base",
         "costo ultimo": "costo_ultimo",
         "costo_ultimo": "costo_ultimo",
         "c/ultimo": "costo_ultimo",

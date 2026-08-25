@@ -183,6 +183,35 @@ def test_una_fila_de_material_completa_queda_validada() -> None:
     assert material.fila == 7
 
 
+def test_costo_base_m_n_del_archivo_real_alimenta_costo_base() -> None:
+    """El archivo real de producción no dice "Costo base": dice "COSTO BASE
+    M.N." (moneda nacional). "COSTO BASE M.E." (moneda extranjera) y "COSTO
+    UNITARIO" quedan sin mapear a propósito — dos alias al mismo campo
+    canónico son ambigüedad real (§8.6), no un costo de más que capturar."""
+    mapa = resolver_encabezados(
+        [
+            "CLAVE",
+            "DESCRIPCIÓN",
+            "CLAVE UNIDAD",
+            "UNIDAD",
+            "COSTO BASE M.N.",
+            "COSTO BASE M.E.",
+            "COSTO UNITARIO",
+            "FECHA",
+            "FAMILIA",
+        ],
+        MATERIALES,
+    )
+    material = validar_material(
+        ["ACE-00001", "ALAMBRE RECOCIDO", 1, "KG", "24.68", "0", "24.68", None, "Aceros"],
+        mapa,
+        2,
+    )
+    assert material.costo_base == Decimal("24.68")
+    assert material.unidad == "KG"
+    assert material.familia == "Aceros"
+
+
 def test_una_fila_sin_clave_es_error_de_fila_y_no_de_archivo() -> None:
     with pytest.raises(ErrorEnFila) as capturado:
         validar_material(["", "Cemento", "ton", "CEM", "250", "", ""], _MAPA_MATERIALES, 3)
