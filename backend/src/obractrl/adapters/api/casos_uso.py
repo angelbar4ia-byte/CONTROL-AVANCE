@@ -87,6 +87,8 @@ from obractrl.application.casos_uso.gestionar_catalogos import (
     CrearFamilia,
     CrearInsumo,
     CrearUnidad,
+    EliminarVersionDeCPU,
+    EliminarVersionDeCuadrilla,
 )
 from obractrl.application.casos_uso.gestionar_cierre import (
     AutorizarCierre,
@@ -199,6 +201,8 @@ __all__ = [
     "DarDeAltaExtraDep",
     "EditarProgramacionActividadDep",
     "EliminarCargaDep",
+    "EliminarVersionDeCPUDep",
+    "EliminarVersionDeCuadrillaDep",
     "EnviarEstimacionDep",
     "ExplotarConceptoDep",
     "FabricaDeCargasDep",
@@ -616,6 +620,20 @@ def obtener_crear_cuadrilla(sesion: SesionRLS) -> CrearCuadrilla:
     )
 
 
+def obtener_eliminar_version_de_cuadrilla(sesion: SesionRLS) -> EliminarVersionDeCuadrilla:
+    return EliminarVersionDeCuadrilla(
+        cuadrillas=RepositorioCuadrillasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_eliminar_version_de_cpu(sesion: SesionRLS) -> EliminarVersionDeCPU:
+    return EliminarVersionDeCPU(
+        conceptos=RepositorioConceptosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_crear_insumo(sesion: SesionRLS) -> CrearInsumo:
     """Sirve a `POST /insumos` y a `POST /materiales`: `Material` es un
     `Insumo` con `tipo='material'` (§7.3)."""
@@ -657,6 +675,12 @@ def obtener_publicar_version_cpu(sesion: SesionRLS) -> PublicarVersionCPU:
 CrearUnidadDep = Annotated[CrearUnidad, Depends(obtener_crear_unidad)]
 CrearFamiliaDep = Annotated[CrearFamilia, Depends(obtener_crear_familia)]
 CrearCuadrillaDep = Annotated[CrearCuadrilla, Depends(obtener_crear_cuadrilla)]
+EliminarVersionDeCuadrillaDep = Annotated[
+    EliminarVersionDeCuadrilla, Depends(obtener_eliminar_version_de_cuadrilla)
+]
+EliminarVersionDeCPUDep = Annotated[
+    EliminarVersionDeCPU, Depends(obtener_eliminar_version_de_cpu)
+]
 CrearInsumoDep = Annotated[CrearInsumo, Depends(obtener_crear_insumo)]
 CrearConceptoDep = Annotated[CrearConcepto, Depends(obtener_crear_concepto)]
 CrearContratistaDep = Annotated[CrearContratista, Depends(obtener_crear_contratista)]

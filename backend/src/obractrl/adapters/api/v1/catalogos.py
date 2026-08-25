@@ -36,6 +36,8 @@ from obractrl.adapters.api.casos_uso import (
     CrearFamiliaDep,
     CrearInsumoDep,
     CrearUnidadDep,
+    EliminarVersionDeCPUDep,
+    EliminarVersionDeCuadrillaDep,
     ExplotarConceptoDep,
     ObtenerCPUDep,
     PublicarVersionCPUDep,
@@ -672,11 +674,11 @@ async def listar_versiones_de_cuadrilla(
     },
 )
 async def eliminar_version_de_cuadrilla(
-    sesion: SesionRLS, cuadrilla_id: UUID, version_id: UUID
+    cuadrilla_id: UUID, version_id: UUID, caso_uso: EliminarVersionDeCuadrillaDep
 ) -> None:
     """Mantenimiento directo del historial (§10.8): no crea ni revierte
     ninguna carga, solo limpia una versión ya retirada."""
-    await RepositorioCuadrillasSQL(sesion).eliminar_version(cuadrilla_id, version_id)
+    await caso_uso.ejecutar(cuadrilla_id, version_id)
 
 
 # --- Conceptos y APU (§7.3) ----------------------------------------------
@@ -950,13 +952,14 @@ async def obtener_cpu(
     },
 )
 async def eliminar_version_de_cpu(
-    sesion: SesionRLS, concepto_id: UUID, version: int, variante: FiltroVariante = None
+    concepto_id: UUID,
+    version: int,
+    caso_uso: EliminarVersionDeCPUDep,
+    variante: FiltroVariante = None,
 ) -> None:
     """Mantenimiento directo del historial (§10.8): no crea ni revierte
     ninguna carga, solo limpia una versión ya retirada."""
-    await RepositorioConceptosSQL(sesion).eliminar_version_cpu(
-        concepto_id, version=version, variante=variante
-    )
+    await caso_uso.ejecutar(concepto_id, version=version, variante=variante)
 
 
 @router.post(

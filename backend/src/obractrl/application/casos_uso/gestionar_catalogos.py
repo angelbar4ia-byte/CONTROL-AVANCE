@@ -53,6 +53,8 @@ __all__ = [
     "CrearInsumo",
     "CrearUnidad",
     "CuadrillaCreada",
+    "EliminarVersionDeCPU",
+    "EliminarVersionDeCuadrilla",
     "ErrorDeCatalogo",
     "FamiliaCreada",
     "InsumoCreado",
@@ -236,6 +238,43 @@ class CrearCuadrilla:
             )
             await self._uow.commit()
         return CuadrillaCreada(id=cuadrilla_id, cuadrilla=cuadrilla)
+
+
+class EliminarVersionDeCuadrilla:
+    """`DELETE /cuadrillas/{id}/versiones/{version_id}` (Control de obra).
+
+    Mantenimiento directo del historial (§10.8): no está ligado a ninguna
+    carga, así que necesita su propia transacción — el repositorio por sí
+    solo no comprometía la escritura (mismo defecto que tuvo `EliminarCarga`
+    antes de llevar su `uow`).
+    """
+
+    def __init__(self, *, cuadrillas: RepositorioCuadrillas, uow: UnidadDeTrabajo) -> None:
+        self._cuadrillas = cuadrillas
+        self._uow = uow
+
+    async def ejecutar(self, cuadrilla_id: UUID, version_id: UUID) -> None:
+        async with self._uow:
+            await self._cuadrillas.eliminar_version(cuadrilla_id, version_id)
+            await self._uow.commit()
+
+
+class EliminarVersionDeCPU:
+    """`DELETE /conceptos/{id}/cpu/{version}` (Control de obra) — mismo
+    mantenimiento que `EliminarVersionDeCuadrilla`, para CPU."""
+
+    def __init__(self, *, conceptos: RepositorioConceptos, uow: UnidadDeTrabajo) -> None:
+        self._conceptos = conceptos
+        self._uow = uow
+
+    async def ejecutar(
+        self, concepto_id: UUID, *, version: int, variante: str | None = None
+    ) -> None:
+        async with self._uow:
+            await self._conceptos.eliminar_version_cpu(
+                concepto_id, version=version, variante=variante
+            )
+            await self._uow.commit()
 
 
 class CrearInsumo:
