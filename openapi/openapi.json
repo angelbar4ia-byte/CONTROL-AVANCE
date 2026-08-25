@@ -1878,6 +1878,64 @@
         }
       }
     },
+    "/api/v1/cuadrillas/{cuadrilla_id}/versiones/{version_id}": {
+      "delete": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Eliminar una versión retirada del historial",
+        "description": "Mantenimiento directo del historial (§10.8): no crea ni revierte\nninguna carga, solo limpia una versión ya retirada.",
+        "operationId": "eliminar_version_de_cuadrilla_api_v1_cuadrillas__cuadrilla_id__versiones__version_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cuadrilla_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cuadrilla Id"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La versión no existe para esa cuadrilla."
+          },
+          "409": {
+            "description": "Es la versión vigente: no se puede eliminar."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/conceptos": {
       "get": {
         "tags": [
@@ -2162,6 +2220,81 @@
           },
           "422": {
             "description": "Composición cíclica o precio inválido (§7.3)."
+          }
+        }
+      }
+    },
+    "/api/v1/conceptos/{concepto_id}/cpu/{version}": {
+      "delete": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Eliminar una versión de CPU retirada del historial",
+        "description": "Mantenimiento directo del historial (§10.8): no crea ni revierte\nninguna carga, solo limpia una versión ya retirada.",
+        "operationId": "eliminar_version_de_cpu_api_v1_conceptos__concepto_id__cpu__version__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          },
+          {
+            "name": "variante",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Receta alterna del concepto; vacío = receta base (§2.2).",
+              "title": "Variante"
+            },
+            "description": "Receta alterna del concepto; vacío = receta base (§2.2)."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Esa versión no existe para el concepto."
+          },
+          "409": {
+            "description": "Es la versión vigente: no se puede eliminar."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -5800,6 +5933,18 @@
               "format": "uuid",
               "title": "Carga Id"
             }
+          },
+          {
+            "name": "en_cadena",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Si hay cargas más nuevas que dependen de esta, revertirlas también, de la más nueva a la más vieja, en una sola unidad (§10.8). Sin esto, esas cargas bloquean la reversa (`carga-con-dependientes`).",
+              "default": false,
+              "title": "En Cadena"
+            },
+            "description": "Si hay cargas más nuevas que dependen de esta, revertirlas también, de la más nueva a la más vieja, en una sola unidad (§10.8). Sin esto, esas cargas bloquean la reversa (`carga-con-dependientes`)."
           }
         ],
         "responses": {
@@ -5817,7 +5962,7 @@
             "description": "La carga no existe o está fuera de tu alcance."
           },
           "409": {
-            "description": "La carga no se aplicó, o ya se revirtió."
+            "description": "La carga no se aplicó, ya se revirtió, o (sin `en_cadena`) hay cargas más nuevas que dependen de lo que tocó (§10.8)."
           },
           "422": {
             "description": "Validation Error",
@@ -13258,6 +13403,22 @@
           "operaciones_revertidas": {
             "type": "integer",
             "title": "Operaciones Revertidas"
+          },
+          "cargas_revertidas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cargas Revertidas",
+            "description": "Ids de todas las cargas revertidas, en el orden en que se deshicieron. Solo se llena cuando `en_cadena=true` (§10.8)."
           }
         },
         "type": "object",

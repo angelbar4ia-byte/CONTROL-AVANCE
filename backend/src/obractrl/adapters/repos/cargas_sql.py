@@ -26,9 +26,10 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-__all__ = ["RepositorioCargasSQL", "TablaNoRevertible"]
+__all__ = ["RepositorioCargasSQL", "ReversaEnConflicto", "TablaNoRevertible"]
 
 _COLUMNAS = """
     id, tipo, modo, estatus, archivo_url, archivo_nombre, archivo_hash,
@@ -42,6 +43,21 @@ class TablaNoRevertible(ValueError):
 
     Solo puede pasar si alguien escribió snapshots a mano en la base: el
     backend nunca registra una tabla que no sepa deshacer.
+    """
+
+
+class ReversaEnConflicto(ValueError):
+    """Deshacer esta operación viola una restricción de la base (§10.8).
+
+    No es un defecto del backend, a diferencia de `TablaNoRevertible`: es un
+    conflicto real entre lotes, típicamente de llave foránea. Pasa al
+    revertir cargas fuera de orden —por ejemplo, el alta de un concepto se
+    revierte (lo borra; `on delete cascade` se lleva su `explosion`/`cpu`)
+    mientras una carga *posterior* que recargó ese mismo concepto sigue
+    aplicada; revertir después esa carga posterior intenta reinsertar una
+    fila de `explosion` que apunta a un `concepto_id` que ya no existe. Se
+    resuelve revirtiendo primero cualquier carga más reciente que dependa de
+    lo que esta carga tocó.
     """
 
 
@@ -375,6 +391,39 @@ class RepositorioCargasSQL:
             {"id": str(carga_id), "usuario_id": str(usuario_id) if usuario_id else None},
         )
 
+    async def dependientes_de(self, carga_id: UUID) -> list[dict[str, Any]]:
+        """Cargas más nuevas que tocaron algo que esta carga también tocó
+        (§10.8) — ver `ix_carga_snapshot_registro` (migración 0033): sin ese
+        índice, este `exists` sería un seq scan del snapshot completo.
+        """
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select distinct cd.id, cd.tipo, cd.archivo_nombre, cd.fecha,
+                           cd.version_generada
+                    from carga_snapshot cs
+                    join carga_datos cd on cd.id = cs.carga_id
+                    where cd.id != cast(:carga_id as uuid)
+                      and cd.estatus = 'aplicado'
+                      and cd.revertida_en is null
+                      and cd.fecha > (
+                          select fecha from carga_datos where id = cast(:carga_id as uuid)
+                      )
+                      and exists (
+                          select 1 from carga_snapshot propia
+                          where propia.carga_id = cast(:carga_id as uuid)
+                            and propia.tabla = cs.tabla
+                            and propia.registro_id = cs.registro_id
+                      )
+                    order by cd.fecha
+                    """
+                ),
+                {"carga_id": str(carga_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
     async def eliminar(self, carga_id: UUID) -> None:
         # `carga_snapshot`/`pendiente` referencian `carga_id` con `on delete
         # cascade` desde el diseño original de estas tablas (§10.8): un solo
@@ -452,7 +501,7 @@ class RepositorioCargasSQL:
                     f"El snapshot menciona la tabla {tabla!r}, que no está en la "
                     f"lista blanca de reversa (§10.8)."
                 )
-            await self._sesion.execute(text(sql), {"id": registro_id})
+            await self._ejecutar_reversa(sql, {"id": registro_id}, tabla, registro_id)
             return
 
         antes = operacion.get("antes")
@@ -468,9 +517,30 @@ class RepositorioCargasSQL:
                 f"No hay forma registrada de deshacer un {accion!r} sobre "
                 f"{tabla!r} (§10.8)."
             )
-        await self._sesion.execute(
-            text(sql), {"id": registro_id, "antes": _json(antes)}
+        await self._ejecutar_reversa(
+            sql, {"id": registro_id, "antes": _json(antes)}, tabla, registro_id
         )
+
+    async def _ejecutar_reversa(
+        self, sql: str, parametros: dict[str, Any], tabla: str, registro_id: str
+    ) -> None:
+        """Ejecuta el SQL de reversa, traduciendo una violación de
+        restricción a `ReversaEnConflicto` (§10.8) en vez de dejar subir el
+        `IntegrityError` crudo de SQLAlchemy — ese detalle de infraestructura
+        no le sirve a quien ve el 409, y `main.py` no puede distinguir "hay
+        una restricción rota" de "el backend no sabe deshacer esto"
+        (`TablaNoRevertible`) sin este límite explícito.
+        """
+        try:
+            await self._sesion.execute(text(sql), parametros)
+        except IntegrityError as exc:
+            raise ReversaEnConflicto(
+                f"No se pudo deshacer la operación sobre {tabla!r} (registro "
+                f"{registro_id}): entra en conflicto con una restricción de la "
+                f"base, probablemente porque una carga posterior que dependía "
+                f"de este registro sigue aplicada. Revierte primero cualquier "
+                f"carga más reciente que dependa de lo que tocó esta (§10.8)."
+            ) from exc
 
     # --- Bandeja de pendientes (§10.3) -----------------------------------
 

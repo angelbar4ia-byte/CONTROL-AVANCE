@@ -90,6 +90,18 @@ class RepositorioCargas(Protocol):
 
     async def marcar_revertida(self, carga_id: UUID, *, usuario_id: UUID | None) -> None: ...
 
+    async def dependientes_de(self, carga_id: UUID) -> list[dict]:
+        """Cargas aplicadas y no revertidas, más nuevas que esta, que
+        tocaron (misma ``tabla`` + ``registro_id``) algo que esta carga
+        también tocó (§10.8).
+
+        Es la señal de "esto ya se recargó después": revertir esta carga
+        sola dejaría una referencia rota (el caso real: el alta de un
+        concepto se revierte mientras una carga posterior que recargó ese
+        mismo concepto sigue aplicada). Vacío = se puede revertir sola.
+        """
+        ...
+
     async def eliminar(self, carga_id: UUID) -> None:
         """Borra el registro del lote (§10.8). `carga_snapshot` y
         `pendiente` se van solos por `on delete cascade` — el caso de uso

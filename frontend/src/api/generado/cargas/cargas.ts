@@ -38,6 +38,7 @@ import type {
   LoteRespuesta,
   ObractrlAdaptersApiV1CargasPendienteRespuesta,
   ReversaRespuesta,
+  RevertirCargaApiV1CargasCargaIdRevertirPostParams,
   TipoCarga
 } from '.././modelo';
 
@@ -870,12 +871,14 @@ export function useBandejaDeCargaApiV1CargasCargaIdPendientesGet<TData = Awaited
  */
 export const revertirCargaApiV1CargasCargaIdRevertirPost = (
     cargaId: string,
+    params?: RevertirCargaApiV1CargasCargaIdRevertirPostParams,
  options?: SecondParameter<typeof peticion>,signal?: AbortSignal
 ) => {
       
       
       return peticion<ReversaRespuesta>(
-      {url: `/api/v1/cargas/${cargaId}/revertir`, method: 'POST', signal
+      {url: `/api/v1/cargas/${cargaId}/revertir`, method: 'POST',
+        params, signal
     },
       options);
     }
@@ -883,8 +886,8 @@ export const revertirCargaApiV1CargasCargaIdRevertirPost = (
 
 
 export const getRevertirCargaApiV1CargasCargaIdRevertirPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, TError,{cargaId: string}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, TError,{cargaId: string}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, TError,{cargaId: string;params?: RevertirCargaApiV1CargasCargaIdRevertirPostParams}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, TError,{cargaId: string;params?: RevertirCargaApiV1CargasCargaIdRevertirPostParams}, TContext> => {
 
 const mutationKey = ['revertirCargaApiV1CargasCargaIdRevertirPost'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -896,10 +899,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, {cargaId: string}> = (props) => {
-          const {cargaId} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, {cargaId: string;params?: RevertirCargaApiV1CargasCargaIdRevertirPostParams}> = (props) => {
+          const {cargaId,params} = props ?? {};
 
-          return  revertirCargaApiV1CargasCargaIdRevertirPost(cargaId,requestOptions)
+          return  revertirCargaApiV1CargasCargaIdRevertirPost(cargaId,params,requestOptions)
         }
 
         
@@ -915,11 +918,11 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
  * @summary Revertir una carga completa
  */
 export const useRevertirCargaApiV1CargasCargaIdRevertirPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, TError,{cargaId: string}, TContext>, request?: SecondParameter<typeof peticion>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>, TError,{cargaId: string;params?: RevertirCargaApiV1CargasCargaIdRevertirPostParams}, TContext>, request?: SecondParameter<typeof peticion>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof revertirCargaApiV1CargasCargaIdRevertirPost>>,
         TError,
-        {cargaId: string},
+        {cargaId: string;params?: RevertirCargaApiV1CargasCargaIdRevertirPostParams},
         TContext
       > => {
 

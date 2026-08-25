@@ -36,6 +36,8 @@ from obractrl.adapters.api.casos_uso import (
     CrearFamiliaDep,
     CrearInsumoDep,
     CrearUnidadDep,
+    EliminarVersionDeCPUDep,
+    EliminarVersionDeCuadrillaDep,
     ExplotarConceptoDep,
     ObtenerCPUDep,
     PublicarVersionCPUDep,
@@ -661,6 +663,24 @@ async def listar_versiones_de_cuadrilla(
     return [VersionCuadrillaRespuesta.desde_fila(fila) for fila in filas]
 
 
+@router.delete(
+    "/cuadrillas/{cuadrilla_id}/versiones/{version_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar una versión retirada del historial",
+    dependencies=[CATALOGOS],
+    responses={
+        404: {"description": "La versión no existe para esa cuadrilla."},
+        409: {"description": "Es la versión vigente: no se puede eliminar."},
+    },
+)
+async def eliminar_version_de_cuadrilla(
+    cuadrilla_id: UUID, version_id: UUID, caso_uso: EliminarVersionDeCuadrillaDep
+) -> None:
+    """Mantenimiento directo del historial (§10.8): no crea ni revierte
+    ninguna carga, solo limpia una versión ya retirada."""
+    await caso_uso.ejecutar(cuadrilla_id, version_id)
+
+
 # --- Conceptos y APU (§7.3) ----------------------------------------------
 
 
@@ -919,6 +939,27 @@ async def obtener_cpu(
     return CPURespuesta.desde_dominio(
         await caso_uso.ejecutar(concepto_id, variante=variante)
     )
+
+
+@router.delete(
+    "/conceptos/{concepto_id}/cpu/{version}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar una versión de CPU retirada del historial",
+    dependencies=[CATALOGOS],
+    responses={
+        404: {"description": "Esa versión no existe para el concepto."},
+        409: {"description": "Es la versión vigente: no se puede eliminar."},
+    },
+)
+async def eliminar_version_de_cpu(
+    concepto_id: UUID,
+    version: int,
+    caso_uso: EliminarVersionDeCPUDep,
+    variante: FiltroVariante = None,
+) -> None:
+    """Mantenimiento directo del historial (§10.8): no crea ni revierte
+    ninguna carga, solo limpia una versión ya retirada."""
+    await caso_uso.ejecutar(concepto_id, version=version, variante=variante)
 
 
 @router.post(

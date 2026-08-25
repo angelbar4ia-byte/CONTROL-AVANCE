@@ -25,6 +25,11 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from obractrl.application.puertos.repositorios import (
+    RegistroNoEncontrado,
+    VersionVigenteNoEliminable,
+)
+
 __all__ = ["RepositorioConceptosSQL"]
 
 _COLUMNAS = """
@@ -402,3 +407,38 @@ class RepositorioConceptosSQL:
                 },
             )
         ).scalar_one()
+
+    async def eliminar_version_cpu(
+        self, concepto_id: UUID, *, version: int, variante: str | None = None
+    ) -> None:
+        """Borra una versión de CPU ya retirada (mantenimiento directo,
+        §10.8, no ligado a una carga). La `explosion` atada a ese `cpu_id`
+        se va con `on delete cascade`; la composición "viva" (`cpu_id is
+        null`) no se toca. Se identifica por versión + variante, como
+        `publicar_version_cpu` — no por el id interno de la fila."""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, vigente from cpu
+                    where concepto_id = cast(:concepto_id as uuid)
+                      and version = :version
+                      and coalesce(variante, '') = coalesce(:variante, '')
+                    """
+                ),
+                {"concepto_id": str(concepto_id), "version": version, "variante": variante},
+            )
+        ).mappings().first()
+        if fila is None:
+            raise RegistroNoEncontrado(
+                f"La versión {version} (variante {variante!r}) no existe para "
+                f"el concepto {concepto_id}."
+            )
+        if fila["vigente"]:
+            raise VersionVigenteNoEliminable(
+                f"La versión {version} es la vigente: no se puede eliminar (§10.8)."
+            )
+        await self._sesion.execute(
+            text("delete from cpu where id = cast(:id as uuid)"),
+            {"id": str(fila["id"])},
+        )

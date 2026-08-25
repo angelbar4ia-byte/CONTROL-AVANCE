@@ -40,7 +40,7 @@ from obractrl.adapters.excel.lector import ErrorDeArchivo
 from obractrl.adapters.export.catalogo import TipoDeReporteDesconocido
 from obractrl.adapters.export.pdf import MotorDePdfNoDisponible
 from obractrl.adapters.repos.calendario_sql import CalendarioNoConfigurado
-from obractrl.adapters.repos.cargas_sql import TablaNoRevertible
+from obractrl.adapters.repos.cargas_sql import ReversaEnConflicto, TablaNoRevertible
 from obractrl.adapters.repos.procesos_sql import ProcesoNoEncontrado
 from obractrl.application.casos_uso.calcular_cpu import ConceptoNoEncontrado
 from obractrl.application.casos_uso.capturar_avance import (
@@ -49,6 +49,7 @@ from obractrl.application.casos_uso.capturar_avance import (
 )
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import ObraNoEncontrada
 from obractrl.application.casos_uso.gestionar_carga import (
+    CargaConDependientes,
     CargaNoEliminable,
     CargaNoEncontrada,
     CargaNoRevertible,
@@ -72,6 +73,10 @@ from obractrl.application.casos_uso.registrar_salida_almacen import (
     MotivoAlmacenNoEncontrado,
 )
 from obractrl.application.puertos.auth import ErrorDelProveedorDeAuth
+from obractrl.application.puertos.repositorios import (
+    RegistroNoEncontrado,
+    VersionVigenteNoEliminable,
+)
 from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera
 from obractrl.domain.catalogos.apu import CicloEnExplosion, ErrorDeAPU
@@ -841,6 +846,30 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             detalle=str(exc),
         )
 
+    @app.exception_handler(RegistroNoEncontrado)
+    async def _registro_no_encontrado(
+        request: Request, exc: RegistroNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="registro-no-encontrado",
+            titulo="El registro no existe",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(VersionVigenteNoEliminable)
+    async def _version_vigente_no_eliminable(
+        request: Request, exc: VersionVigenteNoEliminable
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="version-vigente-no-eliminable",
+            titulo="No se puede eliminar la versión vigente",
+            detalle=str(exc),
+        )
+
     @app.exception_handler(ErrorDeAPU)
     async def _apu(request: Request, exc: ErrorDeAPU) -> JSONResponse:
         return _problema(
@@ -984,6 +1013,20 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             detalle=str(exc),
         )
 
+    @app.exception_handler(CargaConDependientes)
+    async def _carga_con_dependientes(
+        request: Request, exc: CargaConDependientes
+    ) -> JSONResponse:
+        # 409, no 500: revertir la cadena completa (`en_cadena=true`) es la
+        # salida (§10.8) — no es un defecto, es un estado real de datos.
+        return _problema(
+            request,
+            status=409,
+            tipo="carga-con-dependientes",
+            titulo="La carga no se puede revertir sola",
+            detalle=str(exc),
+        )
+
     @app.exception_handler(CargaNoEliminable)
     async def _carga_no_eliminable(
         request: Request, exc: CargaNoEliminable
@@ -1007,6 +1050,21 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=500,
             tipo="snapshot-inconsistente",
             titulo="El lote no se puede deshacer completo",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ReversaEnConflicto)
+    async def _reversa_en_conflicto(
+        request: Request, exc: ReversaEnConflicto
+    ) -> JSONResponse:
+        # 409, no 500: a diferencia de `TablaNoRevertible` esto no es un
+        # defecto del backend, es un conflicto real entre lotes (§10.8) —
+        # revertir fuera de orden.
+        return _problema(
+            request,
+            status=409,
+            tipo="reversa-en-conflicto",
+            titulo="La carga no se puede revertir",
             detalle=str(exc),
         )
 

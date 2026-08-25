@@ -41,6 +41,7 @@ import type {
   CrearMaterialPeticion,
   CrearUnidadPeticion,
   CuadrillaRespuesta,
+  EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams,
   ExplosionRespuesta,
   FamiliaRespuesta,
   HTTPValidationError,
@@ -1620,6 +1621,70 @@ export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersiones
 
 
 /**
+ * Mantenimiento directo del historial (§10.8): no crea ni revierte
+ninguna carga, solo limpia una versión ya retirada.
+ * @summary Eliminar una versión retirada del historial
+ */
+export const eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete = (
+    cuadrillaId: string,
+    versionId: string,
+ options?: SecondParameter<typeof peticion>,) => {
+      
+      
+      return peticion<void>(
+      {url: `/api/v1/cuadrillas/${cuadrillaId}/versiones/${versionId}`, method: 'DELETE'
+    },
+      options);
+    }
+  
+
+
+export const getEliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDeleteMutationOptions = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete>>, TError,{cuadrillaId: string;versionId: string}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete>>, TError,{cuadrillaId: string;versionId: string}, TContext> => {
+
+const mutationKey = ['eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete>>, {cuadrillaId: string;versionId: string}> = (props) => {
+          const {cuadrillaId,versionId} = props ?? {};
+
+          return  eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete(cuadrillaId,versionId,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete>>>
+    
+    export type EliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDeleteMutationError = void | HTTPValidationError
+
+    /**
+ * @summary Eliminar una versión retirada del historial
+ */
+export const useEliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete>>, TError,{cuadrillaId: string;versionId: string}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete>>,
+        TError,
+        {cuadrillaId: string;versionId: string},
+        TContext
+      > => {
+
+      const mutationOptions = getEliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDeleteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Catálogo de conceptos
  */
 export const listarConceptosApiV1ConceptosGet = (
@@ -2257,6 +2322,72 @@ export const usePublicarCpuApiV1ConceptosConceptoIdCpuPost = <TError = void,
       > => {
 
       const mutationOptions = getPublicarCpuApiV1ConceptosConceptoIdCpuPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Mantenimiento directo del historial (§10.8): no crea ni revierte
+ninguna carga, solo limpia una versión ya retirada.
+ * @summary Eliminar una versión de CPU retirada del historial
+ */
+export const eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete = (
+    conceptoId: string,
+    version: number,
+    params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams,
+ options?: SecondParameter<typeof peticion>,) => {
+      
+      
+      return peticion<void>(
+      {url: `/api/v1/conceptos/${conceptoId}/cpu/${version}`, method: 'DELETE',
+        params
+    },
+      options);
+    }
+  
+
+
+export const getEliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteMutationOptions = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete>>, TError,{conceptoId: string;version: number;params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete>>, TError,{conceptoId: string;version: number;params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams}, TContext> => {
+
+const mutationKey = ['eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete>>, {conceptoId: string;version: number;params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams}> = (props) => {
+          const {conceptoId,version,params} = props ?? {};
+
+          return  eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete(conceptoId,version,params,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete>>>
+    
+    export type EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteMutationError = void | HTTPValidationError
+
+    /**
+ * @summary Eliminar una versión de CPU retirada del historial
+ */
+export const useEliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete>>, TError,{conceptoId: string;version: number;params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete>>,
+        TError,
+        {conceptoId: string;version: number;params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams},
+        TContext
+      > => {
+
+      const mutationOptions = getEliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

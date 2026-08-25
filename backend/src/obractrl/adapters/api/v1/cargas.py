@@ -41,6 +41,7 @@ from obractrl.adapters.api.casos_uso import (
     EliminarCargaDep,
     FabricaDeCargasDep,
     RevertirCargaDep,
+    RevertirCargaEnCadenaDep,
 )
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.adapters.excel.lector import LIMITES
@@ -168,6 +169,13 @@ class PendienteRespuesta(BaseModel):
 class ReversaRespuesta(BaseModel):
     carga_id: UUID
     operaciones_revertidas: int
+    cargas_revertidas: list[UUID] | None = Field(
+        default=None,
+        description=(
+            "Ids de todas las cargas revertidas, en el orden en que se "
+            "deshicieron. Solo se llena cuando `en_cadena=true` (§10.8)."
+        ),
+    )
 
 
 async def _leer_con_tope(archivo: UploadFile) -> bytes:
@@ -303,14 +311,36 @@ async def bandeja_de_carga(
     dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
     responses={
         404: {"description": "La carga no existe o está fuera de tu alcance."},
-        409: {"description": "La carga no se aplicó, o ya se revirtió."},
+        409: {
+            "description": (
+                "La carga no se aplicó, ya se revirtió, o (sin `en_cadena`) "
+                "hay cargas más nuevas que dependen de lo que tocó (§10.8)."
+            )
+        },
     },
 )
 async def revertir_carga(
-    carga_id: UUID, ctx: ContextoActual, caso_uso: RevertirCargaDep
+    carga_id: UUID,
+    ctx: ContextoActual,
+    caso_uso: RevertirCargaDep,
+    caso_uso_en_cadena: RevertirCargaEnCadenaDep,
+    en_cadena: Annotated[
+        bool,
+        Query(
+            description=(
+                "Si hay cargas más nuevas que dependen de esta, revertirlas "
+                "también, de la más nueva a la más vieja, en una sola "
+                "unidad (§10.8). Sin esto, esas cargas bloquean la reversa "
+                "(`carga-con-dependientes`)."
+            )
+        ),
+    ] = False,
 ) -> ReversaRespuesta:
     """Deshace el lote como unidad, no registro por registro (§10.8)."""
-    resultado = await caso_uso.ejecutar(carga_id, usuario_id=ctx.usuario_id)
+    if en_cadena:
+        resultado = await caso_uso_en_cadena.ejecutar(carga_id, usuario_id=ctx.usuario_id)
+    else:
+        resultado = await caso_uso.ejecutar(carga_id, usuario_id=ctx.usuario_id)
     return ReversaRespuesta(**resultado)
 
 
