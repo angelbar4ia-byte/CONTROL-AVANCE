@@ -44,7 +44,7 @@ from obractrl.application.puertos.repositorios import (
     RepositorioUnidades,
 )
 from obractrl.domain.cargadores.almacen import FilaMovimiento, importe_con_iva
-from obractrl.domain.cargadores.cpu import ConceptoCargado
+from obractrl.domain.cargadores.cpu import ComponenteCargado, ConceptoCargado
 from obractrl.domain.cargadores.cuadrillas import CuadrillaCargada
 from obractrl.domain.cargadores.homologacion import Homologador
 from obractrl.domain.cargadores.mano_de_obra import FilaManoObra
@@ -640,6 +640,15 @@ class AplicadorManoObra:
 
 # --- CPU / Conceptos (§10.6 `CABECERAS_CPU.xlsx`) -------------------------
 
+_TIPO_INSUMO_POR_CATEGORIA: dict[CategoriaExplosion, TipoInsumo] = {
+    CategoriaExplosion.MATERIAL: TipoInsumo.MATERIAL,
+    CategoriaExplosion.MANO_OBRA: TipoInsumo.MANO_OBRA,
+    CategoriaExplosion.SUBCONTRATO: TipoInsumo.SUBCONTRATO,
+}
+"""Tipo del insumo que se da de alta cuando un componente del CPU no cruza
+contra el catálogo. Mismo dominio que `cpu.CATEGORIA_POR_TIPO`: el archivo
+plano del §10.6 nunca produce otra `categoria` que estas tres."""
+
 
 class AplicadorCPU:
     """Catálogo de conceptos con su APU (§10.6, §7.3).
@@ -649,10 +658,14 @@ class AplicadorCPU:
     **versión nueva de CPU** cuyo precio sale de explotar esa composición
     (§7.3: el CPU se calcula, no se captura).
 
-    Un componente cuyo insumo no está en el catálogo **detiene ese concepto**,
-    no solo ese renglón: un APU con un hueco daría un precio menor al real y
-    ese precio se propaga a presupuesto y estimación. El concepto se omite y
-    el insumo va a la bandeja como pendiente **crítico** (§10.3).
+    Un componente cuyo insumo no está en el catálogo se da de alta solo, con
+    lo mínimo que trae la fila (clave, descripción, tipo, costo — mismo
+    criterio que unidad/familia, §8.7): un hueco silencioso daría un precio
+    menor al real, y esta fila sí trae su propio P.U. para llenarlo, así
+    que bloquear el concepto entero por un insumo nuevo es peor que darlo de
+    alta. `CATEGORIA_POR_TIPO` (`domain.cargadores.cpu`) ya limita esto a
+    material, mano de obra y subcontrato — un componente de otra categoría
+    ni siquiera llega hasta aquí.
     """
 
     def __init__(
@@ -684,6 +697,7 @@ class AplicadorCPU:
         insumos_filas = await self._insumos.listar(solo_activos=False)
         insumos_por_clave = {str(f["clave"]): f for f in insumos_filas}
         clave_de_insumo = {f["id"]: str(f["clave"]) for f in insumos_filas}
+        id_insumo = {str(f["clave"]): f["id"] for f in insumos_filas}
         insumos = Homologador.desde(
             insumos_filas, mapeos=await self._cargas.mapeos("insumo")
         )
@@ -699,6 +713,17 @@ class AplicadorCPU:
             unidades_filas, mapeos=await self._cargas.mapeos("unidad")
         )
         id_unidad = {str(f["clave"]): f["id"] for f in unidades_filas}
+        # Sin ámbito propio de mano_obra/subcontrato en `familia.aplica_a`
+        # (§10.1 solo define material/concepto): un insumo dado de alta desde
+        # aquí comparte el mismo árbol que materiales (§8.7, mismo criterio
+        # que `AplicadorManoObra`), no el de conceptos que se calcula abajo.
+        familias_de_insumo_filas = await self._familias.listar(
+            aplica_a="material", solo_activos=False
+        )
+        familias_de_insumo = Homologador.desde(
+            familias_de_insumo_filas, mapeos=await self._cargas.mapeos("familia")
+        )
+        id_familia_de_insumo = {str(f["clave"]): f["id"] for f in familias_de_insumo_filas}
         familias_filas = await self._familias.listar(
             aplica_a="concepto", solo_activos=False
         )
@@ -713,6 +738,7 @@ class AplicadorCPU:
         planes: dict[str, dict[str, Any]] = {}
         nuevas_unidades: dict[str, UUID | None] = {}
         nuevas_familias: dict[str, UUID | None] = {}
+        nuevos_insumos: dict[str, UUID | None] = {}
 
         for registro in lectura.registros:
             bloque: ConceptoCargado = registro  # type: ignore[assignment]
@@ -723,18 +749,67 @@ class AplicadorCPU:
             incompleto = False
 
             for componente in bloque.componentes:
-                clave_insumo = insumos.resolver(str(componente.clave_insumo))
-                if clave_insumo is None:
-                    pendientes.append(
-                        _pendiente_de_mapeo(
-                            "insumo",
-                            str(componente.clave_insumo),
-                            componente.fila,
-                            critico=True,
+                clave_texto = str(componente.clave_insumo)
+                # Si `clave_texto` cruza (directo o por mapeo), gana la clave
+                # canónica del catálogo — igual que antes de este cambio—;
+                # solo cuando no cruza (se va a dar de alta) `clave_insumo`
+                # es el propio texto del archivo, que es lo único que hay.
+                clave_insumo = insumos.resolver(clave_texto) or clave_texto
+
+                async def _dar_de_alta_insumo(
+                    _datos: dict[str, Any],
+                    *,
+                    _componente: ComponenteCargado = componente,
+                    clave: str = clave_texto,
+                ) -> UUID:
+                    unidad_insumo_id = None
+                    if _componente.unidad:
+                        unidad_insumo_id = await _resolver_o_dar_de_alta(
+                            _componente.unidad,
+                            homologador=unidades,
+                            id_por_clave=id_unidad,
+                            creadas=nuevas_unidades,
+                            crear=self._unidades.crear,
+                            dry_run=dry_run,
                         )
+                    familia_insumo_id = None
+                    if _componente.familia:
+                        familia_insumo_id = await _resolver_o_dar_de_alta(
+                            _componente.familia,
+                            homologador=familias_de_insumo,
+                            id_por_clave=id_familia_de_insumo,
+                            creadas=nuevas_familias,
+                            crear=self._familias.crear,
+                            dry_run=dry_run,
+                        )
+                    return await self._insumos.crear(
+                        {
+                            "tipo": str(_TIPO_INSUMO_POR_CATEGORIA[_componente.categoria]),
+                            "clave": clave,
+                            "descripcion": _componente.descripcion or clave,
+                            "unidad_id": unidad_insumo_id,
+                            "familia_id": familia_insumo_id,
+                            "costo_base": _componente.precio_unitario or Decimal(0),
+                        }
                     )
-                    incompleto = True
-                    continue
+
+                insumo_id = await _resolver_o_dar_de_alta(
+                    clave_texto,
+                    homologador=insumos,
+                    id_por_clave=id_insumo,
+                    creadas=nuevos_insumos,
+                    crear=_dar_de_alta_insumo,
+                    dry_run=dry_run,
+                )
+                if clave_insumo not in insumos_por_clave:
+                    # En `dry_run` sobre un insumo nuevo, `insumo_id` es
+                    # `None` (§9.3: la vista previa no escribe) — igual se
+                    # registra para que el `["id"]` de abajo no truene; nunca
+                    # se lee de verdad porque eso solo pasa dentro de
+                    # `if not dry_run:`.
+                    insumos_por_clave[clave_insumo] = {"id": insumo_id}
+                if clave_insumo not in costos_insumo:
+                    costos_insumo[clave_insumo] = componente.precio_unitario or Decimal(0)
                 try:
                     del_dominio = Componente(
                         categoria=componente.categoria,
@@ -950,6 +1025,7 @@ class AplicadorCPU:
             detalle={
                 "unidades_creadas": len(nuevas_unidades),
                 "familias_creadas": len(nuevas_familias),
+                "insumos_creados": len(nuevos_insumos),
             },
         )
 
