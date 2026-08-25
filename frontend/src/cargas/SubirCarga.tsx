@@ -17,6 +17,7 @@
  */
 
 import { useMemo, useState, type FormEvent } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useSubirCargaApiV1CargasPost } from '@/api/generado/cargas/cargas';
 import { ModoCarga, TipoCarga, type CargaRespuesta } from '@/api/generado/modelo';
@@ -32,6 +33,26 @@ import {
   modoDestructivo,
 } from './reglas';
 
+/**
+ * Prefijos de ruta que una carga aplicada puede dejar obsoletos en caché.
+ *
+ * `queryClient` tiene `staleTime: 5min` (§8.7-friendly, evita pedir de más),
+ * así que Catálogos puede seguir mostrando lo de antes de la carga hasta por
+ * cinco minutos si nadie invalida. Aquí no se distingue por `tipo`: una sola
+ * carga puede tocar varios catálogos a la vez (cuadrillas también da de alta
+ * insumos y unidades, §10.6), y aplicar una carga es una acción deliberada y
+ * poco frecuente — invalidar de más no cuesta lo que cuesta un aviso SSE.
+ */
+const CATALOGOS_AFECTADOS = [
+  '/api/v1/unidades',
+  '/api/v1/familias',
+  '/api/v1/insumos',
+  '/api/v1/materiales',
+  '/api/v1/conceptos',
+  '/api/v1/contratistas',
+  '/api/v1/cuadrillas',
+] as const;
+
 interface Props {
   readonly onCerrar: () => void;
   readonly onAplicada: () => void;
@@ -43,6 +64,7 @@ export function SubirCarga({ onCerrar, onAplicada }: Props) {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [previa, setPrevia] = useState<CargaRespuesta | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // La clave protege el **aplicar**, no la vista previa: la previa no escribe
   // nada y repetirla es inofensivo. Se genera al montar y se reusa, que es lo
@@ -78,6 +100,13 @@ export function SubirCarga({ onCerrar, onAplicada }: Props) {
           if (dryRun) {
             setPrevia(resultado);
           } else {
+            void queryClient.invalidateQueries({
+              predicate: (consulta) => {
+                const primera = consulta.queryKey[0];
+                const ruta = typeof primera === 'string' ? primera : '';
+                return CATALOGOS_AFECTADOS.some((prefijo) => ruta.includes(prefijo));
+              },
+            });
             onAplicada();
           }
         },
