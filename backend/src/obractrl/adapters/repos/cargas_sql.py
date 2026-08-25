@@ -96,6 +96,7 @@ _ELIMINAR: dict[str, str] = {
         "prototipo_nodo",
         "presupuesto",
         "partida_presupuesto",
+        "cuadrilla",
         "cuadrilla_version",
         "cuadrilla_integrante",
     )
@@ -109,13 +110,42 @@ _ELIMINAR: dict[str, str] = {
 # estorba). Solo se revierten `prototipo_nodo`/`presupuesto`/
 # `partida_presupuesto`, que sí son propios de este prototipo y esta carga.
 #
-# `cuadrilla` tampoco está aquí, mismo criterio: se da de alta como catálogo
-# compartido por organización (`uq_cuadrilla_clave`), no por carga — otra
-# carga de mano de obra o de cuadrillas ya confirmada puede depender de la
-# misma cuadrilla. `cuadrilla_version`/`cuadrilla_integrante` SÍ están: son
-# el historial de PU de ESTA carga (§10.8) — cada versión es dueña exclusiva
-# de sus integrantes, así que revertir el alta de una versión nunca le quita
-# nada a otra.
+# `cuadrilla` SÍ está, a diferencia de `nivel`/`etapa_constructiva`: cuando
+# es OTRA carga (mano de obra) la que la toca de pasada —homologando o
+# dando de alta un destajo—, ese auto-alta nunca se registra en el snapshot
+# (mismo criterio que unidad/familia: no es lo que esa carga versiona), así
+# que no hay nada que este `_ELIMINAR` pueda revertir de más. Pero cuando es
+# la propia carga de **cuadrillas** la que la da de alta —su composición y
+# PU, §10.6—, la cuadrilla es tan suya como un `concepto` lo es de su carga
+# de CPU, y `AplicadorCuadrillas` sí registra ese insert (`aplicar_carga.py`).
+# `cuadrilla_version`/`cuadrilla_integrante` cascadean solas al borrar la
+# cuadrilla, pero igual están aquí explícitas: cada versión es dueña
+# exclusiva de sus integrantes, y el orden de reversa las deshace primero.
+
+_REFERENCIAS_EXTERNAS: tuple[tuple[str, str, str], ...] = (
+    # (tabla que tiene la FK, columna FK, tabla de `_ELIMINAR` a la que apunta)
+    # Las tres sin `on delete cascade` (`information_schema.referential_
+    # constraints`): borrar la fila de la derecha sin haber revisado esto
+    # antes es exactamente el `IntegrityError` crudo que motivó §10.8 — solo
+    # que aquí el snapshot de las dos cargas nunca comparte `(tabla,
+    # registro_id)`, porque lo que las liga es una FK, no la misma fila.
+    ("explosion", "insumo_id", "insumo"),
+    ("cuadrilla_integrante", "insumo_id", "insumo"),
+    ("salida_almacen", "insumo_id", "insumo"),
+    ("actividad", "concepto_id", "concepto"),
+    ("estimacion_concepto", "concepto_id", "concepto"),
+    ("explosion", "concepto_hijo_id", "concepto"),
+    ("partida_presupuesto", "concepto_id", "concepto"),
+    ("prototipo_nodo", "concepto_id", "concepto"),
+    ("salida_almacen", "concepto_id", "concepto"),
+    ("obra", "prototipo_id", "prototipo"),
+    ("actividad", "cuadrilla_id", "cuadrilla"),
+    ("insumo", "cuadrilla_id", "cuadrilla"),
+)
+"""Completa a `dependientes_de`: FKs sin cascada que entran a una tabla de
+`_ELIMINAR` desde fuera. Un `test` en integración verifica esta lista contra
+`information_schema` para que un FK nuevo no se quede fuera en silencio otra
+vez (§10.8) — si Postgres agrega una, este archivo debe enterarse."""
 
 _RESTAURAR: dict[str, str] = {
     "insumo": """
@@ -392,31 +422,51 @@ class RepositorioCargasSQL:
         )
 
     async def dependientes_de(self, carga_id: UUID) -> list[dict[str, Any]]:
-        """Cargas más nuevas que tocaron algo que esta carga también tocó
-        (§10.8) — ver `ix_carga_snapshot_registro` (migración 0033): sin ese
-        índice, este `exists` sería un seq scan del snapshot completo.
+        """Cargas más nuevas que dependen de lo que esta tocó (§10.8): o
+        tocaron la misma fila, o —vía `_REFERENCIAS_EXTERNAS`— dieron de
+        alta algo que apunta, por FK sin cascada, a una fila que esta carga
+        insertó. Ver `ix_carga_snapshot_registro` (migración 0033): sin ese
+        índice, el primer `exists` sería un seq scan del snapshot completo.
         """
+        columnas = "cd.id, cd.tipo, cd.archivo_nombre, cd.fecha, cd.version_generada, cd.estatus, cd.revertida_en"
+        fk_union = " union all ".join(
+            f"""
+            select {columnas}
+            from carga_snapshot propia
+            join {tabla_hija} th on th.{columna} = propia.registro_id
+            join carga_snapshot cs on cs.tabla = '{tabla_hija}' and cs.registro_id = th.id
+            join carga_datos cd on cd.id = cs.carga_id
+            where propia.carga_id = cast(:carga_id as uuid)
+              and propia.tabla = '{tabla_padre}'
+              and propia.operacion = 'insert'
+            """
+            for tabla_hija, columna, tabla_padre in _REFERENCIAS_EXTERNAS
+        )
         filas = (
             await self._sesion.execute(
                 text(
-                    """
-                    select distinct cd.id, cd.tipo, cd.archivo_nombre, cd.fecha,
-                           cd.version_generada
-                    from carga_snapshot cs
-                    join carga_datos cd on cd.id = cs.carga_id
-                    where cd.id != cast(:carga_id as uuid)
-                      and cd.estatus = 'aplicado'
-                      and cd.revertida_en is null
-                      and cd.fecha > (
+                    f"""
+                    select distinct id, tipo, archivo_nombre, fecha, version_generada
+                    from (
+                        select {columnas}
+                        from carga_snapshot cs
+                        join carga_datos cd on cd.id = cs.carga_id
+                        where exists (
+                            select 1 from carga_snapshot propia
+                            where propia.carga_id = cast(:carga_id as uuid)
+                              and propia.tabla = cs.tabla
+                              and propia.registro_id = cs.registro_id
+                        )
+                        union all
+                        {fk_union}
+                    ) dependientes
+                    where id != cast(:carga_id as uuid)
+                      and estatus = 'aplicado'
+                      and revertida_en is null
+                      and fecha > (
                           select fecha from carga_datos where id = cast(:carga_id as uuid)
                       )
-                      and exists (
-                          select 1 from carga_snapshot propia
-                          where propia.carga_id = cast(:carga_id as uuid)
-                            and propia.tabla = cs.tabla
-                            and propia.registro_id = cs.registro_id
-                      )
-                    order by cd.fecha
+                    order by fecha
                     """
                 ),
                 {"carga_id": str(carga_id)},

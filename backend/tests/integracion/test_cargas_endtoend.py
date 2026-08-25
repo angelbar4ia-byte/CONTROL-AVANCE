@@ -989,6 +989,31 @@ async def test_revertir_una_recarga_de_cuadrilla_deja_vigente_la_version_anterio
     assert versiones[0]["precio_unitario"] == Decimal("1584.0000")
 
 
+async def test_revertir_el_alta_de_una_cuadrilla_nueva_la_borra_completa(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """`AplicadorCuadrillas` registra el insert de `cuadrilla` en el
+    snapshot (a diferencia del auto-alta de paso que hace mano de obra, que
+    no se registra): sin `cuadrilla` en `_ELIMINAR`, revertir este lote
+    tronaba con `TablaNoRevertible` — la cuadrilla es tan suya como un
+    `concepto` lo es de su carga de CPU (§10.8)."""
+    await _sembrar_insumos_de_cuadrilla(contexto_control)
+    primera = await _cargar(
+        contexto_control, TipoCarga.CUADRILLAS, _archivo_cuadrillas(_FILAS_CUADRILLA_V1)
+    )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        reversa = await RevertirCarga(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(primera.carga_id, usuario_id=contexto_control.usuario_id)
+
+    assert reversa["operaciones_revertidas"] > 0
+    assert "CUA0001" not in await _cuadrillas(contexto_control)
+    # Los integrantes son catálogo compartido (§10.6): la cuadrilla se va,
+    # los MOOP- que la sembró la carga de materiales no.
+    assert "MOOP-0049" in await _insumos(contexto_control)
+
+
 async def test_eliminar_version_de_cuadrilla_borra_la_retirada_pero_no_la_vigente(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
@@ -1038,8 +1063,8 @@ async def test_eliminar_version_de_cuadrilla_borra_la_retirada_pero_no_la_vigent
 # --- CPU / Conceptos (§10.6 `CABECERAS_CPU.xlsx`) ------------------------
 
 
-async def _sembrar_insumos(contexto: ContextoSesion) -> None:
-    await _cargar(
+async def _sembrar_insumos(contexto: ContextoSesion) -> ResultadoCarga:
+    return await _cargar(
         contexto,
         TipoCarga.MATERIALES,
         _archivo_materiales(
@@ -1247,6 +1272,50 @@ async def test_revertir_en_cadena_deshace_el_alta_y_su_recarga_juntas(
     assert fila_segunda is not None and fila_segunda["revertida_en"] is not None
 
 
+async def test_revertir_materiales_bloqueado_por_insumo_usado_en_un_cpu(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """El insumo y la explosión que lo usa no comparten `(tabla,
+    registro_id)` en el snapshot —los liga `explosion.insumo_id`, una FK sin
+    cascada, no la misma fila— así que sin `_REFERENCIAS_EXTERNAS`
+    `dependientes_de` no veía este caso: revertir materiales con el CPU
+    encima seguía aplicado tronaba (o silenciosamente rompía una FK, según
+    el orden) en vez de bloquear con un mensaje claro (§10.8)."""
+    materiales = await _sembrar_insumos(contexto_control)
+
+    cpu = await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_cpu(
+            [
+                _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
+                _fila_cpu(
+                    insumo="MAT-01", descripcion="Block", cantidad="12.5", pu="20",
+                    tipo="Material",
+                ),
+            ]
+        ),
+    )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        with pytest.raises(CargaConDependientes) as capturado:
+            await RevertirCarga(
+                cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+            ).ejecutar(materiales.carga_id, usuario_id=contexto_control.usuario_id)
+
+    assert [d["id"] for d in capturado.value.dependientes] == [cpu.carga_id]
+    assert "MAT-01" in await _insumos(contexto_control)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        resultado = await RevertirCargaEnCadena(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(materiales.carga_id, usuario_id=contexto_control.usuario_id)
+
+    assert resultado["cargas_revertidas"] == [cpu.carga_id, materiales.carga_id]
+    assert "MAT-01" not in await _insumos(contexto_control)
+    assert "EST-01" not in await _conceptos(contexto_control)
+
+
 async def test_eliminar_version_de_cpu_borra_la_retirada_pero_no_la_vigente(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
@@ -1282,6 +1351,54 @@ async def test_eliminar_version_de_cpu_borra_la_retirada_pero_no_la_vigente(
             await RepositorioConceptosSQL(sesion).eliminar_version_cpu(
                 concepto["id"], version=1
             )
+
+
+# --- Integridad de `_REFERENCIAS_EXTERNAS` (§10.8) ------------------------
+
+
+async def test_referencias_externas_cubre_toda_fk_sin_cascada_hacia_eliminar() -> None:
+    """Tripwire de esquema: si una migración agrega una FK sin cascada hacia
+    una tabla de `_ELIMINAR` y nadie la registra en `_REFERENCIAS_EXTERNAS`,
+    `dependientes_de` deja de verla en silencio — exactamente el bug real
+    que dejó materiales, mano de obra y cuadrillas sin poder revertirse con
+    un CPU (o una cuadrilla) ya cargado encima (§10.8). Esta prueba falla en
+    vez de repetirlo la próxima vez que el esquema cambie."""
+    from obractrl.adapters.repos.cargas_sql import _ELIMINAR, _REFERENCIAS_EXTERNAS
+
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with engine.connect() as conn:
+            filas = (
+                await conn.execute(
+                    text(
+                        """
+                        select tc.table_name as tabla_hija, kcu.column_name as columna,
+                               ccu.table_name as tabla_padre
+                        from information_schema.table_constraints tc
+                        join information_schema.key_column_usage kcu
+                            on tc.constraint_name = kcu.constraint_name
+                        join information_schema.constraint_column_usage ccu
+                            on tc.constraint_name = ccu.constraint_name
+                        join information_schema.referential_constraints rc
+                            on tc.constraint_name = rc.constraint_name
+                        where tc.constraint_type = 'FOREIGN KEY'
+                          and ccu.table_name = any(cast(:tablas as text[]))
+                          and rc.delete_rule in ('NO ACTION', 'RESTRICT')
+                        """
+                    ),
+                    {"tablas": list(_ELIMINAR.keys())},
+                )
+            ).mappings().all()
+    finally:
+        await engine.dispose()
+
+    reales = {(f["tabla_hija"], f["columna"], f["tabla_padre"]) for f in filas}
+    faltantes = reales - set(_REFERENCIAS_EXTERNAS)
+    assert not faltantes, (
+        f"FK sin cascada no registradas en _REFERENCIAS_EXTERNAS: {faltantes} "
+        f"(cargas_sql.py). Sin esto, dependientes_de() no las ve y revertir "
+        f"puede terminar en IntegrityError crudo o en TablaNoRevertible."
+    )
 
 
 # --- Movimientos de almacén (§10.6 `IMPORTAADOR_ALMACEN.xlsx`) -----------
