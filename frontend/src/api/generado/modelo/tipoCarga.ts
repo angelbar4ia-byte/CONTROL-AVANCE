@@ -22,4 +22,5 @@ export const TipoCarga = {
   almacen: 'almacen',
   prototipos: 'prototipos',
   mano_de_obra: 'mano_de_obra',
+  cuadrillas: 'cuadrillas',
 } as const;

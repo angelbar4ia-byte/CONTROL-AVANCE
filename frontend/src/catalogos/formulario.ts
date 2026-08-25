@@ -11,6 +11,7 @@
 import type {
   CrearConceptoPeticion,
   CrearContratistaPeticion,
+  CrearCuadrillaPeticion,
   CrearFamiliaPeticion,
   CrearInsumoPeticion,
   CrearMaterialPeticion,
@@ -94,6 +95,20 @@ export function peticionFamilia(formulario: FormularioFamilia): CrearFamiliaPeti
     parent_id: textoOpcional(formulario.parentId),
     aplica_a: formulario.aplicaA,
     iva_aplica: formulario.ivaAplica,
+  };
+}
+
+export interface FormularioCuadrilla {
+  readonly clave: string;
+  readonly nombre: string;
+  readonly unidadId: string;
+}
+
+export function peticionCuadrilla(formulario: FormularioCuadrilla): CrearCuadrillaPeticion {
+  return {
+    clave: formulario.clave.trim(),
+    nombre: formulario.nombre.trim(),
+    unidad_id: textoOpcional(formulario.unidadId),
   };
 }
 

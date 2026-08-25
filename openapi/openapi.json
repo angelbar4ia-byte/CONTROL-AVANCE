@@ -1733,6 +1733,151 @@
         }
       }
     },
+    "/api/v1/cuadrillas": {
+      "get": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Catálogo de cuadrillas",
+        "description": "Lectura simple sin orquestación de dominio —como `GET /unidades`—, así\nque consulta el repo directo: RLS ya acota el alcance (§12.4).",
+        "operationId": "listar_cuadrillas_api_v1_cuadrillas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incluir_inactivos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluye los registros dados de baja (§8.7).",
+              "default": false,
+              "title": "Incluir Inactivos"
+            },
+            "description": "Incluye los registros dados de baja (§8.7)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CuadrillaRespuesta"
+                  },
+                  "title": "Response Listar Cuadrillas Api V1 Cuadrillas Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Alta de cuadrilla",
+        "operationId": "crear_cuadrilla_api_v1_cuadrillas_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearCuadrillaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CuadrillaRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Datos de catálogo inválidos (§7.6)."
+          }
+        }
+      }
+    },
+    "/api/v1/cuadrillas/{cuadrilla_id}/versiones": {
+      "get": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Historial de PU de la cuadrilla",
+        "description": "Todas las versiones (§10.8): la carga de `CABECERAS_CUADRILLAS.xlsx`\npublica una nueva cada vez que la composición cambia.",
+        "operationId": "listar_versiones_de_cuadrilla_api_v1_cuadrillas__cuadrilla_id__versiones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cuadrilla_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cuadrilla Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VersionCuadrillaRespuesta"
+                  },
+                  "title": "Response Listar Versiones De Cuadrilla Api V1 Cuadrillas  Cuadrilla Id  Versiones Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/conceptos": {
       "get": {
         "tags": [
@@ -8505,6 +8650,40 @@
         ],
         "title": "CrearContratistaPeticion"
       },
+      "CrearCuadrillaPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave",
+            "description": "Clave única del catálogo (§3.3)."
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "unidad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Id",
+            "description": "Unidad del PU de la cuadrilla (p.ej. jornal, §10.6)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "CrearCuadrillaPeticion"
+      },
       "CrearEvaluacionPeticion": {
         "properties": {
           "nivel": {
@@ -9191,6 +9370,84 @@
           "estatus"
         ],
         "title": "CriterioRespuesta"
+      },
+      "CuadrillaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "unidad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Id"
+          },
+          "rendimiento": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendimiento",
+            "description": "Rendimiento teórico asignado por el cargador de mano de obra (§10.6)."
+          },
+          "precio_unitario": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Unitario",
+            "description": "PU de la versión vigente, si ya se cargó una (§10.8)."
+          },
+          "version_vigente": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Vigente"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "default": "activo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "nombre"
+        ],
+        "title": "CuadrillaRespuesta"
       },
       "DarDeAltaExtraPeticion": {
         "properties": {
@@ -13332,7 +13589,8 @@
           "obras",
           "almacen",
           "prototipos",
-          "mano_de_obra"
+          "mano_de_obra",
+          "cuadrillas"
         ],
         "title": "TipoCarga"
       },
@@ -13664,6 +13922,36 @@
           "precio"
         ],
         "title": "VersionCPURespuesta"
+      },
+      "VersionCuadrillaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "precio_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Unitario"
+          },
+          "vigente": {
+            "type": "boolean",
+            "title": "Vigente"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "precio_unitario",
+          "vigente"
+        ],
+        "title": "VersionCuadrillaRespuesta"
       },
       "VersionPublicadaRespuesta": {
         "properties": {

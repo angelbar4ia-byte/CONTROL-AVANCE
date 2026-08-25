@@ -21,6 +21,7 @@ from uuid import UUID
 from obractrl.application.puertos.repositorios import (
     RepositorioConceptos,
     RepositorioContratistas,
+    RepositorioCuadrillas,
     RepositorioFamilias,
     RepositorioInsumos,
     RepositorioUnidades,
@@ -29,6 +30,7 @@ from obractrl.application.puertos.repositorios import (
 from obractrl.domain.catalogos.reglas import (
     Concepto,
     Contratista,
+    Cuadrilla,
     ErrorDeCatalogo,
     Familia,
     Insumo,
@@ -38,6 +40,7 @@ from obractrl.domain.catalogos.reglas import (
 __all__ = [
     "ComandoCrearConcepto",
     "ComandoCrearContratista",
+    "ComandoCrearCuadrilla",
     "ComandoCrearFamilia",
     "ComandoCrearInsumo",
     "ComandoCrearUnidad",
@@ -45,9 +48,11 @@ __all__ = [
     "ContratistaCreado",
     "CrearConcepto",
     "CrearContratista",
+    "CrearCuadrilla",
     "CrearFamilia",
     "CrearInsumo",
     "CrearUnidad",
+    "CuadrillaCreada",
     "ErrorDeCatalogo",
     "FamiliaCreada",
     "InsumoCreado",
@@ -70,6 +75,13 @@ class ComandoCrearFamilia:
     parent_id: UUID | None = None
     aplica_a: str = "material"
     iva_aplica: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoCrearCuadrilla:
+    clave: str
+    nombre: str
+    unidad_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,6 +127,12 @@ class UnidadCreada:
 class FamiliaCreada:
     id: UUID
     familia: Familia
+
+
+@dataclass(frozen=True, slots=True)
+class CuadrillaCreada:
+    id: UUID
+    cuadrilla: Cuadrilla
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +207,35 @@ class CrearFamilia:
             )
             await self._uow.commit()
         return FamiliaCreada(id=familia_id, familia=familia)
+
+
+class CrearCuadrilla:
+    """`POST /cuadrillas` (Control de obra, §11.2).
+
+    Alta manual mínima: la composición y el PU se cargan por archivo
+    (`AplicadorCuadrillas`, §10.6), no aquí.
+    """
+
+    def __init__(self, *, cuadrillas: RepositorioCuadrillas, uow: UnidadDeTrabajo) -> None:
+        self._cuadrillas = cuadrillas
+        self._uow = uow
+
+    async def ejecutar(self, cmd: ComandoCrearCuadrilla) -> CuadrillaCreada:
+        cuadrilla = Cuadrilla.crear(
+            clave=cmd.clave,
+            nombre=cmd.nombre,
+            unidad_id=str(cmd.unidad_id) if cmd.unidad_id else None,
+        )
+        async with self._uow:
+            cuadrilla_id = await self._cuadrillas.crear(
+                {
+                    "clave": str(cuadrilla.clave),
+                    "nombre": cuadrilla.nombre,
+                    "unidad_id": cuadrilla.unidad_id,
+                }
+            )
+            await self._uow.commit()
+        return CuadrillaCreada(id=cuadrilla_id, cuadrilla=cuadrilla)
 
 
 class CrearInsumo:

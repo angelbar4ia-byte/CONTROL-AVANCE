@@ -22,6 +22,7 @@ import {
 import type {
   ContratistaRespuesta,
   ConceptoRespuesta,
+  CuadrillaRespuesta,
   FamiliaRespuesta,
   InsumoRespuesta,
   UnidadRespuesta,
@@ -380,6 +381,53 @@ export function TablaContratistas({
           <Estatus estatus={item.estatus ?? 'activo'} />
         </tr>
       ))}
+    </TablaCatalogo>
+  );
+}
+
+const COLUMNAS_CUADRILLAS = [
+  'Clave',
+  'Nombre',
+  'Unidad',
+  'PU vigente',
+  'Versión',
+  'Estatus',
+] as const;
+
+export function TablaCuadrillas({
+  resultados,
+  unidades,
+  cargando,
+}: {
+  readonly resultados: readonly Resultado<CuadrillaRespuesta>[];
+  /** Para resolver la unidad a la que refiere el PU (§10.6). */
+  readonly unidades: readonly UnidadRespuesta[];
+  readonly cargando: boolean;
+}) {
+  return (
+    <TablaCatalogo
+      columnas={COLUMNAS_CUADRILLAS}
+      cargando={cargando}
+      filas={resultados.length}
+      vacia="No hay cuadrillas con estos filtros."
+    >
+      {resultados.map(({ item, coincidencia }) => {
+        const unidad = unidades.find((u) => u.id === item.unidad_id);
+        return (
+          <tr key={item.id}>
+            <Clave valor={item.clave} porDescripcion={soloPorDescripcion(coincidencia)} />
+            <td>{item.nombre}</td>
+            <td className="text-mute mono text-xs">{unidad ? unidad.clave : '—'}</td>
+            <td className="is-num">
+              {item.precio_unitario === null || item.precio_unitario === undefined
+                ? '—'
+                : fmtMXN(item.precio_unitario)}
+            </td>
+            <td className="text-mute text-sm">{item.version_vigente ?? '—'}</td>
+            <Estatus estatus={item.estatus ?? 'activo'} />
+          </tr>
+        );
+      })}
     </TablaCatalogo>
   );
 }

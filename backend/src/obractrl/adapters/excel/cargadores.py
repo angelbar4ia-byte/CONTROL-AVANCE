@@ -28,6 +28,7 @@ from obractrl.domain.cargadores import cabeceras
 from obractrl.domain.cargadores.almacen import validar_movimiento
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera, resolver_encabezados
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
+from obractrl.domain.cargadores.cuadrillas import agrupar_cuadrillas
 from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra
 from obractrl.domain.cargadores.materiales import validar_material
 from obractrl.domain.cargadores.presupuesto import construir_arboles
@@ -40,6 +41,7 @@ __all__ = [
     "CARGADORES",
     "CargadorAlmacen",
     "CargadorCPU",
+    "CargadorCuadrillas",
     "CargadorManoObra",
     "CargadorMateriales",
     "CargadorPresupuesto",
@@ -87,6 +89,33 @@ class CargadorManoObra:
             self.especificacion,
             validar_mano_obra,
             limites=self._limites,
+        )
+
+
+class CargadorCuadrillas:
+    """Composición y PU de cuadrillas — `CABECERAS_CUADRILLAS.xlsx` (§10.6).
+
+    Headers por nombre, no posicional (a diferencia de `CargadorCPU`): el
+    archivo real no fija columnas por letra. Usa `leer_filas` +
+    `agrupar_cuadrillas` en vez de `leer_por_nombre`: cada fila ya trae la
+    llave del bloque (`Clave cuadrilla`), así que agrupar es cosa del
+    dominio, no de un validador fila por fila.
+    """
+
+    tipo = TipoCarga.CUADRILLAS
+    especificacion = cabeceras.CUADRILLAS
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        mapa, filas = leer_filas(contenido, self.especificacion, limites=self._limites)
+        cuadrillas, errores, omitidos = agrupar_cuadrillas(filas, mapa)
+        return LecturaCarga(
+            registros=tuple(cuadrillas),
+            errores=errores,
+            filas_leidas=len(filas),
+            omitidos=omitidos,
         )
 
 
@@ -271,6 +300,7 @@ def _es_fila_de_encabezados(fila: object) -> bool:
 CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.MATERIALES: CargadorMateriales,
     TipoCarga.MANO_DE_OBRA: CargadorManoObra,
+    TipoCarga.CUADRILLAS: CargadorCuadrillas,
     TipoCarga.CATALOGO_CONCEPTOS: CargadorCPU,
     TipoCarga.ALMACEN: CargadorAlmacen,
     TipoCarga.PROTOTIPOS: CargadorPrototipos,
