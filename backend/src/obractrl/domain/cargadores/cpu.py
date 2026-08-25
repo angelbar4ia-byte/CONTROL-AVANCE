@@ -159,19 +159,15 @@ def _leer_componente(
     numero: int,
     categoria: CategoriaExplosion,
 ) -> ComponenteCargado:
+    # Acepta negativos a propósito: un componente de deducción (material
+    # recuperado, ajuste) resta del importe del concepto en vez de sumar
+    # (mismo criterio en `Componente.__post_init__`, §7.3).
     cantidad = _decimal_opcional(mapa.valor(fila, "cantidad"), columna="cantidad")
     if cantidad is None:
         raise ErrorEnFila(
             "cantidad: la columna E (rendimiento = CANTIDAD) es obligatoria en "
             "una fila componente (§10.6).",
             columna="cantidad",
-        )
-    if cantidad < 0:
-        raise ErrorEnFila(
-            f"cantidad: el rendimiento de un componente no puede ser negativo "
-            f"({cantidad}).",
-            columna="cantidad",
-            valor=cantidad,
         )
     return ComponenteCargado(
         # El §10.6 fija que en la fila componente la clave del insumo es la

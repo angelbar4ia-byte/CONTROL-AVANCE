@@ -49,6 +49,7 @@ from obractrl.application.casos_uso.capturar_avance import (
 )
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import ObraNoEncontrada
 from obractrl.application.casos_uso.gestionar_carga import (
+    CargaNoEliminable,
     CargaNoEncontrada,
     CargaNoRevertible,
 )
@@ -980,6 +981,18 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=409,
             tipo="carga-no-revertible",
             titulo="La carga no se puede revertir",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(CargaNoEliminable)
+    async def _carga_no_eliminable(
+        request: Request, exc: CargaNoEliminable
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="carga-no-eliminable",
+            titulo="La carga no se puede eliminar",
             detalle=str(exc),
         )
 

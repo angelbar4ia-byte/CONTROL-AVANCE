@@ -448,6 +448,20 @@ def test_un_componente_sin_su_encabezado_es_error_de_fila() -> None:
     assert errores[0].fila == 2
 
 
+def test_un_componente_con_cantidad_negativa_no_es_error() -> None:
+    """Una deducción (material recuperado, ajuste) resta del importe del
+    concepto en vez de sumar — no es un dato inválido (§7.3)."""
+    conceptos, errores, _, _ = agrupar_conceptos(
+        [
+            (2, _fila_cpu("EST-01", "EST-01", "Muro de block", "m2", tipo="Concepto")),
+            (3, _fila_cpu(insumo="MAT-01", cantidad="-2", tipo="Material")),
+        ],
+        MAPA_CPU,
+    )
+    assert not errores
+    assert conceptos[0].componentes[0].cantidad == Decimal("-2")
+
+
 def test_un_tipo_fuera_del_contrato_va_a_la_bandeja() -> None:
     """`explosion.categoria` es invariante del §8.2: no se traduce por parecido."""
     _, errores, pendientes, _ = agrupar_conceptos(

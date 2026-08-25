@@ -622,6 +622,69 @@ export function useObtenerCargaApiV1CargasCargaIdGet<TData = Awaited<ReturnType<
 
 
 /**
+ * Limpia el historial de una vista previa vieja o una carga ya
+revertida (§10.8) — no de una que sigue aplicada sin deshacer.
+ * @summary Eliminar el registro de una carga
+ */
+export const eliminarCargaApiV1CargasCargaIdDelete = (
+    cargaId: string,
+ options?: SecondParameter<typeof peticion>,) => {
+      
+      
+      return peticion<void>(
+      {url: `/api/v1/cargas/${cargaId}`, method: 'DELETE'
+    },
+      options);
+    }
+  
+
+
+export const getEliminarCargaApiV1CargasCargaIdDeleteMutationOptions = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eliminarCargaApiV1CargasCargaIdDelete>>, TError,{cargaId: string}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof eliminarCargaApiV1CargasCargaIdDelete>>, TError,{cargaId: string}, TContext> => {
+
+const mutationKey = ['eliminarCargaApiV1CargasCargaIdDelete'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof eliminarCargaApiV1CargasCargaIdDelete>>, {cargaId: string}> = (props) => {
+          const {cargaId} = props ?? {};
+
+          return  eliminarCargaApiV1CargasCargaIdDelete(cargaId,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EliminarCargaApiV1CargasCargaIdDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof eliminarCargaApiV1CargasCargaIdDelete>>>
+    
+    export type EliminarCargaApiV1CargasCargaIdDeleteMutationError = void | HTTPValidationError
+
+    /**
+ * @summary Eliminar el registro de una carga
+ */
+export const useEliminarCargaApiV1CargasCargaIdDelete = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eliminarCargaApiV1CargasCargaIdDelete>>, TError,{cargaId: string}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof eliminarCargaApiV1CargasCargaIdDelete>>,
+        TError,
+        {cargaId: string},
+        TContext
+      > => {
+
+      const mutationOptions = getEliminarCargaApiV1CargasCargaIdDeleteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * Excepciones que esperan confirmación humana (§10.3).
  * @summary Bandeja de pendientes de una carga
  */

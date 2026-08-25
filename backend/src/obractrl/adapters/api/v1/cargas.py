@@ -38,6 +38,7 @@ from pydantic import BaseModel, Field
 
 from obractrl.adapters.api.casos_uso import (
     ConsultarCargaDep,
+    EliminarCargaDep,
     FabricaDeCargasDep,
     RevertirCargaDep,
 )
@@ -311,3 +312,24 @@ async def revertir_carga(
     """Deshace el lote como unidad, no registro por registro (§10.8)."""
     resultado = await caso_uso.ejecutar(carga_id, usuario_id=ctx.usuario_id)
     return ReversaRespuesta(**resultado)
+
+
+@router.delete(
+    "/cargas/{carga_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar el registro de una carga",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
+    responses={
+        404: {"description": "La carga no existe o está fuera de tu alcance."},
+        409: {
+            "description": (
+                "La carga se aplicó y no se ha revertido: revertirla "
+                "primero (§10.8)."
+            )
+        },
+    },
+)
+async def eliminar_carga(carga_id: UUID, caso_uso: EliminarCargaDep) -> None:
+    """Limpia el historial de una vista previa vieja o una carga ya
+    revertida (§10.8) — no de una que sigue aplicada sin deshacer."""
+    await caso_uso.ejecutar(carga_id)

@@ -232,6 +232,10 @@ export default function Cargas() {
           lote={abierto}
           onCerrar={() => setSeleccionado(null)}
           onRevertida={() => void consulta.refetch()}
+          onEliminada={() => {
+            setSeleccionado(null);
+            void consulta.refetch();
+          }}
         />
       )}
     </div>

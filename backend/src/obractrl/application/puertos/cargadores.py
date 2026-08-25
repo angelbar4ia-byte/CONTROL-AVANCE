@@ -90,6 +90,12 @@ class RepositorioCargas(Protocol):
 
     async def marcar_revertida(self, carga_id: UUID, *, usuario_id: UUID | None) -> None: ...
 
+    async def eliminar(self, carga_id: UUID) -> None:
+        """Borra el registro del lote (§10.8). `carga_snapshot` y
+        `pendiente` se van solos por `on delete cascade` — el caso de uso
+        (`EliminarCarga`) ya verificó que no hay nada que perder."""
+        ...
+
     async def crear_pendientes(self, carga_id: UUID, pendientes: list[dict]) -> None:
         """Alta en la bandeja del §10.3. El sistema propone; el humano confirma."""
         ...

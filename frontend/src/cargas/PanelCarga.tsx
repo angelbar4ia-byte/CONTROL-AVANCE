@@ -14,23 +14,34 @@ import { useState } from 'react';
 
 import {
   useBandejaDeCargaApiV1CargasCargaIdPendientesGet,
+  useEliminarCargaApiV1CargasCargaIdDelete,
   useRevertirCargaApiV1CargasCargaIdRevertirPost,
 } from '@/api/generado/cargas/cargas';
 import type { LoteRespuesta } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Sheet } from '@/lib/Sheet';
-import { etiquetaEstatus, etiquetaTipo, resumenDe, seePuedeRevertir, tonoEstatus } from './reglas';
+import {
+  etiquetaEstatus,
+  etiquetaTipo,
+  resumenDe,
+  seePuedeRevertir,
+  sePuedeEliminar,
+  tonoEstatus,
+} from './reglas';
 
 interface Props {
   readonly lote: LoteRespuesta;
   readonly onCerrar: () => void;
   readonly onRevertida: () => void;
+  /** El padre cierra el cajón y recarga el historial: el lote ya no existe. */
+  readonly onEliminada: () => void;
 }
 
-export function PanelCarga({ lote, onCerrar, onRevertida }: Props) {
+export function PanelCarga({ lote, onCerrar, onRevertida, onEliminada }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState(false);
 
   const pendientesQ = useBandejaDeCargaApiV1CargasCargaIdPendientesGet(lote.id, {
     solo_abiertos: true,
@@ -42,6 +53,16 @@ export function PanelCarga({ lote, onCerrar, onRevertida }: Props) {
         setError(null);
         setConfirmando(false);
         onRevertida();
+      },
+      onError: (err) => setError(err.message),
+    },
+  });
+
+  const eliminar = useEliminarCargaApiV1CargasCargaIdDelete<ErrorApi>({
+    mutation: {
+      onSuccess: () => {
+        setError(null);
+        onEliminada();
       },
       onError: (err) => setError(err.message),
     },
@@ -199,6 +220,50 @@ export function PanelCarga({ lote, onCerrar, onRevertida }: Props) {
                   onClick={() => setConfirmando(true)}
                 >
                   Revertir
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        {sePuedeEliminar(lote) && (
+          <>
+            <hr className="sep" />
+            <div className="field">
+              <div className="field__label">Eliminar el registro</div>
+              <div className="field__hint">
+                {lote.revertida
+                  ? 'Ya se revirtió: esto solo borra su fila del historial (§10.8).'
+                  : 'Esta carga no llegó a aplicarse, así que no hay nada que deshacer.'}
+                {' '}
+                No se puede deshacer.
+              </div>
+              {confirmandoEliminar ? (
+                <div className="row gap-8" style={{ marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--danger"
+                    disabled={eliminar.isPending}
+                    onClick={() => eliminar.mutate({ cargaId: lote.id })}
+                  >
+                    {eliminar.isPending ? 'Eliminando…' : 'Sí, eliminar'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    onClick={() => setConfirmandoEliminar(false)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  style={{ alignSelf: 'flex-start', marginTop: 8 }}
+                  onClick={() => setConfirmandoEliminar(true)}
+                >
+                  Eliminar
                 </button>
               )}
             </div>

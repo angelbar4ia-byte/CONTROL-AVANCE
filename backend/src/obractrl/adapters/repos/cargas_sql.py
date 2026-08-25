@@ -346,6 +346,15 @@ class RepositorioCargasSQL:
             {"id": str(carga_id), "usuario_id": str(usuario_id) if usuario_id else None},
         )
 
+    async def eliminar(self, carga_id: UUID) -> None:
+        # `carga_snapshot`/`pendiente` referencian `carga_id` con `on delete
+        # cascade` desde el diseño original de estas tablas (§10.8): un solo
+        # delete aquí basta, no hay nada más que limpiar a mano.
+        await self._sesion.execute(
+            text("delete from carga_datos where id = cast(:id as uuid)"),
+            {"id": str(carga_id)},
+        )
+
     # --- Snapshot y reversa (§10.8) --------------------------------------
 
     async def registrar_snapshots(

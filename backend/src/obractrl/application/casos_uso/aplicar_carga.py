@@ -21,6 +21,7 @@ idénticos, que es lo que hace útil a la vista previa (§9.3).
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
@@ -160,6 +161,39 @@ def _pendiente_de_mapeo(
     )
 
 
+async def _resolver_o_dar_de_alta(
+    valor: str,
+    *,
+    homologador: Homologador,
+    id_por_clave: dict[str, UUID],
+    creadas: dict[str, UUID | None],
+    crear: Callable[[dict[str, Any]], Awaitable[UUID]],
+    dry_run: bool,
+) -> UUID | None:
+    """Unidad o familia: si el archivo trae una que no cruza contra el
+    catálogo, se da de alta con ese mismo texto como clave y nombre, en vez
+    de solo dejar un pendiente sin que nadie la cree (§8.7).
+
+    Es la excepción a "lo que no cruza no se inventa" (§10.3) porque el
+    riesgo es distinto al de un concepto o un precio: una unidad o familia
+    de más se corrige después con un alta/homologación, sin que eso
+    signifique que alguien perdió datos o que un precio salió mal. Bloquear
+    la carga entera por una unidad nueva —el caso normal, no la excepción,
+    en un catálogo que recién empieza a cargarse— es peor que crearla.
+
+    Dentro de la misma carga la misma clave nueva se da de alta una sola
+    vez (`creadas` la recuerda tal cual vino en el archivo); en `dry_run`
+    no se escribe nada, pero cuenta igual para que la vista previa no
+    prometa un alta que después no aplica igual (§9.3).
+    """
+    clave = homologador.resolver(valor)
+    if clave is not None:
+        return id_por_clave.get(clave)
+    if valor not in creadas:
+        creadas[valor] = None if dry_run else await crear({"clave": valor, "nombre": valor})
+    return creadas[valor]
+
+
 # --- Materiales (§10.6 `CABECERAS_MATERIALES.xlsx`) -----------------------
 
 _CAMPOS_MATERIAL = (
@@ -234,6 +268,8 @@ class AplicadorMateriales:
 
         pendientes: list[PendientePropuesto] = []
         entrantes: dict[str, dict[str, Any]] = {}
+        nuevas_unidades: dict[str, UUID | None] = {}
+        nuevas_familias: dict[str, UUID | None] = {}
 
         for registro in lectura.registros:
             material: FilaMaterial = registro  # type: ignore[assignment]
@@ -241,37 +277,25 @@ class AplicadorMateriales:
 
             unidad_id = actual.get("unidad_id")
             if material.unidad:
-                clave_unidad = unidades.resolver(material.unidad)
-                if clave_unidad is None:
-                    pendientes.append(
-                        PendientePropuesto(
-                            tipo=TipoPendiente.UNIDAD,
-                            entidad="unidad",
-                            valor_origen=material.unidad,
-                            propuesta={
-                                "material": material.llave,
-                                "accion": (
-                                    "Dar de alta la unidad con su factor de "
-                                    "conversión u homologarla a una existente."
-                                ),
-                            },
-                            origen_ref=f"fila {material.fila}",
-                        )
-                    )
-                else:
-                    unidad_id = id_unidad.get(clave_unidad)
+                unidad_id = await _resolver_o_dar_de_alta(
+                    material.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    creadas=nuevas_unidades,
+                    crear=self._unidades.crear,
+                    dry_run=dry_run,
+                )
 
             familia_id = actual.get("familia_id")
             if material.familia:
-                clave_familia = familias.resolver(material.familia)
-                if clave_familia is None:
-                    pendientes.append(
-                        _pendiente_de_mapeo(
-                            "familia", material.familia, material.fila, critico=False
-                        )
-                    )
-                else:
-                    familia_id = id_familia.get(clave_familia)
+                familia_id = await _resolver_o_dar_de_alta(
+                    material.familia,
+                    homologador=familias,
+                    id_por_clave=id_familia,
+                    creadas=nuevas_familias,
+                    crear=self._familias.crear,
+                    dry_run=dry_run,
+                )
 
             # Regla del cargador: **lo que el archivo no trae, no se toca**.
             # Un archivo sin columna de costo o sin casilla de IVA actualiza
@@ -367,6 +391,10 @@ class AplicadorMateriales:
             insertados=len(diff.altas),
             actualizados=len(diff.cambios) + len(diff.bajas),
             omitidos=diff.omitidos + lectura.omitidos,
+            detalle={
+                "unidades_creadas": len(nuevas_unidades),
+                "familias_creadas": len(nuevas_familias),
+            },
         )
 
 
@@ -458,6 +486,8 @@ class AplicadorCPU:
         errores: list[ErrorDeFila] = []
         entrantes: dict[str, dict[str, Any]] = {}
         planes: dict[str, dict[str, Any]] = {}
+        nuevas_unidades: dict[str, UUID | None] = {}
+        nuevas_familias: dict[str, UUID | None] = {}
 
         for registro in lectura.registros:
             bloque: ConceptoCargado = registro  # type: ignore[assignment]
@@ -531,31 +561,25 @@ class AplicadorCPU:
 
             unidad_id = actual.get("unidad_id")
             if cabeza.unidad:
-                clave_unidad = unidades.resolver(cabeza.unidad)
-                if clave_unidad is None:
-                    pendientes.append(
-                        PendientePropuesto(
-                            tipo=TipoPendiente.UNIDAD,
-                            entidad="unidad",
-                            valor_origen=cabeza.unidad,
-                            propuesta={"concepto": bloque.llave},
-                            origen_ref=f"fila {cabeza.fila}",
-                        )
-                    )
-                else:
-                    unidad_id = id_unidad.get(clave_unidad)
+                unidad_id = await _resolver_o_dar_de_alta(
+                    cabeza.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    creadas=nuevas_unidades,
+                    crear=self._unidades.crear,
+                    dry_run=dry_run,
+                )
 
             familia_id = actual.get("familia_id")
             if cabeza.familia:
-                clave_familia = familias.resolver(cabeza.familia)
-                if clave_familia is None:
-                    pendientes.append(
-                        _pendiente_de_mapeo(
-                            "familia", cabeza.familia, cabeza.fila, critico=False
-                        )
-                    )
-                else:
-                    familia_id = id_familia.get(clave_familia)
+                familia_id = await _resolver_o_dar_de_alta(
+                    cabeza.familia,
+                    homologador=familias,
+                    id_por_clave=id_familia,
+                    creadas=nuevas_familias,
+                    crear=self._familias.crear,
+                    dry_run=dry_run,
+                )
 
             try:
                 precio = calcular_cpu(
@@ -698,6 +722,10 @@ class AplicadorCPU:
             insertados=len(diff.altas),
             actualizados=len(diff.cambios) + len(diff.bajas),
             omitidos=diff.omitidos + lectura.omitidos,
+            detalle={
+                "unidades_creadas": len(nuevas_unidades),
+                "familias_creadas": len(nuevas_familias),
+            },
         )
 
 
@@ -1382,6 +1410,7 @@ class AplicadorPresupuesto:
             "conceptos_sin_cambio": 0,
             "partidas": 0,
         }
+        nuevas_unidades: dict[str, UUID | None] = {}
 
         for registro in lectura.registros:
             arbol: ArbolPrototipoCargado = registro  # type: ignore[assignment]
@@ -1426,6 +1455,7 @@ class AplicadorPresupuesto:
                     costos_insumo=costos_insumo,
                     unidades=unidades,
                     id_unidad=id_unidad,
+                    nuevas_unidades=nuevas_unidades,
                     catalogo_conceptos=catalogo_conceptos,
                     firma_cache=firma_cache,
                     nodos_existentes=nodos_existentes,
@@ -1499,7 +1529,7 @@ class AplicadorPresupuesto:
                 + contadores["conceptos_sin_cambio"]
                 + lectura.omitidos
             ),
-            detalle=dict(contadores),
+            detalle={**contadores, "unidades_creadas": len(nuevas_unidades)},
         )
 
     async def _procesar_subarbol(
@@ -1517,6 +1547,7 @@ class AplicadorPresupuesto:
         costos_insumo: dict[str, Decimal],
         unidades: Homologador,
         id_unidad: dict[str, Any],
+        nuevas_unidades: dict[str, UUID | None],
         catalogo_conceptos: dict[str, dict[str, Any]],
         firma_cache: dict[str, str],
         nodos_existentes: dict[str, dict[str, Any]],
@@ -1562,6 +1593,7 @@ class AplicadorPresupuesto:
                 costos_insumo=costos_insumo,
                 unidades=unidades,
                 id_unidad=id_unidad,
+                nuevas_unidades=nuevas_unidades,
                 catalogo_conceptos=catalogo_conceptos,
                 firma_cache=firma_cache,
                 nodos_existentes=nodos_existentes,
@@ -1638,6 +1670,7 @@ class AplicadorPresupuesto:
                 costos_insumo=costos_insumo,
                 unidades=unidades,
                 id_unidad=id_unidad,
+                nuevas_unidades=nuevas_unidades,
                 catalogo_conceptos=catalogo_conceptos,
                 firma_cache=firma_cache,
                 nodos_existentes=nodos_existentes,
@@ -1664,6 +1697,7 @@ class AplicadorPresupuesto:
         costos_insumo: dict[str, Decimal],
         unidades: Homologador,
         id_unidad: dict[str, Any],
+        nuevas_unidades: dict[str, UUID | None],
         catalogo_conceptos: dict[str, dict[str, Any]],
         firma_cache: dict[str, str],
         nodos_existentes: dict[str, dict[str, Any]],
@@ -1763,19 +1797,14 @@ class AplicadorPresupuesto:
 
         unidad_id = actual.get("unidad_id") if actual else None
         if nodo.unidad:
-            clave_unidad = unidades.resolver(nodo.unidad)
-            if clave_unidad is not None:
-                unidad_id = id_unidad.get(clave_unidad)
-            elif actual is None:
-                pendientes.append(
-                    PendientePropuesto(
-                        tipo=TipoPendiente.UNIDAD,
-                        entidad="unidad",
-                        valor_origen=nodo.unidad,
-                        propuesta={"concepto": nodo.clave},
-                        origen_ref=f"fila {nodo.fila}",
-                    )
-                )
+            unidad_id = await _resolver_o_dar_de_alta(
+                nodo.unidad,
+                homologador=unidades,
+                id_por_clave=id_unidad,
+                creadas=nuevas_unidades,
+                crear=self._unidades.crear,
+                dry_run=dry_run,
+            )
 
         firma_nueva = _firma_explosion(filas_explosion, clave_de_insumo)
 

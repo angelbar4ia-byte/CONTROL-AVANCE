@@ -73,6 +73,7 @@ from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
 from obractrl.application.casos_uso.gestionar_carga import (
     ConsultarCarga,
     EjecutarCarga,
+    EliminarCarga,
     RevertirCarga,
 )
 from obractrl.application.casos_uso.gestionar_catalogos import (
@@ -191,6 +192,7 @@ __all__ = [
     "CrearUsuarioDep",
     "DarDeAltaExtraDep",
     "EditarProgramacionActividadDep",
+    "EliminarCargaDep",
     "EnviarEstimacionDep",
     "ExplotarConceptoDep",
     "FabricaDeCargasDep",
@@ -733,8 +735,16 @@ def obtener_revertir_carga(sesion: SesionRLS) -> RevertirCarga:
     )
 
 
+def obtener_eliminar_carga(sesion: SesionRLS) -> EliminarCarga:
+    return EliminarCarga(
+        cargas=RepositorioCargasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 ConsultarCargaDep = Annotated[ConsultarCarga, Depends(obtener_consultar_carga)]
 RevertirCargaDep = Annotated[RevertirCarga, Depends(obtener_revertir_carga)]
+EliminarCargaDep = Annotated[EliminarCarga, Depends(obtener_eliminar_carga)]
 
 
 class FabricaDeCargas:
