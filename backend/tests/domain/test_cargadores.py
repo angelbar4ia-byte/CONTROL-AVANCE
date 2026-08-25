@@ -25,6 +25,7 @@ from obractrl.domain.cargadores.almacen import (
 )
 from obractrl.domain.cargadores.cabeceras import (
     ALMACEN,
+    CUADRILLAS,
     MANO_DE_OBRA,
     MAPA_CPU,
     MATERIALES,
@@ -35,6 +36,7 @@ from obractrl.domain.cargadores.cabeceras import (
     resolver_encabezados,
 )
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
+from obractrl.domain.cargadores.cuadrillas import agrupar_cuadrillas
 from obractrl.domain.cargadores.homologacion import Homologador
 from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra
 from obractrl.domain.cargadores.materiales import validar_material
@@ -308,6 +310,82 @@ def test_mano_de_obra_con_rendimiento_negativo_es_error() -> None:
             _MAPA_MANO_OBRA,
             4,
         )
+
+
+# --- Cuadrillas (§10.6 `CABECERAS_CUADRILLAS.xlsx`) -----------------------
+
+_MAPA_CUADRILLAS = resolver_encabezados(
+    ["Clave cuadrilla", "Clave", "Descripción", "Unidad", "Cantidad", "PU", "IMPORTE"],
+    CUADRILLAS,
+)
+
+
+def test_una_cuadrilla_completa_agrupa_cabecera_e_integrantes() -> None:
+    filas = [
+        (2, ["CUA0001", "CUA0001", "Cuadrilla (Oficial + Ayudante)", "jor", None, 1584, None]),
+        (3, ["CUA0001", "MOOP-0049", "Oficial Albañil", "jor", 1, 840, 840]),
+        (4, ["CUA0001", "MOOP-0026", "Ayudante general", "jor", 1, 600, 600]),
+        (5, ["CUA0001", "MOOP-0079", "Contratista", "%mo", "0.1", 1440, 144]),
+    ]
+    bloques, errores, omitidos = agrupar_cuadrillas(filas, _MAPA_CUADRILLAS)
+    assert not errores
+    assert omitidos == 0
+    assert len(bloques) == 1
+    bloque = bloques[0]
+    assert bloque.llave == "CUA0001"
+    assert bloque.encabezado.descripcion == "Cuadrilla (Oficial + Ayudante)"
+    assert bloque.encabezado.precio_declarado == Decimal("1584")
+    assert len(bloque.componentes) == 3
+    assert {str(c.clave_insumo) for c in bloque.componentes} == {
+        "MOOP-0049",
+        "MOOP-0026",
+        "MOOP-0079",
+    }
+
+
+def test_cuadrilla_sin_fila_cabecera_es_error() -> None:
+    filas = [
+        (2, ["CUA0002", "MOOP-0049", "Oficial Albañil", "jor", 1, 840, 840]),
+    ]
+    bloques, errores, _omitidos = agrupar_cuadrillas(filas, _MAPA_CUADRILLAS)
+    assert not bloques
+    assert len(errores) == 1
+    assert "cabecera" in errores[0].motivo
+
+
+def test_cuadrilla_con_dos_cabeceras_es_error() -> None:
+    filas = [
+        (2, ["CUA0003", "CUA0003", "Primera cabecera", "jor", None, 100, None]),
+        (3, ["CUA0003", "CUA0003", "Segunda cabecera", "jor", None, 200, None]),
+    ]
+    bloques, errores, _omitidos = agrupar_cuadrillas(filas, _MAPA_CUADRILLAS)
+    assert not bloques
+    assert len(errores) == 2
+
+
+def test_cuadrilla_agrupa_por_clave_normalizada_no_por_orden() -> None:
+    """La agrupación es por `clave_cuadrilla`, no por posición: un integrante
+    puede venir antes que su cabecera (§10.6)."""
+    filas = [
+        (2, ["cua0004", "MOOP-0049", "Oficial Albañil", "jor", 1, 840, 840]),
+        (3, ["CUA0004", "CUA0004", "Cuadrilla", "jor", None, 840, None]),
+    ]
+    bloques, errores, _omitidos = agrupar_cuadrillas(filas, _MAPA_CUADRILLAS)
+    assert not errores
+    assert len(bloques) == 1
+    assert bloques[0].llave == "CUA0004"
+    assert len(bloques[0].componentes) == 1
+
+
+def test_un_integrante_con_cantidad_negativa_no_es_error() -> None:
+    """Mismo criterio que un componente de CPU: deducciones/ajustes restan."""
+    filas = [
+        (2, ["CUA0005", "CUA0005", "Cuadrilla", "jor", None, 500, None]),
+        (3, ["CUA0005", "MOOP-0001", "Ajuste", "jor", -1, 500, -500]),
+    ]
+    bloques, errores, _omitidos = agrupar_cuadrillas(filas, _MAPA_CUADRILLAS)
+    assert not errores
+    assert bloques[0].componentes[0].cantidad == Decimal("-1")
 
 
 # --- Prototipos (extensión propia, no está en el §10.6) ------------------

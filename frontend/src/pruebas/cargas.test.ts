@@ -97,7 +97,7 @@ describe('modos (§10.2)', () => {
 });
 
 describe('tipos (§10.6)', () => {
-  it('los nueve del enum tienen etiqueta propia', () => {
+  it('todos los tipos del enum tienen etiqueta propia', () => {
     for (const tipo of TIPOS) {
       expect(etiquetaTipo(tipo)).not.toBe(tipo);
     }

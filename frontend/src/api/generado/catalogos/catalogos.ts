@@ -35,16 +35,19 @@ import type {
   ContratistaRespuesta,
   CrearConceptoPeticion,
   CrearContratistaPeticion,
+  CrearCuadrillaPeticion,
   CrearFamiliaPeticion,
   CrearInsumoPeticion,
   CrearMaterialPeticion,
   CrearUnidadPeticion,
+  CuadrillaRespuesta,
   ExplosionRespuesta,
   FamiliaRespuesta,
   HTTPValidationError,
   InsumoRespuesta,
   ListarConceptosApiV1ConceptosGetParams,
   ListarContratistasApiV1ContratistasGetParams,
+  ListarCuadrillasApiV1CuadrillasGetParams,
   ListarFamiliasApiV1FamiliasGetParams,
   ListarInsumosApiV1InsumosGetParams,
   ListarMaterialesApiV1MaterialesGetParams,
@@ -52,6 +55,7 @@ import type {
   ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
   PublicarCPUPeticion,
   UnidadRespuesta,
+  VersionCuadrillaRespuesta,
   VersionPublicadaRespuesta
 } from '.././modelo';
 
@@ -1217,6 +1221,405 @@ export const useCrearContratistaApiV1ContratistasPost = <TError = void,
       return useMutation(mutationOptions, queryClient);
     }
     /**
+ * Lectura simple sin orquestación de dominio —como `GET /unidades`—, así
+que consulta el repo directo: RLS ya acota el alcance (§12.4).
+ * @summary Catálogo de cuadrillas
+ */
+export const listarCuadrillasApiV1CuadrillasGet = (
+    params?: ListarCuadrillasApiV1CuadrillasGetParams,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<CuadrillaRespuesta[]>(
+      {url: `/api/v1/cuadrillas`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+  
+
+
+
+export const getListarCuadrillasApiV1CuadrillasGetInfiniteQueryKey = (params?: ListarCuadrillasApiV1CuadrillasGetParams,) => {
+    return [
+    'infinite', `/api/v1/cuadrillas`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+export const getListarCuadrillasApiV1CuadrillasGetQueryKey = (params?: ListarCuadrillasApiV1CuadrillasGetParams,) => {
+    return [
+    `/api/v1/cuadrillas`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getListarCuadrillasApiV1CuadrillasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>, TError = HTTPValidationError>(params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarCuadrillasApiV1CuadrillasGetInfiniteQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>> = ({ signal }) => listarCuadrillasApiV1CuadrillasGet(params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarCuadrillasApiV1CuadrillasGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>
+export type ListarCuadrillasApiV1CuadrillasGetInfiniteQueryError = HTTPValidationError
+
+
+export function useListarCuadrillasApiV1CuadrillasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>, TError = HTTPValidationError>(
+ params: undefined |  ListarCuadrillasApiV1CuadrillasGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarCuadrillasApiV1CuadrillasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>, TError = HTTPValidationError>(
+ params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarCuadrillasApiV1CuadrillasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>, TError = HTTPValidationError>(
+ params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Catálogo de cuadrillas
+ */
+
+export function useListarCuadrillasApiV1CuadrillasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>, TError = HTTPValidationError>(
+ params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarCuadrillasApiV1CuadrillasGetInfiniteQueryOptions(params,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getListarCuadrillasApiV1CuadrillasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError = HTTPValidationError>(params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarCuadrillasApiV1CuadrillasGetQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>> = ({ signal }) => listarCuadrillasApiV1CuadrillasGet(params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarCuadrillasApiV1CuadrillasGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>
+export type ListarCuadrillasApiV1CuadrillasGetQueryError = HTTPValidationError
+
+
+export function useListarCuadrillasApiV1CuadrillasGet<TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError = HTTPValidationError>(
+ params: undefined |  ListarCuadrillasApiV1CuadrillasGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarCuadrillasApiV1CuadrillasGet<TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError = HTTPValidationError>(
+ params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarCuadrillasApiV1CuadrillasGet<TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError = HTTPValidationError>(
+ params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Catálogo de cuadrillas
+ */
+
+export function useListarCuadrillasApiV1CuadrillasGet<TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError = HTTPValidationError>(
+ params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarCuadrillasApiV1CuadrillasGetQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * @summary Alta de cuadrilla
+ */
+export const crearCuadrillaApiV1CuadrillasPost = (
+    crearCuadrillaPeticion: CrearCuadrillaPeticion,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<CuadrillaRespuesta>(
+      {url: `/api/v1/cuadrillas`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: crearCuadrillaPeticion, signal
+    },
+      options);
+    }
+  
+
+
+export const getCrearCuadrillaApiV1CuadrillasPostMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>, TError,{data: CrearCuadrillaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>, TError,{data: CrearCuadrillaPeticion}, TContext> => {
+
+const mutationKey = ['crearCuadrillaApiV1CuadrillasPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>, {data: CrearCuadrillaPeticion}> = (props) => {
+          const {data} = props ?? {};
+
+          return  crearCuadrillaApiV1CuadrillasPost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CrearCuadrillaApiV1CuadrillasPostMutationResult = NonNullable<Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>>
+    export type CrearCuadrillaApiV1CuadrillasPostMutationBody = CrearCuadrillaPeticion
+    export type CrearCuadrillaApiV1CuadrillasPostMutationError = void
+
+    /**
+ * @summary Alta de cuadrilla
+ */
+export const useCrearCuadrillaApiV1CuadrillasPost = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>, TError,{data: CrearCuadrillaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>,
+        TError,
+        {data: CrearCuadrillaPeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getCrearCuadrillaApiV1CuadrillasPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Todas las versiones (§10.8): la carga de `CABECERAS_CUADRILLAS.xlsx`
+publica una nueva cada vez que la composición cambia.
+ * @summary Historial de PU de la cuadrilla
+ */
+export const listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet = (
+    cuadrillaId: string,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<VersionCuadrillaRespuesta[]>(
+      {url: `/api/v1/cuadrillas/${cuadrillaId}/versiones`, method: 'GET', signal
+    },
+      options);
+    }
+  
+
+
+
+export const getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryKey = (cuadrillaId?: string,) => {
+    return [
+    'infinite', `/api/v1/cuadrillas/${cuadrillaId}/versiones`
+    ] as const;
+    }
+
+export const getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryKey = (cuadrillaId?: string,) => {
+    return [
+    `/api/v1/cuadrillas/${cuadrillaId}/versiones`
+    ] as const;
+    }
+
+    
+export const getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>, TError = HTTPValidationError>(cuadrillaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryKey(cuadrillaId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>> = ({ signal }) => listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet(cuadrillaId, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(cuadrillaId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>
+export type ListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryError = HTTPValidationError
+
+
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>, TError = HTTPValidationError>(
+ cuadrillaId: string, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>, TError = HTTPValidationError>(
+ cuadrillaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>, TError = HTTPValidationError>(
+ cuadrillaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Historial de PU de la cuadrilla
+ */
+
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>, TError = HTTPValidationError>(
+ cuadrillaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryOptions(cuadrillaId,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError = HTTPValidationError>(cuadrillaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryKey(cuadrillaId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>> = ({ signal }) => listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet(cuadrillaId, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(cuadrillaId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>
+export type ListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryError = HTTPValidationError
+
+
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet<TData = Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError = HTTPValidationError>(
+ cuadrillaId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet<TData = Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError = HTTPValidationError>(
+ cuadrillaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet<TData = Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError = HTTPValidationError>(
+ cuadrillaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Historial de PU de la cuadrilla
+ */
+
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet<TData = Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError = HTTPValidationError>(
+ cuadrillaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryOptions(cuadrillaId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
  * @summary Catálogo de conceptos
  */
 export const listarConceptosApiV1ConceptosGet = (

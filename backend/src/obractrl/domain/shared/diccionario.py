@@ -310,6 +310,16 @@ class TipoCarga(_Canonico):
     base: `database/migrations/20260814000031_carga_de_mano_de_obra.sql`.
     """
 
+    CUADRILLAS = "cuadrillas"
+    """`CABECERAS_CUADRILLAS.xlsx` (§10.6): composición y PU de una
+    cuadrilla — fila cabecera (`Clave = Clave cuadrilla`) + filas
+    integrante (insumo, cantidad, costo). `MANO_DE_OBRA` da de alta la
+    cuadrilla sola con clave+nombre; este archivo es el que carga su
+    precio, con historial versionado (§10.8) como el CPU de un concepto.
+    Espejo en la base:
+    `database/migrations/20260814000032_cargador_de_cuadrillas.sql`.
+    """
+
 
 class EstatusCarga(_Canonico):
     PENDIENTE = "pendiente"

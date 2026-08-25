@@ -45,6 +45,7 @@ from obractrl.application.puertos.repositorios import (
 )
 from obractrl.domain.cargadores.almacen import FilaMovimiento, importe_con_iva
 from obractrl.domain.cargadores.cpu import ConceptoCargado
+from obractrl.domain.cargadores.cuadrillas import CuadrillaCargada
 from obractrl.domain.cargadores.homologacion import Homologador
 from obractrl.domain.cargadores.mano_de_obra import FilaManoObra
 from obractrl.domain.cargadores.materiales import FilaMaterial
@@ -85,6 +86,7 @@ __all__ = [
     "Aplicacion",
     "AplicadorAlmacen",
     "AplicadorCPU",
+    "AplicadorCuadrillas",
     "AplicadorDeCarga",
     "AplicadorDePrototipos",
     "AplicadorManoObra",
@@ -1043,6 +1045,345 @@ def _firma_explosion(
         cantidad = Decimal(str(fila.get("cantidad") or 0)).normalize() + Decimal(0)
         costo = Decimal(str(fila.get("costo_unitario") or 0)).normalize() + Decimal(0)
         partes.append(f"{clave}:{fila.get('categoria')}:{cantidad}:{costo}")
+    return "|".join(partes)
+
+
+# --- Cuadrillas (§10.6 `CABECERAS_CUADRILLAS.xlsx`) -----------------------
+
+
+class AplicadorCuadrillas:
+    """Composición y PU de cuadrillas (§10.6, §7.3, §7.6).
+
+    Para efectos de costo, una cuadrilla es un concepto cuya composición es
+    100% mano de obra: cada integrante se modela como un `Componente`
+    (`domain.catalogos.apu`) con ``categoria=MANO_OBRA``, así que
+    `calcular_cpu` devuelve un `PrecioUnitario` donde destajo == total
+    siempre — "lo que cobra la cuadrilla es el 100% de su costo". Cero
+    matemática nueva: se reutiliza tal cual lo que ya prueba `AplicadorCPU`.
+
+    Un integrante cuyo insumo no está en el catálogo detiene la cuadrilla
+    entera (mismo criterio que un componente de concepto sin insumo, §10.3):
+    un PU con un hueco es peor que no cargarlo.
+    """
+
+    def __init__(
+        self,
+        *,
+        cuadrillas: RepositorioCuadrillas,
+        insumos: RepositorioInsumos,
+        unidades: RepositorioUnidades,
+        cargas: RepositorioCargas,
+    ) -> None:
+        self._cuadrillas = cuadrillas
+        self._insumos = insumos
+        self._unidades = unidades
+        self._cargas = cargas
+
+    async def aplicar(  # noqa: C901 — el flujo del §9.2 es lineal, no ramificado
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        cuadrillas_filas = await self._cuadrillas.listar(solo_activos=False)
+        por_clave = {str(f["clave"]): f for f in cuadrillas_filas}
+
+        insumos_filas = await self._insumos.listar(solo_activos=False)
+        insumos_por_clave = {str(f["clave"]): f for f in insumos_filas}
+        clave_de_insumo = {f["id"]: str(f["clave"]) for f in insumos_filas}
+        insumos = Homologador.desde(
+            insumos_filas, mapeos=await self._cargas.mapeos("insumo")
+        )
+        costos_insumo = {
+            str(f["clave"]): Decimal(
+                str(f.get("costo_base_actualizado") or f.get("costo_base") or 0)
+            )
+            for f in insumos_filas
+        }
+
+        unidades_filas = await self._unidades.listar(solo_activos=False)
+        unidades = Homologador.desde(
+            unidades_filas, mapeos=await self._cargas.mapeos("unidad")
+        )
+        id_unidad = {str(f["clave"]): f["id"] for f in unidades_filas}
+
+        pendientes: list[PendientePropuesto] = []
+        errores: list[ErrorDeFila] = []
+        entrantes: dict[str, dict[str, Any]] = {}
+        planes: dict[str, dict[str, Any]] = {}
+        nuevas_unidades: dict[str, UUID | None] = {}
+        nuevas_cuadrillas: dict[str, UUID | None] = {}
+
+        for registro in lectura.registros:
+            bloque: CuadrillaCargada = registro  # type: ignore[assignment]
+            cabeza = bloque.encabezado
+
+            componentes: list[Componente] = []
+            filas_integrantes: list[dict[str, Any]] = []
+            incompleto = False
+
+            for integrante in bloque.componentes:
+                clave_insumo = insumos.resolver(str(integrante.clave_insumo))
+                if clave_insumo is None:
+                    pendientes.append(
+                        _pendiente_de_mapeo(
+                            "insumo",
+                            str(integrante.clave_insumo),
+                            integrante.fila,
+                            critico=True,
+                        )
+                    )
+                    incompleto = True
+                    continue
+                try:
+                    del_dominio = Componente(
+                        categoria=CategoriaExplosion.MANO_OBRA,
+                        cantidad=integrante.cantidad,
+                        clave_insumo=clave_insumo,
+                        costo_unitario=integrante.costo_unitario or None,
+                        orden=len(componentes),
+                    )
+                except ErrorDeAPU as exc:
+                    errores.append(
+                        ErrorDeFila(
+                            fila=integrante.fila,
+                            columna="cantidad",
+                            valor=str(integrante.cantidad),
+                            motivo=str(exc),
+                        )
+                    )
+                    incompleto = True
+                    continue
+
+                componentes.append(del_dominio)
+                costo = (
+                    del_dominio.costo_unitario
+                    if del_dominio.costo_unitario is not None
+                    else costos_insumo.get(clave_insumo, Decimal(0))
+                )
+                filas_integrantes.append(
+                    {
+                        "insumo_id": insumos_por_clave[clave_insumo]["id"],
+                        "cantidad": del_dominio.cantidad,
+                        "costo_unitario": costo,
+                        "importe": del_dominio.cantidad * costo,
+                        "orden": len(filas_integrantes),
+                    }
+                )
+
+            if incompleto:
+                # Mismo criterio que un concepto con un insumo faltante: un
+                # PU de cuadrilla con un hueco sale más barato que el real
+                # y ese precio se propagaría a cada destajo que la use.
+                continue
+
+            actual = por_clave.get(bloque.llave, {})
+
+            unidad_id = actual.get("unidad_id")
+            if cabeza.unidad:
+                unidad_id = await _resolver_o_dar_de_alta(
+                    cabeza.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    creadas=nuevas_unidades,
+                    crear=self._unidades.crear,
+                    dry_run=dry_run,
+                )
+
+            try:
+                precio = calcular_cpu(
+                    bloque.llave,
+                    composiciones={bloque.llave: componentes},
+                    costos_insumo=costos_insumo,
+                )
+            except ErrorDeAPU as exc:
+                errores.append(
+                    ErrorDeFila(
+                        fila=cabeza.fila, columna="clave", valor=bloque.llave, motivo=str(exc)
+                    )
+                )
+                continue
+
+            entrantes[bloque.llave] = {
+                "nombre": cabeza.descripcion,
+                "unidad_id": unidad_id,
+                "composicion": _firma_cuadrilla(filas_integrantes, clave_de_insumo),
+            }
+            planes[bloque.llave] = {"filas_integrantes": filas_integrantes, "precio": precio}
+
+        vigentes: dict[str, dict[str, Any]] = {}
+        for clave, fila in por_clave.items():
+            # La composición vigente solo se lee de las cuadrillas que el
+            # archivo toca: para las demás el diff únicamente mira si están
+            # o no (bajas del modo Reemplazar, §10.2).
+            composicion = ""
+            if clave in entrantes:
+                version_vigente = next(
+                    (v for v in await self._cuadrillas.versiones(fila["id"]) if v["vigente"]),
+                    None,
+                )
+                if version_vigente is not None:
+                    composicion = _firma_cuadrilla(
+                        await self._cuadrillas.integrantes_de(version_vigente["id"]),
+                        clave_de_insumo,
+                    )
+            vigentes[clave] = {
+                "nombre": fila.get("nombre"),
+                "unidad_id": fila.get("unidad_id"),
+                "composicion": composicion,
+            }
+
+        diff = diferenciar(vigentes=vigentes, entrantes=entrantes, modo=modo)
+
+        operaciones: list[dict[str, Any]] = []
+        if not dry_run:
+            for cambio in (*diff.altas, *diff.cambios):
+                plan = planes[cambio.clave]
+                fila = por_clave.get(cambio.clave)
+
+                if fila is None:
+                    cuadrilla_id = await self._cuadrillas.crear(
+                        {
+                            "clave": cambio.clave,
+                            "nombre": cambio.despues["nombre"],
+                            "unidad_id": cambio.despues["unidad_id"],
+                        }
+                    )
+                    nuevas_cuadrillas[cambio.clave] = cuadrilla_id
+                    operaciones.append(
+                        _operacion(
+                            "cuadrilla", cuadrilla_id, "insert", despues={"clave": cambio.clave}
+                        )
+                    )
+                else:
+                    cuadrilla_id = fila["id"]
+                    cambios_cuadrilla = {
+                        "nombre": cambio.despues["nombre"],
+                        "unidad_id": cambio.despues["unidad_id"],
+                    }
+                    await self._cuadrillas.actualizar(cuadrilla_id, cambios_cuadrilla)
+                    operaciones.append(
+                        _operacion(
+                            "cuadrilla",
+                            cuadrilla_id,
+                            "update",
+                            antes=_recorte(fila, ("nombre", "unidad_id", "estatus")),
+                            despues=cambios_cuadrilla,
+                        )
+                    )
+
+                operaciones.extend(
+                    await _publicar_version_de_cuadrilla(
+                        self._cuadrillas, cuadrilla_id, plan["filas_integrantes"], plan["precio"]
+                    )
+                )
+
+            for baja in diff.bajas:
+                fila = por_clave[baja.clave]
+                # Baja lógica, igual que insumo/concepto: no se toca el
+                # historial de versiones, solo el estatus del catálogo.
+                await self._cuadrillas.actualizar(fila["id"], {"estatus": _ESTATUS_BAJA})
+                operaciones.append(
+                    _operacion(
+                        "cuadrilla",
+                        fila["id"],
+                        "update",
+                        antes=_recorte(fila, ("nombre", "unidad_id", "estatus")),
+                        despues={"estatus": _ESTATUS_BAJA},
+                    )
+                )
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            pendientes=tuple(pendientes),
+            errores=tuple(errores),
+            insertados=len(diff.altas),
+            actualizados=len(diff.cambios) + len(diff.bajas),
+            omitidos=diff.omitidos + lectura.omitidos,
+            detalle={
+                "unidades_creadas": len(nuevas_unidades),
+                "cuadrillas_creadas": len(nuevas_cuadrillas),
+            },
+        )
+
+
+async def _publicar_version_de_cuadrilla(
+    cuadrillas: RepositorioCuadrillas,
+    cuadrilla_id: UUID,
+    filas_integrantes: list[dict[str, Any]],
+    precio: PrecioUnitario,
+) -> list[dict[str, Any]]:
+    """Publica la versión nueva de PU de una cuadrilla y su composición (§10.8).
+
+    A diferencia de `_publicar_cpu_de_concepto`, no hay una fila "viva" de
+    composición que sustituir: `cuadrilla_integrante.cuadrilla_version_id`
+    no admite nulo, así que cada versión es dueña exclusiva de sus filas —
+    basta con insertar las de la versión nueva; las de versiones anteriores
+    quedan intactas, que es justo el historial que se pidió (§10.8).
+    """
+    operaciones: list[dict[str, Any]] = []
+
+    versiones = await cuadrillas.versiones(cuadrilla_id)
+    vigentes_antes = {f["id"]: dict(f) for f in versiones if bool(f["vigente"])}
+    nueva, retiradas = publicar_version(
+        [_version_de_cuadrilla(f) for f in versiones], precio, variante=None
+    )
+    for identificador, fila in vigentes_antes.items():
+        if int(fila["version"]) in retiradas:
+            operaciones.append(
+                _operacion(
+                    "cuadrilla_version",
+                    identificador,
+                    "update",
+                    antes={"precio_unitario": fila["precio_unitario"], "vigente": True},
+                    despues={"vigente": False},
+                )
+            )
+
+    version_id = await cuadrillas.publicar_version(
+        cuadrilla_id,
+        version=nueva.version,
+        precio_unitario=nueva.precio.total.monto,
+        retirar=list(retiradas),
+    )
+    operaciones.append(
+        _operacion("cuadrilla_version", version_id, "insert", despues={"version": nueva.version})
+    )
+
+    insertadas = await cuadrillas.agregar_integrantes(version_id, filas_integrantes)
+    for fila in insertadas:
+        operaciones.append(_operacion("cuadrilla_integrante", fila["id"], "insert"))
+
+    return operaciones
+
+
+def _version_de_cuadrilla(fila: dict[str, Any]) -> VersionCPU:
+    # El destajo de una cuadrilla siempre es el 100% de su costo (§7.3): no
+    # hay una columna `precio_destajo` propia que leer, a diferencia de `cpu`.
+    return VersionCPU(
+        version=int(fila["version"]),
+        precio=PrecioUnitario(
+            total=Dinero(Decimal(str(fila["precio_unitario"]))),
+            destajo=Dinero(Decimal(str(fila["precio_unitario"]))),
+        ),
+        vigente=bool(fila["vigente"]),
+        variante=None,
+    )
+
+
+def _firma_cuadrilla(filas: list[dict[str, Any]], clave_de_insumo: dict[Any, str]) -> str:
+    """Composición de una cuadrilla como texto comparable (§10.8) — mismo
+    criterio que `_firma_explosion`, sin `categoria`: todo integrante de una
+    cuadrilla es mano de obra por definición."""
+    partes = []
+    for fila in sorted(filas, key=lambda f: int(f.get("orden") or 0)):
+        clave = clave_de_insumo.get(fila.get("insumo_id"), "")
+        cantidad = Decimal(str(fila.get("cantidad") or 0)).normalize() + Decimal(0)
+        costo = Decimal(str(fila.get("costo_unitario") or 0)).normalize() + Decimal(0)
+        partes.append(f"{clave}:{cantidad}:{costo}")
     return "|".join(partes)
 
 

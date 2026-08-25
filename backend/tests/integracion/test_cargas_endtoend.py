@@ -46,6 +46,7 @@ from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
 from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorAlmacen,
     AplicadorCPU,
+    AplicadorCuadrillas,
     AplicadorDeCarga,
     AplicadorDePrototipos,
     AplicadorManoObra,
@@ -101,6 +102,16 @@ _CABECERAS_MANO_OBRA = [
 
 def _archivo_mano_obra(filas: list[list[object]]) -> bytes:
     return _libro([_CABECERAS_MANO_OBRA, *filas], hoja="DESTAJOS")
+
+
+_CABECERAS_CUADRILLAS = [
+    "Clave cuadrilla", "Clave", "Descripción", "Unidad", "Cantidad", "PU", "IMPORTE",
+]
+"""§10.6, archivo real `CABECERAS_CUADRILLAS.xlsx`: sin nombre de hoja fijo."""
+
+
+def _archivo_cuadrillas(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_CUADRILLAS, *filas])
 
 
 _CABECERAS_CPU = [
@@ -245,6 +256,13 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
             unidades=RepositorioUnidadesSQL(sesion),
             familias=RepositorioFamiliasSQL(sesion),
             cuadrillas=RepositorioCuadrillasSQL(sesion),
+            cargas=cargas,
+        )
+    if tipo is TipoCarga.CUADRILLAS:
+        return AplicadorCuadrillas(
+            cuadrillas=RepositorioCuadrillasSQL(sesion),
+            insumos=RepositorioInsumosSQL(sesion),
+            unidades=RepositorioUnidadesSQL(sesion),
             cargas=cargas,
         )
     if tipo is TipoCarga.CATALOGO_CONCEPTOS:
@@ -756,6 +774,154 @@ async def test_revertir_mano_de_obra_deja_el_insumo_sin_cuadrilla_ni_rendimiento
     # La cuadrilla es catálogo compartido por organización (§10.6): revertir
     # este lote no se la lleva, igual que `nivel`/`etapa_constructiva`.
     assert "CUAD-01" in await _cuadrillas(contexto_control)
+
+
+# --- Cuadrillas (§10.6 `CABECERAS_CUADRILLAS.xlsx`) -----------------------
+
+_FILAS_CUADRILLA_V1 = [
+    ["CUA0001", "CUA0001", "Cuadrilla (Oficial + Ayudante)", "jor", None, 1584, None],
+    ["CUA0001", "MOOP-0049", "Oficial Albañil", "jor", 1, 840, 840],
+    ["CUA0001", "MOOP-0026", "Ayudante general", "jor", 1, 600, 600],
+    ["CUA0001", "MOOP-0079", "Contratista", "%mo", 0.1, 1440, 144],
+]
+
+
+async def _sembrar_insumos_de_cuadrilla(contexto: ContextoSesion) -> None:
+    """Los integrantes de una cuadrilla son insumos ya existentes (§10.6):
+    se siembran con una carga de materiales, que alimenta el mismo catálogo
+    de insumos que resuelve `AplicadorCuadrillas` (§7.3)."""
+    await _cargar(
+        contexto,
+        TipoCarga.MATERIALES,
+        _archivo_materiales(
+            [
+                ["MOOP-0049", "Oficial Albañil", "jor", "CEM", "840", "", "NO"],
+                ["MOOP-0026", "Ayudante general", "jor", "CEM", "600", "", "NO"],
+                ["MOOP-0079", "Contratista", "jor", "CEM", "1440", "", "NO"],
+            ]
+        ),
+    )
+
+
+async def test_carga_de_cuadrillas_publica_version_1_con_su_pu(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """El PU de la cuadrilla (1584) se calcula de sus integrantes, no del PU
+    declarado en la fila cabecera (§7.3, mismo criterio que un CPU)."""
+    await _sembrar_insumos_de_cuadrilla(contexto_control)
+
+    resultado = await _cargar(
+        contexto_control, TipoCarga.CUADRILLAS, _archivo_cuadrillas(_FILAS_CUADRILLA_V1)
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.insertados == 1
+    assert resultado.pendientes == 0
+
+    cuadrilla = (await _cuadrillas(contexto_control))["CUA0001"]
+    assert cuadrilla["nombre"] == "Cuadrilla (Oficial + Ayudante)"
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        versiones = await RepositorioCuadrillasSQL(sesion).versiones(cuadrilla["id"])
+    assert len(versiones) == 1
+    assert versiones[0]["version"] == 1
+    assert versiones[0]["precio_unitario"] == Decimal("1584.0000")
+    assert versiones[0]["vigente"] is True
+
+
+async def test_un_integrante_inexistente_manda_la_cuadrilla_a_pendientes(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Mismo criterio que un componente de CPU sin insumo (§10.3): un PU con
+    un hueco es peor que no cargarlo, así que la cuadrilla entera se omite."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.CUADRILLAS,
+        _archivo_cuadrillas(
+            [
+                ["CUA0002", "CUA0002", "Cuadrilla nueva", "jor", None, 999, None],
+                ["CUA0002", "MOOP-9999", "Insumo que no existe", "jor", 1, 500, 500],
+            ]
+        ),
+    )
+
+    assert resultado.resumen.insertados == 0
+    assert resultado.pendientes == 1
+    assert "CUA0002" not in await _cuadrillas(contexto_control)
+
+
+async def test_recargar_cuadrillas_con_otro_costo_publica_version_2(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _sembrar_insumos_de_cuadrilla(contexto_control)
+    await _cargar(contexto_control, TipoCarga.CUADRILLAS, _archivo_cuadrillas(_FILAS_CUADRILLA_V1))
+
+    filas_v2 = [
+        ["CUA0001", "CUA0001", "Cuadrilla (Oficial + Ayudante)", "jor", None, 1700, None],
+        ["CUA0001", "MOOP-0049", "Oficial Albañil", "jor", 1, 900, 900],
+        ["CUA0001", "MOOP-0026", "Ayudante general", "jor", 1, 600, 600],
+        ["CUA0001", "MOOP-0079", "Contratista", "%mo", 0.1, 1500, 150],
+    ]
+    segunda = await _cargar(contexto_control, TipoCarga.CUADRILLAS, _archivo_cuadrillas(filas_v2))
+    assert segunda.resumen.actualizados == 1
+
+    cuadrilla = (await _cuadrillas(contexto_control))["CUA0001"]
+    async with sesion_con_rls(contexto_control) as sesion:
+        versiones = await RepositorioCuadrillasSQL(sesion).versiones(cuadrilla["id"])
+    assert len(versiones) == 2
+    v1, v2 = sorted(versiones, key=lambda v: v["version"])
+    assert v1["vigente"] is False
+    assert v2["vigente"] is True
+    assert v2["precio_unitario"] == Decimal("900") + Decimal("600") + Decimal("150")
+
+
+async def test_recargar_cuadrillas_con_la_misma_composicion_no_versiona_de_nuevo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§10.8: "si es idéntico, no crea versión"."""
+    await _sembrar_insumos_de_cuadrilla(contexto_control)
+    await _cargar(contexto_control, TipoCarga.CUADRILLAS, _archivo_cuadrillas(_FILAS_CUADRILLA_V1))
+    segunda = await _cargar(
+        contexto_control, TipoCarga.CUADRILLAS, _archivo_cuadrillas(_FILAS_CUADRILLA_V1)
+    )
+
+    assert segunda.resumen.insertados == 0
+    assert segunda.resumen.actualizados == 0
+
+    cuadrilla = (await _cuadrillas(contexto_control))["CUA0001"]
+    async with sesion_con_rls(contexto_control) as sesion:
+        versiones = await RepositorioCuadrillasSQL(sesion).versiones(cuadrilla["id"])
+    assert len(versiones) == 1
+
+
+async def test_revertir_una_recarga_de_cuadrilla_deja_vigente_la_version_anterior(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§10.8: revertir el lote de la versión 2 la borra y regresa la 1 a vigente."""
+    await _sembrar_insumos_de_cuadrilla(contexto_control)
+    await _cargar(contexto_control, TipoCarga.CUADRILLAS, _archivo_cuadrillas(_FILAS_CUADRILLA_V1))
+
+    filas_v2 = [
+        ["CUA0001", "CUA0001", "Cuadrilla (Oficial + Ayudante)", "jor", None, 2000, None],
+        ["CUA0001", "MOOP-0049", "Oficial Albañil", "jor", 1, 1000, 1000],
+        ["CUA0001", "MOOP-0026", "Ayudante general", "jor", 1, 800, 800],
+        ["CUA0001", "MOOP-0079", "Contratista", "%mo", 0.1, 1800, 180],
+    ]
+    segunda = await _cargar(contexto_control, TipoCarga.CUADRILLAS, _archivo_cuadrillas(filas_v2))
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        reversa = await RevertirCarga(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(segunda.carga_id, usuario_id=contexto_control.usuario_id)
+
+    assert reversa["operaciones_revertidas"] > 0
+    cuadrilla = (await _cuadrillas(contexto_control))["CUA0001"]
+    async with sesion_con_rls(contexto_control) as sesion:
+        versiones = await RepositorioCuadrillasSQL(sesion).versiones(cuadrilla["id"])
+    assert len(versiones) == 1
+    assert versiones[0]["version"] == 1
+    assert versiones[0]["vigente"] is True
+    assert versiones[0]["precio_unitario"] == Decimal("1584.0000")
 
 
 # --- CPU / Conceptos (§10.6 `CABECERAS_CPU.xlsx`) ------------------------

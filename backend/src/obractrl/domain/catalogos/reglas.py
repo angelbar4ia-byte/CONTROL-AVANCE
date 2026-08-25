@@ -40,6 +40,7 @@ __all__ = [
     "AMBITOS_FAMILIA",
     "Concepto",
     "Contratista",
+    "Cuadrilla",
     "ErrorDeCatalogo",
     "Familia",
     "Insumo",
@@ -148,6 +149,30 @@ class Unidad:
             nombre=_exigir_texto(nombre, "nombre"),
             sinonimos=tuple(vistos),
             factor=_exigir_positivo(factor, "factor"),
+        )
+
+
+@dataclass(slots=True)
+class Cuadrilla:
+    """Grupo de trabajadores al que se asigna un destajo (§7.6, §10.6).
+
+    Alta manual mínima (§11.2): clave, nombre y opcionalmente la unidad a la
+    que refiere su PU (p.ej. "jor"). La composición y el precio versionado
+    se cargan por archivo (`CABECERAS_CUADRILLAS.xlsx`, §10.6), no aquí.
+    """
+
+    clave: Clave
+    nombre: str
+    unidad_id: str | None = None
+
+    @classmethod
+    def crear(
+        cls, *, clave: str, nombre: str, unidad_id: str | None = None
+    ) -> Cuadrilla:
+        return cls(
+            clave=_exigir_clave(clave),
+            nombre=_exigir_texto(nombre, "nombre"),
+            unidad_id=_opcional(unidad_id),
         )
 
 

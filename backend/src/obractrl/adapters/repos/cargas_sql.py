@@ -80,6 +80,8 @@ _ELIMINAR: dict[str, str] = {
         "prototipo_nodo",
         "presupuesto",
         "partida_presupuesto",
+        "cuadrilla_version",
+        "cuadrilla_integrante",
     )
 }
 # `nivel`/`etapa_constructiva` NO están aquí a propósito: el cargador de
@@ -91,10 +93,13 @@ _ELIMINAR: dict[str, str] = {
 # estorba). Solo se revierten `prototipo_nodo`/`presupuesto`/
 # `partida_presupuesto`, que sí son propios de este prototipo y esta carga.
 #
-# `cuadrilla` tampoco está aquí, mismo criterio: el cargador de mano de obra
-# (§10.6) la da de alta como catálogo compartido por organización
-# (`uq_cuadrilla_clave`), no por carga — otra carga de mano de obra ya
-# confirmada puede depender de la misma cuadrilla.
+# `cuadrilla` tampoco está aquí, mismo criterio: se da de alta como catálogo
+# compartido por organización (`uq_cuadrilla_clave`), no por carga — otra
+# carga de mano de obra o de cuadrillas ya confirmada puede depender de la
+# misma cuadrilla. `cuadrilla_version`/`cuadrilla_integrante` SÍ están: son
+# el historial de PU de ESTA carga (§10.8) — cada versión es dueña exclusiva
+# de sus integrantes, así que revertir el alta de una versión nunca le quita
+# nada a otra.
 
 _RESTAURAR: dict[str, str] = {
     "insumo": """
@@ -137,6 +142,23 @@ _RESTAURAR: dict[str, str] = {
             vigente         = cast(a.j->>'vigente' as boolean)
         from a
         where cpu.id = cast(:id as uuid)
+    """,
+    "cuadrilla": """
+        with a as (select cast(:antes as jsonb) as j)
+        update cuadrilla set
+            nombre    = a.j->>'nombre',
+            unidad_id = cast(a.j->>'unidad_id' as uuid),
+            estatus   = cast(coalesce(a.j->>'estatus', 'activo') as estatus_registro)
+        from a
+        where cuadrilla.id = cast(:id as uuid)
+    """,
+    "cuadrilla_version": """
+        with a as (select cast(:antes as jsonb) as j)
+        update cuadrilla_version set
+            precio_unitario = cast(a.j->>'precio_unitario' as numeric),
+            vigente         = cast(a.j->>'vigente' as boolean)
+        from a
+        where cuadrilla_version.id = cast(:id as uuid)
     """,
     "prototipo": """
         with a as (select cast(:antes as jsonb) as j)

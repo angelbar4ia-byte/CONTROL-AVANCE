@@ -27,6 +27,7 @@ __all__ = [
     "ALMACEN",
     "COLUMNAS_CPU",
     "CPU",
+    "CUADRILLAS",
     "MANO_DE_OBRA",
     "MAPA_CPU",
     "MATERIALES",
@@ -310,6 +311,23 @@ MANO_DE_OBRA = EspecificacionArchivo(
         "costo_unitario": "costo_base",
     },
 )
+
+CUADRILLAS = EspecificacionArchivo(
+    tipo="Cuadrillas",
+    archivo="CABECERAS_CUADRILLAS.xlsx",
+    hoja=None,
+    obligatorias=("clave_cuadrilla", "clave", "descripcion"),
+    opcionales=("unidad", "cantidad", "precio_unitario"),
+    alias={
+        "clave cuadrilla": "clave_cuadrilla",
+    },
+)
+"""Composición y PU de una cuadrilla (§10.6): fila cabecera (``Clave =
+Clave cuadrilla``) + filas integrante. ``unidad``/``cantidad``/
+``precio_unitario`` ya resuelven por el mapa global (§8.6: ``pu`` →
+``precio_unitario``); solo ``Clave cuadrilla`` necesita alias propio.
+``IMPORTE`` se deja sin mapear a propósito: se recalcula de la
+composición, igual que en `CPU`."""
 
 # --- CPU / Conceptos (§10.6) ---------------------------------------------
 #

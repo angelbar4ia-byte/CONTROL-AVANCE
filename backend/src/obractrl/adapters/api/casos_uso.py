@@ -52,6 +52,7 @@ from obractrl.adapters.repos.usuarios_sql import RepositorioUsuariosSQL
 from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorAlmacen,
     AplicadorCPU,
+    AplicadorCuadrillas,
     AplicadorDeCarga,
     AplicadorDePrototipos,
     AplicadorManoObra,
@@ -81,6 +82,7 @@ from obractrl.application.casos_uso.gestionar_carga import (
 from obractrl.application.casos_uso.gestionar_catalogos import (
     CrearConcepto,
     CrearContratista,
+    CrearCuadrilla,
     CrearFamilia,
     CrearInsumo,
     CrearUnidad,
@@ -182,6 +184,7 @@ __all__ = [
     "CrearClusterDep",
     "CrearConceptoDep",
     "CrearContratistaDep",
+    "CrearCuadrillaDep",
     "CrearEvaluacionDep",
     "CrearFamiliaDep",
     "CrearInsumoDep",
@@ -604,6 +607,13 @@ def obtener_crear_familia(sesion: SesionRLS) -> CrearFamilia:
     )
 
 
+def obtener_crear_cuadrilla(sesion: SesionRLS) -> CrearCuadrilla:
+    return CrearCuadrilla(
+        cuadrillas=RepositorioCuadrillasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_crear_insumo(sesion: SesionRLS) -> CrearInsumo:
     """Sirve a `POST /insumos` y a `POST /materiales`: `Material` es un
     `Insumo` con `tipo='material'` (§7.3)."""
@@ -644,6 +654,7 @@ def obtener_publicar_version_cpu(sesion: SesionRLS) -> PublicarVersionCPU:
 
 CrearUnidadDep = Annotated[CrearUnidad, Depends(obtener_crear_unidad)]
 CrearFamiliaDep = Annotated[CrearFamilia, Depends(obtener_crear_familia)]
+CrearCuadrillaDep = Annotated[CrearCuadrilla, Depends(obtener_crear_cuadrilla)]
 CrearInsumoDep = Annotated[CrearInsumo, Depends(obtener_crear_insumo)]
 CrearConceptoDep = Annotated[CrearConcepto, Depends(obtener_crear_concepto)]
 CrearContratistaDep = Annotated[CrearContratista, Depends(obtener_crear_contratista)]
@@ -792,6 +803,13 @@ class FabricaDeCargas:
                 unidades=RepositorioUnidadesSQL(sesion),
                 familias=RepositorioFamiliasSQL(sesion),
                 cuadrillas=RepositorioCuadrillasSQL(sesion),
+                cargas=cargas,
+            )
+        if tipo is TipoCarga.CUADRILLAS:
+            return AplicadorCuadrillas(
+                cuadrillas=RepositorioCuadrillasSQL(sesion),
+                insumos=RepositorioInsumosSQL(sesion),
+                unidades=RepositorioUnidadesSQL(sesion),
                 cargas=cargas,
             )
         if tipo is TipoCarga.CATALOGO_CONCEPTOS:

@@ -865,11 +865,47 @@ class RepositorioCuadrillas(Protocol):
 
     async def crear(self, datos: dict) -> UUID: ...
 
+    async def obtener(self, cuadrilla_id: UUID) -> dict | None: ...
+
     async def listar(self, *, solo_activos: bool = True) -> list[dict]: ...
+
+    async def actualizar(self, cuadrilla_id: UUID, cambios: dict) -> None:
+        """Edición parcial (§10.6, cargador de cuadrillas): la ``clave`` no
+        es editable (§3.3)."""
+        ...
 
     async def actualizar_rendimiento(self, cuadrilla_id: UUID, rendimiento: Decimal) -> None:
         """La cuadrilla "asume" el rendimiento teórico de la mano de obra
         que se le asigna (§10.6) — no se toca si el archivo no lo trae."""
+        ...
+
+    async def versiones(self, cuadrilla_id: UUID) -> list[dict]:
+        """Historial de PU de la cuadrilla, todas sus versiones (§10.6, §10.8)."""
+        ...
+
+    async def integrantes_de(self, cuadrilla_version_id: UUID) -> list[dict]:
+        """Composición propia de esa versión (§10.6): cada versión es dueña
+        exclusiva de sus filas, a diferencia de `explosion` no hace falta
+        distinguir "vigente sin versión" de "versión ya publicada"."""
+        ...
+
+    async def publicar_version(
+        self,
+        cuadrilla_id: UUID,
+        *,
+        version: int,
+        precio_unitario: Decimal,
+        retirar: list[int],
+    ) -> UUID:
+        """Retira las versiones de ``retirar`` e inserta la nueva como
+        vigente (§10.8). Sin ``variante``: el archivo no la trae."""
+        ...
+
+    async def agregar_integrantes(
+        self, cuadrilla_version_id: UUID, filas: list[dict]
+    ) -> list[dict]:
+        """Inserta la composición de la versión y devuelve las filas
+        persistidas, completas, para el snapshot del lote (§10.8)."""
         ...
 
 

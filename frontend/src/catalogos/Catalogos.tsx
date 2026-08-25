@@ -34,6 +34,7 @@ import { useMemo, useState } from 'react';
 import {
   useListarConceptosApiV1ConceptosGet,
   useListarContratistasApiV1ContratistasGet,
+  useListarCuadrillasApiV1CuadrillasGet,
   useListarFamiliasApiV1FamiliasGet,
   useListarInsumosApiV1InsumosGet,
   useListarMaterialesApiV1MaterialesGet,
@@ -43,6 +44,7 @@ import { TipoConcepto, TipoInsumo } from '@/api/generado/modelo';
 import type {
   ConceptoRespuesta,
   ContratistaRespuesta,
+  CuadrillaRespuesta,
   FamiliaRespuesta,
   InsumoRespuesta,
   UnidadRespuesta,
@@ -53,6 +55,7 @@ import { ErrorBanner } from '@/lib/ErrorBanner';
 import { buscarPorClave } from './busqueda';
 import { AltaConcepto } from './AltaConcepto';
 import { AltaContratista } from './AltaContratista';
+import { AltaCuadrilla } from './AltaCuadrilla';
 import { AltaFamilia } from './AltaFamilia';
 import { AltaInsumo } from './AltaInsumo';
 import { AltaUnidad } from './AltaUnidad';
@@ -60,6 +63,7 @@ import { PanelAPU } from './PanelAPU';
 import {
   TablaConceptos,
   TablaContratistas,
+  TablaCuadrillas,
   TablaFamilias,
   TablaInsumos,
   TablaUnidades,
@@ -71,7 +75,14 @@ import {
   puedeConsultarAPU,
 } from './reglas';
 
-type Pestania = 'unidades' | 'familias' | 'insumos' | 'materiales' | 'conceptos' | 'contratistas';
+type Pestania =
+  | 'unidades'
+  | 'familias'
+  | 'insumos'
+  | 'materiales'
+  | 'conceptos'
+  | 'contratistas'
+  | 'cuadrillas';
 
 const PESTANIAS: readonly { readonly clave: Pestania; readonly etiqueta: string }[] = [
   { clave: 'conceptos', etiqueta: 'Conceptos' },
@@ -80,6 +91,7 @@ const PESTANIAS: readonly { readonly clave: Pestania; readonly etiqueta: string 
   { clave: 'familias', etiqueta: 'Familias' },
   { clave: 'unidades', etiqueta: 'Unidades' },
   { clave: 'contratistas', etiqueta: 'Contratistas' },
+  { clave: 'cuadrillas', etiqueta: 'Cuadrillas' },
 ];
 
 const TIPOS_INSUMO: readonly TipoInsumo[] = [
@@ -156,6 +168,11 @@ export default function Catalogos() {
     ErrorApi
   >({ incluir_inactivos: incluirInactivos }, { query: { enabled: pestania === 'contratistas' } });
 
+  const cuadrillasQ = useListarCuadrillasApiV1CuadrillasGet<CuadrillaRespuesta[], ErrorApi>(
+    { incluir_inactivos: incluirInactivos },
+    { query: { enabled: pestania === 'cuadrillas' } },
+  );
+
   const unidades = useMemo(() => unidadesQ.data ?? [], [unidadesQ.data]);
   const familias = useMemo(() => familiasQ.data ?? [], [familiasQ.data]);
   const conceptos = useMemo(() => conceptosQ.data ?? [], [conceptosQ.data]);
@@ -185,6 +202,10 @@ export default function Catalogos() {
       buscarPorClave(contratistasQ.data ?? [], texto, (contratista) => contratista.razon_social),
     [contratistasQ.data, texto],
   );
+  const resCuadrillas = useMemo(
+    () => buscarPorClave(cuadrillasQ.data ?? [], texto, (cuadrilla) => cuadrilla.nombre),
+    [cuadrillasQ.data, texto],
+  );
 
   // El concepto del cajón se re-deriva de la lista para que un cambio de
   // filtro no deje abierto un APU que ya no está en pantalla.
@@ -199,6 +220,7 @@ export default function Catalogos() {
     materialesQ.error,
     conceptosQ.error,
     contratistasQ.error,
+    cuadrillasQ.error,
   ].filter((error): error is ErrorApi => error !== null && error !== undefined);
 
   function cambiarPestania(nueva: Pestania) {
@@ -224,6 +246,8 @@ export default function Catalogos() {
         return 'Nuevo concepto';
       case 'contratistas':
         return 'Nuevo contratista';
+      case 'cuadrillas':
+        return 'Nueva cuadrilla';
     }
   }
 
@@ -236,6 +260,7 @@ export default function Catalogos() {
     if (pestania === 'materiales') void materialesQ.refetch();
     if (pestania === 'conceptos') void conceptosQ.refetch();
     if (pestania === 'contratistas') void contratistasQ.refetch();
+    if (pestania === 'cuadrillas') void cuadrillasQ.refetch();
   }
 
   const familiasDelLado = familias.filter((familia) =>
@@ -423,6 +448,14 @@ export default function Catalogos() {
         {pestania === 'contratistas' && (
           <TablaContratistas resultados={resContratistas} cargando={contratistasQ.isLoading} />
         )}
+
+        {pestania === 'cuadrillas' && (
+          <TablaCuadrillas
+            resultados={resCuadrillas}
+            unidades={unidades}
+            cargando={cuadrillasQ.isLoading}
+          />
+        )}
       </div>
 
       {concepto && (
@@ -475,6 +508,14 @@ export default function Catalogos() {
         <AltaContratista
           onCerrar={() => setDialogo(null)}
           onCreado={() => alCrear('Contratista creado')}
+        />
+      )}
+
+      {dialogo === 'cuadrillas' && (
+        <AltaCuadrilla
+          unidades={unidades}
+          onCerrar={() => setDialogo(null)}
+          onCreada={() => alCrear('Cuadrilla creada')}
         />
       )}
     </div>

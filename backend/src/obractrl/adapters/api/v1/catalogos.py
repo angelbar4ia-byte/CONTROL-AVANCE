@@ -32,6 +32,7 @@ from pydantic import BaseModel, Field
 from obractrl.adapters.api.casos_uso import (
     CrearConceptoDep,
     CrearContratistaDep,
+    CrearCuadrillaDep,
     CrearFamiliaDep,
     CrearInsumoDep,
     CrearUnidadDep,
@@ -42,6 +43,7 @@ from obractrl.adapters.api.casos_uso import (
 from obractrl.adapters.api.dependencias import SesionRLS, exigir_rol
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
+from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
@@ -53,6 +55,7 @@ from obractrl.application.casos_uso.calcular_cpu import (
 from obractrl.application.casos_uso.gestionar_catalogos import (
     ComandoCrearConcepto,
     ComandoCrearContratista,
+    ComandoCrearCuadrilla,
     ComandoCrearFamilia,
     ComandoCrearInsumo,
     ComandoCrearUnidad,
@@ -524,6 +527,138 @@ async def crear_contratista(
         email=creado.contratista.email,
         calificacion=creado.contratista.calificacion,
     )
+
+
+# --- Cuadrillas (§7.6, §10.6) ---------------------------------------------
+#
+# El alta manual de aquí es mínima (clave, nombre, unidad); la composición y
+# el PU versionado los carga `AplicadorCuadrillas` desde
+# `CABECERAS_CUADRILLAS.xlsx` (§10.6) — no hay `POST` para eso, es lo que la
+# pantalla de Cargas de datos ya resuelve.
+
+
+class CrearCuadrillaPeticion(BaseModel):
+    clave: str = Field(min_length=1, description="Clave única del catálogo (§3.3).")
+    nombre: str = Field(min_length=1)
+    unidad_id: UUID | None = Field(
+        default=None, description="Unidad del PU de la cuadrilla (p.ej. jornal, §10.6)."
+    )
+
+
+class CuadrillaRespuesta(BaseModel):
+    id: UUID
+    clave: str
+    nombre: str
+    unidad_id: UUID | None = None
+    rendimiento: Decimal | None = Field(
+        default=None,
+        description="Rendimiento teórico asignado por el cargador de mano de obra (§10.6).",
+    )
+    precio_unitario: Decimal | None = Field(
+        default=None, description="PU de la versión vigente, si ya se cargó una (§10.8)."
+    )
+    version_vigente: int | None = None
+    estatus: str = "activo"
+
+    @classmethod
+    def desde_fila(cls, fila: dict) -> CuadrillaRespuesta:
+        return cls(
+            id=fila["id"],
+            clave=fila["clave"],
+            nombre=fila["nombre"],
+            unidad_id=fila.get("unidad_id"),
+            rendimiento=fila.get("rendimiento"),
+            precio_unitario=fila.get("precio_unitario"),
+            version_vigente=fila.get("version_vigente"),
+            estatus=fila["estatus"],
+        )
+
+
+class VersionCuadrillaRespuesta(BaseModel):
+    id: UUID
+    version: int
+    precio_unitario: Decimal
+    vigente: bool
+
+    @classmethod
+    def desde_fila(cls, fila: dict) -> VersionCuadrillaRespuesta:
+        return cls(
+            id=fila["id"],
+            version=fila["version"],
+            precio_unitario=fila["precio_unitario"],
+            vigente=bool(fila["vigente"]),
+        )
+
+
+@router.get(
+    "/cuadrillas",
+    response_model=list[CuadrillaRespuesta],
+    summary="Catálogo de cuadrillas",
+    dependencies=[CATALOGOS],
+)
+async def listar_cuadrillas(
+    sesion: SesionRLS, incluir_inactivos: IncluirInactivos = False
+) -> list[CuadrillaRespuesta]:
+    """Lectura simple sin orquestación de dominio —como `GET /unidades`—, así
+    que consulta el repo directo: RLS ya acota el alcance (§12.4)."""
+    repo = RepositorioCuadrillasSQL(sesion)
+    filas = await repo.listar(solo_activos=not incluir_inactivos)
+    respuestas = []
+    for fila in filas:
+        vigente = next(
+            (v for v in await repo.versiones(fila["id"]) if v["vigente"]), None
+        )
+        respuestas.append(
+            CuadrillaRespuesta.desde_fila(
+                {
+                    **fila,
+                    "precio_unitario": vigente["precio_unitario"] if vigente else None,
+                    "version_vigente": vigente["version"] if vigente else None,
+                }
+            )
+        )
+    return respuestas
+
+
+@router.post(
+    "/cuadrillas",
+    response_model=CuadrillaRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Alta de cuadrilla",
+    dependencies=[CATALOGOS],
+    responses={422: {"description": "Datos de catálogo inválidos (§7.6)."}},
+)
+async def crear_cuadrilla(
+    peticion: CrearCuadrillaPeticion, caso_uso: CrearCuadrillaDep
+) -> CuadrillaRespuesta:
+    creada = await caso_uso.ejecutar(
+        ComandoCrearCuadrilla(
+            clave=peticion.clave,
+            nombre=peticion.nombre,
+            unidad_id=peticion.unidad_id,
+        )
+    )
+    return CuadrillaRespuesta(
+        id=creada.id,
+        clave=str(creada.cuadrilla.clave),
+        nombre=creada.cuadrilla.nombre,
+        unidad_id=UUID(creada.cuadrilla.unidad_id) if creada.cuadrilla.unidad_id else None,
+    )
+
+
+@router.get(
+    "/cuadrillas/{cuadrilla_id}/versiones",
+    response_model=list[VersionCuadrillaRespuesta],
+    summary="Historial de PU de la cuadrilla",
+    dependencies=[CATALOGOS],
+)
+async def listar_versiones_de_cuadrilla(
+    sesion: SesionRLS, cuadrilla_id: UUID
+) -> list[VersionCuadrillaRespuesta]:
+    """Todas las versiones (§10.8): la carga de `CABECERAS_CUADRILLAS.xlsx`
+    publica una nueva cada vez que la composición cambia."""
+    filas = await RepositorioCuadrillasSQL(sesion).versiones(cuadrilla_id)
+    return [VersionCuadrillaRespuesta.desde_fila(fila) for fila in filas]
 
 
 # --- Conceptos y APU (§7.3) ----------------------------------------------
