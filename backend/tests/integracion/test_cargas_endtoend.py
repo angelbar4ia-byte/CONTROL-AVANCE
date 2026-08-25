@@ -829,25 +829,35 @@ async def test_carga_de_cuadrillas_publica_version_1_con_su_pu(
     assert versiones[0]["vigente"] is True
 
 
-async def test_un_integrante_inexistente_manda_la_cuadrilla_a_pendientes(
+async def test_un_integrante_inexistente_se_da_de_alta_solo(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
-    """Mismo criterio que un componente de CPU sin insumo (§10.3): un PU con
-    un hueco es peor que no cargarlo, así que la cuadrilla entera se omite."""
+    """Confirmado con el usuario: el catálogo de personal (`MOOP-...`) nunca
+    se carga por ningún otro archivo — un integrante nuevo se da de alta
+    solo, mismo criterio que unidad/familia (§8.7), no va a la bandeja."""
     resultado = await _cargar(
         contexto_control,
         TipoCarga.CUADRILLAS,
         _archivo_cuadrillas(
             [
-                ["CUA0002", "CUA0002", "Cuadrilla nueva", "jor", None, 999, None],
-                ["CUA0002", "MOOP-9999", "Insumo que no existe", "jor", 1, 500, 500],
+                ["CUA0002", "CUA0002", "Cuadrilla nueva", "jor", None, 500, None],
+                ["CUA0002", "MOOP-9999", "Ayudante nuevo", "jor", 1, 500, 500],
             ]
         ),
     )
 
-    assert resultado.resumen.insertados == 0
-    assert resultado.pendientes == 1
-    assert "CUA0002" not in await _cuadrillas(contexto_control)
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.insertados == 1
+    assert resultado.pendientes == 0
+
+    insumo = (await _insumos(contexto_control))["MOOP-9999"]
+    assert insumo["tipo"] == "mano_obra"
+    assert insumo["descripcion"] == "Ayudante nuevo"
+
+    cuadrilla = (await _cuadrillas(contexto_control))["CUA0002"]
+    async with sesion_con_rls(contexto_control) as sesion:
+        versiones = await RepositorioCuadrillasSQL(sesion).versiones(cuadrilla["id"])
+    assert versiones[0]["precio_unitario"] == Decimal("500.0000")
 
 
 async def test_recargar_cuadrillas_con_otro_costo_publica_version_2(
