@@ -75,6 +75,36 @@ class RepositorioCuadrillasSQL:
             )
         ).scalar_one()
 
+    async def crear_o_existente(self, datos: dict[str, Any]) -> UUID:
+        """Como `crear`, pero idempotente por clave (§3.3, §8.7).
+
+        Para el auto-alta de una carga (`_resolver_o_dar_de_alta`,
+        `application.casos_uso.aplicar_carga`): dos cargas que auto-crean la
+        misma cuadrilla nueva casi al mismo tiempo no deben tronar con
+        `UniqueViolationError` — la segunda solo obtiene el id de la que la
+        primera ya dio de alta.
+        """
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into cuadrilla (org_id, clave, nombre, unidad_id)
+                    values (cast(current_setting('app.org_id') as uuid),
+                            :clave, :nombre, cast(:unidad_id as uuid))
+                    on conflict (org_id, clave) do update set clave = excluded.clave
+                    returning id
+                    """
+                ),
+                {
+                    "clave": datos["clave"],
+                    "nombre": datos["nombre"],
+                    "unidad_id": (
+                        str(datos["unidad_id"]) if datos.get("unidad_id") else None
+                    ),
+                },
+            )
+        ).scalar_one()
+
     async def obtener(self, cuadrilla_id: UUID) -> dict[str, Any] | None:
         fila = (
             await self._sesion.execute(

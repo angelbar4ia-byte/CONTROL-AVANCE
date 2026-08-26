@@ -67,6 +67,39 @@ class RepositorioUnidadesSQL:
             )
         ).scalar_one()
 
+    async def crear_o_existente(self, datos: dict[str, Any]) -> UUID:
+        """Como `crear`, pero idempotente por clave (§3.3, §8.7).
+
+        Para el auto-alta de una carga (`_resolver_o_dar_de_alta`,
+        `application.casos_uso.aplicar_carga`): dos cargas que auto-crean la
+        misma unidad nueva casi al mismo tiempo no deben tronar con
+        `UniqueViolationError` — la clave manda, así que la segunda solo
+        obtiene el id de la que la primera ya dio de alta. `POST /unidades`
+        (alta manual) sigue usando `crear`, que sí debe fallar si la clave
+        ya existe.
+        """
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into unidad (org_id, clave, nombre, sinonimos, factor)
+                    values (cast(current_setting('app.org_id') as uuid),
+                            :clave, :nombre,
+                            coalesce(cast(:sinonimos as text[]), '{}'),
+                            coalesce(cast(:factor as numeric), 1))
+                    on conflict (org_id, clave) do update set clave = excluded.clave
+                    returning id
+                    """
+                ),
+                {
+                    "clave": datos["clave"],
+                    "nombre": datos["nombre"],
+                    "sinonimos": list(datos.get("sinonimos") or []),
+                    "factor": datos.get("factor"),
+                },
+            )
+        ).scalar_one()
+
     async def obtener(self, unidad_id: UUID) -> dict[str, Any] | None:
         fila = (
             await self._sesion.execute(

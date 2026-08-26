@@ -287,7 +287,7 @@ class AplicadorMateriales:
                     homologador=unidades,
                     id_por_clave=id_unidad,
                     creadas=nuevas_unidades,
-                    crear=self._unidades.crear,
+                    crear=self._unidades.crear_o_existente,
                     dry_run=dry_run,
                 )
 
@@ -298,7 +298,7 @@ class AplicadorMateriales:
                     homologador=familias,
                     id_por_clave=id_familia,
                     creadas=nuevas_familias,
-                    crear=self._familias.crear,
+                    crear=self._familias.crear_o_existente,
                     dry_run=dry_run,
                 )
 
@@ -530,7 +530,7 @@ class AplicadorManoObra:
                     homologador=unidades,
                     id_por_clave=id_unidad,
                     creadas=nuevas_unidades,
-                    crear=self._unidades.crear,
+                    crear=self._unidades.crear_o_existente,
                     dry_run=dry_run,
                 )
 
@@ -541,7 +541,7 @@ class AplicadorManoObra:
                     homologador=familias,
                     id_por_clave=id_familia,
                     creadas=nuevas_familias,
-                    crear=self._familias.crear,
+                    crear=self._familias.crear_o_existente,
                     dry_run=dry_run,
                 )
 
@@ -552,7 +552,7 @@ class AplicadorManoObra:
                     homologador=cuadrillas,
                     id_por_clave=id_cuadrilla,
                     creadas=nuevas_cuadrillas,
-                    crear=self._cuadrillas.crear,
+                    crear=self._cuadrillas.crear_o_existente,
                     dry_run=dry_run,
                 )
                 if cuadrilla_id is not None and destajo.rendimiento_teorico is not None:
@@ -741,6 +741,13 @@ class AplicadorCPU:
         planes: dict[str, dict[str, Any]] = {}
         nuevas_unidades: dict[str, UUID | None] = {}
         nuevas_familias: dict[str, UUID | None] = {}
+        # Dict propio, no compartido con `nuevas_familias`: esa es del árbol
+        # de familias del CONCEPTO (aplica_a="concepto"); esta es del árbol
+        # de familias del INSUMO que se da de alta solo (aplica_a="material",
+        # `familias_de_insumo`). Comparten clave de texto pero son dos
+        # catálogos distintos — mezclarlas haría que la primera creada
+        # "prestara" su id a la otra sin que ninguna lo pida.
+        nuevas_familias_insumo: dict[str, UUID | None] = {}
         nuevos_insumos: dict[str, UUID | None] = {}
 
         for registro in lectura.registros:
@@ -772,7 +779,7 @@ class AplicadorCPU:
                             homologador=unidades,
                             id_por_clave=id_unidad,
                             creadas=nuevas_unidades,
-                            crear=self._unidades.crear,
+                            crear=self._unidades.crear_o_existente,
                             dry_run=dry_run,
                         )
                     familia_insumo_id = None
@@ -781,11 +788,11 @@ class AplicadorCPU:
                             _componente.familia,
                             homologador=familias_de_insumo,
                             id_por_clave=id_familia_de_insumo,
-                            creadas=nuevas_familias,
-                            crear=self._familias.crear,
+                            creadas=nuevas_familias_insumo,
+                            crear=self._familias.crear_o_existente,
                             dry_run=dry_run,
                         )
-                    return await self._insumos.crear(
+                    return await self._insumos.crear_o_existente(
                         {
                             "tipo": str(_TIPO_INSUMO_POR_CATEGORIA[_componente.categoria]),
                             "clave": clave,
@@ -869,7 +876,7 @@ class AplicadorCPU:
                     homologador=unidades,
                     id_por_clave=id_unidad,
                     creadas=nuevas_unidades,
-                    crear=self._unidades.crear,
+                    crear=self._unidades.crear_o_existente,
                     dry_run=dry_run,
                 )
 
@@ -880,7 +887,7 @@ class AplicadorCPU:
                     homologador=familias,
                     id_por_clave=id_familia,
                     creadas=nuevas_familias,
-                    crear=self._familias.crear,
+                    crear=self._familias.crear_o_existente,
                     dry_run=dry_run,
                 )
 
@@ -924,22 +931,23 @@ class AplicadorCPU:
             }
 
         vigentes: dict[str, dict[str, Any]] = {}
-        for clave, fila in por_clave.items():
+        for clave, vigente_fila in por_clave.items():
             # La composición solo se lee de los conceptos que el archivo toca:
             # para los demás el diff únicamente mira si están o no (bajas del
             # modo Reemplazar, §10.2), y explotar todo el catálogo para eso
             # sería una consulta por concepto sin necesidad.
             composicion = (
                 _firma_explosion(
-                    await self._conceptos.explosion_directa(fila["id"]), clave_de_insumo
+                    await self._conceptos.explosion_directa(vigente_fila["id"]),
+                    clave_de_insumo,
                 )
                 if clave in entrantes
                 else ""
             )
             vigentes[clave] = {
-                "descripcion": fila.get("descripcion"),
-                "unidad_id": fila.get("unidad_id"),
-                "familia_id": fila.get("familia_id"),
+                "descripcion": vigente_fila.get("descripcion"),
+                "unidad_id": vigente_fila.get("unidad_id"),
+                "familia_id": vigente_fila.get("familia_id"),
                 "composicion": composicion,
             }
 
@@ -1028,6 +1036,7 @@ class AplicadorCPU:
             detalle={
                 "unidades_creadas": len(nuevas_unidades),
                 "familias_creadas": len(nuevas_familias),
+                "familias_de_insumo_creadas": len(nuevas_familias_insumo),
                 "insumos_creados": len(nuevos_insumos),
             },
         )
@@ -1225,7 +1234,7 @@ class AplicadorCuadrillas:
                     clave: str = clave_insumo,
                     descripcion: str = integrante.descripcion or clave_insumo,
                 ) -> UUID:
-                    return await self._insumos.crear(
+                    return await self._insumos.crear_o_existente(
                         {
                             "tipo": str(TipoInsumo.MANO_OBRA),
                             "clave": clave,
@@ -1293,7 +1302,7 @@ class AplicadorCuadrillas:
                     homologador=unidades,
                     id_por_clave=id_unidad,
                     creadas=nuevas_unidades,
-                    crear=self._unidades.crear,
+                    crear=self._unidades.crear_o_existente,
                     dry_run=dry_run,
                 )
 
@@ -1319,14 +1328,18 @@ class AplicadorCuadrillas:
             planes[bloque.llave] = {"filas_integrantes": filas_integrantes, "precio": precio}
 
         vigentes: dict[str, dict[str, Any]] = {}
-        for clave, fila in por_clave.items():
+        for clave, vigente_fila in por_clave.items():
             # La composición vigente solo se lee de las cuadrillas que el
             # archivo toca: para las demás el diff únicamente mira si están
             # o no (bajas del modo Reemplazar, §10.2).
             composicion = ""
             if clave in entrantes:
                 version_vigente = next(
-                    (v for v in await self._cuadrillas.versiones(fila["id"]) if v["vigente"]),
+                    (
+                        v
+                        for v in await self._cuadrillas.versiones(vigente_fila["id"])
+                        if v["vigente"]
+                    ),
                     None,
                 )
                 if version_vigente is not None:
@@ -1335,8 +1348,8 @@ class AplicadorCuadrillas:
                         clave_de_insumo,
                     )
             vigentes[clave] = {
-                "nombre": fila.get("nombre"),
-                "unidad_id": fila.get("unidad_id"),
+                "nombre": vigente_fila.get("nombre"),
+                "unidad_id": vigente_fila.get("unidad_id"),
                 "composicion": composicion,
             }
 
@@ -2415,10 +2428,10 @@ class AplicadorPresupuesto:
                         homologador=unidades,
                         id_por_clave=id_unidad,
                         creadas=nuevas_unidades,
-                        crear=self._unidades.crear,
+                        crear=self._unidades.crear_o_existente,
                         dry_run=dry_run,
                     )
-                return await self._insumos.crear(
+                return await self._insumos.crear_o_existente(
                     {
                         "tipo": str(_TIPO_INSUMO_POR_CATEGORIA[_categoria]),
                         "clave": clave,
@@ -2515,7 +2528,7 @@ class AplicadorPresupuesto:
                 homologador=unidades,
                 id_por_clave=id_unidad,
                 creadas=nuevas_unidades,
-                crear=self._unidades.crear,
+                crear=self._unidades.crear_o_existente,
                 dry_run=dry_run,
             )
 

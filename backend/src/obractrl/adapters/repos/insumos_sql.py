@@ -120,6 +120,59 @@ class RepositorioInsumosSQL:
             )
         ).scalar_one()
 
+    async def crear_o_existente(self, datos: dict[str, Any]) -> UUID:
+        """Como `crear`, pero idempotente por clave (§3.3, §8.7).
+
+        Para el auto-alta de una carga (`_resolver_o_dar_de_alta` y los
+        `_dar_de_alta_insumo` de CPU/Presupuesto, en
+        `application.casos_uso.aplicar_carga`): dos cargas que auto-crean el
+        mismo insumo nuevo casi al mismo tiempo no deben tronar con
+        `UniqueViolationError` — la clave manda, así que la segunda solo
+        obtiene el id del que la primera ya dio de alta, sin pisar sus
+        datos. `POST /insumos`/`POST /materiales` (alta manual) siguen
+        usando `crear`, que sí debe fallar si la clave ya existe.
+        """
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into insumo
+                        (org_id, tipo, clave, descripcion, unidad_id, familia_id,
+                         costo_base, iva_aplica, factor_conversion,
+                         cuadrilla_id, rendimiento_teorico)
+                    values (cast(current_setting('app.org_id') as uuid),
+                            cast(:tipo as tipo_insumo), :clave, :descripcion,
+                            cast(:unidad_id as uuid), cast(:familia_id as uuid),
+                            coalesce(cast(:costo_base as numeric), 0),
+                            cast(:iva_aplica as boolean),
+                            coalesce(cast(:factor_conversion as numeric), 1),
+                            cast(:cuadrilla_id as uuid),
+                            cast(:rendimiento_teorico as numeric))
+                    on conflict (org_id, clave) do update set clave = excluded.clave
+                    returning id
+                    """
+                ),
+                {
+                    "tipo": datos["tipo"],
+                    "clave": datos["clave"],
+                    "descripcion": datos["descripcion"],
+                    "unidad_id": (
+                        str(datos["unidad_id"]) if datos.get("unidad_id") else None
+                    ),
+                    "familia_id": (
+                        str(datos["familia_id"]) if datos.get("familia_id") else None
+                    ),
+                    "costo_base": datos.get("costo_base"),
+                    "iva_aplica": datos.get("iva_aplica"),
+                    "factor_conversion": datos.get("factor_conversion"),
+                    "cuadrilla_id": (
+                        str(datos["cuadrilla_id"]) if datos.get("cuadrilla_id") else None
+                    ),
+                    "rendimiento_teorico": datos.get("rendimiento_teorico"),
+                },
+            )
+        ).scalar_one()
+
     async def actualizar(self, insumo_id: UUID, cambios: dict[str, Any]) -> None:
         """Edición parcial; solo las claves presentes en ``cambios`` se escriben.
 
