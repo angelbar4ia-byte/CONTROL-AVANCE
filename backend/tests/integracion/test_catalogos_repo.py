@@ -115,6 +115,7 @@ async def test_familia_crear_o_existente_es_idempotente_por_clave(
         repo = RepositorioFamiliasSQL(sesion)
         primero = await repo.crear_o_existente({"clave": "OBRA", "nombre": "OBRA"})
         segundo = await repo.crear_o_existente({"clave": "OBRA", "nombre": "OBRA"})
+        await sesion.commit()
 
     assert primero == segundo
 
@@ -155,6 +156,7 @@ async def test_insumo_crear_o_existente_es_idempotente(
         i2 = await repo.crear_o_existente(
             {"tipo": "material", "clave": "MAT-99", "descripcion": "Otra descripción"}
         )
+        await sesion.commit()
     assert i1 == i2
 
     async with sesion_con_rls(contexto_control) as sesion:
