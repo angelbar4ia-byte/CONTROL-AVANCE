@@ -842,6 +842,13 @@ class RepositorioUnidades(Protocol):
 
     async def crear(self, datos: dict) -> UUID: ...
 
+    async def crear_o_existente(self, datos: dict) -> UUID:
+        """Como `crear`, pero idempotente por clave (§3.3): si dos altas de
+        la misma clave nueva chocan casi al mismo tiempo (dos cargas
+        auto-creando, `_resolver_o_dar_de_alta`), la segunda obtiene el id
+        de la primera en vez de tronar con `UniqueViolationError`."""
+        ...
+
     async def obtener(self, unidad_id: UUID) -> dict | None: ...
 
     async def listar(self, *, solo_activos: bool = True) -> list[dict]: ...
@@ -852,6 +859,11 @@ class RepositorioFamilias(Protocol):
     """Árbol de familias (§7.3). En materiales define el IVA (§3.5)."""
 
     async def crear(self, datos: dict) -> UUID: ...
+
+    async def crear_o_existente(self, datos: dict) -> UUID:
+        """Como `crear`, pero idempotente por clave (§3.3) — ver
+        `RepositorioUnidades.crear_o_existente`."""
+        ...
 
     async def obtener(self, familia_id: UUID) -> dict | None: ...
 
@@ -875,6 +887,11 @@ class RepositorioCuadrillas(Protocol):
     """
 
     async def crear(self, datos: dict) -> UUID: ...
+
+    async def crear_o_existente(self, datos: dict) -> UUID:
+        """Como `crear`, pero idempotente por clave (§3.3) — ver
+        `RepositorioUnidades.crear_o_existente`."""
+        ...
 
     async def obtener(self, cuadrilla_id: UUID) -> dict | None: ...
 
@@ -940,6 +957,11 @@ class RepositorioInsumos(Protocol):
     """
 
     async def crear(self, datos: dict) -> UUID: ...
+
+    async def crear_o_existente(self, datos: dict) -> UUID:
+        """Como `crear`, pero idempotente por clave (§3.3) — ver
+        `RepositorioUnidades.crear_o_existente`."""
+        ...
 
     async def obtener(self, insumo_id: UUID) -> dict | None: ...
 

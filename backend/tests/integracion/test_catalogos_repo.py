@@ -17,6 +17,7 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
+from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
@@ -99,6 +100,68 @@ async def test_la_clave_es_unica_por_catalogo(
             await RepositorioUnidadesSQL(sesion).crear(
                 {"clave": "KG", "nombre": "Kilogramo"}
             )
+
+
+async def test_familia_crear_o_existente_es_idempotente_por_clave(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """`crear_o_existente` es lo que usa el auto-alta de una carga
+    (`_resolver_o_dar_de_alta`, §3.3, §8.7): dos cargas que auto-crean la
+    misma familia nueva casi al mismo tiempo no deben tronar con
+    `UniqueViolationError` — la segunda solo obtiene el id de la que la
+    primera ya dio de alta, sin pisarla. Reproduce el `IntegrityError` real
+    de producción sobre `uq_familia_clave` con `OBRA`."""
+    async with sesion_con_rls(contexto_control) as sesion:
+        repo = RepositorioFamiliasSQL(sesion)
+        primero = await repo.crear_o_existente({"clave": "OBRA", "nombre": "OBRA"})
+        segundo = await repo.crear_o_existente({"clave": "OBRA", "nombre": "OBRA"})
+        await sesion.commit()
+
+    assert primero == segundo
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        familias = await RepositorioFamiliasSQL(sesion).listar(solo_activos=False)
+    assert [f["clave"] for f in familias] == ["OBRA"]
+
+
+async def test_unidad_y_cuadrilla_crear_o_existente_tambien_son_idempotentes(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """Mismo mecanismo que familia, para los otros dos catálogos que
+    `_resolver_o_dar_de_alta` puede auto-crear."""
+    async with sesion_con_rls(contexto_control) as sesion:
+        unidades = RepositorioUnidadesSQL(sesion)
+        u1 = await unidades.crear_o_existente({"clave": "PZA", "nombre": "PZA"})
+        u2 = await unidades.crear_o_existente({"clave": "PZA", "nombre": "Pieza"})
+    assert u1 == u2
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        cuadrillas = RepositorioCuadrillasSQL(sesion)
+        c1 = await cuadrillas.crear_o_existente({"clave": "CUA-01", "nombre": "CUA-01"})
+        c2 = await cuadrillas.crear_o_existente({"clave": "CUA-01", "nombre": "CUA-01"})
+    assert c1 == c2
+
+
+async def test_insumo_crear_o_existente_es_idempotente(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """El insumo que se auto-crea desde CPU/Presupuesto/Cuadrillas cuando un
+    componente no cruza (§7.3, §8.7): la clave manda, dos altas de la misma
+    clave nueva no deben chocar."""
+    async with sesion_con_rls(contexto_control) as sesion:
+        repo = RepositorioInsumosSQL(sesion)
+        i1 = await repo.crear_o_existente(
+            {"tipo": "material", "clave": "MAT-99", "descripcion": "Material 99"}
+        )
+        i2 = await repo.crear_o_existente(
+            {"tipo": "material", "clave": "MAT-99", "descripcion": "Otra descripción"}
+        )
+        await sesion.commit()
+    assert i1 == i2
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        fila = await RepositorioInsumosSQL(sesion).obtener(i1)
+    assert fila is not None and fila["descripcion"] == "Material 99"
 
 
 async def test_familia_con_padre_y_iva(

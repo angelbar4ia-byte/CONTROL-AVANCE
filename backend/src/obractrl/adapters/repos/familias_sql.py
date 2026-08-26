@@ -63,6 +63,44 @@ class RepositorioFamiliasSQL:
             )
         ).scalar_one()
 
+    async def crear_o_existente(self, datos: dict[str, Any]) -> UUID:
+        """Como `crear`, pero idempotente por clave (§3.3, §8.7).
+
+        Para el auto-alta de una carga (`_resolver_o_dar_de_alta`,
+        `application.casos_uso.aplicar_carga`): dos cargas que auto-crean la
+        misma familia nueva casi al mismo tiempo no deben tronar con
+        `UniqueViolationError` — la clave manda, así que la segunda solo
+        obtiene el id de la que la primera ya dio de alta (sin tocar su
+        `aplica_a`: el conflicto no reescribe nada, solo devuelve el id).
+        `POST /familias` (alta manual) sigue usando `crear`, que sí debe
+        fallar si la clave ya existe.
+        """
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into familia
+                        (org_id, parent_id, clave, nombre, aplica_a, iva_aplica)
+                    values (cast(current_setting('app.org_id') as uuid),
+                            cast(:parent_id as uuid), :clave, :nombre,
+                            coalesce(cast(:aplica_a as text), 'material'),
+                            coalesce(cast(:iva_aplica as boolean), true))
+                    on conflict (org_id, clave) do update set clave = excluded.clave
+                    returning id
+                    """
+                ),
+                {
+                    "parent_id": (
+                        str(datos["parent_id"]) if datos.get("parent_id") else None
+                    ),
+                    "clave": datos["clave"],
+                    "nombre": datos["nombre"],
+                    "aplica_a": datos.get("aplica_a"),
+                    "iva_aplica": datos.get("iva_aplica"),
+                },
+            )
+        ).scalar_one()
+
     async def obtener(self, familia_id: UUID) -> dict[str, Any] | None:
         fila = (
             await self._sesion.execute(
