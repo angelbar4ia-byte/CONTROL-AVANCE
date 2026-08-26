@@ -2457,7 +2457,23 @@ class AplicadorPresupuesto:
             if clave_insumo not in costos_insumo:
                 costos_insumo[clave_insumo] = hijo.precio_unitario or Decimal(0)
 
-            cantidad = hijo.cantidad if hijo.cantidad is not None else Decimal(0)
+            if hijo.cantidad is None:
+                cantidad = Decimal(0)
+            elif nodo.tipo in (
+                TipoNodoPresupuesto.CONCEPTO,
+                TipoNodoPresupuesto.CONCEPTO_AUXILIAR,
+            ):
+                # El árbol trae cantidades absolutas para este nodo del
+                # prototipo, no ya el rendimiento por unidad (§7.3): dividir
+                # entre lo que el propio concepto/auxiliar acumula es lo que
+                # saca el PU real, comparable entre prototipos (§10.6).
+                cantidad_padre = nodo.cantidad if nodo.cantidad else Decimal(1)
+                cantidad = hijo.cantidad / cantidad_padre
+            else:
+                # Etapa colapsada: no tiene cantidad propia comparable (el
+                # archivo la trae vacía) — su total ya es el de los hijos,
+                # se usa tal cual.
+                cantidad = hijo.cantidad
             try:
                 del_dominio = Componente(
                     categoria=categoria,
