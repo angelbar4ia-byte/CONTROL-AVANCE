@@ -2581,13 +2581,21 @@ class AplicadorPresupuesto:
             # Composición distinta a la vigente: ¿es un prototipo DISTINTO
             # el que ya depende de ella (conflicto real), o es este mismo
             # prototipo recargando una corrección (actualización legítima,
-            # nadie más se queda con datos viejos)? La consulta es de solo
-            # lectura — se hace igual en dry_run, para que la vista previa
-            # cuente igual que el commit (§9.3).
+            # nadie más se queda con datos viejos)? Las dos consultas son de
+            # solo lectura — se hacen igual en dry_run, para que la vista
+            # previa cuente igual que el commit (§9.3).
             otros = await self._presupuestos.otros_prototipos_con_partida_vigente(
                 concepto_id, excluir_prototipo_id=prototipo_id
             )
-            conflicto = bool(otros)
+            si_mismo = await self._presupuestos.tiene_partida_vigente(
+                concepto_id, prototipo_id
+            )
+            # Si ni otro prototipo ni yo mismo tenemos una partida vigente
+            # para este concepto, su composición vigente no vino de ningún
+            # prototipo — vino del catálogo de CPU (§10.6), que es quien
+            # manda ahí. Sobreescribirla en silencio le quitaría al CPU su
+            # fuente de verdad; se trata igual que un conflicto real.
+            conflicto = bool(otros) or not si_mismo
 
         if conflicto:
             contadores["conceptos_en_conflicto"] += 1

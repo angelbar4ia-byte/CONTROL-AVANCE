@@ -402,6 +402,19 @@ class RepositorioPresupuestos(Protocol):
         vieja — la carga puede actualizarlo sin pedir permiso."""
         ...
 
+    async def tiene_partida_vigente(self, concepto_id: UUID, prototipo_id: UUID) -> bool:
+        """¿El presupuesto **vigente** de ``prototipo_id`` ya tiene una
+        partida para este concepto?
+
+        Complementa a `otros_prototipos_con_partida_vigente` (§10.8): esa
+        responde "¿alguien MÁS depende de la composición vigente?"; esta
+        responde "¿soy YO quien la puso?". Sin las dos, un concepto cuya
+        composición vigente vino del catálogo de CPU (§10.6, sin ningún
+        prototipo de por medio) se veía como "nadie depende de él todavía"
+        y el árbol de ingeniería la sobreescribía sin avisar — el catálogo
+        de CPU dejaba de ser la fuente de verdad."""
+        ...
+
     async def versiones_de_prototipo(self, prototipo_id: UUID) -> list[dict]: ...
 
     async def rendimiento_por_concepto(self, obra_id: UUID) -> list[dict]: ...
