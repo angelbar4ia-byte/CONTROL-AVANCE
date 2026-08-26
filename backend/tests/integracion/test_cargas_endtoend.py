@@ -1795,6 +1795,35 @@ async def test_dos_prototipos_comparten_concepto_con_misma_composicion(
     assert partidas10[0]["precio_unitario"] == partidas11[0]["precio_unitario"]
 
 
+async def test_un_insumo_desconocido_en_presupuesto_se_da_de_alta_solo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Mismo criterio que `AplicadorCPU` (§7.3, §8.7): un material que no
+    cruza en el árbol de ingeniería por prototipo se da de alta solo, con
+    lo que trae la fila —clave, descripción, unidad, costo—; no hace falta
+    sembrarlo antes con una carga de Materiales."""
+    await _con_prototipos(contexto_control, "CAS-90")
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(_prototipo_simple("CAS-90", "EST-90", 5)),
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+    assert resultado.pendientes == 0
+
+    assert "EST-90" in await _conceptos(contexto_control)
+
+    alambre = (await _insumos(contexto_control))["ACE-01"]
+    assert alambre["tipo"] == "material"
+    assert alambre["descripcion"] == "Alambre"
+    assert alambre["costo_base"] == Decimal("20.0000")
+    # "KG" tampoco estaba sembrada: se dio de alta sola (§8.7).
+    assert "KG" in await _unidades(contexto_control)
+
+
 async def test_composicion_distinta_genera_conflicto_y_no_toca_el_catalogo(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:

@@ -643,11 +643,14 @@ class AplicadorManoObra:
 _TIPO_INSUMO_POR_CATEGORIA: dict[CategoriaExplosion, TipoInsumo] = {
     CategoriaExplosion.MATERIAL: TipoInsumo.MATERIAL,
     CategoriaExplosion.MANO_OBRA: TipoInsumo.MANO_OBRA,
+    CategoriaExplosion.DESTAJO: TipoInsumo.MANO_OBRA,
     CategoriaExplosion.SUBCONTRATO: TipoInsumo.SUBCONTRATO,
 }
-"""Tipo del insumo que se da de alta cuando un componente del CPU no cruza
-contra el catálogo. Mismo dominio que `cpu.CATEGORIA_POR_TIPO`: el archivo
-plano del §10.6 nunca produce otra `categoria` que estas tres."""
+"""Tipo del insumo que se da de alta cuando un componente no cruza contra el
+catálogo — de `AplicadorCPU` (`cpu.CATEGORIA_POR_TIPO`, nunca produce
+`DESTAJO`) y de `AplicadorPresupuesto` (`_CATEGORIA_POR_TIPO_NODO`, nunca
+produce `MANO_OBRA`): un componente de otra categoría no llega hasta aquí
+en ninguno de los dos."""
 
 
 class AplicadorCPU:
@@ -2037,6 +2040,7 @@ class AplicadorPresupuesto:
         insumos_filas = await self._insumos.listar(solo_activos=False)
         insumos_por_clave = {str(f["clave"]): f for f in insumos_filas}
         clave_de_insumo = {f["id"]: str(f["clave"]) for f in insumos_filas}
+        id_insumo = {str(f["clave"]): f["id"] for f in insumos_filas}
         insumos = Homologador.desde(
             insumos_filas, mapeos=await self._cargas.mapeos("insumo")
         )
@@ -2068,6 +2072,7 @@ class AplicadorPresupuesto:
             "partidas": 0,
         }
         nuevas_unidades: dict[str, UUID | None] = {}
+        nuevos_insumos: dict[str, UUID | None] = {}
 
         for registro in lectura.registros:
             arbol: ArbolPrototipoCargado = registro  # type: ignore[assignment]
@@ -2109,6 +2114,8 @@ class AplicadorPresupuesto:
                     insumos=insumos,
                     insumos_por_clave=insumos_por_clave,
                     clave_de_insumo=clave_de_insumo,
+                    id_insumo=id_insumo,
+                    nuevos_insumos=nuevos_insumos,
                     costos_insumo=costos_insumo,
                     unidades=unidades,
                     id_unidad=id_unidad,
@@ -2186,7 +2193,11 @@ class AplicadorPresupuesto:
                 + contadores["conceptos_sin_cambio"]
                 + lectura.omitidos
             ),
-            detalle={**contadores, "unidades_creadas": len(nuevas_unidades)},
+            detalle={
+                **contadores,
+                "unidades_creadas": len(nuevas_unidades),
+                "insumos_creados": len(nuevos_insumos),
+            },
         )
 
     async def _procesar_subarbol(
@@ -2201,6 +2212,8 @@ class AplicadorPresupuesto:
         insumos: Homologador,
         insumos_por_clave: dict[str, dict[str, Any]],
         clave_de_insumo: dict[Any, str],
+        id_insumo: dict[str, Any],
+        nuevos_insumos: dict[str, UUID | None],
         costos_insumo: dict[str, Decimal],
         unidades: Homologador,
         id_unidad: dict[str, Any],
@@ -2247,6 +2260,8 @@ class AplicadorPresupuesto:
                 insumos=insumos,
                 insumos_por_clave=insumos_por_clave,
                 clave_de_insumo=clave_de_insumo,
+                id_insumo=id_insumo,
+                nuevos_insumos=nuevos_insumos,
                 costos_insumo=costos_insumo,
                 unidades=unidades,
                 id_unidad=id_unidad,
@@ -2324,6 +2339,8 @@ class AplicadorPresupuesto:
                 insumos=insumos,
                 insumos_por_clave=insumos_por_clave,
                 clave_de_insumo=clave_de_insumo,
+                id_insumo=id_insumo,
+                nuevos_insumos=nuevos_insumos,
                 costos_insumo=costos_insumo,
                 unidades=unidades,
                 id_unidad=id_unidad,
@@ -2351,6 +2368,8 @@ class AplicadorPresupuesto:
         insumos: Homologador,
         insumos_por_clave: dict[str, dict[str, Any]],
         clave_de_insumo: dict[Any, str],
+        id_insumo: dict[str, Any],
+        nuevos_insumos: dict[str, UUID | None],
         costos_insumo: dict[str, Decimal],
         unidades: Homologador,
         id_unidad: dict[str, Any],
@@ -2380,13 +2399,50 @@ class AplicadorPresupuesto:
                 # tipo MATERIAL/DESTAJO/SUBCONTRATO de un concepto.
                 continue
 
-            clave_insumo = insumos.resolver(hijo.clave)
-            if clave_insumo is None:
-                pendientes.append(
-                    _pendiente_de_mapeo("insumo", hijo.clave, hijo.fila, critico=True)
+            clave_insumo = insumos.resolver(hijo.clave) or hijo.clave
+
+            async def _dar_de_alta_insumo(
+                _datos: dict[str, Any],
+                *,
+                _hijo: NodoLeido = hijo,
+                _categoria: CategoriaExplosion = categoria,
+                clave: str = hijo.clave,
+            ) -> UUID:
+                unidad_insumo_id = None
+                if _hijo.unidad:
+                    unidad_insumo_id = await _resolver_o_dar_de_alta(
+                        _hijo.unidad,
+                        homologador=unidades,
+                        id_por_clave=id_unidad,
+                        creadas=nuevas_unidades,
+                        crear=self._unidades.crear,
+                        dry_run=dry_run,
+                    )
+                return await self._insumos.crear(
+                    {
+                        "tipo": str(_TIPO_INSUMO_POR_CATEGORIA[_categoria]),
+                        "clave": clave,
+                        "descripcion": _hijo.descripcion or clave,
+                        "unidad_id": unidad_insumo_id,
+                        "costo_base": _hijo.precio_unitario or Decimal(0),
+                    }
                 )
-                incompleto = True
-                continue
+
+            insumo_id = await _resolver_o_dar_de_alta(
+                hijo.clave,
+                homologador=insumos,
+                id_por_clave=id_insumo,
+                creadas=nuevos_insumos,
+                crear=_dar_de_alta_insumo,
+                dry_run=dry_run,
+            )
+            if clave_insumo not in insumos_por_clave:
+                # En `dry_run` sobre un insumo nuevo, `insumo_id` es `None`
+                # (§9.3): igual se registra para que el `["id"]` de abajo no
+                # truene; solo se lee de verdad dentro de `if not dry_run:`.
+                insumos_por_clave[clave_insumo] = {"id": insumo_id}
+            if clave_insumo not in costos_insumo:
+                costos_insumo[clave_insumo] = hijo.precio_unitario or Decimal(0)
 
             cantidad = hijo.cantidad if hijo.cantidad is not None else Decimal(0)
             try:
