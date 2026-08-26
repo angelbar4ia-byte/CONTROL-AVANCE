@@ -66,6 +66,13 @@ class TipoPendiente(StrEnum):
     catálogo compartido se queda como estaba — no se sobreescribe en
     automático — hasta que alguien lo resuelva a mano."""
 
+    DESCRIPCION_DISTINTA = "descripcion_distinta"
+    """La clave cruzó contra un catálogo base, pero la descripción que trae
+    esta fila no coincide con la registrada (extensión propia, homologación
+    con alerta de CPU/árbol contra catálogos base, §8.7). **No crítico**: la
+    clave manda (§3.3) y el cruce se aplica igual — esto solo abre la alerta
+    para que alguien revise después cuál descripción es la correcta."""
+
 
 @dataclass(frozen=True, slots=True)
 class ErrorDeFila:

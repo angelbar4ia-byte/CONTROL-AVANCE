@@ -25,6 +25,7 @@ from obractrl.domain.cargadores.almacen import (
 )
 from obractrl.domain.cargadores.cabeceras import (
     ALMACEN,
+    CONCEPTOS_BASE,
     CUADRILLAS,
     MANO_DE_OBRA,
     MAPA_CPU,
@@ -35,6 +36,8 @@ from obractrl.domain.cargadores.cabeceras import (
     indice_de_letra,
     resolver_encabezados,
 )
+from obractrl.domain.cargadores.claves_automaticas import generar_clave_automatica
+from obractrl.domain.cargadores.conceptos_base import validar_concepto_base
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.cuadrillas import agrupar_cuadrillas
 from obractrl.domain.cargadores.homologacion import Homologador
@@ -55,6 +58,7 @@ from obractrl.domain.shared.normalizacion import (
     a_decimal,
     a_fecha,
     canonizar_encabezado,
+    similar,
 )
 
 # --- Normalización de encabezados y valores (§8.6) -----------------------
@@ -235,6 +239,92 @@ def test_una_columna_ausente_queda_en_none_no_en_cero() -> None:
     material = validar_material(["CEM-01", "Cemento gris"], mapa, 2)
     assert material.costo_base is None
     assert material.iva is None
+
+
+# --- Catálogo base de conceptos (§8.7 `CABECERAS_CONCEPTOS.xlsx`) --------
+
+_MAPA_CONCEPTOS_BASE = resolver_encabezados(["Clave", "Descripción", "Unidad"], CONCEPTOS_BASE)
+
+
+def test_una_fila_de_concepto_base_completa_queda_validada() -> None:
+    concepto = validar_concepto_base(
+        ["EST-01", " Muro de block  hueco ", "m2"], _MAPA_CONCEPTOS_BASE, 5
+    )
+    assert concepto.llave == "EST-01"  # `Clave` normaliza (§3.3)
+    assert concepto.descripcion == "Muro de block hueco"
+    assert concepto.unidad == "m2"
+    assert concepto.fila == 5
+
+
+def test_concepto_base_sin_unidad_queda_en_none() -> None:
+    concepto = validar_concepto_base(["EST-02", "Losa de azotea", ""], _MAPA_CONCEPTOS_BASE, 6)
+    assert concepto.unidad is None
+
+
+def test_concepto_base_sin_descripcion_es_error_de_fila() -> None:
+    """Sin descripción no hay con qué identificar el concepto (§10.1),
+    aunque sí traiga clave."""
+    with pytest.raises(ErrorEnFila, match="descripcion"):
+        validar_concepto_base(["EST-03", "", "m2"], _MAPA_CONCEPTOS_BASE, 7)
+
+
+def test_concepto_base_sin_clave_no_se_rechaza() -> None:
+    """A diferencia de materiales, una clave vacía no es error aquí: el
+    usuario pidió que un catálogo base sin clave se numere solo (§8.7). La
+    fila queda con ``clave=None`` — quien numera es el aplicador, que sí
+    conoce el catálogo vigente (este módulo es puro, §12.11)."""
+    concepto = validar_concepto_base(["", "Trabe de cimentación", "ml"], _MAPA_CONCEPTOS_BASE, 8)
+    assert concepto.clave is None
+    assert concepto.llave == "__sin_clave__8"
+
+
+def test_dos_conceptos_base_sin_clave_no_se_confunden_en_el_dedup() -> None:
+    """`llave` usa el renglón cuando no hay clave: dos filas sin clave son
+    dos candidatos a numerar, no "la misma fila repetida" (§10.2)."""
+    primero = validar_concepto_base(["", "Trabe A", "ml"], _MAPA_CONCEPTOS_BASE, 8)
+    segundo = validar_concepto_base(["", "Trabe B", "ml"], _MAPA_CONCEPTOS_BASE, 9)
+    assert primero.llave != segundo.llave
+
+
+# --- Clave automática (§8.7: catálogo base sin indicador de clave) -------
+
+
+def test_clave_automatica_empieza_en_00001_sin_precedentes() -> None:
+    assert generar_clave_automatica("FAM", []) == "FAM-00001"
+
+
+def test_clave_automatica_sigue_el_consecutivo_mas_alto() -> None:
+    assert (
+        generar_clave_automatica("FAM", ["FAM-00001", "FAM-00007", "FAM-00003"]) == "FAM-00008"
+    )
+
+
+def test_clave_automatica_ignora_claves_de_otro_prefijo() -> None:
+    """Una clave `CUA-00042` no compite por el consecutivo de `FAM` — son
+    catálogos distintos aunque compartan la forma."""
+    assert generar_clave_automatica("FAM", ["CUA-00042", "FAM-00001"]) == "FAM-00002"
+
+
+# --- Similitud de descripciones (§8.7: homologación con alerta) ----------
+
+
+def test_dos_descripciones_identicas_normalizadas_son_similares() -> None:
+    assert similar("Muro de Block", "  muro   de block ") is True
+
+
+def test_dos_descripciones_claramente_distintas_no_son_similares() -> None:
+    assert similar("Muro de block", "Losa de azotea") is False
+
+
+def test_una_descripcion_con_una_palabra_de_menos_sigue_siendo_similar() -> None:
+    assert similar("Muro de block", "Muro block") is True
+
+
+def test_una_descripcion_abreviada_es_similar_a_la_completa() -> None:
+    """Caso real: un renglón de componente de CPU trae "Block" para el
+    mismo insumo que el catálogo describe como "Block de concreto" — es
+    menos texto, no un insumo distinto que alertar."""
+    assert similar("Block", "Block de concreto") is True
 
 
 # --- Mano de obra / Destajos (§10.6 `CABECERAS_MANO_DE_OBRA.xlsx`) --------

@@ -28,6 +28,7 @@ from obractrl.adapters.excel.pipeline import (
 from obractrl.domain.cargadores import cabeceras
 from obractrl.domain.cargadores.almacen import validar_movimiento
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera, resolver_encabezados
+from obractrl.domain.cargadores.conceptos_base import validar_concepto_base
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.cuadrillas import agrupar_cuadrillas
 from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra
@@ -42,6 +43,7 @@ __all__ = [
     "CARGADORES",
     "CargadorAlmacen",
     "CargadorCPU",
+    "CargadorConceptosBase",
     "CargadorCuadrillas",
     "CargadorManoObra",
     "CargadorMateriales",
@@ -162,6 +164,29 @@ class CargadorAlmacen:
         )
 
 
+class CargadorConceptosBase:
+    """Catálogo base de conceptos — `CABECERAS_CONCEPTOS.xlsx` (§8.7).
+
+    Identidad únicamente: clave, descripción, unidad. La composición del
+    concepto (qué lleva y con qué costo) es CPU (`CargadorCPU`, más abajo),
+    un cargador y un archivo distintos.
+    """
+
+    tipo = TipoCarga.CATALOGO_CONCEPTOS
+    especificacion = cabeceras.CONCEPTOS_BASE
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            validar_concepto_base,
+            limites=self._limites,
+        )
+
+
 class CargadorCPU:
     """CPU / Conceptos — `CABECERAS_CPU.xlsx`, hoja `EXPORTADOR` (§10.6).
 
@@ -170,7 +195,7 @@ class CargadorCPU:
     sería suponer un contrato que el spec no da.
     """
 
-    tipo = TipoCarga.CATALOGO_CONCEPTOS
+    tipo = TipoCarga.CPU
     especificacion = cabeceras.CPU
 
     def __init__(self, *, limites: Limites = LIMITES) -> None:
@@ -327,7 +352,8 @@ CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.MANO_DE_OBRA: CargadorManoObra,
     TipoCarga.SUBCONTRATOS: CargadorSubcontratos,
     TipoCarga.CUADRILLAS: CargadorCuadrillas,
-    TipoCarga.CATALOGO_CONCEPTOS: CargadorCPU,
+    TipoCarga.CATALOGO_CONCEPTOS: CargadorConceptosBase,
+    TipoCarga.CPU: CargadorCPU,
     TipoCarga.ALMACEN: CargadorAlmacen,
     TipoCarga.PROTOTIPOS: CargadorPrototipos,
     TipoCarga.PRESUPUESTO: CargadorPresupuesto,

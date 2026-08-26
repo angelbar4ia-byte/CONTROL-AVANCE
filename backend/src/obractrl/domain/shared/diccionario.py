@@ -277,6 +277,11 @@ class EstatusProceso(_Canonico):
 
 class TipoCarga(_Canonico):
     CATALOGO_CONCEPTOS = "catalogo_conceptos"
+    """`CABECERAS_CONCEPTOS.xlsx` (§8.7): catálogo base de identidad de
+    conceptos — clave, descripción, unidad, nada más. No es CPU: la
+    composición del concepto vive en `CPU`, más abajo (antes compartían
+    este mismo tipo)."""
+
     MATERIALES = "materiales"
     CONTRATISTAS = "contratistas"
     UNIDADES = "unidades"
@@ -326,6 +331,15 @@ class TipoCarga(_Canonico):
     `MANO_DE_OBRA`, `TIPO=Subcontrato`, claves `SUB-xxxxx`. Alimenta el
     catálogo de insumos con `tipo=subcontrato`. Espejo en la base:
     `database/migrations/20260814000034_carga_de_subcontratos.sql`.
+    """
+
+    CPU = "cpu"
+    """`CABECERAS_CPU.xlsx`, hoja `EXPORTADOR` (§10.6): el análisis/
+    composición de un concepto (qué materiales, mano de obra y subcontrato
+    lleva, con qué cantidad y costo). Antes compartía tipo con
+    `CATALOGO_CONCEPTOS`; se separan porque catálogo = identidad (clave,
+    descripción, unidad) y CPU = composición son cosas distintas (§8.7).
+    Espejo en la base: `database/migrations/20260814000035_carga_de_cpu.sql`.
     """
 
 

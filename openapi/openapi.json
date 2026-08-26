@@ -13752,7 +13752,8 @@
           "prototipos",
           "mano_de_obra",
           "cuadrillas",
-          "subcontratos"
+          "subcontratos",
+          "cpu"
         ],
         "title": "TipoCarga"
       },

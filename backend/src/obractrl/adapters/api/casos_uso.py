@@ -51,6 +51,7 @@ from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
 from obractrl.adapters.repos.usuarios_sql import RepositorioUsuariosSQL
 from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorAlmacen,
+    AplicadorConceptosBase,
     AplicadorCPU,
     AplicadorCuadrillas,
     AplicadorDeCarga,
@@ -858,6 +859,12 @@ class FabricaDeCargas:
                 cargas=cargas,
             )
         if tipo is TipoCarga.CATALOGO_CONCEPTOS:
+            return AplicadorConceptosBase(
+                conceptos=RepositorioConceptosSQL(sesion),
+                unidades=RepositorioUnidadesSQL(sesion),
+                cargas=cargas,
+            )
+        if tipo is TipoCarga.CPU:
             return AplicadorCPU(
                 conceptos=RepositorioConceptosSQL(sesion),
                 insumos=RepositorioInsumosSQL(sesion),
