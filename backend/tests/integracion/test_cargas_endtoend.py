@@ -2055,6 +2055,90 @@ async def test_revertir_una_carga_de_presupuesto_deshace_arbol_y_version(
     assert vigente is None
 
 
+async def test_presupuesto_divide_la_cantidad_del_hijo_entre_la_del_concepto(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """La `CANTIDAD` del árbol es absoluta para ese nodo del prototipo, no
+    ya rendimiento por unidad (§7.3, §10.6): con un concepto de 250
+    unidades y 500 kg de material a $20, el PU real es (500/250) × 20 =
+    $40 — no 500 × 20, que es lo que daría usar la cantidad del hijo tal
+    cual (el bug real: ningún test anterior lo veía porque todos usaban
+    cantidad=1 en el concepto, y dividir entre 1 es un no-op)."""
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-91")
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(
+            [
+                [1, None, "CAS-91", "Prototipo", None, None, None, None, "PROTOTIPO"],
+                [1, "CAS-91", "NIV-1", "Cimentación", None, None, None, None, "NIVEL DE CONSTRUCCION"],
+                [1, "NIV-1", "ECO-1", "Estructura", None, None, None, None, "ETAPA DE CONSTRUCCION"],
+                [1, "ECO-1", "EST-11", "Losa", None, 250, 0, 0, "CONCEPTO"],
+                [1, "EST-11", "ACE-01", "Alambre", "KG", 500, 20, None, "MATERIAL"],
+            ]
+        ),
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+
+    conceptos = await _conceptos(contexto_control)
+    async with sesion_con_rls(contexto_control) as sesion:
+        versiones = await RepositorioConceptosSQL(sesion).versiones_cpu(
+            conceptos["EST-11"]["id"]
+        )
+    assert versiones[0]["precio_unitario"] == Decimal("40.0000")
+
+
+async def test_presupuesto_suma_conceptos_y_auxiliares_de_la_misma_etapa(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """`CONCEPTO` y `CONCEPTO AUXILIAR` cuelgan igual de una etapa: cada uno
+    da de alta su propio `concepto`/`cpu` y su propia partida — el total del
+    prototipo es la suma de las dos, "aparecen todos" (§7.3, §7.4)."""
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-92")
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(
+            [
+                [1, None, "CAS-92", "Prototipo", None, None, None, None, "PROTOTIPO"],
+                [1, "CAS-92", "NIV-1", "Cimentación", None, None, None, None, "NIVEL DE CONSTRUCCION"],
+                [1, "NIV-1", "ECO-1", "Estructura", None, None, None, None, "ETAPA DE CONSTRUCCION"],
+                [1, "ECO-1", "EST-12", "Losa", None, 10, 0, 0, "CONCEPTO"],
+                [1, "EST-12", "ACE-01", "Alambre", "KG", 20, 20, None, "MATERIAL"],
+                [1, "ECO-1", "AUX-01", "Cimbra", None, 5, 0, 0, "CONCEPTO AUXILIAR"],
+                [1, "AUX-01", "ACE-01", "Alambre", "KG", 15, 20, None, "MATERIAL"],
+            ]
+        ),
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+
+    conceptos = await _conceptos(contexto_control)
+    assert {"EST-12", "AUX-01"} <= set(conceptos)
+    assert conceptos["AUX-01"]["tipo"] == "auxiliar"
+
+    prototipos = await _prototipos(contexto_control)
+    async with sesion_con_rls(contexto_control) as sesion:
+        presupuestos = RepositorioPresupuestosSQL(sesion)
+        version = await presupuestos.vigente_de_prototipo(prototipos["CAS-92"]["id"])
+        partidas = await presupuestos.partidas(version["id"])
+
+    # EST-12: (20/10)×20 = 40 de PU × 10 = 400. AUX-01: (15/5)×20 = 60 de PU × 5 = 300.
+    assert {p["concepto_id"] for p in partidas} == {
+        conceptos["EST-12"]["id"],
+        conceptos["AUX-01"]["id"],
+    }
+    assert sum(Decimal(str(p["importe"])) for p in partidas) == Decimal("700.0000")
+    assert version["monto_total"] == Decimal("700.0000")
+
+
 # --- Un solo tipo de carga, dos formatos de archivo ----------------------
 
 
