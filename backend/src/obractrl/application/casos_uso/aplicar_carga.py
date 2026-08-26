@@ -1957,25 +1957,23 @@ _CATEGORIA_POR_TIPO_NODO: dict[TipoNodoPresupuesto, CategoriaExplosion] = {
 
 
 def _clave_catalogo_concepto(nodo: NodoLeido, arbol: ArbolPrototipoCargado) -> str:
-    """La clave que identifica el concepto en el catálogo **compartido**.
+    """La clave que identifica el concepto **propio de este prototipo**.
 
-    Para `CONCEPTO`/`CONCEPTO_AUXILIAR` es la propia clave del archivo
-    (`EST-`, `SUB-`...): es catálogo real, la misma composición vale para
-    cualquier prototipo que la use — por diseño (§7.3).
+    El árbol de ingeniería por prototipo y el catálogo de CPU (`CABECERAS_
+    CPU.xlsx`, `AplicadorCPU`) son dos estructuras de carga separadas: cada
+    una con su propio universo de conceptos, sin compartir clave ni
+    competir por cuál composición es "la vigente" (decidido explícitamente
+    con el usuario — los cruces entre las dos quedan para más adelante).
 
-    Para una etapa que colapsa en concepto
-    (`es_etapa_con_componentes_directos`) **no existe tal cosa**: dos
-    prototipos comparten la misma clave de etapa (`ECO-...`) para un paso
-    que no tiene por qué costar lo mismo en cada uno —es la estructura del
-    archivo real, no una excepción—, así que no hay "la vigente" que
-    compartir. Se aísla con la clave del prototipo para que cada uno tenga
-    su propia fila de `concepto`/`explosion`/`cpu` y nunca compitan por
-    cuál es la buena: ni conflicto que resolver, ni riesgo de que el
-    catálogo compartido termine con la composición de un prototipo ajeno.
+    Por eso TODO nodo de este árbol —`CONCEPTO`, `CONCEPTO_AUXILIAR` y la
+    etapa que colapsa en concepto (`es_etapa_con_componentes_directos`)— se
+    namespacea con la clave del prototipo: dos prototipos pueden repetir la
+    misma clave de archivo (`EST-01`, `ACA-01080`...) sin que compartan fila
+    de `concepto`/`explosion`/`cpu` ni disputen cuál es la buena. Nunca hay
+    conflicto que resolver, y el catálogo de CPU nunca se ve tocado por
+    esta carga.
     """
-    if nodo.tipo is TipoNodoPresupuesto.ETAPA:
-        return f"{nodo.clave}~{arbol.clave_prototipo}"
-    return nodo.clave
+    return f"{nodo.clave}~{arbol.clave_prototipo}"
 
 
 class AplicadorPresupuesto:
