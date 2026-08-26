@@ -1868,6 +1868,79 @@ async def test_composicion_distinta_genera_conflicto_y_no_toca_el_catalogo(
     assert partida20["precio_unitario"] != partida21["precio_unitario"]
 
 
+async def test_presupuesto_no_sobreescribe_un_concepto_que_ya_trae_el_catalogo_de_cpu(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """El bug real: `otros_prototipos_con_partida_vigente` solo veía otros
+    PROTOTIPOS, no el catálogo de CPU (§10.6) — un concepto dado de alta por
+    `AplicadorCPU` (ningún prototipo de por medio todavía) se veía como
+    "nadie depende de él" y el árbol de ingeniería lo sobreescribía sin
+    avisar. Ahora también cuenta como conflicto si NI otro prototipo NI
+    este mismo tienen ya una partida vigente para esa clave."""
+    await _sembrar_insumos(contexto_control)
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_cpu(
+            [
+                _fila_cpu("EST-50", "EST-50", "Muro de block", "ton", tipo="Concepto"),
+                _fila_cpu(insumo="MAT-01", cantidad="10", pu="20", tipo="Material"),
+            ]
+        ),
+    )
+    conceptos_previos = await _conceptos(contexto_control)
+    async with sesion_con_rls(contexto_control) as sesion:
+        cpu_del_catalogo = await RepositorioConceptosSQL(sesion).versiones_cpu(
+            conceptos_previos["EST-50"]["id"]
+        )
+    assert cpu_del_catalogo[0]["precio_unitario"] == Decimal("200.0000")
+
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-93")
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(
+            [
+                [1, None, "CAS-93", "Prototipo", None, None, None, None, "PROTOTIPO"],
+                [1, "CAS-93", "NIV-1", "Cimentación", None, None, None, None, "NIVEL DE CONSTRUCCION"],
+                [1, "NIV-1", "ECO-1", "Estructura", None, None, None, None, "ETAPA DE CONSTRUCCION"],
+                [1, "ECO-1", "EST-50", "Muro de block", None, 1, 0, 0, "CONCEPTO"],
+                [1, "EST-50", "ACE-01", "Alambre", "KG", 999, 1, None, "MATERIAL"],
+            ]
+        ),
+    )
+
+    assert resultado.resumen.errores == 0  # el conflicto es pendiente, no error
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(
+            carga_id=resultado.carga_id
+        )
+    en_conflicto = [
+        b for b in bandeja if b["tipo"] == str(TipoPendiente.CONCEPTO_EN_CONFLICTO)
+    ]
+    assert len(en_conflicto) == 1
+    assert en_conflicto[0]["valor_origen"] == "EST-50"
+
+    # El catálogo se quedó con la composición del CPU — el árbol NO la tocó.
+    async with sesion_con_rls(contexto_control) as sesion:
+        cpu_despues = await RepositorioConceptosSQL(sesion).versiones_cpu(
+            conceptos_previos["EST-50"]["id"]
+        )
+    assert len(cpu_despues) == 1
+    assert cpu_despues[0]["precio_unitario"] == Decimal("200.0000")
+
+    # La partida de ESTE prototipo sí usa su propia composición (§7.4).
+    prototipos = await _prototipos(contexto_control)
+    async with sesion_con_rls(contexto_control) as sesion:
+        presupuestos = RepositorioPresupuestosSQL(sesion)
+        version = await presupuestos.vigente_de_prototipo(prototipos["CAS-93"]["id"])
+        partida = (await presupuestos.partidas(version["id"]))[0]
+    assert partida["precio_unitario"] == Decimal("999.0000")
+
+
 async def test_etapa_sin_concepto_intermedio_crea_concepto_con_su_clave(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:

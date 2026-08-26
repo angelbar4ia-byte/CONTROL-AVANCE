@@ -172,6 +172,26 @@ class RepositorioPresupuestosSQL:
         ).all()
         return [fila.prototipo_id for fila in filas]
 
+    async def tiene_partida_vigente(
+        self, concepto_id: UUID, prototipo_id: UUID
+    ) -> bool:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select 1
+                      from partida_presupuesto pp
+                      join presupuesto p on p.id = pp.presupuesto_id and p.vigente
+                     where p.org_id = cast(current_setting('app.org_id') as uuid)
+                       and pp.concepto_id = :concepto_id
+                       and p.prototipo_id = :prototipo_id
+                    """
+                ),
+                {"concepto_id": str(concepto_id), "prototipo_id": str(prototipo_id)},
+            )
+        ).first()
+        return fila is not None
+
     # --- Presupuesto ----------------------------------------------------
 
     async def vigente_de_prototipo(self, prototipo_id: UUID) -> dict[str, Any] | None:
