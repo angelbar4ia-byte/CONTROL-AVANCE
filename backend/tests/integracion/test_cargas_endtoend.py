@@ -258,12 +258,12 @@ def _etapa_colapsada(
 def test_plantilla_de_catalogo_de_conceptos_es_por_nombre_no_posicional() -> None:
     """Antes CATALOGO_CONCEPTOS *era* CPU: la plantilla no puede seguir
     dando el layout posicional de 9 columnas para un archivo que ahora es
-    clave/descripción/unidad por nombre."""
+    clave/descripción/unidad(/clave_unidad) por nombre."""
     libro = load_workbook(BytesIO(plantilla_de(TipoCarga.CATALOGO_CONCEPTOS)))
     hoja = libro.active
     assert hoja is not None
     encabezados = [c.value for c in hoja[1] if c.value is not None]
-    assert encabezados == ["clave", "descripcion", "unidad"]
+    assert encabezados == ["clave", "descripcion", "unidad", "clave_unidad"]
 
 
 def test_plantilla_de_cpu_sigue_siendo_posicional_por_letra() -> None:
