@@ -862,7 +862,12 @@ async def test_carga_de_mano_de_obra_alimenta_el_catalogo_de_insumos(
         _archivo_mano_obra(
             [
                 [
-                    "Individual", "US-01", "dest-01", "Aplanado fino", "UN-01", "ton",
+                    # Sin "CLAVE UNIDAD" a propósito: esta fila prueba que
+                    # "UNIDAD" solo (texto libre) sigue resolviendo contra el
+                    # catálogo ya sembrado (§8.7) cuando el archivo no separa
+                    # clave de nombre — ver `test_clave_unidad_...` para el
+                    # caso con la columna presente.
+                    "Individual", "US-01", "dest-01", "Aplanado fino", "", "ton",
                     "CUAD-01", "12.5", None, "85.30", "CEM",
                 ]
             ]
