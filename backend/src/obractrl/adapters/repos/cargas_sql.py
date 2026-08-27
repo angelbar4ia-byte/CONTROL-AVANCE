@@ -99,25 +99,21 @@ _ELIMINAR: dict[str, str] = {
         "cuadrilla",
         "cuadrilla_version",
         "cuadrilla_integrante",
+        "nivel",
+        "etapa_constructiva",
     )
 }
-# `nivel`/`etapa_constructiva` NO están aquí a propósito: el cargador de
-# presupuesto jerárquico los puebla, pero son catálogo compartido por
-# organización (`uq_nivel_clave`/`uq_etapa_clave`, no por prototipo) — la
-# misma clave la puede haber creado un prototipo de OTRA carga ya
-# confirmada. Revertir esta carga no puede saber si borrar es seguro, así
-# que se queda (mismo criterio que un valor de enum de más: inerte, no
-# estorba). Solo se revierten `prototipo_nodo`/`presupuesto`/
-# `partida_presupuesto`, que sí son propios de este prototipo y esta carga.
-#
-# `cuadrilla` SÍ está, a diferencia de `nivel`/`etapa_constructiva`: cuando
-# es OTRA carga (mano de obra) la que la toca de pasada —homologando o
-# dando de alta un destajo—, ese auto-alta nunca se registra en el snapshot
-# (mismo criterio que unidad/familia: no es lo que esa carga versiona), así
-# que no hay nada que este `_ELIMINAR` pueda revertir de más. Pero cuando es
-# la propia carga de **cuadrillas** la que la da de alta —su composición y
-# PU, §10.6—, la cuadrilla es tan suya como un `concepto` lo es de su carga
-# de CPU, y `AplicadorCuadrillas` sí registra ese insert (`aplicar_carga.py`).
+# `cuadrilla`/`nivel`/`etapa_constructiva` están aquí por el mismo motivo:
+# cuando es OTRA carga (mano de obra, o el árbol de presupuesto) la que los
+# toca de pasada —homologando o dando de alta uno que no existía—, ese
+# auto-alta nunca se registra en el snapshot (mismo criterio que
+# unidad/familia: no es lo que esa carga versiona), así que no hay nada
+# que este `_ELIMINAR` pueda revertir de más. Pero cuando es la propia
+# carga **dueña** del catálogo la que lo da de alta —cuadrillas (su
+# composición y PU, §10.6), o los cargadores de niveles/etapas de
+# construcción (migración 0037)—, la fila es tan suya como un `concepto`
+# lo es de su carga de CPU, y el aplicador correspondiente sí registra
+# ese insert (`aplicar_carga.py`).
 # `cuadrilla_version`/`cuadrilla_integrante` cascadean solas al borrar la
 # cuadrilla, pero igual están aquí explícitas: cada versión es dueña
 # exclusiva de sus integrantes, y el orden de reversa las deshace primero.
@@ -141,6 +137,11 @@ _REFERENCIAS_EXTERNAS: tuple[tuple[str, str, str], ...] = (
     ("obra", "prototipo_id", "prototipo"),
     ("actividad", "cuadrilla_id", "cuadrilla"),
     ("insumo", "cuadrilla_id", "cuadrilla"),
+    ("prototipo_nodo", "nivel_id", "nivel"),
+    ("actividad", "nivel_id", "nivel"),
+    ("prototipo_nodo", "etapa_id", "etapa_constructiva"),
+    ("actividad", "etapa_id", "etapa_constructiva"),
+    ("programa_base_item", "etapa_id", "etapa_constructiva"),
 )
 """Completa a `dependientes_de`: FKs sin cascada que entran a una tabla de
 `_ELIMINAR` desde fuera. Un `test` en integración verifica esta lista contra
@@ -179,6 +180,18 @@ _RESTAURAR: dict[str, str] = {
             estatus     = cast(coalesce(a.j->>'estatus', 'activo') as estatus_registro)
         from a
         where concepto.id = cast(:id as uuid)
+    """,
+    "nivel": """
+        with a as (select cast(:antes as jsonb) as j)
+        update nivel set descripcion = a.j->>'descripcion'
+        from a
+        where nivel.id = cast(:id as uuid)
+    """,
+    "etapa_constructiva": """
+        with a as (select cast(:antes as jsonb) as j)
+        update etapa_constructiva set descripcion = a.j->>'descripcion'
+        from a
+        where etapa_constructiva.id = cast(:id as uuid)
     """,
     "cpu": """
         with a as (select cast(:antes as jsonb) as j)

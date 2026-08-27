@@ -9,9 +9,8 @@ Cada clase implementa el puerto `LectorDeCarga`
 regla vive en `domain.cargadores`; aquí solo se recorre el `.xlsx`.
 
 Los cargadores del §10.6 que **no** están implementados —obras/lotes,
-contratistas, niveles, etapas y estimaciones— no tienen entrada en
-`CARGADORES`: pedir uno de esos tipos falla explícito en vez de cargar
-cualquier cosa.
+contratistas y estimaciones— no tienen entrada en `CARGADORES`: pedir uno
+de esos tipos falla explícito en vez de cargar cualquier cosa.
 """
 
 from __future__ import annotations
@@ -31,8 +30,10 @@ from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera, resolver_encab
 from obractrl.domain.cargadores.conceptos_base import validar_concepto_base
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.cuadrillas import agrupar_cuadrillas
+from obractrl.domain.cargadores.etapas_constructivas import validar_etapa_constructiva
 from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra
 from obractrl.domain.cargadores.materiales import validar_material
+from obractrl.domain.cargadores.niveles import validar_nivel
 from obractrl.domain.cargadores.presupuesto import construir_arboles
 from obractrl.domain.cargadores.prototipos import validar_prototipo
 from obractrl.domain.cargadores.reporte import ErrorEnFila, LecturaCarga
@@ -43,10 +44,13 @@ __all__ = [
     "CARGADORES",
     "CargadorAlmacen",
     "CargadorCPU",
+    "CargadorConceptosAuxiliares",
     "CargadorConceptosBase",
     "CargadorCuadrillas",
+    "CargadorEtapasConstructivas",
     "CargadorManoObra",
     "CargadorMateriales",
+    "CargadorNiveles",
     "CargadorPresupuesto",
     "CargadorPrototipos",
     "CargadorSubcontratos",
@@ -183,6 +187,68 @@ class CargadorConceptosBase:
             contenido,
             self.especificacion,
             validar_concepto_base,
+            limites=self._limites,
+        )
+
+
+class CargadorConceptosAuxiliares:
+    """Catálogo base de conceptos auxiliares —
+    `CABECERAS_CONCEPTOS_AUXILIARES.xlsx` (§8.7, §7.3).
+
+    Mismo validador que `CargadorConceptosBase`: un concepto auxiliar es un
+    `concepto` más, solo que `AplicadorConceptosBase` lo da de alta con
+    `tipo=auxiliar` en vez de `tipo=concepto` (ver `casos_uso.py`).
+    """
+
+    tipo = TipoCarga.CONCEPTOS_AUXILIARES
+    especificacion = cabeceras.CONCEPTOS_AUXILIARES
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            validar_concepto_base,
+            limites=self._limites,
+        )
+
+
+class CargadorNiveles:
+    """Catálogo base de niveles de construcción — `CATALOGO_DE_NIVELES.xlsx`
+    (§10.1)."""
+
+    tipo = TipoCarga.NIVELES
+    especificacion = cabeceras.NIVELES
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            validar_nivel,
+            limites=self._limites,
+        )
+
+
+class CargadorEtapasConstructivas:
+    """Catálogo base de etapas de construcción —
+    `CATALOGO_DE_ETAPAS_DE_CONSTRUCCION.xlsx` (§10.1)."""
+
+    tipo = TipoCarga.ETAPAS_CONSTRUCTIVAS
+    especificacion = cabeceras.ETAPAS_CONSTRUCTIVAS
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            validar_etapa_constructiva,
             limites=self._limites,
         )
 
@@ -353,6 +419,9 @@ CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.SUBCONTRATOS: CargadorSubcontratos,
     TipoCarga.CUADRILLAS: CargadorCuadrillas,
     TipoCarga.CATALOGO_CONCEPTOS: CargadorConceptosBase,
+    TipoCarga.CONCEPTOS_AUXILIARES: CargadorConceptosAuxiliares,
+    TipoCarga.NIVELES: CargadorNiveles,
+    TipoCarga.ETAPAS_CONSTRUCTIVAS: CargadorEtapasConstructivas,
     TipoCarga.CPU: CargadorCPU,
     TipoCarga.ALMACEN: CargadorAlmacen,
     TipoCarga.PROTOTIPOS: CargadorPrototipos,

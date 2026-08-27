@@ -25,4 +25,7 @@ export const TipoCarga = {
   cuadrillas: 'cuadrillas',
   subcontratos: 'subcontratos',
   cpu: 'cpu',
+  conceptos_auxiliares: 'conceptos_auxiliares',
+  niveles: 'niveles',
+  etapas_constructivas: 'etapas_constructivas',
 } as const;

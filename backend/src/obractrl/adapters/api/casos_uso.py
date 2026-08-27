@@ -57,8 +57,10 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorCuadrillas,
     AplicadorDeCarga,
     AplicadorDePrototipos,
+    AplicadorEtapasConstructivas,
     AplicadorManoObra,
     AplicadorMateriales,
+    AplicadorNiveles,
     AplicadorPresupuesto,
     AplicadorPrototipos,
 )
@@ -162,7 +164,7 @@ from obractrl.application.eventos import (
     EstimacionValidada,
     IncidenciaDetiene,
 )
-from obractrl.domain.shared.diccionario import TipoCarga, TipoInsumo
+from obractrl.domain.shared.diccionario import TipoCarga, TipoConcepto, TipoInsumo
 from obractrl.infrastructure.auth.supabase_admin import AdminDeSupabase
 from obractrl.infrastructure.jobs.cola import ColaDeTrabajos
 from obractrl.infrastructure.notificaciones.expo import ClienteExpoPush
@@ -876,6 +878,20 @@ class FabricaDeCargas:
                 conceptos=RepositorioConceptosSQL(sesion),
                 unidades=RepositorioUnidadesSQL(sesion),
                 cargas=cargas,
+            )
+        if tipo is TipoCarga.CONCEPTOS_AUXILIARES:
+            return AplicadorConceptosBase(
+                conceptos=RepositorioConceptosSQL(sesion),
+                unidades=RepositorioUnidadesSQL(sesion),
+                cargas=cargas,
+                tipo=TipoConcepto.AUXILIAR,
+                prefijo_clave="AUX",
+            )
+        if tipo is TipoCarga.NIVELES:
+            return AplicadorNiveles(niveles_etapas=RepositorioNivelesEtapasSQL(sesion))
+        if tipo is TipoCarga.ETAPAS_CONSTRUCTIVAS:
+            return AplicadorEtapasConstructivas(
+                niveles_etapas=RepositorioNivelesEtapasSQL(sesion)
             )
         if tipo is TipoCarga.CPU:
             return AplicadorCPU(

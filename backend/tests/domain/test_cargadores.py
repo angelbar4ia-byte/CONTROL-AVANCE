@@ -25,11 +25,14 @@ from obractrl.domain.cargadores.almacen import (
 )
 from obractrl.domain.cargadores.cabeceras import (
     ALMACEN,
+    CONCEPTOS_AUXILIARES,
     CONCEPTOS_BASE,
     CUADRILLAS,
+    ETAPAS_CONSTRUCTIVAS,
     MANO_DE_OBRA,
     MAPA_CPU,
     MATERIALES,
+    NIVELES,
     PRESUPUESTO,
     PROTOTIPOS,
     ErrorDeCabecera,
@@ -40,9 +43,11 @@ from obractrl.domain.cargadores.claves_automaticas import generar_clave_automati
 from obractrl.domain.cargadores.conceptos_base import validar_concepto_base
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.cuadrillas import agrupar_cuadrillas
+from obractrl.domain.cargadores.etapas_constructivas import validar_etapa_constructiva
 from obractrl.domain.cargadores.homologacion import Homologador
 from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra
 from obractrl.domain.cargadores.materiales import validar_material
+from obractrl.domain.cargadores.niveles import validar_nivel
 from obractrl.domain.cargadores.presupuesto import (
     TipoNodoPresupuesto,
     construir_arboles,
@@ -257,6 +262,27 @@ def test_una_fila_de_concepto_base_completa_queda_validada() -> None:
     assert concepto.fila == 5
 
 
+def test_concepto_auxiliar_real_captura_clave_unidad_e_ignora_el_costo() -> None:
+    """El archivo real de conceptos auxiliares trae las mismas columnas que
+    Materiales (CLAVE UNIDAD, UNIDAD, COSTO BASE M.N., COSTO BASE M.E.,
+    COSTO UNITARIO, FECHA, FAMILIA) — confirmado con el usuario: el costo
+    se ignora aquí (es CPU, no identidad, §8.7), pero `clave_unidad` sí es
+    identidad y se captura, igual que en materiales."""
+    mapa = resolver_encabezados(
+        ["CLAVE", "DESCRIPCIÓN", "CLAVE UNIDAD", "UNIDAD", "COSTO BASE M.N.",
+         "COSTO BASE M.E.", "COSTO UNITARIO", "FECHA", "FAMILIA"],
+        CONCEPTOS_AUXILIARES,
+    )
+    auxiliar = validar_concepto_base(
+        ["AUX-00001", "Trabe T-3 de 15x25 cm", 8, "m", 72.14, 0, 72.14, None, "Auxiliares"],
+        mapa,
+        2,
+    )
+    assert auxiliar.llave == "AUX-00001"
+    assert auxiliar.unidad == "m"
+    assert auxiliar.clave_unidad == "8"
+
+
 def test_concepto_base_sin_unidad_queda_en_none() -> None:
     concepto = validar_concepto_base(["EST-02", "Losa de azotea", ""], _MAPA_CONCEPTOS_BASE, 6)
     assert concepto.unidad is None
@@ -285,6 +311,78 @@ def test_dos_conceptos_base_sin_clave_no_se_confunden_en_el_dedup() -> None:
     primero = validar_concepto_base(["", "Trabe A", "ml"], _MAPA_CONCEPTOS_BASE, 8)
     segundo = validar_concepto_base(["", "Trabe B", "ml"], _MAPA_CONCEPTOS_BASE, 9)
     assert primero.llave != segundo.llave
+
+
+# --- Niveles de construcción (§10.1, `CATALOGO_DE_NIVELES.xlsx`) --------
+
+_MAPA_NIVELES = resolver_encabezados(
+    ["TIPO", "CLAVE", "DESCRIPCIÓN", "DESCRIPCIÓN CORTA", "UNIDAD", "CANTIDAD",
+     "PRECIO UNITARIO", "TOTAL"],
+    NIVELES,
+)
+"""Cabeceras reales del archivo (`CATALOGO_DE_NIVELES.xlsx`): TIPO,
+DESCRIPCIÓN CORTA, UNIDAD, CANTIDAD, PRECIO UNITARIO y TOTAL no tienen
+dónde vivir en este catálogo tan simple — se ignoran sin romper (§10.6)."""
+
+
+def test_un_nivel_real_del_archivo_queda_validado() -> None:
+    nivel = validar_nivel(
+        ["Subcapítulo", "NIV-00001", "CIMENTACION ", "CIMENTACION ", None, 1, None, None],
+        _MAPA_NIVELES,
+        2,
+    )
+    assert nivel.llave == "NIV-00001"
+    assert nivel.descripcion == "CIMENTACION"
+    assert nivel.fila == 2
+
+
+def test_nivel_sin_clave_no_se_rechaza() -> None:
+    """Mismo criterio que el catálogo de conceptos (§8.7): sin clave, la
+    fila se numera sola en el aplicador, no se rechaza aquí."""
+    nivel = validar_nivel(["Subcapítulo", "", "ACABADOS", "ACABADOS", None, 1, None, None], _MAPA_NIVELES, 6)
+    assert nivel.clave is None
+    assert nivel.llave == "__sin_clave__6"
+
+
+def test_nivel_sin_descripcion_es_error_de_fila() -> None:
+    with pytest.raises(ErrorEnFila, match="descripcion"):
+        validar_nivel(["Subcapítulo", "NIV-00099", "", "", None, 1, None, None], _MAPA_NIVELES, 7)
+
+
+# --- Etapas de construcción (§10.1, `CATALOGO_DE_ETAPAS_DE_CONSTRUCCION.xlsx`)
+
+_MAPA_ETAPAS = resolver_encabezados(
+    ["TIPO", "CLAVE", "DESCRIPCIÓN", "DESCRIPCIÓN CORTA", "UNIDAD", "CANTIDAD",
+     "PRECIO UNITARIO", "TOTAL"],
+    ETAPAS_CONSTRUCTIVAS,
+)
+
+
+def test_una_etapa_real_del_archivo_queda_validada() -> None:
+    etapa = validar_etapa_constructiva(
+        ["Nivel 2", "ECO-00001", "ESTRUCTURA CIM", "ESTRUCTURA CIM", None, 1, None, None],
+        _MAPA_ETAPAS,
+        2,
+    )
+    assert etapa.llave == "ECO-00001"
+    assert etapa.descripcion == "ESTRUCTURA CIM"
+
+
+def test_etapa_sin_clave_no_se_rechaza() -> None:
+    etapa = validar_etapa_constructiva(
+        ["Nivel 2", "", "INSTALACIONES GAS PB", "INSTALACIONES GAS PB", None, 1, None, None],
+        _MAPA_ETAPAS,
+        9,
+    )
+    assert etapa.clave is None
+    assert etapa.llave == "__sin_clave__9"
+
+
+def test_etapa_sin_descripcion_es_error_de_fila() -> None:
+    with pytest.raises(ErrorEnFila, match="descripcion"):
+        validar_etapa_constructiva(
+            ["Nivel 2", "ECO-00099", "", "", None, 1, None, None], _MAPA_ETAPAS, 10
+        )
 
 
 # --- Clave automática (§8.7: catálogo base sin indicador de clave) -------

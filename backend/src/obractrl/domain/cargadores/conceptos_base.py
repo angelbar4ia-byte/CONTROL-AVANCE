@@ -1,10 +1,14 @@
 """Cargador del catálogo base de conceptos: validación de fila (§8.7).
 
-Spec: catálogo base de identidad de conceptos — clave, descripción, unidad.
-Sin composición: eso es CPU (`domain.cargadores.cpu`), un cargador distinto
-que analiza un concepto ya identificado aquí. Mismo criterio que
-`domain.cargadores.materiales`: la clave es la identidad (§3.3), lo demás
-puede llenarse después a mano desde el catálogo.
+Spec: catálogo base de identidad de conceptos — clave, descripción, unidad
+(y opcionalmente la clave de esa unidad en su propio catálogo, igual que
+`domain.cargadores.materiales`). Sin composición ni costo: eso es CPU
+(`domain.cargadores.cpu`), un cargador distinto que analiza un concepto ya
+identificado aquí — el archivo real de conceptos auxiliares trae costo y
+familia (mismas columnas que `MATERIALES`) y se ignoran a propósito,
+confirmado con el usuario. Mismo criterio que `domain.cargadores.
+materiales`: la clave es la identidad (§3.3), lo demás puede llenarse
+después a mano desde el catálogo.
 
 Módulo puro (§12.11): recibe la fila ya leída como celdas y devuelve la
 entidad validada o levanta :class:`ErrorEnFila`.
@@ -38,6 +42,11 @@ class FilaConceptoBase:
     clave: Clave | None
     descripcion: str
     unidad: str | None = None
+    clave_unidad: str | None = None
+    """Código de la unidad en su propio catálogo (§3.3) — distinto de
+    ``unidad`` (el texto libre). Mismo criterio que en materiales/mano de
+    obra: el archivo real de conceptos auxiliares trae las dos columnas
+    por separado."""
 
     fila: int = 0
     """Renglón del archivo. Viaja con el registro para que un pendiente
@@ -88,5 +97,6 @@ def validar_concepto_base(
         clave=clave,
         descripcion=descripcion,
         unidad=texto_limpio(mapa.valor(fila, "unidad")) or None,
+        clave_unidad=texto_limpio(mapa.valor(fila, "clave_unidad")) or None,
         fila=numero,
     )
