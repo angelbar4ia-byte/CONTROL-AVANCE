@@ -318,6 +318,7 @@ class AplicadorMateriales:
             unidades_filas, mapeos=await self._cargas.mapeos("unidad")
         )
         id_unidad = {str(f["clave"]): f["id"] for f in unidades_filas}
+        unidades_por_clave = {str(f["clave"]): f for f in unidades_filas}
 
         familias_filas = await self._familias.listar(
             aplica_a="material", solo_activos=False
@@ -337,7 +338,33 @@ class AplicadorMateriales:
             actual = por_clave.get(material.llave, {})
 
             unidad_id = actual.get("unidad_id")
-            if material.unidad:
+            if material.clave_unidad:
+
+                async def _dar_de_alta_unidad(
+                    _datos: dict[str, Any],
+                    *,
+                    _clave: str = material.clave_unidad,
+                    _nombre: str | None = material.unidad,
+                ) -> UUID:
+                    return await self._unidades.crear_o_existente(
+                        {"clave": _clave, "nombre": _nombre or _clave}
+                    )
+
+                unidad_id = await _resolver_o_dar_de_alta_con_alerta(
+                    material.clave_unidad,
+                    material.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    filas_por_clave=unidades_por_clave,
+                    creadas=nuevas_unidades,
+                    crear=_dar_de_alta_unidad,
+                    entidad="unidad",
+                    fila=material.fila,
+                    pendientes=pendientes,
+                    dry_run=dry_run,
+                    campo_descripcion="nombre",
+                )
+            elif material.unidad:
                 unidad_id = await _resolver_o_dar_de_alta(
                     material.unidad,
                     homologador=unidades,
@@ -550,6 +577,7 @@ class AplicadorManoObra:
             unidades_filas, mapeos=await self._cargas.mapeos("unidad")
         )
         id_unidad = {str(f["clave"]): f["id"] for f in unidades_filas}
+        unidades_por_clave = {str(f["clave"]): f for f in unidades_filas}
 
         # Sin ámbito propio de "mano_obra" en `familia.aplica_a` (§10.1 solo
         # define material/concepto): un destajo es un insumo igual que un
@@ -580,7 +608,33 @@ class AplicadorManoObra:
             actual = por_clave.get(destajo.llave, {})
 
             unidad_id = actual.get("unidad_id")
-            if destajo.unidad:
+            if destajo.clave_unidad:
+
+                async def _dar_de_alta_unidad(
+                    _datos: dict[str, Any],
+                    *,
+                    _clave: str = destajo.clave_unidad,
+                    _nombre: str | None = destajo.unidad,
+                ) -> UUID:
+                    return await self._unidades.crear_o_existente(
+                        {"clave": _clave, "nombre": _nombre or _clave}
+                    )
+
+                unidad_id = await _resolver_o_dar_de_alta_con_alerta(
+                    destajo.clave_unidad,
+                    destajo.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    filas_por_clave=unidades_por_clave,
+                    creadas=nuevas_unidades,
+                    crear=_dar_de_alta_unidad,
+                    entidad="unidad",
+                    fila=destajo.fila,
+                    pendientes=pendientes,
+                    dry_run=dry_run,
+                    campo_descripcion="nombre",
+                )
+            elif destajo.unidad:
                 unidad_id = await _resolver_o_dar_de_alta(
                     destajo.unidad,
                     homologador=unidades,

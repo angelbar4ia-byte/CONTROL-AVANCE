@@ -217,6 +217,7 @@ def test_costo_base_m_n_del_archivo_real_alimenta_costo_base() -> None:
     )
     assert material.costo_base == Decimal("24.68")
     assert material.unidad == "KG"
+    assert material.clave_unidad == "1"  # antes se ignoraba: cae en "CLAVE UNIDAD"
     assert material.familia == "Aceros"
 
 
@@ -369,6 +370,7 @@ def test_una_fila_de_mano_de_obra_completa_queda_validada() -> None:
     assert destajo.llave == "DEST-01"
     assert destajo.descripcion == "Aplanado fino"
     assert destajo.unidad == "m2"
+    assert destajo.clave_unidad == "UN-01"  # antes se ignoraba: cae en "CLAVE UNIDAD"
     assert destajo.familia == "Acabados"
     assert destajo.cuadrilla == "CUAD-01"
     assert destajo.rendimiento_teorico == Decimal("12.5")

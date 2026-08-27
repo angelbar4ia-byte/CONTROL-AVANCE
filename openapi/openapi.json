@@ -2710,6 +2710,40 @@
         }
       }
     },
+    "/api/v1/organizacion/reiniciar": {
+      "post": {
+        "tags": [
+          "organizacion"
+        ],
+        "summary": "Reinicio de organización: borrado profundo, sin deshacer",
+        "description": "Borra todo lo operativo de la organización (catálogos, proyectos,\nprototipos, presupuestos, programación, avance, cargas, incidencias),\npreservando `usuario`. Devuelve cuántas filas se borraron por tabla.",
+        "operationId": "reiniciar_organizacion_api_v1_organizacion_reiniciar_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "type": "object",
+                  "title": "Response Reiniciar Organizacion Api V1 Organizacion Reiniciar Post"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra puede reiniciar la organización."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/programas-base": {
       "get": {
         "tags": [
@@ -11080,6 +11114,30 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Factor Conversion",
             "default": "1"
+          },
+          "cuadrilla_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Id"
+          },
+          "rendimiento_teorico": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendimiento Teorico"
           },
           "estatus": {
             "type": "string",

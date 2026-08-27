@@ -266,6 +266,7 @@ MATERIALES = EspecificacionArchivo(
     obligatorias=("clave", "descripcion"),
     opcionales=(
         "unidad",
+        "clave_unidad",
         "familia",
         "costo_base",
         "costo_ultimo",
@@ -315,7 +316,14 @@ MANO_DE_OBRA = EspecificacionArchivo(
     archivo="CABECERAS_MANO_DE_OBRA.xlsx",
     hoja="DESTAJOS",
     obligatorias=("clave", "descripcion"),
-    opcionales=("unidad", "familia", "cuadrilla", "rendimiento_teorico", "costo_base"),
+    opcionales=(
+        "unidad",
+        "clave_unidad",
+        "familia",
+        "cuadrilla",
+        "rendimiento_teorico",
+        "costo_base",
+    ),
     alias={
         "desctripcion": "descripcion",
         "cuadrilla": "cuadrilla",

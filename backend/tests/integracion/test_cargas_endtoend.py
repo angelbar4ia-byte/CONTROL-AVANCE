@@ -23,11 +23,12 @@ from decimal import Decimal
 from io import BytesIO
 
 import pytest
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from obractrl.adapters.excel.cargadores import cargador_para
+from obractrl.adapters.excel.plantillas import nombre_de_plantilla, plantilla_de
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
@@ -215,6 +216,43 @@ def _etapa_colapsada(
         [1, "NIV-1", clave_etapa, "Etapa simple", None, None, None, None, "ETAPA DE CONSTRUCCION"],
         [1, clave_etapa, "ACE-01", "Alambre", "KG", cantidad_alambre, 20, None, "MATERIAL"],
     ]
+
+
+# --- Plantillas descargables (§9.3): una por `TipoCarga`, no por archivo -
+#
+# Sin fixtures de base: `plantilla_de` no toca la sesión, así que estas
+# corren igual con o sin Postgres a la mano — a diferencia del resto de este
+# módulo. Existen porque CATALOGO_CONCEPTOS y CPU compartieron tipo antes de
+# esta sesión: `plantillas.py` traía el caso especial posicional colgado del
+# tipo viejo y nadie lo movió al separar los cargadores (§10.6).
+
+
+def test_plantilla_de_catalogo_de_conceptos_es_por_nombre_no_posicional() -> None:
+    """Antes CATALOGO_CONCEPTOS *era* CPU: la plantilla no puede seguir
+    dando el layout posicional de 9 columnas para un archivo que ahora es
+    clave/descripción/unidad por nombre."""
+    libro = load_workbook(BytesIO(plantilla_de(TipoCarga.CATALOGO_CONCEPTOS)))
+    hoja = libro.active
+    assert hoja is not None
+    encabezados = [c.value for c in hoja[1] if c.value is not None]
+    assert encabezados == ["clave", "descripcion", "unidad"]
+
+
+def test_plantilla_de_cpu_sigue_siendo_posicional_por_letra() -> None:
+    """§10.6: CPU se lee por letra, no por nombre — la G queda en blanco a
+    propósito porque el archivo real no la usa."""
+    libro = load_workbook(BytesIO(plantilla_de(TipoCarga.CPU)))
+    hoja = libro.active
+    assert hoja is not None
+    assert [c.value for c in hoja[1]] == [
+        "CLAVE", "CLAVE INSUMO", "DESCRIPCION", "UNIDAD",
+        "CANTIDAD", "P.U.", None, "FAMILIA", "TIPO",
+    ]
+
+
+def test_nombre_de_plantilla_distingue_conceptos_de_cpu() -> None:
+    assert nombre_de_plantilla(TipoCarga.CATALOGO_CONCEPTOS) == "CABECERAS_CONCEPTOS.xlsx"
+    assert nombre_de_plantilla(TipoCarga.CPU) == "CABECERAS_CPU.xlsx"
 
 
 # --- Escenario de catálogos ----------------------------------------------
@@ -539,6 +577,32 @@ async def test_una_unidad_desconocida_se_da_de_alta_en_vez_de_bloquear(
     unidades = await _unidades(contexto_control)
     assert "sacos" in unidades
     assert (await _insumos(contexto_control))["CEM-01"]["unidad_id"] == unidades["sacos"]["id"]
+
+
+async def test_clave_unidad_del_archivo_se_vuelve_la_clave_del_catalogo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """El archivo real trae "CLAVE UNIDAD" aparte de "UNIDAD" (§3.3): antes
+    se ignoraba y la unidad quedaba con el texto libre como su propia clave.
+    Ahora la clave del catálogo es la que trae el archivo, y "UNIDAD" es su
+    nombre — no la misma cadena repetida dos veces."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _libro(
+            [
+                ["Clave", "Descripción", "Clave Unidad", "Unidad", "Clase", "Costo base"],
+                ["VAR-01", "Varilla 3/8", "TON01", "Tonelada", "ACE", "20"],
+            ]
+        ),
+    )
+    assert resultado.resumen.errores == 0
+
+    unidades = await _unidades(contexto_control)
+    assert "TON01" in unidades
+    assert unidades["TON01"]["nombre"] == "Tonelada"
+    assert "Tonelada" not in unidades  # no se dio de alta con el nombre como clave
+    assert (await _insumos(contexto_control))["VAR-01"]["unidad_id"] == unidades["TON01"]["id"]
 
 
 async def test_la_vista_previa_cuenta_igual_pero_no_escribe(

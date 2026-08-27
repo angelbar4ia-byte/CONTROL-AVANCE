@@ -44,6 +44,10 @@ class FilaManoObra:
     clave: Clave
     descripcion: str
     unidad: str | None = None
+    clave_unidad: str | None = None
+    """Código de la unidad en su propio catálogo (§3.3) — distinto de
+    ``unidad`` (el texto libre). Mismo criterio que en materiales."""
+
     familia: str | None = None
     cuadrilla: str | None = None
     """Clave de la cuadrilla que ejecuta este destajo — no texto libre: se
@@ -124,6 +128,7 @@ def validar_mano_obra(
         clave=clave,
         descripcion=descripcion,
         unidad=texto_limpio(mapa.valor(fila, "unidad")) or None,
+        clave_unidad=texto_limpio(mapa.valor(fila, "clave_unidad")) or None,
         familia=texto_limpio(mapa.valor(fila, "familia")) or None,
         cuadrilla=texto_limpio(mapa.valor(fila, "cuadrilla")) or None,
         rendimiento_teorico=_decimal_opcional(fila, mapa, "rendimiento_teorico"),

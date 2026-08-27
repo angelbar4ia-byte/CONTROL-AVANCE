@@ -211,6 +211,8 @@ const COLUMNAS_INSUMOS = [
   'Descripción',
   'Tipo',
   'Unidad',
+  'Cuadrilla',
+  'Rend. teórico',
   'Familia',
   'Costo base',
   'Costo vigente',
@@ -222,12 +224,15 @@ export function TablaInsumos({
   resultados,
   unidades,
   familias,
+  cuadrillas,
   cargando,
   vacia,
 }: {
   readonly resultados: readonly Resultado<InsumoRespuesta>[];
   readonly unidades: readonly UnidadRespuesta[];
   readonly familias: readonly FamiliaRespuesta[];
+  /** Para resolver `cuadrilla_id` (§10.6, solo `tipo=mano_obra`/`subcontrato`). */
+  readonly cuadrillas: readonly CuadrillaRespuesta[];
   readonly cargando: boolean;
   readonly vacia: string;
 }) {
@@ -252,6 +257,10 @@ export function TablaInsumos({
             <td className="mono text-xs">
               {unidades.find((u) => u.id === item.unidad_id)?.clave ?? '—'}
             </td>
+            <td className="mono text-xs">
+              {cuadrillas.find((c) => c.id === item.cuadrilla_id)?.clave ?? '—'}
+            </td>
+            <td className="is-num">{fmtNum(item.rendimiento_teorico)}</td>
             <td className="mono text-xs">{familia?.clave ?? '—'}</td>
             <td className="is-num">{fmtMXN(item.costo_base)}</td>
             {/* `costo_base_actualizado` = costo último más reciente = costo
@@ -389,6 +398,7 @@ const COLUMNAS_CUADRILLAS = [
   'Clave',
   'Nombre',
   'Unidad',
+  'Rendimiento',
   'PU vigente',
   'Versión',
   'Estatus',
@@ -418,6 +428,9 @@ export function TablaCuadrillas({
             <Clave valor={item.clave} porDescripcion={soloPorDescripcion(coincidencia)} />
             <td>{item.nombre}</td>
             <td className="text-mute mono text-xs">{unidad ? unidad.clave : '—'}</td>
+            {/* Rendimiento teórico asignado por el cargador de mano de obra
+                (§10.6) — no el que trae la propia fila cabecera de cuadrillas. */}
+            <td className="is-num">{fmtNum(item.rendimiento)}</td>
             <td className="is-num">
               {item.precio_unitario === null || item.precio_unitario === undefined
                 ? '—'

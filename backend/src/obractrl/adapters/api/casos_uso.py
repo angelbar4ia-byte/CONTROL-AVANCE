@@ -40,6 +40,7 @@ from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
+from obractrl.adapters.repos.organizacion_sql import RepositorioOrganizacionSQL
 from obractrl.adapters.repos.presupuestos_sql import RepositorioPresupuestosSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
 from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
@@ -128,6 +129,7 @@ from obractrl.application.casos_uso.gestionar_obra import (
     CrearObra,
     CrearObrasEnLote,
 )
+from obractrl.application.casos_uso.gestionar_organizacion import ReiniciarOrganizacion
 from obractrl.application.casos_uso.gestionar_programacion import (
     ComandoRecalcularRutaCritica,
     ConsultarRutaCritica,
@@ -220,6 +222,7 @@ __all__ = [
     "RegistrarEventoIncidenciaDep",
     "RegistrarRevisionFisicaDep",
     "RegistrarSalidaAlmacenDep",
+    "ReiniciarOrganizacionDep",
     "ResetearContrasenaDep",
     "RevertirCargaDep",
     "RevertirCargaEnCadenaDep",
@@ -789,12 +792,22 @@ def obtener_eliminar_carga(sesion: SesionRLS) -> EliminarCarga:
     )
 
 
+def obtener_reiniciar_organizacion(sesion: SesionRLS) -> ReiniciarOrganizacion:
+    return ReiniciarOrganizacion(
+        organizacion=RepositorioOrganizacionSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 ConsultarCargaDep = Annotated[ConsultarCarga, Depends(obtener_consultar_carga)]
 RevertirCargaDep = Annotated[RevertirCarga, Depends(obtener_revertir_carga)]
 RevertirCargaEnCadenaDep = Annotated[
     RevertirCargaEnCadena, Depends(obtener_revertir_carga_en_cadena)
 ]
 EliminarCargaDep = Annotated[EliminarCarga, Depends(obtener_eliminar_carga)]
+ReiniciarOrganizacionDep = Annotated[
+    ReiniciarOrganizacion, Depends(obtener_reiniciar_organizacion)
+]
 
 
 class FabricaDeCargas:

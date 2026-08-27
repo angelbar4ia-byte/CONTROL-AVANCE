@@ -415,6 +415,13 @@ ALIAS_ENCABEZADOS: dict[str, str] = {
     "um": "unidad",
     "unidad": "unidad",
     "unidad de medida": "unidad",
+    # clave de unidad: el archivo real de materiales/mano de obra trae esta
+    # columna aparte de "unidad" (el texto) — es el código del catálogo de
+    # Unidades (§3.3), no una descripción más.
+    "clave unidad": "clave_unidad",
+    "clave de unidad": "clave_unidad",
+    "clave_unidad": "clave_unidad",
+    "cve unidad": "clave_unidad",
     # precio
     "p.u.": "precio_unitario",
     "pu": "precio_unitario",

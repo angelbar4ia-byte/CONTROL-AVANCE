@@ -305,6 +305,11 @@ class InsumoRespuesta(BaseModel):
     origen: str = "base"
     iva_aplica: bool | None = None
     factor_conversion: Decimal = Decimal(1)
+    cuadrilla_id: UUID | None = None
+    """Cuadrilla asignada a este destajo (§10.6). Solo ``tipo=mano_obra``."""
+    rendimiento_teorico: Decimal | None = None
+    """Del archivo de mano de obra (§10.6). El "real" se deriva de la
+    duración real de la obra — no es dato que se cargue ni se exponga aquí."""
     estatus: str = "activo"
 
     @classmethod
@@ -323,6 +328,8 @@ class InsumoRespuesta(BaseModel):
             origen=fila["origen"],
             iva_aplica=fila["iva_aplica"],
             factor_conversion=fila["factor_conversion"],
+            cuadrilla_id=fila["cuadrilla_id"],
+            rendimiento_teorico=fila["rendimiento_teorico"],
             estatus=fila["estatus"],
         )
 

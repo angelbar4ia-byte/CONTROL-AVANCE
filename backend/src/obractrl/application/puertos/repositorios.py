@@ -698,6 +698,17 @@ class RepositorioConfiguracion(Protocol):
 
 
 @runtime_checkable
+class RepositorioOrganizacion(Protocol):
+    """Operaciones a nivel de organización completa, no de un catálogo (§5.1)."""
+
+    async def reiniciar(self) -> dict[str, int]:
+        """Borrado profundo de la organización del contexto de sesión
+        (§12.4): todo menos `usuario`. Clave → cuántas filas se borraron
+        de esa tabla; una tabla sin filas para borrar no aparece."""
+        ...
+
+
+@runtime_checkable
 class RepositorioMateriales(Protocol):
     """Movimientos de almacén y su cruce contra presupuesto (§7.7, §10.5).
 
