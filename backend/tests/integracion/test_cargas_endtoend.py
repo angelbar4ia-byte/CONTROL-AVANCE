@@ -51,8 +51,10 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorCuadrillas,
     AplicadorDeCarga,
     AplicadorDePrototipos,
+    AplicadorEtapasConstructivas,
     AplicadorManoObra,
     AplicadorMateriales,
+    AplicadorNiveles,
     AplicadorPresupuesto,
     AplicadorPrototipos,
 )
@@ -71,6 +73,7 @@ from obractrl.domain.shared.diccionario import (
     EstatusCarga,
     ModoCarga,
     TipoCarga,
+    TipoConcepto,
     TipoInsumo,
 )
 from obractrl.infrastructure.db.sesion import ContextoSesion, sesion_con_rls
@@ -106,6 +109,31 @@ _CABECERAS_CONCEPTOS_BASE = ["Clave", "Descripción", "Unidad"]
 
 def _archivo_conceptos_base(filas: list[list[object]]) -> bytes:
     return _libro([_CABECERAS_CONCEPTOS_BASE, *filas])
+
+
+def _archivo_conceptos_auxiliares(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_CONCEPTOS_BASE, *filas])
+
+
+_CABECERAS_NIVELES_ETAPAS = [
+    "TIPO", "CLAVE", "DESCRIPCIÓN", "DESCRIPCIÓN CORTA", "UNIDAD", "CANTIDAD",
+    "PRECIO UNITARIO", "TOTAL",
+]
+"""Cabeceras reales de `CATALOGO_DE_NIVELES.xlsx`/`CATALOGO_DE_ETAPAS_DE_
+CONSTRUCCION.xlsx` — mismo archivo genérico de la herramienta de origen
+para ambos catálogos; solo cambia el prefijo de la clave y el valor de TIPO."""
+
+
+def _fila_nivel_etapa(tipo: str, clave: str, descripcion: str) -> list[object]:
+    return [tipo, clave, descripcion, descripcion, None, 1, None, None]
+
+
+def _archivo_niveles(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_NIVELES_ETAPAS, *filas])
+
+
+def _archivo_etapas(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_NIVELES_ETAPAS, *filas])
 
 
 _CABECERAS_MANO_OBRA = [
@@ -230,12 +258,12 @@ def _etapa_colapsada(
 def test_plantilla_de_catalogo_de_conceptos_es_por_nombre_no_posicional() -> None:
     """Antes CATALOGO_CONCEPTOS *era* CPU: la plantilla no puede seguir
     dando el layout posicional de 9 columnas para un archivo que ahora es
-    clave/descripción/unidad por nombre."""
+    clave/descripción/unidad(/clave_unidad) por nombre."""
     libro = load_workbook(BytesIO(plantilla_de(TipoCarga.CATALOGO_CONCEPTOS)))
     hoja = libro.active
     assert hoja is not None
     encabezados = [c.value for c in hoja[1] if c.value is not None]
-    assert encabezados == ["clave", "descripcion", "unidad"]
+    assert encabezados == ["clave", "descripcion", "unidad", "clave_unidad"]
 
 
 def test_plantilla_de_cpu_sigue_siendo_posicional_por_letra() -> None:
@@ -339,6 +367,18 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
             unidades=RepositorioUnidadesSQL(sesion),
             cargas=cargas,
         )
+    if tipo is TipoCarga.CONCEPTOS_AUXILIARES:
+        return AplicadorConceptosBase(
+            conceptos=RepositorioConceptosSQL(sesion),
+            unidades=RepositorioUnidadesSQL(sesion),
+            cargas=cargas,
+            tipo=TipoConcepto.AUXILIAR,
+            prefijo_clave="AUX",
+        )
+    if tipo is TipoCarga.NIVELES:
+        return AplicadorNiveles(niveles_etapas=RepositorioNivelesEtapasSQL(sesion))
+    if tipo is TipoCarga.ETAPAS_CONSTRUCTIVAS:
+        return AplicadorEtapasConstructivas(niveles_etapas=RepositorioNivelesEtapasSQL(sesion))
     if tipo is TipoCarga.CPU:
         return AplicadorCPU(
             conceptos=RepositorioConceptosSQL(sesion),
@@ -431,6 +471,18 @@ async def _prototipos(contexto: ContextoSesion) -> dict[str, dict]:
 async def _conceptos(contexto: ContextoSesion) -> dict[str, dict]:
     async with sesion_con_rls(contexto) as sesion:
         filas = await RepositorioConceptosSQL(sesion).listar(solo_activos=False)
+    return {str(f["clave"]): f for f in filas}
+
+
+async def _niveles(contexto: ContextoSesion) -> dict[str, dict]:
+    async with sesion_con_rls(contexto) as sesion:
+        filas = await RepositorioNivelesEtapasSQL(sesion).listar_niveles()
+    return {str(f["clave"]): f for f in filas}
+
+
+async def _etapas(contexto: ContextoSesion) -> dict[str, dict]:
+    async with sesion_con_rls(contexto) as sesion:
+        filas = await RepositorioNivelesEtapasSQL(sesion).listar_etapas()
     return {str(f["clave"]): f for f in filas}
 
 
@@ -845,6 +897,168 @@ async def test_concepto_base_sin_clave_se_numera_solo(
     conceptos = await _conceptos(contexto_control)
     assert "CPT-00001" in conceptos
     assert conceptos["CPT-00001"]["descripcion"] == "Trabe de cimentación"
+
+
+# --- Conceptos auxiliares (§7.3, mismo contrato que Catálogo de conceptos)
+
+
+async def test_conceptos_auxiliares_se_dan_de_alta_con_tipo_auxiliar(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.CONCEPTOS_AUXILIARES,
+        _archivo_conceptos_auxiliares([["AUX-01", "Cimbra de losa", "m2"]]),
+    )
+    assert resultado.resumen.insertados == 1
+
+    conceptos = await _conceptos(contexto_control)
+    assert conceptos["AUX-01"]["tipo"] == "auxiliar"
+
+
+async def test_conceptos_auxiliares_con_clave_unidad_real_ignora_costo_y_familia(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Archivo real (`Catalogo_de_auxiliares.xlsx`): mismas columnas que
+    Materiales, costo/familia incluidos. Confirmado con el usuario: se
+    ignoran — solo clave/descripción/unidad (con `clave_unidad`) importan
+    aquí; el costo es CPU, no identidad (§8.7)."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.CONCEPTOS_AUXILIARES,
+        _libro(
+            [
+                ["CLAVE", "DESCRIPCIÓN", "CLAVE UNIDAD", "UNIDAD", "COSTO BASE M.N.",
+                 "COSTO BASE M.E.", "COSTO UNITARIO", "FECHA", "FAMILIA"],
+                ["AUX-00001", "Trabe T-3 de 15x25 cm", 8, "m", 72.14, 0, 72.14, None,
+                 "Auxiliares"],
+            ]
+        ),
+    )
+    assert resultado.resumen.errores == 0
+
+    conceptos = await _conceptos(contexto_control)
+    unidades = await _unidades(contexto_control)
+    assert conceptos["AUX-00001"]["tipo"] == "auxiliar"
+    assert "8" in unidades
+    assert unidades["8"]["nombre"] == "m"
+    assert conceptos["AUX-00001"]["unidad_id"] == unidades["8"]["id"]
+
+
+async def test_conceptos_auxiliares_comparte_clave_con_catalogo_de_conceptos(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """`uq_concepto_clave` es `(org_id, clave)` sin importar el tipo (§7.3):
+    un archivo de auxiliares que repite la clave de un concepto normal
+    actualiza ESE registro — no lo duplica ni le cambia el tipo, que solo
+    se fija al dar de alta (§3.3, la clave manda)."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_conceptos_base([["EST-01", "Muro de block", "m2"]]),
+    )
+    await _cargar(
+        contexto_control,
+        TipoCarga.CONCEPTOS_AUXILIARES,
+        _archivo_conceptos_auxiliares([["EST-01", "Muro de block (renombrado)", "m2"]]),
+    )
+
+    conceptos = await _conceptos(contexto_control)
+    assert len(conceptos) == 1
+    assert conceptos["EST-01"]["tipo"] == "concepto"
+    assert conceptos["EST-01"]["descripcion"] == "Muro de block (renombrado)"
+
+
+# --- Niveles de construcción (§10.1, `CATALOGO_DE_NIVELES.xlsx`) --------
+
+
+async def test_carga_de_niveles_crea_y_actualiza(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.NIVELES,
+        _archivo_niveles([_fila_nivel_etapa("Subcapítulo", "NIV-00001", "CIMENTACION")]),
+    )
+    assert resultado.resumen.insertados == 1
+    assert (await _niveles(contexto_control))["NIV-00001"]["descripcion"] == "CIMENTACION"
+
+    resultado2 = await _cargar(
+        contexto_control,
+        TipoCarga.NIVELES,
+        _archivo_niveles([_fila_nivel_etapa("Subcapítulo", "NIV-00001", "CIMENTACIÓN")]),
+    )
+    assert resultado2.resumen.actualizados == 1
+    assert (await _niveles(contexto_control))["NIV-00001"]["descripcion"] == "CIMENTACIÓN"
+
+
+async def test_nivel_sin_clave_se_numera_solo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _cargar(
+        contexto_control,
+        TipoCarga.NIVELES,
+        _archivo_niveles([_fila_nivel_etapa("Subcapítulo", "", "PLANTA BAJA")]),
+    )
+    niveles = await _niveles(contexto_control)
+    assert "NIV-00001" in niveles
+    assert niveles["NIV-00001"]["descripcion"] == "PLANTA BAJA"
+
+
+async def test_revertir_carga_de_niveles_deshace_el_alta(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Ejercita `_ELIMINAR`/`_RESTAURAR["nivel"]` (migración 0037): antes de
+    este cargador, `nivel` nunca era dueño de un snapshot revertible."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.NIVELES,
+        _archivo_niveles([_fila_nivel_etapa("Subcapítulo", "NIV-00001", "AZOTEA")]),
+    )
+    async with sesion_con_rls(contexto_control) as sesion:
+        reversa = await RevertirCarga(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(resultado.carga_id, usuario_id=contexto_control.usuario_id)
+    assert reversa["operaciones_revertidas"] == 1
+    assert await _niveles(contexto_control) == {}
+
+
+# --- Etapas de construcción (§10.1, `CATALOGO_DE_ETAPAS_DE_CONSTRUCCION.xlsx`)
+
+
+async def test_carga_de_etapas_crea_y_actualiza(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.ETAPAS_CONSTRUCTIVAS,
+        _archivo_etapas([_fila_nivel_etapa("Nivel 2", "ECO-00001", "ESTRUCTURA CIM")]),
+    )
+    assert resultado.resumen.insertados == 1
+
+    resultado2 = await _cargar(
+        contexto_control,
+        TipoCarga.ETAPAS_CONSTRUCTIVAS,
+        _archivo_etapas([_fila_nivel_etapa("Nivel 2", "ECO-00001", "ESTRUCTURA CIMENTACIÓN")]),
+    )
+    assert resultado2.resumen.actualizados == 1
+    etapas = await _etapas(contexto_control)
+    assert etapas["ECO-00001"]["descripcion"] == "ESTRUCTURA CIMENTACIÓN"
+    # Sin `nivel_id`: el archivo real no trae a qué nivel pertenece (ver
+    # `domain.cargadores.etapas_constructivas`).
+    assert etapas["ECO-00001"]["nivel_id"] is None
+
+
+async def test_etapa_sin_clave_se_numera_solo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _cargar(
+        contexto_control,
+        TipoCarga.ETAPAS_CONSTRUCTIVAS,
+        _archivo_etapas([_fila_nivel_etapa("Nivel 2", "", "INSTALACIONES GAS PB")]),
+    )
+    etapas = await _etapas(contexto_control)
+    assert "ECO-00001" in etapas
 
 
 # --- Mano de obra / Destajos (§10.6 `CABECERAS_MANO_DE_OBRA.xlsx`) -------

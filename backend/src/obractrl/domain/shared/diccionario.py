@@ -342,6 +342,23 @@ class TipoCarga(_Canonico):
     Espejo en la base: `database/migrations/20260814000035_carga_de_cpu.sql`.
     """
 
+    CONCEPTOS_AUXILIARES = "conceptos_auxiliares"
+    """`CABECERAS_CONCEPTOS_AUXILIARES.xlsx` (§8.7): catálogo base de
+    identidad de conceptos auxiliares — clave, descripción, unidad. Mismo
+    contrato que `CATALOGO_CONCEPTOS`, mismo `concepto` de destino, pero
+    `tipo=auxiliar` (§7.3) en vez de `tipo=concepto`."""
+
+    NIVELES = "niveles"
+    """`CATALOGO_DE_NIVELES.xlsx` (§10.1): catálogo base de identidad de
+    niveles de construcción — clave, descripción. Antes solo se sembraba
+    solo, de pasada, cuando el árbol de presupuesto lo referenciaba
+    (`RepositorioNivelesEtapas.upsert_nivel`); este es su propio cargador."""
+
+    ETAPAS_CONSTRUCTIVAS = "etapas_constructivas"
+    """`CATALOGO_DE_ETAPAS_DE_CONSTRUCCION.xlsx` (§10.1): catálogo base de
+    identidad de etapas de construcción — clave, descripción. Mismo
+    criterio que `NIVELES`."""
+
 
 class EstatusCarga(_Canonico):
     PENDIENTE = "pendiente"

@@ -1,0 +1,3 @@
+-- down · 0037 · Catálogos de niveles, etapas de construcción y conceptos auxiliares
+-- Los valores de enum se quedan (Postgres no tiene drop value), mismo
+-- criterio que 0019/0029/0030/0031/0032/0034/0035.

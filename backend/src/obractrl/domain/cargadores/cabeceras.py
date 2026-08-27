@@ -26,12 +26,15 @@ from obractrl.domain.shared.normalizacion import canonizar_encabezado, normaliza
 __all__ = [
     "ALMACEN",
     "COLUMNAS_CPU",
+    "CONCEPTOS_AUXILIARES",
     "CONCEPTOS_BASE",
     "CPU",
     "CUADRILLAS",
+    "ETAPAS_CONSTRUCTIVAS",
     "MANO_DE_OBRA",
     "MAPA_CPU",
     "MATERIALES",
+    "NIVELES",
     "PRESUPUESTO",
     "PROTOTIPOS",
     "SUBCONTRATOS",
@@ -253,11 +256,64 @@ CONCEPTOS_BASE = EspecificacionArchivo(
     archivo="CABECERAS_CONCEPTOS.xlsx",
     hoja=None,
     obligatorias=("clave", "descripcion"),
-    opcionales=("unidad",),
+    opcionales=("unidad", "clave_unidad"),
 )
 """Catálogo base de identidad de conceptos (§8.7): clave, descripción,
 unidad — nada más. La composición (qué lleva cada concepto y con qué
-costo) es CPU (`CPU`, más abajo), un archivo y un cargador distintos."""
+costo) es CPU (`CPU`, más abajo), un archivo y un cargador distintos.
+
+El archivo real de conceptos auxiliares (mismo contrato, ver
+`CONCEPTOS_AUXILIARES`) trae también costo y familia (`CLAVE UNIDAD,
+UNIDAD, COSTO BASE M.N., COSTO BASE M.E., COSTO UNITARIO, FECHA,
+FAMILIA`) — mismas columnas que `MATERIALES`. Confirmado con el usuario:
+el costo se ignora aquí a propósito (es composición/CPU, no identidad,
+§8.7); `clave_unidad` sí se captura —igual que en `MATERIALES`— porque es
+identidad de la unidad, no costo."""
+
+CONCEPTOS_AUXILIARES = EspecificacionArchivo(
+    tipo="Catálogo de conceptos auxiliares",
+    archivo="CABECERAS_CONCEPTOS_AUXILIARES.xlsx",
+    hoja=None,
+    obligatorias=CONCEPTOS_BASE.obligatorias,
+    opcionales=CONCEPTOS_BASE.opcionales,
+)
+"""Mismo contrato que `CONCEPTOS_BASE`: un concepto auxiliar es un
+`concepto` más (`tipo=auxiliar`, §7.3), con su propio archivo y su propio
+tipo de carga porque es su propio catálogo desde el punto de vista de
+quien lo sube — pero comparte validador (`conceptos_base.
+validar_concepto_base`) y la misma tabla `concepto`: la clave es única sin
+importar el tipo (`uq_concepto_clave`), así que un archivo de auxiliares
+que repita la clave de un concepto normal actualiza ESE registro, no crea
+uno paralelo (§3.3)."""
+
+NIVELES = EspecificacionArchivo(
+    tipo="Catálogo de niveles de construcción",
+    archivo="CATALOGO_DE_NIVELES.xlsx",
+    hoja=None,
+    obligatorias=("clave", "descripcion"),
+    opcionales=(),
+)
+"""Catálogo base de identidad de niveles (§10.1): clave, descripción, nada
+más — orden/importe quedan en su default y se llenan a mano. El archivo
+real trae columnas propias de la herramienta de origen (TIPO, DESCRIPCIÓN
+CORTA, UNIDAD, CANTIDAD, PRECIO UNITARIO, TOTAL) que no tienen dónde vivir
+en este catálogo tan simple; se ignoran sin romper (§10.6, mismo criterio
+que el resto de los cargadores con columnas de más)."""
+
+ETAPAS_CONSTRUCTIVAS = EspecificacionArchivo(
+    tipo="Catálogo de etapas de construcción",
+    archivo="CATALOGO_DE_ETAPAS_DE_CONSTRUCCION.xlsx",
+    hoja=None,
+    obligatorias=("clave", "descripcion"),
+    opcionales=(),
+)
+"""Catálogo base de identidad de etapas (§10.1): clave, descripción, nada
+más. `etapa_constructiva.nivel_id` no se resuelve aquí: el archivo real no
+trae a qué nivel pertenece cada etapa — su columna "TIPO" (`Nivel 2`,
+`Subcapítulo`) es la clasificación de la herramienta de origen, no una
+referencia a `NIVELES` — así que asumir un nivel sería inventar una
+relación que el archivo no da (§3.3). Se llena a mano desde el catálogo
+mientras no haya un archivo real que sí la traiga."""
 
 MATERIALES = EspecificacionArchivo(
     tipo="Catálogo de materiales",

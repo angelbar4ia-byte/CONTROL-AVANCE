@@ -48,9 +48,11 @@ from obractrl.domain.cargadores.claves_automaticas import generar_clave_automati
 from obractrl.domain.cargadores.conceptos_base import FilaConceptoBase
 from obractrl.domain.cargadores.cpu import ComponenteCargado, ConceptoCargado
 from obractrl.domain.cargadores.cuadrillas import CuadrillaCargada
+from obractrl.domain.cargadores.etapas_constructivas import FilaEtapaConstructiva
 from obractrl.domain.cargadores.homologacion import Homologador
 from obractrl.domain.cargadores.mano_de_obra import FilaManoObra
 from obractrl.domain.cargadores.materiales import FilaMaterial
+from obractrl.domain.cargadores.niveles import FilaNivel
 from obractrl.domain.cargadores.presupuesto import (
     ArbolPrototipoCargado,
     NodoLeido,
@@ -93,8 +95,10 @@ __all__ = [
     "AplicadorCuadrillas",
     "AplicadorDeCarga",
     "AplicadorDePrototipos",
+    "AplicadorEtapasConstructivas",
     "AplicadorManoObra",
     "AplicadorMateriales",
+    "AplicadorNiveles",
     "AplicadorPresupuesto",
     "AplicadorPrototipos",
 ]
@@ -756,10 +760,15 @@ class AplicadorConceptosBase:
 
     Clave, descripción y unidad — nada de composición. Escribe `concepto`
     con ``familia_id`` sin tocar (§3.4: lo que el archivo no trae, no se
-    toca) y ``tipo=CONCEPTO`` por defecto en el alta. La composición del
-    concepto (qué lleva, con qué costo) es CPU (`AplicadorCPU`, abajo), un
-    cargador aparte que además puede homologar contra lo que este catálogo
-    ya haya dado de alta.
+    toca) y ``tipo`` fijo por constructor (``CONCEPTO`` por defecto) en el
+    alta — mismo criterio que `AplicadorManoObra` fijando
+    ``tipo=SUBCONTRATO`` para `CargadorSubcontratos`: un concepto auxiliar
+    (`CargadorConceptosAuxiliares`, §7.3) es un `concepto` más, solo que
+    ``tipo=AUXILIAR``, y la clave es única sin importar el tipo
+    (`uq_concepto_clave`) — comparten catálogo, no lo duplican. La
+    composición del concepto (qué lleva, con qué costo) es CPU
+    (`AplicadorCPU`, abajo), un cargador aparte que además puede homologar
+    contra lo que este catálogo ya haya dado de alta.
     """
 
     def __init__(
@@ -768,10 +777,14 @@ class AplicadorConceptosBase:
         conceptos: RepositorioConceptos,
         unidades: RepositorioUnidades,
         cargas: RepositorioCargas,
+        tipo: TipoConcepto = TipoConcepto.CONCEPTO,
+        prefijo_clave: str = "CPT",
     ) -> None:
         self._conceptos = conceptos
         self._unidades = unidades
         self._cargas = cargas
+        self._tipo = tipo
+        self._prefijo_clave = prefijo_clave
 
     async def aplicar(
         self,
@@ -789,6 +802,7 @@ class AplicadorConceptosBase:
             unidades_filas, mapeos=await self._cargas.mapeos("unidad")
         )
         id_unidad = {str(f["clave"]): f["id"] for f in unidades_filas}
+        unidades_por_clave = {str(f["clave"]): f for f in unidades_filas}
 
         pendientes: list[PendientePropuesto] = []
         entrantes: dict[str, dict[str, Any]] = {}
@@ -810,13 +824,39 @@ class AplicadorConceptosBase:
             if base.clave is not None:
                 clave = str(base.clave)
             else:
-                clave = generar_clave_automatica("CPT", claves_conocidas)
+                clave = generar_clave_automatica(self._prefijo_clave, claves_conocidas)
                 claves_conocidas.append(clave)
                 claves_generadas += 1
             actual = por_clave.get(clave, {})
 
             unidad_id = actual.get("unidad_id")
-            if base.unidad:
+            if base.clave_unidad:
+
+                async def _dar_de_alta_unidad(
+                    _datos: dict[str, Any],
+                    *,
+                    _clave: str = base.clave_unidad,
+                    _nombre: str | None = base.unidad,
+                ) -> UUID:
+                    return await self._unidades.crear_o_existente(
+                        {"clave": _clave, "nombre": _nombre or _clave}
+                    )
+
+                unidad_id = await _resolver_o_dar_de_alta_con_alerta(
+                    base.clave_unidad,
+                    base.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    filas_por_clave=unidades_por_clave,
+                    creadas=nuevas_unidades,
+                    crear=_dar_de_alta_unidad,
+                    entidad="unidad",
+                    fila=base.fila,
+                    pendientes=pendientes,
+                    dry_run=dry_run,
+                    campo_descripcion="nombre",
+                )
+            elif base.unidad:
                 unidad_id = await _resolver_o_dar_de_alta(
                     base.unidad,
                     homologador=unidades,
@@ -845,7 +885,7 @@ class AplicadorConceptosBase:
             for alta in diff.altas:
                 nuevo_id = await self._conceptos.crear(
                     {
-                        "tipo": str(TipoConcepto.CONCEPTO),
+                        "tipo": str(self._tipo),
                         "clave": alta.clave,
                         "descripcion": alta.despues["descripcion"],
                         "unidad_id": alta.despues["unidad_id"],
@@ -908,6 +948,166 @@ cargador no los escriba: el UPDATE de la reversa fija los cinco campos sin
 condición (`_RESTAURAR["concepto"]`), así que omitirlos aquí los dejaría en
 NULL al revertir — mismo criterio que `AplicadorCPU` usa para su propio
 `_recorte` de concepto."""
+
+
+# --- Niveles y etapas de construcción (§10.1) -----------------------------
+#
+# Antes solo se sembraban de pasada cuando el árbol de presupuesto los
+# referenciaba (`RepositorioNivelesEtapas.upsert_nivel`/`upsert_etapa`,
+# primera carga define la descripción y ya). Estos dos son su propio
+# cargador dueño del catálogo: sí actualizan la descripción en cada carga
+# (§10.2, modo Actualizar), con diff y snapshot como cualquier otro.
+#
+# Ninguna de las dos tablas tiene `estatus` (migración 0005): sin baja
+# lógica, un modo Reemplazar calcula `diff.bajas` igual —es el diff quien
+# decide qué falta, no el aplicador— pero no hay nada que este aplicador
+# pueda hacer con esas filas más que dejarlas como están. No se cuentan
+# como "actualizadas": no se tocaron.
+
+
+class AplicadorNiveles:
+    """Catálogo base de niveles de construcción (§10.1): identidad
+    únicamente — clave y descripción."""
+
+    def __init__(self, *, niveles_etapas: RepositorioNivelesEtapas) -> None:
+        self._niveles_etapas = niveles_etapas
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        vigentes_filas = await self._niveles_etapas.listar_niveles()
+        por_clave = {str(f["clave"]): f for f in vigentes_filas}
+
+        entrantes: dict[str, dict[str, Any]] = {}
+        claves_generadas = 0
+        claves_conocidas = list(por_clave.keys())
+
+        for registro in lectura.registros:
+            fila: FilaNivel = registro  # type: ignore[assignment]
+            if fila.clave is not None:
+                clave = str(fila.clave)
+            else:
+                clave = generar_clave_automatica("NIV", claves_conocidas)
+                claves_conocidas.append(clave)
+                claves_generadas += 1
+            entrantes[clave] = {"descripcion": fila.descripcion}
+
+        vigentes = {
+            clave: {"descripcion": f.get("descripcion")} for clave, f in por_clave.items()
+        }
+        diff = diferenciar(vigentes=vigentes, entrantes=entrantes, modo=modo)
+
+        operaciones: list[dict[str, Any]] = []
+        if not dry_run:
+            for alta in diff.altas:
+                nuevo_id = await self._niveles_etapas.crear_nivel(
+                    {"clave": alta.clave, "descripcion": alta.despues["descripcion"]}
+                )
+                operaciones.append(
+                    _operacion("nivel", nuevo_id, "insert", despues=dict(alta.despues))
+                )
+            for cambio in diff.cambios:
+                fila_vigente = por_clave[cambio.clave]
+                await self._niveles_etapas.actualizar_nivel(
+                    fila_vigente["id"], dict(cambio.despues)
+                )
+                operaciones.append(
+                    _operacion(
+                        "nivel",
+                        fila_vigente["id"],
+                        "update",
+                        antes=_recorte(fila_vigente, ("descripcion",)),
+                        despues=dict(cambio.despues),
+                    )
+                )
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            insertados=len(diff.altas),
+            actualizados=len(diff.cambios),
+            omitidos=diff.omitidos + lectura.omitidos,
+            detalle={"claves_generadas": claves_generadas},
+        )
+
+
+class AplicadorEtapasConstructivas:
+    """Catálogo base de etapas de construcción (§10.1): identidad
+    únicamente — clave y descripción. ``nivel_id`` no se resuelve aquí (ver
+    `domain.cargadores.etapas_constructivas`)."""
+
+    def __init__(self, *, niveles_etapas: RepositorioNivelesEtapas) -> None:
+        self._niveles_etapas = niveles_etapas
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        vigentes_filas = await self._niveles_etapas.listar_etapas()
+        por_clave = {str(f["clave"]): f for f in vigentes_filas}
+
+        entrantes: dict[str, dict[str, Any]] = {}
+        claves_generadas = 0
+        claves_conocidas = list(por_clave.keys())
+
+        for registro in lectura.registros:
+            fila: FilaEtapaConstructiva = registro  # type: ignore[assignment]
+            if fila.clave is not None:
+                clave = str(fila.clave)
+            else:
+                clave = generar_clave_automatica("ECO", claves_conocidas)
+                claves_conocidas.append(clave)
+                claves_generadas += 1
+            entrantes[clave] = {"descripcion": fila.descripcion}
+
+        vigentes = {
+            clave: {"descripcion": f.get("descripcion")} for clave, f in por_clave.items()
+        }
+        diff = diferenciar(vigentes=vigentes, entrantes=entrantes, modo=modo)
+
+        operaciones: list[dict[str, Any]] = []
+        if not dry_run:
+            for alta in diff.altas:
+                nuevo_id = await self._niveles_etapas.crear_etapa(
+                    {"clave": alta.clave, "descripcion": alta.despues["descripcion"]}
+                )
+                operaciones.append(
+                    _operacion(
+                        "etapa_constructiva", nuevo_id, "insert", despues=dict(alta.despues)
+                    )
+                )
+            for cambio in diff.cambios:
+                fila_vigente = por_clave[cambio.clave]
+                await self._niveles_etapas.actualizar_etapa(
+                    fila_vigente["id"], dict(cambio.despues)
+                )
+                operaciones.append(
+                    _operacion(
+                        "etapa_constructiva",
+                        fila_vigente["id"],
+                        "update",
+                        antes=_recorte(fila_vigente, ("descripcion",)),
+                        despues=dict(cambio.despues),
+                    )
+                )
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            insertados=len(diff.altas),
+            actualizados=len(diff.cambios),
+            omitidos=diff.omitidos + lectura.omitidos,
+            detalle={"claves_generadas": claves_generadas},
+        )
 
 
 # --- CPU / Conceptos (§10.6 `CABECERAS_CPU.xlsx`) -------------------------

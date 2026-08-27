@@ -372,6 +372,27 @@ class RepositorioNivelesEtapas(Protocol):
         self, *, clave: str, descripcion: str, nivel_id: UUID | None, orden: int
     ) -> UUID: ...
 
+    # --- CRUD para el cargador dedicado (§10.6) --------------------------
+    #
+    # A diferencia de `upsert_nivel`/`upsert_etapa` (auto-alta de pasada
+    # desde el árbol, primera carga define la descripción y ya), estos sí
+    # actualizan la descripción en cada carga — es el cargador dueño del
+    # catálogo, no una referencia de otro cargador (§10.2, modo Actualizar).
+    # Ninguna de las dos tablas tiene `estatus` (migración 0005): no hay
+    # baja lógica que aplicar en modo Reemplazar.
+
+    async def listar_niveles(self) -> list[dict]: ...
+
+    async def crear_nivel(self, datos: dict) -> UUID: ...
+
+    async def actualizar_nivel(self, nivel_id: UUID, cambios: dict) -> None: ...
+
+    async def listar_etapas(self) -> list[dict]: ...
+
+    async def crear_etapa(self, datos: dict) -> UUID: ...
+
+    async def actualizar_etapa(self, etapa_id: UUID, cambios: dict) -> None: ...
+
 
 @runtime_checkable
 class RepositorioPresupuestos(Protocol):
