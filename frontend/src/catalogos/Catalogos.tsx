@@ -171,11 +171,14 @@ export default function Catalogos() {
 
   const cuadrillasQ = useListarCuadrillasApiV1CuadrillasGet<CuadrillaRespuesta[], ErrorApi>(
     { incluir_inactivos: incluirInactivos },
-    { query: { enabled: pestania === 'cuadrillas' } },
+    // También en "insumos": `TablaInsumos` resuelve `cuadrilla_id` de un
+    // destajo contra este catálogo (§10.6), igual que ya hace con unidades.
+    { query: { enabled: pestania === 'cuadrillas' || pestania === 'insumos' } },
   );
 
   const unidades = useMemo(() => unidadesQ.data ?? [], [unidadesQ.data]);
   const familias = useMemo(() => familiasQ.data ?? [], [familiasQ.data]);
+  const cuadrillasParaInsumos = useMemo(() => cuadrillasQ.data ?? [], [cuadrillasQ.data]);
   const conceptos = useMemo(() => conceptosQ.data ?? [], [conceptosQ.data]);
 
   const resUnidades = useMemo(
@@ -420,6 +423,7 @@ export default function Catalogos() {
             resultados={resInsumos}
             unidades={unidades}
             familias={familias}
+            cuadrillas={cuadrillasParaInsumos}
             cargando={insumosQ.isLoading}
             vacia="No hay insumos con estos filtros."
           />
@@ -430,6 +434,7 @@ export default function Catalogos() {
             resultados={resMateriales}
             unidades={unidades}
             familias={familias}
+            cuadrillas={cuadrillasParaInsumos}
             cargando={materialesQ.isLoading}
             vacia="No hay materiales con estos filtros."
           />

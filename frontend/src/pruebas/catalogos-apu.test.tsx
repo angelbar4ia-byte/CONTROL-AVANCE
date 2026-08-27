@@ -149,6 +149,7 @@ describe('TablaInsumos: IVA por familia con override (§3.5)', () => {
         resultados={buscarPorClave(insumos, texto, (insumo) => insumo.descripcion)}
         unidades={UNIDADES}
         familias={FAMILIAS}
+        cuadrillas={[]}
         cargando={false}
         vacia="No hay materiales con estos filtros."
       />,

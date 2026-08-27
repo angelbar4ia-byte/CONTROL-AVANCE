@@ -12,6 +12,8 @@ import type { InsumoRespuestaCostoBaseActualizado } from './insumoRespuestaCosto
 import type { InsumoRespuestaCostoPromedioAlmacen } from './insumoRespuestaCostoPromedioAlmacen';
 import type { InsumoRespuestaCostoUltimo } from './insumoRespuestaCostoUltimo';
 import type { InsumoRespuestaIvaAplica } from './insumoRespuestaIvaAplica';
+import type { InsumoRespuestaCuadrillaId } from './insumoRespuestaCuadrillaId';
+import type { InsumoRespuestaRendimientoTeorico } from './insumoRespuestaRendimientoTeorico';
 
 export interface InsumoRespuesta {
   id: string;
@@ -29,5 +31,7 @@ export interface InsumoRespuesta {
   iva_aplica?: InsumoRespuestaIvaAplica;
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   factor_conversion?: string;
+  cuadrilla_id?: InsumoRespuestaCuadrillaId;
+  rendimiento_teorico?: InsumoRespuestaRendimientoTeorico;
   estatus?: string;
 }

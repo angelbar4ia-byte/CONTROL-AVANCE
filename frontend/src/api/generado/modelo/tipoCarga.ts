@@ -24,4 +24,5 @@ export const TipoCarga = {
   mano_de_obra: 'mano_de_obra',
   cuadrillas: 'cuadrillas',
   subcontratos: 'subcontratos',
+  cpu: 'cpu',
 } as const;

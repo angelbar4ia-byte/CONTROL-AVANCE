@@ -26,6 +26,7 @@ from obractrl.domain.shared.normalizacion import canonizar_encabezado, normaliza
 __all__ = [
     "ALMACEN",
     "COLUMNAS_CPU",
+    "CONCEPTOS_BASE",
     "CPU",
     "CUADRILLAS",
     "MANO_DE_OBRA",
@@ -247,6 +248,17 @@ ALMACEN = EspecificacionArchivo(
 # mapa global del §8.6 (`Código`→clave, `Descripción`→descripcion,
 # `U`/`UM`→unidad, `Clase`→familia).
 
+CONCEPTOS_BASE = EspecificacionArchivo(
+    tipo="Catálogo de conceptos",
+    archivo="CABECERAS_CONCEPTOS.xlsx",
+    hoja=None,
+    obligatorias=("clave", "descripcion"),
+    opcionales=("unidad",),
+)
+"""Catálogo base de identidad de conceptos (§8.7): clave, descripción,
+unidad — nada más. La composición (qué lleva cada concepto y con qué
+costo) es CPU (`CPU`, más abajo), un archivo y un cargador distintos."""
+
 MATERIALES = EspecificacionArchivo(
     tipo="Catálogo de materiales",
     archivo="CABECERAS_MATERIALES.xlsx",
@@ -254,6 +266,7 @@ MATERIALES = EspecificacionArchivo(
     obligatorias=("clave", "descripcion"),
     opcionales=(
         "unidad",
+        "clave_unidad",
         "familia",
         "costo_base",
         "costo_ultimo",
@@ -303,7 +316,14 @@ MANO_DE_OBRA = EspecificacionArchivo(
     archivo="CABECERAS_MANO_DE_OBRA.xlsx",
     hoja="DESTAJOS",
     obligatorias=("clave", "descripcion"),
-    opcionales=("unidad", "familia", "cuadrilla", "rendimiento_teorico", "costo_base"),
+    opcionales=(
+        "unidad",
+        "clave_unidad",
+        "familia",
+        "cuadrilla",
+        "rendimiento_teorico",
+        "costo_base",
+    ),
     alias={
         "desctripcion": "descripcion",
         "cuadrilla": "cuadrilla",

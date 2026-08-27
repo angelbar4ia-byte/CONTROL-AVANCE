@@ -20,6 +20,7 @@ from __future__ import annotations
 import unicodedata
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from difflib import SequenceMatcher
 
 from obractrl.domain.shared.diccionario import ALIAS_ENCABEZADOS
 
@@ -32,6 +33,7 @@ __all__ = [
     "canonizar_encabezado",
     "esta_vacio",
     "normalizar",
+    "similar",
     "texto_limpio",
 ]
 
@@ -58,6 +60,35 @@ def normalizar(valor: object) -> str:
     # "descripción" y "descripcion" en la misma cadena.
     descompuesto = unicodedata.normalize("NFKD", crudo)
     return "".join(c for c in descompuesto if not unicodedata.combining(c))
+
+
+def similar(a: str, b: str, *, umbral: float = 0.85) -> bool:
+    """¿Dos descripciones dicen lo mismo, aunque no sean idénticas?
+
+    Compara sobre `normalizar()` (sin acentos, minúsculas, espacios
+    colapsados) para no confundir una diferencia real con puntuación o
+    mayúsculas. Igual exacta ya normalizada cuenta como similar sin correr
+    `SequenceMatcher` — evita el caso trivial de comparar dos vacíos.
+
+    Una es sub-cadena de la otra también cuenta como similar sin mirar el
+    umbral: es el caso real de un renglón de componente con la descripción
+    abreviada contra el nombre completo del catálogo ("Block" dentro de
+    "Block de concreto") — mismo insumo, menos texto, no una alerta que
+    alguien tenga que revisar. `SequenceMatcher` solo entra cuando ninguna
+    contiene a la otra.
+
+    El umbral (0.85 por defecto) es un punto de partida: tolera acentos que
+    `normalizar` no captura del todo u orden de palabras raro, sin confundir
+    dos descripciones genuinamente distintas.
+    """
+    x, y = normalizar(a), normalizar(b)
+    if x == y:
+        return True
+    if not x or not y:
+        return False
+    if x in y or y in x:
+        return True
+    return SequenceMatcher(None, x, y).ratio() >= umbral
 
 
 def canonizar_encabezado(

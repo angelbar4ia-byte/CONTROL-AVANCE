@@ -57,7 +57,7 @@ def plantilla_de(tipo: TipoCarga) -> bytes:
     assert hoja is not None  # noqa: S101 — Workbook() siempre crea una hoja
     hoja.title = especificacion.hoja or "Datos"
 
-    if tipo is TipoCarga.CATALOGO_CONCEPTOS:
+    if tipo is TipoCarga.CPU:
         # Posicional: cada rótulo va en su letra, incluida la G que el §10.6
         # no usa y que por eso queda en blanco.
         for columna in cabeceras.COLUMNAS_CPU:

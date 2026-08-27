@@ -44,6 +44,8 @@ from obractrl.application.puertos.repositorios import (
     RepositorioUnidades,
 )
 from obractrl.domain.cargadores.almacen import FilaMovimiento, importe_con_iva
+from obractrl.domain.cargadores.claves_automaticas import generar_clave_automatica
+from obractrl.domain.cargadores.conceptos_base import FilaConceptoBase
 from obractrl.domain.cargadores.cpu import ComponenteCargado, ConceptoCargado
 from obractrl.domain.cargadores.cuadrillas import CuadrillaCargada
 from obractrl.domain.cargadores.homologacion import Homologador
@@ -80,12 +82,14 @@ from obractrl.domain.shared.diccionario import (
     TipoHijoExplosion,
     TipoInsumo,
 )
+from obractrl.domain.shared.normalizacion import similar
 from obractrl.domain.shared.valores import Dinero, PrecioUnitario
 
 __all__ = [
     "Aplicacion",
     "AplicadorAlmacen",
     "AplicadorCPU",
+    "AplicadorConceptosBase",
     "AplicadorCuadrillas",
     "AplicadorDeCarga",
     "AplicadorDePrototipos",
@@ -199,6 +203,58 @@ async def _resolver_o_dar_de_alta(
     return creadas[valor]
 
 
+async def _resolver_o_dar_de_alta_con_alerta(
+    valor: str,
+    descripcion: str | None,
+    *,
+    homologador: Homologador,
+    id_por_clave: dict[str, UUID],
+    filas_por_clave: dict[str, dict[str, Any]],
+    creadas: dict[str, UUID | None],
+    crear: Callable[[dict[str, Any]], Awaitable[UUID]],
+    entidad: str,
+    fila: int,
+    pendientes: list[PendientePropuesto],
+    dry_run: bool,
+    campo_descripcion: str = "descripcion",
+) -> UUID | None:
+    """Como `_resolver_o_dar_de_alta`, pero vigilando la descripción cuando
+    SÍ cruza por clave (§8.7: homologación con alerta, no bloqueo).
+
+    Es para cuando CPU o el árbol referencian **de pasada** un catálogo base
+    que no es el suyo (un insumo, en concreto): la clave sigue mandando
+    (§3.3) y el cruce se resuelve igual que siempre. Lo único que agrega es
+    una alerta —no crítica, nunca bloquea la carga— cuando la descripción
+    que trae esta fila no se parece a la que el catálogo ya tiene para esa
+    clave, para que alguien la revise después. Sin descripción que comparar
+    (``descripcion`` vacío, o la clave no cruzó y se va a dar de alta), se
+    comporta exactamente como la versión simple.
+    """
+    clave = homologador.resolver(valor)
+    if clave is not None:
+        if descripcion:
+            descripcion_catalogo = filas_por_clave.get(clave, {}).get(campo_descripcion)
+            if descripcion_catalogo and not similar(descripcion, str(descripcion_catalogo)):
+                pendientes.append(
+                    PendientePropuesto(
+                        tipo=TipoPendiente.DESCRIPCION_DISTINTA,
+                        entidad=entidad,
+                        valor_origen=valor,
+                        propuesta={
+                            "clave": clave,
+                            "descripcion_archivo": descripcion,
+                            "descripcion_catalogo": str(descripcion_catalogo),
+                        },
+                        critico=False,
+                        origen_ref=f"fila {fila}",
+                    )
+                )
+        return id_por_clave.get(clave)
+    if valor not in creadas:
+        creadas[valor] = None if dry_run else await crear({"clave": valor, "nombre": valor})
+    return creadas[valor]
+
+
 # --- Materiales (§10.6 `CABECERAS_MATERIALES.xlsx`) -----------------------
 
 _CAMPOS_MATERIAL = (
@@ -262,6 +318,7 @@ class AplicadorMateriales:
             unidades_filas, mapeos=await self._cargas.mapeos("unidad")
         )
         id_unidad = {str(f["clave"]): f["id"] for f in unidades_filas}
+        unidades_por_clave = {str(f["clave"]): f for f in unidades_filas}
 
         familias_filas = await self._familias.listar(
             aplica_a="material", solo_activos=False
@@ -281,7 +338,33 @@ class AplicadorMateriales:
             actual = por_clave.get(material.llave, {})
 
             unidad_id = actual.get("unidad_id")
-            if material.unidad:
+            if material.clave_unidad:
+
+                async def _dar_de_alta_unidad(
+                    _datos: dict[str, Any],
+                    *,
+                    _clave: str = material.clave_unidad,
+                    _nombre: str | None = material.unidad,
+                ) -> UUID:
+                    return await self._unidades.crear_o_existente(
+                        {"clave": _clave, "nombre": _nombre or _clave}
+                    )
+
+                unidad_id = await _resolver_o_dar_de_alta_con_alerta(
+                    material.clave_unidad,
+                    material.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    filas_por_clave=unidades_por_clave,
+                    creadas=nuevas_unidades,
+                    crear=_dar_de_alta_unidad,
+                    entidad="unidad",
+                    fila=material.fila,
+                    pendientes=pendientes,
+                    dry_run=dry_run,
+                    campo_descripcion="nombre",
+                )
+            elif material.unidad:
                 unidad_id = await _resolver_o_dar_de_alta(
                     material.unidad,
                     homologador=unidades,
@@ -494,6 +577,7 @@ class AplicadorManoObra:
             unidades_filas, mapeos=await self._cargas.mapeos("unidad")
         )
         id_unidad = {str(f["clave"]): f["id"] for f in unidades_filas}
+        unidades_por_clave = {str(f["clave"]): f for f in unidades_filas}
 
         # Sin ámbito propio de "mano_obra" en `familia.aplica_a` (§10.1 solo
         # define material/concepto): un destajo es un insumo igual que un
@@ -524,7 +608,33 @@ class AplicadorManoObra:
             actual = por_clave.get(destajo.llave, {})
 
             unidad_id = actual.get("unidad_id")
-            if destajo.unidad:
+            if destajo.clave_unidad:
+
+                async def _dar_de_alta_unidad(
+                    _datos: dict[str, Any],
+                    *,
+                    _clave: str = destajo.clave_unidad,
+                    _nombre: str | None = destajo.unidad,
+                ) -> UUID:
+                    return await self._unidades.crear_o_existente(
+                        {"clave": _clave, "nombre": _nombre or _clave}
+                    )
+
+                unidad_id = await _resolver_o_dar_de_alta_con_alerta(
+                    destajo.clave_unidad,
+                    destajo.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    filas_por_clave=unidades_por_clave,
+                    creadas=nuevas_unidades,
+                    crear=_dar_de_alta_unidad,
+                    entidad="unidad",
+                    fila=destajo.fila,
+                    pendientes=pendientes,
+                    dry_run=dry_run,
+                    campo_descripcion="nombre",
+                )
+            elif destajo.unidad:
                 unidad_id = await _resolver_o_dar_de_alta(
                     destajo.unidad,
                     homologador=unidades,
@@ -636,6 +746,168 @@ class AplicadorManoObra:
                 "cuadrillas_creadas": len(nuevas_cuadrillas),
             },
         )
+
+
+# --- Catálogo base de conceptos (§8.7 `CABECERAS_CONCEPTOS.xlsx`) --------
+
+
+class AplicadorConceptosBase:
+    """Catálogo base de conceptos (§8.7): identidad únicamente.
+
+    Clave, descripción y unidad — nada de composición. Escribe `concepto`
+    con ``familia_id`` sin tocar (§3.4: lo que el archivo no trae, no se
+    toca) y ``tipo=CONCEPTO`` por defecto en el alta. La composición del
+    concepto (qué lleva, con qué costo) es CPU (`AplicadorCPU`, abajo), un
+    cargador aparte que además puede homologar contra lo que este catálogo
+    ya haya dado de alta.
+    """
+
+    def __init__(
+        self,
+        *,
+        conceptos: RepositorioConceptos,
+        unidades: RepositorioUnidades,
+        cargas: RepositorioCargas,
+    ) -> None:
+        self._conceptos = conceptos
+        self._unidades = unidades
+        self._cargas = cargas
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        vigentes_filas = await self._conceptos.listar(solo_activos=False)
+        por_clave = {str(fila["clave"]): fila for fila in vigentes_filas}
+
+        unidades_filas = await self._unidades.listar(solo_activos=False)
+        unidades = Homologador.desde(
+            unidades_filas, mapeos=await self._cargas.mapeos("unidad")
+        )
+        id_unidad = {str(f["clave"]): f["id"] for f in unidades_filas}
+
+        pendientes: list[PendientePropuesto] = []
+        entrantes: dict[str, dict[str, Any]] = {}
+        nuevas_unidades: dict[str, UUID | None] = {}
+        claves_generadas = 0
+        # Semilla del consecutivo con el catálogo vigente; crece con cada
+        # clave que este archivo genera, para que dos filas sin clave en el
+        # mismo archivo no propongan el mismo número (§8.7). Una fila sin
+        # clave no tiene identidad estable entre una carga y la siguiente
+        # —la clave generada AQUÍ es su identidad de ahora en adelante—, así
+        # que volver a subir el mismo archivo sin editarle la clave crea un
+        # concepto nuevo cada vez, no actualiza el anterior. Es la misma
+        # consecuencia de "la clave manda" (§3.3): sin ella no hay con qué
+        # reconocer que es la misma fila.
+        claves_conocidas = list(por_clave.keys())
+
+        for registro in lectura.registros:
+            base: FilaConceptoBase = registro  # type: ignore[assignment]
+            if base.clave is not None:
+                clave = str(base.clave)
+            else:
+                clave = generar_clave_automatica("CPT", claves_conocidas)
+                claves_conocidas.append(clave)
+                claves_generadas += 1
+            actual = por_clave.get(clave, {})
+
+            unidad_id = actual.get("unidad_id")
+            if base.unidad:
+                unidad_id = await _resolver_o_dar_de_alta(
+                    base.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    creadas=nuevas_unidades,
+                    crear=self._unidades.crear_o_existente,
+                    dry_run=dry_run,
+                )
+
+            entrantes[clave] = {
+                "descripcion": base.descripcion,
+                "unidad_id": unidad_id,
+            }
+
+        vigentes = {
+            clave: {
+                "descripcion": fila.get("descripcion"),
+                "unidad_id": fila.get("unidad_id"),
+            }
+            for clave, fila in por_clave.items()
+        }
+        diff = diferenciar(vigentes=vigentes, entrantes=entrantes, modo=modo)
+
+        operaciones: list[dict[str, Any]] = []
+        if not dry_run:
+            for alta in diff.altas:
+                nuevo_id = await self._conceptos.crear(
+                    {
+                        "tipo": str(TipoConcepto.CONCEPTO),
+                        "clave": alta.clave,
+                        "descripcion": alta.despues["descripcion"],
+                        "unidad_id": alta.despues["unidad_id"],
+                    }
+                )
+                operaciones.append(
+                    _operacion("concepto", nuevo_id, "insert", despues=dict(alta.despues))
+                )
+
+            for cambio in diff.cambios:
+                fila = por_clave[cambio.clave]
+                await self._conceptos.actualizar(fila["id"], dict(cambio.despues))
+                operaciones.append(
+                    _operacion(
+                        "concepto",
+                        fila["id"],
+                        "update",
+                        antes=_recorte(fila, _CAMPOS_RESTAURABLES_CONCEPTO_BASE),
+                        despues=dict(cambio.despues),
+                    )
+                )
+
+            for baja in diff.bajas:
+                fila = por_clave[baja.clave]
+                await self._conceptos.actualizar(fila["id"], {"estatus": _ESTATUS_BAJA})
+                operaciones.append(
+                    _operacion(
+                        "concepto",
+                        fila["id"],
+                        "update",
+                        antes=_recorte(fila, _CAMPOS_RESTAURABLES_CONCEPTO_BASE),
+                        despues={"estatus": _ESTATUS_BAJA},
+                    )
+                )
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            pendientes=tuple(pendientes),
+            insertados=len(diff.altas),
+            actualizados=len(diff.cambios) + len(diff.bajas),
+            omitidos=diff.omitidos + lectura.omitidos,
+            detalle={
+                "unidades_creadas": len(nuevas_unidades),
+                "claves_generadas": claves_generadas,
+            },
+        )
+
+
+_CAMPOS_RESTAURABLES_CONCEPTO_BASE = (
+    "tipo",
+    "descripcion",
+    "unidad_id",
+    "familia_id",
+    "estatus",
+)
+"""Lo que el snapshot guarda como ``antes`` (`adapters/repos/
+cargas_sql._RESTAURAR`). Incluye ``tipo``/``familia_id`` aunque este
+cargador no los escriba: el UPDATE de la reversa fija los cinco campos sin
+condición (`_RESTAURAR["concepto"]`), así que omitirlos aquí los dejaría en
+NULL al revertir — mismo criterio que `AplicadorCPU` usa para su propio
+`_recorte` de concepto."""
 
 
 # --- CPU / Conceptos (§10.6 `CABECERAS_CPU.xlsx`) -------------------------
@@ -803,12 +1075,17 @@ class AplicadorCPU:
                         }
                     )
 
-                insumo_id = await _resolver_o_dar_de_alta(
+                insumo_id = await _resolver_o_dar_de_alta_con_alerta(
                     clave_texto,
+                    componente.descripcion,
                     homologador=insumos,
                     id_por_clave=id_insumo,
+                    filas_por_clave=insumos_por_clave,
                     creadas=nuevos_insumos,
                     crear=_dar_de_alta_insumo,
+                    entidad="insumo",
+                    fila=componente.fila,
+                    pendientes=pendientes,
                     dry_run=dry_run,
                 )
                 if clave_insumo not in insumos_por_clave:
@@ -2439,12 +2716,17 @@ class AplicadorPresupuesto:
                     }
                 )
 
-            insumo_id = await _resolver_o_dar_de_alta(
+            insumo_id = await _resolver_o_dar_de_alta_con_alerta(
                 hijo.clave,
+                hijo.descripcion,
                 homologador=insumos,
                 id_por_clave=id_insumo,
+                filas_por_clave=insumos_por_clave,
                 creadas=nuevos_insumos,
                 crear=_dar_de_alta_insumo,
+                entidad="insumo",
+                fila=hijo.fila,
+                pendientes=pendientes,
                 dry_run=dry_run,
             )
             if clave_insumo not in insumos_por_clave:

@@ -26,6 +26,7 @@ import {
   Settings,
   ShieldCheck,
   Star,
+  Trash2,
   Truck,
   Upload,
   Users,
@@ -164,6 +165,11 @@ const CONTROL_OBRA: readonly SeccionNav[] = [
       { a: '/config/prototipos', etiqueta: 'Prototipos', icono: Layers },
       { a: '/config/catalogos', etiqueta: 'Catálogos', icono: FolderTree },
       { a: '/config/cargas', etiqueta: 'Cargas de datos', icono: Upload },
+      {
+        a: '/config/reiniciar-organizacion',
+        etiqueta: 'Reiniciar organización',
+        icono: Trash2,
+      },
     ],
   },
 ];

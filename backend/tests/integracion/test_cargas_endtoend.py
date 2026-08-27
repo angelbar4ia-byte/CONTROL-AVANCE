@@ -23,11 +23,12 @@ from decimal import Decimal
 from io import BytesIO
 
 import pytest
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from obractrl.adapters.excel.cargadores import cargador_para
+from obractrl.adapters.excel.plantillas import nombre_de_plantilla, plantilla_de
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
@@ -45,6 +46,7 @@ from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
 from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorAlmacen,
+    AplicadorConceptosBase,
     AplicadorCPU,
     AplicadorCuadrillas,
     AplicadorDeCarga,
@@ -97,6 +99,13 @@ _CABECERAS_MATERIALES = ["Clave", "Descripción", "Unidad", "Clase", "Costo base
 
 def _archivo_materiales(filas: list[list[object]]) -> bytes:
     return _libro([_CABECERAS_MATERIALES, *filas])
+
+
+_CABECERAS_CONCEPTOS_BASE = ["Clave", "Descripción", "Unidad"]
+
+
+def _archivo_conceptos_base(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_CONCEPTOS_BASE, *filas])
 
 
 _CABECERAS_MANO_OBRA = [
@@ -209,6 +218,43 @@ def _etapa_colapsada(
     ]
 
 
+# --- Plantillas descargables (§9.3): una por `TipoCarga`, no por archivo -
+#
+# Sin fixtures de base: `plantilla_de` no toca la sesión, así que estas
+# corren igual con o sin Postgres a la mano — a diferencia del resto de este
+# módulo. Existen porque CATALOGO_CONCEPTOS y CPU compartieron tipo antes de
+# esta sesión: `plantillas.py` traía el caso especial posicional colgado del
+# tipo viejo y nadie lo movió al separar los cargadores (§10.6).
+
+
+def test_plantilla_de_catalogo_de_conceptos_es_por_nombre_no_posicional() -> None:
+    """Antes CATALOGO_CONCEPTOS *era* CPU: la plantilla no puede seguir
+    dando el layout posicional de 9 columnas para un archivo que ahora es
+    clave/descripción/unidad por nombre."""
+    libro = load_workbook(BytesIO(plantilla_de(TipoCarga.CATALOGO_CONCEPTOS)))
+    hoja = libro.active
+    assert hoja is not None
+    encabezados = [c.value for c in hoja[1] if c.value is not None]
+    assert encabezados == ["clave", "descripcion", "unidad"]
+
+
+def test_plantilla_de_cpu_sigue_siendo_posicional_por_letra() -> None:
+    """§10.6: CPU se lee por letra, no por nombre — la G queda en blanco a
+    propósito porque el archivo real no la usa."""
+    libro = load_workbook(BytesIO(plantilla_de(TipoCarga.CPU)))
+    hoja = libro.active
+    assert hoja is not None
+    assert [c.value for c in hoja[1]] == [
+        "CLAVE", "CLAVE INSUMO", "DESCRIPCION", "UNIDAD",
+        "CANTIDAD", "P.U.", None, "FAMILIA", "TIPO",
+    ]
+
+
+def test_nombre_de_plantilla_distingue_conceptos_de_cpu() -> None:
+    assert nombre_de_plantilla(TipoCarga.CATALOGO_CONCEPTOS) == "CABECERAS_CONCEPTOS.xlsx"
+    assert nombre_de_plantilla(TipoCarga.CPU) == "CABECERAS_CPU.xlsx"
+
+
 # --- Escenario de catálogos ----------------------------------------------
 
 
@@ -288,6 +334,12 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
             cargas=cargas,
         )
     if tipo is TipoCarga.CATALOGO_CONCEPTOS:
+        return AplicadorConceptosBase(
+            conceptos=RepositorioConceptosSQL(sesion),
+            unidades=RepositorioUnidadesSQL(sesion),
+            cargas=cargas,
+        )
+    if tipo is TipoCarga.CPU:
         return AplicadorCPU(
             conceptos=RepositorioConceptosSQL(sesion),
             insumos=RepositorioInsumosSQL(sesion),
@@ -527,6 +579,32 @@ async def test_una_unidad_desconocida_se_da_de_alta_en_vez_de_bloquear(
     assert (await _insumos(contexto_control))["CEM-01"]["unidad_id"] == unidades["sacos"]["id"]
 
 
+async def test_clave_unidad_del_archivo_se_vuelve_la_clave_del_catalogo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """El archivo real trae "CLAVE UNIDAD" aparte de "UNIDAD" (§3.3): antes
+    se ignoraba y la unidad quedaba con el texto libre como su propia clave.
+    Ahora la clave del catálogo es la que trae el archivo, y "UNIDAD" es su
+    nombre — no la misma cadena repetida dos veces."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.MATERIALES,
+        _libro(
+            [
+                ["Clave", "Descripción", "Clave Unidad", "Unidad", "Clase", "Costo base"],
+                ["VAR-01", "Varilla 3/8", "TON01", "Tonelada", "ACE", "20"],
+            ]
+        ),
+    )
+    assert resultado.resumen.errores == 0
+
+    unidades = await _unidades(contexto_control)
+    assert "TON01" in unidades
+    assert unidades["TON01"]["nombre"] == "Tonelada"
+    assert "Tonelada" not in unidades  # no se dio de alta con el nombre como clave
+    assert (await _insumos(contexto_control))["VAR-01"]["unidad_id"] == unidades["TON01"]["id"]
+
+
 async def test_la_vista_previa_cuenta_igual_pero_no_escribe(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
@@ -707,6 +785,68 @@ async def test_un_archivo_sin_las_cabeceras_del_contrato_se_rechaza_entero(
         )
 
 
+# --- Catálogo base de conceptos (§8.7 `CABECERAS_CONCEPTOS.xlsx`) --------
+
+
+async def test_carga_de_conceptos_base_crea_sin_tocar_cpu_ni_explosion(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Identidad únicamente (§8.7): el catálogo de conceptos y CPU son
+    cargadores separados — subir el primero no calcula nada del segundo."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_conceptos_base([["EST-01", "Muro de block", "m2"]]),
+    )
+    assert resultado.resumen.insertados == 1
+    assert resultado.resumen.errores == 0
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        repo = RepositorioConceptosSQL(sesion)
+        concepto = next(c for c in await repo.listar() if str(c["clave"]) == "EST-01")
+        assert concepto["descripcion"] == "Muro de block"
+        assert len(await repo.explosion_directa(concepto["id"])) == 0
+        assert await repo.versiones_cpu(concepto["id"]) == []
+
+
+async def test_recargar_conceptos_base_actualiza_descripcion_sin_pedir_unidad_de_nuevo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """§3.4: lo que el archivo no trae, no se toca — una recarga sin columna
+    de unidad no debe vaciar la que ya se dio de alta."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_conceptos_base([["EST-01", "Muro de block", "m2"]]),
+    )
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_conceptos_base([["EST-01", "Muro de block hueco", ""]]),
+    )
+
+    conceptos = await _conceptos(contexto_control)
+    assert conceptos["EST-01"]["descripcion"] == "Muro de block hueco"
+    assert conceptos["EST-01"]["unidad_id"] is not None
+
+
+async def test_concepto_base_sin_clave_se_numera_solo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """El usuario pidió que un catálogo base sin indicador de clave se
+    numere solo, prefijo del catálogo + consecutivo (§8.7, ej. FAM-00001)."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_CONCEPTOS,
+        _archivo_conceptos_base([["", "Trabe de cimentación", "ml"]]),
+    )
+    assert resultado.resumen.insertados == 1
+
+    conceptos = await _conceptos(contexto_control)
+    assert "CPT-00001" in conceptos
+    assert conceptos["CPT-00001"]["descripcion"] == "Trabe de cimentación"
+
+
 # --- Mano de obra / Destajos (§10.6 `CABECERAS_MANO_DE_OBRA.xlsx`) -------
 
 
@@ -722,7 +862,12 @@ async def test_carga_de_mano_de_obra_alimenta_el_catalogo_de_insumos(
         _archivo_mano_obra(
             [
                 [
-                    "Individual", "US-01", "dest-01", "Aplanado fino", "UN-01", "ton",
+                    # Sin "CLAVE UNIDAD" a propósito: esta fila prueba que
+                    # "UNIDAD" solo (texto libre) sigue resolviendo contra el
+                    # catálogo ya sembrado (§8.7) cuando el archivo no separa
+                    # clave de nombre — ver `test_clave_unidad_...` para el
+                    # caso con la columna presente.
+                    "Individual", "US-01", "dest-01", "Aplanado fino", "", "ton",
                     "CUAD-01", "12.5", None, "85.30", "CEM",
                 ]
             ]
@@ -1084,7 +1229,7 @@ async def test_carga_de_cpu_crea_concepto_explosion_y_version(
 
     resultado = await _cargar(
         contexto_control,
-        TipoCarga.CATALOGO_CONCEPTOS,
+        TipoCarga.CPU,
         _archivo_cpu(
             [
                 _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
@@ -1113,6 +1258,46 @@ async def test_carga_de_cpu_crea_concepto_explosion_y_version(
     assert explosion[0]["cantidad"] == explosion[0]["rendimiento"] == Decimal("12.500000")
 
 
+async def test_cpu_con_insumo_de_descripcion_distinta_homologa_y_alerta_sin_bloquear(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Homologación con alerta (§8.7): la clave manda igual (§3.3) —MAT-01
+    se resuelve y el concepto entra completo—, pero como la descripción de
+    este renglón no se parece a la del catálogo, se abre un pendiente no
+    crítico para que alguien lo revise después. No bloquea la carga."""
+    await _sembrar_insumos(contexto_control)  # MAT-01 = "Block de concreto"
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.CPU,
+        _archivo_cpu(
+            [
+                _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
+                _fila_cpu(
+                    insumo="MAT-01",
+                    descripcion="Varilla corrugada",
+                    cantidad="12.5",
+                    pu="20",
+                    tipo="Material",
+                ),
+            ]
+        ),
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(
+            carga_id=resultado.carga_id
+        )
+    alertas = [b for b in bandeja if b["tipo"] == "descripcion_distinta"]
+    assert len(alertas) == 1
+    assert alertas[0]["critico"] is False
+    assert alertas[0]["entidad"] == "insumo"
+    assert alertas[0]["propuesta"]["clave"] == "MAT-01"
+
+
 async def test_un_insumo_desconocido_en_el_cpu_se_da_de_alta_solo(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
@@ -1128,7 +1313,7 @@ async def test_un_insumo_desconocido_en_el_cpu_se_da_de_alta_solo(
 
     resultado = await _cargar(
         contexto_control,
-        TipoCarga.CATALOGO_CONCEPTOS,
+        TipoCarga.CPU,
         _archivo_cpu(
             [
                 _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
@@ -1174,7 +1359,7 @@ async def test_recargar_el_cpu_con_otra_receta_publica_version_2_y_se_revierte(
     await _sembrar_insumos(contexto_control)
     await _cargar(
         contexto_control,
-        TipoCarga.CATALOGO_CONCEPTOS,
+        TipoCarga.CPU,
         _archivo_cpu(
             [
                 _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
@@ -1184,7 +1369,7 @@ async def test_recargar_el_cpu_con_otra_receta_publica_version_2_y_se_revierte(
     )
     segunda = await _cargar(
         contexto_control,
-        TipoCarga.CATALOGO_CONCEPTOS,
+        TipoCarga.CPU,
         _archivo_cpu(
             [
                 _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
@@ -1226,7 +1411,7 @@ async def _cargar_concepto_y_su_recarga(
 
     primera = await _cargar(
         contexto_control,
-        TipoCarga.CATALOGO_CONCEPTOS,
+        TipoCarga.CPU,
         _archivo_cpu(
             [
                 _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
@@ -1236,7 +1421,7 @@ async def _cargar_concepto_y_su_recarga(
     )
     segunda = await _cargar(
         contexto_control,
-        TipoCarga.CATALOGO_CONCEPTOS,
+        TipoCarga.CPU,
         _archivo_cpu(
             [
                 _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
@@ -1306,7 +1491,7 @@ async def test_revertir_materiales_bloqueado_por_insumo_usado_en_un_cpu(
 
     cpu = await _cargar(
         contexto_control,
-        TipoCarga.CATALOGO_CONCEPTOS,
+        TipoCarga.CPU,
         _archivo_cpu(
             [
                 _fila_cpu("EST-01", "EST-01", "Muro de block", "ton", tipo="Concepto"),
@@ -1884,7 +2069,7 @@ async def test_presupuesto_no_toca_un_concepto_que_ya_trae_el_catalogo_de_cpu(
     await _sembrar_insumos(contexto_control)
     await _cargar(
         contexto_control,
-        TipoCarga.CATALOGO_CONCEPTOS,
+        TipoCarga.CPU,
         _archivo_cpu(
             [
                 _fila_cpu("EST-50", "EST-50", "Muro de block", "ton", tipo="Concepto"),

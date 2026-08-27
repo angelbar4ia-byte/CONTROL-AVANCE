@@ -39,6 +39,12 @@ class FilaMaterial:
     clave: Clave
     descripcion: str
     unidad: str | None = None
+    clave_unidad: str | None = None
+    """Código de la unidad en su propio catálogo (§3.3) — distinto de
+    ``unidad``, que es el texto libre ("TON", "Tonelada"). El archivo real
+    trae las dos columnas por separado; sin esta, la unidad se daba de alta
+    con el texto libre como su propia clave (§8.7)."""
+
     familia: str | None = None
     costo_base: Decimal | None = None
     """``None`` = **la columna no vino** en esta fila.
@@ -127,6 +133,7 @@ def validar_material(
         clave=clave,
         descripcion=descripcion,
         unidad=texto_limpio(mapa.valor(fila, "unidad")) or None,
+        clave_unidad=texto_limpio(mapa.valor(fila, "clave_unidad")) or None,
         familia=texto_limpio(mapa.valor(fila, "familia")) or None,
         costo_base=_decimal_opcional(fila, mapa, "costo_base"),
         costo_ultimo=_decimal_opcional(fila, mapa, "costo_ultimo"),
