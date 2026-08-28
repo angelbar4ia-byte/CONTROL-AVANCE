@@ -143,6 +143,11 @@ function Nodo({
       </span>
       <Icono className="tree__icon" size={16} strokeWidth={1.6} aria-hidden />
       <span className="tree__name">
+        {nodo.wbs && (
+          <span className="mono text-mute" style={{ marginRight: 6 }}>
+            {nodo.wbs}
+          </span>
+        )}
         {nodo.clave && <span className="mono">{nodo.clave}</span>} {nodo.nombre}
         {nodo.tipo === 'concepto_auxiliar' && (
           <span className="badge badge--outline" style={{ marginLeft: 6 }}>
