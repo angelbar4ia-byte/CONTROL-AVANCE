@@ -71,12 +71,32 @@ describe('armarArbolPrototipo', () => {
       clave: 'CAS-1',
       nombre: 'Casa modelo',
       cantidad: null,
+      wbs: null,
       hijos: expect.any(Array),
     });
     expect(raiz.hijos).toHaveLength(1);
     expect(raiz.hijos[0]?.id).toBe('niv-1');
     expect(raiz.hijos[0]?.hijos[0]?.id).toBe('eco-1');
     expect(raiz.hijos[0]?.hijos[0]?.hijos[0]?.id).toBe('est-1');
+  });
+
+  it('numera cada nodo por su posición entre hermanos, colgada de la del padre', () => {
+    const raiz = armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST, AUX]);
+
+    expect(raiz.wbs).toBeNull();
+    expect(raiz.hijos[0]?.wbs).toBe('1'); // niv-1: único nivel
+    expect(raiz.hijos[0]?.hijos[0]?.wbs).toBe('1.1'); // eco-1: única etapa
+    expect(raiz.hijos[0]?.hijos[0]?.hijos[0]?.wbs).toBe('1.1.1'); // est-1: 1er concepto
+    expect(raiz.hijos[0]?.hijos[0]?.hijos[1]?.wbs).toBe('1.1.2'); // aux-1: 2º concepto
+  });
+
+  it('un segundo nivel numera como hermano, no reinicia el prefijo del prototipo', () => {
+    const NIV2 = nodo({ id: 'niv-2', tipo: 'nivel', clave: 'NIV-2', nombre: 'Planta baja', orden: 2 });
+    const raiz = armarArbolPrototipo(PROTOTIPO, [NIV, NIV2, ECO, EST]);
+
+    const [uno, dos] = raiz.hijos;
+    expect(uno?.wbs).toBe('1');
+    expect(dos?.wbs).toBe('2');
   });
 
   it('distingue concepto auxiliar de concepto normal por concepto_tipo', () => {

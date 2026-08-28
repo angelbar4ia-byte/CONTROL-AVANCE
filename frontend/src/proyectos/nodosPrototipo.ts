@@ -33,6 +33,14 @@ export interface NodoArbolPrototipo {
   readonly clave: string | null;
   readonly nombre: string;
   readonly cantidad: string | null;
+  /**
+   * Numeración jerárquica (`"1.2.3"`), la misma que el archivo de origen
+   * trae en su columna WBS: un segmento por nivel, la posición del nodo
+   * entre sus hermanos (1-based) — no un id ni un dato del archivo, se
+   * deriva de `hijos` una vez armado el árbol. La raíz (el prototipo
+   * sintético) no tiene: `null`.
+   */
+  readonly wbs: string | null;
   readonly hijos: readonly NodoArbolPrototipo[];
 }
 
@@ -80,13 +88,26 @@ export function armarArbolPrototipo(
     else raices.push(actual);
   }
 
+  return numerar(
+    { id: prototipo.id, tipo: 'prototipo', clave: prototipo.clave, nombre: prototipo.nombre, cantidad: null, hijos: raices },
+    null,
+  );
+}
+
+/**
+ * Recorre el árbol ya armado y le pega el `wbs` a cada nodo: la posición
+ * (1-based) entre sus hermanos, colgada del `wbs` del padre. `hijos` ya
+ * viene en orden de hermanos —el backend ordena por `orden`, esta función
+ * no reordena nada, solo numera.
+ */
+function numerar(nodo: NodoMutable, wbsPropio: string | null): NodoArbolPrototipo {
   return {
-    id: prototipo.id,
-    tipo: 'prototipo',
-    clave: prototipo.clave,
-    nombre: prototipo.nombre,
-    cantidad: null,
-    hijos: raices,
+    ...nodo,
+    wbs: wbsPropio,
+    hijos: nodo.hijos.map((hijo, indice) => {
+      const segmento = String(indice + 1);
+      return numerar(hijo, wbsPropio ? `${wbsPropio}.${segmento}` : segmento);
+    }),
   };
 }
 
