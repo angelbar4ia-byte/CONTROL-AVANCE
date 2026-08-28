@@ -2434,23 +2434,46 @@ _CATEGORIA_POR_TIPO_NODO: dict[TipoNodoPresupuesto, CategoriaExplosion] = {
 
 
 def _clave_catalogo_concepto(nodo: NodoLeido, arbol: ArbolPrototipoCargado) -> str:
-    """La clave que identifica el concepto **propio de este prototipo**.
+    """La clave que identifica el concepto en el catálogo compartido.
 
-    El árbol de ingeniería por prototipo y el catálogo de CPU (`CABECERAS_
-    CPU.xlsx`, `AplicadorCPU`) son dos estructuras de carga separadas: cada
-    una con su propio universo de conceptos, sin compartir clave ni
-    competir por cuál composición es "la vigente" (decidido explícitamente
-    con el usuario — los cruces entre las dos quedan para más adelante).
+    Un `CONCEPTO` real —el "Concepto CPU", el mismo universo que carga
+    `AplicadorCPU` desde `CABECERAS_CPU.xlsx`— usa su propia clave de
+    archivo tal cual (`EST-01`), sin modificar: es la misma clave única
+    (`uq_concepto_clave`, por organización) que cualquier otro prototipo
+    que la repita. Así el árbol de ingeniería por prototipo **reconoce**
+    el concepto ya cargado por el catálogo de CPU en vez de crear uno
+    nuevo por prototipo (decisión revertida: antes namespaceaba TODO nodo
+    por igual — ver `_procesar_concepto` para qué hace con la clave una
+    vez resuelta, y por qué el `CONCEPTO` real no pasa por el conflicto de
+    ahí abajo).
 
-    Por eso TODO nodo de este árbol —`CONCEPTO`, `CONCEPTO_AUXILIAR` y la
-    etapa que colapsa en concepto (`es_etapa_con_componentes_directos`)— se
-    namespacea con la clave del prototipo: dos prototipos pueden repetir la
-    misma clave de archivo (`EST-01`, `ACA-01080`...) sin que compartan fila
-    de `concepto`/`explosion`/`cpu` ni disputen cuál es la buena. Nunca hay
-    conflicto que resolver, y el catálogo de CPU nunca se ve tocado por
-    esta carga.
+    `CONCEPTO_AUXILIAR` y la etapa que colapsa en concepto
+    (`es_etapa_con_componentes_directos`) **sí siguen namespaceados** por
+    prototipo, sin cambio: su clave de archivo (`ACA-01080`, o la propia
+    `ECO-00002` de la etapa) se repite idéntica en cada prototipo con una
+    composición que legítimamente cambia de uno a otro —no son la misma
+    identidad de catálogo aunque compartan clave de archivo—, así que
+    compartir fila ahí generaría un `CONCEPTO_EN_CONFLICTO` falso en casi
+    cada fila de ese tipo (bug real, ya cubierto por
+    `test_etapa_colapsada_con_cantidades_distintas_no_es_conflicto`).
     """
+    if nodo.tipo is TipoNodoPresupuesto.CONCEPTO:
+        return nodo.clave
     return f"{nodo.clave}~{arbol.clave_prototipo}"
+
+
+async def _precio_vigente_de_concepto(
+    conceptos: RepositorioConceptos, concepto_id: UUID
+) -> Decimal | None:
+    """El precio total del CPU vigente (receta base, `variante=null`) de un
+    concepto ya publicado, o `None` si el concepto existe en catálogo pero
+    todavía no tiene ningún CPU —solo identidad, sembrado por "Catálogo de
+    Conceptos" (§10.6) sin pasar todavía por "Conceptos CPU"—: ahí no hay
+    nada vigente que referenciar."""
+    for version in await conceptos.versiones_cpu(concepto_id):
+        if bool(version["vigente"]) and version["variante"] is None:
+            return Decimal(str(version["precio_unitario"]))
+    return None
 
 
 class AplicadorPresupuesto:
@@ -2464,8 +2487,22 @@ class AplicadorPresupuesto:
     aplicador reutiliza `_publicar_cpu_de_concepto`, la misma función que usa
     `AplicadorCPU`.
 
-    **Conflicto de catálogo, no sobrescritura silenciosa.** Un concepto
-    (misma clave) puede repetirse en varios prototipos. Si la composición
+    **`CONCEPTO` real: el cargador es una guía, no la fuente de verdad.**
+    Un `CONCEPTO` (`tipo=concepto`, "Concepto CPU") se busca por su propia
+    clave en el catálogo compartido (`_clave_catalogo_concepto`). Si ya
+    tiene un CPU vigente, la fila del archivo se ignora del todo —ni se
+    procesan sus materiales, ni se compara composición— y la partida de
+    este prototipo usa ese precio ya vigente tal cual: publicar una versión
+    nueva de CPU es trabajo exclusivo del cargador "Conceptos CPU"
+    (`AplicadorCPU`), este solo lo referencia. Si la clave no existe en el
+    catálogo, o existe solo como identidad sin CPU todavía, el archivo SÍ
+    es la fuente: se publica el CPU con la composición que trae esa fila
+    (alta o primer CPU), sin pasar por conflicto —no hay nada vigente que
+    pudiera pisarse.
+
+    **`CONCEPTO_AUXILIAR` y etapa colapsada: conflicto de catálogo, no
+    sobrescritura silenciosa.** Estos dos siguen namespaceados por
+    prototipo (`_clave_catalogo_concepto`), sin cambio. Si la composición
     coincide con la vigente, se publica igual que siempre. Si difiere, el
     catálogo **se queda como estaba** —no se toca `concepto`/`explosion`/
     `cpu`— y se registra `TipoPendiente.CONCEPTO_EN_CONFLICTO` (no crítico)
@@ -2557,6 +2594,7 @@ class AplicadorPresupuesto:
             "conceptos_en_conflicto": 0,
             "conceptos_omitidos": 0,
             "conceptos_sin_cambio": 0,
+            "conceptos_referenciados": 0,
             "partidas": 0,
         }
         nuevas_unidades: dict[str, UUID | None] = {}
@@ -2679,6 +2717,7 @@ class AplicadorPresupuesto:
             omitidos=(
                 contadores["conceptos_omitidos"]
                 + contadores["conceptos_sin_cambio"]
+                + contadores["conceptos_referenciados"]
                 + lectura.omitidos
             ),
             detalle={
@@ -2875,7 +2914,43 @@ class AplicadorPresupuesto:
     ) -> None:
         """Un nodo CONCEPTO/CONCEPTO_AUXILIAR (o etapa-colapsada): arma su
         APU desde sus hijos, decide alta/actualiza/conflicto contra el
-        catálogo, y registra su partida de presupuesto."""
+        catálogo, y registra su partida de presupuesto.
+
+        Para `CONCEPTO` con CPU vigente ya publicado, ni siquiera llega a
+        armar el APU: se resuelve antes, referenciando ese precio tal
+        cual (ver docstring de la clase)."""
+        clave_catalogo = _clave_catalogo_concepto(nodo, arbol)
+        actual = catalogo_conceptos.get(clave_catalogo)
+
+        # `actual["id"]` es `None` cuando `actual` es el alta de ESTE MISMO
+        # archivo que un `dry_run` dejó sin id real (§9.3: la vista previa
+        # no escribe) — típicamente otro prototipo de este mismo lote
+        # introduciendo la misma clave nueva. Sin id no hay CPU que
+        # consultar; se trata como conflicto/alta más abajo, no como
+        # referencia (ver el `elif actual is None` de la rama namespaceada
+        # para el mismo criterio).
+        if (
+            nodo.tipo is TipoNodoPresupuesto.CONCEPTO
+            and actual is not None
+            and actual.get("id") is not None
+        ):
+            precio_vigente = await _precio_vigente_de_concepto(self._conceptos, actual["id"])
+            if precio_vigente is not None:
+                contadores["conceptos_referenciados"] += 1
+                await self._registrar_nodo_y_partida(
+                    nodo=nodo,
+                    concepto_id=actual["id"],
+                    precio_unitario=precio_vigente,
+                    parent_id_db=parent_id_db,
+                    prototipo_id=prototipo_id,
+                    dry_run=dry_run,
+                    nodos_existentes=nodos_existentes,
+                    operaciones=operaciones,
+                    partidas=partidas,
+                    contadores=contadores,
+                )
+                return
+
         componentes: list[Componente] = []
         filas_explosion: list[dict[str, Any]] = []
         incompleto = False
@@ -3000,8 +3075,6 @@ class AplicadorPresupuesto:
             contadores["conceptos_omitidos"] += 1
             return
 
-        clave_catalogo = _clave_catalogo_concepto(nodo, arbol)
-
         try:
             precio = calcular_cpu(
                 clave_catalogo,
@@ -3015,8 +3088,6 @@ class AplicadorPresupuesto:
             contadores["conceptos_omitidos"] += 1
             return
 
-        actual = catalogo_conceptos.get(clave_catalogo)
-
         unidad_id = actual.get("unidad_id") if actual else None
         if nodo.unidad:
             unidad_id = await _resolver_o_dar_de_alta(
@@ -3028,203 +3099,294 @@ class AplicadorPresupuesto:
                 dry_run=dry_run,
             )
 
-        firma_nueva = _firma_explosion(filas_explosion, clave_de_insumo)
-
-        diferente = False
         concepto_id: UUID | None = actual["id"] if actual else None
-        if actual is not None:
-            firma_vigente = firma_cache.get(clave_catalogo)
-            if firma_vigente is None:
-                # Sin firma en caché, `actual` solo puede venir del catálogo
-                # real (no de una simulación en dry_run de este mismo
-                # archivo — esa siempre deja firma en caché al procesar,
-                # línea de abajo): `concepto_id` es un id real.
-                assert concepto_id is not None  # noqa: S101
-                filas_previas = await self._conceptos.explosion_directa(concepto_id)
-                firma_vigente = _firma_explosion(filas_previas, clave_de_insumo)
-                firma_cache[clave_catalogo] = firma_vigente
-            diferente = firma_vigente != firma_nueva
 
-        conflicto = False
-        if diferente and concepto_id is None:
-            # `actual` es un alta de ESTE MISMO archivo que dry_run dejó sin
-            # id real (no se llamó `crear()`, §9.3: la vista previa no
-            # escribe). Sin fila en la base no hay `otros_prototipos_con_
-            # partida_vigente` que consultar — pero dos prototipos del mismo
-            # archivo proponiendo la primera composición de una clave nueva
-            # y no coincidiendo entre sí es exactamente el mismo desacuerdo
-            # que el conflicto real: ninguno de los dos es "el vigente"
-            # todavía. Se resuelve igual, sin tocar nada.
-            conflicto = True
-        elif diferente:
-            assert concepto_id is not None  # noqa: S101 — cubierto arriba
-            # Composición distinta a la vigente: ¿es un prototipo DISTINTO
-            # el que ya depende de ella (conflicto real), o es este mismo
-            # prototipo recargando una corrección (actualización legítima,
-            # nadie más se queda con datos viejos)? Las dos consultas son de
-            # solo lectura — se hacen igual en dry_run, para que la vista
-            # previa cuente igual que el commit (§9.3).
-            otros = await self._presupuestos.otros_prototipos_con_partida_vigente(
-                concepto_id, excluir_prototipo_id=prototipo_id
-            )
-            si_mismo = await self._presupuestos.tiene_partida_vigente(
-                concepto_id, prototipo_id
-            )
-            # Si ni otro prototipo ni yo mismo tenemos una partida vigente
-            # para este concepto, su composición vigente no vino de ningún
-            # prototipo — vino del catálogo de CPU (§10.6), que es quien
-            # manda ahí. Sobreescribirla en silencio le quitaría al CPU su
-            # fuente de verdad; se trata igual que un conflicto real.
-            conflicto = bool(otros) or not si_mismo
-
-        if conflicto:
-            contadores["conceptos_en_conflicto"] += 1
-            pendientes.append(
-                PendientePropuesto(
-                    tipo=TipoPendiente.CONCEPTO_EN_CONFLICTO,
-                    entidad="concepto",
-                    valor_origen=clave_catalogo,
-                    propuesta={
-                        "prototipo": arbol.clave_prototipo,
-                        "accion": (
-                            "Composición distinta a la del catálogo; corrige a "
-                            "mano o vuelve a cargar el prototipo correcto."
-                        ),
-                    },
-                    critico=False,
-                    origen_ref=f"fila {nodo.fila}",
-                )
-            )
-        elif actual is None:
-            # Alta: clave nueva en el catálogo.
-            tipo_concepto = (
-                TipoConcepto.AUXILIAR
-                if nodo.tipo is TipoNodoPresupuesto.CONCEPTO_AUXILIAR
-                else TipoConcepto.CONCEPTO
-            )
+        if nodo.tipo is TipoNodoPresupuesto.CONCEPTO:
+            # Sin CPU vigente que referenciar (si lo hubiera, ya se resolvió
+            # arriba antes de procesar hijos): la clave no existe, o existe
+            # solo como identidad sin CPU todavía (§10.6, "Catálogo de
+            # Conceptos" sin pasar por "Conceptos CPU"). En ambos casos no
+            # hay nada vigente que este archivo pudiera pisar — se publica
+            # directo, sin el conflicto de la rama de abajo (esa es solo
+            # para `CONCEPTO_AUXILIAR`/etapa colapsada, namespaceados).
+            es_alta = actual is None
             if not dry_run:
-                concepto_id = await self._conceptos.crear(
-                    {
-                        "tipo": str(tipo_concepto),
-                        "clave": clave_catalogo,
-                        "descripcion": nodo.descripcion,
-                        "unidad_id": unidad_id,
-                        "familia_id": None,
-                    }
-                )
-                operaciones.append(
-                    _operacion(
-                        "concepto", concepto_id, "insert", despues={"clave": clave_catalogo}
+                if es_alta:
+                    concepto_id = await self._conceptos.crear(
+                        {
+                            "tipo": str(TipoConcepto.CONCEPTO),
+                            "clave": clave_catalogo,
+                            "descripcion": nodo.descripcion,
+                            "unidad_id": unidad_id,
+                            "familia_id": None,
+                        }
                     )
-                )
+                    operaciones.append(
+                        _operacion(
+                            "concepto", concepto_id, "insert", despues={"clave": clave_catalogo}
+                        )
+                    )
+                assert concepto_id is not None  # noqa: S101 — alta lo asigna arriba; si no, ya existía
                 operaciones.extend(
                     await _publicar_cpu_de_concepto(
                         self._conceptos, concepto_id, filas_explosion, precio
                     )
                 )
 
-            claves_nuevas.add(clave_catalogo)
-            catalogo_conceptos[clave_catalogo] = {
-                "id": concepto_id,
-                "tipo": str(tipo_concepto),
-                "clave": clave_catalogo,
-                "descripcion": nodo.descripcion,
-                "unidad_id": unidad_id,
-                "familia_id": None,
-                "estatus": "activo",
-            }
-            firma_cache[clave_catalogo] = firma_nueva
-        elif diferente:
-            # Composición distinta pero nadie más vigente depende de ella:
-            # actualización legítima (típicamente este mismo prototipo
-            # recargando una corrección), no conflicto — se publica igual
-            # que un cambio en `AplicadorCPU`.
-            assert actual is not None  # noqa: S101 — `diferente` implica `actual is not None`
-            assert concepto_id is not None  # noqa: S101
-            if not dry_run:
-                await self._conceptos.actualizar(
-                    concepto_id,
-                    {
-                        "descripcion": nodo.descripcion,
-                        "unidad_id": unidad_id,
-                        "familia_id": actual.get("familia_id"),
-                    },
-                )
-                operaciones.append(
-                    _operacion(
-                        "concepto",
-                        concepto_id,
-                        "update",
-                        antes=_recorte(
-                            actual, ("tipo", "descripcion", "unidad_id", "familia_id", "estatus")
-                        ),
-                        despues={"descripcion": nodo.descripcion, "unidad_id": unidad_id},
-                    )
-                )
-                operaciones.extend(
-                    await _publicar_cpu_de_concepto(
-                        self._conceptos, concepto_id, filas_explosion, precio
-                    )
-                )
-
-            claves_actualizadas.add(clave_catalogo)
-            catalogo_conceptos[clave_catalogo] = {
-                **actual,
-                "descripcion": nodo.descripcion,
-                "unidad_id": unidad_id,
-            }
-            firma_cache[clave_catalogo] = firma_nueva
+            if es_alta:
+                claves_nuevas.add(clave_catalogo)
+                catalogo_conceptos[clave_catalogo] = {
+                    "id": concepto_id,
+                    "tipo": str(TipoConcepto.CONCEPTO),
+                    "clave": clave_catalogo,
+                    "descripcion": nodo.descripcion,
+                    "unidad_id": unidad_id,
+                    "familia_id": None,
+                    "estatus": "activo",
+                }
+            else:
+                # Ya existía como identidad: se le publica su primer CPU,
+                # pero descripción/unidad siguen siendo las que trajo
+                # "Catálogo de Conceptos" — esas no son de este cargador.
+                claves_actualizadas.add(clave_catalogo)
         else:
-            # Sin conflicto, ya existía, misma composición: "si es idéntico,
-            # no crea versión" (§10.8) — no se toca `concepto`/`explosion`/
-            # `cpu`. `catalogo_conceptos`/`firma_cache` ya están correctos
-            # (vienen del propio `actual`).
-            contadores["conceptos_sin_cambio"] += 1
+            firma_nueva = _firma_explosion(filas_explosion, clave_de_insumo)
 
+            diferente = False
+            if actual is not None:
+                firma_vigente = firma_cache.get(clave_catalogo)
+                if firma_vigente is None:
+                    # Sin firma en caché, `actual` solo puede venir del
+                    # catálogo real (no de una simulación en dry_run de este
+                    # mismo archivo — esa siempre deja firma en caché al
+                    # procesar, línea de abajo): `concepto_id` es un id real.
+                    assert concepto_id is not None  # noqa: S101
+                    filas_previas = await self._conceptos.explosion_directa(concepto_id)
+                    firma_vigente = _firma_explosion(filas_previas, clave_de_insumo)
+                    firma_cache[clave_catalogo] = firma_vigente
+                diferente = firma_vigente != firma_nueva
+
+            conflicto = False
+            if diferente and concepto_id is None:
+                # `actual` es un alta de ESTE MISMO archivo que dry_run dejó
+                # sin id real (no se llamó `crear()`, §9.3: la vista previa
+                # no escribe). Sin fila en la base no hay
+                # `otros_prototipos_con_partida_vigente` que consultar — pero
+                # dos prototipos del mismo archivo proponiendo la primera
+                # composición de una clave nueva y no coincidiendo entre sí
+                # es exactamente el mismo desacuerdo que el conflicto real:
+                # ninguno de los dos es "el vigente" todavía. Se resuelve
+                # igual, sin tocar nada.
+                conflicto = True
+            elif diferente:
+                assert concepto_id is not None  # noqa: S101 — cubierto arriba
+                # Composición distinta a la vigente: ¿es un prototipo
+                # DISTINTO el que ya depende de ella (conflicto real), o es
+                # este mismo prototipo recargando una corrección
+                # (actualización legítima, nadie más se queda con datos
+                # viejos)? Las dos consultas son de solo lectura — se hacen
+                # igual en dry_run, para que la vista previa cuente igual
+                # que el commit (§9.3).
+                otros = await self._presupuestos.otros_prototipos_con_partida_vigente(
+                    concepto_id, excluir_prototipo_id=prototipo_id
+                )
+                si_mismo = await self._presupuestos.tiene_partida_vigente(
+                    concepto_id, prototipo_id
+                )
+                # Si ni otro prototipo ni yo mismo tenemos una partida
+                # vigente para este concepto, su composición vigente no vino
+                # de ningún prototipo — vino del catálogo de CPU (§10.6), que
+                # es quien manda ahí. Sobreescribirla en silencio le
+                # quitaría al CPU su fuente de verdad; se trata igual que un
+                # conflicto real.
+                conflicto = bool(otros) or not si_mismo
+
+            if conflicto:
+                contadores["conceptos_en_conflicto"] += 1
+                pendientes.append(
+                    PendientePropuesto(
+                        tipo=TipoPendiente.CONCEPTO_EN_CONFLICTO,
+                        entidad="concepto",
+                        valor_origen=clave_catalogo,
+                        propuesta={
+                            "prototipo": arbol.clave_prototipo,
+                            "accion": (
+                                "Composición distinta a la del catálogo; corrige a "
+                                "mano o vuelve a cargar el prototipo correcto."
+                            ),
+                        },
+                        critico=False,
+                        origen_ref=f"fila {nodo.fila}",
+                    )
+                )
+            elif actual is None:
+                # Alta: clave nueva en el catálogo. Solo llega aquí
+                # `CONCEPTO_AUXILIAR` o una etapa colapsada (`CONCEPTO` real
+                # se resuelve arriba) — de ahí el default a `CONCEPTO` del
+                # catálogo para la etapa, que nunca es auxiliar.
+                tipo_concepto = (
+                    TipoConcepto.AUXILIAR
+                    if nodo.tipo is TipoNodoPresupuesto.CONCEPTO_AUXILIAR
+                    else TipoConcepto.CONCEPTO
+                )
+                if not dry_run:
+                    concepto_id = await self._conceptos.crear(
+                        {
+                            "tipo": str(tipo_concepto),
+                            "clave": clave_catalogo,
+                            "descripcion": nodo.descripcion,
+                            "unidad_id": unidad_id,
+                            "familia_id": None,
+                        }
+                    )
+                    operaciones.append(
+                        _operacion(
+                            "concepto", concepto_id, "insert", despues={"clave": clave_catalogo}
+                        )
+                    )
+                    operaciones.extend(
+                        await _publicar_cpu_de_concepto(
+                            self._conceptos, concepto_id, filas_explosion, precio
+                        )
+                    )
+
+                claves_nuevas.add(clave_catalogo)
+                catalogo_conceptos[clave_catalogo] = {
+                    "id": concepto_id,
+                    "tipo": str(tipo_concepto),
+                    "clave": clave_catalogo,
+                    "descripcion": nodo.descripcion,
+                    "unidad_id": unidad_id,
+                    "familia_id": None,
+                    "estatus": "activo",
+                }
+                firma_cache[clave_catalogo] = firma_nueva
+            elif diferente:
+                # Composición distinta pero nadie más vigente depende de
+                # ella: actualización legítima (típicamente este mismo
+                # prototipo recargando una corrección), no conflicto — se
+                # publica igual que un cambio en `AplicadorCPU`.
+                assert actual is not None  # noqa: S101 — `diferente` implica `actual is not None`
+                assert concepto_id is not None  # noqa: S101
+                if not dry_run:
+                    await self._conceptos.actualizar(
+                        concepto_id,
+                        {
+                            "descripcion": nodo.descripcion,
+                            "unidad_id": unidad_id,
+                            "familia_id": actual.get("familia_id"),
+                        },
+                    )
+                    operaciones.append(
+                        _operacion(
+                            "concepto",
+                            concepto_id,
+                            "update",
+                            antes=_recorte(
+                                actual,
+                                ("tipo", "descripcion", "unidad_id", "familia_id", "estatus"),
+                            ),
+                            despues={"descripcion": nodo.descripcion, "unidad_id": unidad_id},
+                        )
+                    )
+                    operaciones.extend(
+                        await _publicar_cpu_de_concepto(
+                            self._conceptos, concepto_id, filas_explosion, precio
+                        )
+                    )
+
+                claves_actualizadas.add(clave_catalogo)
+                catalogo_conceptos[clave_catalogo] = {
+                    **actual,
+                    "descripcion": nodo.descripcion,
+                    "unidad_id": unidad_id,
+                }
+                firma_cache[clave_catalogo] = firma_nueva
+            else:
+                # Sin conflicto, ya existía, misma composición: "si es
+                # idéntico, no crea versión" (§10.8) — no se toca
+                # `concepto`/`explosion`/`cpu`. `catalogo_conceptos`/
+                # `firma_cache` ya están correctos (vienen del propio
+                # `actual`).
+                contadores["conceptos_sin_cambio"] += 1
+
+        await self._registrar_nodo_y_partida(
+            nodo=nodo,
+            concepto_id=concepto_id,
+            precio_unitario=precio.total.monto,
+            parent_id_db=parent_id_db,
+            prototipo_id=prototipo_id,
+            dry_run=dry_run,
+            nodos_existentes=nodos_existentes,
+            operaciones=operaciones,
+            partidas=partidas,
+            contadores=contadores,
+        )
+
+    async def _registrar_nodo_y_partida(
+        self,
+        *,
+        nodo: NodoLeido,
+        concepto_id: UUID | None,
+        precio_unitario: Decimal,
+        parent_id_db: UUID | None,
+        prototipo_id: UUID,
+        dry_run: bool,
+        nodos_existentes: dict[str, dict[str, Any]],
+        operaciones: list[dict[str, Any]],
+        partidas: list[dict[str, Any]],
+        contadores: dict[str, int],
+    ) -> None:
+        """Última parte de `_procesar_concepto`, común a sus tres salidas
+        —referencia a un CPU vigente, alta/actualiza/conflicto namespaceado,
+        o el nuevo alta/primer-CPU de un `CONCEPTO` real—: sube el nodo del
+        árbol y su partida de presupuesto con el `concepto_id`/precio que ya
+        se resolvió."""
         contadores["partidas"] += 1
         cantidad_partida = nodo.cantidad if nodo.cantidad is not None else Decimal(1)
-        precio_unitario = precio.total.monto
 
         anterior_nodo = nodos_existentes.get(nodo.clave)
         contadores["nodos_creados" if anterior_nodo is None else "nodos_actualizados"] += 1
 
-        if not dry_run:
-            nodo_id, _ = await self._prototipo_nodos.upsert(
-                prototipo_id,
-                clave=nodo.clave,
-                datos={
-                    "parent_id": parent_id_db,
-                    "tipo": "concepto",
-                    "nombre": nodo.descripcion,
-                    "concepto_id": concepto_id,
-                    "orden": nodo.indice or 0,
-                    "cantidad": cantidad_partida,
-                },
-            )
-            operaciones.append(
-                _operacion(
-                    "prototipo_nodo",
-                    nodo_id,
-                    "insert" if anterior_nodo is None else "update",
-                    antes=_recorte(
-                        anterior_nodo,
-                        ("parent_id", "tipo", "nombre", "concepto_id", "nivel_id", "etapa_id", "orden", "cantidad"),
-                    )
-                    if anterior_nodo
-                    else None,
-                    despues={"clave": nodo.clave, "concepto_id": str(concepto_id)},
+        if dry_run:
+            return
+
+        nodo_id, _ = await self._prototipo_nodos.upsert(
+            prototipo_id,
+            clave=nodo.clave,
+            datos={
+                "parent_id": parent_id_db,
+                "tipo": "concepto",
+                "nombre": nodo.descripcion,
+                "concepto_id": concepto_id,
+                "orden": nodo.indice or 0,
+                "cantidad": cantidad_partida,
+            },
+        )
+        operaciones.append(
+            _operacion(
+                "prototipo_nodo",
+                nodo_id,
+                "insert" if anterior_nodo is None else "update",
+                antes=_recorte(
+                    anterior_nodo,
+                    ("parent_id", "tipo", "nombre", "concepto_id", "nivel_id", "etapa_id", "orden", "cantidad"),
                 )
+                if anterior_nodo
+                else None,
+                despues={"clave": nodo.clave, "concepto_id": str(concepto_id)},
             )
-            partidas.append(
-                {
-                    "concepto_id": concepto_id,
-                    "prototipo_nodo_id": nodo_id,
-                    "cantidad": cantidad_partida,
-                    "precio_unitario": precio_unitario,
-                    "importe": cantidad_partida * precio_unitario,
-                    "orden": nodo.indice or 0,
-                }
-            )
+        )
+        partidas.append(
+            {
+                "concepto_id": concepto_id,
+                "prototipo_nodo_id": nodo_id,
+                "cantidad": cantidad_partida,
+                "precio_unitario": precio_unitario,
+                "importe": cantidad_partida * precio_unitario,
+                "orden": nodo.indice or 0,
+            }
+        )
 
 
 class AplicadorDePrototipos:

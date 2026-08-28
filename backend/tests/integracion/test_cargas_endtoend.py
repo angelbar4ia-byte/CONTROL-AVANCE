@@ -2152,13 +2152,16 @@ async def _con_prototipos(contexto_control: ContextoSesion, *claves: str) -> Non
     )
 
 
-async def test_dos_prototipos_con_la_misma_clave_de_concepto_no_la_comparten(
+async def test_dos_prototipos_con_la_misma_clave_de_concepto_cpu_la_comparten(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
-    """Namespaceado por prototipo (`_clave_catalogo_concepto`): dos
-    prototipos pueden repetir la misma clave de archivo (`EST-01`) sin
-    compartir fila de concepto ni disputar cuál composición es la buena —
-    ni siquiera cuando la composición es idéntica, cada quien la suya."""
+    """Un `CONCEPTO` real (el "Concepto CPU") se reconoce por su propia
+    clave de archivo (`EST-01`) en el catálogo compartido —no namespaceada
+    por prototipo, a diferencia de `CONCEPTO_AUXILIAR`/etapa colapsada
+    (`_clave_catalogo_concepto`)—: dos prototipos que repiten la misma
+    clave comparten la MISMA fila de `concepto`/`cpu`. El segundo que la
+    trae ya la encuentra publicada y solo la referencia — el cargador de
+    prototipos es una guía, no la fuente de verdad de un `CONCEPTO`."""
     await _con_insumo_alambre(contexto_control)
     await _con_prototipos(contexto_control, "CAS-10", "CAS-11")
 
@@ -2178,8 +2181,12 @@ async def test_dos_prototipos_con_la_misma_clave_de_concepto_no_la_comparten(
     assert resultado.pendientes == 0
 
     conceptos = await _conceptos(contexto_control)
-    assert {"EST-01~CAS-10", "EST-01~CAS-11"} <= set(conceptos)
-    assert conceptos["EST-01~CAS-10"]["id"] != conceptos["EST-01~CAS-11"]["id"]
+    assert "EST-01" in conceptos
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        cpu = await RepositorioConceptosSQL(sesion).versiones_cpu(conceptos["EST-01"]["id"])
+    # Solo se publicó una vez: el segundo prototipo referenció, no repitió el alta.
+    assert len(cpu) == 1
 
     prototipos = await _prototipos(contexto_control)
     async with sesion_con_rls(contexto_control) as sesion:
@@ -2190,8 +2197,7 @@ async def test_dos_prototipos_con_la_misma_clave_de_concepto_no_la_comparten(
         partidas11 = await presupuestos.partidas(p11["id"])
 
     assert len(partidas10) == 1 and len(partidas11) == 1
-    # Misma composición -> mismo precio calculado, aunque son dos conceptos
-    # distintos en el catálogo.
+    assert partidas10[0]["concepto_id"] == partidas11[0]["concepto_id"] == conceptos["EST-01"]["id"]
     assert partidas10[0]["precio_unitario"] == partidas11[0]["precio_unitario"]
 
 
@@ -2214,7 +2220,7 @@ async def test_un_insumo_desconocido_en_presupuesto_se_da_de_alta_solo(
     assert resultado.resumen.errores == 0
     assert resultado.pendientes == 0
 
-    assert "EST-90~CAS-90" in await _conceptos(contexto_control)
+    assert "EST-90" in await _conceptos(contexto_control)
 
     alambre = (await _insumos(contexto_control))["ACE-01"]
     assert alambre["tipo"] == "material"
@@ -2224,13 +2230,16 @@ async def test_un_insumo_desconocido_en_presupuesto_se_da_de_alta_solo(
     assert "KG" in await _unidades(contexto_control)
 
 
-async def test_composicion_distinta_entre_prototipos_ya_no_es_conflicto(
+async def test_concepto_ya_publicado_se_referencia_aunque_la_fila_traiga_otra_composicion(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
-    """Antes de namespacear por prototipo, dos prototipos con la misma
-    clave de archivo pero composición distinta competían por cuál era "la
-    vigente" (§10.3, conflicto real). Namespaceados, cada uno tiene su
-    propio concepto — no hay nada que disputar."""
+    """Un `CONCEPTO` real con CPU vigente no se compara ni disputa (a
+    diferencia de `CONCEPTO_AUXILIAR`/etapa colapsada, que sí — ver
+    `test_etapa_colapsada_con_cantidades_distintas_no_es_conflicto`): el
+    cargador de prototipos es una guía, no la fuente de verdad, así que
+    una composición distinta en la fila del segundo prototipo (9 kg vs 5
+    kg) simplemente se ignora — nunca genera `CONCEPTO_EN_CONFLICTO`, y su
+    partida usa el precio ya vigente del primero."""
     await _con_insumo_alambre(contexto_control)
     await _con_prototipos(contexto_control, "CAS-20", "CAS-21")
 
@@ -2246,19 +2255,17 @@ async def test_composicion_distinta_entre_prototipos_ya_no_es_conflicto(
     )
 
     assert resultado.resumen.errores == 0
+    assert resultado.pendientes == 0
     async with sesion_con_rls(contexto_control) as sesion:
         bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(carga_id=resultado.carga_id)
     assert not [b for b in bandeja if b["tipo"] == str(TipoPendiente.CONCEPTO_EN_CONFLICTO)]
 
     conceptos = await _conceptos(contexto_control)
-    assert {"EST-02~CAS-20", "EST-02~CAS-21"} <= set(conceptos)
-    assert conceptos["EST-02~CAS-20"]["id"] != conceptos["EST-02~CAS-21"]["id"]
-
     async with sesion_con_rls(contexto_control) as sesion:
-        conceptos_sql = RepositorioConceptosSQL(sesion)
-        cpu20 = await conceptos_sql.versiones_cpu(conceptos["EST-02~CAS-20"]["id"])
-        cpu21 = await conceptos_sql.versiones_cpu(conceptos["EST-02~CAS-21"]["id"])
-    assert len(cpu20) == 1 and len(cpu21) == 1
+        cpu = await RepositorioConceptosSQL(sesion).versiones_cpu(conceptos["EST-02"]["id"])
+    # Una sola versión: la fila de 9 kg del segundo prototipo no publicó la suya.
+    assert len(cpu) == 1
+    assert cpu[0]["precio_unitario"] == Decimal("100.0000")  # 5 kg × $20
 
     prototipos = await _prototipos(contexto_control)
     async with sesion_con_rls(contexto_control) as sesion:
@@ -2268,18 +2275,19 @@ async def test_composicion_distinta_entre_prototipos_ya_no_es_conflicto(
         partida20 = (await presupuestos.partidas(p20["id"]))[0]
         partida21 = (await presupuestos.partidas(p21["id"]))[0]
 
-    # Cada prototipo con su propio precio (5 kg vs 9 kg de alambre).
-    assert partida20["precio_unitario"] != partida21["precio_unitario"]
+    # Mismo precio para los dos: el segundo referenció el CPU del primero.
+    assert partida20["precio_unitario"] == partida21["precio_unitario"] == Decimal("100.0000")
 
 
-async def test_presupuesto_no_toca_un_concepto_que_ya_trae_el_catalogo_de_cpu(
+async def test_presupuesto_referencia_el_precio_del_catalogo_de_cpu_sin_recalcularlo(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
-    """CPU y el árbol de ingeniería por prototipo son estructuras de carga
-    separadas (decidido con el usuario, §10.6): el árbol namespacea su
-    concepto por prototipo (`EST-50~CAS-93`), así que nunca toca la clave
-    `EST-50` del catálogo de CPU aunque el archivo la repita — ni conflicto
-    que resolver, ni alta que compartir."""
+    """El árbol de ingeniería por prototipo reconoce la clave de un
+    `CONCEPTO` ya publicado por "Conceptos CPU" (§10.6, `AplicadorCPU`) y
+    la usa tal cual: la fila de este archivo (999 kg de alambre) es solo
+    una guía —ni se procesa, ni pisa el CPU vigente— porque publicar una
+    versión de un `CONCEPTO` real es trabajo exclusivo del cargador
+    "Conceptos CPU", este solo referencia."""
     await _sembrar_insumos(contexto_control)
     await _cargar(
         contexto_control,
@@ -2314,26 +2322,27 @@ async def test_presupuesto_no_toca_un_concepto_que_ya_trae_el_catalogo_de_cpu(
     )
 
     assert resultado.resumen.errores == 0
-    assert resultado.pendientes == 0  # sin conflicto: son dos conceptos distintos
+    assert resultado.pendientes == 0  # se ignora la fila, no se compara
 
     conceptos = await _conceptos(contexto_control)
 
-    # El catálogo de CPU sigue exactamente igual...
+    # El catálogo de CPU sigue exactamente igual: ni una versión nueva.
     async with sesion_con_rls(contexto_control) as sesion:
         cpu_despues = await RepositorioConceptosSQL(sesion).versiones_cpu(concepto_cpu_id)
     assert len(cpu_despues) == 1
     assert cpu_despues[0]["precio_unitario"] == Decimal("200.0000")
 
-    # ...y el árbol tiene su propio concepto namespaceado, con su propio precio.
-    assert "EST-50~CAS-93" in conceptos
-    assert conceptos["EST-50~CAS-93"]["id"] != concepto_cpu_id
+    # ...y el árbol referencia el MISMO concepto, sin namespacear.
+    assert conceptos["EST-50"]["id"] == concepto_cpu_id
 
     prototipos = await _prototipos(contexto_control)
     async with sesion_con_rls(contexto_control) as sesion:
         presupuestos = RepositorioPresupuestosSQL(sesion)
         version = await presupuestos.vigente_de_prototipo(prototipos["CAS-93"]["id"])
         partida = (await presupuestos.partidas(version["id"]))[0]
-    assert partida["precio_unitario"] == Decimal("999.0000")
+    # El precio es el del catálogo de CPU (200), no el de la fila (999×1=999).
+    assert partida["concepto_id"] == concepto_cpu_id
+    assert partida["precio_unitario"] == Decimal("200.0000")
 
 
 async def test_etapa_sin_concepto_intermedio_crea_concepto_con_su_clave(
@@ -2475,8 +2484,8 @@ async def test_prototipo_raiz_sin_match_es_error_critico_y_el_resto_sigue(
 
     assert resultado.resumen.errores == 1
     conceptos = await _conceptos(contexto_control)
-    assert "EST-06~CAS-50" in conceptos
-    assert "EST-05~CAS-NOEXISTE" not in conceptos
+    assert "EST-06" in conceptos
+    assert "EST-05" not in conceptos
 
 
 async def test_presupuesto_no_soporta_el_modo_reemplazar(
@@ -2507,7 +2516,7 @@ async def test_revertir_una_carga_de_presupuesto_deshace_arbol_y_version(
     )
     prototipos = await _prototipos(contexto_control)
     assert (await _nodos_de(contexto_control, prototipos["CAS-70"]["id"])) != {}
-    assert "EST-08~CAS-70" in await _conceptos(contexto_control)
+    assert "EST-08" in await _conceptos(contexto_control)
 
     async with sesion_con_rls(contexto_control) as sesion:
         await RevertirCarga(
@@ -2517,7 +2526,7 @@ async def test_revertir_una_carga_de_presupuesto_deshace_arbol_y_version(
     nodos = await _nodos_de(contexto_control, prototipos["CAS-70"]["id"])
     assert nodos == {}
     conceptos = await _conceptos(contexto_control)
-    assert "EST-08~CAS-70" not in conceptos
+    assert "EST-08" not in conceptos
 
     async with sesion_con_rls(contexto_control) as sesion:
         vigente = await RepositorioPresupuestosSQL(sesion).vigente_de_prototipo(prototipos["CAS-70"]["id"])
@@ -2556,7 +2565,7 @@ async def test_presupuesto_divide_la_cantidad_del_hijo_entre_la_del_concepto(
     conceptos = await _conceptos(contexto_control)
     async with sesion_con_rls(contexto_control) as sesion:
         versiones = await RepositorioConceptosSQL(sesion).versiones_cpu(
-            conceptos["EST-11~CAS-91"]["id"]
+            conceptos["EST-11"]["id"]
         )
     assert versiones[0]["precio_unitario"] == Decimal("40.0000")
 
@@ -2590,7 +2599,7 @@ async def test_presupuesto_suma_conceptos_y_auxiliares_de_la_misma_etapa(
     assert resultado.resumen.errores == 0
 
     conceptos = await _conceptos(contexto_control)
-    assert {"EST-12~CAS-92", "AUX-01~CAS-92"} <= set(conceptos)
+    assert {"EST-12", "AUX-01~CAS-92"} <= set(conceptos)
     assert conceptos["AUX-01~CAS-92"]["tipo"] == "auxiliar"
 
     prototipos = await _prototipos(contexto_control)
@@ -2601,7 +2610,7 @@ async def test_presupuesto_suma_conceptos_y_auxiliares_de_la_misma_etapa(
 
     # EST-12: (20/10)×20 = 40 de PU × 10 = 400. AUX-01: (15/5)×20 = 60 de PU × 5 = 300.
     assert {p["concepto_id"] for p in partidas} == {
-        conceptos["EST-12~CAS-92"]["id"],
+        conceptos["EST-12"]["id"],
         conceptos["AUX-01~CAS-92"]["id"],
     }
     assert sum(Decimal(str(p["importe"])) for p in partidas) == Decimal("700.0000")
@@ -2632,7 +2641,7 @@ async def test_el_arbol_de_ingenieria_se_carga_bajo_el_tipo_prototipos(
 
     assert resultado.estatus is EstatusCarga.APLICADO
     assert resultado.resumen.errores == 0
-    assert "EST-09~CAS-80" in await _conceptos(contexto_control)
+    assert "EST-09" in await _conceptos(contexto_control)
 
     prototipos = await _prototipos(contexto_control)
     assert set(await _nodos_de(contexto_control, prototipos["CAS-80"]["id"])) == {
