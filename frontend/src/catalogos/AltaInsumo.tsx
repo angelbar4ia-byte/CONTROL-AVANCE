@@ -4,9 +4,10 @@
  *
  * Es un solo formulario porque es una sola entidad: §7.3 dice "**Material** =
  * `Insumo` con `tipo = material`", y el contrato lo repite ("`POST
- * /materiales` — mismo cuerpo, sin `tipo`: es siempre `material`"). Cuando
- * la pestaña activa es Materiales el tipo queda fijo y se usa esa ruta; en
- * Insumos el tipo se elige y se usa la otra.
+ * /materiales` — mismo cuerpo, sin `tipo`: es siempre `material`"). El tipo
+ * lo fija la pestaña desde la que se abre (Materiales, Mano de obra,
+ * Equipo, Herramienta, Subcontrato) — no se elige aquí, así que Materiales
+ * usa esa ruta y las demás usan la genérica con `tipo` fijo.
  *
  * El **IVA** tiene tres estados, no dos: heredar de la familia (`null` en el
  * contrato), gravar u exentar como override (§3.5).
@@ -25,29 +26,25 @@ import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Modal } from '@/lib/Modal';
 import { CampoIva, CampoSelect, CampoTexto } from './Campos';
 import { peticionInsumo, peticionMaterial, type FormularioInsumo } from './formulario';
-import { etiquetaTipoInsumo } from './reglas';
-
-const TIPOS: readonly TipoInsumo[] = [
-  TipoInsumo.material,
-  TipoInsumo.mano_obra,
-  TipoInsumo.equipo,
-  TipoInsumo.herramienta,
-];
 
 interface Props {
   readonly unidades: readonly UnidadRespuesta[];
   readonly familias: readonly FamiliaRespuesta[];
-  /** `true` fija `tipo = material` y usa `POST /materiales` (§7.3). */
-  readonly soloMaterial: boolean;
+  /** El tipo lo fija la pestaña de origen (§7.3); `material` usa
+   * `POST /materiales`, el resto `POST /insumos` con este `tipo`. */
+  readonly tipoFijo: TipoInsumo;
+  /** Título del modal, p.ej. "Nueva mano de obra" — ya en el género
+   * correcto (Catálogos.tsx lo resuelve, aquí no se adivina gramática). */
+  readonly titulo: string;
   readonly onCerrar: () => void;
   readonly onCreado: () => void;
 }
 
-export function AltaInsumo({ unidades, familias, soloMaterial, onCerrar, onCreado }: Props) {
+export function AltaInsumo({ unidades, familias, tipoFijo, titulo, onCerrar, onCreado }: Props) {
   const [formulario, setFormulario] = useState<FormularioInsumo>({
     clave: '',
     descripcion: '',
-    tipo: TipoInsumo.material,
+    tipo: tipoFijo,
     unidadId: '',
     familiaId: '',
     costoBase: '',
@@ -76,12 +73,13 @@ export function AltaInsumo({ unidades, familias, soloMaterial, onCerrar, onCread
   const enviando = crearInsumo.isPending || crearMaterial.isPending;
   const puedeEnviar =
     formulario.clave.trim() !== '' && formulario.descripcion.trim() !== '' && !enviando;
+  const tituloBoton = titulo.replace(/^Nuevo\b/, 'Crear').replace(/^Nueva\b/, 'Crear');
 
   function alEnviar(evento: FormEvent) {
     evento.preventDefault();
     if (!puedeEnviar) return;
 
-    if (soloMaterial) {
+    if (tipoFijo === TipoInsumo.material) {
       crearMaterial.mutate({ data: peticionMaterial(formulario) });
       return;
     }
@@ -91,7 +89,7 @@ export function AltaInsumo({ unidades, familias, soloMaterial, onCerrar, onCread
   const familia = familias.find((f) => f.id === formulario.familiaId);
 
   return (
-    <Modal titulo={soloMaterial ? 'Nuevo material' : 'Nuevo insumo'} onCerrar={onCerrar}>
+    <Modal titulo={titulo} onCerrar={onCerrar}>
       <form onSubmit={alEnviar}>
         <div className="sheet__body col gap-12">
           <CampoTexto
@@ -110,19 +108,6 @@ export function AltaInsumo({ unidades, familias, soloMaterial, onCerrar, onCread
             onCambio={(descripcion) => setFormulario((f) => ({ ...f, descripcion }))}
             requerido
           />
-
-          {!soloMaterial && (
-            <CampoSelect
-              id="insumo-tipo"
-              etiqueta="Tipo"
-              valor={formulario.tipo}
-              onCambio={(tipo) => setFormulario((f) => ({ ...f, tipo: tipo as TipoInsumo }))}
-              opciones={TIPOS.map((tipo) => ({
-                valor: tipo,
-                etiqueta: etiquetaTipoInsumo(tipo),
-              }))}
-            />
-          )}
 
           <div className="row gap-12">
             <div style={{ flex: 1 }}>
@@ -198,7 +183,7 @@ export function AltaInsumo({ unidades, familias, soloMaterial, onCerrar, onCread
             Cancelar
           </button>
           <button type="submit" className="btn btn--primary" disabled={!puedeEnviar}>
-            {enviando ? 'Creando…' : soloMaterial ? 'Crear material' : 'Crear insumo'}
+            {enviando ? 'Creando…' : tituloBoton}
           </button>
         </div>
       </form>
