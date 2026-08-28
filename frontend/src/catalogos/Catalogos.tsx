@@ -8,11 +8,18 @@
  * trae la entrada, así que no se monta una segunda ruta para él: se montan
  * las rutas que algún sidebar apunta, no las que el contrato permitiría.
  *
- * Diez catálogos en pestañas: unidades, familias, insumos, materiales,
- * conceptos, contratistas, cuadrillas, prototipos, nivel de construcción y
- * etapa de construcción. El buscador es **por clave** (§3.3): la clave
- * manda y la descripción solo desempata — `busqueda.ts` lo implementa y esta
- * pantalla solo lo consume.
+ * Trece catálogos en pestañas: unidades, familias, materiales, mano de
+ * obra, equipo, herramienta, subcontrato, conceptos, contratistas,
+ * cuadrillas, prototipos, nivel de construcción y etapa de construcción. El
+ * buscador es **por clave** (§3.3): la clave manda y la descripción solo
+ * desempata — `busqueda.ts` lo implementa y esta pantalla solo lo consume.
+ *
+ * Materiales/mano de obra/equipo/herramienta/subcontrato son la misma
+ * entidad `Insumo` con `tipo` distinto (§7.3): antes vivían juntos en una
+ * sola pestaña "Insumos" con un filtro Tipo, pero eso escondía cada
+ * categoría detrás de un `<select>` en vez de dejarla ver de entrada — ahora
+ * cada `tipo` es su propia pestaña, sin filtro, mismo patrón que ya tenía
+ * Materiales.
  *
  * Niveles, etapas y prototipos no traen alta desde aquí: niveles/etapas los
  * da de alta el cargador dedicado del árbol de presupuesto (§10.6); los
@@ -90,7 +97,6 @@ import {
 } from './Tablas';
 import {
   etiquetaTipoConcepto,
-  etiquetaTipoInsumo,
   puedeAdministrarCatalogos,
   puedeConsultarAPU,
 } from './reglas';
@@ -98,8 +104,11 @@ import {
 type Pestania =
   | 'unidades'
   | 'familias'
-  | 'insumos'
   | 'materiales'
+  | 'mano_obra'
+  | 'equipo'
+  | 'herramienta'
+  | 'subcontrato'
   | 'conceptos'
   | 'contratistas'
   | 'cuadrillas'
@@ -110,7 +119,10 @@ type Pestania =
 const PESTANIAS: readonly { readonly clave: Pestania; readonly etiqueta: string }[] = [
   { clave: 'conceptos', etiqueta: 'Conceptos' },
   { clave: 'materiales', etiqueta: 'Materiales' },
-  { clave: 'insumos', etiqueta: 'Insumos' },
+  { clave: 'mano_obra', etiqueta: 'Mano de obra' },
+  { clave: 'equipo', etiqueta: 'Equipo' },
+  { clave: 'herramienta', etiqueta: 'Herramienta' },
+  { clave: 'subcontrato', etiqueta: 'Subcontrato' },
   { clave: 'familias', etiqueta: 'Familias' },
   { clave: 'unidades', etiqueta: 'Unidades' },
   { clave: 'contratistas', etiqueta: 'Contratistas' },
@@ -119,6 +131,16 @@ const PESTANIAS: readonly { readonly clave: Pestania; readonly etiqueta: string 
   { clave: 'niveles', etiqueta: 'Nivel de construcción' },
   { clave: 'etapas', etiqueta: 'Etapa de construcción' },
 ];
+
+/** Las cinco caras de `Insumo` (§7.3): mismo repositorio/endpoint, `tipo`
+ * fijo por pestaña — la lista para no repetir el `Set`/el filtro cinco
+ * veces. `material` no entra: tiene ruta y catálogo propios desde antes. */
+const PESTANIAS_TIPO_INSUMO = new Set<Pestania>([
+  'mano_obra',
+  'equipo',
+  'herramienta',
+  'subcontrato',
+]);
 
 /** Sin `estatus` (no son catálogo dado-de-baja, §7.4/§7.2): el checkbox
  * "Incluir dados de baja" no aplica a estas tres. */
@@ -129,14 +151,6 @@ const PESTANIAS_SIN_ESTATUS = new Set<Pestania>(['niveles', 'etapas', 'prototipo
  * pantalla en `/config/prototipos` con árbol y alta — duplicarla aquí
  * confundiría cuál es la fuente de verdad. */
 const PESTANIAS_SIN_ALTA = new Set<Pestania>(['niveles', 'etapas', 'prototipos']);
-
-const TIPOS_INSUMO: readonly TipoInsumo[] = [
-  TipoInsumo.material,
-  TipoInsumo.mano_obra,
-  TipoInsumo.equipo,
-  TipoInsumo.herramienta,
-  TipoInsumo.subcontrato,
-];
 
 const TIPOS_CONCEPTO: readonly TipoConcepto[] = [
   TipoConcepto.concepto,
@@ -156,7 +170,6 @@ export default function Catalogos() {
   const [pestania, setPestania] = useState<Pestania>('conceptos');
   const [texto, setTexto] = useState('');
   const [familiaId, setFamiliaId] = useState('');
-  const [tipoInsumo, setTipoInsumo] = useState<TipoInsumo | ''>('');
   const [tipoConcepto, setTipoConcepto] = useState<TipoConcepto | ''>('');
   const [incluirInactivos, setIncluirInactivos] = useState(false);
   const [dialogo, setDialogo] = useState<Dialogo>(null);
@@ -174,21 +187,51 @@ export default function Catalogos() {
     incluir_inactivos: incluirInactivos,
   });
 
-  const insumosQ = useListarInsumosApiV1InsumosGet<InsumoRespuesta[], ErrorApi>(
-    {
-      tipo: tipoInsumo === '' ? undefined : tipoInsumo,
-      familia_id: familiaId === '' ? undefined : familiaId,
-      incluir_inactivos: incluirInactivos,
-    },
-    { query: { enabled: pestania === 'insumos' } },
-  );
-
   const materialesQ = useListarMaterialesApiV1MaterialesGet<InsumoRespuesta[], ErrorApi>(
     {
       familia_id: familiaId === '' ? undefined : familiaId,
       incluir_inactivos: incluirInactivos,
     },
     { query: { enabled: pestania === 'materiales' } },
+  );
+
+  // Las cuatro caras restantes de `Insumo` (§7.3): mismo `GET /insumos`,
+  // `tipo` fijo por pestaña en vez de un filtro que el usuario elige —
+  // antes vivían juntas bajo "Insumos" con ese filtro (ver docstring).
+  const manoObraQ = useListarInsumosApiV1InsumosGet<InsumoRespuesta[], ErrorApi>(
+    {
+      tipo: TipoInsumo.mano_obra,
+      familia_id: familiaId === '' ? undefined : familiaId,
+      incluir_inactivos: incluirInactivos,
+    },
+    { query: { enabled: pestania === 'mano_obra' } },
+  );
+
+  const equipoQ = useListarInsumosApiV1InsumosGet<InsumoRespuesta[], ErrorApi>(
+    {
+      tipo: TipoInsumo.equipo,
+      familia_id: familiaId === '' ? undefined : familiaId,
+      incluir_inactivos: incluirInactivos,
+    },
+    { query: { enabled: pestania === 'equipo' } },
+  );
+
+  const herramientaQ = useListarInsumosApiV1InsumosGet<InsumoRespuesta[], ErrorApi>(
+    {
+      tipo: TipoInsumo.herramienta,
+      familia_id: familiaId === '' ? undefined : familiaId,
+      incluir_inactivos: incluirInactivos,
+    },
+    { query: { enabled: pestania === 'herramienta' } },
+  );
+
+  const subcontratoQ = useListarInsumosApiV1InsumosGet<InsumoRespuesta[], ErrorApi>(
+    {
+      tipo: TipoInsumo.subcontrato,
+      familia_id: familiaId === '' ? undefined : familiaId,
+      incluir_inactivos: incluirInactivos,
+    },
+    { query: { enabled: pestania === 'subcontrato' } },
   );
 
   const conceptosQ = useListarConceptosApiV1ConceptosGet<ConceptoRespuesta[], ErrorApi>(
@@ -207,14 +250,16 @@ export default function Catalogos() {
 
   const cuadrillasQ = useListarCuadrillasApiV1CuadrillasGet<CuadrillaRespuesta[], ErrorApi>(
     { incluir_inactivos: incluirInactivos },
-    // También en "insumos": `TablaInsumos` resuelve `cuadrilla_id` de un
-    // destajo contra este catálogo (§10.6), igual que ya hace con unidades.
-    { query: { enabled: pestania === 'cuadrillas' || pestania === 'insumos' } },
+    // También en las cuatro pestañas de insumo: `TablaInsumos` resuelve
+    // `cuadrilla_id` de mano de obra/subcontrato contra este catálogo
+    // (§10.6), igual que ya hace con unidades.
+    { query: { enabled: pestania === 'cuadrillas' || PESTANIAS_TIPO_INSUMO.has(pestania) } },
   );
 
   const nivelesQ = useListarNivelesApiV1NivelesGet<NivelRespuesta[], ErrorApi>({
     // También en "etapas": `TablaEtapas` resuelve la clave del nivel de
-    // cada etapa contra este catálogo, igual que insumos con unidades.
+    // cada etapa contra este catálogo, igual que las tablas de insumo
+    // resuelven unidad/cuadrilla.
     query: { enabled: pestania === 'niveles' || pestania === 'etapas' },
   });
 
@@ -246,9 +291,21 @@ export default function Catalogos() {
     () => buscarPorClave(familias, texto, (familia) => familia.nombre),
     [familias, texto],
   );
-  const resInsumos = useMemo(
-    () => buscarPorClave(insumosQ.data ?? [], texto, (insumo) => insumo.descripcion),
-    [insumosQ.data, texto],
+  const resManoObra = useMemo(
+    () => buscarPorClave(manoObraQ.data ?? [], texto, (insumo) => insumo.descripcion),
+    [manoObraQ.data, texto],
+  );
+  const resEquipo = useMemo(
+    () => buscarPorClave(equipoQ.data ?? [], texto, (insumo) => insumo.descripcion),
+    [equipoQ.data, texto],
+  );
+  const resHerramienta = useMemo(
+    () => buscarPorClave(herramientaQ.data ?? [], texto, (insumo) => insumo.descripcion),
+    [herramientaQ.data, texto],
+  );
+  const resSubcontrato = useMemo(
+    () => buscarPorClave(subcontratoQ.data ?? [], texto, (insumo) => insumo.descripcion),
+    [subcontratoQ.data, texto],
   );
   const resMateriales = useMemo(
     () => buscarPorClave(materialesQ.data ?? [], texto, (material) => material.descripcion),
@@ -289,8 +346,11 @@ export default function Catalogos() {
   const errores = [
     unidadesQ.error,
     familiasQ.error,
-    insumosQ.error,
     materialesQ.error,
+    manoObraQ.error,
+    equipoQ.error,
+    herramientaQ.error,
+    subcontratoQ.error,
     conceptosQ.error,
     contratistasQ.error,
     cuadrillasQ.error,
@@ -303,9 +363,8 @@ export default function Catalogos() {
   function cambiarPestania(nueva: Pestania) {
     setPestania(nueva);
     setConceptoAbierto(null);
-    // Los filtros de tipo son de una sola pestaña; arrastrarlos entre
-    // catálogos dejaría la tabla vacía sin razón visible.
-    setTipoInsumo('');
+    // El filtro de tipo de concepto es de una sola pestaña; arrastrarlo
+    // entre catálogos dejaría la tabla vacía sin razón visible.
     setTipoConcepto('');
   }
 
@@ -315,10 +374,16 @@ export default function Catalogos() {
         return 'Nueva unidad';
       case 'familias':
         return 'Nueva familia';
-      case 'insumos':
-        return 'Nuevo insumo';
       case 'materiales':
         return 'Nuevo material';
+      case 'mano_obra':
+        return 'Nueva mano de obra';
+      case 'equipo':
+        return 'Nuevo equipo';
+      case 'herramienta':
+        return 'Nueva herramienta';
+      case 'subcontrato':
+        return 'Nuevo subcontrato';
       case 'conceptos':
         return 'Nuevo concepto';
       case 'contratistas':
@@ -337,8 +402,11 @@ export default function Catalogos() {
     setAviso(mensaje);
     void unidadesQ.refetch();
     void familiasQ.refetch();
-    if (pestania === 'insumos') void insumosQ.refetch();
     if (pestania === 'materiales') void materialesQ.refetch();
+    if (pestania === 'mano_obra') void manoObraQ.refetch();
+    if (pestania === 'equipo') void equipoQ.refetch();
+    if (pestania === 'herramienta') void herramientaQ.refetch();
+    if (pestania === 'subcontrato') void subcontratoQ.refetch();
     if (pestania === 'conceptos') void conceptosQ.refetch();
     if (pestania === 'contratistas') void contratistasQ.refetch();
     if (pestania === 'cuadrillas') void cuadrillasQ.refetch();
@@ -416,22 +484,6 @@ export default function Catalogos() {
           aria-label="Buscar por clave; la descripción solo desempata (§3.3)"
         />
 
-        {pestania === 'insumos' && (
-          <select
-            className="select"
-            value={tipoInsumo}
-            onChange={(e) => setTipoInsumo(e.target.value as TipoInsumo | '')}
-            aria-label="Filtrar por tipo de insumo"
-          >
-            <option value="">Todos los tipos</option>
-            {TIPOS_INSUMO.map((tipo) => (
-              <option key={tipo} value={tipo}>
-                {etiquetaTipoInsumo(tipo)}
-              </option>
-            ))}
-          </select>
-        )}
-
         {pestania === 'conceptos' && (
           <select
             className="select"
@@ -448,7 +500,7 @@ export default function Catalogos() {
           </select>
         )}
 
-        {(pestania === 'insumos' || pestania === 'materiales' || pestania === 'conceptos') && (
+        {(PESTANIAS_TIPO_INSUMO.has(pestania) || pestania === 'materiales' || pestania === 'conceptos') && (
           <select
             className="select"
             value={familiaId}
@@ -497,17 +549,6 @@ export default function Catalogos() {
           />
         )}
 
-        {pestania === 'insumos' && (
-          <TablaInsumos
-            resultados={resInsumos}
-            unidades={unidades}
-            familias={familias}
-            cuadrillas={cuadrillasParaInsumos}
-            cargando={insumosQ.isLoading}
-            vacia="No hay insumos con estos filtros."
-          />
-        )}
-
         {pestania === 'materiales' && (
           <TablaInsumos
             resultados={resMateriales}
@@ -516,6 +557,50 @@ export default function Catalogos() {
             cuadrillas={cuadrillasParaInsumos}
             cargando={materialesQ.isLoading}
             vacia="No hay materiales con estos filtros."
+          />
+        )}
+
+        {pestania === 'mano_obra' && (
+          <TablaInsumos
+            resultados={resManoObra}
+            unidades={unidades}
+            familias={familias}
+            cuadrillas={cuadrillasParaInsumos}
+            cargando={manoObraQ.isLoading}
+            vacia="No hay mano de obra con estos filtros."
+          />
+        )}
+
+        {pestania === 'equipo' && (
+          <TablaInsumos
+            resultados={resEquipo}
+            unidades={unidades}
+            familias={familias}
+            cuadrillas={cuadrillasParaInsumos}
+            cargando={equipoQ.isLoading}
+            vacia="No hay equipo con estos filtros."
+          />
+        )}
+
+        {pestania === 'herramienta' && (
+          <TablaInsumos
+            resultados={resHerramienta}
+            unidades={unidades}
+            familias={familias}
+            cuadrillas={cuadrillasParaInsumos}
+            cargando={herramientaQ.isLoading}
+            vacia="No hay herramienta con estos filtros."
+          />
+        )}
+
+        {pestania === 'subcontrato' && (
+          <TablaInsumos
+            resultados={resSubcontrato}
+            unidades={unidades}
+            familias={familias}
+            cuadrillas={cuadrillasParaInsumos}
+            cargando={subcontratoQ.isLoading}
+            vacia="No hay subcontratos con estos filtros."
           />
         )}
 
@@ -584,15 +669,58 @@ export default function Catalogos() {
         />
       )}
 
-      {(dialogo === 'insumos' || dialogo === 'materiales') && (
+      {dialogo === 'materiales' && (
         <AltaInsumo
           unidades={unidades}
           familias={familias}
-          soloMaterial={dialogo === 'materiales'}
+          tipoFijo={TipoInsumo.material}
+          titulo="Nuevo material"
           onCerrar={() => setDialogo(null)}
-          onCreado={() =>
-            alCrear(dialogo === 'materiales' ? 'Material creado' : 'Insumo creado')
-          }
+          onCreado={() => alCrear('Material creado')}
+        />
+      )}
+
+      {dialogo === 'mano_obra' && (
+        <AltaInsumo
+          unidades={unidades}
+          familias={familias}
+          tipoFijo={TipoInsumo.mano_obra}
+          titulo="Nueva mano de obra"
+          onCerrar={() => setDialogo(null)}
+          onCreado={() => alCrear('Mano de obra creada')}
+        />
+      )}
+
+      {dialogo === 'equipo' && (
+        <AltaInsumo
+          unidades={unidades}
+          familias={familias}
+          tipoFijo={TipoInsumo.equipo}
+          titulo="Nuevo equipo"
+          onCerrar={() => setDialogo(null)}
+          onCreado={() => alCrear('Equipo creado')}
+        />
+      )}
+
+      {dialogo === 'herramienta' && (
+        <AltaInsumo
+          unidades={unidades}
+          familias={familias}
+          tipoFijo={TipoInsumo.herramienta}
+          titulo="Nueva herramienta"
+          onCerrar={() => setDialogo(null)}
+          onCreado={() => alCrear('Herramienta creada')}
+        />
+      )}
+
+      {dialogo === 'subcontrato' && (
+        <AltaInsumo
+          unidades={unidades}
+          familias={familias}
+          tipoFijo={TipoInsumo.subcontrato}
+          titulo="Nuevo subcontrato"
+          onCerrar={() => setDialogo(null)}
+          onCreado={() => alCrear('Subcontrato creado')}
         />
       )}
 
