@@ -42,6 +42,7 @@ import type {
   CrearUnidadPeticion,
   CuadrillaRespuesta,
   EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams,
+  EtapaRespuesta,
   ExplosionRespuesta,
   FamiliaRespuesta,
   HTTPValidationError,
@@ -53,6 +54,7 @@ import type {
   ListarInsumosApiV1InsumosGetParams,
   ListarMaterialesApiV1MaterialesGetParams,
   ListarUnidadesApiV1UnidadesGetParams,
+  NivelRespuesta,
   ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
   PublicarCPUPeticion,
   UnidadRespuesta,
@@ -1222,6 +1224,338 @@ export const useCrearContratistaApiV1ContratistasPost = <TError = void,
       return useMutation(mutationOptions, queryClient);
     }
     /**
+ * Lectura simple sin orquestación de dominio —como `GET /unidades`—
+así que consulta el repo directo: RLS ya acota el alcance (§12.4).
+ * @summary Catálogo de niveles de construcción
+ */
+export const listarNivelesApiV1NivelesGet = (
+    
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<NivelRespuesta[]>(
+      {url: `/api/v1/niveles`, method: 'GET', signal
+    },
+      options);
+    }
+  
+
+
+
+export const getListarNivelesApiV1NivelesGetInfiniteQueryKey = () => {
+    return [
+    'infinite', `/api/v1/niveles`
+    ] as const;
+    }
+
+export const getListarNivelesApiV1NivelesGetQueryKey = () => {
+    return [
+    `/api/v1/niveles`
+    ] as const;
+    }
+
+    
+export const getListarNivelesApiV1NivelesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>, TError = unknown>( options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarNivelesApiV1NivelesGetInfiniteQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>> = ({ signal }) => listarNivelesApiV1NivelesGet(requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarNivelesApiV1NivelesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>
+export type ListarNivelesApiV1NivelesGetInfiniteQueryError = unknown
+
+
+export function useListarNivelesApiV1NivelesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>, TError = unknown>(
+  options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarNivelesApiV1NivelesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>, TError = unknown>(
+  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarNivelesApiV1NivelesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>, TError = unknown>(
+  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Catálogo de niveles de construcción
+ */
+
+export function useListarNivelesApiV1NivelesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>, TError = unknown>(
+  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarNivelesApiV1NivelesGetInfiniteQueryOptions(options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getListarNivelesApiV1NivelesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarNivelesApiV1NivelesGetQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>> = ({ signal }) => listarNivelesApiV1NivelesGet(requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarNivelesApiV1NivelesGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>
+export type ListarNivelesApiV1NivelesGetQueryError = unknown
+
+
+export function useListarNivelesApiV1NivelesGet<TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarNivelesApiV1NivelesGet<TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarNivelesApiV1NivelesGet<TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Catálogo de niveles de construcción
+ */
+
+export function useListarNivelesApiV1NivelesGet<TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarNivelesApiV1NivelesGetQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * @summary Catálogo de etapas de construcción
+ */
+export const listarEtapasApiV1EtapasGet = (
+    
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<EtapaRespuesta[]>(
+      {url: `/api/v1/etapas`, method: 'GET', signal
+    },
+      options);
+    }
+  
+
+
+
+export const getListarEtapasApiV1EtapasGetInfiniteQueryKey = () => {
+    return [
+    'infinite', `/api/v1/etapas`
+    ] as const;
+    }
+
+export const getListarEtapasApiV1EtapasGetQueryKey = () => {
+    return [
+    `/api/v1/etapas`
+    ] as const;
+    }
+
+    
+export const getListarEtapasApiV1EtapasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>, TError = unknown>( options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarEtapasApiV1EtapasGetInfiniteQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>> = ({ signal }) => listarEtapasApiV1EtapasGet(requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarEtapasApiV1EtapasGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>
+export type ListarEtapasApiV1EtapasGetInfiniteQueryError = unknown
+
+
+export function useListarEtapasApiV1EtapasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>, TError = unknown>(
+  options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarEtapasApiV1EtapasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>, TError = unknown>(
+  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarEtapasApiV1EtapasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>, TError = unknown>(
+  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Catálogo de etapas de construcción
+ */
+
+export function useListarEtapasApiV1EtapasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>, TError = unknown>(
+  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarEtapasApiV1EtapasGetInfiniteQueryOptions(options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getListarEtapasApiV1EtapasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarEtapasApiV1EtapasGetQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>> = ({ signal }) => listarEtapasApiV1EtapasGet(requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarEtapasApiV1EtapasGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>
+export type ListarEtapasApiV1EtapasGetQueryError = unknown
+
+
+export function useListarEtapasApiV1EtapasGet<TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError = unknown>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarEtapasApiV1EtapasGet<TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarEtapasApiV1EtapasGet<TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Catálogo de etapas de construcción
+ */
+
+export function useListarEtapasApiV1EtapasGet<TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError = unknown>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarEtapasApiV1EtapasGetQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
  * Lectura simple sin orquestación de dominio —como `GET /unidades`—, así
 que consulta el repo directo: RLS ya acota el alcance (§12.4).
  * @summary Catálogo de cuadrillas

@@ -8,10 +8,17 @@
  * trae la entrada, así que no se monta una segunda ruta para él: se montan
  * las rutas que algún sidebar apunta, no las que el contrato permitiría.
  *
- * Seis catálogos en pestañas: unidades, familias, insumos, materiales,
- * conceptos y contratistas. El buscador es **por clave** (§3.3): la clave
+ * Diez catálogos en pestañas: unidades, familias, insumos, materiales,
+ * conceptos, contratistas, cuadrillas, prototipos, nivel de construcción y
+ * etapa de construcción. El buscador es **por clave** (§3.3): la clave
  * manda y la descripción solo desempata — `busqueda.ts` lo implementa y esta
  * pantalla solo lo consume.
+ *
+ * Niveles, etapas y prototipos no traen alta desde aquí: niveles/etapas los
+ * da de alta el cargador dedicado del árbol de presupuesto (§10.6); los
+ * prototipos ya tienen su propia pantalla en `/config/prototipos` con árbol
+ * y alta — esta pestaña solo replica su listado para que "todos los
+ * catálogos" vivan en un solo lugar, sin duplicar esa pantalla.
  *
  * ## Ruta de datos (§10.7)
  *
@@ -35,18 +42,28 @@ import {
   useListarConceptosApiV1ConceptosGet,
   useListarContratistasApiV1ContratistasGet,
   useListarCuadrillasApiV1CuadrillasGet,
+  useListarEtapasApiV1EtapasGet,
   useListarFamiliasApiV1FamiliasGet,
   useListarInsumosApiV1InsumosGet,
   useListarMaterialesApiV1MaterialesGet,
+  useListarNivelesApiV1NivelesGet,
   useListarUnidadesApiV1UnidadesGet,
 } from '@/api/generado/catalogos/catalogos';
+import {
+  useListarPrototiposApiV1PrototiposGet,
+  useListarProyectosApiV1ProyectosGet,
+} from '@/api/generado/proyectos/proyectos';
 import { TipoConcepto, TipoInsumo } from '@/api/generado/modelo';
 import type {
   ConceptoRespuesta,
   ContratistaRespuesta,
   CuadrillaRespuesta,
+  EtapaRespuesta,
   FamiliaRespuesta,
   InsumoRespuesta,
+  NivelRespuesta,
+  PrototipoRespuesta,
+  ProyectoRespuesta,
   UnidadRespuesta,
 } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
@@ -64,8 +81,11 @@ import {
   TablaConceptos,
   TablaContratistas,
   TablaCuadrillas,
+  TablaEtapas,
   TablaFamilias,
   TablaInsumos,
+  TablaNiveles,
+  TablaPrototipos,
   TablaUnidades,
 } from './Tablas';
 import {
@@ -82,7 +102,10 @@ type Pestania =
   | 'materiales'
   | 'conceptos'
   | 'contratistas'
-  | 'cuadrillas';
+  | 'cuadrillas'
+  | 'niveles'
+  | 'etapas'
+  | 'prototipos';
 
 const PESTANIAS: readonly { readonly clave: Pestania; readonly etiqueta: string }[] = [
   { clave: 'conceptos', etiqueta: 'Conceptos' },
@@ -92,7 +115,20 @@ const PESTANIAS: readonly { readonly clave: Pestania; readonly etiqueta: string 
   { clave: 'unidades', etiqueta: 'Unidades' },
   { clave: 'contratistas', etiqueta: 'Contratistas' },
   { clave: 'cuadrillas', etiqueta: 'Cuadrillas' },
+  { clave: 'prototipos', etiqueta: 'Prototipos' },
+  { clave: 'niveles', etiqueta: 'Nivel de construcción' },
+  { clave: 'etapas', etiqueta: 'Etapa de construcción' },
 ];
+
+/** Sin `estatus` (no son catálogo dado-de-baja, §7.4/§7.2): el checkbox
+ * "Incluir dados de baja" no aplica a estas tres. */
+const PESTANIAS_SIN_ESTATUS = new Set<Pestania>(['niveles', 'etapas', 'prototipos']);
+
+/** Sin alta desde esta pantalla: niveles/etapas los da de alta el cargador
+ * dedicado (§10.6) o el árbol de presupuesto; prototipos ya tiene su propia
+ * pantalla en `/config/prototipos` con árbol y alta — duplicarla aquí
+ * confundiría cuál es la fuente de verdad. */
+const PESTANIAS_SIN_ALTA = new Set<Pestania>(['niveles', 'etapas', 'prototipos']);
 
 const TIPOS_INSUMO: readonly TipoInsumo[] = [
   TipoInsumo.material,
@@ -176,10 +212,31 @@ export default function Catalogos() {
     { query: { enabled: pestania === 'cuadrillas' || pestania === 'insumos' } },
   );
 
+  const nivelesQ = useListarNivelesApiV1NivelesGet<NivelRespuesta[], ErrorApi>({
+    // También en "etapas": `TablaEtapas` resuelve la clave del nivel de
+    // cada etapa contra este catálogo, igual que insumos con unidades.
+    query: { enabled: pestania === 'niveles' || pestania === 'etapas' },
+  });
+
+  const etapasQ = useListarEtapasApiV1EtapasGet<EtapaRespuesta[], ErrorApi>({
+    query: { enabled: pestania === 'etapas' },
+  });
+
+  const proyectosQ = useListarProyectosApiV1ProyectosGet<ProyectoRespuesta[], ErrorApi>({
+    query: { enabled: pestania === 'prototipos' },
+  });
+
+  const prototiposQ = useListarPrototiposApiV1PrototiposGet<PrototipoRespuesta[], ErrorApi>(
+    {},
+    { query: { enabled: pestania === 'prototipos' } },
+  );
+
   const unidades = useMemo(() => unidadesQ.data ?? [], [unidadesQ.data]);
   const familias = useMemo(() => familiasQ.data ?? [], [familiasQ.data]);
   const cuadrillasParaInsumos = useMemo(() => cuadrillasQ.data ?? [], [cuadrillasQ.data]);
   const conceptos = useMemo(() => conceptosQ.data ?? [], [conceptosQ.data]);
+  const niveles = useMemo(() => nivelesQ.data ?? [], [nivelesQ.data]);
+  const proyectos = useMemo(() => proyectosQ.data ?? [], [proyectosQ.data]);
 
   const resUnidades = useMemo(
     () => buscarPorClave(unidades, texto, (unidad) => unidad.nombre),
@@ -210,6 +267,18 @@ export default function Catalogos() {
     () => buscarPorClave(cuadrillasQ.data ?? [], texto, (cuadrilla) => cuadrilla.nombre),
     [cuadrillasQ.data, texto],
   );
+  const resNiveles = useMemo(
+    () => buscarPorClave(niveles, texto, (nivel) => nivel.descripcion),
+    [niveles, texto],
+  );
+  const resEtapas = useMemo(
+    () => buscarPorClave(etapasQ.data ?? [], texto, (etapa) => etapa.descripcion),
+    [etapasQ.data, texto],
+  );
+  const resPrototipos = useMemo(
+    () => buscarPorClave(prototiposQ.data ?? [], texto, (prototipo) => prototipo.nombre),
+    [prototiposQ.data, texto],
+  );
 
   // El concepto del cajón se re-deriva de la lista para que un cambio de
   // filtro no deje abierto un APU que ya no está en pantalla.
@@ -225,6 +294,10 @@ export default function Catalogos() {
     conceptosQ.error,
     contratistasQ.error,
     cuadrillasQ.error,
+    nivelesQ.error,
+    etapasQ.error,
+    proyectosQ.error,
+    prototiposQ.error,
   ].filter((error): error is ErrorApi => error !== null && error !== undefined);
 
   function cambiarPestania(nueva: Pestania) {
@@ -236,7 +309,7 @@ export default function Catalogos() {
     setTipoConcepto('');
   }
 
-  function tituloAlta(): string {
+  function tituloAlta(): string | null {
     switch (pestania) {
       case 'unidades':
         return 'Nueva unidad';
@@ -252,6 +325,10 @@ export default function Catalogos() {
         return 'Nuevo contratista';
       case 'cuadrillas':
         return 'Nueva cuadrilla';
+      case 'niveles':
+      case 'etapas':
+      case 'prototipos':
+        return null;
     }
   }
 
@@ -285,7 +362,7 @@ export default function Catalogos() {
           </div>
         </div>
 
-        {administra && (
+        {administra && !PESTANIAS_SIN_ALTA.has(pestania) && (
           <div className="page__actions">
             <button
               type="button"
@@ -387,14 +464,16 @@ export default function Catalogos() {
           </select>
         )}
 
-        <label className="row gap-4" style={{ alignItems: 'center' }}>
-          <input
-            type="checkbox"
-            checked={incluirInactivos}
-            onChange={(e) => setIncluirInactivos(e.target.checked)}
-          />
-          <span className="text-sm text-mute">Incluir dados de baja</span>
-        </label>
+        {!PESTANIAS_SIN_ESTATUS.has(pestania) && (
+          <label className="row gap-4" style={{ alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={incluirInactivos}
+              onChange={(e) => setIncluirInactivos(e.target.checked)}
+            />
+            <span className="text-sm text-mute">Incluir dados de baja</span>
+          </label>
+        )}
       </div>
 
       {/* `tabIndex={0}`: hay catálogos cuya tabla no tiene ningún control
@@ -460,6 +539,22 @@ export default function Catalogos() {
             resultados={resCuadrillas}
             unidades={unidades}
             cargando={cuadrillasQ.isLoading}
+          />
+        )}
+
+        {pestania === 'niveles' && (
+          <TablaNiveles resultados={resNiveles} cargando={nivelesQ.isLoading} />
+        )}
+
+        {pestania === 'etapas' && (
+          <TablaEtapas resultados={resEtapas} niveles={niveles} cargando={etapasQ.isLoading} />
+        )}
+
+        {pestania === 'prototipos' && (
+          <TablaPrototipos
+            resultados={resPrototipos}
+            proyectos={proyectos}
+            cargando={prototiposQ.isLoading}
           />
         )}
       </div>

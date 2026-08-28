@@ -48,6 +48,7 @@ from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
+from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
 from obractrl.application.casos_uso.calcular_cpu import (
     ComandoPublicarVersionCPU,
@@ -536,6 +537,80 @@ async def crear_contratista(
         email=creado.contratista.email,
         calificacion=creado.contratista.calificacion,
     )
+
+
+# --- Niveles y etapas de construcción (§7.4, §10.1, §10.6) ---------------
+#
+# Catálogo compartido por organización, no por prototipo: la clave se repite
+# igual en cada prototipo del archivo de ingeniería (§7.4). Solo lectura
+# aquí — el alta/edición la trae el cargador dedicado (migración 0037,
+# `RepositorioNivelesEtapasSQL.crear_nivel`/`crear_etapa`, §10.6) o el
+# árbol de presupuesto (`AplicadorPresupuesto`); ningún flujo hoy da de
+# alta un nivel o etapa suelto desde esta pantalla.
+
+
+class NivelRespuesta(BaseModel):
+    id: UUID
+    clave: str
+    descripcion: str
+    orden: int = 0
+    importe: Decimal | None = None
+
+    @classmethod
+    def desde_fila(cls, fila: dict) -> NivelRespuesta:
+        return cls(
+            id=fila["id"],
+            clave=fila["clave"],
+            descripcion=fila["descripcion"],
+            orden=fila["orden"],
+            importe=fila["importe"],
+        )
+
+
+class EtapaRespuesta(BaseModel):
+    id: UUID
+    nivel_id: UUID | None = None
+    clave: str
+    descripcion: str
+    orden: int = 0
+    ponderacion: Decimal = Decimal(0)
+    importe: Decimal | None = None
+
+    @classmethod
+    def desde_fila(cls, fila: dict) -> EtapaRespuesta:
+        return cls(
+            id=fila["id"],
+            nivel_id=fila["nivel_id"],
+            clave=fila["clave"],
+            descripcion=fila["descripcion"],
+            orden=fila["orden"],
+            ponderacion=fila["ponderacion"],
+            importe=fila["importe"],
+        )
+
+
+@router.get(
+    "/niveles",
+    response_model=list[NivelRespuesta],
+    summary="Catálogo de niveles de construcción",
+    dependencies=[CATALOGOS],
+)
+async def listar_niveles(sesion: SesionRLS) -> list[NivelRespuesta]:
+    """Lectura simple sin orquestación de dominio —como `GET /unidades`—
+    así que consulta el repo directo: RLS ya acota el alcance (§12.4)."""
+    filas = await RepositorioNivelesEtapasSQL(sesion).listar_niveles()
+    return [NivelRespuesta.desde_fila(fila) for fila in filas]
+
+
+@router.get(
+    "/etapas",
+    response_model=list[EtapaRespuesta],
+    summary="Catálogo de etapas de construcción",
+    dependencies=[CATALOGOS],
+)
+async def listar_etapas(sesion: SesionRLS) -> list[EtapaRespuesta]:
+    filas = await RepositorioNivelesEtapasSQL(sesion).listar_etapas()
+    return [EtapaRespuesta.desde_fila(fila) for fila in filas]
 
 
 # --- Cuadrillas (§7.6, §10.6) ---------------------------------------------
