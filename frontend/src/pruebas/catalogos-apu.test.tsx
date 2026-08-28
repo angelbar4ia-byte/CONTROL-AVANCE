@@ -14,15 +14,25 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import type {
   ConceptoRespuesta,
+  EtapaRespuesta,
   FamiliaRespuesta,
   InsumoRespuesta,
   LineaExplosionRespuesta,
+  NivelRespuesta,
+  PrototipoRespuesta,
+  ProyectoRespuesta,
   UnidadRespuesta,
 } from '@/api/generado/modelo';
 import { ArbolExplosion } from '@/catalogos/ArbolExplosion';
 import { armarArbolExplosion } from '@/catalogos/explosion';
 import { buscarPorClave } from '@/catalogos/busqueda';
-import { TablaConceptos, TablaInsumos } from '@/catalogos/Tablas';
+import {
+  TablaConceptos,
+  TablaEtapas,
+  TablaInsumos,
+  TablaNiveles,
+  TablaPrototipos,
+} from '@/catalogos/Tablas';
 
 const LINEAS: readonly LineaExplosionRespuesta[] = [
   {
@@ -242,5 +252,94 @@ describe('TablaConceptos: prioridad de CLAVE y acceso al APU (§3.3, §11.2)', (
     pintar();
     expect(screen.getByText('Auxiliar')).toBeInTheDocument();
     expect(screen.getByText('Concepto')).toBeInTheDocument();
+  });
+});
+
+describe('TablaNiveles y TablaEtapas: árbol del prototipo (§7.4)', () => {
+  const NIVELES: readonly NivelRespuesta[] = [
+    { id: 'niv-1', clave: 'NIV-00001', descripcion: 'Cimentación', orden: 1 },
+  ];
+  const ETAPAS: readonly EtapaRespuesta[] = [
+    {
+      id: 'eco-1',
+      nivel_id: 'niv-1',
+      clave: 'ECO-00001',
+      descripcion: 'Estructura cimentación',
+      orden: 1,
+      ponderacion: '25.5',
+    },
+  ];
+
+  it('TablaNiveles marca la fila que casó por descripción y no por clave (§3.3)', () => {
+    render(
+      <TablaNiveles
+        resultados={buscarPorClave(NIVELES, 'cimentación', (n) => n.descripcion)}
+        cargando={false}
+      />,
+    );
+    expect(screen.getByText(/NIV-00001/).closest('tr')).toHaveTextContent('desc');
+  });
+
+  it('TablaEtapas resuelve la clave del nivel contra el catálogo de niveles (§7.4)', () => {
+    render(
+      <TablaEtapas
+        resultados={buscarPorClave(ETAPAS, '', (e) => e.descripcion)}
+        niveles={NIVELES}
+        cargando={false}
+      />,
+    );
+    expect(screen.getByText('NIV-00001')).toBeInTheDocument();
+    expect(screen.getByText(/25[.,]5.?%/)).toBeInTheDocument();
+  });
+
+  it('TablaEtapas sin nivel resuelto muestra un guion, no revienta', () => {
+    render(
+      <TablaEtapas
+        resultados={buscarPorClave(ETAPAS, '', (e) => e.descripcion)}
+        niveles={[]}
+        cargando={false}
+      />,
+    );
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+});
+
+describe('TablaPrototipos: catálogo de prototipos en Catálogos (§7.2, §7.4)', () => {
+  const PROYECTOS: readonly ProyectoRespuesta[] = [
+    { id: 'proy-1', clave: 'PROY-1', nombre: 'Residencial Sur' },
+  ];
+  const PROTOTIPOS: readonly PrototipoRespuesta[] = [
+    {
+      id: 'proto-1',
+      proyecto_id: 'proy-1',
+      clave: 'CAS-00004',
+      nombre: 'Zafiro 1.0',
+      m2: '172',
+      niveles: 2,
+      recamaras: 3,
+    },
+  ];
+
+  it('resuelve el proyecto al que pertenece el prototipo', () => {
+    render(
+      <TablaPrototipos
+        resultados={buscarPorClave(PROTOTIPOS, '', (p) => p.nombre)}
+        proyectos={PROYECTOS}
+        cargando={false}
+      />,
+    );
+    expect(screen.getByText('PROY-1 · Residencial Sur')).toBeInTheDocument();
+    expect(screen.getByText('Zafiro 1.0')).toBeInTheDocument();
+  });
+
+  it('sin proyecto resuelto muestra un guion, no revienta', () => {
+    render(
+      <TablaPrototipos
+        resultados={buscarPorClave(PROTOTIPOS, '', (p) => p.nombre)}
+        proyectos={[]}
+        cargando={false}
+      />,
+    );
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 });

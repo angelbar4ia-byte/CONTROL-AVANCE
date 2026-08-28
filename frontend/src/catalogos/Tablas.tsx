@@ -1,11 +1,14 @@
 /**
- * Tablas de los seis catálogos (§7.3, §10.1, §11.2 bloque "Catálogos · APU").
+ * Tablas de los catálogos de Catálogos · APU (§7.3, §10.1, §11.2 bloque
+ * "Catálogos · APU") y del árbol de prototipo (§7.4): unidades, familias,
+ * insumos/materiales, conceptos, contratistas, cuadrillas, niveles y etapas
+ * de construcción, y prototipos.
  *
  * Presentación pura: reciben lo que el servidor ya devolvió —acotado por RLS
  * a su organización (§12.4)— y ya filtrado/ordenado por `busqueda.ts` según
  * la prioridad de CLAVE (§3.3). No calculan nada.
  *
- * La **clave es la primera columna** en las seis, con `is-key` y en mono: es
+ * La **clave es la primera columna** en todas, con `is-key` y en mono: es
  * el identificador con el que se cruza todo el sistema (§3.3), no un dato
  * más. Cuando un registro entró solo porque su descripción coincidió, se
  * marca — así se ve que la clave no fue la que casó.
@@ -23,11 +26,15 @@ import type {
   ContratistaRespuesta,
   ConceptoRespuesta,
   CuadrillaRespuesta,
+  EtapaRespuesta,
   FamiliaRespuesta,
   InsumoRespuesta,
+  NivelRespuesta,
+  PrototipoRespuesta,
+  ProyectoRespuesta,
   UnidadRespuesta,
 } from '@/api/generado/modelo';
-import { fmtMXN, fmtNum } from '@/lib/formato';
+import { fmtMXN, fmtNum, fmtPct } from '@/lib/formato';
 import type { Resultado } from './busqueda';
 import { soloPorDescripcion } from './busqueda';
 import {
@@ -438,6 +445,111 @@ export function TablaCuadrillas({
             </td>
             <td className="text-mute text-sm">{item.version_vigente ?? '—'}</td>
             <Estatus estatus={item.estatus ?? 'activo'} />
+          </tr>
+        );
+      })}
+    </TablaCatalogo>
+  );
+}
+
+const COLUMNAS_NIVELES = ['Clave', 'Descripción', 'Orden', 'Importe'] as const;
+
+export function TablaNiveles({
+  resultados,
+  cargando,
+}: {
+  readonly resultados: readonly Resultado<NivelRespuesta>[];
+  readonly cargando: boolean;
+}) {
+  return (
+    <TablaCatalogo
+      columnas={COLUMNAS_NIVELES}
+      cargando={cargando}
+      filas={resultados.length}
+      vacia="No hay niveles de construcción con estos filtros."
+    >
+      {resultados.map(({ item, coincidencia }) => (
+        <tr key={item.id}>
+          <Clave valor={item.clave} porDescripcion={soloPorDescripcion(coincidencia)} />
+          <td>{item.descripcion}</td>
+          <td className="is-num tnum">{item.orden}</td>
+          <td className="is-num">
+            {item.importe === null || item.importe === undefined ? '—' : fmtMXN(item.importe)}
+          </td>
+        </tr>
+      ))}
+    </TablaCatalogo>
+  );
+}
+
+const COLUMNAS_ETAPAS = ['Clave', 'Descripción', 'Nivel', 'Orden', 'Ponderación', 'Importe'] as const;
+
+export function TablaEtapas({
+  resultados,
+  niveles,
+  cargando,
+}: {
+  readonly resultados: readonly Resultado<EtapaRespuesta>[];
+  /** Para resolver la clave del nivel al que pertenece la etapa (§7.4). */
+  readonly niveles: readonly NivelRespuesta[];
+  readonly cargando: boolean;
+}) {
+  return (
+    <TablaCatalogo
+      columnas={COLUMNAS_ETAPAS}
+      cargando={cargando}
+      filas={resultados.length}
+      vacia="No hay etapas de construcción con estos filtros."
+    >
+      {resultados.map(({ item, coincidencia }) => (
+        <tr key={item.id}>
+          <Clave valor={item.clave} porDescripcion={soloPorDescripcion(coincidencia)} />
+          <td>{item.descripcion}</td>
+          <td className="mono text-xs">
+            {niveles.find((nivel) => nivel.id === item.nivel_id)?.clave ?? '—'}
+          </td>
+          <td className="is-num tnum">{item.orden}</td>
+          <td className="is-num">{fmtPct(item.ponderacion)}</td>
+          <td className="is-num">
+            {item.importe === null || item.importe === undefined ? '—' : fmtMXN(item.importe)}
+          </td>
+        </tr>
+      ))}
+    </TablaCatalogo>
+  );
+}
+
+const COLUMNAS_PROTOTIPOS = ['Clave', 'Nombre', 'Proyecto', 'm²', 'Niveles', 'Recámaras'] as const;
+
+export function TablaPrototipos({
+  resultados,
+  proyectos,
+  cargando,
+}: {
+  readonly resultados: readonly Resultado<PrototipoRespuesta>[];
+  /** Para resolver la clave/nombre del proyecto al que pertenece (§7.2). */
+  readonly proyectos: readonly ProyectoRespuesta[];
+  readonly cargando: boolean;
+}) {
+  return (
+    <TablaCatalogo
+      columnas={COLUMNAS_PROTOTIPOS}
+      cargando={cargando}
+      filas={resultados.length}
+      vacia="No hay prototipos con estos filtros."
+    >
+      {resultados.map(({ item, coincidencia }) => {
+        const proyecto = proyectos.find((p) => p.id === item.proyecto_id);
+        return (
+          <tr key={item.id}>
+            <Clave valor={item.clave} porDescripcion={soloPorDescripcion(coincidencia)} />
+            <td>{item.nombre}</td>
+            <td className="text-mute text-sm">
+              {proyecto ? `${proyecto.clave} · ${proyecto.nombre}` : '—'}
+            </td>
+            <td className="is-num tnum">{fmtNum(item.m2)}</td>
+            <td className="is-num tnum">{item.niveles ?? '—'}</td>
+            <td className="is-num tnum">{item.recamaras ?? '—'}</td>
           </tr>
         );
       })}

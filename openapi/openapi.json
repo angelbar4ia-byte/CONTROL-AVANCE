@@ -1733,6 +1733,67 @@
         }
       }
     },
+    "/api/v1/niveles": {
+      "get": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Catálogo de niveles de construcción",
+        "description": "Lectura simple sin orquestación de dominio —como `GET /unidades`—\nasí que consulta el repo directo: RLS ya acota el alcance (§12.4).",
+        "operationId": "listar_niveles_api_v1_niveles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NivelRespuesta"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Niveles Api V1 Niveles Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/etapas": {
+      "get": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Catálogo de etapas de construcción",
+        "operationId": "listar_etapas_api_v1_etapas_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EtapaRespuesta"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Etapas Api V1 Etapas Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/cuadrillas": {
       "get": {
         "tags": [
@@ -10374,6 +10435,65 @@
         ],
         "title": "EstimacionRespuesta"
       },
+      "EtapaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "default": 0
+          },
+          "ponderacion": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ponderacion",
+            "default": "0"
+          },
+          "importe": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importe"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "descripcion"
+        ],
+        "title": "EtapaRespuesta"
+      },
       "EvaluacionRespuesta": {
         "properties": {
           "id": {
@@ -11487,6 +11607,47 @@
           "final"
         ],
         "title": "NivelEvaluacion"
+      },
+      "NivelRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "default": 0
+          },
+          "importe": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importe"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "descripcion"
+        ],
+        "title": "NivelRespuesta"
       },
       "NodoPrototipoRespuesta": {
         "properties": {
