@@ -151,6 +151,17 @@ class RepositorioConceptosSQL:
         ).mappings().first()
         return dict(fila) if fila is not None else None
 
+    async def obtener_por_clave(self, clave: str) -> dict[str, Any] | None:
+        """Para `ResolverPendiente` (§10.3): un `CPU_NUEVO` rechazado se
+        identifica por `valor_origen` (la clave), no por id."""
+        fila = (
+            await self._sesion.execute(
+                text(f"select {_COLUMNAS} from concepto where clave = :clave"),
+                {"clave": clave},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
     async def listar(
         self,
         *,

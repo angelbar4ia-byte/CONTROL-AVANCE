@@ -165,6 +165,7 @@ const CONTROL_OBRA: readonly SeccionNav[] = [
       { a: '/config/prototipos', etiqueta: 'Prototipos', icono: Layers },
       { a: '/config/catalogos', etiqueta: 'Catálogos', icono: FolderTree },
       { a: '/config/cargas', etiqueta: 'Cargas de datos', icono: Upload },
+      { a: '/config/pendientes', etiqueta: 'Pendientes por autorizar', icono: ClipboardCheck },
       {
         a: '/config/reiniciar-organizacion',
         etiqueta: 'Reiniciar organización',

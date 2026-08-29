@@ -186,8 +186,8 @@ export function PanelCarga({ lote, onCerrar, onRevertida, onEliminada }: Props) 
             </div>
           )}
           <div className="field__hint">
-            El sistema propone y el humano confirma (§10.3). Resolverlos desde
-            aquí todavía no está: el contrato no publica la ruta que los cierra.
+            El sistema propone y el humano confirma (§10.3). Se aprueban o
+            rechazan desde Configuración → Pendientes por autorizar.
           </div>
         </div>
 

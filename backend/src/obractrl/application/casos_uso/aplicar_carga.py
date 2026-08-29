@@ -3331,6 +3331,24 @@ class AplicadorPresupuesto:
                     "familia_id": None,
                     "estatus": "activo",
                 }
+                # No se omite (§10.3): se da de alta igual, pero un humano
+                # tiene que autorizarla — mismo `TipoPendiente` que ya usa
+                # `AplicadorCPU` para esta misma situación (concepto que el
+                # catálogo no conocía), ahora también desde el árbol de
+                # prototipo.
+                pendientes.append(
+                    PendientePropuesto(
+                        tipo=TipoPendiente.CPU_NUEVO,
+                        entidad="concepto",
+                        valor_origen=clave_catalogo,
+                        propuesta={
+                            "descripcion": nodo.descripcion,
+                            "precio_unitario": str(precio.total.monto),
+                            "componentes": len(componentes),
+                        },
+                        origen_ref=f"fila {nodo.fila}",
+                    )
+                )
             else:
                 # Ya existía como identidad: se le publica su primer CPU,
                 # pero descripción/unidad siguen siendo las que trajo

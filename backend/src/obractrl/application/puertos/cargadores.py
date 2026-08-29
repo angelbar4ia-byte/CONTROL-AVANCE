@@ -116,6 +116,18 @@ class RepositorioCargas(Protocol):
         self, *, carga_id: UUID | None = None, solo_abiertos: bool = True
     ) -> list[dict]: ...
 
+    async def resolver_pendiente(
+        self,
+        pendiente_id: UUID,
+        *,
+        usuario_id: UUID | None,
+        aprobado: bool,
+        nota: str | None,
+    ) -> dict | None:
+        """Aprobar/rechazar un renglón de la bandeja (§10.3). `None` si ya
+        no existe o ya estaba resuelto — resolver es de una sola vez."""
+        ...
+
     async def mapeos(self, entidad: str) -> dict[str, str]:
         """Alias → clave canónica ya confirmados para esa entidad (§10.3).
 

@@ -83,6 +83,7 @@ from obractrl.application.casos_uso.gestionar_carga import (
     ConsultarCarga,
     EjecutarCarga,
     EliminarCarga,
+    ResolverPendiente,
     RevertirCarga,
     RevertirCargaEnCadena,
 )
@@ -228,6 +229,7 @@ __all__ = [
     "RegistrarSalidaAlmacenDep",
     "ReiniciarOrganizacionDep",
     "ResetearContrasenaDep",
+    "ResolverPendienteDep",
     "RevertirCargaDep",
     "RevertirCargaEnCadenaDep",
     "SolicitarCierreDep",
@@ -796,6 +798,14 @@ def obtener_eliminar_carga(sesion: SesionRLS) -> EliminarCarga:
     )
 
 
+def obtener_resolver_pendiente(sesion: SesionRLS) -> ResolverPendiente:
+    return ResolverPendiente(
+        cargas=RepositorioCargasSQL(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_reiniciar_organizacion(sesion: SesionRLS) -> ReiniciarOrganizacion:
     return ReiniciarOrganizacion(
         organizacion=RepositorioOrganizacionSQL(sesion),
@@ -809,6 +819,7 @@ RevertirCargaEnCadenaDep = Annotated[
     RevertirCargaEnCadena, Depends(obtener_revertir_carga_en_cadena)
 ]
 EliminarCargaDep = Annotated[EliminarCarga, Depends(obtener_eliminar_carga)]
+ResolverPendienteDep = Annotated[ResolverPendiente, Depends(obtener_resolver_pendiente)]
 ReiniciarOrganizacionDep = Annotated[
     ReiniciarOrganizacion, Depends(obtener_reiniciar_organizacion)
 ]

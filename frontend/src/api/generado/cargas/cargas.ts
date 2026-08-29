@@ -31,12 +31,14 @@ import type {
 
 import type {
   BandejaDeCargaApiV1CargasCargaIdPendientesGetParams,
+  BandejaGlobalApiV1PendientesGetParams,
   BodySubirCargaApiV1CargasPost,
   CargaRespuesta,
   HTTPValidationError,
   ListarCargasApiV1CargasGetParams,
   LoteRespuesta,
-  ObractrlAdaptersApiV1CargasPendienteRespuesta,
+  PendienteBandejaRespuesta,
+  ResolverPendientePeticion,
   ReversaRespuesta,
   RevertirCargaApiV1CargasCargaIdRevertirPostParams,
   TipoCarga
@@ -696,7 +698,7 @@ export const bandejaDeCargaApiV1CargasCargaIdPendientesGet = (
 ) => {
       
       
-      return peticion<ObractrlAdaptersApiV1CargasPendienteRespuesta[]>(
+      return peticion<PendienteBandejaRespuesta[]>(
       {url: `/api/v1/cargas/${cargaId}/pendientes`, method: 'GET',
         params, signal
     },
@@ -866,6 +868,242 @@ export function useBandejaDeCargaApiV1CargasCargaIdPendientesGet<TData = Awaited
 
 
 /**
+ * Igual que `/cargas/{carga_id}/pendientes`, pero de cualquier carga: la
+pantalla de pendientes por autorizar no obliga a elegir una primero (§10.3).
+ * @summary Bandeja de pendientes por autorizar (todas las cargas)
+ */
+export const bandejaGlobalApiV1PendientesGet = (
+    params?: BandejaGlobalApiV1PendientesGetParams,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<PendienteBandejaRespuesta[]>(
+      {url: `/api/v1/pendientes`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+  
+
+
+
+export const getBandejaGlobalApiV1PendientesGetInfiniteQueryKey = (params?: BandejaGlobalApiV1PendientesGetParams,) => {
+    return [
+    'infinite', `/api/v1/pendientes`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+export const getBandejaGlobalApiV1PendientesGetQueryKey = (params?: BandejaGlobalApiV1PendientesGetParams,) => {
+    return [
+    `/api/v1/pendientes`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getBandejaGlobalApiV1PendientesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>>, TError = HTTPValidationError>(params?: BandejaGlobalApiV1PendientesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getBandejaGlobalApiV1PendientesGetInfiniteQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>> = ({ signal }) => bandejaGlobalApiV1PendientesGet(params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type BandejaGlobalApiV1PendientesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>>
+export type BandejaGlobalApiV1PendientesGetInfiniteQueryError = HTTPValidationError
+
+
+export function useBandejaGlobalApiV1PendientesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>>, TError = HTTPValidationError>(
+ params: undefined |  BandejaGlobalApiV1PendientesGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>,
+          TError,
+          Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useBandejaGlobalApiV1PendientesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>>, TError = HTTPValidationError>(
+ params?: BandejaGlobalApiV1PendientesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>,
+          TError,
+          Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useBandejaGlobalApiV1PendientesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>>, TError = HTTPValidationError>(
+ params?: BandejaGlobalApiV1PendientesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Bandeja de pendientes por autorizar (todas las cargas)
+ */
+
+export function useBandejaGlobalApiV1PendientesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>>, TError = HTTPValidationError>(
+ params?: BandejaGlobalApiV1PendientesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getBandejaGlobalApiV1PendientesGetInfiniteQueryOptions(params,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getBandejaGlobalApiV1PendientesGetQueryOptions = <TData = Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError = HTTPValidationError>(params?: BandejaGlobalApiV1PendientesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getBandejaGlobalApiV1PendientesGetQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>> = ({ signal }) => bandejaGlobalApiV1PendientesGet(params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type BandejaGlobalApiV1PendientesGetQueryResult = NonNullable<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>>
+export type BandejaGlobalApiV1PendientesGetQueryError = HTTPValidationError
+
+
+export function useBandejaGlobalApiV1PendientesGet<TData = Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError = HTTPValidationError>(
+ params: undefined |  BandejaGlobalApiV1PendientesGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>,
+          TError,
+          Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useBandejaGlobalApiV1PendientesGet<TData = Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError = HTTPValidationError>(
+ params?: BandejaGlobalApiV1PendientesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>,
+          TError,
+          Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useBandejaGlobalApiV1PendientesGet<TData = Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError = HTTPValidationError>(
+ params?: BandejaGlobalApiV1PendientesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Bandeja de pendientes por autorizar (todas las cargas)
+ */
+
+export function useBandejaGlobalApiV1PendientesGet<TData = Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError = HTTPValidationError>(
+ params?: BandejaGlobalApiV1PendientesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof bandejaGlobalApiV1PendientesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getBandejaGlobalApiV1PendientesGetQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * Rechazar un `cpu_nuevo` de `concepto` también da de baja ESE
+concepto —el cargador ya lo había creado, "no se omite" (§10.3)— para
+que alguien lo corrija antes de que vuelva a estar disponible.
+ * @summary Aprobar o rechazar un pendiente
+ */
+export const resolverPendienteApiV1PendientesPendienteIdResolverPost = (
+    pendienteId: string,
+    resolverPendientePeticion: ResolverPendientePeticion,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<PendienteBandejaRespuesta>(
+      {url: `/api/v1/pendientes/${pendienteId}/resolver`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: resolverPendientePeticion, signal
+    },
+      options);
+    }
+  
+
+
+export const getResolverPendienteApiV1PendientesPendienteIdResolverPostMutationOptions = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolverPendienteApiV1PendientesPendienteIdResolverPost>>, TError,{pendienteId: string;data: ResolverPendientePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolverPendienteApiV1PendientesPendienteIdResolverPost>>, TError,{pendienteId: string;data: ResolverPendientePeticion}, TContext> => {
+
+const mutationKey = ['resolverPendienteApiV1PendientesPendienteIdResolverPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolverPendienteApiV1PendientesPendienteIdResolverPost>>, {pendienteId: string;data: ResolverPendientePeticion}> = (props) => {
+          const {pendienteId,data} = props ?? {};
+
+          return  resolverPendienteApiV1PendientesPendienteIdResolverPost(pendienteId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolverPendienteApiV1PendientesPendienteIdResolverPostMutationResult = NonNullable<Awaited<ReturnType<typeof resolverPendienteApiV1PendientesPendienteIdResolverPost>>>
+    export type ResolverPendienteApiV1PendientesPendienteIdResolverPostMutationBody = ResolverPendientePeticion
+    export type ResolverPendienteApiV1PendientesPendienteIdResolverPostMutationError = void | HTTPValidationError
+
+    /**
+ * @summary Aprobar o rechazar un pendiente
+ */
+export const useResolverPendienteApiV1PendientesPendienteIdResolverPost = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolverPendienteApiV1PendientesPendienteIdResolverPost>>, TError,{pendienteId: string;data: ResolverPendientePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resolverPendienteApiV1PendientesPendienteIdResolverPost>>,
+        TError,
+        {pendienteId: string;data: ResolverPendientePeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getResolverPendienteApiV1PendientesPendienteIdResolverPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * Deshace el lote como unidad, no registro por registro (§10.8).
  * @summary Revertir una carga completa
  */
