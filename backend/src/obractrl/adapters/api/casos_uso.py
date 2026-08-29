@@ -58,11 +58,13 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorDeCarga,
     AplicadorDePrototipos,
     AplicadorEtapasConstructivas,
+    AplicadorFamilias,
     AplicadorManoObra,
     AplicadorMateriales,
     AplicadorNiveles,
     AplicadorPresupuesto,
     AplicadorPrototipos,
+    AplicadorUnidades,
 )
 from obractrl.application.casos_uso.calcular_cpu import (
     ExplotarConcepto,
@@ -893,6 +895,10 @@ class FabricaDeCargas:
             return AplicadorEtapasConstructivas(
                 niveles_etapas=RepositorioNivelesEtapasSQL(sesion)
             )
+        if tipo is TipoCarga.UNIDADES:
+            return AplicadorUnidades(unidades=RepositorioUnidadesSQL(sesion), cargas=cargas)
+        if tipo is TipoCarga.FAMILIAS:
+            return AplicadorFamilias(familias=RepositorioFamiliasSQL(sesion), cargas=cargas)
         if tipo is TipoCarga.CPU:
             return AplicadorCPU(
                 conceptos=RepositorioConceptosSQL(sesion),

@@ -29,12 +29,14 @@ from obractrl.domain.cargadores.cabeceras import (
     CONCEPTOS_BASE,
     CUADRILLAS,
     ETAPAS_CONSTRUCTIVAS,
+    FAMILIAS,
     MANO_DE_OBRA,
     MAPA_CPU,
     MATERIALES,
     NIVELES,
     PRESUPUESTO,
     PROTOTIPOS,
+    UNIDADES,
     ErrorDeCabecera,
     indice_de_letra,
     resolver_encabezados,
@@ -44,6 +46,7 @@ from obractrl.domain.cargadores.conceptos_base import validar_concepto_base
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.cuadrillas import agrupar_cuadrillas
 from obractrl.domain.cargadores.etapas_constructivas import validar_etapa_constructiva
+from obractrl.domain.cargadores.familias import validar_familia
 from obractrl.domain.cargadores.homologacion import Homologador
 from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra
 from obractrl.domain.cargadores.materiales import validar_material
@@ -55,6 +58,7 @@ from obractrl.domain.cargadores.presupuesto import (
 )
 from obractrl.domain.cargadores.prototipos import validar_prototipo
 from obractrl.domain.cargadores.reporte import ErrorEnFila, TipoPendiente
+from obractrl.domain.cargadores.unidades import validar_unidad
 from obractrl.domain.cargadores.versionado import diferenciar
 from obractrl.domain.shared.diccionario import CategoriaExplosion, ModoCarga, TipoInsumo
 from obractrl.domain.shared.normalizacion import (
@@ -383,6 +387,80 @@ def test_etapa_sin_descripcion_es_error_de_fila() -> None:
         validar_etapa_constructiva(
             ["Nivel 2", "ECO-00099", "", "", None, 1, None, None], _MAPA_ETAPAS, 10
         )
+
+
+# --- Unidades (§3.5, `CATALOGO_DE_UNIDADES.xlsx`) -------------------------
+
+_MAPA_UNIDADES = resolver_encabezados(
+    ["CLAVE UNIDAD", "UNIDAD", "SINONIMO"],
+    UNIDADES,
+)
+"""Cabeceras reales del archivo: "CLAVE UNIDAD" es un consecutivo numérico
+del sistema de origen (sin dónde vivir aquí, se ignora sin romper) —
+"UNIDAD" (KG/PZ/...) resuelve a `clave` y "SINONIMO" (Kilogramo/Pieza/...)
+a `nombre` vía el alias propio de `cabeceras.UNIDADES`."""
+
+
+def test_una_unidad_real_del_archivo_queda_validada() -> None:
+    unidad = validar_unidad(["1", "KG", "Kilogramo"], _MAPA_UNIDADES, 2)
+    assert unidad.llave == "KG"
+    assert unidad.nombre == "Kilogramo"
+    assert unidad.fila == 2
+
+
+def test_clave_unidad_numerica_del_sistema_de_origen_se_ignora() -> None:
+    """La columna "CLAVE UNIDAD" (1, 2, 3...) no es la `clave` del catálogo
+    —esa es "UNIDAD"—: se lee y se descarta sin romper la fila (§10.6)."""
+    unidad = validar_unidad(["50", "SAL", "Salida"], _MAPA_UNIDADES, 16)
+    assert unidad.llave == "SAL"
+
+
+def test_unidad_sin_clave_no_se_rechaza() -> None:
+    unidad = validar_unidad(["", "", "Actividad"], _MAPA_UNIDADES, 17)
+    assert unidad.clave is None
+    assert unidad.llave == "__sin_clave__17"
+
+
+def test_unidad_sin_nombre_es_error_de_fila() -> None:
+    with pytest.raises(ErrorEnFila, match="nombre"):
+        validar_unidad(["99", "XX", ""], _MAPA_UNIDADES, 18)
+
+
+# --- Familias (§3.5, `CATALOGO_DE_FAMILIAS.xlsx`) --------------------------
+
+_MAPA_FAMILIAS = resolver_encabezados(
+    ["CLAVE", "FAMILIA", "PREFIJO"],
+    FAMILIAS,
+)
+"""Cabeceras reales del archivo: "PREFIJO" (ACA/ADH/PET/...) no tiene dónde
+vivir en `familia` hoy — se ignora sin romper, mismo criterio que "TIPO" en
+niveles/etapas. "FAMILIA" resuelve a `nombre` vía el alias propio de
+`cabeceras.FAMILIAS` — sin él resolvería al campo global homónimo (una
+referencia ajena en otros archivos), que esta especificación no declara."""
+
+
+def test_una_familia_real_del_archivo_queda_validada() -> None:
+    familia = validar_familia(["FML-00001", "Acabados", "ACA"], _MAPA_FAMILIAS, 2)
+    assert familia.llave == "FML-00001"
+    assert familia.nombre == "Acabados"
+    assert familia.fila == 2
+
+
+def test_prefijo_de_familia_se_ignora() -> None:
+    familia = validar_familia(["FML-00034", "Sanitario", "SAN"], _MAPA_FAMILIAS, 35)
+    assert familia.llave == "FML-00034"
+    assert familia.nombre == "Sanitario"
+
+
+def test_familia_sin_clave_no_se_rechaza() -> None:
+    familia = validar_familia(["", "Jardinería", "JAR"], _MAPA_FAMILIAS, 36)
+    assert familia.clave is None
+    assert familia.llave == "__sin_clave__36"
+
+
+def test_familia_sin_nombre_es_error_de_fila() -> None:
+    with pytest.raises(ErrorEnFila, match="nombre"):
+        validar_familia(["FML-00099", "", "XXX"], _MAPA_FAMILIAS, 37)
 
 
 # --- Clave automática (§8.7: catálogo base sin indicador de clave) -------

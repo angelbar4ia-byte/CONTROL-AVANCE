@@ -52,11 +52,13 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorDeCarga,
     AplicadorDePrototipos,
     AplicadorEtapasConstructivas,
+    AplicadorFamilias,
     AplicadorManoObra,
     AplicadorMateriales,
     AplicadorNiveles,
     AplicadorPresupuesto,
     AplicadorPrototipos,
+    AplicadorUnidades,
 )
 from obractrl.application.casos_uso.gestionar_carga import (
     CargaConDependientes,
@@ -134,6 +136,27 @@ def _archivo_niveles(filas: list[list[object]]) -> bytes:
 
 def _archivo_etapas(filas: list[list[object]]) -> bytes:
     return _libro([_CABECERAS_NIVELES_ETAPAS, *filas])
+
+
+_CABECERAS_UNIDADES = ["CLAVE UNIDAD", "UNIDAD", "SINONIMO"]
+"""Cabeceras reales de `CATALOGO_DE_UNIDADES.xlsx`: "CLAVE UNIDAD" es el
+consecutivo numérico del sistema de origen (se ignora), "UNIDAD" es la
+clave del catálogo (KG/PZ/...) y "SINONIMO" es el nombre descriptivo
+completo (Kilogramo/Pieza/...) — confirmado con el usuario."""
+
+
+def _archivo_unidades(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_UNIDADES, *filas], hoja="Hoja1")
+
+
+_CABECERAS_FAMILIAS = ["CLAVE", "FAMILIA", "PREFIJO"]
+"""Cabeceras reales de `CATALOGO_DE_FAMILIAS.xlsx`: "PREFIJO" (ACA/ADH/...)
+no tiene dónde vivir en `familia` hoy — se ignora, mismo criterio que "TIPO"
+en niveles/etapas."""
+
+
+def _archivo_familias(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_FAMILIAS, *filas], hoja="Hoja1")
 
 
 _CABECERAS_MANO_OBRA = [
@@ -379,6 +402,10 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
         return AplicadorNiveles(niveles_etapas=RepositorioNivelesEtapasSQL(sesion))
     if tipo is TipoCarga.ETAPAS_CONSTRUCTIVAS:
         return AplicadorEtapasConstructivas(niveles_etapas=RepositorioNivelesEtapasSQL(sesion))
+    if tipo is TipoCarga.UNIDADES:
+        return AplicadorUnidades(unidades=RepositorioUnidadesSQL(sesion), cargas=cargas)
+    if tipo is TipoCarga.FAMILIAS:
+        return AplicadorFamilias(familias=RepositorioFamiliasSQL(sesion), cargas=cargas)
     if tipo is TipoCarga.CPU:
         return AplicadorCPU(
             conceptos=RepositorioConceptosSQL(sesion),
@@ -453,6 +480,12 @@ async def _insumos(contexto: ContextoSesion) -> dict[str, dict]:
 async def _unidades(contexto: ContextoSesion) -> dict[str, dict]:
     async with sesion_con_rls(contexto) as sesion:
         filas = await RepositorioUnidadesSQL(sesion).listar(solo_activos=False)
+    return {str(f["clave"]): f for f in filas}
+
+
+async def _familias(contexto: ContextoSesion) -> dict[str, dict]:
+    async with sesion_con_rls(contexto) as sesion:
+        filas = await RepositorioFamiliasSQL(sesion).listar(solo_activos=False)
     return {str(f["clave"]): f for f in filas}
 
 
@@ -1059,6 +1092,197 @@ async def test_etapa_sin_clave_se_numera_solo(
     )
     etapas = await _etapas(contexto_control)
     assert "ECO-00001" in etapas
+
+
+# --- Unidades (§3.5, `CATALOGO_DE_UNIDADES.xlsx`) -------------------------
+
+
+async def test_carga_de_unidades_crea_y_actualiza(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.UNIDADES,
+        _archivo_unidades([[1, "KG", "Kilogramo"]]),
+    )
+    assert resultado.resumen.insertados == 1
+    assert (await _unidades(contexto_control))["KG"]["nombre"] == "Kilogramo"
+
+    resultado2 = await _cargar(
+        contexto_control,
+        TipoCarga.UNIDADES,
+        _archivo_unidades([[1, "KG", "Kilogramo (kg)"]]),
+    )
+    assert resultado2.resumen.actualizados == 1
+    assert (await _unidades(contexto_control))["KG"]["nombre"] == "Kilogramo (kg)"
+
+
+async def test_clave_unidad_numerica_del_archivo_no_es_la_clave_del_catalogo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """"CLAVE UNIDAD" (1, 2, 3...) es un consecutivo del sistema de origen,
+    no la clave del catálogo —esa es "UNIDAD"—: dos filas con la misma
+    "CLAVE UNIDAD" pero distinta "UNIDAD" son dos unidades distintas."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.UNIDADES,
+        _archivo_unidades([[1, "KG", "Kilogramo"], [1, "LTR", "Litro"]]),
+    )
+    unidades = await _unidades(contexto_control)
+    assert {"KG", "LTR"} <= set(unidades)
+
+
+async def test_unidad_sin_clave_se_numera_solo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _cargar(
+        contexto_control,
+        TipoCarga.UNIDADES,
+        _archivo_unidades([[None, "", "Actividad"]]),
+    )
+    unidades = await _unidades(contexto_control)
+    assert "UNI-00001" in unidades
+    assert unidades["UNI-00001"]["nombre"] == "Actividad"
+
+
+async def test_revertir_carga_de_unidades_deshace_el_alta(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Ejercita `_ELIMINAR`/`_RESTAURAR["unidad"]`: antes de este cargador,
+    `unidad` nunca era dueña de un snapshot revertible (mismo motivo que
+    `nivel`/`etapa_constructiva`, migración 0037)."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.UNIDADES,
+        _archivo_unidades([[3, "PZ", "Pieza"]]),
+    )
+    async with sesion_con_rls(contexto_control) as sesion:
+        reversa = await RevertirCarga(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(resultado.carga_id, usuario_id=contexto_control.usuario_id)
+    assert reversa["operaciones_revertidas"] == 1
+    # No `== {}`: la fixture `catalogos` ya sembró su propia unidad ('ton')
+    # para que otros tests tengan contra qué homologar — la reversa solo
+    # deshace lo que ESTA carga dio de alta.
+    assert "PZ" not in await _unidades(contexto_control)
+
+
+async def test_reemplazar_unidades_da_de_baja_lo_que_el_archivo_ya_no_trae(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """A diferencia de nivel/etapa_constructiva (sin `estatus`, migración
+    0005), `unidad` sí tiene baja lógica — modo Reemplazar (§10.2) sí puede
+    hacer algo con lo que el archivo ya no trae."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.UNIDADES,
+        _archivo_unidades([[1, "KG", "Kilogramo"], [3, "PZ", "Pieza"]]),
+    )
+    await _cargar(
+        contexto_control,
+        TipoCarga.UNIDADES,
+        _archivo_unidades([[1, "KG", "Kilogramo"]]),
+        modo=ModoCarga.REEMPLAZAR,
+    )
+    unidades = await _unidades(contexto_control)
+    assert unidades["KG"]["estatus"] == "activo"
+    assert unidades["PZ"]["estatus"] == "inactivo"
+    # 'ton' es de la fixture `catalogos`, no de este archivo — Reemplazar
+    # también la da de baja: no viene en ninguna de las dos cargas.
+    assert unidades["ton"]["estatus"] == "inactivo"
+
+
+# --- Familias (§3.5, `CATALOGO_DE_FAMILIAS.xlsx`) --------------------------
+
+
+async def test_carga_de_familias_crea_y_actualiza(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.FAMILIAS,
+        _archivo_familias([["FML-00001", "Acabados", "ACA"]]),
+    )
+    assert resultado.resumen.insertados == 1
+    assert (await _familias(contexto_control))["FML-00001"]["nombre"] == "Acabados"
+
+    resultado2 = await _cargar(
+        contexto_control,
+        TipoCarga.FAMILIAS,
+        _archivo_familias([["FML-00001", "Acabados finos", "ACA"]]),
+    )
+    assert resultado2.resumen.actualizados == 1
+    assert (await _familias(contexto_control))["FML-00001"]["nombre"] == "Acabados finos"
+
+
+async def test_prefijo_de_familia_se_ignora(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """"PREFIJO" (ACA/ADH/...) no tiene dónde vivir en `familia` hoy: se lee
+    y se descarta sin romper la fila (§10.6)."""
+    await _cargar(
+        contexto_control,
+        TipoCarga.FAMILIAS,
+        _archivo_familias([["FML-00034", "Sanitario", "SAN"]]),
+    )
+    familias = await _familias(contexto_control)
+    assert familias["FML-00034"]["nombre"] == "Sanitario"
+
+
+async def test_familia_sin_clave_se_numera_solo(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _cargar(
+        contexto_control,
+        TipoCarga.FAMILIAS,
+        _archivo_familias([["", "Jardinería", "JAR"]]),
+    )
+    familias = await _familias(contexto_control)
+    assert "FAM-00001" in familias
+    assert familias["FAM-00001"]["nombre"] == "Jardinería"
+
+
+async def test_revertir_carga_de_familias_deshace_el_alta(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Ejercita `_ELIMINAR`/`_RESTAURAR["familia"]`: antes de este cargador,
+    `familia` nunca era dueña de un snapshot revertible."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.FAMILIAS,
+        _archivo_familias([["FML-00009", "Cimentación", "CIM"]]),
+    )
+    async with sesion_con_rls(contexto_control) as sesion:
+        reversa = await RevertirCarga(
+            cargas=RepositorioCargasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+        ).ejecutar(resultado.carga_id, usuario_id=contexto_control.usuario_id)
+    assert reversa["operaciones_revertidas"] == 1
+    # No `== {}`: la fixture `catalogos` ya sembró su propia familia
+    # ('CEM') para que otros tests tengan contra qué homologar — la
+    # reversa solo deshace lo que ESTA carga dio de alta.
+    assert "FML-00009" not in await _familias(contexto_control)
+
+
+async def test_reemplazar_familias_da_de_baja_lo_que_el_archivo_ya_no_trae(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _cargar(
+        contexto_control,
+        TipoCarga.FAMILIAS,
+        _archivo_familias([["FML-00001", "Acabados", "ACA"], ["FML-00009", "Cimentación", "CIM"]]),
+    )
+    await _cargar(
+        contexto_control,
+        TipoCarga.FAMILIAS,
+        _archivo_familias([["FML-00001", "Acabados", "ACA"]]),
+        modo=ModoCarga.REEMPLAZAR,
+    )
+    familias = await _familias(contexto_control)
+    assert familias["FML-00001"]["estatus"] == "activo"
+    assert familias["FML-00009"]["estatus"] == "inactivo"
+    # 'CEM' es de la fixture `catalogos`, no de este archivo — Reemplazar
+    # también la da de baja: no viene en ninguna de las dos cargas.
+    assert familias["CEM"]["estatus"] == "inactivo"
 
 
 # --- Mano de obra / Destajos (§10.6 `CABECERAS_MANO_DE_OBRA.xlsx`) -------

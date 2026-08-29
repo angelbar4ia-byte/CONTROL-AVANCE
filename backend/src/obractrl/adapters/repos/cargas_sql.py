@@ -101,19 +101,21 @@ _ELIMINAR: dict[str, str] = {
         "cuadrilla_integrante",
         "nivel",
         "etapa_constructiva",
+        "unidad",
+        "familia",
     )
 }
-# `cuadrilla`/`nivel`/`etapa_constructiva` están aquí por el mismo motivo:
-# cuando es OTRA carga (mano de obra, o el árbol de presupuesto) la que los
-# toca de pasada —homologando o dando de alta uno que no existía—, ese
-# auto-alta nunca se registra en el snapshot (mismo criterio que
-# unidad/familia: no es lo que esa carga versiona), así que no hay nada
-# que este `_ELIMINAR` pueda revertir de más. Pero cuando es la propia
-# carga **dueña** del catálogo la que lo da de alta —cuadrillas (su
-# composición y PU, §10.6), o los cargadores de niveles/etapas de
-# construcción (migración 0037)—, la fila es tan suya como un `concepto`
-# lo es de su carga de CPU, y el aplicador correspondiente sí registra
-# ese insert (`aplicar_carga.py`).
+# `cuadrilla`/`nivel`/`etapa_constructiva`/`unidad`/`familia` están aquí por
+# el mismo motivo: cuando es OTRA carga (materiales, mano de obra, el árbol
+# de presupuesto) la que los toca de pasada —homologando o dando de alta
+# uno que no existía, `crear_o_existente`—, ese auto-alta nunca se registra
+# en el snapshot: no es lo que esa carga versiona, así que no hay nada que
+# este `_ELIMINAR` pueda revertir de más. Pero cuando es la propia carga
+# **dueña** del catálogo la que lo da de alta —cuadrillas (su composición y
+# PU, §10.6), niveles/etapas de construcción (migración 0037), o unidades/
+# familias (su propio cargador dedicado)—, la fila es tan suya como un
+# `concepto` lo es de su carga de CPU, y el aplicador correspondiente sí
+# registra ese insert (`aplicar_carga.py`).
 # `cuadrilla_version`/`cuadrilla_integrante` cascadean solas al borrar la
 # cuadrilla, pero igual están aquí explícitas: cada versión es dueña
 # exclusiva de sus integrantes, y el orden de reversa las deshace primero.
@@ -142,6 +144,12 @@ _REFERENCIAS_EXTERNAS: tuple[tuple[str, str, str], ...] = (
     ("prototipo_nodo", "etapa_id", "etapa_constructiva"),
     ("actividad", "etapa_id", "etapa_constructiva"),
     ("programa_base_item", "etapa_id", "etapa_constructiva"),
+    ("insumo", "unidad_id", "unidad"),
+    ("insumo", "familia_id", "familia"),
+    ("concepto", "unidad_id", "unidad"),
+    ("concepto", "familia_id", "familia"),
+    ("cuadrilla", "unidad_id", "unidad"),
+    ("grupo_funcional", "unidad_id", "unidad"),
 )
 """Completa a `dependientes_de`: FKs sin cascada que entran a una tabla de
 `_ELIMINAR` desde fuera. Un `test` en integración verifica esta lista contra
@@ -192,6 +200,32 @@ _RESTAURAR: dict[str, str] = {
         update etapa_constructiva set descripcion = a.j->>'descripcion'
         from a
         where etapa_constructiva.id = cast(:id as uuid)
+    """,
+    "unidad": """
+        with a as (select cast(:antes as jsonb) as j)
+        update unidad set
+            nombre    = a.j->>'nombre',
+            sinonimos = coalesce(
+                (select array_agg(value) from jsonb_array_elements_text(a.j->'sinonimos')),
+                '{}'
+            ),
+            factor    = cast(a.j->>'factor' as numeric),
+            -- El modo Reemplazar da de baja lógica lo que el archivo ya no
+            -- trae (§10.2); sin esta línea la reversa no la desharía.
+            estatus   = cast(coalesce(a.j->>'estatus', 'activo') as estatus_registro)
+        from a
+        where unidad.id = cast(:id as uuid)
+    """,
+    "familia": """
+        with a as (select cast(:antes as jsonb) as j)
+        update familia set
+            nombre     = a.j->>'nombre',
+            parent_id  = cast(a.j->>'parent_id' as uuid),
+            aplica_a   = coalesce(a.j->>'aplica_a', 'material'),
+            iva_aplica = coalesce(cast(a.j->>'iva_aplica' as boolean), true),
+            estatus    = cast(coalesce(a.j->>'estatus', 'activo') as estatus_registro)
+        from a
+        where familia.id = cast(:id as uuid)
     """,
     "cpu": """
         with a as (select cast(:antes as jsonb) as j)
