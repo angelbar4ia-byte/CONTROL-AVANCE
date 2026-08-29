@@ -31,12 +31,14 @@ from obractrl.domain.cargadores.conceptos_base import validar_concepto_base
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.cuadrillas import agrupar_cuadrillas
 from obractrl.domain.cargadores.etapas_constructivas import validar_etapa_constructiva
+from obractrl.domain.cargadores.familias import validar_familia
 from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra
 from obractrl.domain.cargadores.materiales import validar_material
 from obractrl.domain.cargadores.niveles import validar_nivel
 from obractrl.domain.cargadores.presupuesto import construir_arboles
 from obractrl.domain.cargadores.prototipos import validar_prototipo
 from obractrl.domain.cargadores.reporte import ErrorEnFila, LecturaCarga
+from obractrl.domain.cargadores.unidades import validar_unidad
 from obractrl.domain.shared.diccionario import TipoCarga, TipoInsumo
 from obractrl.domain.shared.normalizacion import canonizar_encabezado
 
@@ -48,12 +50,14 @@ __all__ = [
     "CargadorConceptosBase",
     "CargadorCuadrillas",
     "CargadorEtapasConstructivas",
+    "CargadorFamilias",
     "CargadorManoObra",
     "CargadorMateriales",
     "CargadorNiveles",
     "CargadorPresupuesto",
     "CargadorPrototipos",
     "CargadorSubcontratos",
+    "CargadorUnidades",
     "TipoDeCargaSinCargador",
     "cargador_para",
 ]
@@ -253,6 +257,42 @@ class CargadorEtapasConstructivas:
         )
 
 
+class CargadorUnidades:
+    """Catálogo base de unidades — `CATALOGO_DE_UNIDADES.xlsx` (§3.5)."""
+
+    tipo = TipoCarga.UNIDADES
+    especificacion = cabeceras.UNIDADES
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            validar_unidad,
+            limites=self._limites,
+        )
+
+
+class CargadorFamilias:
+    """Catálogo base de familias — `CATALOGO_DE_FAMILIAS.xlsx` (§3.5)."""
+
+    tipo = TipoCarga.FAMILIAS
+    especificacion = cabeceras.FAMILIAS
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            validar_familia,
+            limites=self._limites,
+        )
+
+
 class CargadorCPU:
     """CPU / Conceptos — `CABECERAS_CPU.xlsx`, hoja `EXPORTADOR` (§10.6).
 
@@ -422,6 +462,8 @@ CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.CONCEPTOS_AUXILIARES: CargadorConceptosAuxiliares,
     TipoCarga.NIVELES: CargadorNiveles,
     TipoCarga.ETAPAS_CONSTRUCTIVAS: CargadorEtapasConstructivas,
+    TipoCarga.UNIDADES: CargadorUnidades,
+    TipoCarga.FAMILIAS: CargadorFamilias,
     TipoCarga.CPU: CargadorCPU,
     TipoCarga.ALMACEN: CargadorAlmacen,
     TipoCarga.PROTOTIPOS: CargadorPrototipos,

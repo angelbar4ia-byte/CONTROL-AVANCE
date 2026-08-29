@@ -49,6 +49,7 @@ from obractrl.domain.cargadores.conceptos_base import FilaConceptoBase
 from obractrl.domain.cargadores.cpu import ComponenteCargado, ConceptoCargado
 from obractrl.domain.cargadores.cuadrillas import CuadrillaCargada
 from obractrl.domain.cargadores.etapas_constructivas import FilaEtapaConstructiva
+from obractrl.domain.cargadores.familias import FilaFamilia
 from obractrl.domain.cargadores.homologacion import Homologador
 from obractrl.domain.cargadores.mano_de_obra import FilaManoObra
 from obractrl.domain.cargadores.materiales import FilaMaterial
@@ -66,6 +67,7 @@ from obractrl.domain.cargadores.reporte import (
     PendientePropuesto,
     TipoPendiente,
 )
+from obractrl.domain.cargadores.unidades import FilaUnidad
 from obractrl.domain.cargadores.versionado import Cambio, Diff, diferenciar
 from obractrl.domain.catalogos.apu import (
     Componente,
@@ -948,6 +950,191 @@ cargador no los escriba: el UPDATE de la reversa fija los cinco campos sin
 condición (`_RESTAURAR["concepto"]`), así que omitirlos aquí los dejaría en
 NULL al revertir — mismo criterio que `AplicadorCPU` usa para su propio
 `_recorte` de concepto."""
+
+
+# --- Unidades y familias (§3.5) -------------------------------------------
+#
+# Hasta hoy nadie las versionaba: otras cargas (materiales, mano de obra,
+# CPU, conceptos base) las tocan de pasada con `crear_o_existente` para
+# auto-dar de alta una que no existía, pero eso no se registra en el
+# snapshot —no es lo que esa carga versiona— y por eso `unidad`/`familia`
+# no estaban en `cargas_sql._ELIMINAR` (ver el comentario ahí). Este es el
+# cargador **dueño** del catálogo: sí registra sus inserts/updates/bajas,
+# mismo patrón que `AplicadorConceptosBase` (identidad únicamente, con baja
+# lógica en modo Reemplazar porque a diferencia de nivel/etapa_constructiva
+# esta tabla sí tiene `estatus`, migración 0005).
+
+_CAMPOS_RESTAURABLES_UNIDAD = ("nombre", "sinonimos", "factor", "estatus")
+"""Lo que el snapshot guarda como ``antes`` (`cargas_sql._RESTAURAR["unidad"]`)."""
+
+_CAMPOS_RESTAURABLES_FAMILIA = ("nombre", "parent_id", "aplica_a", "iva_aplica", "estatus")
+"""Lo que el snapshot guarda como ``antes`` (`cargas_sql._RESTAURAR["familia"]`).
+Incluye ``parent_id``/``aplica_a``/``iva_aplica`` aunque este cargador no los
+escriba: el UPDATE de la reversa fija los cinco campos sin condición, así que
+omitirlos aquí los dejaría en su default al revertir."""
+
+
+class AplicadorUnidades:
+    """Catálogo base de unidades (§3.5): identidad únicamente — clave y
+    nombre. Sinónimos/factor quedan en su default; se ajustan a mano desde
+    el catálogo, igual que `AplicadorNiveles` deja `orden`/`importe`."""
+
+    def __init__(self, *, unidades: RepositorioUnidades, cargas: RepositorioCargas) -> None:
+        self._unidades = unidades
+        self._cargas = cargas
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        vigentes_filas = await self._unidades.listar(solo_activos=False)
+        por_clave = {str(f["clave"]): f for f in vigentes_filas}
+
+        entrantes: dict[str, dict[str, Any]] = {}
+        claves_generadas = 0
+        claves_conocidas = list(por_clave.keys())
+
+        for registro in lectura.registros:
+            fila: FilaUnidad = registro  # type: ignore[assignment]
+            if fila.clave is not None:
+                clave = str(fila.clave)
+            else:
+                clave = generar_clave_automatica("UNI", claves_conocidas)
+                claves_conocidas.append(clave)
+                claves_generadas += 1
+            entrantes[clave] = {"nombre": fila.nombre}
+
+        vigentes = {clave: {"nombre": f.get("nombre")} for clave, f in por_clave.items()}
+        diff = diferenciar(vigentes=vigentes, entrantes=entrantes, modo=modo)
+
+        operaciones: list[dict[str, Any]] = []
+        if not dry_run:
+            for alta in diff.altas:
+                nuevo_id = await self._unidades.crear(
+                    {"clave": alta.clave, "nombre": alta.despues["nombre"]}
+                )
+                operaciones.append(
+                    _operacion("unidad", nuevo_id, "insert", despues=dict(alta.despues))
+                )
+            for cambio in diff.cambios:
+                fila_vigente = por_clave[cambio.clave]
+                await self._unidades.actualizar(fila_vigente["id"], dict(cambio.despues))
+                operaciones.append(
+                    _operacion(
+                        "unidad",
+                        fila_vigente["id"],
+                        "update",
+                        antes=_recorte(fila_vigente, _CAMPOS_RESTAURABLES_UNIDAD),
+                        despues=dict(cambio.despues),
+                    )
+                )
+            for baja in diff.bajas:
+                fila_vigente = por_clave[baja.clave]
+                await self._unidades.actualizar(fila_vigente["id"], {"estatus": _ESTATUS_BAJA})
+                operaciones.append(
+                    _operacion(
+                        "unidad",
+                        fila_vigente["id"],
+                        "update",
+                        antes=_recorte(fila_vigente, _CAMPOS_RESTAURABLES_UNIDAD),
+                        despues={"estatus": _ESTATUS_BAJA},
+                    )
+                )
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            insertados=len(diff.altas),
+            actualizados=len(diff.cambios) + len(diff.bajas),
+            omitidos=diff.omitidos + lectura.omitidos,
+            detalle={"claves_generadas": claves_generadas},
+        )
+
+
+class AplicadorFamilias:
+    """Catálogo base de familias (§3.5): identidad únicamente — clave y
+    nombre. `parent_id`/`aplica_a`/`iva_aplica` quedan en su default; se
+    ajustan a mano desde el catálogo (el archivo real no trae ninguno de
+    los tres, §3.3: lo que no trae no se inventa)."""
+
+    def __init__(self, *, familias: RepositorioFamilias, cargas: RepositorioCargas) -> None:
+        self._familias = familias
+        self._cargas = cargas
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        vigentes_filas = await self._familias.listar(solo_activos=False)
+        por_clave = {str(f["clave"]): f for f in vigentes_filas}
+
+        entrantes: dict[str, dict[str, Any]] = {}
+        claves_generadas = 0
+        claves_conocidas = list(por_clave.keys())
+
+        for registro in lectura.registros:
+            fila: FilaFamilia = registro  # type: ignore[assignment]
+            if fila.clave is not None:
+                clave = str(fila.clave)
+            else:
+                clave = generar_clave_automatica("FAM", claves_conocidas)
+                claves_conocidas.append(clave)
+                claves_generadas += 1
+            entrantes[clave] = {"nombre": fila.nombre}
+
+        vigentes = {clave: {"nombre": f.get("nombre")} for clave, f in por_clave.items()}
+        diff = diferenciar(vigentes=vigentes, entrantes=entrantes, modo=modo)
+
+        operaciones: list[dict[str, Any]] = []
+        if not dry_run:
+            for alta in diff.altas:
+                nuevo_id = await self._familias.crear(
+                    {"clave": alta.clave, "nombre": alta.despues["nombre"]}
+                )
+                operaciones.append(
+                    _operacion("familia", nuevo_id, "insert", despues=dict(alta.despues))
+                )
+            for cambio in diff.cambios:
+                fila_vigente = por_clave[cambio.clave]
+                await self._familias.actualizar(fila_vigente["id"], dict(cambio.despues))
+                operaciones.append(
+                    _operacion(
+                        "familia",
+                        fila_vigente["id"],
+                        "update",
+                        antes=_recorte(fila_vigente, _CAMPOS_RESTAURABLES_FAMILIA),
+                        despues=dict(cambio.despues),
+                    )
+                )
+            for baja in diff.bajas:
+                fila_vigente = por_clave[baja.clave]
+                await self._familias.actualizar(fila_vigente["id"], {"estatus": _ESTATUS_BAJA})
+                operaciones.append(
+                    _operacion(
+                        "familia",
+                        fila_vigente["id"],
+                        "update",
+                        antes=_recorte(fila_vigente, _CAMPOS_RESTAURABLES_FAMILIA),
+                        despues={"estatus": _ESTATUS_BAJA},
+                    )
+                )
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            insertados=len(diff.altas),
+            actualizados=len(diff.cambios) + len(diff.bajas),
+            omitidos=diff.omitidos + lectura.omitidos,
+            detalle={"claves_generadas": claves_generadas},
+        )
 
 
 # --- Niveles y etapas de construcción (§10.1) -----------------------------

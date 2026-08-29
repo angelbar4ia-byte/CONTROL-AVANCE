@@ -24,6 +24,17 @@ _COLUMNAS = """
     id, parent_id, clave, nombre, aplica_a, iva_aplica, estatus
 """
 
+_CAMPOS_EDITABLES: dict[str, str] = {
+    "nombre": "nombre = :nombre",
+    "parent_id": "parent_id = cast(:parent_id as uuid)",
+    "aplica_a": "aplica_a = :aplica_a",
+    "iva_aplica": "iva_aplica = :iva_aplica",
+    "estatus": "estatus = cast(:estatus as estatus_registro)",
+}
+"""Lista blanca de campos editables por `actualizar`; también evita armar
+SQL con nombres que vengan de un archivo externo. La `clave` no está: es
+la identidad (§3.3)."""
+
 
 class RepositorioFamiliasSQL:
     def __init__(self, sesion: AsyncSession) -> None:
@@ -131,3 +142,28 @@ class RepositorioFamiliasSQL:
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]
+
+    async def actualizar(self, familia_id: UUID, cambios: dict[str, Any]) -> None:
+        """Edición parcial; solo las claves presentes en ``cambios`` se
+        escriben. La `clave` no es editable — es la identidad (§3.3).
+
+        La usa el cargador dedicado (§10.6) cuando el archivo trae una
+        familia que ya existe: en modo Actualizar se refresca `nombre` (y
+        `estatus` para la baja lógica de modo Reemplazar) — a diferencia de
+        `crear_o_existente`, que en conflicto es un no-op a propósito.
+        """
+        asignaciones = [
+            _CAMPOS_EDITABLES[campo] for campo in cambios if campo in _CAMPOS_EDITABLES
+        ]
+        if not asignaciones:
+            return
+
+        parametros: dict[str, Any] = {"id": str(familia_id)}
+        for campo in cambios:
+            if campo in _CAMPOS_EDITABLES:
+                parametros[campo] = cambios[campo]
+
+        await self._sesion.execute(
+            text(f"update familia set {', '.join(asignaciones)} where id = :id"),
+            parametros,
+        )

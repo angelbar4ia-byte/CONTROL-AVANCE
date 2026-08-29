@@ -898,6 +898,11 @@ class RepositorioUnidades(Protocol):
 
     async def listar(self, *, solo_activos: bool = True) -> list[dict]: ...
 
+    async def actualizar(self, unidad_id: UUID, cambios: dict) -> None:
+        """Edición parcial; la `clave` no es editable (§3.3). La usa el
+        cargador dedicado (§10.6) en modo Actualizar/Reemplazar."""
+        ...
+
 
 @runtime_checkable
 class RepositorioFamilias(Protocol):
@@ -915,6 +920,11 @@ class RepositorioFamilias(Protocol):
     async def listar(
         self, *, aplica_a: str | None = None, solo_activos: bool = True
     ) -> list[dict]: ...
+
+    async def actualizar(self, familia_id: UUID, cambios: dict) -> None:
+        """Edición parcial; la `clave` no es editable (§3.3). La usa el
+        cargador dedicado (§10.6) en modo Actualizar/Reemplazar."""
+        ...
 
 
 @runtime_checkable

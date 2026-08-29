@@ -31,6 +31,7 @@ __all__ = [
     "CPU",
     "CUADRILLAS",
     "ETAPAS_CONSTRUCTIVAS",
+    "FAMILIAS",
     "MANO_DE_OBRA",
     "MAPA_CPU",
     "MATERIALES",
@@ -38,6 +39,7 @@ __all__ = [
     "PRESUPUESTO",
     "PROTOTIPOS",
     "SUBCONTRATOS",
+    "UNIDADES",
     "ColumnaPorLetra",
     "ErrorDeCabecera",
     "EspecificacionArchivo",
@@ -314,6 +316,54 @@ trae a qué nivel pertenece cada etapa — su columna "TIPO" (`Nivel 2`,
 referencia a `NIVELES` — así que asumir un nivel sería inventar una
 relación que el archivo no da (§3.3). Se llena a mano desde el catálogo
 mientras no haya un archivo real que sí la traiga."""
+
+UNIDADES = EspecificacionArchivo(
+    tipo="Catálogo de unidades",
+    archivo="CATALOGO_DE_UNIDADES.xlsx",
+    hoja="Hoja1",
+    obligatorias=("clave", "nombre"),
+    opcionales=(),
+    alias={
+        # El archivo real trae "UNIDAD" (la clave corta, KG/PZ/...) y
+        # "SINONIMO" (el nombre descriptivo, Kilogramo/Pieza/...) —
+        # confirmado con el usuario, ver `domain.cargadores.unidades`. Sin
+        # estos dos alias, "unidad" resolvería al campo global homónimo
+        # (usado en otros archivos como referencia ajena, no como esta
+        # identidad) y "sinonimo" no resolvería a nada — las dos filas se
+        # descartarían en silencio.
+        "unidad": "clave",
+        "sinonimo": "nombre",
+    },
+)
+"""Catálogo base de identidad de unidades (§3.5): clave, nombre, nada más
+—sinónimos/factor quedan en su default y se llenan a mano—. El archivo real
+trae además "CLAVE UNIDAD" (un consecutivo numérico del sistema de origen,
+sin dónde vivir aquí; se ignora sin romper, §10.6) y una segunda hoja con un
+subconjunto sin sinónimo, ordenado distinto — no es el catálogo a cargar,
+por eso `hoja` fija "Hoja1" en vez de la hoja activa."""
+
+FAMILIAS = EspecificacionArchivo(
+    tipo="Catálogo de familias",
+    archivo="CATALOGO_DE_FAMILIAS.xlsx",
+    hoja="Hoja1",
+    obligatorias=("clave", "nombre"),
+    opcionales=(),
+    alias={
+        # "FAMILIA" es el nombre de LA familia que esta fila identifica, no
+        # una referencia a otra — sin este alias propio resolvería al campo
+        # global "familia" (usado en MATERIALES/CPU como referencia ajena),
+        # que esta especificación no declara, y la fila se descartaría en
+        # silencio. Ver `domain.cargadores.familias`.
+        "familia": "nombre",
+    },
+)
+"""Catálogo base de identidad de familias (§3.5): clave, nombre, nada más
+—`parent_id`/`aplica_a`/`iva_aplica` quedan en su default y se llenan a
+mano—. El archivo real trae además "PREFIJO" (ACA/ADH/PET/...), sin dónde
+vivir en `familia` hoy; se ignora sin romper, mismo criterio que "TIPO" en
+niveles/etapas (§10.6). Trae también una segunda hoja con la cuenta de
+materiales por familia (mayúsculas inconsistentes, duplicados) — no es el
+catálogo a cargar, por eso `hoja` fija "Hoja1"."""
 
 MATERIALES = EspecificacionArchivo(
     tipo="Catálogo de materiales",
