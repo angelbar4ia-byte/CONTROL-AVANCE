@@ -6,4 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ObractrlAdaptersApiV1CargasPendienteRespuestaValorOrigen = string | null;
+export type BandejaGlobalApiV1PendientesGetParams = {
+/**
+ * Solo lo que falta confirmar.
+ */
+solo_abiertos?: boolean;
+};

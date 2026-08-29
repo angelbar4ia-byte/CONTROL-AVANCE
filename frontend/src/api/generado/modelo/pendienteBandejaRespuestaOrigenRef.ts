@@ -6,4 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ObractrlAdaptersApiV1CargasPendienteRespuestaEntidad = string | null;
+export type PendienteBandejaRespuestaOrigenRef = string | null;

@@ -6,4 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type PendienteRespuestaValorOrigen = string | null;
+export type PendienteBandejaRespuestaResolucionAnyOf = { [key: string]: unknown };

@@ -2402,7 +2402,9 @@ async def test_dos_prototipos_con_la_misma_clave_de_concepto_cpu_la_comparten(
 
     assert resultado.estatus is EstatusCarga.APLICADO
     assert resultado.resumen.errores == 0
-    assert resultado.pendientes == 0
+    # Una sola clave nueva → un solo pendiente por autorizar (§10.3): el
+    # segundo prototipo referenció, no volvió a dar de alta.
+    assert resultado.pendientes == 1
 
     conceptos = await _conceptos(contexto_control)
     assert "EST-01" in conceptos
@@ -2442,7 +2444,8 @@ async def test_un_insumo_desconocido_en_presupuesto_se_da_de_alta_solo(
 
     assert resultado.estatus is EstatusCarga.APLICADO
     assert resultado.resumen.errores == 0
-    assert resultado.pendientes == 0
+    # No se omite (§10.3): se da de alta igual, pero pendiente de autorizar.
+    assert resultado.pendientes == 1
 
     assert "EST-90" in await _conceptos(contexto_control)
 
@@ -2479,10 +2482,14 @@ async def test_concepto_ya_publicado_se_referencia_aunque_la_fila_traiga_otra_co
     )
 
     assert resultado.resumen.errores == 0
-    assert resultado.pendientes == 0
+    # Un solo pendiente CPU_NUEVO (el alta de "EST-02" en el primer
+    # prototipo, §10.3) — nunca CONCEPTO_EN_CONFLICTO: la fila del segundo
+    # ni se compara.
+    assert resultado.pendientes == 1
     async with sesion_con_rls(contexto_control) as sesion:
         bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(carga_id=resultado.carga_id)
     assert not [b for b in bandeja if b["tipo"] == str(TipoPendiente.CONCEPTO_EN_CONFLICTO)]
+    assert [b["tipo"] for b in bandeja] == [str(TipoPendiente.CPU_NUEVO)]
 
     conceptos = await _conceptos(contexto_control)
     async with sesion_con_rls(contexto_control) as sesion:
@@ -2501,6 +2508,101 @@ async def test_concepto_ya_publicado_se_referencia_aunque_la_fila_traiga_otra_co
 
     # Mismo precio para los dos: el segundo referenció el CPU del primero.
     assert partida20["precio_unitario"] == partida21["precio_unitario"] == Decimal("100.0000")
+
+
+# --- Bandeja: aprobar/rechazar un pendiente (§10.3) -----------------------
+
+
+async def test_aprobar_un_cpu_nuevo_de_concepto_solo_cierra_el_pendiente(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    from obractrl.application.casos_uso.gestionar_carga import ResolverPendiente
+
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-94")
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(_prototipo_simple("CAS-94", "EST-94", 5)),
+    )
+    async with sesion_con_rls(contexto_control) as sesion:
+        bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(carga_id=resultado.carga_id)
+    pendiente_id = bandeja[0]["id"]
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        fila = await ResolverPendiente(
+            cargas=RepositorioCargasSQL(sesion),
+            conceptos=RepositorioConceptosSQL(sesion),
+            uow=UnidadDeTrabajoSQL(sesion),
+        ).ejecutar(pendiente_id, usuario_id=contexto_control.usuario_id, aprobado=True)
+
+    assert fila["resuelto"] is True
+    assert fila["resolucion"]["accion"] == "aprobado"
+    assert (await _conceptos(contexto_control))["EST-94"]["estatus"] == "activo"
+
+
+async def test_rechazar_un_cpu_nuevo_de_concepto_lo_da_de_baja(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    from obractrl.application.casos_uso.gestionar_carga import ResolverPendiente
+
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-95")
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(_prototipo_simple("CAS-95", "EST-95", 5)),
+    )
+    async with sesion_con_rls(contexto_control) as sesion:
+        bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(carga_id=resultado.carga_id)
+    pendiente_id = bandeja[0]["id"]
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        fila = await ResolverPendiente(
+            cargas=RepositorioCargasSQL(sesion),
+            conceptos=RepositorioConceptosSQL(sesion),
+            uow=UnidadDeTrabajoSQL(sesion),
+        ).ejecutar(pendiente_id, usuario_id=contexto_control.usuario_id, aprobado=False)
+
+    assert fila["resolucion"]["accion"] == "rechazado"
+    # Inactivo, no borrado: sigue editable desde el catálogo (§10.3).
+    concepto = (await _conceptos(contexto_control))["EST-95"]
+    assert concepto["estatus"] == "inactivo"
+    assert concepto["descripcion"] == "Losa"
+
+
+async def test_resolver_un_pendiente_ya_resuelto_no_se_pisa(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    from obractrl.application.casos_uso.gestionar_carga import (
+        PendienteNoResoluble,
+        ResolverPendiente,
+    )
+
+    await _con_insumo_alambre(contexto_control)
+    await _con_prototipos(contexto_control, "CAS-96")
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(_prototipo_simple("CAS-96", "EST-96", 5)),
+    )
+    async with sesion_con_rls(contexto_control) as sesion:
+        bandeja = await RepositorioCargasSQL(sesion).listar_pendientes(carga_id=resultado.carga_id)
+    pendiente_id = bandeja[0]["id"]
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        resolver = ResolverPendiente(
+            cargas=RepositorioCargasSQL(sesion),
+            conceptos=RepositorioConceptosSQL(sesion),
+            uow=UnidadDeTrabajoSQL(sesion),
+        )
+        await resolver.ejecutar(pendiente_id, usuario_id=contexto_control.usuario_id, aprobado=True)
+        with pytest.raises(PendienteNoResoluble):
+            await resolver.ejecutar(
+                pendiente_id, usuario_id=contexto_control.usuario_id, aprobado=False
+            )
+    # La segunda llamada no pisó la primera: sigue aprobado, el concepto activo.
+    assert (await _conceptos(contexto_control))["EST-96"]["estatus"] == "activo"
 
 
 async def test_presupuesto_referencia_el_precio_del_catalogo_de_cpu_sin_recalcularlo(

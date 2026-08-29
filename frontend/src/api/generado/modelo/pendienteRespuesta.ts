@@ -5,21 +5,14 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { PendienteRespuestaEntidad } from './pendienteRespuestaEntidad';
-import type { PendienteRespuestaValorOrigen } from './pendienteRespuestaValorOrigen';
-import type { PendienteRespuestaPropuesta } from './pendienteRespuestaPropuesta';
-import type { PendienteRespuestaOrigenRef } from './pendienteRespuestaOrigenRef';
 
 /**
- * Renglón de la bandeja: el sistema propone, el humano confirma (§10.3).
+ * Algo que falta para poder firmar la entrega (§11.3 D.1).
  */
 export interface PendienteRespuesta {
-  id: string;
-  tipo: string;
-  entidad: PendienteRespuestaEntidad;
-  valor_origen: PendienteRespuestaValorOrigen;
-  propuesta: PendienteRespuestaPropuesta;
-  critico: boolean;
-  resuelto: boolean;
-  origen_ref: PendienteRespuestaOrigenRef;
+  clave: string;
+  detalle: string;
+  /** Los que bloquean impiden cerrar; los demás se muestran para que alguien los mire. Un expediente vacío no es lo mismo que una estimación sin validar. */
+  bloquea: boolean;
+  cuantos?: number;
 }

@@ -94,6 +94,21 @@ export function etiquetaEstatus(estatus: string): string {
   return estatus.replaceAll('_', ' ');
 }
 
+const ETIQUETA_TIPO_PENDIENTE: Record<string, string> = {
+  mapeo_no_reconocido: 'Alias sin homologar',
+  cpu_nuevo: 'Concepto nuevo',
+  unidad: 'Unidad desconocida',
+  iva: 'IVA sin resolver',
+  fila_no_parseada: 'Fila fuera de formato',
+  motivo_almacen: 'Motivo de almacén no catalogado',
+  concepto_en_conflicto: 'Composición en conflicto',
+};
+
+/** Etiqueta legible de `pendiente.tipo` (§10.3). */
+export function etiquetaTipoPendiente(tipo: string): string {
+  return ETIQUETA_TIPO_PENDIENTE[tipo] ?? etiquetaEstatus(tipo);
+}
+
 /**
  * ¿Este lote se puede revertir? (§10.8)
  *

@@ -1059,6 +1059,11 @@ class RepositorioConceptos(Protocol):
 
     async def obtener(self, concepto_id: UUID) -> dict | None: ...
 
+    async def obtener_por_clave(self, clave: str) -> dict | None:
+        """Para `ResolverPendiente` (§10.3): un `CPU_NUEVO` rechazado se
+        identifica por `valor_origen` (la clave), no por id."""
+        ...
+
     async def listar(
         self,
         *,

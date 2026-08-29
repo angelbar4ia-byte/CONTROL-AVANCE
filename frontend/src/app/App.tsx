@@ -33,6 +33,7 @@ import Evaluaciones from '@/evaluaciones/Evaluaciones';
 import Equipo from '@/equipo/Equipo';
 import Asignaciones from '@/equipo/Asignaciones';
 import Cargas from '@/cargas/Cargas';
+import Pendientes from '@/pendientes/Pendientes';
 import ReiniciarOrganizacion from '@/organizacion/ReiniciarOrganizacion';
 import Expediente from '@/expediente/Expediente';
 import Torre from '@/torre/Torre';
@@ -153,6 +154,7 @@ function Rutas() {
             Control de obra (§5.1 Configuración); el expediente lo consultan C
             y SI desde Reportes (§5.3). */}
         <Route path="/config/cargas" element={<Cargas />} />
+        <Route path="/config/pendientes" element={<Pendientes />} />
         <Route
           path="/config/reiniciar-organizacion"
           element={<ReiniciarOrganizacion />}

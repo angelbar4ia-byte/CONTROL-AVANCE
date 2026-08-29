@@ -6,4 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type PendienteRespuestaEntidad = string | null;
+export type PendienteBandejaRespuestaPropuesta = { [key: string]: unknown };

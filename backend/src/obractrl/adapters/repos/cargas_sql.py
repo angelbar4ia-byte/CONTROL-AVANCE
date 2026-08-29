@@ -695,6 +695,44 @@ class RepositorioCargasSQL:
         ).mappings().all()
         return [dict(fila) for fila in filas]
 
+    async def resolver_pendiente(
+        self,
+        pendiente_id: UUID,
+        *,
+        usuario_id: UUID | None,
+        aprobado: bool,
+        nota: str | None,
+    ) -> dict[str, Any] | None:
+        """Aprobar/rechazar (§10.3). `where not resuelto` es la guarda de
+        idempotencia: resolver dos veces no pisa la primera resolución —
+        devuelve `None`, y `ResolverPendiente` lo trata como 409."""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    update pendiente set
+                        resuelto     = true,
+                        resuelto_por = cast(:usuario_id as uuid),
+                        resuelto_en  = now(),
+                        resolucion   = jsonb_build_object(
+                            'accion', cast(:accion as text), 'nota', cast(:nota as text)
+                        )
+                    where id = cast(:id as uuid) and not resuelto
+                    returning id, carga_id, tipo, entidad, valor_origen, propuesta,
+                              resolucion, critico, resuelto, resuelto_por,
+                              resuelto_en, origen_ref, created_at
+                    """
+                ),
+                {
+                    "id": str(pendiente_id),
+                    "usuario_id": str(usuario_id) if usuario_id else None,
+                    "accion": "aprobado" if aprobado else "rechazado",
+                    "nota": nota,
+                },
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
     # --- Mapeos confirmados (§10.3) --------------------------------------
 
     async def mapeos(self, entidad: str) -> dict[str, str]:

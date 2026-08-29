@@ -40,6 +40,7 @@ from obractrl.adapters.api.casos_uso import (
     ConsultarCargaDep,
     EliminarCargaDep,
     FabricaDeCargasDep,
+    ResolverPendienteDep,
     RevertirCargaDep,
     RevertirCargaEnCadenaDep,
 )
@@ -48,6 +49,7 @@ from obractrl.adapters.excel.lector import LIMITES
 from obractrl.adapters.excel.plantillas import nombre_de_plantilla, plantilla_de
 from obractrl.application.casos_uso.gestionar_carga import (
     ComandoEjecutarCarga,
+    PendienteNoResoluble,
     ResultadoCarga,
 )
 from obractrl.domain.shared.diccionario import ModoCarga, Rol, TipoCarga
@@ -140,30 +142,41 @@ class LoteRespuesta(BaseModel):
         )
 
 
-class PendienteRespuesta(BaseModel):
+class PendienteBandejaRespuesta(BaseModel):
     """Renglón de la bandeja: el sistema propone, el humano confirma (§10.3)."""
 
     id: UUID
+    carga_id: UUID | None = None
     tipo: str
     entidad: str | None
     valor_origen: str | None
     propuesta: dict
     critico: bool
     resuelto: bool
+    resolucion: dict | None = None
     origen_ref: str | None
 
     @classmethod
-    def desde_fila(cls, fila: dict) -> PendienteRespuesta:
+    def desde_fila(cls, fila: dict) -> PendienteBandejaRespuesta:
         return cls(
             id=fila["id"],
+            carga_id=fila.get("carga_id"),
             tipo=str(fila["tipo"]),
             entidad=fila.get("entidad"),
             valor_origen=fila.get("valor_origen"),
             propuesta=fila.get("propuesta") or {},
             critico=bool(fila["critico"]),
             resuelto=bool(fila["resuelto"]),
+            resolucion=fila.get("resolucion"),
             origen_ref=fila.get("origen_ref"),
         )
+
+
+class ResolverPendientePeticion(BaseModel):
+    """Aprobar/rechazar un renglón de la bandeja (§10.3)."""
+
+    aprobado: bool
+    nota: str | None = Field(default=None, max_length=500)
 
 
 class ReversaRespuesta(BaseModel):
@@ -287,7 +300,7 @@ async def obtener_carga(carga_id: UUID, caso_uso: ConsultarCargaDep) -> LoteResp
 
 @router.get(
     "/cargas/{carga_id}/pendientes",
-    response_model=list[PendienteRespuesta],
+    response_model=list[PendienteBandejaRespuesta],
     summary="Bandeja de pendientes de una carga",
     dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE))],
     responses={404: {"description": "La carga no existe o está fuera de tu alcance."}},
@@ -298,10 +311,63 @@ async def bandeja_de_carga(
     solo_abiertos: Annotated[
         bool, Query(description="Solo lo que falta confirmar.")
     ] = True,
-) -> list[PendienteRespuesta]:
+) -> list[PendienteBandejaRespuesta]:
     """Excepciones que esperan confirmación humana (§10.3)."""
     filas = await caso_uso.pendientes(carga_id, solo_abiertos=solo_abiertos)
-    return [PendienteRespuesta.desde_fila(fila) for fila in filas]
+    return [PendienteBandejaRespuesta.desde_fila(fila) for fila in filas]
+
+
+@router.get(
+    "/pendientes",
+    response_model=list[PendienteBandejaRespuesta],
+    summary="Bandeja de pendientes por autorizar (todas las cargas)",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE))],
+)
+async def bandeja_global(
+    caso_uso: ConsultarCargaDep,
+    solo_abiertos: Annotated[
+        bool, Query(description="Solo lo que falta confirmar.")
+    ] = True,
+) -> list[PendienteBandejaRespuesta]:
+    """Igual que `/cargas/{carga_id}/pendientes`, pero de cualquier carga: la
+    pantalla de pendientes por autorizar no obliga a elegir una primero (§10.3)."""
+    filas = await caso_uso.pendientes_globales(solo_abiertos=solo_abiertos)
+    return [PendienteBandejaRespuesta.desde_fila(fila) for fila in filas]
+
+
+@router.post(
+    "/pendientes/{pendiente_id}/resolver",
+    response_model=PendienteBandejaRespuesta,
+    summary="Aprobar o rechazar un pendiente",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
+    responses={
+        409: {
+            "description": (
+                "El pendiente no existe, está fuera de tu alcance, o ya se "
+                "resolvió antes (§10.3: resolver es de una sola vez)."
+            )
+        },
+    },
+)
+async def resolver_pendiente(
+    pendiente_id: UUID,
+    peticion: ResolverPendientePeticion,
+    caso_uso: ResolverPendienteDep,
+    ctx: ContextoActual,
+) -> PendienteBandejaRespuesta:
+    """Rechazar un `cpu_nuevo` de `concepto` también da de baja ESE
+    concepto —el cargador ya lo había creado, "no se omite" (§10.3)— para
+    que alguien lo corrija antes de que vuelva a estar disponible."""
+    try:
+        fila = await caso_uso.ejecutar(
+            pendiente_id,
+            usuario_id=ctx.usuario_id,
+            aprobado=peticion.aprobado,
+            nota=peticion.nota,
+        )
+    except PendienteNoResoluble as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return PendienteBandejaRespuesta.desde_fila(fila)
 
 
 @router.post(

@@ -5982,7 +5982,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/obractrl__adapters__api__v1__cargas__PendienteRespuesta"
+                    "$ref": "#/components/schemas/PendienteBandejaRespuesta"
                   },
                   "title": "Response Bandeja De Carga Api V1 Cargas  Carga Id  Pendientes Get"
                 }
@@ -5991,6 +5991,123 @@
           },
           "404": {
             "description": "La carga no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pendientes": {
+      "get": {
+        "tags": [
+          "cargas"
+        ],
+        "summary": "Bandeja de pendientes por autorizar (todas las cargas)",
+        "description": "Igual que `/cargas/{carga_id}/pendientes`, pero de cualquier carga: la\npantalla de pendientes por autorizar no obliga a elegir una primero (§10.3).",
+        "operationId": "bandeja_global_api_v1_pendientes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "solo_abiertos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Solo lo que falta confirmar.",
+              "default": true,
+              "title": "Solo Abiertos"
+            },
+            "description": "Solo lo que falta confirmar."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PendienteBandejaRespuesta"
+                  },
+                  "title": "Response Bandeja Global Api V1 Pendientes Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pendientes/{pendiente_id}/resolver": {
+      "post": {
+        "tags": [
+          "cargas"
+        ],
+        "summary": "Aprobar o rechazar un pendiente",
+        "description": "Rechazar un `cpu_nuevo` de `concepto` también da de baja ESE\nconcepto —el cargador ya lo había creado, \"no se omite\" (§10.3)— para\nque alguien lo corrija antes de que vuelva a estar disponible.",
+        "operationId": "resolver_pendiente_api_v1_pendientes__pendiente_id__resolver_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "pendiente_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pendiente Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolverPendientePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendienteBandejaRespuesta"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El pendiente no existe, está fuera de tu alcance, o ya se resolvió antes (§10.3: resolver es de una sola vez)."
           },
           "422": {
             "description": "Validation Error",
@@ -8297,7 +8414,7 @@
           },
           "pendientes": {
             "items": {
-              "$ref": "#/components/schemas/obractrl__adapters__api__v1__cierres_obra__PendienteRespuesta"
+              "$ref": "#/components/schemas/PendienteRespuesta"
             },
             "type": "array",
             "title": "Pendientes"
@@ -12197,6 +12314,132 @@
         ],
         "title": "PartidaRespuesta"
       },
+      "PendienteBandejaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "carga_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carga Id"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "entidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entidad"
+          },
+          "valor_origen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Origen"
+          },
+          "propuesta": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Propuesta"
+          },
+          "critico": {
+            "type": "boolean",
+            "title": "Critico"
+          },
+          "resuelto": {
+            "type": "boolean",
+            "title": "Resuelto"
+          },
+          "resolucion": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolucion"
+          },
+          "origen_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen Ref"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tipo",
+          "entidad",
+          "valor_origen",
+          "propuesta",
+          "critico",
+          "resuelto",
+          "origen_ref"
+        ],
+        "title": "PendienteBandejaRespuesta",
+        "description": "Renglón de la bandeja: el sistema propone, el humano confirma (§10.3)."
+      },
+      "PendienteRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "detalle": {
+            "type": "string",
+            "title": "Detalle"
+          },
+          "bloquea": {
+            "type": "boolean",
+            "title": "Bloquea",
+            "description": "Los que bloquean impiden cerrar; los demás se muestran para que alguien los mire. Un expediente vacío no es lo mismo que una estimación sin validar."
+          },
+          "cuantos": {
+            "type": "integer",
+            "title": "Cuantos",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "detalle",
+          "bloquea"
+        ],
+        "title": "PendienteRespuesta",
+        "description": "Algo que falta para poder firmar la entrega (§11.3 D.1)."
+      },
       "PerfilRespuesta": {
         "properties": {
           "id": {
@@ -13361,6 +13604,32 @@
         ],
         "title": "ResetearContrasenaPeticion"
       },
+      "ResolverPendientePeticion": {
+        "properties": {
+          "aprobado": {
+            "type": "boolean",
+            "title": "Aprobado"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aprobado"
+        ],
+        "title": "ResolverPendientePeticion",
+        "description": "Aprobar/rechazar un renglón de la bandeja (§10.3)."
+      },
       "RespuestaItem-Input": {
         "properties": {
           "criterio_id": {
@@ -14457,108 +14726,6 @@
         ],
         "title": "VersionSoportadaRespuesta",
         "description": "Lo que la app necesita para decidir entre bloquear, sugerir o callarse."
-      },
-      "obractrl__adapters__api__v1__cargas__PendienteRespuesta": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "tipo": {
-            "type": "string",
-            "title": "Tipo"
-          },
-          "entidad": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Entidad"
-          },
-          "valor_origen": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Valor Origen"
-          },
-          "propuesta": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Propuesta"
-          },
-          "critico": {
-            "type": "boolean",
-            "title": "Critico"
-          },
-          "resuelto": {
-            "type": "boolean",
-            "title": "Resuelto"
-          },
-          "origen_ref": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Origen Ref"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "tipo",
-          "entidad",
-          "valor_origen",
-          "propuesta",
-          "critico",
-          "resuelto",
-          "origen_ref"
-        ],
-        "title": "PendienteRespuesta",
-        "description": "Renglón de la bandeja: el sistema propone, el humano confirma (§10.3)."
-      },
-      "obractrl__adapters__api__v1__cierres_obra__PendienteRespuesta": {
-        "properties": {
-          "clave": {
-            "type": "string",
-            "title": "Clave"
-          },
-          "detalle": {
-            "type": "string",
-            "title": "Detalle"
-          },
-          "bloquea": {
-            "type": "boolean",
-            "title": "Bloquea",
-            "description": "Los que bloquean impiden cerrar; los demás se muestran para que alguien los mire. Un expediente vacío no es lo mismo que una estimación sin validar."
-          },
-          "cuantos": {
-            "type": "integer",
-            "title": "Cuantos",
-            "default": 0
-          }
-        },
-        "type": "object",
-        "required": [
-          "clave",
-          "detalle",
-          "bloquea"
-        ],
-        "title": "PendienteRespuesta",
-        "description": "Algo que falta para poder firmar la entrega (§11.3 D.1)."
       }
     },
     "securitySchemes": {

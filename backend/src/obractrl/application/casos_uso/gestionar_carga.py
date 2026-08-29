@@ -30,8 +30,11 @@ from uuid import UUID
 
 from obractrl.application.casos_uso.aplicar_carga import AplicadorDeCarga
 from obractrl.application.puertos.cargadores import LectorDeCarga, RepositorioCargas
-from obractrl.application.puertos.repositorios import UnidadDeTrabajo
-from obractrl.domain.cargadores.reporte import ErrorDeFila, ResumenCarga
+from obractrl.application.puertos.repositorios import (
+    RepositorioConceptos,
+    UnidadDeTrabajo,
+)
+from obractrl.domain.cargadores.reporte import ErrorDeFila, ResumenCarga, TipoPendiente
 from obractrl.domain.shared.diccionario import EstatusCarga, ModoCarga, TipoCarga
 
 __all__ = [
@@ -43,6 +46,8 @@ __all__ = [
     "ConsultarCarga",
     "EjecutarCarga",
     "EliminarCarga",
+    "PendienteNoResoluble",
+    "ResolverPendiente",
     "ResultadoCarga",
     "RevertirCarga",
     "RevertirCargaEnCadena",
@@ -417,3 +422,72 @@ class ConsultarCarga:
         return await self._cargas.listar_pendientes(
             carga_id=carga_id, solo_abiertos=solo_abiertos
         )
+
+    async def pendientes_globales(
+        self, *, solo_abiertos: bool = True
+    ) -> list[dict[str, Any]]:
+        """Bandeja completa, de cualquier carga (§10.3): la pantalla de
+        pendientes por autorizar no obliga a elegir una carga primero."""
+        return await self._cargas.listar_pendientes(
+            carga_id=None, solo_abiertos=solo_abiertos
+        )
+
+
+class PendienteNoResoluble(LookupError):
+    """El pendiente no existe, está fuera de alcance, o ya se resolvió
+    antes (§10.3: resolver es de una sola vez, no se pisa)."""
+
+
+class ResolverPendiente:
+    """Aprobar/rechazar un renglón de la bandeja (§10.3, pantalla de
+    pendientes por autorizar).
+
+    Aprobar solo cierra el pendiente: lo que el sistema ya hizo —el alta
+    automática— se queda como está. Rechazar un `CPU_NUEVO` de `concepto`
+    además da de baja ESE concepto (`estatus=inactivo`): el cargador ya lo
+    creó porque "no se omite" (§10.3), pero un humano decidió que la clave
+    no era confiable tal cual llegó. No se borra —queda editable desde el
+    catálogo— para que, corregido, alguien lo reactive a mano; rechazar no
+    es lo mismo que nunca haber existido.
+    """
+
+    def __init__(
+        self,
+        *,
+        cargas: RepositorioCargas,
+        conceptos: RepositorioConceptos,
+        uow: UnidadDeTrabajo,
+    ) -> None:
+        self._cargas = cargas
+        self._conceptos = conceptos
+        self._uow = uow
+
+    async def ejecutar(
+        self,
+        pendiente_id: UUID,
+        *,
+        usuario_id: UUID | None,
+        aprobado: bool,
+        nota: str | None = None,
+    ) -> dict[str, Any]:
+        async with self._uow:
+            fila = await self._cargas.resolver_pendiente(
+                pendiente_id, usuario_id=usuario_id, aprobado=aprobado, nota=nota
+            )
+            if fila is None:
+                raise PendienteNoResoluble(
+                    f"El pendiente {pendiente_id} no existe, está fuera de tu "
+                    f"alcance, o ya se resolvió."
+                )
+
+            es_concepto_nuevo = (
+                fila["tipo"] == str(TipoPendiente.CPU_NUEVO) and fila["entidad"] == "concepto"
+            )
+            if not aprobado and es_concepto_nuevo and fila["valor_origen"]:
+                concepto = await self._conceptos.obtener_por_clave(fila["valor_origen"])
+                if concepto is not None:
+                    await self._conceptos.actualizar(concepto["id"], {"estatus": "inactivo"})
+
+            await self._uow.commit()
+
+        return fila
