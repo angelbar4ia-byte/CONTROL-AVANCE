@@ -537,7 +537,15 @@ PRESUPUESTO = EspecificacionArchivo(
     archivo="CABECERAS_PRESUPUESTO.xlsx",
     hoja=None,
     obligatorias=("clave_hijo", "descripcion", "tipo"),
-    opcionales=("indice", "clave_padre", "unidad", "cantidad", "precio_unitario", "importe"),
+    opcionales=(
+        "indice",
+        "clave_padre",
+        "unidad",
+        "cantidad",
+        "precio_unitario",
+        "importe",
+        "wbs",
+    ),
     alias={
         "indice": "indice",
         "clave padre": "clave_padre",
@@ -545,8 +553,14 @@ PRESUPUESTO = EspecificacionArchivo(
         "clave hijo": "clave_hijo",
         "clave_hijo": "clave_hijo",
         "importe": "importe",
+        "wbs": "wbs",
     },
 )
+"""``wbs`` es opcional (§7.4): no todo archivo real la trae. Cuando sí viene,
+`construir_arboles` la usa solo para avisar —§10.3, `TipoPendiente.
+WBS_INCONSISTENTE`, no crítico— si no coincide con la que el propio TIPO de
+cada fila ya implica; nunca decide la identidad de la fila ni bloquea la
+carga (eso lo sigue dando CLAVE PADRE → CLAVE HIJO)."""
 
 COLUMNAS_CPU: tuple[ColumnaPorLetra, ...] = (
     ColumnaPorLetra("clave", "A"),

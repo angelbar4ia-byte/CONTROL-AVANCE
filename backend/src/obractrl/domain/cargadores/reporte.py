@@ -73,6 +73,13 @@ class TipoPendiente(StrEnum):
     clave manda (§3.3) y el cruce se aplica igual — esto solo abre la alerta
     para que alguien revise después cuál descripción es la correcta."""
 
+    WBS_INCONSISTENTE = "wbs_inconsistente"
+    """El archivo trae su propia columna WBS y no coincide con la que el
+    cargador de presupuesto jerárquico calcula de la secuencia de TIPO
+    (extensión propia, §7.4). **No crítico**: no es de la identidad de la
+    fila (eso lo da CLAVE PADRE → CLAVE HIJO, §3.3) — es solo una alerta
+    para que alguien decida si carga la fila o corrige el archivo antes."""
+
 
 @dataclass(frozen=True, slots=True)
 class ErrorDeFila:
