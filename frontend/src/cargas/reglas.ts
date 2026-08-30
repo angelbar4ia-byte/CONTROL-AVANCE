@@ -102,6 +102,8 @@ const ETIQUETA_TIPO_PENDIENTE: Record<string, string> = {
   fila_no_parseada: 'Fila fuera de formato',
   motivo_almacen: 'Motivo de almacén no catalogado',
   concepto_en_conflicto: 'Composición en conflicto',
+  descripcion_distinta: 'Descripción distinta al catálogo',
+  wbs_inconsistente: 'WBS no coincide',
 };
 
 /** Etiqueta legible de `pendiente.tipo` (§10.3). */

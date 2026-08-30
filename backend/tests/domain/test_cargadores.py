@@ -737,8 +737,16 @@ def _fila_presupuesto(
     pu: object = "",
     importe: object = "",
     tipo: str = "",
+    wbs: object = "",
 ) -> list[object]:
-    return [indice, padre, hijo, descripcion, unidad, cantidad, pu, importe, tipo]
+    return [indice, padre, hijo, descripcion, unidad, cantidad, pu, importe, tipo, wbs]
+
+
+_MAPA_PRESUPUESTO_CON_WBS = resolver_encabezados(
+    ["INDICE", "CLAVE PADRE", "CLAVE HIJO", "DESCRIPCION", "UNIDAD",
+     "CANTIDAD", "PRECIO UNITARIO", "IMPORTE", "TIPO", "WBS"],
+    PRESUPUESTO,
+)
 
 
 def test_dos_prototipos_con_clave_de_nodo_identica_se_resuelven_independientes() -> None:
@@ -787,6 +795,64 @@ def test_un_tipo_desconocido_va_a_la_bandeja_y_el_resto_sigue() -> None:
     assert pendientes[0].tipo is TipoPendiente.FILA_NO_PARSEADA
     (arbol,) = arboles
     assert [h.clave for h in arbol.hijos.get("CAS-1", ())] == ["NIV-2"]
+
+
+# --- WBS opcional del archivo (§7.4, no crítico) --------------------------
+
+
+def test_wbs_del_archivo_coincide_con_la_esperada_no_genera_pendiente() -> None:
+    """El nivel de WBS lo da el TIPO, no la profundidad del árbol: la
+    segunda etapa cuelga su material directo (sin concepto de por medio) y
+    cae en el nivel 5 igual, con el 4 en 0 — la propia fila ETAPA ya
+    reinició los contadores más profundos (§7.4)."""
+    filas = [
+        (2, _fila_presupuesto(1, None, "CAS-1", "Zafiro", tipo="PROTOTIPO", wbs="1.0.0.0.0")),
+        (3, _fila_presupuesto(1, "CAS-1", "NIV-1", "Cimentación", tipo="NIVEL DE CONSTRUCCION", wbs="1.1.0.0.0")),
+        (4, _fila_presupuesto(1, "NIV-1", "ECO-1", "Estructura", tipo="ETAPA DE CONSTRUCCION", wbs="1.1.1.0.0")),
+        (5, _fila_presupuesto(1, "ECO-1", "EST-1", "Losa", tipo="CONCEPTO", wbs="1.1.1.1.0")),
+        (6, _fila_presupuesto(1, "EST-1", "ACE-1", "Alambre", tipo="MATERIAL", wbs="1.1.1.1.1")),
+        (7, _fila_presupuesto(2, "NIV-1", "ECO-2", "Instalaciones", tipo="ETAPA DE CONSTRUCCION", wbs="1.1.2.0.0")),
+        (8, _fila_presupuesto(1, "ECO-2", "ACE-2", "Cemento", tipo="MATERIAL", wbs="1.1.2.0.1")),
+    ]
+    _arboles, errores, pendientes, _omitidos = construir_arboles(filas, _MAPA_PRESUPUESTO_CON_WBS)
+
+    assert not errores
+    assert not pendientes
+
+
+def test_wbs_del_archivo_distinta_de_la_esperada_avisa_sin_bloquear() -> None:
+    """No crítico (§10.3): la fila se arma igual —el árbol la cuelga— solo
+    se avisa para que alguien decida si carga o corrige el archivo."""
+    filas = [
+        (2, _fila_presupuesto(1, None, "CAS-1", "Zafiro", tipo="PROTOTIPO", wbs="1.0.0.0.0")),
+        (3, _fila_presupuesto(1, "CAS-1", "NIV-1", "Cimentación", tipo="NIVEL DE CONSTRUCCION", wbs="1.1.0.0.0")),
+        (4, _fila_presupuesto(1, "NIV-1", "ECO-1", "Estructura", tipo="ETAPA DE CONSTRUCCION", wbs="1.1..0.0")),
+    ]
+    arboles, errores, pendientes, _omitidos = construir_arboles(filas, _MAPA_PRESUPUESTO_CON_WBS)
+
+    assert not errores  # no bloquea: sigue siendo un árbol válido
+    (arbol,) = arboles
+    assert [h.clave for h in arbol.hijos.get("CAS-1", ())] == ["NIV-1"]
+
+    assert len(pendientes) == 1
+    pendiente = pendientes[0]
+    assert pendiente.tipo is TipoPendiente.WBS_INCONSISTENTE
+    assert pendiente.valor_origen == "1.1..0.0"
+    assert pendiente.propuesta["esperado"] == "1.1.1.0.0"
+    assert pendiente.origen_ref == "fila 4"
+    assert pendiente.critico is False
+
+
+def test_sin_columna_wbs_en_el_archivo_no_hay_nada_que_comparar() -> None:
+    """Opcional (§7.4): un archivo real que no la trae no genera ni una
+    alerta de más — `_MAPA_PRESUPUESTO` (sin "WBS" en la cabecera)."""
+    filas = [
+        (2, _fila_presupuesto(1, None, "CAS-1", "Zafiro", tipo="PROTOTIPO")),
+    ]
+    _arboles, errores, pendientes, _omitidos = construir_arboles(filas, _MAPA_PRESUPUESTO)
+
+    assert not errores
+    assert not pendientes
 
 
 def test_prototipo_repetido_en_el_archivo_gana_el_ultimo() -> None:

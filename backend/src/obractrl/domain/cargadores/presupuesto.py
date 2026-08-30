@@ -104,6 +104,10 @@ class NodoLeido:
     precio_unitario: Decimal | None = None
     importe: Decimal | None = None
     indice: int | None = None
+    wbs: str | None = None
+    """Columna WBS del archivo, si la trae (opcional, §7.4). Solo se usa
+    para comparar contra `_siguiente_wbs` y avisar si no coincide —nunca
+    para la identidad del nodo, esa la da CLAVE PADRE → CLAVE HIJO."""
 
     fila: int = 0
     """Renglón del archivo, para que un error de fila ligue al origen."""
@@ -219,8 +223,40 @@ def _leer_nodo(
         precio_unitario=_decimal_opcional(mapa.valor(fila, "precio_unitario"), columna="precio_unitario"),
         importe=_decimal_opcional(mapa.valor(fila, "importe"), columna="importe"),
         indice=_entero_opcional(mapa.valor(fila, "indice"), columna="indice"),
+        wbs=texto_limpio(mapa.valor(fila, "wbs")) or None,
         fila=numero,
     )
+
+
+_NIVEL_WBS: dict[TipoNodoPresupuesto, int] = {
+    TipoNodoPresupuesto.PROTOTIPO: 1,
+    TipoNodoPresupuesto.NIVEL: 2,
+    TipoNodoPresupuesto.ETAPA: 3,
+    TipoNodoPresupuesto.CONCEPTO: 4,
+    TipoNodoPresupuesto.CONCEPTO_AUXILIAR: 4,
+    TipoNodoPresupuesto.MATERIAL: 5,
+    TipoNodoPresupuesto.DESTAJO: 5,
+    TipoNodoPresupuesto.SUBCONTRATO: 5,
+}
+"""Nivel fijo de cada TIPO en la numeración WBS (§7.4) — no es la
+profundidad del árbol: una etapa sin concepto intermedio cuelga MATERIAL
+directo y ese material igual cae en el nivel 5, con el 4 en 0. Es la misma
+numeración de esquema que ya trae el archivo real: verificada fila por
+fila contra un archivo de 7 prototipos/8014 filas — coincide en todas
+salvo 2, y esas 2 son un defecto del propio archivo (segmento de ETAPA
+vacío), no de este cálculo."""
+
+
+def _siguiente_wbs(contadores: list[int], tipo: TipoNodoPresupuesto) -> str:
+    """WBS que le toca a esta fila, dado su TIPO: sube el contador de su
+    nivel y reinicia los más profundos (§7.4). Un solo `contadores` para
+    todo el archivo —no por prototipo— porque el segmento de PROTOTIPO
+    (nivel 1) es justamente el que numera de un prototipo al siguiente."""
+    nivel = _NIVEL_WBS[tipo]
+    contadores[nivel - 1] += 1
+    for indice in range(nivel, 5):
+        contadores[indice] = 0
+    return ".".join(str(c) for c in contadores)
 
 
 def construir_arboles(
@@ -254,6 +290,7 @@ def construir_arboles(
     raiz: NodoLeido | None = None
     hijos: dict[str, list[NodoLeido]] = {}
     ultimo_por_clave: dict[str, NodoLeido] = {}
+    contadores_wbs = [0, 0, 0, 0, 0]
 
     def cerrar() -> None:
         nonlocal raiz, hijos, ultimo_por_clave, omitidos
@@ -305,6 +342,20 @@ def construir_arboles(
         except ErrorEnFila as exc:
             errores.append(exc.con_fila(numero))
             continue
+
+        wbs_calculado = _siguiente_wbs(contadores_wbs, tipo)
+        if nodo.wbs and nodo.wbs != wbs_calculado:
+            # No crítico (§10.3): la fila se procesa igual, esto solo avisa
+            # para que alguien decida si carga o corrige el archivo antes.
+            pendientes.append(
+                PendientePropuesto(
+                    tipo=TipoPendiente.WBS_INCONSISTENTE,
+                    entidad="prototipo_nodo",
+                    valor_origen=nodo.wbs,
+                    propuesta={"esperado": wbs_calculado},
+                    origen_ref=f"fila {numero}",
+                )
+            )
 
         if tipo is TipoNodoPresupuesto.PROTOTIPO:
             cerrar()
