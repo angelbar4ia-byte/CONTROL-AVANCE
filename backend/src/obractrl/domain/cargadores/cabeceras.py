@@ -327,12 +327,15 @@ UNIDADES = EspecificacionArchivo(
         # El archivo real trae "UNIDAD" (la clave corta, KG/PZ/...) y
         # "SINONIMO" (el nombre descriptivo, Kilogramo/Pieza/...) —
         # confirmado con el usuario, ver `domain.cargadores.unidades`. Sin
-        # estos dos alias, "unidad" resolvería al campo global homónimo
-        # (usado en otros archivos como referencia ajena, no como esta
-        # identidad) y "sinonimo" no resolvería a nada — las dos filas se
+        # estos alias, "unidad" resolvería al campo global homónimo (usado
+        # en otros archivos como referencia ajena, no como esta identidad)
+        # y "sinonimo"/su variante no resolverían a nada — las filas se
         # descartarían en silencio.
         "unidad": "clave",
         "sinonimo": "nombre",
+        # "SINOMIMO": la letra M/N invertida tal como trae el archivo real
+        # (verificado en vivo, no es un typo de este módulo).
+        "sinomimo": "nombre",
     },
 )
 """Catálogo base de identidad de unidades (§3.5): clave, nombre, nada más

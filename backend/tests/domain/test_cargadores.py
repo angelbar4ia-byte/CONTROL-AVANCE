@@ -426,6 +426,15 @@ def test_unidad_sin_nombre_es_error_de_fila() -> None:
         validar_unidad(["99", "XX", ""], _MAPA_UNIDADES, 18)
 
 
+def test_variante_sinomimo_del_archivo_real_tambien_resuelve_a_nombre() -> None:
+    """"SINOMIMO" (M/N invertida) es lo que el archivo real trae de verdad
+    —confirmado en vivo, no un typo de este módulo—; sin este alias
+    "nombre" faltaba y el archivo se rechazaba entero (§10.6)."""
+    mapa = resolver_encabezados(["CLAVE UNIDAD", "UNIDAD", "SINOMIMO"], UNIDADES)
+    unidad = validar_unidad(["1", "KG", "Kilogramo"], mapa, 2)
+    assert unidad.nombre == "Kilogramo"
+
+
 # --- Familias (§3.5, `CATALOGO_DE_FAMILIAS.xlsx`) --------------------------
 
 _MAPA_FAMILIAS = resolver_encabezados(
