@@ -58,7 +58,7 @@ from obractrl.application.casos_uso.gestionar_programacion import (
     InstanciarProgramaObra,
     RecalcularRutaCritica,
 )
-from obractrl.domain.programacion.cpm import CicloEnGrafoError, Dependencia
+from obractrl.domain.programacion.cpm import CicloEnGrafoError, Dependencia, Tramo
 from obractrl.domain.shared.diccionario import (
     EstatusIncidencia,
     ImpactoIncidencia,
@@ -198,6 +198,52 @@ def _recalcular(sesion: AsyncSession) -> RecalcularRutaCritica:
     )
 
 
+async def _plantilla_con_muro(
+    escenario: Escenario, ctx: ContextoSesion, cronograma: Cronograma
+) -> None:
+    """El caso del jefe de obra, como plantilla del prototipo (§7.5, §7.6).
+
+    A = MURO: 14 días de trabajo (dos semanas + los pretiles) repartidos en 19
+    de calendario, con la pausa en medio.
+    B = LOSA: 5 días que se cuelan en esa pausa (`SS` con lag 10).
+    C = ACABADO FINO: acompaña al muro y no puede terminar antes que él (`FF`).
+    """
+    async with sesion_con_rls(ctx) as sesion:
+        repo = RepositorioProgramasSQL(sesion)
+        base_id = await repo.crear_base({"prototipo_id": escenario.prototipo_id})
+        await repo.agregar_items_base(
+            base_id,
+            [
+                {
+                    "prototipo_nodo_id": cronograma.nodo_a,
+                    "duracion_dias": Decimal("14"),
+                    "tramos": [
+                        {"duracion_dias": 10, "offset_dias": 0},
+                        {"duracion_dias": 4, "offset_dias": 15},
+                    ],
+                    "orden": 0,
+                },
+                {
+                    "prototipo_nodo_id": cronograma.nodo_b,
+                    "duracion_dias": Decimal("5"),
+                    "dependencias": [
+                        {"ref": str(cronograma.nodo_a), "tipo": "SS", "lag_dias": 10}
+                    ],
+                    "orden": 1,
+                },
+                {
+                    "prototipo_nodo_id": cronograma.nodo_c,
+                    "duracion_dias": Decimal("6"),
+                    "dependencias": [
+                        {"ref": str(cronograma.nodo_a), "tipo": "FF", "lag_dias": 0}
+                    ],
+                    "orden": 2,
+                },
+            ],
+        )
+        await sesion.commit()
+
+
 async def _leer_actividades(ids: list[uuid.UUID]) -> dict[uuid.UUID, dict]:
     admin = create_async_engine(DATABASE_URL_ADMIN)
     async with admin.connect() as conn:
@@ -205,8 +251,8 @@ async def _leer_actividades(ids: list[uuid.UUID]) -> dict[uuid.UUID, dict]:
             await conn.execute(
                 text(
                     """
-                    select id, duracion_dias, dependencias, es_critica, holgura,
-                           desfase, programa_obra_id, bloqueada
+                    select id, duracion_dias, dependencias, tramos, es_critica,
+                           holgura, desfase, programa_obra_id, bloqueada
                     from actividad
                     where id = any(cast(:ids as uuid[]))
                     """
@@ -406,6 +452,140 @@ async def test_patch_programacion_ajusta_y_recalcula(
     # Cambiar una duración mueve la holgura de las demás: B ahora sobra 3 días.
     assert filas[cronograma.act_b]["es_critica"] is False
     assert filas[cronograma.act_b]["holgura"] == Decimal("3.00")
+
+
+async def test_instanciar_baja_los_tramos_y_encadena_por_el_span(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """El caso del jefe de obra contra Postgres real (§7.6).
+
+    "El muro de tabique se realiza las primeras 2 semanas, para para realizar
+    la losa y después continúa para realizar muros de pretiles". El muro sigue
+    siendo UNA actividad con sus 14 días de trabajo escritos en
+    `duracion_dias`; lo que ocupa en el calendario son 19, y es eso lo que el
+    motor usa para encadenar.
+    """
+    cronograma = await _armar_cronograma(escenario)
+    await _plantilla_con_muro(escenario, contexto_control, cronograma)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        resultado = await _instanciar(sesion).ejecutar(
+            ComandoInstanciarPrograma(obra_id=escenario.obra_id, fecha_corte=CORTE)
+        )
+
+    filas = await _leer_actividades(
+        [cronograma.act_a, cronograma.act_b, cronograma.act_c]
+    )
+
+    # Los tramos bajaron tal cual; la duración son los días de TRABAJO.
+    assert filas[cronograma.act_a]["tramos"] == [
+        {"duracion_dias": 10, "offset_dias": 0},
+        {"duracion_dias": 4, "offset_dias": 15},
+    ]
+    assert filas[cronograma.act_a]["duracion_dias"] == Decimal("14.00")
+    assert filas[cronograma.act_b]["tramos"] == []
+
+    fechas = {
+        a.actividad_id: (a.inicio_temprano, a.fin_temprano)
+        for a in resultado.ruta.actividades
+    }
+    # El muro ocupa 19 días de calendario: del 2 al 21 de marzo.
+    assert fechas[cronograma.act_a] == (date(2026, 3, 2), date(2026, 3, 21))
+    # La losa cabe entera en la pausa del muro (del día 10 al 15).
+    assert fechas[cronograma.act_b] == (date(2026, 3, 12), date(2026, 3, 17))
+    # `FF`: el acabado fino no termina antes que el muro, así que retrocede su
+    # inicio tanto como dura (19 − 6 = 13).
+    assert fechas[cronograma.act_c] == (date(2026, 3, 15), date(2026, 3, 21))
+
+    assert filas[cronograma.act_a]["es_critica"] is True
+    assert filas[cronograma.act_b]["es_critica"] is False
+
+
+async def test_patch_parte_una_actividad_y_recalcula_la_obra(
+    escenario: Escenario,
+    contexto_control: ContextoSesion,
+    contexto_supervisor: ContextoSesion,
+) -> None:
+    """Partir una actividad a mano (§11.2 `PATCH`): la duración se deriva de la
+    suma de los tramos y las sucesoras se recorren al fin del span."""
+    cronograma = await _armar_cronograma(escenario)
+    await _plantilla(escenario, contexto_control, cronograma)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        await _instanciar(sesion).ejecutar(
+            ComandoInstanciarPrograma(obra_id=escenario.obra_id, fecha_corte=CORTE)
+        )
+
+    # A(5) se parte en 2 + 3 con una pausa de 4 días en medio: sigue siendo
+    # trabajo de 5 días, pero ahora ocupa 9 de calendario.
+    async with sesion_con_rls(contexto_supervisor) as sesion:
+        actualizada = await EditarProgramacionActividad(
+            actividades=RepositorioActividadesSQL(sesion),
+            obras=RepositorioObrasSQL(sesion),
+            uow=UnidadDeTrabajoSQL(sesion),
+        ).ejecutar(
+            ComandoEditarProgramacion(
+                actividad_id=cronograma.act_a,
+                tramos=(
+                    Tramo(duracion_dias=2),
+                    Tramo(duracion_dias=3, offset_dias=6),
+                ),
+            )
+        )
+
+    assert actualizada.duracion_dias == Decimal("5.00")
+    assert [t.duracion_dias for t in actualizada.tramos] == [2.0, 3.0]
+
+    filas = await _leer_actividades([cronograma.act_a, cronograma.act_b])
+    assert filas[cronograma.act_a]["tramos"] == [
+        {"duracion_dias": 2.0, "offset_dias": 0.0},
+        {"duracion_dias": 3.0, "offset_dias": 6.0},
+    ]
+    # Los días de trabajo no cambiaron: es lo que ve el costo.
+    assert filas[cronograma.act_a]["duracion_dias"] == Decimal("5.00")
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        ruta = await ConsultarRutaCritica(
+            actividades=RepositorioActividadesSQL(sesion),
+            obras=RepositorioObrasSQL(sesion),
+            programas=RepositorioProgramasSQL(sesion),
+        ).ejecutar(escenario.obra_id, fecha_corte=CORTE)
+
+    inicio = {a.actividad_id: a.inicio_temprano for a in ruta.actividades}
+    # B esperaba a A el 7 de marzo (5 días); con la pausa, el 11 (9 días).
+    assert inicio[cronograma.act_b] == date(2026, 3, 11)
+
+
+async def test_patch_con_tramos_traslapados_no_escribe(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    cronograma = await _armar_cronograma(escenario)
+    await _plantilla(escenario, contexto_control, cronograma)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        await _instanciar(sesion).ejecutar(
+            ComandoInstanciarPrograma(obra_id=escenario.obra_id, fecha_corte=CORTE)
+        )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        with pytest.raises(ErrorDeProgramacion, match="traslapan"):
+            await EditarProgramacionActividad(
+                actividades=RepositorioActividadesSQL(sesion),
+                obras=RepositorioObrasSQL(sesion),
+                uow=UnidadDeTrabajoSQL(sesion),
+            ).ejecutar(
+                ComandoEditarProgramacion(
+                    actividad_id=cronograma.act_a,
+                    tramos=(
+                        Tramo(duracion_dias=3),
+                        Tramo(duracion_dias=2, offset_dias=1),
+                    ),
+                )
+            )
+
+    filas = await _leer_actividades([cronograma.act_a])
+    assert filas[cronograma.act_a]["tramos"] == []
+    assert filas[cronograma.act_a]["duracion_dias"] == Decimal("5.00")
 
 
 async def test_patch_con_dependencia_ciclica_no_escribe(

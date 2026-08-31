@@ -52,7 +52,7 @@ from obractrl.application.casos_uso.gestionar_programacion import (
     ProgramaInstanciadoEnObra,
     RutaCritica,
 )
-from obractrl.domain.programacion.cpm import Dependencia, TipoDependencia
+from obractrl.domain.programacion.cpm import Dependencia, TipoDependencia, Tramo
 from obractrl.domain.programacion.reglas import ItemProgramaBase
 from obractrl.domain.shared.diccionario import Rol
 
@@ -93,7 +93,10 @@ class DependenciaDTO(BaseModel):
     )
     tipo: str = Field(
         default=TipoDependencia.FIN_INICIO,
-        description="FS (fin→inicio) o SS (inicio→inicio).",
+        description=(
+            "FS (fin→inicio), SS (inicio→inicio), FF (fin→fin) o SF "
+            "(inicio→fin), como en MS Project."
+        ),
     )
     lag_dias: float = Field(default=0.0, description="Días de desfase de la relación.")
 
@@ -103,6 +106,41 @@ class DependenciaDTO(BaseModel):
     @classmethod
     def desde_dominio(cls, dep: Dependencia) -> DependenciaDTO:
         return cls(ref=dep.ref, tipo=dep.tipo, lag_dias=dep.lag_dias)
+
+
+class TramoDTO(BaseModel):
+    """Un segmento de una actividad interrumpida (§7.6).
+
+    Lista vacía = actividad continua, el caso normal. Con tramos, la
+    `duracion_dias` de la actividad es la **suma** de sus tramos —los días de
+    trabajo— y lo que ocupa en el calendario es
+    `max(offset_dias + duracion_dias)`, que es lo que el CPM encadena.
+    """
+
+    duracion_dias: float = Field(
+        gt=0, description="Días de trabajo de este tramo (§7.6)."
+    )
+    offset_dias: float = Field(
+        default=0.0,
+        ge=0,
+        description=(
+            "Días desde el inicio de la actividad en que arranca el tramo. El "
+            "primero arranca en 0."
+        ),
+    )
+
+    def a_dominio(self) -> Tramo:
+        return Tramo(duracion_dias=self.duracion_dias, offset_dias=self.offset_dias)
+
+    @classmethod
+    def desde_dominio(cls, tramo: Tramo) -> TramoDTO:
+        return cls(
+            duracion_dias=tramo.duracion_dias, offset_dias=tramo.offset_dias
+        )
+
+    @classmethod
+    def lista_desde_jsonb(cls, dato: list | None) -> list[TramoDTO]:
+        return [cls.desde_dominio(Tramo.desde_jsonb(t)) for t in (dato or [])]
 
 
 class ItemProgramaBasePeticion(BaseModel):
@@ -118,6 +156,14 @@ class ItemProgramaBasePeticion(BaseModel):
     )
     frente_id: UUID | None = Field(default=None, description="Frente del §8.3.")
     dependencias: list[DependenciaDTO] = Field(default_factory=list)
+    tramos: list[TramoDTO] = Field(
+        default_factory=list,
+        description=(
+            "Interrupción de la actividad; vacío = continua. La interrupción "
+            "vive en la plantilla porque es de la secuencia constructiva del "
+            "prototipo (§7.6)."
+        ),
+    )
     orden: int = 0
 
     def a_dominio(self) -> ItemProgramaBase:
@@ -129,6 +175,7 @@ class ItemProgramaBasePeticion(BaseModel):
             etapa_id=str(self.etapa_id) if self.etapa_id else None,
             frente_id=str(self.frente_id) if self.frente_id else None,
             dependencias=tuple(dep.a_dominio() for dep in self.dependencias),
+            tramos=tuple(tramo.a_dominio() for tramo in self.tramos),
             orden=self.orden,
         )
 
@@ -173,6 +220,7 @@ class ItemProgramaBaseRespuesta(BaseModel):
     frente_id: UUID | None
     duracion_dias: Decimal
     dependencias: list[DependenciaDTO]
+    tramos: list[TramoDTO]
     orden: int
 
     @classmethod
@@ -188,6 +236,7 @@ class ItemProgramaBaseRespuesta(BaseModel):
                 DependenciaDTO.desde_dominio(Dependencia.desde_jsonb(dep))
                 for dep in (fila["dependencias"] or [])
             ],
+            tramos=TramoDTO.lista_desde_jsonb(fila["tramos"]),
             orden=fila["orden"],
         )
 
@@ -202,6 +251,7 @@ class ActividadProgramadaRespuesta(BaseModel):
     nivel_id: UUID | None
     duracion_dias: Decimal
     dependencias: list[DependenciaDTO]
+    tramos: list[TramoDTO]
     fecha_inicio: date | None
     fecha_termino: date | None
     avance_pct: Decimal
@@ -224,6 +274,7 @@ class ActividadProgramadaRespuesta(BaseModel):
                 DependenciaDTO.desde_dominio(Dependencia.desde_jsonb(dep))
                 for dep in (fila["dependencias"] or [])
             ],
+            tramos=TramoDTO.lista_desde_jsonb(fila["tramos"]),
             fecha_inicio=fila["fecha_inicio"],
             fecha_termino=fila["fecha_termino"],
             avance_pct=fila["avance_pct"],
@@ -261,6 +312,7 @@ class ActividadEnRutaRespuesta(BaseModel):
     frente_id: UUID | None
     duracion_dias: Decimal
     dependencias: list[DependenciaDTO]
+    tramos: list[TramoDTO]
     inicio_temprano: date
     fin_temprano: date
     inicio_tardio: date
@@ -281,6 +333,7 @@ class ActividadEnRutaRespuesta(BaseModel):
             dependencias=[
                 DependenciaDTO.desde_dominio(dep) for dep in actividad.dependencias
             ],
+            tramos=[TramoDTO.desde_dominio(t) for t in actividad.tramos],
             inicio_temprano=actividad.inicio_temprano,
             fin_temprano=actividad.fin_temprano,
             inicio_tardio=actividad.inicio_tardio,
@@ -355,11 +408,20 @@ class ProgramacionActividadPeticion(BaseModel):
     """§11.2 `PATCH /actividades/{id}/programacion`.
 
     Solo se cambia lo que llega. Una lista vacía de `dependencias` **sí** es un
-    cambio: deja la actividad sin predecesoras.
+    cambio: deja la actividad sin predecesoras; una de `tramos`, sin
+    interrupción.
     """
 
     duracion_dias: Decimal | None = Field(default=None, gt=0)
     dependencias: list[DependenciaDTO] | None = None
+    tramos: list[TramoDTO] | None = Field(
+        default=None,
+        description=(
+            "Interrupción de la actividad. Una lista vacía le quita la "
+            "interrupción; mandarla sin `duracion_dias` **deriva** la duración "
+            "de la suma de los tramos (§7.6)."
+        ),
+    )
     frente_id: UUID | None = None
     fecha_inicio: date | None = None
     fecha_termino: date | None = None
@@ -559,6 +621,11 @@ async def editar_programacion_actividad(
                 dependencias=(
                     tuple(dep.a_dominio() for dep in peticion.dependencias)
                     if peticion.dependencias is not None
+                    else None
+                ),
+                tramos=(
+                    tuple(tramo.a_dominio() for tramo in peticion.tramos)
+                    if peticion.tramos is not None
                     else None
                 ),
                 frente_id=peticion.frente_id,

@@ -46,7 +46,7 @@ from obractrl.domain.obras.generacion import (
     planear_actividades,
 )
 from obractrl.domain.obras.reglas import Obra
-from obractrl.domain.programacion.cpm import Dependencia
+from obractrl.domain.programacion.cpm import Dependencia, Tramo
 from obractrl.domain.shared.diccionario import ClaseNodo, EstatusObra, ModoPago
 from obractrl.domain.shared.valores import Avance, Clave, Dinero, PrecioUnitario
 
@@ -122,6 +122,7 @@ def _a_item(fila: dict) -> ItemProgramaBase:
         dependencias=tuple(
             Dependencia.desde_jsonb(dep) for dep in (fila["dependencias"] or [])
         ),
+        tramos=tuple(Tramo.desde_jsonb(t) for t in (fila["tramos"] or [])),
         orden=fila["orden"],
     )
 
@@ -157,6 +158,7 @@ def _a_registro(planeada: ActividadPlaneada) -> dict:
                 for dep in planeada.dependencias
             ]
         ),
+        "tramos": json.dumps([tramo.a_jsonb() for tramo in planeada.tramos]),
     }
 
 

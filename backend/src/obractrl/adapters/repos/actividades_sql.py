@@ -29,14 +29,14 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from obractrl.application.puertos.repositorios import RegistroNoEncontrado
-from obractrl.domain.programacion.cpm import Dependencia, NodoCPM
+from obractrl.domain.programacion.cpm import Dependencia, NodoCPM, Tramo
 
 __all__ = ["ActividadNoModificada", "RepositorioActividadesSQL"]
 
 _COLUMNAS_PROGRAMACION = """
     id, prototipo_nodo_id, frente_id, etapa_id, nivel_id, descripcion,
-    duracion_dias, dependencias, fecha_inicio, fecha_termino, avance_pct,
-    estatus, bloqueada, es_critica, holgura, desfase
+    duracion_dias, dependencias, tramos, fecha_inicio, fecha_termino,
+    avance_pct, estatus, bloqueada, es_critica, holgura, desfase
 """
 """Lo que el cronograma y el Gantt necesitan de una actividad (§7.6, §11.2).
 
@@ -48,6 +48,7 @@ la programación mira fechas, duración y dependencias.
 _CAMPOS_PROGRAMACION = {
     "duracion_dias": "duracion_dias = :duracion_dias",
     "dependencias": "dependencias = cast(:dependencias as jsonb)",
+    "tramos": "tramos = cast(:tramos as jsonb)",
     "frente_id": "frente_id = cast(:frente_id as uuid)",
     "fecha_inicio": "fecha_inicio = :fecha_inicio",
     "fecha_termino": "fecha_termino = :fecha_termino",
@@ -269,7 +270,7 @@ class RepositorioActividadesSQL:
             await self._sesion.execute(
                 text(
                     """
-                    select id, duracion_dias, dependencias, avance_pct,
+                    select id, duracion_dias, dependencias, tramos, avance_pct,
                            fecha_termino, bloqueada
                     from actividad
                     where obra_id = :obra_id
@@ -288,6 +289,9 @@ class RepositorioActividadesSQL:
                     duracion_dias=float(fila["duracion_dias"]),
                     dependencias=tuple(
                         Dependencia.desde_jsonb(d) for d in fila["dependencias"]
+                    ),
+                    tramos=tuple(
+                        Tramo.desde_jsonb(t) for t in (fila["tramos"] or [])
                     ),
                     avance_pct=avance,
                     # `fecha_termino` guarda la fecha real solo una vez
@@ -419,8 +423,8 @@ class RepositorioActividadesSQL:
         sin eso no habría forma de saber contra qué versión del cronograma se
         midió un corte (§7.5).
 
-        Cada dict trae `id`, `duracion_dias`, `dependencias` (json ya
-        serializado), `frente_id`, `fecha_inicio` y `fecha_termino`.
+        Cada dict trae `id`, `duracion_dias`, `dependencias` y `tramos` (json
+        ya serializados), `frente_id`, `fecha_inicio` y `fecha_termino`.
         """
         if not programaciones:
             return
@@ -430,6 +434,7 @@ class RepositorioActividadesSQL:
                 "id": str(p["id"]),
                 "duracion_dias": p["duracion_dias"],
                 "dependencias": p["dependencias"],
+                "tramos": p["tramos"],
                 "frente_id": str(p["frente_id"]) if p.get("frente_id") else None,
                 "fecha_inicio": p.get("fecha_inicio"),
                 "fecha_termino": p.get("fecha_termino"),
@@ -443,6 +448,7 @@ class RepositorioActividadesSQL:
                 update actividad
                    set duracion_dias    = :duracion_dias,
                        dependencias     = cast(:dependencias as jsonb),
+                       tramos           = cast(:tramos as jsonb),
                        frente_id        = cast(:frente_id as uuid),
                        fecha_inicio     = :fecha_inicio,
                        fecha_termino    = :fecha_termino,

@@ -7449,6 +7449,13 @@
             "type": "array",
             "title": "Dependencias"
           },
+          "tramos": {
+            "items": {
+              "$ref": "#/components/schemas/TramoDTO"
+            },
+            "type": "array",
+            "title": "Tramos"
+          },
           "inicio_temprano": {
             "type": "string",
             "format": "date",
@@ -7498,6 +7505,7 @@
           "frente_id",
           "duracion_dias",
           "dependencias",
+          "tramos",
           "inicio_temprano",
           "fin_temprano",
           "inicio_tardio",
@@ -7577,6 +7585,13 @@
             "type": "array",
             "title": "Dependencias"
           },
+          "tramos": {
+            "items": {
+              "$ref": "#/components/schemas/TramoDTO"
+            },
+            "type": "array",
+            "title": "Tramos"
+          },
           "fecha_inicio": {
             "anyOf": [
               {
@@ -7652,6 +7667,7 @@
           "nivel_id",
           "duracion_dias",
           "dependencias",
+          "tramos",
           "fecha_inicio",
           "fecha_termino",
           "avance_pct",
@@ -9930,7 +9946,7 @@
           "tipo": {
             "type": "string",
             "title": "Tipo",
-            "description": "FS (fin→inicio) o SS (inicio→inicio).",
+            "description": "FS (fin→inicio), SS (inicio→inicio), FF (fin→fin) o SF (inicio→fin), como en MS Project.",
             "default": "FS"
           },
           "lag_dias": {
@@ -11453,6 +11469,14 @@
             "type": "array",
             "title": "Dependencias"
           },
+          "tramos": {
+            "items": {
+              "$ref": "#/components/schemas/TramoDTO"
+            },
+            "type": "array",
+            "title": "Tramos",
+            "description": "Interrupción de la actividad; vacío = continua. La interrupción vive en la plantilla porque es de la secuencia constructiva del prototipo (§7.6)."
+          },
           "orden": {
             "type": "integer",
             "title": "Orden",
@@ -11526,6 +11550,13 @@
             "type": "array",
             "title": "Dependencias"
           },
+          "tramos": {
+            "items": {
+              "$ref": "#/components/schemas/TramoDTO"
+            },
+            "type": "array",
+            "title": "Tramos"
+          },
           "orden": {
             "type": "integer",
             "title": "Orden"
@@ -11540,6 +11571,7 @@
           "frente_id",
           "duracion_dias",
           "dependencias",
+          "tramos",
           "orden"
         ],
         "title": "ItemProgramaBaseRespuesta"
@@ -12938,6 +12970,21 @@
             ],
             "title": "Dependencias"
           },
+          "tramos": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TramoDTO"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tramos",
+            "description": "Interrupción de la actividad. Una lista vacía le quita la interrupción; mandarla sin `duracion_dias` **deriva** la duración de la suma de los tramos (§7.6)."
+          },
           "frente_id": {
             "anyOf": [
               {
@@ -12977,7 +13024,7 @@
         },
         "type": "object",
         "title": "ProgramacionActividadPeticion",
-        "description": "§11.2 `PATCH /actividades/{id}/programacion`.\n\nSolo se cambia lo que llega. Una lista vacía de `dependencias` **sí** es un\ncambio: deja la actividad sin predecesoras."
+        "description": "§11.2 `PATCH /actividades/{id}/programacion`.\n\nSolo se cambia lo que llega. Una lista vacía de `dependencias` **sí** es un\ncambio: deja la actividad sin predecesoras; una de `tramos`, sin\ninterrupción."
       },
       "ProgramarIncidenciaPeticion": {
         "properties": {
@@ -14374,6 +14421,29 @@
         ],
         "title": "TrabajoRespuesta",
         "description": "Identificador con el que se sigue un reporte encolado (§11.2)."
+      },
+      "TramoDTO": {
+        "properties": {
+          "duracion_dias": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Duracion Dias",
+            "description": "Días de trabajo de este tramo (§7.6)."
+          },
+          "offset_dias": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Offset Dias",
+            "description": "Días desde el inicio de la actividad en que arranca el tramo. El primero arranca en 0.",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "duracion_dias"
+        ],
+        "title": "TramoDTO",
+        "description": "Un segmento de una actividad interrumpida (§7.6).\n\nLista vacía = actividad continua, el caso normal. Con tramos, la\n`duracion_dias` de la actividad es la **suma** de sus tramos —los días de\ntrabajo— y lo que ocupa en el calendario es\n`max(offset_dias + duracion_dias)`, que es lo que el CPM encadena."
       },
       "UnidadRespuesta": {
         "properties": {

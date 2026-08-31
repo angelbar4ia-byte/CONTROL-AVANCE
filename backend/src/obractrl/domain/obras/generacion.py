@@ -19,8 +19,10 @@ Tres fuentes se cruzan aquí:
   CPU no hay actividad: no se inventa un precio cero, se falla con la lista
   completa de conceptos sin precio para que Control de obra la corrija de una
   sola pasada;
-* **el programa base** (`ItemProgramaBase`) da `frente_id`, `duracion_dias` y
-  `dependencias`. Es opcional: sin programa base la actividad nace con un día
+* **el programa base** (`ItemProgramaBase`) da `frente_id`, `duracion_dias`,
+  `dependencias` y `tramos` —la interrupción de la actividad, §7.6, que es de
+  la secuencia constructiva del prototipo y por eso baja desde aquí. Es
+  opcional: sin programa base la actividad nace con un día
   de duración y sin frente, y la programación se ajusta después (§11.2
   `PATCH /actividades/{id}/programacion`).
 
@@ -40,7 +42,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 
 from obractrl.domain.obras.reglas import ErrorDeObra
-from obractrl.domain.programacion.cpm import Dependencia
+from obractrl.domain.programacion.cpm import Dependencia, Tramo
 from obractrl.domain.programacion.reglas import (
     DURACION_POR_DEFECTO,
     ItemProgramaBase,
@@ -99,6 +101,7 @@ class ActividadPlaneada:
     etapa_id: str | None = None
     duracion_dias: Decimal = _DURACION_POR_DEFECTO
     dependencias: tuple[Dependencia, ...] = field(default=())
+    tramos: tuple[Tramo, ...] = field(default=())
 
 
 def _indexar(nodos: Sequence[NodoPrototipo]) -> dict[str, NodoPrototipo]:
@@ -205,6 +208,10 @@ def planear_actividades(
                 etapa_id=etapa_id,
                 duracion_dias=item.duracion_dias if item else _DURACION_POR_DEFECTO,
                 dependencias=item.dependencias if item else (),
+                # Sin los tramos la actividad nacería con los días de trabajo
+                # del item pero sin el hueco, y su span saldría corto: las
+                # sucesoras arrancarían antes de que el último tramo cierre.
+                tramos=item.tramos if item else (),
             )
         )
 

@@ -26,11 +26,11 @@ Módulo puro: recibe y devuelve dataclasses, no toca la BD (§12.11).
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
 
-from obractrl.domain.programacion.cpm import Dependencia, NodoCPM
+from obractrl.domain.programacion.cpm import Dependencia, NodoCPM, Tramo, trabajo_de
 
 __all__ = [
     "DURACION_POR_DEFECTO",
@@ -43,7 +43,9 @@ __all__ = [
     "instanciar_programa",
     "item_aplicable",
     "nodos_cpm",
+    "normalizar_tramos",
     "validar_item_base",
+    "validar_tramos",
 ]
 
 DURACION_POR_DEFECTO = Decimal(1)
@@ -75,6 +77,12 @@ class ItemProgramaBase:
     frente_id: str | None = None
     dependencias: tuple[Dependencia, ...] = ()
     orden: int = 0
+    tramos: tuple[Tramo, ...] = ()
+    """Interrupción de la actividad (§7.6). Vive en la plantilla y no solo en
+    la obra porque partir el muro para colar la losa es de la **secuencia
+    constructiva del prototipo**, no un ajuste de una obra concreta: si solo
+    viviera en `actividad`, cada obra generada tendría que volver a partirlo a
+    mano."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +104,7 @@ class ActividadProgramable:
     fecha_termino: date | None = None
     avance_pct: Decimal = Decimal(0)
     bloqueada: bool = False
+    tramos: tuple[Tramo, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +117,7 @@ class ProgramacionDeActividad:
     frente_id: str | None = None
     fecha_inicio: date | None = None
     fecha_termino: date | None = None
+    tramos: tuple[Tramo, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,12 +136,103 @@ class ProgramaInstanciado:
     refs_no_resueltas: tuple[str, ...] = ()
 
 
+def normalizar_tramos(tramos: Sequence[Tramo]) -> tuple[Tramo, ...]:
+    """Forma canónica de una lista de tramos (§7.6).
+
+    Un solo tramo **es** una actividad sin interrupción, así que colapsa a la
+    lista vacía: si no, el mismo cronograma tendría dos representaciones —una
+    con `tramos: []` y otra con un tramo que cubre toda la duración— y el
+    Gantt dibujaría un split de un solo pedazo.
+
+    No ordena ni corrige nada más: los tramos desordenados son un error del
+    cliente, no algo que el dominio deba adivinar (`validar_tramos`).
+    """
+    if len(tramos) <= 1:
+        return ()
+    return tuple(tramos)
+
+
+def validar_tramos(
+    tramos: Sequence[Tramo], duracion_dias: Decimal, *, sujeto: str
+) -> tuple[Tramo, ...]:
+    """Invariantes de la interrupción de una actividad (§7.6).
+
+    Un tramo trabaja días positivos, arranca en un desplazamiento no negativo,
+    y los tramos vienen ordenados y sin traslape: dos tramos que se pisan no
+    son una interrupción, son un error de captura que dejaría un span mentiroso
+    (`span_de` toma el máximo, así que el traslape pasaría inadvertido).
+
+    El primero arranca en `offset_dias = 0`. Un hueco por delante no es una
+    interrupción —es que la actividad empieza más tarde—, y eso se expresa con
+    un lag en su dependencia, donde el CPM lo puede razonar.
+
+    `duracion_dias` es la suma de los tramos: los días de **trabajo** son la
+    cifra que consumen costo, recursos y destajo, y tenerla como un segundo
+    número capturable a mano garantizaba que tarde o temprano discrepara del
+    detalle. Devuelve los tramos normalizados.
+
+    Raises:
+        ErrorDeProgramacion: cualquiera de las invariantes anteriores.
+    """
+    normalizados = normalizar_tramos(tramos)
+    if not normalizados:
+        return ()
+
+    anterior: Tramo | None = None
+    for tramo in normalizados:
+        if tramo.duracion_dias <= 0:
+            raise ErrorDeProgramacion(
+                f"Un tramo de {sujeto} dura {tramo.duracion_dias} días: la "
+                f"duración de un tramo debe ser positiva (§7.6)."
+            )
+        if tramo.offset_dias < 0:
+            raise ErrorDeProgramacion(
+                f"Un tramo de {sujeto} arranca en el día {tramo.offset_dias}: "
+                f"el desplazamiento de un tramo se mide desde el inicio de la "
+                f"actividad y no puede ser negativo (§7.6)."
+            )
+        if anterior is None:
+            if tramo.offset_dias != 0:
+                raise ErrorDeProgramacion(
+                    f"El primer tramo de {sujeto} arranca en el día "
+                    f"{tramo.offset_dias} y no en el 0: un hueco por delante no "
+                    f"es una interrupción, es una fecha de inicio más tarde — "
+                    f"exprésala con el lag de su dependencia (§6)."
+                )
+        elif tramo.offset_dias < anterior.fin_dias:
+            raise ErrorDeProgramacion(
+                f"Dos tramos de {sujeto} se traslapan: el que arranca en el día "
+                f"{tramo.offset_dias} pisa al que cierra en el "
+                f"{anterior.fin_dias}. Los tramos van ordenados y sin "
+                f"encimarse (§7.6)."
+            )
+        anterior = tramo
+
+    trabajo = trabajo_de(0.0, normalizados)
+    # Comparación con tolerancia y no exacta: los tramos viajan como float en
+    # el jsonb y `duracion_dias` es un `numeric(8,2)`, así que 4.1 + 4.2 no da
+    # exactamente 8.3 por ningún lado. La tolerancia es más fina que los dos
+    # decimales que la columna guarda.
+    if abs(trabajo - float(duracion_dias)) > 1e-6:
+        raise ErrorDeProgramacion(
+            f"Los tramos de {sujeto} suman {trabajo} días de trabajo pero su "
+            f"duración dice {duracion_dias}: la duración de una actividad "
+            f"interrumpida es la suma de sus tramos, no el calendario que "
+            f"ocupan (§7.6)."
+        )
+
+    return normalizados
+
+
 def validar_item_base(item: ItemProgramaBase) -> ItemProgramaBase:
     """Invariantes de un renglón de plantilla (§7.5).
 
     Espeja el `check (duracion_dias > 0)` de
     `database/migrations/20260814000006`: la regla se define aquí y la base la
     repite (§12.11, invariante 2 del roadmap).
+
+    Devuelve el item con sus `tramos` normalizados (`normalizar_tramos`), que
+    es lo que debe persistirse.
     """
     if item.duracion_dias <= 0:
         raise ErrorDeProgramacion(
@@ -153,7 +254,14 @@ def validar_item_base(item: ItemProgramaBase) -> ItemProgramaBase:
                 f"eso es un ciclo de longitud 1 (§6)."
             )
 
-    return item
+    tramos = validar_tramos(
+        item.tramos,
+        item.duracion_dias,
+        sujeto=f"el renglón {item.prototipo_nodo_id or item.etapa_id!r}",
+    )
+    if tramos == item.tramos:
+        return item
+    return replace(item, tramos=tramos)
 
 
 def item_aplicable(
@@ -285,11 +393,12 @@ def instanciar_programa(
                     frente_id=actividad.frente_id,
                     fecha_inicio=actividad.fecha_inicio,
                     fecha_termino=actividad.fecha_termino,
+                    tramos=actividad.tramos,
                 )
             )
             continue
 
-        validar_item_base(item)
+        item = validar_item_base(item)
         programadas.append(
             ProgramacionDeActividad(
                 actividad_id=actividad.id,
@@ -307,6 +416,11 @@ def instanciar_programa(
                 frente_id=item.frente_id or actividad.frente_id,
                 fecha_inicio=actividad.fecha_inicio,
                 fecha_termino=actividad.fecha_termino,
+                # Los tramos viajan con la duración, no aparte: son la misma
+                # decisión —cuánto trabajo y repartido cómo— y una plantilla
+                # que impusiera su duración dejando los tramos viejos de la
+                # actividad dejaría la suma sin cuadrar (`validar_tramos`).
+                tramos=item.tramos,
             )
         )
 
@@ -325,12 +439,20 @@ def editar_programacion(
     frente_id: str | None = None,
     fecha_inicio: date | None = None,
     fecha_termino: date | None = None,
+    tramos: Sequence[Tramo] | None = None,
     refs_de_la_obra: frozenset[str] = frozenset(),
 ) -> ProgramacionDeActividad:
     """Ajuste manual del cronograma de una actividad (§11.2 `PATCH`).
 
     Solo se cambia lo que llega; lo demás se conserva. Una lista vacía de
-    `dependencias` **sí** es un cambio: deja la actividad sin predecesoras.
+    `dependencias` **sí** es un cambio: deja la actividad sin predecesoras, y
+    una lista vacía de `tramos` le quita la interrupción.
+
+    `tramos` y `duracion_dias` se validan juntos porque la duración es la suma
+    de los tramos (§7.6): partir una actividad sin decir su nueva duración la
+    **deriva** de los tramos —es el gesto natural del editor gráfico, arrastrar
+    los pedazos—, y mandar las dos cosas en desacuerdo es un error del cliente
+    que se rechaza en vez de resolverse a favor de una de las dos.
 
     `refs_de_la_obra` son los ids de actividad del cronograma; una dependencia
     fuera de ese conjunto se rechaza en vez de ignorarse. El motor tolera
@@ -347,12 +469,27 @@ def editar_programacion(
         ErrorDeProgramacion: duración no positiva, fechas invertidas,
             autodependencia o dependencia fuera de la obra.
     """
-    nueva_duracion = actual.duracion_dias if duracion_dias is None else duracion_dias
+    nuevos_tramos = actual.tramos if tramos is None else normalizar_tramos(tramos)
+
+    if duracion_dias is not None:
+        nueva_duracion = duracion_dias
+    elif tramos is not None and nuevos_tramos:
+        # Se parte la actividad sin recapturar su duración: la suma de los
+        # tramos ya la dice, y pedírsela al cliente solo abriría la puerta a
+        # que discrepen.
+        nueva_duracion = Decimal(str(trabajo_de(0.0, nuevos_tramos)))
+    else:
+        nueva_duracion = actual.duracion_dias
+
     if nueva_duracion <= 0:
         raise ErrorDeProgramacion(
             f"La duración de una actividad debe ser positiva; llegó "
             f"{nueva_duracion} (§7.6)."
         )
+
+    nuevos_tramos = validar_tramos(
+        nuevos_tramos, nueva_duracion, sujeto=f"la actividad {actual.id!r}"
+    )
 
     nuevas_deps = (
         actual.dependencias if dependencias is None else tuple(dependencias)
@@ -394,6 +531,7 @@ def editar_programacion(
         frente_id=actual.frente_id if frente_id is None else frente_id,
         fecha_inicio=nuevo_inicio,
         fecha_termino=nuevo_termino,
+        tramos=nuevos_tramos,
     )
 
 
@@ -431,6 +569,10 @@ def nodos_cpm(
                 # invalidaría el cálculo del desfase (§6).
                 fecha_real_termino=actividad.fecha_termino if avance >= 100 else None,
                 bloqueada=actividad.bloqueada,
+                # Los tramos siguen a la duración: si se está evaluando una
+                # programación propuesta, el span que el motor debe usar es el
+                # de esa propuesta, no el de la interrupción ya persistida.
+                tramos=plan.tramos if plan else actividad.tramos,
             )
         )
 

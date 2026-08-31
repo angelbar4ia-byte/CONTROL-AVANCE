@@ -47,6 +47,7 @@ from obractrl.domain.programacion.cpm import (
     CicloEnGrafoError,
     Dependencia,
     ResultadoCPM,
+    Tramo,
     calcular_cpm,
 )
 from obractrl.domain.programacion.reglas import (
@@ -128,7 +129,8 @@ class ComandoEditarProgramacion:
     """§11.2 `PATCH /actividades/{id}/programacion` (Supervisor, C).
 
     `None` significa "no lo mandaron"; una lista vacía de `dependencias` sí
-    es un cambio —deja la actividad sin predecesoras.
+    es un cambio —deja la actividad sin predecesoras—, y una de `tramos` le
+    quita la interrupción a la actividad (§7.6).
     """
 
     actividad_id: UUID
@@ -137,6 +139,7 @@ class ComandoEditarProgramacion:
     frente_id: UUID | None = None
     fecha_inicio: date | None = None
     fecha_termino: date | None = None
+    tramos: tuple[Tramo, ...] | None = None
 
 
 # --- Resultados ----------------------------------------------------------
@@ -167,6 +170,7 @@ class ActividadEnRuta:
     es_critica: bool
     bloqueada: bool
     avance_pct: Decimal
+    tramos: tuple[Tramo, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,6 +227,7 @@ def _a_actividad(fila: dict) -> ActividadProgramable:
         fecha_termino=fila["fecha_termino"],
         avance_pct=Decimal(str(fila["avance_pct"] or 0)),
         bloqueada=bool(fila["bloqueada"]),
+        tramos=tuple(Tramo.desde_jsonb(t) for t in (fila["tramos"] or [])),
     )
 
 
@@ -237,6 +242,7 @@ def _a_item(fila: dict) -> ItemProgramaBase:
         dependencias=tuple(
             Dependencia.desde_jsonb(dep) for dep in (fila["dependencias"] or [])
         ),
+        tramos=tuple(Tramo.desde_jsonb(t) for t in (fila["tramos"] or [])),
         orden=fila["orden"],
     )
 
@@ -252,11 +258,18 @@ def _serializar(dependencias: tuple[Dependencia, ...]) -> str:
     )
 
 
+def _serializar_tramos(tramos: tuple[Tramo, ...]) -> str:
+    """Misma forma que escribe el workflow A (§11.3 A.2), para que el jsonb de
+    `actividad.tramos` tenga una sola representación."""
+    return json.dumps([tramo.a_jsonb() for tramo in tramos])
+
+
 def _a_registro(programacion: ProgramacionDeActividad) -> dict:
     return {
         "id": programacion.actividad_id,
         "duracion_dias": programacion.duracion_dias,
         "dependencias": _serializar(programacion.dependencias),
+        "tramos": _serializar_tramos(programacion.tramos),
         "frente_id": programacion.frente_id,
         "fecha_inicio": programacion.fecha_inicio,
         "fecha_termino": programacion.fecha_termino,
@@ -290,6 +303,7 @@ def _ensamblar_ruta(
             es_critica=resultado.es_critica,
             bloqueada=bool(fila["bloqueada"]),
             avance_pct=Decimal(str(fila["avance_pct"] or 0)),
+            tramos=tuple(Tramo.desde_jsonb(t) for t in (fila["tramos"] or [])),
         )
         for fila in filas
         if (resultado := resultados.get(str(fila["id"]))) is not None
@@ -388,6 +402,7 @@ class CrearProgramaBase:
                             }
                             for dep in item.dependencias
                         ],
+                        "tramos": [tramo.a_jsonb() for tramo in item.tramos],
                         # Sin `orden` explícito manda la posición en la que
                         # llegó el renglón: es la que el cliente ve (§7.5).
                         "orden": item.orden or orden,
@@ -620,6 +635,7 @@ class EditarProgramacionActividad:
             frente_id=str(cmd.frente_id) if cmd.frente_id else None,
             fecha_inicio=cmd.fecha_inicio,
             fecha_termino=cmd.fecha_termino,
+            tramos=cmd.tramos,
             refs_de_la_obra=frozenset(a.id for a in actividades),
         )
 
@@ -675,6 +691,13 @@ def _cambios(
         cambios["duracion_dias"] = programacion.duracion_dias
     if cmd.dependencias is not None:
         cambios["dependencias"] = _serializar(programacion.dependencias)
+    if cmd.tramos is not None:
+        cambios["tramos"] = _serializar_tramos(programacion.tramos)
+        # Partir una actividad redefine sus días de trabajo (`editar_programacion`
+        # los deriva de la suma de los tramos), así que la duración se escribe
+        # aunque el cliente no la haya mandado: dejar la columna con el valor
+        # viejo la desincronizaría del detalle que sí se guardó.
+        cambios["duracion_dias"] = programacion.duracion_dias
     if cmd.frente_id is not None:
         cambios["frente_id"] = programacion.frente_id
     if cmd.fecha_inicio is not None:

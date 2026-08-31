@@ -335,7 +335,7 @@ class RepositorioObrasSQL:
                 text(
                     """
                     select i.prototipo_nodo_id, i.frente_id, i.etapa_id,
-                           i.duracion_dias, i.dependencias, i.orden
+                           i.duracion_dias, i.dependencias, i.tramos, i.orden
                     from programa_base_item i
                     join programa_base b on b.id = i.programa_base_id
                     where b.prototipo_id = :prototipo_id
@@ -387,8 +387,8 @@ class RepositorioObrasSQL:
         `trg_actividad_recalcular` (§6, migración 0007), que es el espejo en BD
         de la misma regla. Cada dict trae `concepto_id`, `prototipo_nodo_id`,
         `descripcion`, `cant_base`, `precio_unitario`, `precio_destajo`,
-        `modo_pago`, `duracion_dias`, `dependencias` (json ya serializado) y,
-        opcionales, `frente_id`, `nivel_id` y `etapa_id`.
+        `modo_pago`, `duracion_dias`, `dependencias` y `tramos` (json ya
+        serializados) y, opcionales, `frente_id`, `nivel_id` y `etapa_id`.
         """
         if not actividades:
             return
@@ -411,6 +411,7 @@ class RepositorioObrasSQL:
                 "modo_pago": a["modo_pago"],
                 "duracion_dias": a["duracion_dias"],
                 "dependencias": a["dependencias"],
+                "tramos": a["tramos"],
             }
             for a in actividades
         ]
@@ -423,7 +424,7 @@ class RepositorioObrasSQL:
                      prototipo_nodo_id, frente_id,
                      nivel_id, etapa_id, descripcion, cant_base,
                      precio_unitario, precio_destajo, modo_pago, duracion_dias,
-                     dependencias)
+                     dependencias, tramos)
                 values
                     (cast(current_setting('app.org_id') as uuid),
                      cast(:obra_id as uuid), cast(:programa_obra_id as uuid),
@@ -432,7 +433,8 @@ class RepositorioObrasSQL:
                      cast(:nivel_id as uuid), cast(:etapa_id as uuid),
                      :descripcion, :cant_base, :precio_unitario,
                      :precio_destajo, cast(:modo_pago as modo_pago),
-                     :duracion_dias, cast(:dependencias as jsonb))
+                     :duracion_dias, cast(:dependencias as jsonb),
+                     cast(:tramos as jsonb))
                 """
             ),
             params,

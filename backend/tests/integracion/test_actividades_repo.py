@@ -242,6 +242,7 @@ async def test_programacion_de_obra_y_de_una_actividad(
     assert una["obra_id"] == escenario.obra_id
     assert una["duracion_dias"] == Decimal("1.00")
     assert una["dependencias"] == []
+    assert una["tramos"] == []  # sin interrupción: el caso de siempre
     assert una["prototipo_nodo_id"] is None
 
 
@@ -260,6 +261,8 @@ async def test_aplicar_programacion_ata_la_actividad_a_su_programa(
                     "id": escenario.actividad_id,
                     "duracion_dias": Decimal("4.5"),
                     "dependencias": '[{"ref": "otra", "tipo": "SS", "lag_dias": 1}]',
+                    "tramos": '[{"duracion_dias": 10, "offset_dias": 0}, '
+                    '{"duracion_dias": 4, "offset_dias": 15}]',
                     "frente_id": None,
                     "fecha_inicio": date(2026, 3, 2),
                     "fecha_termino": None,
@@ -276,6 +279,12 @@ async def test_aplicar_programacion_ata_la_actividad_a_su_programa(
     assert fila is not None
     assert fila["duracion_dias"] == Decimal("4.50")
     assert fila["dependencias"] == [{"ref": "otra", "tipo": "SS", "lag_dias": 1}]
+    # La interrupción baja con el resto de la programación (§7.6): el jsonb
+    # regresa deserializado, igual que `dependencias`.
+    assert fila["tramos"] == [
+        {"duracion_dias": 10, "offset_dias": 0},
+        {"duracion_dias": 4, "offset_dias": 15},
+    ]
     assert fila["fecha_inicio"] == date(2026, 3, 2)
     assert fila["programa_obra_id"] == programa["id"]
 
