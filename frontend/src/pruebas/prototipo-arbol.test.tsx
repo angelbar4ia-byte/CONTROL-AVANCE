@@ -154,7 +154,10 @@ describe('ArbolPrototipo', () => {
   it('la raíz (el prototipo) arranca abierta; nivel y etapa siguen plegados', () => {
     render(<ArbolPrototipo raiz={armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST])} />);
 
-    expect(screen.getByRole('button', { name: /CAS-1 Casa modelo/ })).toHaveAttribute(
+    // La clave ahora vive en su propia columna (después del nombre en el
+    // orden del DOM, no ya pegada al texto de Concepto) — el nombre solo
+    // ya identifica el botón sin ambigüedad.
+    expect(screen.getByRole('button', { name: /Casa modelo/ })).toHaveAttribute(
       'aria-expanded',
       'true',
     );
@@ -234,10 +237,17 @@ describe('ArbolPrototipo', () => {
 
     it('muestra la cabecera de columnas', () => {
       render(<ArbolPrototipo raiz={armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST])} expandirTodo />);
+      expect(screen.getByText('Clave')).toBeInTheDocument();
       expect(screen.getByText('Unidad')).toBeInTheDocument();
       expect(screen.getByText('Cantidad')).toBeInTheDocument();
       expect(screen.getByText('P.U.')).toBeInTheDocument();
       expect(screen.getByText('Importe')).toBeInTheDocument();
+    });
+
+    it('la clave del concepto vive en su propia columna, no pegada al nombre', () => {
+      render(<ArbolPrototipo raiz={armarArbolPrototipo(PROTOTIPO, [NIV, ECO, EST])} expandirTodo />);
+      expect(screen.getByText('EST-01')).toBeInTheDocument();
+      expect(screen.getByText('Losa de cimentación')).toBeInTheDocument();
     });
 
     it('muestra unidad, cantidad, PU e importe del concepto con partida', () => {
