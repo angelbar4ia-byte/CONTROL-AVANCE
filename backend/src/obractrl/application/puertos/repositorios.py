@@ -312,9 +312,11 @@ class RepositorioPrototipoNodo(Protocol):
     Hasta el cargador de presupuesto jerárquico (§10.6) nadie escribía esta
     tabla — `RepositorioObras.arbol_prototipo` solo la lee (§11.1, otra
     fachada, otro contexto). La clave de un nodo (`NIV-`, `ECO-`) no es
-    única por organización: se repite igual en cada prototipo, así que la
-    identidad natural es `(prototipo_id, clave)` (`uq_prototipo_nodo_clave`,
-    migración 0030).
+    única por organización: se repite igual en cada prototipo, y tampoco es
+    única DENTRO de un prototipo — la misma clave de `CONCEPTO` puede colgar
+    de dos etapas distintas del mismo prototipo. La identidad natural es
+    `(prototipo_id, parent_id, clave)` (`uq_prototipo_nodo_posicion`,
+    migración 0038).
     """
 
     async def por_prototipo(self, prototipo_id: UUID) -> list[dict]:
