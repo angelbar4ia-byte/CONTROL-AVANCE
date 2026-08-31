@@ -774,7 +774,7 @@ def test_dos_prototipos_con_clave_de_nodo_identica_se_resuelven_independientes()
     assert omitidos == 0
     assert {a.clave_prototipo for a in arboles} == {"CAS-1", "CAS-2"}
     for arbol in arboles:
-        hijos = arbol.hijos.get(arbol.clave_prototipo, ())
+        hijos = arbol.hijos.get(arbol.raiz.fila, ())
         assert [h.clave for h in hijos] == ["NIV-1"]
 
 
@@ -803,7 +803,7 @@ def test_un_tipo_desconocido_va_a_la_bandeja_y_el_resto_sigue() -> None:
     assert len(pendientes) == 1
     assert pendientes[0].tipo is TipoPendiente.FILA_NO_PARSEADA
     (arbol,) = arboles
-    assert [h.clave for h in arbol.hijos.get("CAS-1", ())] == ["NIV-2"]
+    assert [h.clave for h in arbol.hijos.get(arbol.raiz.fila, ())] == ["NIV-2"]
 
 
 # --- WBS opcional del archivo (§7.4, no crítico) --------------------------
@@ -841,7 +841,7 @@ def test_wbs_del_archivo_distinta_de_la_esperada_avisa_sin_bloquear() -> None:
 
     assert not errores  # no bloquea: sigue siendo un árbol válido
     (arbol,) = arboles
-    assert [h.clave for h in arbol.hijos.get("CAS-1", ())] == ["NIV-1"]
+    assert [h.clave for h in arbol.hijos.get(arbol.raiz.fila, ())] == ["NIV-1"]
 
     assert len(pendientes) == 1
     pendiente = pendientes[0]
@@ -877,7 +877,37 @@ def test_prototipo_repetido_en_el_archivo_gana_el_ultimo() -> None:
     assert omitidos == 1
     (arbol,) = arboles
     assert arbol.raiz.descripcion == "Zafiro v2"
-    assert [h.clave for h in arbol.hijos.get("CAS-1", ())] == ["NIV-2"]
+    assert [h.clave for h in arbol.hijos.get(arbol.raiz.fila, ())] == ["NIV-2"]
+
+
+def test_una_clave_de_concepto_repetida_en_dos_etapas_del_mismo_prototipo_no_mezcla_hijos() -> None:
+    """Bug real: `EST-02010` cuelga de dos etapas distintas del mismo
+    prototipo (archivo real, `CAS-00004`), cada una con su propio material.
+    Indexar `hijos` por clave del padre las fusionaría en una sola lista —
+    debe indexarse por la fila del padre (§construir_arboles)."""
+    filas = [
+        (2, _fila_presupuesto(1, None, "CAS-1", "Zafiro", tipo="PROTOTIPO")),
+        (3, _fila_presupuesto(1, "CAS-1", "NIV-1", "Planta baja", tipo="NIVEL DE CONSTRUCCION")),
+        (4, _fila_presupuesto(1, "NIV-1", "ECO-1", "Muros", tipo="ETAPA DE CONSTRUCCION")),
+        (5, _fila_presupuesto(1, "ECO-1", "EST-1", "Muro de 14", "M2", 10, "0", "0", tipo="CONCEPTO")),
+        (6, _fila_presupuesto(1, "EST-1", "MAT-A", "Block", "PZ", 100, "10", "1000", tipo="MATERIAL")),
+        (7, _fila_presupuesto(2, "NIV-1", "ECO-2", "Castillos", tipo="ETAPA DE CONSTRUCCION")),
+        (8, _fila_presupuesto(1, "ECO-2", "EST-1", "Muro de 14", "M2", 5, "0", "0", tipo="CONCEPTO")),
+        (9, _fila_presupuesto(1, "EST-1", "MAT-B", "Cemento", "KG", 50, "5", "250", tipo="MATERIAL")),
+    ]
+    arboles, errores, _pendientes, _omitidos = construir_arboles(filas, _MAPA_PRESUPUESTO)
+
+    assert not errores
+    (arbol,) = arboles
+    hijos_eco1 = [h.clave for h in arbol.hijos.get(4, ())]
+    hijos_eco2 = [h.clave for h in arbol.hijos.get(7, ())]
+    assert hijos_eco1 == ["EST-1"]
+    assert hijos_eco2 == ["EST-1"]
+
+    primer_est1 = arbol.hijos[4][0]
+    segundo_est1 = arbol.hijos[7][0]
+    assert [h.clave for h in arbol.hijos.get(primer_est1.fila, ())] == ["MAT-A"]
+    assert [h.clave for h in arbol.hijos.get(segundo_est1.fila, ())] == ["MAT-B"]
 
 
 def test_una_etapa_con_hijos_puro_material_actua_como_concepto() -> None:

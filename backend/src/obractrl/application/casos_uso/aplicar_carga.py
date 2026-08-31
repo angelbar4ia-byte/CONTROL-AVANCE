@@ -2810,13 +2810,17 @@ class AplicadorPresupuesto:
             # Capturado una vez por prototipo, antes de tocar nada: es el
             # `antes` que la reversa necesita por nodo (§10.8) — el `id` que
             # conserva un upsert no basta, hace falta el valor previo.
+            # Por `(parent_id, clave)`, no solo clave: la misma clave puede
+            # colgar de dos padres distintos dentro del mismo prototipo
+            # (`uq_prototipo_nodo_posicion`, migración 0038) — indexar solo
+            # por clave dejaría una de las dos ocurrencias sin su `anterior`.
             nodos_existentes = {
-                str(f["clave"]): dict(f)
+                (f["parent_id"], str(f["clave"])): dict(f)
                 for f in await self._prototipo_nodos.por_prototipo(prototipo["id"])
                 if f["clave"]
             }
 
-            for hijo in arbol.hijos.get(arbol.clave_prototipo, ()):
+            for hijo in arbol.hijos.get(arbol.raiz.fila, ()):
                 await self._procesar_subarbol(
                     arbol=arbol,
                     nodo=hijo,
@@ -2934,7 +2938,7 @@ class AplicadorPresupuesto:
         nuevas_unidades: dict[str, UUID | None],
         catalogo_conceptos: dict[str, dict[str, Any]],
         firma_cache: dict[str, str],
-        nodos_existentes: dict[str, dict[str, Any]],
+        nodos_existentes: dict[tuple[UUID | None, str], dict[str, Any]],
         operaciones: list[dict[str, Any]],
         partidas: list[dict[str, Any]],
         errores: list[ErrorDeFila],
@@ -2993,7 +2997,7 @@ class AplicadorPresupuesto:
             )
             return
 
-        anterior = nodos_existentes.get(nodo.clave)
+        anterior = nodos_existentes.get((parent_id_db, nodo.clave))
         es_alta = anterior is None
         contadores["nodos_creados" if es_alta else "nodos_actualizados"] += 1
 
@@ -3042,7 +3046,7 @@ class AplicadorPresupuesto:
                 )
             )
 
-        for hijo in arbol.hijos.get(nodo.clave, ()):
+        for hijo in arbol.hijos.get(nodo.fila, ()):
             await self._procesar_subarbol(
                 arbol=arbol,
                 nodo=hijo,
@@ -3090,7 +3094,7 @@ class AplicadorPresupuesto:
         nuevas_unidades: dict[str, UUID | None],
         catalogo_conceptos: dict[str, dict[str, Any]],
         firma_cache: dict[str, str],
-        nodos_existentes: dict[str, dict[str, Any]],
+        nodos_existentes: dict[tuple[UUID | None, str], dict[str, Any]],
         operaciones: list[dict[str, Any]],
         partidas: list[dict[str, Any]],
         errores: list[ErrorDeFila],
@@ -3142,7 +3146,7 @@ class AplicadorPresupuesto:
         filas_explosion: list[dict[str, Any]] = []
         incompleto = False
 
-        for hijo in arbol.hijos.get(nodo.clave, ()):
+        for hijo in arbol.hijos.get(nodo.fila, ()):
             categoria = _CATEGORIA_POR_TIPO_NODO.get(hijo.tipo)
             if categoria is None:
                 # No debería pasar: `construir_arboles` solo cuelga hojas de
@@ -3537,7 +3541,7 @@ class AplicadorPresupuesto:
         parent_id_db: UUID | None,
         prototipo_id: UUID,
         dry_run: bool,
-        nodos_existentes: dict[str, dict[str, Any]],
+        nodos_existentes: dict[tuple[UUID | None, str], dict[str, Any]],
         operaciones: list[dict[str, Any]],
         partidas: list[dict[str, Any]],
         contadores: dict[str, int],
@@ -3550,7 +3554,7 @@ class AplicadorPresupuesto:
         contadores["partidas"] += 1
         cantidad_partida = nodo.cantidad if nodo.cantidad is not None else Decimal(1)
 
-        anterior_nodo = nodos_existentes.get(nodo.clave)
+        anterior_nodo = nodos_existentes.get((parent_id_db, nodo.clave))
         contadores["nodos_creados" if anterior_nodo is None else "nodos_actualizados"] += 1
 
         if dry_run:

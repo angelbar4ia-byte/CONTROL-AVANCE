@@ -2427,6 +2427,54 @@ async def test_dos_prototipos_con_la_misma_clave_de_concepto_cpu_la_comparten(
     assert partidas10[0]["precio_unitario"] == partidas11[0]["precio_unitario"]
 
 
+async def test_una_clave_de_concepto_repetida_en_dos_etapas_del_mismo_prototipo_no_se_pisan(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """Bug real reportado con datos de producción (`CAS-00004`, archivo de 7
+    prototipos/8014 filas): `EST-02010` cuelga de dos etapas distintas del
+    MISMO prototipo. Antes de `uq_prototipo_nodo_posicion` (migración 0038)
+    el `upsert` por `(prototipo_id, clave)` hacía que la segunda ocurrencia
+    pisara `parent_id` de la primera — la primera "desaparecía" de su etapa
+    en el árbol renderizado, que es justo lo que se reportó."""
+    await _con_prototipos(contexto_control, "CAS-20")
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.PRESUPUESTO,
+        _archivo_presupuesto(
+            [
+                [1, None, "CAS-20", "Prototipo", None, None, None, None, "PROTOTIPO"],
+                [1, "CAS-20", "NIV-1", "Planta baja", None, None, None, None, "NIVEL DE CONSTRUCCION"],
+                [1, "NIV-1", "ECO-1", "Muros", None, None, None, None, "ETAPA DE CONSTRUCCION"],
+                [1, "ECO-1", "EST-1", "Muro de 14", None, 1, 0, 0, "CONCEPTO"],
+                [1, "EST-1", "ACE-01", "Alambre", "KG", 10, 20, None, "MATERIAL"],
+                [2, "NIV-1", "ECO-2", "Castillos", None, None, None, None, "ETAPA DE CONSTRUCCION"],
+                [1, "ECO-2", "EST-1", "Muro de 14", None, 1, 0, 0, "CONCEPTO"],
+                [1, "EST-1", "ACE-01", "Alambre", "KG", 20, 20, None, "MATERIAL"],
+            ]
+        ),
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+
+    prototipo_id = (await _prototipos(contexto_control))["CAS-20"]["id"]
+    async with sesion_con_rls(contexto_control) as sesion:
+        nodos = await RepositorioPrototipoNodoSQL(sesion).por_prototipo(prototipo_id)
+
+    eco1 = next(n for n in nodos if n["clave"] == "ECO-1")
+    eco2 = next(n for n in nodos if n["clave"] == "ECO-2")
+    por_clave_y_padre = {(n["clave"], n["parent_id"]): n for n in nodos}
+
+    # Las dos ocurrencias de EST-1 existen, cada una bajo su propia etapa —
+    # antes del fix, una de estas dos búsquedas fallaba (KeyError): la fila
+    # había sido reparentada a la otra etapa por el upsert colisionado.
+    est1_bajo_eco1 = por_clave_y_padre[("EST-1", eco1["id"])]
+    est1_bajo_eco2 = por_clave_y_padre[("EST-1", eco2["id"])]
+    assert est1_bajo_eco1["id"] != est1_bajo_eco2["id"]
+    assert sum(1 for n in nodos if n["clave"] == "EST-1") == 2
+
+
 async def test_un_insumo_desconocido_en_presupuesto_se_da_de_alta_solo(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:

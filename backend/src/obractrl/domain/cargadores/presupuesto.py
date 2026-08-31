@@ -15,7 +15,12 @@ A diferencia de `agrupar_conceptos` (`cpu.py`), que mantiene un solo "bloque
 abierto" de un nivel, aquí hace falta reconstruir un árbol real: la clave de
 un nodo (`NIV-00001`, `ECO-00001`...) **no es única en el archivo** — se
 repite idéntica en cada prototipo, así que el mapa de resolución de padres
-se reinicia en cada fila `PROTOTIPO` (§construir_arboles).
+se reinicia en cada fila `PROTOTIPO` (§construir_arboles). Tampoco es única
+DENTRO de un prototipo: la misma clave de `CONCEPTO` puede colgar de dos
+`ETAPA` distintas del mismo prototipo (verificado contra el archivo real).
+Por eso `hijos` se indexa por la fila del padre, no por su clave — dos
+ocurrencias de la misma clave son dos padres distintos, cada uno con su
+propia lista de hijos (§construir_arboles).
 
 Módulo puro (§12.11).
 """
@@ -120,8 +125,13 @@ class ArbolPrototipoCargado:
 
     clave_prototipo: str
     raiz: NodoLeido
-    hijos: dict[str, tuple[NodoLeido, ...]]
-    """Clave del padre → sus hijos directos, en el orden del archivo."""
+    hijos: dict[int, tuple[NodoLeido, ...]]
+    """`fila` del padre → sus hijos directos, en el orden del archivo.
+
+    Por fila del padre y no por su clave: la misma clave (`ECO-00006`) puede
+    repetirse en dos posiciones distintas del mismo prototipo, y cada una
+    tiene su propia lista de hijos — indexar por clave las fusionaría en
+    una sola (bug real, ver módulo)."""
 
     nodos: dict[str, NodoLeido]
     """Clave → nodo. Atajo de consulta para el aplicador; no reemplaza a
@@ -143,7 +153,7 @@ def es_etapa_con_componentes_directos(arbol: ArbolPrototipoCargado, nodo: NodoLe
     BAJA"`). Decidir esto es del aplicador —quien conoce el catálogo—, no
     del parseo; esta función solo describe la forma del árbol leído.
     """
-    hijos = arbol.hijos.get(nodo.clave, ())
+    hijos = arbol.hijos.get(nodo.fila, ())
     if nodo.tipo is not TipoNodoPresupuesto.ETAPA or not hijos:
         return False
     return all(h.tipo in _TIPOS_COMPONENTE for h in hijos)
@@ -288,7 +298,7 @@ def construir_arboles(
     omitidos = 0
 
     raiz: NodoLeido | None = None
-    hijos: dict[str, list[NodoLeido]] = {}
+    hijos: dict[int, list[NodoLeido]] = {}
     ultimo_por_clave: dict[str, NodoLeido] = {}
     contadores_wbs = [0, 0, 0, 0, 0]
 
@@ -299,7 +309,7 @@ def construir_arboles(
         arbol = ArbolPrototipoCargado(
             clave_prototipo=raiz.clave,
             raiz=raiz,
-            hijos={clave: tuple(lista) for clave, lista in hijos.items()},
+            hijos={fila_padre: tuple(lista) for fila_padre, lista in hijos.items()},
             nodos=dict(ultimo_por_clave),
         )
         if arbol.llave in arboles:
@@ -392,7 +402,7 @@ def construir_arboles(
             )
             continue
 
-        hijos.setdefault(nodo.clave_padre or "", []).append(nodo)
+        hijos.setdefault(padre.fila, []).append(nodo)
         if tipo in _TIPOS_CON_HIJOS:
             ultimo_por_clave[nodo.clave] = nodo
 

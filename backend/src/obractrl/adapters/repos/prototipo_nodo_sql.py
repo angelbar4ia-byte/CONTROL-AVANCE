@@ -5,11 +5,18 @@ Spec §12.11 (adaptador de persistencia) · §10.8 (idempotencia de la carga) ·
 
 Primer escritor de `prototipo_nodo` — hasta el cargador de presupuesto
 jerárquico, la tabla solo se leía (`RepositorioObras.arbol_prototipo`,
-otra fachada, §11.1). El `upsert` por `(org_id, prototipo_id, clave)`
-(`uq_prototipo_nodo_clave`, migración 0030) es lo que conserva el `id` de un
-nodo entre recargas: regenerarlo rompería en silencio
+otra fachada, §11.1). El `upsert` por `(org_id, prototipo_id, parent_id,
+clave)` (`uq_prototipo_nodo_posicion`, migración 0038) es lo que conserva
+el `id` de un nodo entre recargas: regenerarlo rompería en silencio
 `programa_base_item.prototipo_nodo_id` y `actividad.prototipo_nodo_id`, que
 lo referencian por igualdad literal.
+
+La clave sola no basta de identidad: un archivo real repite la misma clave
+de `CONCEPTO` colgada de dos etapas distintas **del mismo** prototipo, cada
+una con su propia cantidad (migración 0038). `parent_id` entra al índice
+—con un `coalesce` a un sentinel para la raíz, que no cuelga de nadie— para
+que cada posición del árbol tenga su propia fila en vez de pisarse entre
+sí.
 """
 
 from __future__ import annotations
@@ -98,7 +105,7 @@ class RepositorioPrototipoNodoSQL:
     async def upsert(
         self, prototipo_id: UUID, *, clave: str | None, datos: dict[str, Any]
     ) -> tuple[UUID, bool]:
-        """Inserta o actualiza por `(org_id, prototipo_id, clave)`.
+        """Inserta o actualiza por `(org_id, prototipo_id, parent_id, clave)`.
 
         Claves esperadas en ``datos``: ``parent_id``, ``tipo``, ``nombre``,
         opcionales ``concepto_id``, ``nivel_id``, ``etapa_id``, ``orden``,
@@ -157,7 +164,11 @@ class RepositorioPrototipoNodoSQL:
                          :nombre, :clave, cast(:concepto_id as uuid),
                          cast(:nivel_id as uuid), cast(:etapa_id as uuid),
                          :orden, :cantidad)
-                    on conflict (org_id, prototipo_id, clave) where clave is not null
+                    on conflict (
+                        org_id, prototipo_id,
+                        coalesce(parent_id, '00000000-0000-0000-0000-000000000000'::uuid),
+                        clave
+                    ) where clave is not null
                     do update set
                         parent_id   = excluded.parent_id,
                         tipo        = excluded.tipo,
