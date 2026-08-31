@@ -88,8 +88,9 @@ export function ArbolPrototipo({ raiz, presupuesto, extra, expandirTodo = false 
   return (
     <div className="tree tree--tabla">
       <div className="tree__header">
-        <span className="tree__header-label">Concepto</span>
+        <span className="tree__col-wbs">WBS</span>
         <span className="tree__col-clave">Clave</span>
+        <span className="tree__header-label">Concepto</span>
         <span className="tree__col-unidad">Unidad</span>
         <span className="tree__col-cantidad">Cantidad</span>
         <span className="tree__col-pu">P.U.</span>
@@ -103,6 +104,7 @@ export function ArbolPrototipo({ raiz, presupuesto, extra, expandirTodo = false 
         extra={extra}
         expandirTodo={expandirTodo}
         abiertoDeEntrada
+        profundidad={0}
       />
     </div>
   );
@@ -115,6 +117,7 @@ function Nodo({
   extra,
   expandirTodo,
   abiertoDeEntrada = false,
+  profundidad,
 }: {
   readonly nodo: NodoArbolPrototipo;
   readonly partidaPorNodo: ReadonlyMap<string, PartidaRespuesta>;
@@ -123,6 +126,14 @@ function Nodo({
   readonly expandirTodo: boolean;
   /** La raíz (el prototipo) arranca abierta: sin eso el árbol se ve vacío. */
   readonly abiertoDeEntrada?: boolean;
+  /**
+   * Nivel de anidación (raíz = 0): ya no lo da el `padding-left` acumulado
+   * de `.tree__children` —eso correría también las columnas fijas de la
+   * fila (WBS, Clave...), que tienen que alinear entre profundidades
+   * distintas—, así que la indentación se aplica adentro de la celda
+   * `.tree__concepto` (§estilos, `.tree--tabla`).
+   */
+  readonly profundidad: number;
 }) {
   const [abierto, setAbierto] = useState(expandirTodo || abiertoDeEntrada);
   const anidable = nodo.hijos.length > 0;
@@ -139,25 +150,25 @@ function Nodo({
 
   const contenido = (
     <>
-      <span className="tree__caret" aria-hidden>
-        {anidable ? abierto ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
-      </span>
-      <Icono className="tree__icon" size={16} strokeWidth={1.6} aria-hidden />
-      <span className={`tree__name${esConcepto ? ' tree__name--justificado' : ''}`}>
-        {nodo.wbs && (
-          <span className="mono text-mute" style={{ marginRight: 6 }}>
-            {nodo.wbs}
-          </span>
-        )}
-        {nodo.nombre}
-        {nodo.tipo === 'concepto_auxiliar' && (
-          <span className="badge badge--outline" style={{ marginLeft: 6 }}>
-            auxiliar
-          </span>
-        )}
+      <span className="tree__meta tree__col-wbs mono" title="WBS">
+        {nodo.wbs ?? ''}
       </span>
       <span className="tree__meta tree__col-clave mono" title="Clave">
         {nodo.clave ?? ''}
+      </span>
+      <span className="tree__concepto" style={{ paddingLeft: profundidad * 20 }}>
+        <span className="tree__caret" aria-hidden>
+          {anidable ? abierto ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
+        </span>
+        <Icono className="tree__icon" size={16} strokeWidth={1.6} aria-hidden />
+        <span className={`tree__name${esConcepto ? ' tree__name--justificado' : ''}`}>
+          {nodo.nombre}
+          {nodo.tipo === 'concepto_auxiliar' && (
+            <span className="badge badge--outline" style={{ marginLeft: 6 }}>
+              auxiliar
+            </span>
+          )}
+        </span>
       </span>
       <span className="tree__meta tree__col-unidad" title="Unidad">
         {esConcepto ? (partida?.unidad_clave ?? '') : ''}
@@ -171,7 +182,7 @@ function Nodo({
       <span className="tree__meta tnum tree__col-importe" title="Importe">
         {importe > 0 ? fmtMXN(importe) : ''}
       </span>
-      {extra?.(nodo)}
+      <span className="tree__extra">{extra?.(nodo)}</span>
     </>
   );
 
@@ -201,6 +212,7 @@ function Nodo({
               importePorNodo={importePorNodo}
               extra={extra}
               expandirTodo={expandirTodo}
+              profundidad={profundidad + 1}
             />
           ))}
         </div>
