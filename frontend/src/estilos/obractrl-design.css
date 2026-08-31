@@ -910,7 +910,11 @@ a { color: inherit; text-decoration: none; }
 .tree__node:hover { background: var(--c-elev); }
 .tree__caret { width: 14px; color: var(--c-text-mute); }
 .tree__icon { color: var(--c-text-mute); }
-.tree__name { flex: 1; min-width: 0; }
+.tree__name { flex: 1; min-width: 0; text-align: left; }
+/* Nivel/etapa: nombre corto, se queda alineado a la izquierda (default de
+   `.tree__name`). Concepto: descripción larga que envuelve a 2-3 líneas —
+   ahí sí se justifica, para que no quede una segunda línea corta y suelta. */
+.tree__name--justificado { text-align: justify; text-justify: inter-word; }
 .tree__meta { color: var(--c-text-mute); font-size: 11px; font-family: var(--f-mono); }
 .tree__children { padding-left: 20px; border-left: 1px dashed var(--c-line-strong); margin-left: 11px; }
 .tree__hover-actions {
@@ -937,10 +941,32 @@ a { color: inherit; text-decoration: none; }
   margin-bottom: 4px;
 }
 .tree__header-label { flex: 1; min-width: 0; padding-left: 38px; }
+.tree__col-clave { display: inline-block; width: 92px; flex-shrink: 0; text-align: left; }
 .tree__col-unidad { display: inline-block; width: 40px; text-align: right; }
 .tree__col-cantidad { display: inline-block; width: 76px; text-align: right; }
 .tree__col-pu { display: inline-block; width: 92px; text-align: right; }
 .tree__col-importe { display: inline-block; width: 104px; text-align: right; }
+
+/* `.tree--tabla`: modificador solo del árbol de prototipo (§7.4) — banda de
+   cabecera, filas con línea divisoria y separadores de columna, para que se
+   lea más como tabla sin tocar `ArbolProyecto`/`ArbolExplosion`, que
+   reusan las clases `.tree*` base sin este modificador. */
+.tree--tabla .tree__header {
+  background: var(--c-elev);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+.tree--tabla .tree__node {
+  border-radius: 0;
+  border-bottom: 1px solid var(--c-line-soft);
+}
+.tree--tabla .tree__col-clave,
+.tree--tabla .tree__col-unidad,
+.tree--tabla .tree__col-cantidad,
+.tree--tabla .tree__col-pu,
+.tree--tabla .tree__col-importe {
+  border-left: 1px solid var(--c-line-soft);
+  padding-left: 8px;
+}
 
 /* ===== Inline edit ========================================= */
 .inline-edit {
