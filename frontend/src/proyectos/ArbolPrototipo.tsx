@@ -86,9 +86,10 @@ export function ArbolPrototipo({ raiz, presupuesto, extra, expandirTodo = false 
   }
 
   return (
-    <div className="tree">
+    <div className="tree tree--tabla">
       <div className="tree__header">
         <span className="tree__header-label">Concepto</span>
+        <span className="tree__col-clave">Clave</span>
         <span className="tree__col-unidad">Unidad</span>
         <span className="tree__col-cantidad">Cantidad</span>
         <span className="tree__col-pu">P.U.</span>
@@ -142,18 +143,21 @@ function Nodo({
         {anidable ? abierto ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
       </span>
       <Icono className="tree__icon" size={16} strokeWidth={1.6} aria-hidden />
-      <span className="tree__name">
+      <span className={`tree__name${esConcepto ? ' tree__name--justificado' : ''}`}>
         {nodo.wbs && (
           <span className="mono text-mute" style={{ marginRight: 6 }}>
             {nodo.wbs}
           </span>
         )}
-        {nodo.clave && <span className="mono">{nodo.clave}</span>} {nodo.nombre}
+        {nodo.nombre}
         {nodo.tipo === 'concepto_auxiliar' && (
           <span className="badge badge--outline" style={{ marginLeft: 6 }}>
             auxiliar
           </span>
         )}
+      </span>
+      <span className="tree__meta tree__col-clave mono" title="Clave">
+        {nodo.clave ?? ''}
       </span>
       <span className="tree__meta tree__col-unidad" title="Unidad">
         {esConcepto ? (partida?.unidad_clave ?? '') : ''}
