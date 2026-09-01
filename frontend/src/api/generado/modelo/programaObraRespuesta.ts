@@ -9,6 +9,7 @@ import type { ProgramaObraRespuestaProgramaObraId } from './programaObraRespuest
 import type { ProgramaObraRespuestaVersion } from './programaObraRespuestaVersion';
 import type { ProgramaObraRespuestaFechaCorte } from './programaObraRespuestaFechaCorte';
 import type { ActividadProgramadaRespuesta } from './actividadProgramadaRespuesta';
+import type { CalendarioRespuesta } from './calendarioRespuesta';
 
 /**
  * §11.2 `GET /obras/{id}/programa`: el cronograma vigente y su historial.
@@ -20,4 +21,6 @@ export interface ProgramaObraRespuesta {
   fecha_corte: ProgramaObraRespuestaFechaCorte;
   versiones: number[];
   actividades: ActividadProgramadaRespuesta[];
+  /** Calendario con el que se programó esta obra (0040). El Gantt lo necesita para dibujar: sin él, una actividad de cinco días laborales se pintaría como cinco casillas corridas. */
+  calendario: CalendarioRespuesta;
 }

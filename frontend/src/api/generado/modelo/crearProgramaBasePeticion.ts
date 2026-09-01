@@ -7,6 +7,7 @@
  */
 import type { CrearProgramaBasePeticionNombre } from './crearProgramaBasePeticionNombre';
 import type { ItemProgramaBasePeticion } from './itemProgramaBasePeticion';
+import type { CalendarioPeticion } from './calendarioPeticion';
 
 /**
  * §11.2 `POST /programas-base`. Cada alta es una versión nueva (§7.5).
@@ -15,4 +16,6 @@ export interface CrearProgramaBasePeticion {
   prototipo_id: string;
   nombre?: CrearProgramaBasePeticionNombre;
   items?: ItemProgramaBasePeticion[];
+  /** Semana laboral o natural del cronograma (§5.1: la elige Control de obra). Se captura una vez en la plantilla del prototipo y baja a cada obra que se genere o instancie con ella. Omitirlo es semana natural, el comportamiento de siempre. */
+  calendario?: CalendarioPeticion;
 }

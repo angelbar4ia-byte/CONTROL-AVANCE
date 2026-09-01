@@ -39,7 +39,7 @@ from obractrl.application.puertos.repositorios import RegistroNoEncontrado
 __all__ = ["ProgramaNoModificado", "RepositorioProgramasSQL"]
 
 _COLUMNAS_BASE = """
-    id, prototipo_id, version, vigente, nombre
+    id, prototipo_id, version, vigente, nombre, dias_habiles
 """
 
 _COLUMNAS_ITEM = """
@@ -48,7 +48,7 @@ _COLUMNAS_ITEM = """
 """
 
 _COLUMNAS_OBRA = """
-    id, obra_id, version, vigente, fecha_corte
+    id, obra_id, version, vigente, fecha_corte, dias_habiles
 """
 
 
@@ -66,7 +66,11 @@ class RepositorioProgramasSQL:
     async def crear_base(self, datos: dict[str, Any]) -> UUID:
         """Alta de `ProgramaBase` (§11.2 `POST /programas-base`, rol C).
 
-        Claves esperadas: ``prototipo_id``. Opcional: ``nombre``.
+        Claves esperadas: ``prototipo_id``. Opcionales: ``nombre`` y
+        ``dias_habiles`` (lista de días ISO, migración 0040). El default de la
+        columna cubre a `dias_habiles` ausente, pero el caso de uso siempre lo
+        manda resuelto —el dominio ya decidió que sin elección es semana
+        natural— para que la plantilla nazca con su calendario explícito.
 
         Retirar el vigente anterior **antes** de insertar el nuevo no es
         opcional: `uq_programa_base_vigente` es un índice único parcial y no
@@ -92,18 +96,31 @@ class RepositorioProgramasSQL:
                 text(
                     """
                     insert into programa_base
-                        (org_id, prototipo_id, version, vigente, nombre)
+                        (org_id, prototipo_id, version, vigente, nombre,
+                         dias_habiles)
                     select cast(current_setting('app.org_id') as uuid),
                            cast(:prototipo_id as uuid),
                            coalesce(max(version), 0) + 1,
                            true,
-                           :nombre
+                           :nombre,
+                           -- `insert ... select` no puede escribir DEFAULT en
+                           -- la lista, así que el default de la columna se
+                           -- repite aquí para el llamador que no manda
+                           -- calendario (migración 0040: semana natural).
+                           coalesce(
+                               cast(:dias_habiles as smallint[]),
+                               array[1,2,3,4,5,6,7]::smallint[]
+                           )
                     from programa_base
                     where prototipo_id = cast(:prototipo_id as uuid)
                     returning id
                     """
                 ),
-                {"prototipo_id": prototipo_id, "nombre": datos.get("nombre")},
+                {
+                    "prototipo_id": prototipo_id,
+                    "nombre": datos.get("nombre"),
+                    "dias_habiles": datos.get("dias_habiles"),
+                },
             )
         ).scalar_one()
 
@@ -205,6 +222,29 @@ class RepositorioProgramasSQL:
         ).mappings().all()
         return [dict(fila) for fila in filas]
 
+    async def base_vigente(self, prototipo_id: UUID) -> dict[str, Any] | None:
+        """El `ProgramaBase` vigente del prototipo, sin sus renglones (§7.5).
+
+        Existe aparte de `items_base_vigente` porque hay datos de la plantilla
+        que no son de renglón: el calendario de trabajo (`dias_habiles`, 0040)
+        es del cronograma completo, no de cada actividad. Instanciar necesita
+        los dos, y meterlo repetido en cada item invitaría a que un renglón lo
+        contradijera.
+        """
+        fila = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    select {_COLUMNAS_BASE}
+                    from programa_base
+                    where prototipo_id = :prototipo_id and vigente
+                    """
+                ),
+                {"prototipo_id": str(prototipo_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
     async def items_base_vigente(self, prototipo_id: UUID) -> list[dict[str, Any]]:
         """Renglones del programa base vigente del prototipo (§7.5).
 
@@ -266,7 +306,11 @@ class RepositorioProgramasSQL:
         return [dict(fila) for fila in filas]
 
     async def instanciar(
-        self, obra_id: UUID, *, fecha_corte: date | None = None
+        self,
+        obra_id: UUID,
+        *,
+        fecha_corte: date | None = None,
+        dias_habiles: list[int] | None = None,
     ) -> dict[str, Any]:
         """Siguiente versión vigente del cronograma de la obra (§11.2).
 
@@ -274,6 +318,11 @@ class RepositorioProgramasSQL:
         —`uq_programa_obra_vigente` no es diferible— y luego se inserta la
         versión nueva. Versionar en vez de sobrescribir es lo que deja
         auditar contra qué programa se midió cada corte (§7.5).
+
+        `dias_habiles` es el calendario que la obra hereda de su programa base
+        (0040). Se **congela** en la versión: reinstanciar con otra plantilla
+        crea una versión nueva con su propio calendario y deja intacto contra
+        qué se calculó la anterior, igual que `fecha_corte`.
         """
         await self._sesion.execute(
             text(
@@ -292,18 +341,30 @@ class RepositorioProgramasSQL:
                 text(
                     f"""
                     insert into programa_obra
-                        (org_id, obra_id, version, vigente, fecha_corte)
+                        (org_id, obra_id, version, vigente, fecha_corte,
+                         dias_habiles)
                     select cast(current_setting('app.org_id') as uuid),
                            cast(:obra_id as uuid),
                            coalesce(max(version), 0) + 1,
                            true,
-                           cast(:fecha_corte as date)
+                           cast(:fecha_corte as date),
+                           -- Ver `crear_base`: el default de la columna se
+                           -- repite porque un `insert ... select` no puede
+                           -- escribir DEFAULT en la lista.
+                           coalesce(
+                               cast(:dias_habiles as smallint[]),
+                               array[1,2,3,4,5,6,7]::smallint[]
+                           )
                     from programa_obra
                     where obra_id = cast(:obra_id as uuid)
                     returning {_COLUMNAS_OBRA}
                     """
                 ),
-                {"obra_id": str(obra_id), "fecha_corte": fecha_corte},
+                {
+                    "obra_id": str(obra_id),
+                    "fecha_corte": fecha_corte,
+                    "dias_habiles": dias_habiles,
+                },
             )
         ).mappings().one()
         return dict(fila)

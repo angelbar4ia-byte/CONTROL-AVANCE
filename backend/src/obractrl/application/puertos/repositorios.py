@@ -529,8 +529,20 @@ class RepositorioObras(Protocol):
         si el prototipo aún no tiene plantilla de duraciones."""
         ...
 
-    async def instanciar_programa(self, obra_id: UUID) -> UUID:
-        """Crea el `ProgramaObra` vigente de la obra (§7.5, §11.3 A.2)."""
+    async def calendario_programa_base(
+        self, prototipo_id: UUID
+    ) -> list[int] | None:
+        """Días hábiles del `ProgramaBase` vigente del prototipo (§7.5, 0040).
+        `None` si el prototipo aún no tiene plantilla."""
+        ...
+
+    async def instanciar_programa(
+        self, obra_id: UUID, *, dias_habiles: list[int] | None = None
+    ) -> UUID:
+        """Crea el `ProgramaObra` vigente de la obra (§7.5, §11.3 A.2).
+
+        `dias_habiles` es el calendario que la obra hereda de la plantilla de
+        su prototipo, igual que la duración y las dependencias (0040)."""
         ...
 
     async def crear_actividades(
@@ -561,7 +573,8 @@ class RepositorioProgramas(Protocol):
 
         La implementación resuelve la versión siguiente del prototipo y retira
         el vigente anterior: `uq_programa_base_vigente` deja un solo vigente
-        por prototipo.
+        por prototipo. `datos["dias_habiles"]` es el calendario de trabajo de
+        la plantilla (0040).
         """
         ...
 
@@ -583,6 +596,13 @@ class RepositorioProgramas(Protocol):
         """§11.2 `GET /programas-base/{id}/items`."""
         ...
 
+    async def base_vigente(self, prototipo_id: UUID) -> dict | None:
+        """El `ProgramaBase` vigente del prototipo, sin sus renglones (§7.5).
+
+        Es de donde sale el calendario de trabajo al instanciar (0040): ese
+        dato es del cronograma completo, no de cada renglón."""
+        ...
+
     async def items_base_vigente(self, prototipo_id: UUID) -> list[dict]:
         """Renglones del programa base **vigente** del prototipo (§7.5).
         Lista vacía si el prototipo aún no tiene plantilla."""
@@ -596,9 +616,18 @@ class RepositorioProgramas(Protocol):
         """Historial de versiones del cronograma de la obra (§7.5)."""
         ...
 
-    async def instanciar(self, obra_id: UUID, *, fecha_corte: date | None) -> dict:
+    async def instanciar(
+        self,
+        obra_id: UUID,
+        *,
+        fecha_corte: date | None,
+        dias_habiles: list[int] | None = None,
+    ) -> dict:
         """Crea la siguiente versión vigente de `ProgramaObra` y retira la
-        anterior (§7.5, §11.2 `POST /obras/{id}/programa`)."""
+        anterior (§7.5, §11.2 `POST /obras/{id}/programa`).
+
+        El calendario se congela en la versión junto con la fecha de corte: es
+        parte de contra qué se calculó ese cronograma (0040)."""
         ...
 
     async def fijar_fecha_corte(self, programa_obra_id: UUID, fecha: date) -> None:

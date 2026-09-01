@@ -46,6 +46,7 @@ from obractrl.domain.obras.generacion import (
     planear_actividades,
 )
 from obractrl.domain.obras.reglas import Obra
+from obractrl.domain.programacion.calendario import CalendarioLaboral
 from obractrl.domain.programacion.cpm import Dependencia, Tramo
 from obractrl.domain.shared.diccionario import ClaseNodo, EstatusObra, ModoPago
 from obractrl.domain.shared.valores import Avance, Clave, Dinero, PrecioUnitario
@@ -204,8 +205,18 @@ class GenerarObraDesdePrototipo:
             modo_pago=cmd.modo_pago,
         )
 
+        # El calendario del cronograma baja de la plantilla igual que las
+        # duraciones (0040). Se lee aquí y no dentro del INSERT para que la
+        # obra sin programa base caiga a semana natural por decisión del
+        # dominio (`CalendarioLaboral.de(None)`) y no por un `coalesce` de SQL.
+        calendario = CalendarioLaboral.de(
+            await self._obras.calendario_programa_base(UUID(prototipo_id))
+        )
+
         async with self._uow:
-            programa_obra_id = await self._obras.instanciar_programa(cmd.obra_id)
+            programa_obra_id = await self._obras.instanciar_programa(
+                cmd.obra_id, dias_habiles=calendario.a_lista()
+            )
             await self._obras.crear_actividades(
                 cmd.obra_id,
                 programa_obra_id,

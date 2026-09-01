@@ -70,6 +70,8 @@ export * from './bodySubirCargaApiV1CargasPost';
 export * from './cPURespuesta';
 export * from './cPURespuestaVariante';
 export * from './cPURespuestaVigente';
+export * from './calendarioPeticion';
+export * from './calendarioRespuesta';
 export * from './cambiarEstatusPeticion';
 export * from './capturaAvancePeticion';
 export * from './capturaAvancePeticionCantEjecutada';

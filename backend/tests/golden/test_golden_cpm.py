@@ -10,6 +10,10 @@ y ruta crítica:
 * `_cronograma_interrumpido`, que ejercita `FF`, `SF` y una actividad partida
   en tramos —el muro que para para que se cuele la losa (§7.6).
 
+Los tres primeros golden corren con **semana natural**, que es el default del
+motor y su comportamiento histórico. El cuarto congela el mismo cronograma
+interrumpido con **semana laboral** (0040): mismos días, otras fechas.
+
 ## Por qué estos cronogramas y no uno de tres nodos
 
 Tres nodos en cadena no ejercitan nada: cualquier implementación los ordena
@@ -22,6 +26,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from obractrl.domain.programacion.calendario import SEMANA_LABORAL
 from obractrl.domain.programacion.cpm import (
     Dependencia,
     NodoCPM,
@@ -229,6 +234,53 @@ def test_golden_cronograma_con_ff_sf_y_tramos(golden) -> None:
     """
     resultados = calcular_cpm(_cronograma_interrumpido(), INICIO, fecha_corte=CORTE)
     golden("cpm_vivienda_interrumpida", _serializar(resultados))
+
+
+def test_golden_con_calendario_laboral(golden) -> None:
+    """El mismo cronograma interrumpido, con semana laboral (§7.5, 0040).
+
+    Se congela contra el golden de semana natural, no aparte de él: el par de
+    archivos es la prueba de que el calendario mueve **fechas** y nada más. Las
+    holguras y la criticidad son idénticas en los dos —son aritmética de
+    índices—; lo que cambia son las fechas y el desfase, que ahora cuenta días
+    de trabajo (§6).
+
+    Se usa lunes a sábado y no lunes a viernes porque es la semana real de obra
+    en México y por lo tanto la que va a estar en producción: una regresión ahí
+    es la que le cambia las fechas a alguien.
+    """
+    resultados = calcular_cpm(
+        _cronograma_interrumpido(),
+        INICIO,
+        fecha_corte=CORTE,
+        calendario=SEMANA_LABORAL,
+    )
+    golden("cpm_vivienda_interrumpida_laboral", _serializar(resultados))
+
+
+def test_el_calendario_laboral_solo_mueve_fechas(golden) -> None:
+    """Holgura y criticidad no dependen del calendario; las fechas sí.
+
+    Acompaña al golden de arriba y dice explícitamente qué debería y qué no
+    debería aparecer en su diff. Sin esto, alguien que vea moverse una fecha en
+    el archivo no sabe si también debía moverse la holgura.
+    """
+    natural = calcular_cpm(_cronograma_interrumpido(), INICIO, fecha_corte=CORTE)
+    laboral = calcular_cpm(
+        _cronograma_interrumpido(),
+        INICIO,
+        fecha_corte=CORTE,
+        calendario=SEMANA_LABORAL,
+    )
+
+    for ref, n in natural.items():
+        assert laboral[ref].holgura == n.holgura, ref
+        assert laboral[ref].es_critica == n.es_critica, ref
+        # Con semana laboral todo cae igual o más tarde en el calendario: los
+        # domingos se saltan, nunca se adelanta nada.
+        assert laboral[ref].fin_temprano >= n.fin_temprano, ref
+
+    assert laboral["ACABADOS"].fin_temprano > natural["ACABADOS"].fin_temprano
 
 
 def test_el_golden_no_depende_del_orden_de_entrada(golden) -> None:

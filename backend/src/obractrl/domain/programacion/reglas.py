@@ -20,6 +20,20 @@ El motor CPM vive al lado, en `cpm.py`, y es quien decide holgura, criticidad
 y ciclos; aquí no se reimplementa nada de eso — se reutiliza `Dependencia`
 tal cual para no tener dos formas de la misma precedencia.
 
+**El calendario de trabajo no pasa por aquí, y es a propósito** (`calendario.py`,
+migración 0040). Semana laboral o natural es una propiedad del cronograma
+completo —vive en `programa_base` y baja a `programa_obra`—, no de cada
+renglón: si el muro se calculara con sábados y el aplanado sin ellos, la
+dependencia entre los dos no querría decir nada. Este módulo decide *cuántos
+días* dura cada cosa y *qué depende de qué*, y esas cifras no cambian de valor
+al cambiar de calendario: cambia a qué fecha las traduce el motor. Por eso
+`validar_tramos` y `validar_item_base` valen igual bajo los dos —traslape,
+orden y suma son aritmética de índices— y el caso de uso pasa el calendario
+directo de la plantilla a `calcular_cpm` sin pasar por estas funciones.
+
+Lo que sí cambia de significado es la **unidad**: con semana laboral,
+`duracion_dias`, `lag_dias` y `offset_dias` son días hábiles.
+
 Módulo puro: recibe y devuelve dataclasses, no toca la BD (§12.11).
 """
 

@@ -145,12 +145,25 @@ async def _armar_cronograma(escenario: Escenario) -> Cronograma:
 
 
 async def _plantilla(
-    escenario: Escenario, ctx: ContextoSesion, cronograma: Cronograma
+    escenario: Escenario,
+    ctx: ContextoSesion,
+    cronograma: Cronograma,
+    *,
+    dias_habiles: list[int] | None = None,
 ) -> None:
-    """A(5) -> B(6); C(2) también cuelga de A. La rama C queda holgada."""
+    """A(5) -> B(6); C(2) también cuelga de A. La rama C queda holgada.
+
+    `dias_habiles` es el calendario de la plantilla (0040). Sin él, semana
+    natural: el default de la columna y el comportamiento de siempre.
+    """
     async with sesion_con_rls(ctx) as sesion:
         repo = RepositorioProgramasSQL(sesion)
-        base_id = await repo.crear_base({"prototipo_id": escenario.prototipo_id})
+        base_id = await repo.crear_base(
+            {
+                "prototipo_id": escenario.prototipo_id,
+                "dias_habiles": dias_habiles,
+            }
+        )
         await repo.agregar_items_base(
             base_id,
             [
@@ -436,6 +449,7 @@ async def test_patch_programacion_ajusta_y_recalcula(
         actualizada = await EditarProgramacionActividad(
             actividades=RepositorioActividadesSQL(sesion),
             obras=RepositorioObrasSQL(sesion),
+            programas=RepositorioProgramasSQL(sesion),
             uow=UnidadDeTrabajoSQL(sesion),
         ).ejecutar(
             ComandoEditarProgramacion(
@@ -522,6 +536,7 @@ async def test_patch_parte_una_actividad_y_recalcula_la_obra(
         actualizada = await EditarProgramacionActividad(
             actividades=RepositorioActividadesSQL(sesion),
             obras=RepositorioObrasSQL(sesion),
+            programas=RepositorioProgramasSQL(sesion),
             uow=UnidadDeTrabajoSQL(sesion),
         ).ejecutar(
             ComandoEditarProgramacion(
@@ -572,6 +587,7 @@ async def test_patch_con_tramos_traslapados_no_escribe(
             await EditarProgramacionActividad(
                 actividades=RepositorioActividadesSQL(sesion),
                 obras=RepositorioObrasSQL(sesion),
+                programas=RepositorioProgramasSQL(sesion),
                 uow=UnidadDeTrabajoSQL(sesion),
             ).ejecutar(
                 ComandoEditarProgramacion(
@@ -604,6 +620,7 @@ async def test_patch_con_dependencia_ciclica_no_escribe(
             await EditarProgramacionActividad(
                 actividades=RepositorioActividadesSQL(sesion),
                 obras=RepositorioObrasSQL(sesion),
+                programas=RepositorioProgramasSQL(sesion),
                 uow=UnidadDeTrabajoSQL(sesion),
             ).ejecutar(
                 ComandoEditarProgramacion(
@@ -624,6 +641,7 @@ async def test_patch_de_actividad_fuera_de_alcance_da_no_encontrada(
             await EditarProgramacionActividad(
                 actividades=RepositorioActividadesSQL(sesion),
                 obras=RepositorioObrasSQL(sesion),
+                programas=RepositorioProgramasSQL(sesion),
                 uow=UnidadDeTrabajoSQL(sesion),
             ).ejecutar(
                 ComandoEditarProgramacion(
@@ -878,3 +896,141 @@ async def test_incidencia_sin_impacto_detiene_no_recalcula(
     filas = await _leer_actividades([cronograma.act_a, cronograma.act_c])
     assert filas[cronograma.act_a]["bloqueada"] is False
     assert filas[cronograma.act_c]["holgura"] is None
+
+
+# --- Calendario laboral de punta a punta (0040) -------------------------
+
+L_A_V = [1, 2, 3, 4, 5]
+"""Lunes a viernes. Salta dos días seguidos, que es donde un error de un día en
+la conversión se nota; la semana real de obra —lunes a sábado— solo salta uno."""
+
+
+async def test_instanciar_baja_el_calendario_de_la_plantilla_y_corre_las_fechas(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """La elección de Control de obra viaja del prototipo al cronograma.
+
+    Mismo cronograma que `test_instanciar_traduce_dependencias_y_persiste_el_cpm`
+    —A(5) -> B(6), con C(2) colgando de A— y las mismas duraciones: lo único
+    distinto es el calendario. Ese test afirma las fechas con semana natural
+    (A cierra el sábado 7, B el viernes 13); aquí las mismas duraciones caen
+    cuatro días después porque los fines de semana no cuentan.
+    """
+    cronograma = await _armar_cronograma(escenario)
+    await _plantilla(escenario, contexto_control, cronograma, dias_habiles=L_A_V)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        resultado = await _instanciar(sesion).ejecutar(
+            ComandoInstanciarPrograma(obra_id=escenario.obra_id, fecha_corte=CORTE)
+        )
+
+    assert resultado.ruta.calendario.a_lista() == L_A_V
+
+    fin = {a.actividad_id: a.fin_temprano for a in resultado.ruta.actividades}
+    inicio = {a.actividad_id: a.inicio_temprano for a in resultado.ruta.actividades}
+
+    # A: 5 días hábiles desde el lunes 2 cierran el lunes 9, no el sábado 7.
+    assert inicio[cronograma.act_a] == date(2026, 3, 2)
+    assert fin[cronograma.act_a] == date(2026, 3, 9)
+    # B: 6 más, con dos fines de semana en medio.
+    assert inicio[cronograma.act_b] == date(2026, 3, 9)
+    assert fin[cronograma.act_b] == date(2026, 3, 17)
+    assert fin[cronograma.act_c] == date(2026, 3, 11)
+
+    # La holgura no cambia de número al cambiar de calendario: cambia qué es un
+    # día, no cuántos hay (§6). Son los mismos 4 que con semana natural.
+    filas = await _leer_actividades([cronograma.act_c])
+    assert filas[cronograma.act_c]["holgura"] == Decimal("4.00")
+
+
+async def test_el_calendario_queda_guardado_en_la_version_del_cronograma(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """Y recalcular después lo vuelve a usar, sin que nadie se lo pase.
+
+    Es la parte que se rompería en silencio: `POST /ruta-critica/recalcular` no
+    conoce el prototipo, así que si el calendario no viviera en `programa_obra`
+    el recálculo daría fechas de semana natural sobre un cronograma laboral.
+    """
+    cronograma = await _armar_cronograma(escenario)
+    await _plantilla(escenario, contexto_control, cronograma, dias_habiles=L_A_V)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        instanciado = await _instanciar(sesion).ejecutar(
+            ComandoInstanciarPrograma(obra_id=escenario.obra_id, fecha_corte=CORTE)
+        )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        vigente = await RepositorioProgramasSQL(sesion).programa_vigente(
+            escenario.obra_id
+        )
+    assert vigente is not None
+    assert vigente["id"] == instanciado.programa_obra_id
+    assert list(vigente["dias_habiles"]) == L_A_V
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        recalculada = await _recalcular(sesion).ejecutar(
+            ComandoRecalcularRutaCritica(obra_id=escenario.obra_id, fecha_corte=CORTE)
+        )
+
+    assert recalculada.calendario.a_lista() == L_A_V
+    fin = {a.actividad_id: a.fin_temprano for a in recalculada.actividades}
+    assert fin[cronograma.act_b] == date(2026, 3, 17)
+
+
+async def test_una_plantilla_sin_calendario_deja_todo_como_estaba(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """La regresión que más importa: el default no mueve ni un día.
+
+    Repite las fechas que ya afirmaba
+    `test_instanciar_traduce_dependencias_y_persiste_el_cpm` antes de que
+    existiera el calendario, ahora comprobando además que lo que quedó escrito
+    en `programa_obra` es la semana natural.
+    """
+    cronograma = await _armar_cronograma(escenario)
+    await _plantilla(escenario, contexto_control, cronograma)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        resultado = await _instanciar(sesion).ejecutar(
+            ComandoInstanciarPrograma(obra_id=escenario.obra_id, fecha_corte=CORTE)
+        )
+
+    assert resultado.ruta.calendario.es_natural
+    fin = {a.actividad_id: a.fin_temprano for a in resultado.ruta.actividades}
+    assert fin[cronograma.act_a] == date(2026, 3, 7)
+    assert fin[cronograma.act_b] == date(2026, 3, 13)
+
+
+async def test_editar_una_actividad_respeta_el_calendario_de_su_obra(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """`PATCH /actividades/{id}/programacion` recalcula toda la obra (§11.2).
+
+    Si ese recálculo usara semana natural, ajustar una duración movería las
+    fechas de todas las demás actividades sin que nadie las tocara.
+    """
+    cronograma = await _armar_cronograma(escenario)
+    await _plantilla(escenario, contexto_control, cronograma, dias_habiles=L_A_V)
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        await _instanciar(sesion).ejecutar(
+            ComandoInstanciarPrograma(obra_id=escenario.obra_id, fecha_corte=CORTE)
+        )
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        actualizada = await EditarProgramacionActividad(
+            actividades=RepositorioActividadesSQL(sesion),
+            obras=RepositorioObrasSQL(sesion),
+            programas=RepositorioProgramasSQL(sesion),
+            uow=UnidadDeTrabajoSQL(sesion),
+        ).ejecutar(
+            ComandoEditarProgramacion(
+                actividad_id=cronograma.act_b, duracion_dias=Decimal("7")
+            )
+        )
+
+    # B arranca en el índice 5 (lunes 9) y ahora dura 7 hábiles: cierra el
+    # miércoles 18, no el martes 17 que daría la aritmética de días corridos.
+    assert actualizada.inicio_temprano == date(2026, 3, 9)
+    assert actualizada.fin_temprano == date(2026, 3, 18)

@@ -18,6 +18,17 @@ El motor razona siempre sobre el **span** —lo que la barra ocupa de ES a EF—
 `duracion_dias` sigue siendo los días de trabajo, que es lo que miran costo,
 recursos y destajo. Sin tramos las dos cifras coinciden y nada cambia.
 
+**Días vs. fechas.** Todo lo que hay entre las dos pasadas es aritmética sobre
+**índices de día**: la actividad arranca en el día 12 y ocupa 5. El calendario
+—semana laboral o natural, `CalendarioLaboral`— entra en un solo punto, al
+final, cuando esos índices se vuelven fechas. Por eso los cuatro tipos de
+dependencia, los lags, los tramos y la holgura no cambian de fórmula al cambiar
+de calendario: cambia a qué fecha corresponde el día 12, no cuál es el día 12.
+Lo que sí cambia es qué **mide** un día: con semana natural son días corridos y
+con semana laboral son días de trabajo, y eso vale para `duracion_dias`, el
+`lag_dias` de cada dependencia, el `offset_dias` de cada tramo, la holgura y el
+desfase por igual (ver `calendario.py`).
+
 Módulo puro: recibe y devuelve dataclasses, no toca la BD (§12.11).
 """
 
@@ -26,7 +37,12 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date
+
+from obractrl.domain.programacion.calendario import (
+    SEMANA_NATURAL,
+    CalendarioLaboral,
+)
 
 __all__ = [
     "CicloEnGrafoError",
@@ -100,6 +116,14 @@ class Tramo:
     `offset_dias` se mide desde el inicio de la actividad, no desde el tramo
     anterior: así un tramo se puede mover sin recalcular los que le siguen, y
     el hueco que el Gantt dibuja punteado sale de restar dos offsets.
+
+    Las dos cifras son días **en la escala del calendario del cronograma**, no
+    días corridos siempre: con semana laboral, un tramo de 10 días que arranca
+    en `offset_dias = 0` un lunes cierra el viernes de la segunda semana, y una
+    pausa de 5 días hábiles se dibuja sobre 7 casillas del calendario si le cae
+    un domingo en medio. La aritmética de aquí —`fin_dias`, `span_de`,
+    `trabajo_de`— no cambia: sigue siendo suma de índices, y quien sabe a qué
+    fecha corresponde cada índice es `CalendarioLaboral` (`calendario.py`).
     """
 
     duracion_dias: float
@@ -126,12 +150,16 @@ class Tramo:
 
 
 def span_de(duracion_dias: float, tramos: Sequence[Tramo]) -> float:
-    """Días de calendario que la actividad ocupa de su inicio a su fin.
+    """Días que la actividad ocupa de su inicio a su fin, pausas incluidas.
 
     Sin tramos es la duración tal cual —el caso de siempre—. Con tramos es el
     cierre del **último**: lo que hay entre medio son pausas, y una sucesora
     `FS` tiene que esperar a que el trabajo acabe de verdad, no al primer
     tramo.
+
+    Son días hábiles o días corridos según el calendario del cronograma; el
+    span nunca se convierte a fechas aquí, así que la fórmula es la misma bajo
+    los dos (`calendario.py`).
     """
     if not tramos:
         return duracion_dias
@@ -257,6 +285,7 @@ def calcular_cpm(
     *,
     fecha_corte: date | None = None,
     tolerancia_holgura: float = 0.0,
+    calendario: CalendarioLaboral = SEMANA_NATURAL,
 ) -> dict[str, ResultadoCPM]:
     """Calcula la ruta crítica del cronograma.
 
@@ -266,6 +295,12 @@ def calcular_cpm(
         fecha_corte: fecha contra la que se mide el desfase. Por defecto hoy.
         tolerancia_holgura: holgura en días bajo la cual una actividad se
             considera crítica. ``0`` = solo las de holgura nula o negativa.
+        calendario: qué días de la semana cuentan como trabajo (§7.5). Por
+            defecto la **semana natural** —los siete—, que es el comportamiento
+            histórico del motor: los días son días corridos y `fecha_inicio` es
+            el día 0 tal cual. Con una semana laboral los días son días
+            hábiles, el día 0 es el primer día que se trabaja en `fecha_inicio`
+            o después, y los no laborables se saltan.
 
     Returns:
         Un ``ResultadoCPM`` por ``ref``.
@@ -366,42 +401,62 @@ def calcular_cpm(
         calc.ls = calc.lf - span
 
     # --- Ensamble: fechas reales, holgura, desfase ----------------------
+    #
+    # El único punto donde el calendario entra. Hasta aquí todo fueron índices
+    # de día; `fecha_de` los ancla al arranque del cronograma y salta los días
+    # que no se trabajan. Con `SEMANA_NATURAL` es literalmente la suma de
+    # `timedelta` que este bloque hacía antes (`calendario.conversor`).
     corte = fecha_corte or date.today()
+    fecha_de = calendario.conversor(fecha_inicio)
     resultados: dict[str, ResultadoCPM] = {}
 
     for ref, calc in calcs.items():
         holgura = round(calc.ls - calc.es, 4)
-        fin_temprano = fecha_inicio + timedelta(days=calc.ef)
+        fin_temprano = fecha_de(calc.ef)
 
         resultados[ref] = ResultadoCPM(
             ref=ref,
-            inicio_temprano=fecha_inicio + timedelta(days=calc.es),
+            inicio_temprano=fecha_de(calc.es),
             fin_temprano=fin_temprano,
-            inicio_tardio=fecha_inicio + timedelta(days=calc.ls),
-            fin_tardio=fecha_inicio + timedelta(days=calc.lf),
+            inicio_tardio=fecha_de(calc.ls),
+            fin_tardio=fecha_de(calc.lf),
             holgura=holgura,
             es_critica=holgura <= tolerancia_holgura,
-            desfase=_calcular_desfase(calc.nodo, fin_temprano, corte),
+            desfase=_calcular_desfase(calc.nodo, fin_temprano, corte, calendario),
         )
 
     return resultados
 
 
-def _calcular_desfase(nodo: NodoCPM, fin_programado: date, corte: date) -> float:
+def _calcular_desfase(
+    nodo: NodoCPM,
+    fin_programado: date,
+    corte: date,
+    calendario: CalendarioLaboral,
+) -> float:
     """Días de atraso de una actividad contra su fin programado.
 
     Una actividad concluida se mide contra su fecha real de término; una en
     curso, contra la fecha de corte. Sin atraso el desfase es ``0``: no se
     reportan adelantos como desfase negativo porque el consumidor —la alerta
     de actividad crítica atrasada (§6)— solo mira atrasos.
+
+    El atraso se cuenta en la misma escala que la holgura: con semana laboral
+    son días de **trabajo** perdidos, no casillas del calendario. Si no, un
+    atraso de dos días que cae sobre un domingo se reportaría como tres y la
+    comparación "el atraso ya se comió la holgura" (§6) dispararía de más cada
+    fin de semana. Con semana natural `dias_entre` es la resta de fechas de
+    siempre.
     """
     if nodo.avance_pct >= 100:
         if nodo.fecha_real_termino is None:
             return 0.0
-        return max(0.0, (nodo.fecha_real_termino - fin_programado).days)
+        return max(
+            0.0, float(calendario.dias_entre(fin_programado, nodo.fecha_real_termino))
+        )
 
     if corte > fin_programado:
-        return float((corte - fin_programado).days)
+        return float(calendario.dias_entre(fin_programado, corte))
 
     return 0.0
 

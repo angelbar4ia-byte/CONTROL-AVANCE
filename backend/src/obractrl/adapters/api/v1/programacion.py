@@ -52,6 +52,12 @@ from obractrl.application.casos_uso.gestionar_programacion import (
     ProgramaInstanciadoEnObra,
     RutaCritica,
 )
+from obractrl.domain.programacion.calendario import (
+    DIAS_DE_LA_SEMANA,
+    SEMANA_LABORAL,
+    CalendarioInvalidoError,
+    CalendarioLaboral,
+)
 from obractrl.domain.programacion.cpm import Dependencia, TipoDependencia, Tramo
 from obractrl.domain.programacion.reglas import ItemProgramaBase
 from obractrl.domain.shared.diccionario import Rol
@@ -79,6 +85,98 @@ _CICLO: dict[int | str, dict[str, Any]] = {
 
 
 # --- DTOs ----------------------------------------------------------------
+
+
+CALENDARIO_NATURAL = "natural"
+CALENDARIO_LABORAL = "laboral"
+"""Las dos etiquetas de `CalendarioRespuesta.tipo`, que es lo que el usuario elige en
+pantalla: "semana laboral o semana natural" (§5.1, Control de obra)."""
+
+
+_DIAS_HABILES_KW: dict[str, Any] = {
+    "min_length": 1,
+    "max_length": 7,
+    "description": (
+        "Días de la semana que se trabajan, ISO 1 = lunes … 7 = domingo. "
+        f"{list(DIAS_DE_LA_SEMANA)} es semana natural (default) y "
+        f"{SEMANA_LABORAL.a_lista()} la semana laboral típica de obra."
+    ),
+    "examples": [list(DIAS_DE_LA_SEMANA), SEMANA_LABORAL.a_lista()],
+}
+"""Mismo campo en la petición y en la respuesta: es el único dato del
+calendario, y describirlo dos veces distinto sería la primera forma de que las
+dos caras del contrato se desfasen. Va como kwargs y no como un `Field` ya
+construido porque cada modelo le pone su propio default."""
+
+
+class CalendarioPeticion(BaseModel):
+    """Calendario de trabajo del cronograma (§7.5, migración 0040).
+
+    Qué días de la semana cuentan como trabajo, en numeración ISO: 1 = lunes …
+    7 = domingo. Los siete son la **semana natural** —días corridos, el
+    comportamiento de siempre y el default—; cualquier subconjunto es semana
+    laboral y hace que el motor salte los días que no están al convertir
+    duraciones, holguras, lags y tramos a fechas (§6).
+
+    Se captura el **conjunto de días** y no un `tipo`: "laboral" no es lunes a
+    viernes en este giro —en obra en México lo normal es lunes a sábado, y hay
+    frentes que trabajan domingo—, así que un `tipo` capturable obligaría a
+    decidir por el usuario cuál de las variantes es "la laboral". El `tipo` que
+    ve la pantalla se deriva (`CalendarioRespuesta`), no se manda.
+    """
+
+    dias_habiles: list[Annotated[int, Field(ge=1, le=7)]] = Field(
+        default_factory=lambda: list(DIAS_DE_LA_SEMANA), **_DIAS_HABILES_KW
+    )
+
+    def a_dominio(self) -> CalendarioLaboral:
+        """Normaliza y valida. Un conjunto imposible es un 422, no un 500.
+
+        Los `ge`/`le` de pydantic ya acotan cada día; lo que queda —ordenar y
+        quitar repetidos— lo hace el dominio, que es donde está definido qué es
+        un calendario válido (§12.11).
+        """
+        try:
+            return CalendarioLaboral.de(self.dias_habiles)
+        except CalendarioInvalidoError as exc:
+            raise ValueError(str(exc)) from exc
+
+
+class CalendarioRespuesta(BaseModel):
+    """El calendario tal como quedó, con su lectura para la pantalla.
+
+    `tipo` es **derivado** de `dias_habiles`, no un segundo dato: se calcula al
+    construir la respuesta y nunca se captura, así que no hay forma de que los
+    dos se contradigan. Existe para que el interruptor "semana laboral / semana
+    natural" no obligue a cada cliente a reimplementar la equivalencia.
+    """
+
+    dias_habiles: list[Annotated[int, Field(ge=1, le=7)]] = Field(
+        **_DIAS_HABILES_KW
+    )
+    tipo: str = Field(
+        description=(
+            f"`{CALENDARIO_NATURAL}` si se trabajan los siete días, "
+            f"`{CALENDARIO_LABORAL}` si alguno se salta. Derivado de "
+            f"`dias_habiles`."
+        ),
+        examples=[CALENDARIO_NATURAL, CALENDARIO_LABORAL],
+    )
+
+    @classmethod
+    def desde_dominio(cls, calendario: CalendarioLaboral) -> CalendarioRespuesta:
+        return cls(
+            dias_habiles=calendario.a_lista(),
+            tipo=(
+                CALENDARIO_NATURAL if calendario.es_natural else CALENDARIO_LABORAL
+            ),
+        )
+
+    @classmethod
+    def desde_fila(cls, dias_habiles: list[int] | None) -> CalendarioRespuesta:
+        """Desde la columna `smallint[]`. `None` —fila sin cronograma— es
+        semana natural, el mismo default del motor."""
+        return cls.desde_dominio(CalendarioLaboral.de(dias_habiles))
 
 
 class DependenciaDTO(BaseModel):
@@ -186,6 +284,15 @@ class CrearProgramaBasePeticion(BaseModel):
     prototipo_id: UUID
     nombre: str | None = None
     items: list[ItemProgramaBasePeticion] = Field(default_factory=list)
+    calendario: CalendarioPeticion = Field(
+        default_factory=CalendarioPeticion,
+        description=(
+            "Semana laboral o natural del cronograma (§5.1: la elige Control "
+            "de obra). Se captura una vez en la plantilla del prototipo y baja "
+            "a cada obra que se genere o instancie con ella. Omitirlo es "
+            "semana natural, el comportamiento de siempre."
+        ),
+    )
 
 
 class ProgramaBaseRespuesta(BaseModel):
@@ -194,6 +301,7 @@ class ProgramaBaseRespuesta(BaseModel):
     version: int
     vigente: bool
     nombre: str | None
+    calendario: CalendarioRespuesta
 
     @classmethod
     def desde_fila(cls, fila: dict) -> ProgramaBaseRespuesta:
@@ -203,6 +311,7 @@ class ProgramaBaseRespuesta(BaseModel):
             version=fila["version"],
             vigente=fila["vigente"],
             nombre=fila["nombre"],
+            calendario=CalendarioRespuesta.desde_fila(fila["dias_habiles"]),
         )
 
 
@@ -210,6 +319,7 @@ class ProgramaBaseCreadoRespuesta(BaseModel):
     id: UUID
     version: int
     n_items: int
+    calendario: CalendarioRespuesta
 
 
 class ItemProgramaBaseRespuesta(BaseModel):
@@ -295,6 +405,13 @@ class ProgramaObraRespuesta(BaseModel):
     fecha_corte: date | None
     versiones: list[int]
     actividades: list[ActividadProgramadaRespuesta]
+    calendario: CalendarioRespuesta = Field(
+        description=(
+            "Calendario con el que se programó esta obra (0040). El Gantt lo "
+            "necesita para dibujar: sin él, una actividad de cinco días "
+            "laborales se pintaría como cinco casillas corridas."
+        )
+    )
 
 
 class InstanciarProgramaPeticion(BaseModel):
@@ -354,6 +471,13 @@ class RutaCriticaRespuesta(BaseModel):
     programa_obra_id: UUID | None
     version: int | None
     actividades: list[ActividadEnRutaRespuesta]
+    calendario: CalendarioRespuesta = Field(
+        description=(
+            "Con qué calendario se calcularon estas fechas (0040). Fija además "
+            "en qué unidad están `holgura` y `desfase`: días hábiles con "
+            "semana laboral, días corridos con semana natural (§6)."
+        )
+    )
 
     @classmethod
     def desde_dominio(cls, ruta: RutaCritica) -> RutaCriticaRespuesta:
@@ -367,6 +491,7 @@ class RutaCriticaRespuesta(BaseModel):
             actividades=[
                 ActividadEnRutaRespuesta.desde_dominio(a) for a in ruta.actividades
             ],
+            calendario=CalendarioRespuesta.desde_dominio(ruta.calendario),
         )
 
 
@@ -468,10 +593,14 @@ async def crear_programa_base(
             prototipo_id=peticion.prototipo_id,
             nombre=peticion.nombre,
             items=tuple(item.a_dominio() for item in peticion.items),
+            calendario=peticion.calendario.a_dominio(),
         )
     )
     return ProgramaBaseCreadoRespuesta(
-        id=creado.id, version=creado.version, n_items=creado.n_items
+        id=creado.id,
+        version=creado.version,
+        n_items=creado.n_items,
+        calendario=CalendarioRespuesta.desde_dominio(creado.calendario),
     )
 
 
@@ -528,6 +657,12 @@ async def obtener_programa_de_obra(
         actividades=[
             ActividadProgramadaRespuesta.desde_fila(fila) for fila in filas
         ],
+        # Sin cronograma instanciado, semana natural: es el default de la
+        # columna y el del motor, y las actividades que se devuelven abajo se
+        # calculan con ese mismo criterio (`_calendario_de`).
+        calendario=CalendarioRespuesta.desde_fila(
+            vigente["dias_habiles"] if vigente else None
+        ),
     )
 
 
