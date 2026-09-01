@@ -63,6 +63,8 @@ from obractrl.application.casos_uso.gestionar_evaluacion import EvaluacionNoEnco
 from obractrl.application.casos_uso.gestionar_incidencia import IncidenciaNoEncontrada
 from obractrl.application.casos_uso.gestionar_programacion import (
     ActividadNoProgramable,
+    ConflictoNoResuelto,
+    NodoNoProgramable,
     ProgramaBaseNoEncontrado,
 )
 from obractrl.application.casos_uso.gestionar_usuarios import (
@@ -567,6 +569,48 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             titulo="El cronograma tiene dependencias circulares",
             detalle=str(exc),
             actividades=exc.involucradas,
+        )
+
+    @app.exception_handler(ConflictoNoResuelto)
+    async def _conflicto_jerarquia(
+        request: Request, exc: ConflictoNoResuelto
+    ) -> JSONResponse:
+        # 409 y no 422: la ventana capturada es válida, y lo que trae cada hoja
+        # también. Lo que no se puede es aplicar las dos, y quién gana lo decide
+        # el usuario (§7.5). Se registra **antes** que el handler genérico de
+        # `ErrorDeProgramacion`, del que hereda: Starlette resuelve por MRO y se
+        # queda con el más específico.
+        #
+        # Las dos cifras viajan en el cuerpo porque la respuesta es la pregunta:
+        # sin ellas, la pantalla tendría que ir a buscarlas para poder ofrecer
+        # la elección.
+        conflicto = exc.conflicto
+        return _problema(
+            request,
+            status=409,
+            tipo="conflicto-de-programacion-jerarquica",
+            titulo="La programación del nodo choca con la de sus conceptos",
+            detalle=str(exc),
+            nodo_id=conflicto.nodo_id,
+            nombre=conflicto.nombre,
+            dias_capturados=float(conflicto.dias_capturados),
+            dias_derivados=float(conflicto.dias_derivados),
+            actividades=list(conflicto.actividades),
+        )
+
+    @app.exception_handler(NodoNoProgramable)
+    async def _nodo_no_programable(
+        request: Request, exc: NodoNoProgramable
+    ) -> JSONResponse:
+        # Mismo 404 que el resto: RLS hace indistinguible "no existe" de "no lo
+        # puedes ver" (§12.4), y un nodo del árbol sin conceptos debajo tampoco
+        # es programable, así que para el cliente es la misma nada.
+        return _problema(
+            request,
+            status=404,
+            tipo="nodo-no-programable",
+            titulo="Nodo del árbol no encontrado o sin conceptos debajo",
+            detalle=str(exc),
         )
 
     @app.exception_handler(ErrorDeProgramacion)

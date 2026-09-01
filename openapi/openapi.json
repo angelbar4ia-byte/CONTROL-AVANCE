@@ -3203,6 +3203,138 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/programa/arbol": {
+      "get": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Cronograma de la obra como árbol WBS, con barras resumen",
+        "description": "El Gantt jerárquico: nivel y etapa con su barra derivada y su avance\nponderado (§7.4, §6).\n\nTodos los roles, como `GET /obras/{id}/ruta-critica` y por la misma razón:\nel Residente ve la de su obra porque RLS no le deja ver otra (§12.4). La\nbarra resumen es de **lectura**; capturar sigue siendo en conceptos.\n\nNo escribe nada: el resumen se deriva de las actividades que ya se leyeron.\nPersistirlo sería un segundo lugar donde vive la misma cifra.",
+        "operationId": "obtener_arbol_del_programa_api_v1_obras__obra_id__programa_arbol_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "fecha_corte",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Fecha contra la que se mide el desfase; por defecto hoy.",
+              "title": "Fecha Corte"
+            },
+            "description": "Fecha contra la que se mide el desfase; por defecto hoy."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArbolDeProgramaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "El cronograma tiene dependencias circulares o la programación es inválida; nada se escribió (§6, §7.5)."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/programa/nodos/{prototipo_nodo_id}": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Programar un nodo del árbol y repartir sus días a los conceptos",
+        "description": "Captura gruesa: 20 días en una etapa acomodan a sus conceptos uno tras\notro dentro de esa ventana, repartidos por importe (§7.4, §11.2).\n\n**No crea una actividad de resumen**: escribe la duración y las fechas de\nlos conceptos que ya existen. Una fila de resumen duplicaría cantidad,\navance y costo sobre los de sus hijos (§6, §7.6).",
+        "operationId": "programar_nodo_del_arbol_api_v1_obras__obra_id__programa_nodos__prototipo_nodo_id__post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "prototipo_nodo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Prototipo Nodo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgramarNodoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodoProgramadoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "El cronograma tiene dependencias circulares o la programación es inválida; nada se escribió (§6, §7.5)."
+          },
+          "409": {
+            "description": "La ventana del nodo choca con lo que sus conceptos ya traen programado y nadie ha decidido cuál cifra conservar. No se escribió nada; el cuerpo trae las dos cifras y las actividades en desacuerdo. Repetir con `forzar: true` conserva la del nodo (§7.5)."
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/ruta-critica": {
       "get": {
         "tags": [
@@ -8233,6 +8365,55 @@
         ],
         "title": "AlcanceRespuesta"
       },
+      "ArbolDeProgramaRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "profundidad_captura": {
+            "$ref": "#/components/schemas/ClaseNodo",
+            "description": "A qué altura del árbol WBS se sugiere capturar este programa (§7.4, migración 0041): `nivel`, `etapa` o `concepto`. Es el default con el que abre el editor para que todo el equipo vea lo mismo, **no** una restricción: cualquiera puede bajar a capturar más fino sin reversionar la plantilla. `concepto` es renglón por renglón.",
+            "examples": [
+              "etapa",
+              "concepto"
+            ]
+          },
+          "calendario": {
+            "$ref": "#/components/schemas/CalendarioRespuesta"
+          },
+          "nodos": {
+            "items": {
+              "$ref": "#/components/schemas/NodoDelArbolRespuesta"
+            },
+            "type": "array",
+            "title": "Nodos",
+            "description": "Un renglón por nodo con conceptos debajo, en recorrido en profundidad —padre antes que hijos—, que es el orden del Gantt. Los nodos sin conceptos no aparecen: no hay nada que resumir."
+          },
+          "n_conflictos": {
+            "type": "integer",
+            "title": "N Conflictos",
+            "description": "Cuántos nodos traen `conflicto`. Es un aviso no bloqueante: la pantalla lo marca y el usuario decide caso por caso (§7.5)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "prototipo_id",
+          "profundidad_captura",
+          "calendario",
+          "nodos",
+          "n_conflictos"
+        ],
+        "title": "ArbolDeProgramaRespuesta",
+        "description": "§11.2 `GET /obras/{id}/programa/arbol`: el cronograma como árbol WBS."
+      },
       "AvanceRespuesta": {
         "properties": {
           "actividad_id": {
@@ -8841,6 +9022,16 @@
         ],
         "title": "CierreRespuesta"
       },
+      "ClaseNodo": {
+        "type": "string",
+        "enum": [
+          "etapa",
+          "nivel",
+          "concepto"
+        ],
+        "title": "ClaseNodo",
+        "description": "Rol del nodo en el árbol WBS. Columna ``CLASE`` del archivo (§10.6)."
+      },
       "ClusterRespuesta": {
         "properties": {
           "id": {
@@ -8927,6 +9118,50 @@
           "descripcion"
         ],
         "title": "ConceptoRespuesta"
+      },
+      "ConflictoJerarquiaRespuesta": {
+        "properties": {
+          "nodo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Nodo Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "dias_capturados": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Dias Capturados",
+            "description": "Días que el programa base declara para este nodo (§7.5)."
+          },
+          "dias_derivados": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Dias Derivados",
+            "description": "Días que hoy ocupan sus conceptos ya programados (§6)."
+          },
+          "actividades": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Actividades",
+            "description": "Los conceptos programados a mano que están en desacuerdo: es lo que se perdería al conservar la cifra del nodo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodo_id",
+          "nombre",
+          "dias_capturados",
+          "dias_derivados",
+          "actividades"
+        ],
+        "title": "ConflictoJerarquiaRespuesta",
+        "description": "Un nodo cuya ventana capturada no cuadra con la de sus conceptos (§7.5).\n\n**No es un error: es la pregunta.** Las dos cifras viajan las dos porque lo\nque el usuario tiene que decidir es cuál conservar, y darle sólo una lo\nobligaría a ir a buscar la otra a otra pantalla."
       },
       "ConsumoRespuesta": {
         "properties": {
@@ -9698,6 +9933,15 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "profundidad_captura": {
+            "$ref": "#/components/schemas/ClaseNodo",
+            "description": "A qué altura del árbol WBS se sugiere capturar este programa (§7.4, migración 0041): `nivel`, `etapa` o `concepto`. Es el default con el que abre el editor para que todo el equipo vea lo mismo, **no** una restricción: cualquiera puede bajar a capturar más fino sin reversionar la plantilla. `concepto` es renglón por renglón.",
+            "default": "concepto",
+            "examples": [
+              "etapa",
+              "concepto"
+            ]
           },
           "calendario": {
             "$ref": "#/components/schemas/CalendarioPeticion",
@@ -12021,6 +12265,187 @@
         ],
         "title": "NivelRespuesta"
       },
+      "NodoDelArbolRespuesta": {
+        "properties": {
+          "nodo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Nodo Id"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/ClaseNodo",
+            "description": "`etapa`, `nivel` o `concepto`, del árbol WBS (§7.4)."
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "profundidad": {
+            "type": "integer",
+            "title": "Profundidad",
+            "description": "Cuántos ancestros tiene, la raíz en 0. Es con lo que el cliente colapsa o expande por niveles de profundidad."
+          },
+          "actividades": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Actividades",
+            "description": "Los conceptos que cuelgan del nodo, a cualquier distancia."
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio"
+          },
+          "fecha_termino": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Termino"
+          },
+          "duracion_dias": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Duracion Dias",
+            "description": "**Span** de la barra: días de calendario entre el inicio más temprano y el fin más tardío de sus conceptos, en la escala del calendario del cronograma. No es la suma de sus duraciones."
+          },
+          "duracion_hojas_dias": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Duracion Hojas Dias",
+            "description": "Suma de los días de **trabajo** de sus conceptos. Coincide con el span cuando van uno tras otro y es menor cuando se traslapan."
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct",
+            "description": "Avance **ponderado por importe** de sus conceptos (§6), no el promedio simple: el muro de $122k en cero y el castillo de $10k terminado no son 50 %."
+          },
+          "importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe"
+          },
+          "conflicto": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConflictoJerarquiaRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodo_id",
+          "tipo",
+          "nombre",
+          "parent_id",
+          "profundidad",
+          "actividades",
+          "fecha_inicio",
+          "fecha_termino",
+          "duracion_dias",
+          "duracion_hojas_dias",
+          "avance_pct",
+          "importe",
+          "conflicto"
+        ],
+        "title": "NodoDelArbolRespuesta",
+        "description": "Un renglón del Gantt jerárquico (§7.4, §6).\n\nLos nodos `nivel` y `etapa` son **barras resumen derivadas**, no\nactividades: el residente sigue capturando sólo en conceptos y estas se\nrecalculan de sus hojas en cada lectura (§7.6). Por eso no traen id de\nactividad ni estatus — no son una fila de `actividad` y no deben poder\neditarse como si lo fueran."
+      },
+      "NodoProgramadoRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "prototipo_nodo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Nodo Id"
+          },
+          "duracion_dias": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Duracion Dias"
+          },
+          "fecha_inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Inicio"
+          },
+          "fecha_termino": {
+            "type": "string",
+            "format": "date",
+            "title": "Fecha Termino"
+          },
+          "actividades": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Actividades",
+            "description": "Conceptos reprogramados, en el orden en que se acomodaron."
+          },
+          "omitidas": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Omitidas",
+            "description": "Conceptos que el reparto no tocó por estar interrumpidos en tramos (§7.6): una ventana gruesa no tiene con qué decidir cómo volver a partirlos, y reescalarlos o borrarlos destruiría la secuencia constructiva del prototipo. Prográmalos con el `PATCH`."
+          },
+          "ruta": {
+            "$ref": "#/components/schemas/RutaCriticaRespuesta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "prototipo_nodo_id",
+          "duracion_dias",
+          "fecha_inicio",
+          "fecha_termino",
+          "actividades",
+          "omitidas",
+          "ruta"
+        ],
+        "title": "NodoProgramadoRespuesta",
+        "description": "§11.2 `POST /obras/{id}/programa/nodos/{prototipo_nodo_id}`."
+      },
       "NodoPrototipoRespuesta": {
         "properties": {
           "id": {
@@ -13074,6 +13499,14 @@
           },
           "calendario": {
             "$ref": "#/components/schemas/CalendarioRespuesta"
+          },
+          "profundidad_captura": {
+            "$ref": "#/components/schemas/ClaseNodo",
+            "description": "A qué altura del árbol WBS se sugiere capturar este programa (§7.4, migración 0041): `nivel`, `etapa` o `concepto`. Es el default con el que abre el editor para que todo el equipo vea lo mismo, **no** una restricción: cualquiera puede bajar a capturar más fino sin reversionar la plantilla. `concepto` es renglón por renglón.",
+            "examples": [
+              "etapa",
+              "concepto"
+            ]
           }
         },
         "type": "object",
@@ -13081,7 +13514,8 @@
           "id",
           "version",
           "n_items",
-          "calendario"
+          "calendario",
+          "profundidad_captura"
         ],
         "title": "ProgramaBaseCreadoRespuesta"
       },
@@ -13118,6 +13552,14 @@
           },
           "calendario": {
             "$ref": "#/components/schemas/CalendarioRespuesta"
+          },
+          "profundidad_captura": {
+            "$ref": "#/components/schemas/ClaseNodo",
+            "description": "A qué altura del árbol WBS se sugiere capturar este programa (§7.4, migración 0041): `nivel`, `etapa` o `concepto`. Es el default con el que abre el editor para que todo el equipo vea lo mismo, **no** una restricción: cualquiera puede bajar a capturar más fino sin reversionar la plantilla. `concepto` es renglón por renglón.",
+            "examples": [
+              "etapa",
+              "concepto"
+            ]
           }
         },
         "type": "object",
@@ -13127,7 +13569,8 @@
           "version",
           "vigente",
           "nombre",
-          "calendario"
+          "calendario",
+          "profundidad_captura"
         ],
         "title": "ProgramaBaseRespuesta"
       },
@@ -13354,6 +13797,49 @@
           "asignada_a"
         ],
         "title": "ProgramarIncidenciaPeticion"
+      },
+      "ProgramarNodoPeticion": {
+        "properties": {
+          "duracion_dias": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Duracion Dias",
+            "description": "Ventana del nodo. Los conceptos que cuelgan de él se acomodan uno tras otro dentro de ella, repartidos en proporción a su importe (§7.4)."
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio",
+            "description": "Ancla de la ventana. Sin ella se conserva el inicio que los conceptos ya tenían y, si ninguno lo tiene, el arranque de la obra: cambiar una duración no debería mover el nodo de lugar."
+          },
+          "forzar": {
+            "type": "boolean",
+            "title": "Forzar",
+            "description": "La respuesta al conflicto padre-hijo: `true` conserva la cifra del nodo y pisa lo que los conceptos traían. Sin él, un conflicto responde 409 sin escribir nada y el usuario decide (§7.5).",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "duracion_dias"
+        ],
+        "title": "ProgramarNodoPeticion",
+        "description": "§11.2 `POST /obras/{id}/programa/nodos/{prototipo_nodo_id}`."
       },
       "PrototipoRespuesta": {
         "properties": {

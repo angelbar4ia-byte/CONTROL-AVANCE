@@ -7,6 +7,7 @@
  */
 import type { CrearProgramaBasePeticionNombre } from './crearProgramaBasePeticionNombre';
 import type { ItemProgramaBasePeticion } from './itemProgramaBasePeticion';
+import type { ClaseNodo } from './claseNodo';
 import type { CalendarioPeticion } from './calendarioPeticion';
 
 /**
@@ -16,6 +17,8 @@ export interface CrearProgramaBasePeticion {
   prototipo_id: string;
   nombre?: CrearProgramaBasePeticionNombre;
   items?: ItemProgramaBasePeticion[];
+  /** A qué altura del árbol WBS se sugiere capturar este programa (§7.4, migración 0041): `nivel`, `etapa` o `concepto`. Es el default con el que abre el editor para que todo el equipo vea lo mismo, **no** una restricción: cualquiera puede bajar a capturar más fino sin reversionar la plantilla. `concepto` es renglón por renglón. */
+  profundidad_captura?: ClaseNodo;
   /** Semana laboral o natural del cronograma (§5.1: la elige Control de obra). Se captura una vez en la plantilla del prototipo y baja a cada obra que se genere o instancie con ella. Omitirlo es semana natural, el comportamiento de siempre. */
   calendario?: CalendarioPeticion;
 }

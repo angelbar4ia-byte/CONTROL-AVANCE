@@ -6,10 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CalendarioRespuesta } from './calendarioRespuesta';
+import type { ClaseNodo } from './claseNodo';
 
 export interface ProgramaBaseCreadoRespuesta {
   id: string;
   version: number;
   n_items: number;
   calendario: CalendarioRespuesta;
+  /** A qué altura del árbol WBS se sugiere capturar este programa (§7.4, migración 0041): `nivel`, `etapa` o `concepto`. Es el default con el que abre el editor para que todo el equipo vea lo mismo, **no** una restricción: cualquiera puede bajar a capturar más fino sin reversionar la plantilla. `concepto` es renglón por renglón. */
+  profundidad_captura: ClaseNodo;
 }

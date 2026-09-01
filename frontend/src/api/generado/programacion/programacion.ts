@@ -31,18 +31,22 @@ import type {
 
 import type {
   ActividadEnRutaRespuesta,
+  ArbolDeProgramaRespuesta,
   CrearProgramaBasePeticion,
   HTTPValidationError,
   InstanciarProgramaPeticion,
   ItemProgramaBaseRespuesta,
   ListarProgramasBaseApiV1ProgramasBaseGetParams,
+  NodoProgramadoRespuesta,
   ObraCandidataRespuesta,
+  ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
   ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
   ProgramaBaseCreadoRespuesta,
   ProgramaBaseRespuesta,
   ProgramaInstanciadoRespuesta,
   ProgramaObraRespuesta,
   ProgramacionActividadPeticion,
+  ProgramarNodoPeticion,
   RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams,
   ReplicaDeProgramaRespuesta,
   ReplicarProgramaPeticion,
@@ -932,6 +936,266 @@ export const useInstanciarProgramaDeObraApiV1ObrasObraIdProgramaPost = <TError =
       > => {
 
       const mutationOptions = getInstanciarProgramaDeObraApiV1ObrasObraIdProgramaPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * El Gantt jerárquico: nivel y etapa con su barra derivada y su avance
+ponderado (§7.4, §6).
+
+Todos los roles, como `GET /obras/{id}/ruta-critica` y por la misma razón:
+el Residente ve la de su obra porque RLS no le deja ver otra (§12.4). La
+barra resumen es de **lectura**; capturar sigue siendo en conceptos.
+
+No escribe nada: el resumen se deriva de las actividades que ya se leyeron.
+Persistirlo sería un segundo lugar donde vive la misma cifra.
+ * @summary Cronograma de la obra como árbol WBS, con barras resumen
+ */
+export const obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet = (
+    obraId: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<ArbolDeProgramaRespuesta>(
+      {url: `/api/v1/obras/${obraId}/programa/arbol`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+  
+
+
+
+export const getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryKey = (obraId?: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,) => {
+    return [
+    'infinite', `/api/v1/obras/${obraId}/programa/arbol`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+export const getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryKey = (obraId?: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,) => {
+    return [
+    `/api/v1/obras/${obraId}/programa/arbol`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>, TError = void>(obraId: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryKey(obraId,params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>> = ({ signal }) => obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet(obraId,params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(obraId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>
+export type ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryError = void
+
+
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>, TError = void>(
+ obraId: string,
+    params: undefined |  ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>,
+          TError,
+          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>, TError = void>(
+ obraId: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>,
+          TError,
+          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>, TError = void>(
+ obraId: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Cronograma de la obra como árbol WBS, con barras resumen
+ */
+
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>, TError = void>(
+ obraId: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryOptions(obraId,params,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryOptions = <TData = Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError = void>(obraId: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryKey(obraId,params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>> = ({ signal }) => obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet(obraId,params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(obraId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>
+export type ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryError = void
+
+
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet<TData = Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError = void>(
+ obraId: string,
+    params: undefined |  ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>,
+          TError,
+          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet<TData = Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError = void>(
+ obraId: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>,
+          TError,
+          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet<TData = Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError = void>(
+ obraId: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Cronograma de la obra como árbol WBS, con barras resumen
+ */
+
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet<TData = Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError = void>(
+ obraId: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryOptions(obraId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * Captura gruesa: 20 días en una etapa acomodan a sus conceptos uno tras
+otro dentro de esa ventana, repartidos por importe (§7.4, §11.2).
+
+**No crea una actividad de resumen**: escribe la duración y las fechas de
+los conceptos que ya existen. Una fila de resumen duplicaría cantidad,
+avance y costo sobre los de sus hijos (§6, §7.6).
+ * @summary Programar un nodo del árbol y repartir sus días a los conceptos
+ */
+export const programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost = (
+    obraId: string,
+    prototipoNodoId: string,
+    programarNodoPeticion: ProgramarNodoPeticion,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<NodoProgramadoRespuesta>(
+      {url: `/api/v1/obras/${obraId}/programa/nodos/${prototipoNodoId}`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: programarNodoPeticion, signal
+    },
+      options);
+    }
+  
+
+
+export const getProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost>>, TError,{obraId: string;prototipoNodoId: string;data: ProgramarNodoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost>>, TError,{obraId: string;prototipoNodoId: string;data: ProgramarNodoPeticion}, TContext> => {
+
+const mutationKey = ['programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost>>, {obraId: string;prototipoNodoId: string;data: ProgramarNodoPeticion}> = (props) => {
+          const {obraId,prototipoNodoId,data} = props ?? {};
+
+          return  programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost(obraId,prototipoNodoId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationResult = NonNullable<Awaited<ReturnType<typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost>>>
+    export type ProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationBody = ProgramarNodoPeticion
+    export type ProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationError = void
+
+    /**
+ * @summary Programar un nodo del árbol y repartir sus días a los conceptos
+ */
+export const useProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost>>, TError,{obraId: string;prototipoNodoId: string;data: ProgramarNodoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost>>,
+        TError,
+        {obraId: string;prototipoNodoId: string;data: ProgramarNodoPeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

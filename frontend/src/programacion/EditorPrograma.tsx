@@ -69,6 +69,7 @@ import {
   useListarPrototiposApiV1PrototiposGet,
 } from '@/api/generado/proyectos/proyectos';
 import type {
+  ClaseNodo,
   FrenteRespuesta,
   ItemProgramaBaseRespuesta,
   NodoPrototipoRespuesta,
@@ -175,6 +176,12 @@ function Pantalla() {
   // deshacer con Ctrl+Z junto a un arrastre de caja. Sí ensucia el borrador.
   const [diasHabiles, setDiasHabiles] = useState<readonly number[]>(SEMANA_NATURAL);
 
+  // La profundidad de captura (0041) es del programa completo, igual que el
+  // calendario, y por lo mismo vive fuera del historial: no es un gesto del
+  // canvas que tenga sentido deshacer junto a un arrastre de caja. `concepto`
+  // es el default del backend y el comportamiento previo a la migración.
+  const [profundidad, setProfundidad] = useState<ClaseNodo>('concepto');
+
   const [historial, setHistorial] = useState<Historial | null>(null);
   const [huerfanos, setHuerfanos] = useState<readonly ItemProgramaBaseRespuesta[]>([]);
   const [sucio, setSucio] = useState(false);
@@ -231,6 +238,10 @@ function Pantalla() {
     if (!abierta) return;
     calendarioSembrado.current = true;
     setDiasHabiles(normalizarDias(abierta.calendario?.dias_habiles));
+    // La profundidad se siembra con el calendario y no aparte: si no se
+    // arrastrara al reeditar, guardar de nuevo la reiniciaría a `concepto` y
+    // el equipo perdería la sugerencia sin que nadie la hubiera cambiado.
+    setProfundidad(abierta.profundidad_captura ?? 'concepto');
   }, [baseId, basesQ.isSuccess, basesQ.data]);
 
   const calendarioOriginal = useMemo<readonly number[]>(() => {
@@ -461,6 +472,7 @@ function Pantalla() {
         // El backend deriva el `tipo` (natural ⇔ los siete días); aquí solo
         // viaja el conjunto, que es el único dato capturable (§7.5).
         calendario: { dias_habiles: [...diasHabiles] },
+        profundidad_captura: profundidad,
       },
     });
   }
@@ -601,6 +613,11 @@ function Pantalla() {
         diasHabiles={diasHabiles}
         onDiasHabiles={cambiarDias}
         onAlternarDia={alternarDiaHabil}
+        profundidad={profundidad}
+        onProfundidad={(nueva) => {
+          setProfundidad(nueva);
+          setSucio(true);
+        }}
       />
 
       {guardado.avisos.map((mensaje) => (

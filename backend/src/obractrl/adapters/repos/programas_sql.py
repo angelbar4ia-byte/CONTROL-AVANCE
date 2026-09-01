@@ -40,7 +40,8 @@ from obractrl.application.puertos.repositorios import RegistroNoEncontrado
 __all__ = ["ProgramaNoModificado", "RepositorioProgramasSQL"]
 
 _COLUMNAS_BASE = """
-    id, prototipo_id, version, vigente, nombre, dias_habiles
+    id, prototipo_id, version, vigente, nombre, dias_habiles,
+    profundidad_captura
 """
 
 _COLUMNAS_ITEM = """
@@ -67,11 +68,12 @@ class RepositorioProgramasSQL:
     async def crear_base(self, datos: dict[str, Any]) -> UUID:
         """Alta de `ProgramaBase` (§11.2 `POST /programas-base`, rol C).
 
-        Claves esperadas: ``prototipo_id``. Opcionales: ``nombre`` y
-        ``dias_habiles`` (lista de días ISO, migración 0040). El default de la
-        columna cubre a `dias_habiles` ausente, pero el caso de uso siempre lo
-        manda resuelto —el dominio ya decidió que sin elección es semana
-        natural— para que la plantilla nazca con su calendario explícito.
+        Claves esperadas: ``prototipo_id``. Opcionales: ``nombre``,
+        ``dias_habiles`` (lista de días ISO, migración 0040) y
+        ``profundidad_captura`` (0041). El default de la columna cubre a los dos
+        últimos si faltan, pero el caso de uso siempre los manda resueltos —el
+        dominio ya decidió que sin elección son semana natural y captura por
+        concepto— para que la plantilla nazca con los dos explícitos.
 
         Retirar el vigente anterior **antes** de insertar el nuevo no es
         opcional: `uq_programa_base_vigente` es un índice único parcial y no
@@ -98,7 +100,7 @@ class RepositorioProgramasSQL:
                     """
                     insert into programa_base
                         (org_id, prototipo_id, version, vigente, nombre,
-                         dias_habiles)
+                         dias_habiles, profundidad_captura)
                     select cast(current_setting('app.org_id') as uuid),
                            cast(:prototipo_id as uuid),
                            coalesce(max(version), 0) + 1,
@@ -111,6 +113,13 @@ class RepositorioProgramasSQL:
                            coalesce(
                                cast(:dias_habiles as smallint[]),
                                array[1,2,3,4,5,6,7]::smallint[]
+                           ),
+                           -- Mismo caso con la profundidad de captura (0041):
+                           -- sin elección, 'concepto', que es renglón por
+                           -- renglón — lo único que existía antes de la 0041.
+                           coalesce(
+                               cast(:profundidad_captura as tipo_prototipo_nodo),
+                               'concepto'::tipo_prototipo_nodo
                            )
                     from programa_base
                     where prototipo_id = cast(:prototipo_id as uuid)
@@ -121,6 +130,7 @@ class RepositorioProgramasSQL:
                     "prototipo_id": prototipo_id,
                     "nombre": datos.get("nombre"),
                     "dias_habiles": datos.get("dias_habiles"),
+                    "profundidad_captura": datos.get("profundidad_captura"),
                 },
             )
         ).scalar_one()

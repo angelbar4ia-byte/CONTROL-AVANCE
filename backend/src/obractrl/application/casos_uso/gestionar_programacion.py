@@ -8,6 +8,12 @@ estado por sus puertos, dejan que el dominio decida —`domain.programacion`— 
 solo entonces persisten. Ninguna regla vive aquí, solo la secuencia.
 
 * `CrearProgramaBase` — la plantilla de duraciones de un prototipo (§7.5).
+* `ConsultarArbolPrograma` — el cronograma visto **como el árbol WBS**: las
+  barras resumen derivadas de nivel y de etapa, con su avance ponderado y sus
+  conflictos padre-hijo (§7.4, `GET /obras/{id}/programa/arbol`).
+* `ProgramarNodoDelArbol` — captura gruesa: una ventana de días en un nodo
+  `nivel` o `etapa` se reparte entre los conceptos que cuelgan de él
+  (§11.2 `POST /obras/{id}/programa/nodos/{prototipo_nodo_id}`).
 * `InstanciarProgramaObra` — baja esa plantilla al cronograma de una obra,
   versionando el `ProgramaObra` (§11.2 `POST /obras/{id}/programa`).
 * `ReplicarProgramaEnObras` — la misma bajada a **muchas** obras del prototipo
@@ -33,6 +39,7 @@ no su tabla.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -57,6 +64,16 @@ from obractrl.domain.programacion.cpm import (
     Tramo,
     calcular_cpm,
 )
+from obractrl.domain.programacion.jerarquia import (
+    ConflictoJerarquia,
+    ErrorDeJerarquia,
+    HojaProgramable,
+    NodoWBS,
+    ResumenNodo,
+    hojas_por_nodo,
+    repartir_secuencial,
+    resumir_arbol,
+)
 from obractrl.domain.programacion.reglas import (
     ActividadProgramable,
     ErrorDeProgramacion,
@@ -67,35 +84,82 @@ from obractrl.domain.programacion.reglas import (
     nodos_cpm,
     validar_item_base,
 )
+from obractrl.domain.shared.diccionario import ClaseNodo
 
 __all__ = [
     "ActividadEnRuta",
     "ActividadNoProgramable",
+    "ArbolDePrograma",
     "CalendarioLaboral",
     "CicloEnGrafoError",
     "ComandoCrearProgramaBase",
     "ComandoEditarProgramacion",
     "ComandoInstanciarPrograma",
+    "ComandoProgramarNodo",
     "ComandoRecalcularRutaCritica",
     "ComandoReplicarPrograma",
+    "ConflictoJerarquia",
+    "ConflictoNoResuelto",
+    "ConsultarArbolPrograma",
     "ConsultarRutaCritica",
     "CrearProgramaBase",
     "EditarProgramacionActividad",
+    "ErrorDeJerarquia",
     "ErrorDeProgramacion",
     "InstanciarProgramaObra",
+    "NodoNoProgramable",
+    "NodoProgramado",
     "ProgramaBaseCreado",
     "ProgramaBaseNoEncontrado",
     "ProgramaInstanciadoEnObra",
+    "ProgramarNodoDelArbol",
     "RecalcularRutaCritica",
     "ReplicaDePrograma",
     "ReplicaEnObra",
     "ReplicarProgramaEnObras",
+    "ResumenNodo",
     "RutaCritica",
 ]
 
 
 class ProgramaBaseNoEncontrado(LookupError):
     """El programa base no existe o está fuera del alcance del usuario (RLS)."""
+
+
+class NodoNoProgramable(LookupError):
+    """El nodo del árbol no existe en el prototipo de la obra, o no tiene
+    ninguna actividad debajo que programar (§7.4).
+
+    Es un `LookupError` y no un error de programación porque para el cliente es
+    lo mismo que pedir una actividad inexistente: un 404 (§11.2). Un nodo real
+    del árbol sin hojas debajo cae aquí a propósito — no hay nada que repartir,
+    y decirlo con un 422 sugeriría que la ventana capturada estaba mal.
+    """
+
+
+class ConflictoNoResuelto(ErrorDeProgramacion):
+    """La ventana que se quiere imponer al nodo choca con lo que ya traen sus
+    hojas, y nadie ha decidido cuál cifra conservar (§7.5).
+
+    **No se resuelve solo, y esa es la decisión.** Que el padre pisara al hijo
+    borraría un ajuste fino que alguien capturó a propósito; que el hijo ganara
+    volvería inútil la captura gruesa. La operación se aborta sin escribir nada
+    y el conflicto viaja adentro para que el borde se lo presente al usuario con
+    las dos cifras (§11.2). Reintentar con `forzar` es la respuesta "conservo la
+    del padre"; no reintentar es "conservo la de los hijos".
+    """
+
+    def __init__(self, conflicto: ConflictoJerarquia) -> None:
+        super().__init__(
+            f"El nodo {conflicto.nombre!r} se programaría con "
+            f"{conflicto.dias_capturados} días, pero sus "
+            f"{len(conflicto.actividades)} concepto(s) ya programados ocupan "
+            f"{conflicto.dias_derivados}. Decide cuál cifra conservar: repetir "
+            f"la operación forzándola reparte los {conflicto.dias_capturados} "
+            f"días y pisa lo capturado; no repetirla deja el detalle como está "
+            f"(§7.5)."
+        )
+        self.conflicto = conflicto
 
 
 class ActividadNoProgramable(LookupError):
@@ -125,6 +189,13 @@ class ComandoCrearProgramaBase:
     nombre: str | None = None
     items: tuple[ItemProgramaBase, ...] = ()
     calendario: CalendarioLaboral = SEMANA_NATURAL
+    profundidad_captura: ClaseNodo = ClaseNodo.CONCEPTO
+    """A qué altura del árbol WBS se sugiere capturar esta plantilla (0041).
+
+    Es un **default de pantalla**, no una restricción: el editor abre ahí para
+    que el equipo vea lo mismo, y cualquiera puede bajar a capturar más fino sin
+    reversionar el programa base. Sin elección, `concepto` —renglón por
+    renglón—, que es lo único que existía antes."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +223,29 @@ class ComandoReplicarPrograma:
     programa_base_id: UUID
     obras: tuple[UUID, ...] = ()
     fecha_corte: date | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoProgramarNodo:
+    """§11.2 `POST /obras/{id}/programa/nodos/{prototipo_nodo_id}` (C, S).
+
+    La captura gruesa del §7.4: se programa el nodo `nivel` o `etapa` y los
+    conceptos que cuelgan de él se acomodan uno tras otro dentro de esa ventana
+    (`domain.programacion.jerarquia.repartir_secuencial`).
+    """
+
+    obra_id: UUID
+    prototipo_nodo_id: UUID
+    duracion_dias: Decimal
+    fecha_inicio: date | None = None
+    """Ancla de la ventana. Sin ella se usa el inicio que ya traen las hojas del
+    nodo y, si ninguna lo tiene, el arranque de la obra: reprogramar la duración
+    de una etapa que ya está colocada en el calendario no debería moverla de
+    lugar sin que nadie lo pidiera."""
+    forzar: bool = False
+    """La respuesta del usuario al conflicto padre-hijo: `True` es "conservo la
+    cifra del padre" y pisa lo que las hojas traían. Sin él, un conflicto aborta
+    la operación sin escribir nada (`ConflictoNoResuelto`)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +283,7 @@ class ProgramaBaseCreado:
     version: int
     n_items: int
     calendario: CalendarioLaboral = SEMANA_NATURAL
+    profundidad_captura: ClaseNodo = ClaseNodo.CONCEPTO
 
 
 @dataclass(frozen=True, slots=True)
@@ -253,6 +348,62 @@ class ProgramaInstanciadoEnObra:
     ruta: RutaCritica
     sin_item: tuple[str, ...] = field(default=())
     refs_no_resueltas: tuple[str, ...] = field(default=())
+
+
+@dataclass(frozen=True, slots=True)
+class ArbolDePrograma:
+    """El cronograma de la obra visto como el árbol WBS (§7.4, §11.2).
+
+    Un renglón por nodo con actividades debajo, en el orden en que el árbol se
+    recorre —padre antes que hijos—, que es como se dibuja el Gantt. Los
+    renglones de `nivel` y `etapa` son **barras resumen derivadas**: el
+    residente sigue capturando sólo en conceptos, y estas se recalculan de sus
+    hojas cada vez que se piden (§7.6).
+    """
+
+    obra_id: UUID
+    prototipo_id: UUID
+    profundidad_captura: ClaseNodo
+    """Dónde abrir el editor, según lo que guardó el programa base (0041). Es
+    una sugerencia, no una jaula: los renglones vienen todos y cada uno trae su
+    `profundidad` para que el cliente pueda bajar."""
+    calendario: CalendarioLaboral
+    nodos: tuple[ResumenNodo, ...]
+
+    @property
+    def conflictos(self) -> tuple[ConflictoJerarquia, ...]:
+        """Los nodos cuya ventana capturada no cuadra con sus hojas (§7.5).
+
+        Es un aviso no bloqueante, del mismo tenor que
+        `ProgramaInstanciado.sin_item`: la pantalla lo marca y el usuario elige
+        cuál cifra conservar; nadie resuelve por él.
+        """
+        return tuple(
+            nodo.conflicto for nodo in self.nodos if nodo.conflicto is not None
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class NodoProgramado:
+    """Resultado de repartir una ventana gruesa (§11.2, §7.4)."""
+
+    obra_id: UUID
+    prototipo_nodo_id: UUID
+    duracion_dias: Decimal
+    fecha_inicio: date
+    fecha_termino: date
+    actividades: tuple[UUID, ...]
+    """Las hojas que quedaron reprogramadas, en el orden en que se acomodaron."""
+    ruta: RutaCritica
+    omitidas: tuple[UUID, ...] = ()
+    """Hojas que el reparto **no** tocó por estar interrumpidas en tramos (§7.6).
+
+    Partir el muro para colar la losa es de la secuencia constructiva del
+    prototipo, expresada en días de esa actividad; una ventana gruesa no tiene
+    con qué decidir cómo volver a partirla. Reescalar los tramos a ojo o
+    borrarlos serían las dos formas de destruir esa decisión en silencio, así
+    que la actividad conserva lo suyo y se reporta para que el usuario la
+    programe a mano si hace falta (§11.2 `PATCH`)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -503,6 +654,7 @@ class CrearProgramaBase:
                     "prototipo_id": cmd.prototipo_id,
                     "nombre": cmd.nombre,
                     "dias_habiles": cmd.calendario.a_lista(),
+                    "profundidad_captura": str(cmd.profundidad_captura),
                 }
             )
             await self._programas.agregar_items_base(
@@ -540,6 +692,11 @@ class CrearProgramaBase:
             # ver es el calendario que quedó guardado.
             calendario=CalendarioLaboral.de(
                 creado["dias_habiles"] if creado else None
+            ),
+            profundidad_captura=ClaseNodo(
+                str(creado["profundidad_captura"])
+                if creado and creado.get("profundidad_captura")
+                else ClaseNodo.CONCEPTO
             ),
         )
 
@@ -1011,3 +1168,367 @@ def _cambios(
     if cmd.fecha_termino is not None:
         cambios["fecha_termino"] = programacion.fecha_termino
     return cambios
+
+
+# --- Programación jerárquica sobre el árbol WBS (§7.4, §11.2) -----------
+
+
+def _a_nodo_wbs(fila: dict) -> NodoWBS:
+    return NodoWBS(
+        id=str(fila["id"]),
+        tipo=ClaseNodo(str(fila["tipo"])),
+        nombre=fila["nombre"],
+        parent_id=str(fila["parent_id"]) if fila.get("parent_id") else None,
+    )
+
+
+def _a_hoja(fila: dict, resultado: ResultadoCPM | None) -> HojaProgramable:
+    """Una actividad como hoja del árbol (§7.6).
+
+    Lo capturado y lo que derivó el motor viajan **en campos distintos**, y no
+    uno rellenando al otro. Para dibujar la barra resumen son intercambiables
+    —manda la captura y el CPM cubre el hueco, igual que fusiona el Gantt
+    (`filas.ts`)— pero para el conflicto del §7.5 no lo son: el motor siempre da
+    una fecha, así que colapsarlos haría que toda actividad de toda obra pasara
+    por "programada a mano" y el aviso saliera en cada nodo desde el primer día.
+    """
+    return HojaProgramable(
+        actividad_id=str(fila["id"]),
+        prototipo_nodo_id=str(fila["prototipo_nodo_id"])
+        if fila.get("prototipo_nodo_id")
+        else None,
+        importe=Decimal(str(fila.get("cant_base") or 0))
+        * Decimal(str(fila.get("precio_unitario") or 0)),
+        duracion_dias=Decimal(str(fila["duracion_dias"])),
+        fecha_inicio=fila["fecha_inicio"],
+        fecha_termino=fila["fecha_termino"],
+        inicio_calculado=resultado.inicio_temprano if resultado else None,
+        termino_calculado=resultado.fin_temprano if resultado else None,
+        avance_pct=Decimal(str(fila["avance_pct"] or 0)),
+    )
+
+
+def _ventanas_de(items: Sequence[dict]) -> dict[str, Decimal]:
+    """Los días que el programa base declara para nodos **gruesos** del árbol.
+
+    Un `programa_base_item` cuyo `prototipo_nodo_id` apunta a un nodo `nivel` o
+    `etapa` siempre fue representable —la columna referencia cualquier nodo del
+    árbol (migración 0006)— y hasta ahora nadie lo resolvía: `item_aplicable`
+    sólo lo cruza contra actividades, y ninguna actividad nace de un nodo que no
+    sea `concepto` (§11.3 A.2). Aquí es donde esa captura gruesa cobra sentido:
+    es la ventana contra la que se compara el resumen de sus hojas.
+
+    Se devuelven todos los items con nodo, no sólo los gruesos: filtrar por tipo
+    necesitaría el árbol, y un item sobre un nodo `concepto` simplemente coincide
+    con la duración de su única hoja y nunca produce conflicto.
+    """
+    return {
+        str(item["prototipo_nodo_id"]): Decimal(str(item["duracion_dias"]))
+        for item in items
+        if item.get("prototipo_nodo_id")
+    }
+
+
+@dataclass(frozen=True, slots=True)
+class _ContextoDelArbol:
+    """El estado que los dos casos de uso jerárquicos necesitan leer (§7.4)."""
+
+    prototipo_id: UUID
+    nodos: tuple[NodoWBS, ...]
+    filas: tuple[dict, ...]
+    hojas: tuple[HojaProgramable, ...]
+    calendario: CalendarioLaboral
+    arranque: date
+    corte: date
+    programa: dict | None
+
+
+class _ConArbol(_ConCronograma):
+    """Lo que comparten los dos casos de uso jerárquicos (§7.4).
+
+    Los dos necesitan lo mismo: el árbol del prototipo de la obra, sus
+    actividades como hojas con fechas resueltas por el motor, y el calendario
+    del cronograma. Cargarlo una vez aquí evita que la lectura y la escritura
+    difieran en qué consideran "la hoja" — que es exactamente cómo el resumen
+    dejaría de reproducir lo que la captura repartió.
+    """
+
+    async def _contexto_del_arbol(
+        self, obra_id: UUID, fecha_corte: date | None = None
+    ) -> _ContextoDelArbol:
+        obra = await self._obras.obtener(obra_id)
+        if obra is None:
+            raise ObraNoEncontrada(f"Obra {obra_id} no encontrada en tu alcance.")
+        if not obra["prototipo_id"]:
+            raise ErrorDeProgramacion(
+                f"La obra {obra_id} no tiene prototipo (§7.2): su cronograma no "
+                f"cuelga de ningún árbol WBS que resumir (§7.4)."
+            )
+
+        prototipo_id = UUID(str(obra["prototipo_id"]))
+        programa = await self._programas.programa_vigente(obra_id)
+        filas = await self._actividades.programacion_de_obra(obra_id)
+        arranque = obra["fecha_inicio"] or date.today()
+        corte = fecha_corte or (programa or {}).get("fecha_corte") or date.today()
+
+        calendario = _calendario_de(programa)
+        resultados = calcular_cpm(
+            nodos_cpm([_a_actividad(f) for f in filas]),
+            arranque,
+            fecha_corte=corte,
+            calendario=calendario,
+        )
+        return _ContextoDelArbol(
+            prototipo_id=prototipo_id,
+            nodos=tuple(
+                _a_nodo_wbs(f)
+                for f in await self._obras.arbol_prototipo(prototipo_id)
+            ),
+            filas=tuple(filas),
+            hojas=tuple(_a_hoja(f, resultados.get(str(f["id"]))) for f in filas),
+            calendario=calendario,
+            arranque=arranque,
+            corte=corte,
+            programa=programa,
+        )
+
+
+class ConsultarArbolPrograma(_ConArbol):
+    """`GET /obras/{id}/programa/arbol` — el Gantt jerárquico (§7.4, §11.2).
+
+    Devuelve una barra por nodo con actividades debajo: los conceptos con la
+    suya y los nodos `nivel`/`etapa` con su **barra resumen derivada** —inicio
+    el más temprano de sus hojas, fin el más tardío, avance el ponderado por
+    importe (§6)—.
+
+    **No escribe nada, y no es por prudencia: es el diseño.** Si el resumen se
+    persistiera sería un segundo lugar donde vive la misma cifra, y el primero
+    en quedar viejo en cuanto alguien ajustara una actividad por el `PATCH` del
+    §11.2. Calcularlo es una pasada sobre las actividades que ya se leyeron,
+    igual de barata que `ConsultarRutaCritica`.
+
+    Los conflictos padre-hijo salen aquí, en el mismo renglón del nodo que los
+    tiene: es donde el usuario está mirando cuando tiene que decidir.
+    """
+
+    async def ejecutar(
+        self, obra_id: UUID, *, fecha_corte: date | None = None
+    ) -> ArbolDePrograma:
+        ctx = await self._contexto_del_arbol(obra_id, fecha_corte)
+
+        base = await self._programas.base_vigente(ctx.prototipo_id)
+        items = await self._programas.items_base_vigente(ctx.prototipo_id)
+
+        return ArbolDePrograma(
+            obra_id=obra_id,
+            prototipo_id=ctx.prototipo_id,
+            # Sin programa base vigente, captura por concepto: es el default de
+            # la columna (0041) y el comportamiento que el editor siempre tuvo.
+            profundidad_captura=ClaseNodo(
+                str(base["profundidad_captura"])
+                if base and base.get("profundidad_captura")
+                else ClaseNodo.CONCEPTO
+            ),
+            calendario=ctx.calendario,
+            nodos=resumir_arbol(
+                nodos=ctx.nodos,
+                hojas=ctx.hojas,
+                calendario=ctx.calendario,
+                ventanas=_ventanas_de(items),
+            ),
+        )
+
+
+class ProgramarNodoDelArbol(_ConArbol):
+    """`POST /obras/{id}/programa/nodos/{prototipo_nodo_id}` (C, S — §11.2).
+
+    La captura gruesa que pidió el jefe de obra: 20 días en la etapa
+    `ESTRUCTURA PB` acomodan a sus ocho conceptos **uno tras otro** dentro de
+    esa ventana, repartidos en proporción a su importe (§7.4,
+    `domain.programacion.jerarquia`).
+
+    **No crea una actividad de resumen.** El nodo `nivel`/`etapa` sigue siendo
+    estructura: lo que se escribe son las duraciones y las fechas de las hojas
+    que ya existen (§11.3 A.2). Una fila de resumen duplicaría cantidad, avance
+    y costo sobre los de sus hijos y rompería el §6 y el §7.6.
+
+    Un conflicto con lo que las hojas ya traían **aborta sin escribir** y sube
+    como `ConflictoNoResuelto`; repetir con `forzar` es la decisión del usuario
+    de conservar la cifra del padre.
+
+    Igual que el resto de las operaciones que tocan el cronograma, el motor
+    corre **antes** de abrir la unidad de trabajo: un ciclo deja la obra con su
+    programación anterior intacta (§6).
+    """
+
+    def __init__(
+        self,
+        *,
+        actividades: RepositorioActividades,
+        obras: RepositorioObras,
+        programas: RepositorioProgramas,
+        uow: UnidadDeTrabajo,
+    ) -> None:
+        super().__init__(actividades=actividades, obras=obras, programas=programas)
+        self._uow = uow
+
+    async def ejecutar(self, cmd: ComandoProgramarNodo) -> NodoProgramado:
+        ctx = await self._contexto_del_arbol(cmd.obra_id)
+        nodo_id = str(cmd.prototipo_nodo_id)
+
+        if all(nodo.id != nodo_id for nodo in ctx.nodos):
+            raise NodoNoProgramable(
+                f"El nodo {nodo_id} no está en el árbol del prototipo de esta "
+                f"obra (§7.4)."
+            )
+
+        del_nodo = hojas_por_nodo(ctx.nodos, ctx.hojas).get(nodo_id, ())
+        if not del_nodo:
+            raise NodoNoProgramable(
+                f"El nodo {nodo_id} no tiene ningún concepto debajo en esta "
+                f"obra: no hay actividades entre las cuales repartir la ventana "
+                f"(§7.4)."
+            )
+
+        actividades = [_a_actividad(f) for f in ctx.filas]
+        interrumpidas = frozenset(a.id for a in actividades if a.tramos)
+        repartibles = tuple(
+            h for h in del_nodo if h.actividad_id not in interrumpidas
+        )
+        if not repartibles:
+            raise NodoNoProgramable(
+                f"Todos los conceptos debajo del nodo {nodo_id} están "
+                f"interrumpidos en tramos: una ventana gruesa no sabe cómo "
+                f"volver a partirlos, así que no hay nada que repartir. "
+                f"Prográmalos uno por uno (§7.6, §11.2 `PATCH`)."
+            )
+
+        _verificar_conflicto(
+            nodos=ctx.nodos,
+            nodo_id=nodo_id,
+            hojas=del_nodo,
+            ventana=cmd.duracion_dias,
+            calendario=ctx.calendario,
+            forzar=cmd.forzar,
+        )
+
+        # El ancla: lo que el cliente pidió, o donde el nodo ya está colocado, o
+        # el arranque de la obra. Cambiarle la duración a una etapa no debería
+        # moverla de lugar en el calendario si nadie lo pidió.
+        inicios = [h.fecha_inicio for h in del_nodo if h.fecha_inicio is not None]
+        ancla = cmd.fecha_inicio or (min(inicios) if inicios else ctx.arranque)
+
+        colocaciones = repartir_secuencial(
+            hojas=repartibles,
+            ventana_dias=cmd.duracion_dias,
+            inicio=ancla,
+            calendario=ctx.calendario,
+        )
+        por_id = {c.actividad_id: c for c in colocaciones}
+
+        # El grafo con las duraciones nuevas, antes de escribir: un ciclo aborta
+        # aquí y la obra se queda con su programación anterior intacta (§6).
+        propuesta = {
+            actividad.id: ProgramacionDeActividad(
+                actividad_id=actividad.id,
+                duracion_dias=por_id[actividad.id].duracion_dias,
+                dependencias=actividad.dependencias,
+                frente_id=actividad.frente_id,
+                fecha_inicio=por_id[actividad.id].fecha_inicio,
+                fecha_termino=por_id[actividad.id].fecha_termino,
+                tramos=actividad.tramos,
+            )
+            for actividad in actividades
+            if actividad.id in por_id
+        }
+        resultados = calcular_cpm(
+            nodos_cpm(actividades, propuesta),
+            ctx.arranque,
+            fecha_corte=ctx.corte,
+            calendario=ctx.calendario,
+        )
+
+        async with self._uow:
+            for colocacion in colocaciones:
+                try:
+                    await self._actividades.actualizar_programacion(
+                        UUID(colocacion.actividad_id),
+                        {
+                            "duracion_dias": colocacion.duracion_dias,
+                            "fecha_inicio": colocacion.fecha_inicio,
+                            "fecha_termino": colocacion.fecha_termino,
+                        },
+                    )
+                except RegistroNoEncontrado as exc:
+                    raise ActividadNoProgramable(
+                        f"La actividad {colocacion.actividad_id} ya no está en "
+                        f"tu alcance: el reparto del nodo {nodo_id} no se "
+                        f"aplicó."
+                    ) from exc
+            await self._actividades.guardar_resultado_cpm(
+                cmd.obra_id, _a_guardable(resultados)
+            )
+            await self._uow.commit()
+
+        filas_nuevas = await self._actividades.programacion_de_obra(cmd.obra_id)
+        return NodoProgramado(
+            obra_id=cmd.obra_id,
+            prototipo_nodo_id=cmd.prototipo_nodo_id,
+            duracion_dias=cmd.duracion_dias,
+            fecha_inicio=colocaciones[0].fecha_inicio,
+            fecha_termino=colocaciones[-1].fecha_termino,
+            actividades=tuple(UUID(c.actividad_id) for c in colocaciones),
+            omitidas=tuple(
+                UUID(h.actividad_id)
+                for h in del_nodo
+                if h.actividad_id in interrumpidas
+            ),
+            ruta=_ensamblar_ruta(
+                obra_id=cmd.obra_id,
+                filas=filas_nuevas,
+                resultados=resultados,
+                fecha_inicio=ctx.arranque,
+                fecha_corte=ctx.corte,
+                programa=ctx.programa,
+                calendario=ctx.calendario,
+            ),
+        )
+
+
+def _verificar_conflicto(
+    *,
+    nodos: Sequence[NodoWBS],
+    nodo_id: str,
+    hojas: Sequence[HojaProgramable],
+    ventana: Decimal,
+    calendario: CalendarioLaboral,
+    forzar: bool,
+) -> None:
+    """Aborta si la ventana choca con lo que las hojas ya traen y nadie decidió.
+
+    Se reusa `resumir_arbol` en vez de recalcular el criterio aquí: si el
+    conflicto que avisa la pantalla (`ConsultarArbolPrograma`) y el que frena la
+    escritura se calcularan por separado, tarde o temprano uno avisaría de algo
+    que el otro deja pasar.
+
+    Raises:
+        ConflictoNoResuelto: hay desacuerdo y `forzar` es falso.
+    """
+    if forzar:
+        return
+
+    resumen = next(
+        (
+            r
+            for r in resumir_arbol(
+                nodos=nodos,
+                hojas=hojas,
+                calendario=calendario,
+                ventanas={nodo_id: ventana},
+            )
+            if r.nodo_id == nodo_id
+        ),
+        None,
+    )
+    if resumen is not None and resumen.conflicto is not None:
+        raise ConflictoNoResuelto(resumen.conflicto)

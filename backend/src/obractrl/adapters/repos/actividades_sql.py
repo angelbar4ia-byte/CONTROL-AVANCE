@@ -36,13 +36,22 @@ __all__ = ["ActividadNoModificada", "RepositorioActividadesSQL"]
 _COLUMNAS_PROGRAMACION = """
     id, prototipo_nodo_id, frente_id, etapa_id, nivel_id, descripcion,
     duracion_dias, dependencias, tramos, fecha_inicio, fecha_termino,
-    avance_pct, estatus, bloqueada, es_critica, holgura, desfase
+    avance_pct, estatus, bloqueada, es_critica, holgura, desfase,
+    cant_base, precio_unitario
 """
 """Lo que el cronograma y el Gantt necesitan de una actividad (§7.6, §11.2).
 
 Es un `select` propio y no `_COLUMNAS` del avance porque son dos vistas de la
 misma fila con consumidores distintos: la captura mira cantidades y precios,
 la programación mira fechas, duración y dependencias.
+
+`cant_base` y `precio_unitario` son la excepción, y entran por la programación
+jerárquica (§7.4): su producto es el **importe** con el que se pondera el
+reparto de una ventana gruesa y el avance de una barra resumen
+(`domain.programacion.jerarquia`). Se leen de aquí y no del presupuesto vigente
+porque la actividad ya **es** el registro que la obra guarda de ese importe —lo
+copió el workflow A del CPU vigente (§11.3 A.2)—, y cruzar al contexto
+Presupuesto por un dato que ya está en la fila sobraría (§11.1).
 """
 
 _CAMPOS_PROGRAMACION = {

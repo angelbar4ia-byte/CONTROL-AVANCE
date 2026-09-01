@@ -150,7 +150,13 @@ class RepositorioActividades(Protocol):
 
     async def programacion_de_obra(self, obra_id: UUID) -> list[dict]:
         """Cronograma completo de la obra: lo que el CPM y el Gantt necesitan
-        de cada actividad (§7.6, §11.2 `GET /obras/{id}/ruta-critica`)."""
+        de cada actividad (§7.6, §11.2 `GET /obras/{id}/ruta-critica`).
+
+        Incluye `cant_base` y `precio_unitario` —el importe de la actividad—
+        porque la programación jerárquica pondera con ellos: el reparto de una
+        ventana gruesa y el avance de una barra resumen van por importe, no en
+        partes iguales (§7.4, `domain.programacion.jerarquia`).
+        """
         ...
 
     async def programacion_de(self, actividad_id: UUID) -> dict | None:
