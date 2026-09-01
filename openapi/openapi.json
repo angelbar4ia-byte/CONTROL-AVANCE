@@ -2432,6 +2432,25 @@
             "description": "Obras de un residente (§4)."
           },
           {
+            "name": "prototipo_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Obras construidas con el mismo modelo de casa (§7.2).",
+              "title": "Prototipo Id"
+            },
+            "description": "Obras construidas con el mismo modelo de casa (§7.2)."
+          },
+          {
             "name": "estatus",
             "in": "query",
             "required": false,
@@ -2967,6 +2986,117 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/programas-base/{programa_base_id}/obras": {
+      "get": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Obras a las que este programa base se puede replicar",
+        "description": "Las obras del prototipo del programa, con el estado de su cronograma.\n\nLectura simple, así que consulta los repos directo como\n`obtener_programa_de_obra` (§11.2). Son **dos** repositorios y no uno a\npropósito: la obra la sirve `RepositorioObras` y el `ProgramaObra` vigente\n`RepositorioProgramas`, cada contexto por su puerto (§11.1). Componerlos\naquí es lo que evita un join entre `obra` y `programa_obra` dentro de un\nrepositorio que no es dueño de las dos tablas.",
+        "operationId": "listar_obras_candidatas_api_v1_programas_base__programa_base_id__obras_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "programa_base_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Programa Base Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ObraCandidataRespuesta"
+                  },
+                  "title": "Response Listar Obras Candidatas Api V1 Programas Base  Programa Base Id  Obras Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/programas-base/{programa_base_id}/replicar": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Replicar el programa base a varias obras del prototipo",
+        "description": "Instancia el cronograma de varias obras en una sola llamada (§7.5).\n\nMismos roles que la instanciación individual (`PROGRAMA_DE_OBRA`): repetir\nuna operación no la vuelve más privilegiada, y RLS ya acota a qué obras\nllega cada quien (§12.4).\n\nEs de **mejor esfuerzo**: una obra que falla no cancela el lote, y el 422\ndocumentado arriba solo aparece cuando lo inválido es el programa —una\nversión retirada—, no cuando lo es una obra. Lo que pase con cada casa va\nen `obras[].motivo`.",
+        "operationId": "replicar_programa_base_api_v1_programas_base__programa_base_id__replicar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "programa_base_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Programa Base Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplicarProgramaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplicaDeProgramaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "El cronograma tiene dependencias circulares o la programación es inválida; nada se escribió (§6, §7.5)."
           }
         }
       }
@@ -12019,6 +12149,84 @@
         ],
         "title": "NodoPrototipoRespuesta"
       },
+      "ObraCandidataRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "residente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residente Id"
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio"
+          },
+          "version_cronograma": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Cronograma",
+            "description": "Versión del `ProgramaObra` vigente de la obra, o `null` si nunca se le instanció uno. Replicar sobre una obra con versión crea la siguiente (§7.5)."
+          },
+          "fecha_corte": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Corte",
+            "description": "Fecha de corte con la que se calculó esa versión (§6)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "clave",
+          "estatus",
+          "residente_id",
+          "fecha_inicio",
+          "version_cronograma",
+          "fecha_corte"
+        ],
+        "title": "ObraCandidataRespuesta",
+        "description": "Una obra a la que este programa base se puede replicar (§11.2).\n\nLo que la pantalla de replicación necesita saber **antes** de elegir: qué\ncasa es, si ya se generó desde su prototipo —sin actividades no hay nada\nque programar (§11.3 A.2)— y si ya trae cronograma, porque replicar sobre\nuna obra programada le crea una **versión nueva** y eso el usuario lo tiene\nque saber antes, no después (§7.5)."
+      },
       "ObraGeneradaRespuesta": {
         "properties": {
           "obra_id": {
@@ -13742,6 +13950,178 @@
         ],
         "title": "RendimientoPorCuadrillaRespuesta",
         "description": "Lo que produjo cada cuadrilla (§5.1).\n\nSin contraparte presupuestada: el presupuesto es por concepto y no reparte\nel trabajo entre cuadrillas. Lo comparable es su `rendimiento` de catálogo."
+      },
+      "ReplicaDeProgramaRespuesta": {
+        "properties": {
+          "programa_base_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Programa Base Id"
+          },
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "version_base": {
+            "type": "integer",
+            "title": "Version Base"
+          },
+          "n_programadas": {
+            "type": "integer",
+            "title": "N Programadas"
+          },
+          "n_fallidas": {
+            "type": "integer",
+            "title": "N Fallidas"
+          },
+          "obras": {
+            "items": {
+              "$ref": "#/components/schemas/ReplicaEnObraRespuesta"
+            },
+            "type": "array",
+            "title": "Obras",
+            "description": "Un renglón por obra pedida, en el orden en que se pidieron."
+          }
+        },
+        "type": "object",
+        "required": [
+          "programa_base_id",
+          "prototipo_id",
+          "version_base",
+          "n_programadas",
+          "n_fallidas",
+          "obras"
+        ],
+        "title": "ReplicaDeProgramaRespuesta",
+        "description": "§11.2 `POST /programas-base/{id}/replicar`.\n\nResponde **200 y no 201** aunque cree cronogramas: un lote de mejor\nesfuerzo no tiene un recurso creado que anunciar —puede haber creado 39 de\n40, o ninguno— y el resultado real es el parte por obra, no una ubicación."
+      },
+      "ReplicaEnObraRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave"
+          },
+          "programada": {
+            "type": "boolean",
+            "title": "Programada",
+            "description": "`true` si la obra quedó con cronograma nuevo. `false` trae el `motivo` y significa que esa obra no se tocó: su transacción no se confirmó."
+          },
+          "programa_obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Programa Obra Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "n_actividades": {
+            "type": "integer",
+            "title": "N Actividades"
+          },
+          "sin_item": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sin Item",
+            "description": "Actividades para las que el programa base no trae renglón: conservaron su programación anterior (§7.5)."
+          },
+          "refs_no_resueltas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Refs No Resueltas",
+            "description": "Dependencias del programa base que no corresponden a ninguna actividad de la obra; el motor las ignora (§6)."
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo",
+            "description": "Por qué esta obra no quedó programada, redactado para quien lee el reporte. `null` en las que sí."
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "clave",
+          "programada",
+          "programa_obra_id",
+          "version",
+          "n_actividades",
+          "sin_item",
+          "refs_no_resueltas",
+          "motivo"
+        ],
+        "title": "ReplicaEnObraRespuesta",
+        "description": "El parte de **una** obra del lote (§11.2)."
+      },
+      "ReplicarProgramaPeticion": {
+        "properties": {
+          "obras": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Obras",
+            "description": "Obras destino. Deben ser del mismo prototipo que el programa base; las que no lo sean se reportan como no replicadas en vez de abortar el lote."
+          },
+          "fecha_corte": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Corte",
+            "description": "Fecha contra la que se mide el desfase; por defecto hoy (§6)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "obras"
+        ],
+        "title": "ReplicarProgramaPeticion",
+        "description": "§11.2 `POST /programas-base/{id}/replicar`.\n\nLas obras van explícitas y no se asume \"todas las del prototipo\": replicar\nreprograma casas que pueden llevar avance, así que cuáles entran es una\ndecisión del usuario, no un default."
       },
       "ResetearContrasenaPeticion": {
         "properties": {

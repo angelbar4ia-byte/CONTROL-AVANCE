@@ -7,8 +7,12 @@
  * el backend lo exige con `exigir_rol(Rol.CONTROL_OBRA)`; a cualquier otro
  * rol se le explica en vez de dejarlo chocar contra un 403.
  *
- * Es la plantilla que después se baja a una obra desde la pantalla de
- * Programación (`POST /obras/{id}/programa`). Aquí no se instancia nada.
+ * Es la plantilla que se baja a las obras. Se puede hacer de dos maneras y las
+ * dos existen a propósito: una obra suelta desde la pantalla de Programación
+ * (`POST /obras/{id}/programa`, `InstanciarPrograma.tsx`), o el renglón
+ * completo a las obras de su prototipo desde aquí
+ * (`POST /programas-base/{id}/replicar`, `ReplicarPrograma.tsx`) — que es el
+ * gesto normal en vivienda en serie, donde 40 casas comparten modelo.
  */
 
 import { useMemo, useState, type ReactNode } from 'react';
@@ -39,6 +43,7 @@ import { fmtNum } from '@/lib/formato';
 import { ArbolPrototipo } from '@/proyectos/ArbolPrototipo';
 import { armarArbolPrototipo, type NodoArbolPrototipo } from '@/proyectos/nodosPrototipo';
 import { AltaProgramaBase } from './AltaProgramaBase';
+import { ReplicarPrograma } from './ReplicarPrograma';
 import { etiquetaTipoDependencia, puedeAdministrarProgramasBase } from './reglas';
 
 export default function ProgramasBase() {
@@ -50,6 +55,7 @@ export default function ProgramasBase() {
   const [soloVigentes, setSoloVigentes] = useState(false);
   const [abierto, setAbierto] = useState<string | null>(null);
   const [alta, setAlta] = useState(false);
+  const [replicando, setReplicando] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
   const prototiposQ = useListarPrototiposApiV1PrototiposGet<PrototipoRespuesta[], ErrorApi>(
@@ -80,6 +86,15 @@ export default function ProgramasBase() {
   >(abierto ?? '', { query: { enabled: abierto !== null } });
 
   const baseAbierta = useMemo(() => bases.find((base) => base.id === abierto) ?? null, [bases, abierto]);
+
+  const baseAReplicar = useMemo(
+    () => bases.find((base) => base.id === replicando) ?? null,
+    [bases, replicando],
+  );
+  const prototipoAReplicar = useMemo(
+    () => prototipos.find((p) => p.id === baseAReplicar?.prototipo_id) ?? null,
+    [prototipos, baseAReplicar],
+  );
 
   const nodosQ = useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet<
     NodoPrototipoRespuesta[],
@@ -192,8 +207,9 @@ export default function ProgramasBase() {
           <div className="page__eyebrow mono">Configuración</div>
           <h1 className="page__title">Programas base</h1>
           <div className="page__subtitle">
-            Plantilla de duraciones y precedencias por prototipo (§7.5). Se baja a una obra
-            desde Ruta crítica → Instanciar programa.
+            Plantilla de duraciones y precedencias por prototipo (§7.5). Se replica a las
+            obras del prototipo desde aquí, o a una obra suelta desde Ruta crítica →
+            Instanciar programa.
           </div>
         </div>
         <div className="page__actions">
@@ -272,12 +288,13 @@ export default function ProgramasBase() {
                 <th>Estado</th>
                 <th>Renglones</th>
                 <th>Editor</th>
+                <th>Obras</th>
               </tr>
             </thead>
             <tbody>
               {basesQ.isLoading ? (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <div className="text-mute text-sm" style={{ padding: '24px 0' }}>
                       Cargando…
                     </div>
@@ -285,7 +302,7 @@ export default function ProgramasBase() {
                 </tr>
               ) : bases.length === 0 ? (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     {/* Un prototipo sin programa base no es un callejón: su
                         árbol WBS ya trae las etapas y los conceptos, y el
                         canvas arranca desde ahí con las duraciones por llenar
@@ -349,6 +366,25 @@ export default function ProgramasBase() {
                         >
                           Abrir en canvas
                         </Link>
+                      </td>
+                      <td>
+                        {/* Replicar solo tiene sentido desde la versión
+                            vigente: la instanciación siempre baja esa (§7.5),
+                            así que ofrecerlo sobre una retirada sería ofrecer
+                            un 422. */}
+                        <button
+                          type="button"
+                          className="btn btn--sm btn--accent"
+                          disabled={!base.vigente}
+                          title={
+                            base.vigente
+                              ? 'Bajar este programa a las obras de su prototipo'
+                              : 'Solo se replica la versión vigente del prototipo (§7.5)'
+                          }
+                          onClick={() => setReplicando(base.id)}
+                        >
+                          Replicar a obras
+                        </button>
                       </td>
                     </tr>
                   );
@@ -453,6 +489,18 @@ export default function ProgramasBase() {
             );
             void basesQ.refetch();
           }}
+        />
+      )}
+
+      {baseAReplicar !== null && (
+        <ReplicarPrograma
+          base={baseAReplicar}
+          nombrePrototipo={
+            prototipoAReplicar
+              ? `${prototipoAReplicar.clave} · ${prototipoAReplicar.nombre}`
+              : null
+          }
+          onCerrar={() => setReplicando(null)}
         />
       )}
     </div>

@@ -142,6 +142,7 @@ from obractrl.application.casos_uso.gestionar_programacion import (
     EditarProgramacionActividad,
     InstanciarProgramaObra,
     RecalcularRutaCritica,
+    ReplicarProgramaEnObras,
 )
 from obractrl.application.casos_uso.gestionar_proyecto import (
     CrearCluster,
@@ -228,6 +229,7 @@ __all__ = [
     "RegistrarRevisionFisicaDep",
     "RegistrarSalidaAlmacenDep",
     "ReiniciarOrganizacionDep",
+    "ReplicarProgramaEnObrasDep",
     "ResetearContrasenaDep",
     "ResolverPendienteDep",
     "RevertirCargaDep",
@@ -737,6 +739,18 @@ def obtener_instanciar_programa(sesion: SesionRLS) -> InstanciarProgramaObra:
     )
 
 
+def obtener_replicar_programa(sesion: SesionRLS) -> ReplicarProgramaEnObras:
+    """La replicación masiva se arma **sobre** la instanciación individual, no
+    al lado: es la misma operación repetida, y montarla sobre el caso de uso ya
+    probado es lo que garantiza que una obra del lote quede exactamente igual
+    que si se hubiera instanciado a mano (§11.2)."""
+    return ReplicarProgramaEnObras(
+        instanciar=obtener_instanciar_programa(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        programas=RepositorioProgramasSQL(sesion),
+    )
+
+
 def obtener_editar_programacion(sesion: SesionRLS) -> EditarProgramacionActividad:
     return EditarProgramacionActividad(
         actividades=RepositorioActividadesSQL(sesion),
@@ -760,6 +774,9 @@ InstanciarProgramaObraDep = Annotated[
 ]
 EditarProgramacionActividadDep = Annotated[
     EditarProgramacionActividad, Depends(obtener_editar_programacion)
+]
+ReplicarProgramaEnObrasDep = Annotated[
+    ReplicarProgramaEnObras, Depends(obtener_replicar_programa)
 ]
 
 

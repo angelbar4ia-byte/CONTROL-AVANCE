@@ -94,6 +94,7 @@ class RepositorioObrasSQL:
         proyecto_id: UUID | None = None,
         cluster_id: UUID | None = None,
         residente_id: UUID | None = None,
+        prototipo_id: UUID | None = None,
         estatus: str | None = None,
     ) -> list[dict[str, Any]]:
         """Obras visibles para el rol actual (§11.2 `GET /obras`).
@@ -101,6 +102,10 @@ class RepositorioObrasSQL:
         El filtro por proyecto pasa por `cluster`, que trae su propia política
         de RLS: un rol que no vea el proyecto no ve sus clusters y el join se
         queda vacío —el alcance no se puede ampliar desde aquí.
+
+        `prototipo_id` acota a las obras del mismo modelo de casa (§7.2): es lo
+        que pide la replicación de un programa base, que solo tiene sentido
+        sobre las obras de su prototipo.
         """
         filas = (
             await self._sesion.execute(
@@ -117,6 +122,8 @@ class RepositorioObrasSQL:
                            or o.cluster_id = cast(:cluster_id as uuid))
                       and (cast(:residente_id as uuid) is null
                            or o.residente_id = cast(:residente_id as uuid))
+                      and (cast(:prototipo_id as uuid) is null
+                           or o.prototipo_id = cast(:prototipo_id as uuid))
                       and (cast(:estatus as estatus_obra) is null
                            or o.estatus = cast(:estatus as estatus_obra))
                     order by o.clave
@@ -126,6 +133,7 @@ class RepositorioObrasSQL:
                     "proyecto_id": str(proyecto_id) if proyecto_id else None,
                     "cluster_id": str(cluster_id) if cluster_id else None,
                     "residente_id": str(residente_id) if residente_id else None,
+                    "prototipo_id": str(prototipo_id) if prototipo_id else None,
                     "estatus": estatus,
                 },
             )

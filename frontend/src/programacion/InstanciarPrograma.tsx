@@ -23,6 +23,7 @@ import type { ErrorApi } from '@/api/cliente';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Modal } from '@/lib/Modal';
 import type { Rol } from '@/shell/navegacion';
+import { CampoFechaCorte, HuecosDeLaPlantilla } from './instanciacion';
 import { puedeAdministrarProgramasBase } from './reglas';
 
 interface Props {
@@ -97,21 +98,7 @@ export function InstanciarPrograma({ obra, rol, onCerrar, onInstanciado }: Props
           </div>
         )}
 
-        <div className="field">
-          <label className="field__label" htmlFor="instanciar-corte">
-            Fecha de corte (opcional)
-          </label>
-          <input
-            id="instanciar-corte"
-            className="input"
-            type="date"
-            value={fechaCorte}
-            onChange={(e) => setFechaCorte(e.target.value)}
-          />
-          <div className="field__hint">
-            Fecha contra la que se mide el desfase; vacío = hoy (§6).
-          </div>
-        </div>
+        <CampoFechaCorte id="instanciar-corte" valor={fechaCorte} onCambio={setFechaCorte} />
 
         {error && <ErrorBanner mensaje={error.mensaje} campo={error.campo} />}
 
@@ -122,19 +109,10 @@ export function InstanciarPrograma({ obra, rol, onCerrar, onInstanciado }: Props
               <span className="mono tnum">{resultado.n_actividades}</span> actividades
               programadas.
             </div>
-            {resultado.sin_item.length > 0 && (
-              <div className="field__hint">
-                <span className="mono tnum">{resultado.sin_item.length}</span> actividades sin
-                renglón en el programa base: conservaron su programación anterior (§7.5).
-              </div>
-            )}
-            {resultado.refs_no_resueltas.length > 0 && (
-              <div className="field__hint" style={{ color: 'var(--c-warn)' }}>
-                <span className="mono tnum">{resultado.refs_no_resueltas.length}</span>{' '}
-                dependencias del programa base no corresponden a ninguna actividad de la obra;
-                el motor las ignoró (§6).
-              </div>
-            )}
+            <HuecosDeLaPlantilla
+              sinItem={resultado.sin_item}
+              refsNoResueltas={resultado.refs_no_resueltas}
+            />
           </div>
         )}
 

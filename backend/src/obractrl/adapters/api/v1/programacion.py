@@ -12,6 +12,9 @@ Roles (§11.2):
 * `GET/POST /programas-base` y `GET /programas-base/{id}/items` — Control de
   obra: la plantilla de duraciones es configuración del prototipo (§5.1).
 * `GET/POST /obras/{id}/programa` — Control de obra y Supervisor.
+* `GET /programas-base/{id}/obras` y `POST /programas-base/{id}/replicar` —
+  los mismos que la instanciación individual: replicar es esa operación
+  repetida sobre varias obras, no una facultad nueva (§7.5).
 * `GET /obras/{id}/ruta-critica` — todos: el Residente ve la de su obra y RLS
   se encarga de que sea solo esa (§4, §12.4).
 * `POST /obras/{id}/ruta-critica/recalcular` y
@@ -38,9 +41,11 @@ from obractrl.adapters.api.casos_uso import (
     EditarProgramacionActividadDep,
     InstanciarProgramaObraDep,
     RecalcularRutaCriticaDep,
+    ReplicarProgramaEnObrasDep,
 )
 from obractrl.adapters.api.dependencias import SesionRLS, exigir_rol
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
+from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
 from obractrl.application.casos_uso.gestionar_programacion import (
     ActividadEnRuta,
@@ -48,8 +53,11 @@ from obractrl.application.casos_uso.gestionar_programacion import (
     ComandoEditarProgramacion,
     ComandoInstanciarPrograma,
     ComandoRecalcularRutaCritica,
+    ComandoReplicarPrograma,
     ProgramaBaseNoEncontrado,
     ProgramaInstanciadoEnObra,
+    ReplicaDePrograma,
+    ReplicaEnObra,
     RutaCritica,
 )
 from obractrl.domain.programacion.calendario import (
@@ -529,6 +537,149 @@ class ProgramaInstanciadoRespuesta(BaseModel):
         )
 
 
+class ObraCandidataRespuesta(BaseModel):
+    """Una obra a la que este programa base se puede replicar (§11.2).
+
+    Lo que la pantalla de replicación necesita saber **antes** de elegir: qué
+    casa es, si ya se generó desde su prototipo —sin actividades no hay nada
+    que programar (§11.3 A.2)— y si ya trae cronograma, porque replicar sobre
+    una obra programada le crea una **versión nueva** y eso el usuario lo tiene
+    que saber antes, no después (§7.5).
+    """
+
+    obra_id: UUID
+    clave: str
+    estatus: str
+    residente_id: UUID | None
+    fecha_inicio: date | None
+    version_cronograma: int | None = Field(
+        description=(
+            "Versión del `ProgramaObra` vigente de la obra, o `null` si nunca "
+            "se le instanció uno. Replicar sobre una obra con versión crea la "
+            "siguiente (§7.5)."
+        )
+    )
+    fecha_corte: date | None = Field(
+        description="Fecha de corte con la que se calculó esa versión (§6)."
+    )
+
+    @classmethod
+    def desde_filas(
+        cls, obra: dict, programa: dict | None
+    ) -> ObraCandidataRespuesta:
+        return cls(
+            obra_id=obra["id"],
+            clave=obra["clave"],
+            estatus=obra["estatus"],
+            residente_id=obra["residente_id"],
+            fecha_inicio=obra["fecha_inicio"],
+            version_cronograma=programa["version"] if programa else None,
+            fecha_corte=programa["fecha_corte"] if programa else None,
+        )
+
+
+class ReplicarProgramaPeticion(BaseModel):
+    """§11.2 `POST /programas-base/{id}/replicar`.
+
+    Las obras van explícitas y no se asume "todas las del prototipo": replicar
+    reprograma casas que pueden llevar avance, así que cuáles entran es una
+    decisión del usuario, no un default.
+    """
+
+    obras: list[UUID] = Field(
+        min_length=1,
+        description=(
+            "Obras destino. Deben ser del mismo prototipo que el programa "
+            "base; las que no lo sean se reportan como no replicadas en vez de "
+            "abortar el lote."
+        ),
+    )
+    fecha_corte: date | None = Field(
+        default=None,
+        description="Fecha contra la que se mide el desfase; por defecto hoy (§6).",
+    )
+
+
+class ReplicaEnObraRespuesta(BaseModel):
+    """El parte de **una** obra del lote (§11.2)."""
+
+    obra_id: UUID
+    clave: str | None
+    programada: bool = Field(
+        description=(
+            "`true` si la obra quedó con cronograma nuevo. `false` trae el "
+            "`motivo` y significa que esa obra no se tocó: su transacción no "
+            "se confirmó."
+        )
+    )
+    programa_obra_id: UUID | None
+    version: int | None
+    n_actividades: int
+    sin_item: list[str] = Field(
+        description=(
+            "Actividades para las que el programa base no trae renglón: "
+            "conservaron su programación anterior (§7.5)."
+        )
+    )
+    refs_no_resueltas: list[str] = Field(
+        description=(
+            "Dependencias del programa base que no corresponden a ninguna "
+            "actividad de la obra; el motor las ignora (§6)."
+        )
+    )
+    motivo: str | None = Field(
+        description=(
+            "Por qué esta obra no quedó programada, redactado para quien lee "
+            "el reporte. `null` en las que sí."
+        )
+    )
+
+    @classmethod
+    def desde_dominio(cls, replica: ReplicaEnObra) -> ReplicaEnObraRespuesta:
+        return cls(
+            obra_id=replica.obra_id,
+            clave=replica.clave,
+            programada=replica.programada,
+            programa_obra_id=replica.programa_obra_id,
+            version=replica.version,
+            n_actividades=replica.n_actividades,
+            sin_item=list(replica.sin_item),
+            refs_no_resueltas=list(replica.refs_no_resueltas),
+            motivo=replica.motivo,
+        )
+
+
+class ReplicaDeProgramaRespuesta(BaseModel):
+    """§11.2 `POST /programas-base/{id}/replicar`.
+
+    Responde **200 y no 201** aunque cree cronogramas: un lote de mejor
+    esfuerzo no tiene un recurso creado que anunciar —puede haber creado 39 de
+    40, o ninguno— y el resultado real es el parte por obra, no una ubicación.
+    """
+
+    programa_base_id: UUID
+    prototipo_id: UUID
+    version_base: int
+    n_programadas: int
+    n_fallidas: int
+    obras: list[ReplicaEnObraRespuesta] = Field(
+        description="Un renglón por obra pedida, en el orden en que se pidieron."
+    )
+
+    @classmethod
+    def desde_dominio(cls, replica: ReplicaDePrograma) -> ReplicaDeProgramaRespuesta:
+        return cls(
+            programa_base_id=replica.programa_base_id,
+            prototipo_id=replica.prototipo_id,
+            version_base=replica.version_base,
+            n_programadas=len(replica.programadas),
+            n_fallidas=len(replica.fallidas),
+            obras=[
+                ReplicaEnObraRespuesta.desde_dominio(obra) for obra in replica.obras
+            ],
+        )
+
+
 class ProgramacionActividadPeticion(BaseModel):
     """§11.2 `PATCH /actividades/{id}/programacion`.
 
@@ -626,6 +777,85 @@ async def listar_items_programa_base(
         ItemProgramaBaseRespuesta.desde_fila(fila)
         for fila in await repo.listar_items_base(programa_base_id)
     ]
+
+
+# --- Replicación a las obras del prototipo (§11.2, §7.5) ----------------
+#
+# Las dos rutas cuelgan del **programa base** y no de las obras porque el gesto
+# es "este programa, a estas casas": el sujeto es la plantilla y las obras son
+# el destino. Colgarlas de `/obras` obligaría a mandar el programa en el cuerpo
+# y dejaría la operación sin dueño claro en el contrato.
+
+
+@router.get(
+    "/programas-base/{programa_base_id}/obras",
+    response_model=list[ObraCandidataRespuesta],
+    summary="Obras a las que este programa base se puede replicar",
+    dependencies=[PROGRAMA_DE_OBRA],
+    responses=_NO_ENCONTRADA,
+)
+async def listar_obras_candidatas(
+    programa_base_id: UUID, sesion: SesionRLS
+) -> list[ObraCandidataRespuesta]:
+    """Las obras del prototipo del programa, con el estado de su cronograma.
+
+    Lectura simple, así que consulta los repos directo como
+    `obtener_programa_de_obra` (§11.2). Son **dos** repositorios y no uno a
+    propósito: la obra la sirve `RepositorioObras` y el `ProgramaObra` vigente
+    `RepositorioProgramas`, cada contexto por su puerto (§11.1). Componerlos
+    aquí es lo que evita un join entre `obra` y `programa_obra` dentro de un
+    repositorio que no es dueño de las dos tablas.
+    """
+    programas = RepositorioProgramasSQL(sesion)
+    base = await programas.obtener_base(programa_base_id)
+    if base is None:
+        raise ProgramaBaseNoEncontrado(
+            f"Programa base {programa_base_id} no encontrado en tu alcance."
+        )
+
+    obras = await RepositorioObrasSQL(sesion).listar(
+        prototipo_id=base["prototipo_id"]
+    )
+    vigentes = await programas.programas_vigentes([obra["id"] for obra in obras])
+
+    return [
+        ObraCandidataRespuesta.desde_filas(obra, vigentes.get(str(obra["id"])))
+        for obra in obras
+    ]
+
+
+@router.post(
+    "/programas-base/{programa_base_id}/replicar",
+    response_model=ReplicaDeProgramaRespuesta,
+    summary="Replicar el programa base a varias obras del prototipo",
+    dependencies=[PROGRAMA_DE_OBRA],
+    responses={**_NO_ENCONTRADA, **_CICLO},
+)
+async def replicar_programa_base(
+    programa_base_id: UUID,
+    peticion: ReplicarProgramaPeticion,
+    caso_uso: ReplicarProgramaEnObrasDep,
+) -> ReplicaDeProgramaRespuesta:
+    """Instancia el cronograma de varias obras en una sola llamada (§7.5).
+
+    Mismos roles que la instanciación individual (`PROGRAMA_DE_OBRA`): repetir
+    una operación no la vuelve más privilegiada, y RLS ya acota a qué obras
+    llega cada quien (§12.4).
+
+    Es de **mejor esfuerzo**: una obra que falla no cancela el lote, y el 422
+    documentado arriba solo aparece cuando lo inválido es el programa —una
+    versión retirada—, no cuando lo es una obra. Lo que pase con cada casa va
+    en `obras[].motivo`.
+    """
+    return ReplicaDeProgramaRespuesta.desde_dominio(
+        await caso_uso.ejecutar(
+            ComandoReplicarPrograma(
+                programa_base_id=programa_base_id,
+                obras=tuple(peticion.obras),
+                fecha_corte=peticion.fecha_corte,
+            )
+        )
+    )
 
 
 # --- Cronograma de la obra (§11.2) --------------------------------------

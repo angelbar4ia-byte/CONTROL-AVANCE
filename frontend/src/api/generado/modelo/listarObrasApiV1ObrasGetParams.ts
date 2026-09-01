@@ -21,6 +21,10 @@ cluster_id?: string | null;
  */
 residente_id?: string | null;
 /**
+ * Obras construidas con el mismo modelo de casa (§7.2).
+ */
+prototipo_id?: string | null;
+/**
  * Filtra por estatus de obra (§8.2).
  */
 estatus?: EstatusObra | null;
