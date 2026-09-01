@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   FileText,
   FolderTree,
+  GanttChartSquare,
   GitBranch,
   Home,
   Layers,
@@ -160,6 +161,10 @@ const CONTROL_OBRA: readonly SeccionNav[] = [
     titulo: 'Configuración',
     items: [
       { a: '/config/programas-base', etiqueta: 'Programas base', icono: GitBranch },
+      // La otra lectura del mismo programa base: tabla jerárquica + Gantt
+      // (§7.4). Entrada propia y no subruta de la anterior porque las dos son
+      // vistas hermanas del mismo dato y se entra a una o a la otra.
+      { a: '/config/programa-gantt', etiqueta: 'Programa base · Gantt', icono: GanttChartSquare },
       { a: '/config/presupuesto', etiqueta: 'Presupuesto', icono: FileSpreadsheet },
       { a: '/config/creador-obra', etiqueta: 'Creador de obra', icono: Building2 },
       { a: '/config/prototipos', etiqueta: 'Prototipos', icono: Layers },

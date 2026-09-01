@@ -231,6 +231,23 @@ export default function ProgramasBase() {
           >
             Editor gráfico
           </Link>
+          {/* La otra lectura del mismo programa: tabla jerárquica y Gantt. El
+              canvas enseña las ligas, ésta enseña el conjunto renglón por
+              renglón; ninguna sustituye a la otra (§7.4). */}
+          <Link
+            className={`btn${prototipoId === '' ? ' btn--ghost' : ''}`}
+            to={`/config/programa-gantt?prototipo=${prototipoId}`}
+            aria-disabled={prototipoId === ''}
+            onClick={(evento) => {
+              if (prototipoId === '') {
+                evento.preventDefault();
+                setAviso('Elige un prototipo para abrir su tabla y su Gantt.');
+              }
+            }}
+            title="Tabla jerárquica y Gantt sobre el árbol WBS del prototipo"
+          >
+            Tabla y Gantt
+          </Link>
           <button type="button" className="btn btn--primary" onClick={() => setAlta(true)}>
             Nuevo programa base
           </button>
@@ -365,6 +382,13 @@ export default function ProgramasBase() {
                           title="Abrir esta versión en el canvas; guardar crea la siguiente"
                         >
                           Abrir en canvas
+                        </Link>{' '}
+                        <Link
+                          className="btn btn--sm"
+                          to={`/config/programa-gantt?prototipo=${base.prototipo_id}&base=${base.id}`}
+                          title="Abrir esta versión en tabla y Gantt; guardar crea la siguiente"
+                        >
+                          Abrir en Gantt
                         </Link>
                       </td>
                       <td>

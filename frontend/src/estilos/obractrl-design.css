@@ -1785,6 +1785,231 @@ a { color: inherit; text-decoration: none; }
   color: var(--c-text-mute);
 }
 
+/* ===== Programa base: tabla jerárquica + Gantt =====================
+   Panel dividido con la ergonomía de MS Project: la tabla manda a la
+   izquierda, el Gantt a la derecha, y el scroll vertical va sincronizado
+   (`sincronia.ts`). Cada mitad lleva su propio scroll horizontal — la
+   tabla porque son doce columnas, el Gantt porque el lienzo es largo —,
+   y por eso son dos contenedores y no uno.
+   Sin librería de Gantt: barras absolutas sobre una pista relativa,
+   igual que `.gantt`. */
+.prog-split {
+  display: grid;
+  grid-template-columns: var(--prog-tabla-w, 560px) 6px 1fr;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  overflow: hidden;
+}
+.prog-split__lado {
+  overflow: auto;
+  height: var(--prog-alto, 560px);
+  /* La barra horizontal de cada mitad queda pegada abajo; sin esto el
+     encabezado pegajoso se despega al correr a los lados. */
+  position: relative;
+}
+.prog-split__tirador {
+  cursor: col-resize;
+  background: var(--c-line);
+  border: 0;
+  padding: 0;
+}
+.prog-split__tirador:hover, .prog-split__tirador:focus-visible {
+  background: var(--c-accent);
+}
+
+/* --- Mitad izquierda: la tabla ---------------------------------- */
+.prog-tabla { min-width: max-content; }
+.prog-tabla__fila, .prog-tabla__head {
+  display: grid;
+  grid-template-columns:
+    44px 74px 104px minmax(280px, 1fr) 58px 92px 96px 96px 92px 92px 74px 64px;
+  align-items: center;
+}
+.prog-tabla__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--c-panel);
+  border-bottom: 1px solid var(--c-line);
+}
+.prog-tabla__th {
+  padding: 6px 8px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--c-text-mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prog-tabla__fila {
+  border-bottom: 1px solid var(--c-line-soft);
+  font-size: var(--fs-sm);
+}
+.prog-tabla__celda {
+  padding: 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prog-tabla__nombre {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.prog-tabla__caret {
+  border: 0;
+  background: none;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--c-text-mute);
+  cursor: pointer;
+  flex: none;
+}
+.prog-tabla__caret:hover { color: var(--c-text); }
+/* Tinte por profundidad: la jerarquía se lee de un vistazo sin contar
+   sangrías. Nivel raíz y su etapa en gris, el siguiente en azul, el
+   siguiente en verde, y el concepto en blanco — que es donde se captura. */
+.prog-tabla__fila--p0 { background: var(--c-elev); font-weight: 600; }
+.prog-tabla__fila--p1 { background: var(--c-accent-soft); }
+.prog-tabla__fila--p2 { background: var(--c-ok-soft); }
+.prog-tabla__fila--p3 { background: var(--c-surface); }
+.prog-tabla__fila.is-selected { outline: 2px solid var(--c-accent-strong); outline-offset: -2px; }
+.prog-tabla__fila.is-propuesta { color: var(--c-text-mute); }
+
+/* --- Mitad derecha: el Gantt ------------------------------------ */
+.prog-gantt { position: relative; min-width: max-content; }
+.prog-gantt__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  background: var(--c-panel);
+  border-bottom: 1px solid var(--c-line);
+}
+.prog-gantt__bloque {
+  padding: 6px 4px;
+  font-size: 10.5px;
+  font-family: var(--f-mono);
+  color: var(--c-text-mute);
+  text-align: center;
+  border-right: 1px solid var(--c-line-soft);
+  flex: none;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.prog-gantt__bloque.is-now {
+  background: var(--c-accent-soft);
+  color: var(--c-accent-strong);
+  font-weight: 600;
+}
+.prog-gantt__lienzo { position: relative; }
+/* La rejilla de días es un degradado repetido y no 300 divs: el paso
+   llega en `--paso-dia` desde el zoom del eje, igual que `.tramos-edit`. */
+.prog-gantt__rejilla {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(var(--paso-dia, 16px) * 7 - 1px),
+    var(--c-line-soft) calc(var(--paso-dia, 16px) * 7 - 1px) calc(var(--paso-dia, 16px) * 7)
+  );
+}
+.prog-gantt__hoy {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--c-ok);
+  pointer-events: none;
+}
+/* Cada renglón del Gantt es una pista absoluta colocada por `transform`,
+   igual que en la tabla: es lo que hace que las dos mitades caigan a la
+   misma altura con el mismo virtualizador. `top: 0` explícito porque un
+   absoluto sin `top` hereda su posición estática, que aquí no existe. */
+.prog-gantt__pista { position: absolute; top: 0; left: 0; right: 0; }
+.prog-gantt__barra {
+  position: absolute;
+  border-radius: 3px;
+  background: var(--c-accent);
+  cursor: grab;
+  touch-action: none;
+}
+.prog-gantt__barra:active { cursor: grabbing; }
+.prog-gantt__barra.is-selected { outline: 2px solid var(--c-accent-strong); outline-offset: 1px; }
+.prog-gantt__barra--alerta { background: var(--c-danger); }
+/* La propuesta —un nodo del árbol sin duración capturada— se dibuja
+   punteada: existe en el borrador pero no viaja en el POST. */
+.prog-gantt__barra--propuesta {
+  background: transparent;
+  border: 1px dashed var(--c-line-strong);
+  cursor: default;
+}
+.prog-gantt__pausa {
+  position: absolute;
+  border-top: 1px dashed var(--c-line-strong);
+  pointer-events: none;
+}
+/* El resumen es el corchete de MS Project: fino, con las patas hacia
+   abajo. Es derivado de sus hijos y no se arrastra (§7.4). */
+.prog-gantt__corchete {
+  position: absolute;
+  background: var(--c-text-soft);
+  pointer-events: none;
+}
+.prog-gantt__pata {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid var(--c-text-soft);
+  pointer-events: none;
+}
+.prog-gantt__holgura {
+  position: absolute;
+  height: 3px;
+  background: var(--c-line-strong);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.prog-gantt__asa {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.prog-gantt__flechas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.prog-gantt__flecha { fill: none; stroke: var(--c-text-mute); stroke-width: 1.2; }
+.prog-gantt__flecha--alerta { stroke: var(--c-danger); stroke-width: 1.6; }
+.prog-gantt__etq {
+  position: absolute;
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--c-text-mute);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@media (max-width: 1180px) {
+  /* En pantalla angosta la tabla se queda con lo mínimo legible y el
+     Gantt con el resto; el tirador sigue sirviendo para repartir. */
+  .prog-split { grid-template-columns: minmax(220px, 45%) 6px 1fr; }
+}
+
 /* Utility */
 .row { display: flex; align-items: center; gap: 8px; }
 .col { display: flex; flex-direction: column; gap: 8px; }
