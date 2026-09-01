@@ -154,20 +154,37 @@ export function colapsadosPorDefecto(
 }
 
 /**
+ * Lo mínimo que un renglón tiene que decir de sí para poder colapsarse: quién
+ * es y de quién cuelga. `FilaJerarquia` lo cumple, y también lo cumple la fila
+ * del editor de tabla+Gantt (`filasPrograma.ts`), que es otro aplanado del
+ * mismo árbol WBS sobre otro origen de datos.
+ */
+export interface RenglonAnidado {
+  readonly nodoId: string;
+  readonly parentId: string | null;
+}
+
+/**
  * Los renglones visibles dado el conjunto de nodos colapsados.
  *
  * Un renglón se esconde si **alguno** de sus ancestros está colapsado, no sólo
  * su padre directo: colapsar una etapa tiene que esconder también los conceptos
  * que cuelgan de sus niveles, no dejarlos sueltos sin su encabezado.
+ *
+ * Es genérica sobre el renglón —no sobre `FilaJerarquia`— porque la regla es
+ * del **árbol**, no de esta vista: el Gantt de obra y el editor de programa
+ * base aplanan el mismo WBS con filas distintas y colapsan igual. Tener dos
+ * copias de este recorrido garantizaría que un día divergieran en el caso que
+ * lo justifica, que es el ancestro lejano.
  */
-export function visiblesEnJerarquia(
-  filas: readonly FilaJerarquia[],
+export function visiblesEnJerarquia<T extends RenglonAnidado>(
+  filas: readonly T[],
   colapsados: ReadonlySet<string>,
-): readonly FilaJerarquia[] {
+): readonly T[] {
   if (colapsados.size === 0) return filas;
 
   const escondidos = new Set<string>();
-  const visibles: FilaJerarquia[] = [];
+  const visibles: T[] = [];
 
   // Una sola pasada: el árbol llega padre-antes-que-hijos, así que cuando se
   // mira un nodo su padre ya se clasificó.

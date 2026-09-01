@@ -35,6 +35,13 @@ import ProgramasBase from '@/programacion/ProgramasBase';
  * las otras treinta pantallas (§12.9).
  */
 const EditorPrograma = lazy(() => import('@/programacion/EditorPrograma'));
+/**
+ * La otra lectura del mismo programa base: tabla jerárquica + Gantt, con la
+ * ergonomía de MS Project. No arrastra `@xyflow/react` —dibuja con CSS, como el
+ * Gantt de obra—, pero sí monta dos listas virtualizadas y su aritmética de
+ * eje; se carga bajo demanda por el mismo motivo que el canvas (§12.9).
+ */
+const ProgramaTabla = lazy(() => import('@/programacion/ProgramaTabla'));
 import Consumo from '@/materiales/Consumo';
 import Salidas from '@/materiales/Salidas';
 import Incidencias from '@/incidencias/Incidencias';
@@ -145,6 +152,19 @@ function Rutas() {
           element={
             <Suspense fallback={<Cargando />}>
               <EditorPrograma />
+            </Suspense>
+          }
+        />
+        {/* Tabla + Gantt: la segunda vista del mismo programa base, hermana del
+            canvas y no su reemplazo. Tiene ruta hermana y no subruta de
+            `/config/programas-base` porque sí trae entrada propia de sidebar, y
+            `NavLink` marca activa también a la entrada padre de una subruta:
+            las dos quedarían resaltadas a la vez (§5.1). */}
+        <Route
+          path="/config/programa-gantt"
+          element={
+            <Suspense fallback={<Cargando />}>
+              <ProgramaTabla />
             </Suspense>
           }
         />
