@@ -62,6 +62,7 @@ import '@xyflow/react/dist/style.css';
 
 import { useCrearProgramaBaseApiV1ProgramasBasePost } from '@/api/generado/programacion/programacion';
 import { useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet } from '@/api/generado/programacion/programacion';
+import { useListarProgramasBaseApiV1ProgramasBaseGet } from '@/api/generado/programacion/programacion';
 import {
   useListarFrentesApiV1FrentesGet,
   useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet,
@@ -71,6 +72,7 @@ import type {
   FrenteRespuesta,
   ItemProgramaBaseRespuesta,
   NodoPrototipoRespuesta,
+  ProgramaBaseRespuesta,
   PrototipoRespuesta,
 } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
@@ -103,6 +105,12 @@ import {
   type TipoLiga,
   type Vista,
 } from './grafo';
+import {
+  SEMANA_NATURAL,
+  alternarDia,
+  mismosDias,
+  normalizarDias,
+} from './calendario';
 import { NodoActividad, type CajaCanvas } from './NodoActividad';
 import { PanelCaja } from './PanelCaja';
 import { colocar, duracionDelPrograma, traslapesConTrabajo } from './planificacion';
@@ -145,12 +153,27 @@ function Pantalla() {
     ItemProgramaBaseRespuesta[],
     ErrorApi
   >(baseId ?? '', { query: { enabled: administra && baseId !== null } });
+  // Los items no traen el calendario —es del programa, no del renglón— y no
+  // hay endpoint de un solo programa base: se saca de la lista del prototipo,
+  // que ya viene filtrada y es la misma que alimenta la pantalla anterior.
+  const basesQ = useListarProgramasBaseApiV1ProgramasBaseGet<
+    ProgramaBaseRespuesta[],
+    ErrorApi
+  >(
+    { prototipo_id: prototipoId },
+    { query: { enabled: administra && baseId !== null && prototipoId !== '' } },
+  );
 
   const prototipo = useMemo(
     () => (prototiposQ.data ?? []).find((p) => p.id === prototipoId) ?? null,
     [prototiposQ.data, prototipoId],
   );
   const frentes = useMemo(() => frentesQ.data ?? [], [frentesQ.data]);
+
+  // El calendario es del programa completo, no del grafo, así que vive fuera
+  // del historial: cambiarlo no es un gesto del canvas que tenga sentido
+  // deshacer con Ctrl+Z junto a un arrastre de caja. Sí ensucia el borrador.
+  const [diasHabiles, setDiasHabiles] = useState<readonly number[]>(SEMANA_NATURAL);
 
   const [historial, setHistorial] = useState<Historial | null>(null);
   const [huerfanos, setHuerfanos] = useState<readonly ItemProgramaBaseRespuesta[]>([]);
@@ -196,6 +219,44 @@ function Pantalla() {
   }, [listo, historial, prototipo, prototipoId, nodosQ.data, itemsQ.data]);
 
   const borrador = historial?.presente ?? null;
+
+  // Al reeditar, el calendario arranca en el de la versión abierta; un
+  // programa nuevo arranca en natural, que es el default del backend y el
+  // comportamiento histórico del motor. Se siembra una sola vez —igual que el
+  // borrador— para no pisar lo que el usuario ya haya movido en la barra.
+  const calendarioSembrado = useRef(false);
+  useEffect(() => {
+    if (calendarioSembrado.current || baseId === null || !basesQ.isSuccess) return;
+    const abierta = (basesQ.data ?? []).find((base) => base.id === baseId);
+    if (!abierta) return;
+    calendarioSembrado.current = true;
+    setDiasHabiles(normalizarDias(abierta.calendario?.dias_habiles));
+  }, [baseId, basesQ.isSuccess, basesQ.data]);
+
+  const calendarioOriginal = useMemo<readonly number[]>(() => {
+    if (baseId === null) return SEMANA_NATURAL;
+    const abierta = (basesQ.data ?? []).find((base) => base.id === baseId);
+    return normalizarDias(abierta?.calendario?.dias_habiles);
+  }, [baseId, basesQ.data]);
+
+  const cambiarDias = useCallback(
+    (dias: readonly number[]) => {
+      setDiasHabiles((previos) => {
+        const nuevos = normalizarDias(dias);
+        if (mismosDias(previos, nuevos)) return previos;
+        // El calendario mueve todas las fechas del cronograma, así que
+        // cambiarlo ensucia el borrador aunque no se haya tocado una caja.
+        if (!mismosDias(nuevos, calendarioOriginal)) setSucio(true);
+        return nuevos;
+      });
+    },
+    [calendarioOriginal],
+  );
+
+  const alternarDiaHabil = useCallback(
+    (dia: number) => cambiarDias(alternarDia(diasHabiles, dia)),
+    [cambiarDias, diasHabiles],
+  );
 
   const despacha = useCallback((accion: Accion) => {
     setHistorial((previo) => (previo === null ? previo : despachar(previo, accion)));
@@ -397,6 +458,9 @@ function Pantalla() {
         prototipo_id: borrador.prototipoId,
         nombre: borrador.nombre.trim() === '' ? null : borrador.nombre.trim(),
         items: [...guardado.items],
+        // El backend deriva el `tipo` (natural ⇔ los siete días); aquí solo
+        // viaja el conjunto, que es el único dato capturable (§7.5).
+        calendario: { dias_habiles: [...diasHabiles] },
       },
     });
   }
@@ -534,6 +598,9 @@ function Pantalla() {
         guardando={crear.isPending}
         sucio={sucio}
         renglones={guardado.items.length}
+        diasHabiles={diasHabiles}
+        onDiasHabiles={cambiarDias}
+        onAlternarDia={alternarDiaHabil}
       />
 
       {guardado.avisos.map((mensaje) => (

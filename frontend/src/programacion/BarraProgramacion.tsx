@@ -12,6 +12,7 @@
 
 import {
   ArrowRightLeft,
+  CalendarDays,
   Layers,
   LayoutGrid,
   Maximize2,
@@ -21,6 +22,14 @@ import {
   Undo2,
 } from 'lucide-react';
 
+import {
+  SEMANA_LABORAL,
+  SEMANA_NATURAL,
+  descripcionDeSemana,
+  inicialDeDia,
+  nombreDeDia,
+  tipoDeSemana,
+} from './calendario';
 import { TIPOS_LIGA, type TipoLiga, type Vista } from './grafo';
 import { ayudaTipoDependencia, etiquetaTipoDependencia } from './reglas';
 
@@ -50,6 +59,14 @@ interface Props {
   readonly guardando: boolean;
   readonly sucio: boolean;
   readonly renglones: number;
+  /**
+   * Días hábiles del cronograma, ISO 1 = lunes … 7 = domingo (§7.5). Es del
+   * programa completo, no de un renglón: si el muro contara sábados y el
+   * aplanado no, la dependencia entre los dos no querría decir nada.
+   */
+  readonly diasHabiles: readonly number[];
+  readonly onDiasHabiles: (dias: readonly number[]) => void;
+  readonly onAlternarDia: (dia: number) => void;
 }
 
 export function BarraProgramacion({
@@ -70,7 +87,11 @@ export function BarraProgramacion({
   guardando,
   sucio,
   renglones,
+  diasHabiles,
+  onDiasHabiles,
+  onAlternarDia,
 }: Props) {
+  const tipoSemana = tipoDeSemana(diasHabiles);
   return (
     <div className="barra-prog" role="toolbar" aria-label="Herramientas de programación">
       <div className="barra-prog__grupo" role="group" aria-label="Puntero">
@@ -159,6 +180,58 @@ export function BarraProgramacion({
         >
           <Maximize2 size={13} aria-hidden />
         </button>
+      </div>
+
+      <div className="barra-prog__sep" aria-hidden />
+
+      {/* Semana laboral o natural (§7.5). El interruptor de dos posiciones es
+          el gesto de todos los días; los días sueltos de al lado existen
+          porque "laboral" no es lunes a viernes en obra —aquí lo normal es
+          lunes a sábado, y hay frentes que trabajan domingo—, así que el
+          conjunto real tiene que poder ajustarse sin salir de la barra. */}
+      <div
+        className="barra-prog__grupo"
+        role="group"
+        aria-label="Calendario"
+        title={descripcionDeSemana(diasHabiles)}
+      >
+        <CalendarDays size={13} className="barra-prog__icono" aria-hidden />
+        <button
+          type="button"
+          className={`btn btn--sm${tipoSemana === 'natural' ? ' btn--accent' : ''}`}
+          aria-pressed={tipoSemana === 'natural'}
+          onClick={() => onDiasHabiles(SEMANA_NATURAL)}
+          title="Días corridos: sábado y domingo cuentan como trabajo"
+        >
+          Natural
+        </button>
+        <button
+          type="button"
+          className={`btn btn--sm${tipoSemana === 'laboral' ? ' btn--accent' : ''}`}
+          aria-pressed={tipoSemana === 'laboral'}
+          onClick={() => onDiasHabiles(SEMANA_LABORAL)}
+          title="Solo los días hábiles cuentan; el motor salta los demás"
+        >
+          Laboral
+        </button>
+        <span className="barra-prog__dias" role="group" aria-label="Días hábiles">
+          {SEMANA_NATURAL.map((dia) => {
+            const habil = diasHabiles.includes(dia);
+            return (
+              <button
+                key={dia}
+                type="button"
+                className={`barra-prog__dia${habil ? ' is-habil' : ''}`}
+                aria-pressed={habil}
+                aria-label={nombreDeDia(dia)}
+                title={`${nombreDeDia(dia)}: ${habil ? 'se trabaja' : 'no se trabaja'}`}
+                onClick={() => onAlternarDia(dia)}
+              >
+                {inicialDeDia(dia)}
+              </button>
+            );
+          })}
+        </span>
       </div>
 
       <div className="barra-prog__sep" aria-hidden />
