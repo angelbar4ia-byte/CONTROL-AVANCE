@@ -6,10 +6,20 @@
 -- así que se prueba explícitamente:
 --   1. Un usuario NO ve obras de otra organización.
 --   2. Un residente solo ve SUS obras.
---   3. Un supervisor solo ve las obras de SUS clusters.
---   4. Control de obra solo ve las obras de SUS proyectos.
---   5. El super intendente ve toda su organización (y nada más).
+--   3. Un supervisor solo ve las obras de SUS RESIDENTES.
+--   4. El super intendente solo ve lo de SU GENTE.
+--   5. Control de obra ve toda su organización (y nada más).
 --   6. Sin contexto (anónimo) no se ve absolutamente nada.
+--
+-- LOS CASOS 3, 4 Y 5 CAMBIARON CON LA MIGRACIÓN 0042
+--
+-- Hasta la 0041 este archivo afirmaba lo contrario en dos de ellos: que el
+-- super intendente veía toda la organización y que Control estaba acotado a
+-- los proyectos de `control_proyecto`. La 0042 invierte esa jerarquía por
+-- petición explícita del usuario ("Control es el de arriba... el
+-- superintendente pasa a ver solo su gente asignada, no todo") y el alcance
+-- del supervisor deja de seguir al cluster para seguir a sus residentes. Las
+-- aserciones de aquí se reescribieron al modelo nuevo; ninguna se relajó.
 --
 -- Uso:  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/test_rls.sql
 -- ============================================================
@@ -73,7 +83,10 @@ insert into obra (id, org_id, cluster_id, clave, residente_id, es_urba) values
    'b2000000-0000-0000-0000-000000000001', 'OLMO 01',
    'bbbbbbbb-0000-0000-0000-000000000001', true);
 
--- Alcances: Sup Uno solo cluster FRESNO · Ctrl Uno solo proyecto MAGNOLIA
+-- Alcance territorial de la 0011, que la 0042 dejó de leer. Se sigue sembrando
+-- a propósito: si alguna política volviera a colgarse de estas dos tablas, las
+-- aserciones de abajo lo delatarían — Sup Uno tiene el cluster FRESNO entero
+-- (2 obras) pero solo UN residente, y Ctrl Uno tiene un proyecto de dos.
 insert into supervisor_cluster (org_id, supervisor_id, cluster_id) values
   ('11111111-1111-1111-1111-111111111111',
    'aaaaaaaa-0000-0000-0000-000000000003', 'a2000000-0000-0000-0000-000000000001');
@@ -81,6 +94,23 @@ insert into supervisor_cluster (org_id, supervisor_id, cluster_id) values
 insert into control_proyecto (org_id, usuario_id, proyecto_id) values
   ('11111111-1111-1111-1111-111111111111',
    'aaaaaaaa-0000-0000-0000-000000000004', 'a1000000-0000-0000-0000-000000000001');
+
+-- Alcance real desde la 0042 (§4). `residente_obra` no se siembra a mano: lo
+-- llenó el trigger `trg_obra_sincronizar_residente` al insertar las obras de
+-- arriba, y que estas cuentas cuadren es también la prueba de ese trigger.
+--
+-- Sup Uno lleva a Res Uno y NO a Res Dos, aunque los dos tengan obra en su
+-- cluster FRESNO: es exactamente el caso que distingue "alcance por gente" de
+-- "alcance por territorio".
+insert into supervisor_residente (org_id, supervisor_id, residente_id) values
+  ('11111111-1111-1111-1111-111111111111',
+   'aaaaaaaa-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001');
+
+-- Super Uno tiene a Sup Uno y a nadie más: su alcance es el de su supervisor,
+-- heredado, no la organización.
+insert into superintendente_usuario (org_id, superintendente_id, usuario_id) values
+  ('11111111-1111-1111-1111-111111111111',
+   'aaaaaaaa-0000-0000-0000-000000000005', 'aaaaaaaa-0000-0000-0000-000000000003');
 
 -- ------------------------------------------------------------
 -- Helper de aserción
@@ -126,54 +156,159 @@ select pg_temp.como('11111111-1111-1111-1111-111111111111',
 select pg_temp.esperar('residente con dos obras', count(*), 2) from obra;
 
 -- ------------------------------------------------------------
--- 3 · Supervisor -> solo obras del cluster FRESNO
+-- 3 · Supervisor -> las obras de SUS RESIDENTES, no las de su cluster
+--
+-- Sup Uno tiene asignado el cluster FRESNO entero, con dos obras. Solo ve una:
+-- la de Res Uno, su único residente. Si esta cuenta diera 2, el alcance
+-- seguiría colgando del territorio y la 0042 no habría hecho nada.
 -- ------------------------------------------------------------
 select pg_temp.como('11111111-1111-1111-1111-111111111111',
                     'aaaaaaaa-0000-0000-0000-000000000003', 'supervisor');
-select pg_temp.esperar('supervisor ve su cluster', count(*), 2) from obra;
+select pg_temp.esperar('supervisor ve las obras de su residente', count(*), 1) from obra;
+select pg_temp.esperar('supervisor NO ve la obra de un residente ajeno', count(*), 0)
+  from obra where clave = 'FRESNO 02';
 select pg_temp.esperar('supervisor no ve otro cluster', count(*), 0)
   from obra where clave = 'CEDRO 01';
 
--- ------------------------------------------------------------
--- 4 · Control de obra -> solo obras del proyecto MAGNOLIA
--- ------------------------------------------------------------
+-- Un supervisor NO se asigna residentes a sí mismo: su alcance ES el de sus
+-- residentes, así que escribir esa fila sería ampliarse solo. Lo reparte
+-- Control (o su super intendente).
+do $$
+begin
+  insert into supervisor_residente (org_id, supervisor_id, residente_id) values
+    ('11111111-1111-1111-1111-111111111111',
+     'aaaaaaaa-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000002');
+  raise exception 'FALLA: un supervisor se asignó un residente a sí mismo';
+exception
+  when insufficient_privilege then
+    raise notice 'OK  [supervisor NO se asigna residentes]';
+end;
+$$;
+
+-- La cartera sigue a la persona: cuando Control le da Res Dos, entran sus dos
+-- obras — una de ellas en CEDRO, un cluster que Sup Uno nunca tuvo asignado.
 select pg_temp.como('11111111-1111-1111-1111-111111111111',
                     'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra');
-select pg_temp.esperar('control ve su proyecto', count(*), 2) from obra;
+insert into supervisor_residente (org_id, supervisor_id, residente_id) values
+  ('11111111-1111-1111-1111-111111111111',
+   'aaaaaaaa-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000002');
+
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000003', 'supervisor');
+select pg_temp.esperar('al mover un residente, su cartera lo sigue', count(*), 3) from obra;
+select pg_temp.esperar('incluida la obra de un cluster que no es suyo', count(*), 1)
+  from obra where clave = 'CEDRO 01';
+
+-- ...y al quitárselo, se va con sus obras. El alcance no se queda pegado.
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra');
+delete from supervisor_residente
+ where supervisor_id = 'aaaaaaaa-0000-0000-0000-000000000003'
+   and residente_id  = 'aaaaaaaa-0000-0000-0000-000000000002';
+
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000003', 'supervisor');
+select pg_temp.esperar('al retirar al residente, su cartera se va', count(*), 1) from obra;
 
 -- ------------------------------------------------------------
--- 5 · Super intendente -> las 3 obras de Alfa, ninguna de Beta
+-- 4 · Super intendente -> lo de SU GENTE, heredado por la cadena
+--
+-- ANTES DE LA 0042 ESTE CASO AFIRMABA LO CONTRARIO ("ve toda su org", 3
+-- obras). Ese supuesto es justo el que el usuario pidió cambiar. Super Uno
+-- tiene un solo asignado —Sup Uno— así que ve lo que ve Sup Uno: una obra.
 -- ------------------------------------------------------------
 select pg_temp.como('11111111-1111-1111-1111-111111111111',
                     'aaaaaaaa-0000-0000-0000-000000000005', 'super_intendente');
-select pg_temp.esperar('super intendente ve toda su org', count(*), 3) from obra;
+select pg_temp.esperar('el SI hereda el alcance de su supervisor', count(*), 1) from obra;
+select pg_temp.esperar('el SI NO ve la obra de un residente que no es de su gente',
+                       count(*), 0)
+  from obra where clave = 'CEDRO 01';
 select pg_temp.esperar('super intendente NO cruza de org', count(*), 0)
+  from obra where org_id = '22222222-2222-2222-2222-222222222222';
+
+-- El SI tampoco se amplía a sí mismo: esta tabla define SU alcance, así que
+-- solo la escribe Control. Es la misma regla que la 0012 le aplicaba a
+-- `control_proyecto` (solo el SI podía tocarlo), movida un piso hacia arriba.
+do $$
+begin
+  insert into superintendente_usuario (org_id, superintendente_id, usuario_id) values
+    ('11111111-1111-1111-1111-111111111111',
+     'aaaaaaaa-0000-0000-0000-000000000005', 'aaaaaaaa-0000-0000-0000-000000000002');
+  raise exception 'FALLA: un super intendente se asignó gente a sí mismo';
+exception
+  when insufficient_privilege then
+    raise notice 'OK  [super intendente NO amplía su propia gente]';
+end;
+$$;
+
+-- Un residente colgado directo del SI, sin supervisor de por medio (el usuario
+-- pidió las dos formas: "los residentes y supervisores a superintendente").
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra');
+insert into superintendente_usuario (org_id, superintendente_id, usuario_id) values
+  ('11111111-1111-1111-1111-111111111111',
+   'aaaaaaaa-0000-0000-0000-000000000005', 'aaaaaaaa-0000-0000-0000-000000000002');
+
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000005', 'super_intendente');
+select pg_temp.esperar('el SI suma al residente que cuelga directo', count(*), 3) from obra;
+
+-- ------------------------------------------------------------
+-- 5 · Control de obra -> toda su organización, y nada de otra
+--
+-- ANTES DE LA 0042 ESTE CASO AFIRMABA "control ve su proyecto" (2 obras, las
+-- de MAGNOLIA). Ahora Control es el de arriba: ve las 3 de Alfa aunque su
+-- fila de `control_proyecto` siga apuntando a un solo proyecto — que es la
+-- forma de comprobar que ese puente ya no gobierna nada.
+-- ------------------------------------------------------------
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra');
+select pg_temp.esperar('control ve toda su organización', count(*), 3) from obra;
+select pg_temp.esperar('control ve la obra del proyecto que NO tiene asignado',
+                       count(*), 1)
+  from obra where clave = 'CEDRO 01';
+select pg_temp.esperar('control NO cruza de org', count(*), 0)
   from obra where org_id = '22222222-2222-2222-2222-222222222222';
 
 -- ------------------------------------------------------------
 -- 6 · Escritura: el alcance de escritura no puede ser más ancho
 --     que el de lectura, y el alta debe funcionar (WITH CHECK sobre
 --     una fila que todavía no existe).
+--
+-- ANTES DE LA 0042 ESTE CASO AFIRMABA "control NO puede dar de alta fuera de
+-- su proyecto". Ya no aplica: Control es el de arriba y su organización
+-- entera es su alcance, así que el alta en cualquier cluster es correcta. Lo
+-- que se prueba en su lugar es el límite que SÍ existe ahora — el alta de obra
+-- quedó cerrada a Control, y el super intendente no la tiene.
 -- ------------------------------------------------------------
 select pg_temp.como('11111111-1111-1111-1111-111111111111',
                     'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra');
 
--- Alta permitida: cluster FRESNO pertenece a MAGNOLIA, su proyecto.
+-- Alta en el cluster de su fila de `control_proyecto`.
 insert into obra (org_id, cluster_id, clave, es_urba) values
   ('11111111-1111-1111-1111-111111111111',
    'a2000000-0000-0000-0000-000000000001', 'FRESNO 03', true);
-select pg_temp.esperar('control da de alta en su proyecto', count(*), 3) from obra;
 
--- Alta rechazada: cluster CEDRO pertenece a ROBLE, fuera de su alcance.
+-- ...y también en CEDRO, del proyecto ROBLE, que NO tiene asignado.
+insert into obra (org_id, cluster_id, clave, es_urba) values
+  ('11111111-1111-1111-1111-111111111111',
+   'a2000000-0000-0000-0000-000000000002', 'CEDRO 99', true);
+select pg_temp.esperar('control da de alta en toda su organización', count(*), 5) from obra;
+
+-- El super intendente configura catálogos (§5.1) pero ya no crea obras: la
+-- 0042 cerró `obra_insert` a Control, igual que el router lo tenía desde la
+-- Fase 1 (`CREADOR_DE_OBRA = exigir_rol(Rol.CONTROL_OBRA)`).
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000005', 'super_intendente');
 do $$
 begin
   insert into obra (org_id, cluster_id, clave, es_urba) values
     ('11111111-1111-1111-1111-111111111111',
-     'a2000000-0000-0000-0000-000000000002', 'CEDRO 99', true);
-  raise exception 'FALLA: control_obra insertó fuera de su proyecto';
+     'a2000000-0000-0000-0000-000000000001', 'FRESNO 97', true);
+  raise exception 'FALLA: un super intendente creó una obra';
 exception
   when insufficient_privilege then
-    raise notice 'OK  [control NO puede dar de alta fuera de su proyecto]';
+    raise notice 'OK  [super intendente NO crea obras]';
 end;
 $$;
 

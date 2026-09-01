@@ -45,6 +45,8 @@ from obractrl.domain.identidad.reglas import (
     ErrorDeIdentidad,
     Usuario,
     puede_asignar_alcance_de,
+    puede_registrar_proyectos_de_control,
+    roles_que_cuelgan_de,
 )
 from obractrl.domain.shared.diccionario import Rol
 
@@ -111,10 +113,35 @@ class ComandoResetearContrasena:
 
 @dataclass(frozen=True, slots=True)
 class ComandoAsignarAlcance:
+    """Reparto de alcance sobre UNA persona (§5.1 "Asignaciones").
+
+    `usuario_id` es siempre **el jefe o el dueño de la cartera**, nunca el
+    subordinado: se le dan cosas *a él*. Qué lista aplica lo decide su rol, y
+    por eso vienen todas y no un campo polimórfico —la pantalla manda la que
+    corresponde y el caso de uso rechaza el resto con un error legible en vez
+    de adivinar.
+    """
+
     usuario_id: UUID
     quien: Rol
+    gente: tuple[UUID, ...] = ()
+    """Personas que cuelgan de `usuario_id`.
+
+    Si es Super intendente, supervisores y/o residentes
+    (`superintendente_usuario`); si es supervisor, residentes
+    (`supervisor_residente`). Es un solo campo para los dos puentes porque
+    desde la pantalla es la misma acción —"esta es tu gente"— y el rol del
+    destino ya dice a qué tabla va.
+    """
+    obras: tuple[UUID, ...] = ()
+    """Obras de un residente (`residente_obra`). Es la fuente de verdad del
+    alcance de obra desde la 0042."""
     clusters: tuple[UUID, ...] = ()
+    """Manzanas que recorre un supervisor (`supervisor_cluster`). DATO
+    TERRITORIAL: desde la 0042 ya no le abre ninguna obra."""
     proyectos: tuple[UUID, ...] = ()
+    """Proyectos de un Control de obra (`control_proyecto`). INERTE desde la
+    0042: Control ve toda la organización."""
     retirar: bool = False
     """`True` quita en vez de dar. Es un campo y no dos casos de uso porque la
     regla de quién puede tocar qué puente es idéntica en los dos sentidos."""
@@ -332,10 +359,33 @@ class ResetearContrasena:
 class AsignarAlcance:
     """`POST /usuarios/{id}/alcance` (§5.1 "Asignaciones").
 
-    Reparte clusters a un supervisor y proyectos a un Control de obra. Quién
-    puede tocar cada puente lo dice `puede_asignar_alcance_de`, que espeja las
-    políticas de la migración 0012 — y RLS lo vuelve a imponer, así que una
-    guarda olvidada aquí sería un 500 feo, no un agujero.
+    Arma la cadena de mando del §4: le cuelga gente a un Super intendente o a
+    un supervisor, obras a un residente, y de paso mantiene los dos registros
+    que ya no gobiernan alcance (clusters y proyectos).
+
+    TRES CAPAS DE VALIDACIÓN, Y NINGUNA SOBRA
+
+    1. **Forma** — que la lista corresponda al rol del destino. Darle obras a
+       un supervisor no es un permiso denegado sino un sinsentido, y merece un
+       error que lo diga.
+    2. **Organigrama** — que el rol de cada asignado quepa debajo del destino
+       (`roles_que_cuelgan_de`). Esto la base NO lo comprueba: sus llaves
+       foráneas apuntan a `usuario` sin mirar el rol. Es la única capa que
+       impide colgar un supervisor de otro supervisor.
+    3. **Permiso** — quién puede repartir qué (`puede_asignar_alcance_de`).
+       Aquí sí hay red debajo: las políticas de la 0042 lo vuelven a imponer, y
+       además con un detalle que el dominio no puede ver —si la persona está
+       en el alcance de quien reparte, y si la obra ya le era visible—. Una
+       guarda olvidada en esta capa sería un 500 feo, no un agujero.
+
+    EL ORDEN DE LAS OBRAS NO ES CASUAL
+
+    Al reasignar, la pantalla manda primero el alta al residente destino y
+    después la baja del origen. Si se hiciera al revés, un supervisor perdería
+    la visibilidad de la obra en cuanto soltara al único residente que se la
+    daba, y la política `residente_obra_insert` —que exige `obra_visible`—
+    rechazaría el alta. Por eso aquí las altas y las bajas nunca se mezclan en
+    una sola llamada: `retirar` es un booleano de toda la petición.
     """
 
     def __init__(
@@ -355,24 +405,39 @@ class AsignarAlcance:
             raise UsuarioNoEncontrado(f"No existe el usuario {cmd.usuario_id}.")
 
         rol_destino = Rol(destino["rol"])
-        if not puede_asignar_alcance_de(cmd.quien, rol_destino):
+        self._exigir_forma(cmd, destino, rol_destino)
+
+        if cmd.gente:
+            await self._exigir_organigrama(cmd, destino, rol_destino)
+
+        # `control_proyecto` se valida aparte porque su permiso ya no sale de
+        # la jerarquía: quedó congelado en el de la 0012 (ver
+        # `puede_registrar_proyectos_de_control`).
+        if (cmd.gente or cmd.obras or cmd.clusters) and not puede_asignar_alcance_de(
+            cmd.quien, rol_destino
+        ):
+            raise ErrorDeIdentidad(
+                f"Un {cmd.quien.value} no puede cambiar el alcance de un "
+                f"{rol_destino.value}."
+            )
+        if cmd.proyectos and not puede_registrar_proyectos_de_control(cmd.quien):
             raise ErrorDeIdentidad(
                 f"Un {cmd.quien.value} no puede cambiar el alcance de un "
                 f"{rol_destino.value}."
             )
 
-        if cmd.clusters and rol_destino is not Rol.SUPERVISOR:
-            raise ErrorDeIdentidad(
-                "Los clusters se asignan a un supervisor; "
-                f"{destino['nombre']} es {rol_destino.value}."
-            )
-        if cmd.proyectos and rol_destino is not Rol.CONTROL_OBRA:
-            raise ErrorDeIdentidad(
-                "Los proyectos se asignan a un control de obra; "
-                f"{destino['nombre']} es {rol_destino.value}."
-            )
-
         async with self._uow:
+            for persona_id in cmd.gente:
+                await self._mover_persona(cmd, rol_destino, persona_id)
+            for obra_id in cmd.obras:
+                if cmd.retirar:
+                    await self._asignaciones.retirar_obra(
+                        residente_id=cmd.usuario_id, obra_id=obra_id
+                    )
+                else:
+                    await self._asignaciones.asignar_obra(
+                        residente_id=cmd.usuario_id, obra_id=obra_id
+                    )
             for cluster_id in cmd.clusters:
                 if cmd.retirar:
                     await self._asignaciones.retirar_cluster(
@@ -394,3 +459,71 @@ class AsignarAlcance:
             await self._uow.commit()
 
         return UsuarioActualizado(id=cmd.usuario_id)
+
+    # --- Capa 1: la lista corresponde al rol del destino -----------------
+
+    @staticmethod
+    def _exigir_forma(
+        cmd: ComandoAsignarAlcance, destino: dict, rol_destino: Rol
+    ) -> None:
+        quien_recibe = f"{destino['nombre']} es {rol_destino.value}"
+        if cmd.gente and not roles_que_cuelgan_de(rol_destino):
+            raise ErrorDeIdentidad(
+                f"De un {rol_destino.value} no cuelga gente en el organigrama; "
+                f"{quien_recibe}."
+            )
+        if cmd.obras and rol_destino is not Rol.RESIDENTE:
+            raise ErrorDeIdentidad(
+                f"Las obras se asignan a un residente; {quien_recibe}."
+            )
+        if cmd.clusters and rol_destino is not Rol.SUPERVISOR:
+            raise ErrorDeIdentidad(
+                f"Los clusters se asignan a un supervisor; {quien_recibe}."
+            )
+        if cmd.proyectos and rol_destino is not Rol.CONTROL_OBRA:
+            raise ErrorDeIdentidad(
+                f"Los proyectos se asignan a un control de obra; {quien_recibe}."
+            )
+
+    # --- Capa 2: el rol del asignado cabe debajo del destino -------------
+
+    async def _exigir_organigrama(
+        self, cmd: ComandoAsignarAlcance, destino: dict, rol_destino: Rol
+    ) -> None:
+        admitidos = roles_que_cuelgan_de(rol_destino)
+        for persona_id in cmd.gente:
+            persona = await self._usuarios.obtener(persona_id)
+            if persona is None:
+                # Mismo criterio que el resto del módulo: "no existe" y "es de
+                # otra organización" se ven igual y las dos son un 404.
+                raise UsuarioNoEncontrado(f"No existe el usuario {persona_id}.")
+            rol_persona = Rol(persona["rol"])
+            if rol_persona not in admitidos:
+                raise ErrorDeIdentidad(
+                    f"Un {rol_persona.value} no cuelga de un {rol_destino.value}: "
+                    f"{persona['nombre']} no puede quedar bajo {destino['nombre']}."
+                )
+
+    async def _mover_persona(
+        self, cmd: ComandoAsignarAlcance, rol_destino: Rol, persona_id: UUID
+    ) -> None:
+        """A qué puente va, según de quién cuelgue la persona."""
+        if rol_destino is Rol.SUPER_INTENDENTE:
+            if cmd.retirar:
+                await self._asignaciones.retirar_persona_de_superintendente(
+                    superintendente_id=cmd.usuario_id, usuario_id=persona_id
+                )
+            else:
+                await self._asignaciones.asignar_persona_a_superintendente(
+                    superintendente_id=cmd.usuario_id, usuario_id=persona_id
+                )
+            return
+
+        if cmd.retirar:
+            await self._asignaciones.retirar_residente(
+                supervisor_id=cmd.usuario_id, residente_id=persona_id
+            )
+        else:
+            await self._asignaciones.asignar_residente(
+                supervisor_id=cmd.usuario_id, residente_id=persona_id
+            )

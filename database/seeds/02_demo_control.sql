@@ -91,7 +91,12 @@ on conflict (org_id, clave) do update set nombre = excluded.nombre
 returning id as prototipo_id \gset
 
 -- Puentes de alcance (§4): sin esto, RLS no deja ver nada aunque el JWT
--- traiga el rol correcto — `app.obra_visible()` exige la fila (0011).
+-- traiga el rol correcto.
+--
+-- Los dos de la 0011 se conservan porque siguen siendo datos —qué proyectos
+-- atiende este Control, qué manzana recorre este supervisor— aunque desde la
+-- migración 0042 ya NO gobiernen alcance: Control ve toda la organización y el
+-- supervisor ve las obras de sus residentes.
 insert into control_proyecto (org_id, usuario_id, proyecto_id)
 values (:'org_id', :'control_id', :'proyecto_id')
 on conflict (usuario_id, proyecto_id) do nothing;
@@ -99,6 +104,14 @@ on conflict (usuario_id, proyecto_id) do nothing;
 insert into supervisor_cluster (org_id, supervisor_id, cluster_id)
 values (:'org_id', :'supervisor_id', :'cluster_id')
 on conflict (supervisor_id, cluster_id) do nothing;
+
+-- El que SÍ manda desde la 0042: Supervisor Demo -> Residente Demo. Las obras
+-- llegan solas por `residente_obra`, que el trigger llena desde
+-- `obra.residente_id` al insertarlas más abajo. Sin esta fila, el supervisor de
+-- la demo abre la app y no ve una sola obra.
+insert into supervisor_residente (org_id, supervisor_id, residente_id)
+values (:'org_id', :'supervisor_id', :'residente_id')
+on conflict (supervisor_id, residente_id) do nothing;
 
 insert into obra (org_id, cluster_id, prototipo_id, clave, residente_id, estatus, avance_pct)
 values (:'org_id', :'cluster_id', :'prototipo_id', 'FRESNO 01', :'residente_id', 'en_proceso', 62.5)

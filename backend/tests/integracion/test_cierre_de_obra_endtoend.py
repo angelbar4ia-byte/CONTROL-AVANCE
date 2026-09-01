@@ -96,7 +96,7 @@ class TestAbrir:
     async def test_el_super_intendente_abre_y_reune_pendientes(
         self, escenario: Escenario
     ) -> None:
-        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.control_id)
+        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.superintendente_id)
         resultado = await _abrir(si, escenario.obra_id)
 
         assert resultado.estatus == "en_proceso"
@@ -116,7 +116,7 @@ class TestAbrir:
     ) -> None:
         """`uq_cierre_obra`: una obra tiene un cierre. Un doble clic no puede
         crear dos actas ni dar un 500."""
-        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.control_id)
+        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.superintendente_id)
         primero = await _abrir(si, escenario.obra_id)
         segundo = await _abrir(si, escenario.obra_id)
         assert primero.id == segundo.id
@@ -124,7 +124,7 @@ class TestAbrir:
 
 class TestEstadoDeLaObra:
     async def test_junta_los_siete_contextos(self, escenario: Escenario) -> None:
-        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.control_id)
+        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.superintendente_id)
         async with sesion_con_rls(si) as sesion:
             estado = await RepositorioCierresDeObraSQL(sesion).estado_de_obra(
                 escenario.obra_id
@@ -159,7 +159,7 @@ class TestFirmarElActa:
     ) -> None:
         await _dejar_obra_lista(escenario)
 
-        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.control_id)
+        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.superintendente_id)
         cierre = await _abrir(si, escenario.obra_id)
 
         await _participar(
@@ -190,7 +190,7 @@ class TestFirmarElActa:
         """La obra del escenario va a medias: la cuarta firma tiene que fallar
         **antes** de escribir nada, o quedaría un acta completa sobre una obra
         que no se puede entregar."""
-        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.control_id)
+        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.superintendente_id)
         cierre = await _abrir(si, escenario.obra_id)
 
         await _participar(
@@ -217,7 +217,7 @@ class TestFirmarElActa:
         assert len(participaciones) == 3
 
     async def test_un_rol_no_firma_dos_veces(self, escenario: Escenario) -> None:
-        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.control_id)
+        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.superintendente_id)
         cierre = await _abrir(si, escenario.obra_id)
         residente = _contexto(escenario, Rol.RESIDENTE, escenario.residente_id)
 
@@ -232,7 +232,7 @@ class TestFirmarElActa:
         from obractrl.adapters.repos.cierres_obra_sql import CierreDeObraNoModificado
 
         await _dejar_obra_lista(escenario)
-        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.control_id)
+        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.superintendente_id)
         cierre = await _abrir(si, escenario.obra_id)
 
         async with sesion_con_rls(si) as sesion:
@@ -248,7 +248,7 @@ class TestFirmarElActa:
     async def test_la_participacion_guarda_lo_que_dijo_cada_rol(
         self, escenario: Escenario
     ) -> None:
-        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.control_id)
+        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.superintendente_id)
         cierre = await _abrir(si, escenario.obra_id)
 
         await _participar(
@@ -287,7 +287,7 @@ class TestAislamiento:
     async def test_la_bandeja_no_muestra_cierres_ajenos(
         self, escenario: Escenario, contexto_ajeno: ContextoSesion
     ) -> None:
-        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.control_id)
+        si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.superintendente_id)
         cierre = await _abrir(si, escenario.obra_id)
 
         async with sesion_con_rls(contexto_ajeno) as sesion:
@@ -313,7 +313,7 @@ async def test_el_avance_incompleto_bloquea_aunque_todo_lo_demas_este(
         )
     await admin.dispose()
 
-    si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.control_id)
+    si = _contexto(escenario, Rol.SUPER_INTENDENTE, escenario.superintendente_id)
     cierre = await _abrir(si, escenario.obra_id)
 
     bloqueantes = [p for p in cierre.pendientes if p.bloquea]

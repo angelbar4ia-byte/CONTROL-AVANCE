@@ -140,15 +140,45 @@ falla**: el anónimo no ve nada. Está probado en `tests/test_rls.sql`.
 
 ## Alcance por rol (§4)
 
-| Rol | Ve |
-|---|---|
-| `residente` | Las obras donde es residente |
-| `supervisor` | Las obras de sus clusters (`supervisor_cluster`) |
-| `control_obra` | Las obras de sus proyectos (`control_proyecto`) |
-| `super_intendente` | Toda su organización |
+Desde la migración `0042` el alcance es una **cadena de personas**, no de
+territorio:
+
+```
+Control de obra → Super intendente → Supervisor → Residente → Obra
+```
+
+| Rol | Ve | Puente |
+|---|---|---|
+| `residente` | Sus obras | `residente_obra` (M2M) |
+| `supervisor` | Las obras de **sus residentes** | `supervisor_residente` |
+| `super_intendente` | Las obras de **su gente**, directa o vía sus supervisores | `superintendente_usuario` |
+| `control_obra` | **Toda su organización** | ninguno |
+
+Dos consecuencias que conviene tener presentes:
+
+- **El alcance sigue a la gente.** Al mover un residente de supervisor, su
+  cartera de obras se mueve con él sin tocar `residente_obra`.
+- **Meter trabajo nuevo a la cadena es de Control.** Los mandos intermedios
+  solo reparten lo que ya ven (`app.puede_repartir_obra`); si pudieran traerse
+  una obra ajena, se ampliarían el alcance solos, porque su alcance ES el de
+  sus subordinados.
+
+`proyecto` y `cluster` son **estructura**, no operación: Control y Super
+intendente los ven completos; supervisor y residente los derivan de sus obras.
+Eso no concede nada operativo — obra, actividad, avance, estimación,
+incidencia, cierre, expediente y revisión cuelgan todos de
+`app.obra_visible()`.
+
+Dos tablas de la `0011` siguen existiendo y **ya no gobiernan alcance**:
+`supervisor_cluster` (dato territorial: qué manzanas recorre) y
+`control_proyecto` (inerte: Control ve toda la organización; el trigger de la
+`0016` la sigue llenando). `obra.residente_id` se conserva como **residente
+principal**, sincronizado con `residente_obra` por trigger en los dos sentidos.
 
 Las **sync rules de PowerSync deben reflejar exactamente esta misma lógica**
-(§12.4), o el offline expondría datos de otra organización.
+(§12.4), o el offline expondría datos de otra organización. Se despliegan
+**junto con** la `0042`: si se quedan viejas, el bucket del supervisor sigue
+sincronizando el cluster entero al teléfono.
 
 ## Uso
 

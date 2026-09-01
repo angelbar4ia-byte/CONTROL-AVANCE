@@ -159,6 +159,26 @@ export function ayudaTipoDependencia(tipo: string | undefined): string {
   return AYUDA_DEPENDENCIA[(tipo ?? 'FS').toUpperCase()] ?? '';
 }
 
+/**
+ * Cómo se nombra cada clase del árbol WBS en el editor (§7.4).
+ *
+ * `nivel` y `etapa` no se llaman igual en singular que en plural en la barra
+ * —ahí son familias de cajas, no una caja— y por eso van los dos: el
+ * interruptor dice "Niveles" y el inspector de la caja dice "Nivel de
+ * construcción", que es lo que el usuario tiene en el catálogo.
+ */
+const NOMBRE_CLASE: Record<string, { readonly singular: string; readonly plural: string }> = {
+  nivel: { singular: 'Nivel de construcción', plural: 'Niveles' },
+  etapa: { singular: 'Etapa constructiva', plural: 'Etapas' },
+  concepto: { singular: 'Concepto', plural: 'Conceptos' },
+};
+
+export function etiquetaClaseNodo(clase: string, plural = false): string {
+  const nombre = NOMBRE_CLASE[clase];
+  if (!nombre) return clase;
+  return plural ? nombre.plural : nombre.singular;
+}
+
 /** Extremo de la caja del que sale o al que entra un cable. */
 export type Anclaje = 'inicio' | 'fin';
 

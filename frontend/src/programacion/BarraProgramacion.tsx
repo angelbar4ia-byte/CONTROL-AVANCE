@@ -20,6 +20,7 @@ import {
   Redo2,
   Save,
   Undo2,
+  X,
 } from 'lucide-react';
 
 import {
@@ -31,8 +32,29 @@ import {
   tipoDeSemana,
 } from './calendario';
 import type { ClaseNodo } from '@/api/generado/modelo';
-import { TIPOS_LIGA, type TipoLiga, type Vista } from './grafo';
-import { ayudaTipoDependencia, etiquetaTipoDependencia } from './reglas';
+import {
+  CLASES_CAJA,
+  alternarClase,
+  enEtapa,
+  muestraClase,
+  salirDeEtapa,
+  TIPOS_LIGA,
+  type TipoCaja,
+  type TipoLiga,
+  type Vista,
+} from './grafo';
+import {
+  ayudaTipoDependencia,
+  etiquetaClaseNodo,
+  etiquetaTipoDependencia,
+} from './reglas';
+
+/** Qué gana el usuario al encender cada clase; va en el `title` del botón. */
+const AYUDA_CLASE: Record<TipoCaja, string> = {
+  nivel: 'Niveles de construcción: la planta entera como una actividad.',
+  etapa: 'Etapas constructivas: la vista legible del programa.',
+  concepto: 'Los conceptos del prototipo, de todas las etapas.',
+};
 
 /**
  * Modo del puntero. `conectar` no cambia lo que React Flow permite —los
@@ -153,29 +175,44 @@ export function BarraProgramacion({
 
       <div className="barra-prog__sep" aria-hidden />
 
-      <div className="barra-prog__grupo" role="group" aria-label="Granularidad">
-        <button
-          type="button"
-          className={`btn btn--sm${vista.modo === 'etapas' ? ' btn--accent' : ''}`}
-          aria-pressed={vista.modo === 'etapas'}
-          onClick={() => onVista({ modo: 'etapas' })}
-          title="Etapas constructivas: la vista legible del programa"
-        >
-          <Layers size={13} aria-hidden /> Etapas
-        </button>
-        <button
-          type="button"
-          className={`btn btn--sm${vista.modo === 'conceptos' ? ' btn--accent' : ''}`}
-          aria-pressed={vista.modo === 'conceptos'}
-          onClick={() => onVista({ modo: 'conceptos' })}
-          title="Todos los conceptos del prototipo, de todas las etapas"
-        >
-          <LayoutGrid size={13} aria-hidden /> Conceptos
-        </button>
-        {vista.modo === 'conceptos-de' && (
-          <span className="badge badge--accent" title="Doble clic en una etapa para entrar">
-            {nombreEtapaAbierta ?? 'Etapa'}
-          </span>
+      {/* Tres interruptores independientes, no dos botones que se pisan: lo que
+          se pidió es ver las clases **mezcladas** —niveles con conceptos,
+          etapas con conceptos, las tres— y con modos excluyentes esa vista no
+          existe. Apagar el último encendido se bloquea en vez de dejar un
+          canvas en blanco que nadie pidió. */}
+      <div className="barra-prog__grupo" role="group" aria-label="Clases del árbol WBS">
+        <Layers size={13} className="barra-prog__icono" aria-hidden />
+        {CLASES_CAJA.map((clase) => {
+          const encendida = muestraClase(vista, clase);
+          const ultima = encendida && vista.clases.size === 1 && !enEtapa(vista);
+          return (
+            <button
+              key={clase}
+              type="button"
+              className={`btn btn--sm${encendida ? ' btn--accent' : ''}`}
+              aria-pressed={encendida}
+              disabled={ultima}
+              onClick={() => onVista(alternarClase(vista, clase))}
+              title={
+                ultima
+                  ? 'Es la única clase encendida: el canvas se quedaría vacío.'
+                  : AYUDA_CLASE[clase]
+              }
+            >
+              {etiquetaClaseNodo(clase, true)}
+            </button>
+          );
+        })}
+        {enEtapa(vista) && (
+          <button
+            type="button"
+            className="btn btn--sm btn--accent"
+            onClick={() => onVista(salirDeEtapa(vista))}
+            title="Salir de la etapa y volver al filtro por clases"
+          >
+            <LayoutGrid size={13} aria-hidden /> {nombreEtapaAbierta ?? 'Etapa'}
+            <X size={13} aria-hidden />
+          </button>
         )}
       </div>
 

@@ -34,12 +34,16 @@ insert into organizacion (id, nombre, slug) values
 insert into usuario (id, org_id, nombre, email, rol) values
   ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111',
    'Res Uno',   'exp-res1@alfa.mx', 'residente'),
+  ('aaaaaaaa-0000-0000-0000-000000000002', '11111111-1111-1111-1111-111111111111',
+   'Res Dos',   'exp-res2@alfa.mx', 'residente'),
   ('aaaaaaaa-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111',
    'Sup Uno',   'exp-sup1@alfa.mx', 'supervisor'),
   ('aaaaaaaa-0000-0000-0000-000000000004', '11111111-1111-1111-1111-111111111111',
    'Ctrl Uno',  'exp-ctrl1@alfa.mx', 'control_obra'),
   ('aaaaaaaa-0000-0000-0000-000000000005', '11111111-1111-1111-1111-111111111111',
    'Super Uno', 'exp-si1@alfa.mx',  'super_intendente'),
+  ('bbbbbbbb-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222',
+   'Res Beta',  'exp-res1@beta.mx', 'residente'),
   ('bbbbbbbb-0000-0000-0000-000000000005', '22222222-2222-2222-2222-222222222222',
    'Super Beta', 'exp-si1@beta.mx', 'super_intendente');
 
@@ -64,11 +68,13 @@ insert into obra (id, org_id, cluster_id, clave, residente_id, es_urba) values
    'a2000000-0000-0000-0000-000000000001', 'FRESNO 01',
    'aaaaaaaa-0000-0000-0000-000000000001', true),
   ('a3000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111',
-   'a2000000-0000-0000-0000-000000000002', 'CEDRO 01', null, true),
+   'a2000000-0000-0000-0000-000000000002', 'CEDRO 01',
+   'aaaaaaaa-0000-0000-0000-000000000002', true),
   ('b3000000-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222',
-   'b2000000-0000-0000-0000-000000000001', 'OLMO 01', null, true);
+   'b2000000-0000-0000-0000-000000000001', 'OLMO 01',
+   'bbbbbbbb-0000-0000-0000-000000000001', true);
 
--- Alcances: Sup Uno solo FRESNO · Ctrl Uno solo MAGNOLIA
+-- Alcance territorial de la 0011, que la 0042 ya no lee.
 insert into supervisor_cluster (org_id, supervisor_id, cluster_id) values
   ('11111111-1111-1111-1111-111111111111',
    'aaaaaaaa-0000-0000-0000-000000000003', 'a2000000-0000-0000-0000-000000000001');
@@ -76,6 +82,22 @@ insert into supervisor_cluster (org_id, supervisor_id, cluster_id) values
 insert into control_proyecto (org_id, usuario_id, proyecto_id) values
   ('11111111-1111-1111-1111-111111111111',
    'aaaaaaaa-0000-0000-0000-000000000004', 'a1000000-0000-0000-0000-000000000001');
+
+-- Alcance real desde la 0042 (§4). `residente_obra` lo llenó el trigger al
+-- insertar las obras. Sup Uno lleva solo a Res Uno —de ahí que siga viendo una
+-- obra y no dos—; Super Uno tiene a Sup Uno y, directo, a Res Dos, así que
+-- alcanza las dos obras de Alfa.
+insert into supervisor_residente (org_id, supervisor_id, residente_id) values
+  ('11111111-1111-1111-1111-111111111111',
+   'aaaaaaaa-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001');
+
+insert into superintendente_usuario (org_id, superintendente_id, usuario_id) values
+  ('11111111-1111-1111-1111-111111111111',
+   'aaaaaaaa-0000-0000-0000-000000000005', 'aaaaaaaa-0000-0000-0000-000000000003'),
+  ('11111111-1111-1111-1111-111111111111',
+   'aaaaaaaa-0000-0000-0000-000000000005', 'aaaaaaaa-0000-0000-0000-000000000002'),
+  ('22222222-2222-2222-2222-222222222222',
+   'bbbbbbbb-0000-0000-0000-000000000005', 'bbbbbbbb-0000-0000-0000-000000000001');
 
 -- Un documento por obra (§7.9). `url` es la CLAVE del objeto en R2, no una
 -- URL firmada: la firma caduca, la clave no (§12.2).
@@ -142,19 +164,22 @@ select pg_temp.esperar('residente ve el expediente de su obra', count(*), 1)
 
 select pg_temp.como('11111111-1111-1111-1111-111111111111',
                     'aaaaaaaa-0000-0000-0000-000000000003', 'supervisor');
-select pg_temp.esperar('supervisor ve solo el de su cluster', count(*), 1)
+select pg_temp.esperar('supervisor ve solo el de su residente', count(*), 1)
   from expediente_doc;
-select pg_temp.esperar('supervisor no ve el de otro cluster', count(*), 0)
+select pg_temp.esperar('supervisor no ve el de un residente ajeno', count(*), 0)
   from expediente_doc where nombre = 'Planta CEDRO 01.pdf';
 
+-- Desde la 0042 Control ve toda la organización: antes esta cuenta era 1.
 select pg_temp.como('11111111-1111-1111-1111-111111111111',
                     'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra');
-select pg_temp.esperar('control ve el de su proyecto', count(*), 1)
+select pg_temp.esperar('control ve el expediente de toda su org', count(*), 2)
   from expediente_doc;
 
 select pg_temp.como('11111111-1111-1111-1111-111111111111',
                     'aaaaaaaa-0000-0000-0000-000000000005', 'super_intendente');
-select pg_temp.esperar('super intendente ve el de toda su org', count(*), 2)
+-- Sigue siendo 2, pero por otra razón: ya no es "toda la org" sino la suma de
+-- su gente —Sup Uno (que lleva a Res Uno) y Res Dos, directo—.
+select pg_temp.esperar('super intendente ve el de su gente', count(*), 2)
   from expediente_doc;
 select pg_temp.esperar('super intendente NO cruza de org', count(*), 0)
   from expediente_doc where org_id = '22222222-2222-2222-2222-222222222222';
@@ -186,15 +211,19 @@ select pg_temp.esperar('Beta no ve el expediente de Alfa', count(*), 1)
 select pg_temp.como('11111111-1111-1111-1111-111111111111',
                     'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra');
 
--- Permitido: FRESNO 01 está en MAGNOLIA, su proyecto. (§11.2: la subida es
--- de C y SI; el ROL exacto lo aplica el caso de uso, RLS da el aislamiento.)
+-- Permitido en cualquier obra de la organización (§11.2: la subida es de C y
+-- SI; el ROL exacto lo aplica el caso de uso, RLS da el aislamiento).
 insert into expediente_doc (org_id, obra_id, tipo, nombre, url) values
   ('11111111-1111-1111-1111-111111111111', 'a3000000-0000-0000-0000-000000000001',
    'acta', 'Acta de entrega.pdf', 'alfa/fresno-01/acta.pdf');
-select pg_temp.esperar('control sube a una obra de su proyecto', count(*), 2)
+select pg_temp.esperar('control sube a una obra de su org', count(*), 3)
   from expediente_doc;
 
--- Rechazado: CEDRO 01 está en ROBLE, fuera de su alcance.
+-- La frontera de escritura ya no se prueba con Control —desde la 0042 no tiene
+-- ninguna dentro de su organización— sino con el supervisor, que solo alcanza
+-- las obras de sus residentes: CEDRO 01 es de Res Dos, que no es suyo.
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000003', 'supervisor');
 do $$
 begin
   insert into expediente_doc (org_id, obra_id, tipo, nombre, url) values
@@ -223,6 +252,8 @@ $$;
 
 -- Cruzar de organización tampoco: el `org_id` del token manda sobre el que
 -- venga en la fila (§12.4).
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra');
 do $$
 begin
   insert into expediente_doc (org_id, obra_id, tipo, nombre, url) values

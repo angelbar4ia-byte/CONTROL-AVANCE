@@ -103,6 +103,7 @@ class Escenario:
     residente_id: uuid.UUID
     supervisor_id: uuid.UUID
     control_id: uuid.UUID
+    superintendente_id: uuid.UUID
     proyecto_id: uuid.UUID
     cluster_id: uuid.UUID
     prototipo_id: uuid.UUID
@@ -125,6 +126,7 @@ async def escenario() -> AsyncIterator[Escenario]:
     residente = uuid.uuid4()
     supervisor = uuid.uuid4()
     control = uuid.uuid4()
+    superintendente = uuid.uuid4()
     proyecto = uuid.uuid4()
     cluster = uuid.uuid4()
     prototipo = uuid.uuid4()
@@ -157,6 +159,13 @@ async def escenario() -> AsyncIterator[Escenario]:
                 "values (:id, :org, 'Control Test', :email, 'control_obra')"
             ),
             {"id": str(control), "org": str(org), "email": f"ctrl-{sufijo}@test.mx"},
+        )
+        await conn.execute(
+            text(
+                "insert into usuario (id, org_id, nombre, email, rol) "
+                "values (:id, :org, 'Super Intendente Test', :email, 'super_intendente')"
+            ),
+            {"id": str(superintendente), "org": str(org), "email": f"si-{sufijo}@test.mx"},
         )
         await conn.execute(
             text(
@@ -207,6 +216,27 @@ async def escenario() -> AsyncIterator[Escenario]:
                 "res": str(residente),
             },
         )
+        # La cadena de mando de la migración 0042: Super Intendente -> Supervisor
+        # -> Residente -> Obra. Sin estas dos filas el supervisor y el super
+        # intendente del escenario no verían NADA, porque desde la 0042 su
+        # alcance sale de la gente que tienen asignada y no del cluster ni de la
+        # organización. `residente_obra` no se siembra: lo llenó el trigger
+        # `trg_obra_sincronizar_residente` al insertar la obra de arriba.
+        await conn.execute(
+            text(
+                "insert into supervisor_residente (org_id, supervisor_id, residente_id) "
+                "values (:org, :sup, :res)"
+            ),
+            {"org": str(org), "sup": str(supervisor), "res": str(residente)},
+        )
+        await conn.execute(
+            text(
+                "insert into superintendente_usuario "
+                "(org_id, superintendente_id, usuario_id) "
+                "values (:org, :si, :sup)"
+            ),
+            {"org": str(org), "si": str(superintendente), "sup": str(supervisor)},
+        )
         await conn.execute(
             text(
                 "insert into actividad (id, org_id, obra_id, cant_base, cant_programada) "
@@ -220,6 +250,7 @@ async def escenario() -> AsyncIterator[Escenario]:
         residente_id=residente,
         supervisor_id=supervisor,
         control_id=control,
+        superintendente_id=superintendente,
         proyecto_id=proyecto,
         cluster_id=cluster,
         prototipo_id=prototipo,
@@ -250,10 +281,25 @@ def contexto_supervisor(escenario: Escenario) -> ContextoSesion:
 
 @pytest.fixture
 def contexto_control(escenario: Escenario) -> ContextoSesion:
-    """Control de obra: el único rol (junto a super_intendente) que puede
-    escribir `obra` (política `obra_update`, §5.1 "Configuración")."""
+    """Control de obra: desde la migración 0042 es el rol de arriba y ve toda
+    la organización, y el único que da de alta obras (política `obra_insert`)."""
     return ContextoSesion(
         org_id=escenario.org_id, usuario_id=escenario.control_id, rol="control_obra"
+    )
+
+
+@pytest.fixture
+def contexto_super_intendente(escenario: Escenario) -> ContextoSesion:
+    """Super intendente con gente asignada.
+
+    Desde la 0042 su alcance ya no es la organización sino su rama del
+    organigrama, así que un SI sin `superintendente_usuario` no ve una sola
+    obra. El escenario le cuelga el supervisor, que a su vez lleva al
+    residente, que lleva la obra."""
+    return ContextoSesion(
+        org_id=escenario.org_id,
+        usuario_id=escenario.superintendente_id,
+        rol="super_intendente",
     )
 
 

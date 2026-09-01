@@ -7,6 +7,11 @@
  * para saber si esa flecha es `FS` o `SS`, y en un grafo de treinta cajas eso
  * es la diferencia entre leerlo y adivinarlo.
  *
+ * El cable seleccionado se engrosa y se tiñe además de marcar su etiqueta:
+ * ahora que un clic sobre él es el gesto que lo desconecta o lo retipa, tiene
+ * que verse **cuál** de los treinta va a recibir la acción, y una píldora de
+ * diez píxeles con el borde de otro color no alcanza para eso.
+ *
  * Se dibuja con `getSmoothStepPath` y no con una bezier: en un grafo de
  * precedencias los cables corren casi siempre en horizontal entre capas, y el
  * trazo ortogonal deja ver de qué anclaje sale cada uno —que es la mitad de
@@ -60,23 +65,41 @@ function Cable({
   const lagDias = data?.lagDias ?? 0;
   const conAviso = data?.conAviso ?? false;
 
+  const clases = [
+    'cable-dep',
+    conAviso ? 'cable-dep--aviso' : '',
+    selected ? 'is-selected' : '',
+  ]
+    .filter((clase) => clase !== '')
+    .join(' ');
+
   return (
     <>
-      <BaseEdge id={id} path={ruta} markerEnd={markerEnd} />
+      {/* `interactionWidth` es la calle invisible que `BaseEdge` tiende encima
+          del trazo para poder atinarle con el ratón: sin ella un cable de un
+          píxel y medio no se puede ni seleccionar ni desconectar. */}
+      <BaseEdge
+        id={id}
+        path={ruta}
+        markerEnd={markerEnd}
+        className={clases}
+        interactionWidth={20}
+      />
       <EdgeLabelRenderer>
         {/* `pointer-events` los apaga React Flow en la capa de etiquetas; la
             clase los vuelve a encender solo en la píldora, para que el resto
             del canvas siga arrastrándose por debajo. */}
         <div
-          className={`cable-etq${conAviso ? ' cable-etq--aviso' : ''}`}
+          className={`cable-etq${conAviso ? ' cable-etq--aviso' : ''}${
+            selected ? ' is-selected' : ''
+          }`}
           style={{
             position: 'absolute',
             transform: `translate(-50%, -50%) translate(${etiquetaX}px, ${etiquetaY}px)`,
-            borderColor: selected ? 'var(--c-accent)' : undefined,
           }}
           title={`${etiquetaTipoDependencia(tipoLiga)} — ${ayudaTipoDependencia(tipoLiga)}${
             conAviso ? ' · La sucesora cae sobre un tramo de trabajo de la predecesora.' : ''
-          }`}
+          } · Clic para editarla o quitarla; Supr la desconecta.`}
         >
           <span>{tipoLiga}</span>
           {lagDias !== 0 && <span>{lagDias > 0 ? `+${lagDias}` : lagDias}d</span>}

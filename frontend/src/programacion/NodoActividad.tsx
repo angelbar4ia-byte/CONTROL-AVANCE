@@ -1,10 +1,17 @@
 /**
  * La caja de una actividad en el canvas (§7.5).
  *
- * Es un nodo del árbol WBS con duración: una etapa (plantilla gruesa) o un
- * concepto. Muestra lo que hace falta para reconocerla sin abrir el
- * inspector —clave, nombre, duración y frente— y nada más; el resto se edita
- * a un lado.
+ * Es un nodo del árbol WBS con duración: un nivel, una etapa (plantilla
+ * gruesa) o un concepto. Muestra lo que hace falta para reconocerla sin abrir
+ * el inspector —clave, nombre, duración y frente— y nada más; el resto se
+ * edita a un lado.
+ *
+ * En la vista mixta puede faltar una clase intermedia: se ven niveles y
+ * conceptos pero no etapas. Entonces la caja lleva encima el nombre del
+ * ancestro **visible** del que cuelga (`contexto`), porque un concepto sin su
+ * etapa y sin su nivel no dice de qué parte de la casa habla, y en un canvas
+ * con conceptos de tres niveles eso es la diferencia entre programar y
+ * adivinar.
  *
  * ## Los anclajes son la semántica de la liga
  *
@@ -23,12 +30,18 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 
+import type { TipoCaja } from './grafo';
 import { spanDe, tramosVisibles, type Tramo } from './tramos';
 
 export interface DatosCaja extends Record<string, unknown> {
   readonly clave: string | null;
   readonly nombre: string;
-  readonly tipo: 'etapa' | 'concepto';
+  readonly tipo: TipoCaja;
+  /**
+   * Ancestro visible del que cuelga cuando su padre real está oculto por el
+   * filtro de clases; `null` cuando cuelga de su propio padre o de nada.
+   */
+  readonly contexto: string | null;
   /** `null` = renglón propuesto desde el árbol, todavía sin capturar. */
   readonly duracionDias: number | null;
   readonly tramos: readonly Tramo[];
@@ -120,6 +133,15 @@ function Caja({ data, selected }: NodeProps<CajaCanvas>) {
         className="nodo-act__ancla nodo-act__ancla--fin"
         title="Fin de la actividad"
       />
+
+      {data.contexto !== null && (
+        <div
+          className="nodo-act__contexto"
+          title={`Cuelga de ${data.contexto}: su padre directo no se está mostrando`}
+        >
+          {data.contexto}
+        </div>
+      )}
 
       <div className="nodo-act__head">
         {data.clave !== null && <span className="nodo-act__clave">{data.clave}</span>}
