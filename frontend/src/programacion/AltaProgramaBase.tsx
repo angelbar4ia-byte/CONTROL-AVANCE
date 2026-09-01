@@ -24,6 +24,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { useCrearProgramaBaseApiV1ProgramasBasePost } from '@/api/generado/programacion/programacion';
 import { useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet } from '@/api/generado/proyectos/proyectos';
 import type {
+  ClaseNodo,
   FrenteRespuesta,
   ItemProgramaBasePeticion,
   NodoPrototipoRespuesta,
@@ -70,6 +71,9 @@ export function AltaProgramaBase({
 }: Props) {
   const [prototipoId, setPrototipoId] = useState(prototipoInicial ?? '');
   const [nombre, setNombre] = useState('');
+  // La profundidad de captura sugerida (0041). `concepto` es el default y el
+  // comportamiento de siempre: renglón por renglón.
+  const [profundidad, setProfundidad] = useState<ClaseNodo>('concepto');
   const [items, setItems] = useState<readonly ItemFormulario[]>([ITEM_VACIO]);
   const [error, setError] = useState<{ mensaje: string; campo?: string } | null>(null);
 
@@ -135,6 +139,7 @@ export function AltaProgramaBase({
         prototipo_id: prototipoId,
         nombre: nombre.trim() === '' ? null : nombre.trim(),
         items: cuerpo,
+        profundidad_captura: profundidad,
       },
     });
   }
@@ -189,6 +194,28 @@ export function AltaProgramaBase({
             onChange={(e) => setNombre(e.target.value)}
             placeholder="Programa 2026 · vivienda tipo A"
           />
+        </div>
+
+        <div className="field">
+          <label className="field__label" htmlFor="base-profundidad">
+            Profundidad de captura
+          </label>
+          <select
+            id="base-profundidad"
+            className="select"
+            value={profundidad}
+            onChange={(e) => setProfundidad(e.target.value as ClaseNodo)}
+          >
+            <option value="concepto">Por concepto — renglón por renglón</option>
+            <option value="nivel">Por nivel — los conceptos se reparten dentro</option>
+            <option value="etapa">Por etapa — todo el bloque de una vez</option>
+          </select>
+          <div className="field__hint">
+            A qué altura del árbol WBS abre el Gantt de las obras de este prototipo (§7.4).
+            Es un <strong>default</strong> para que el equipo vea lo mismo, no una
+            restricción: cualquiera puede bajar a capturar más fino sin reversionar el
+            programa base.
+          </div>
         </div>
 
         {items.map((item, indice) => (

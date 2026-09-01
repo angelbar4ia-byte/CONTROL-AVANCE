@@ -36,10 +36,12 @@ from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, Field
 
 from obractrl.adapters.api.casos_uso import (
+    ConsultarArbolProgramaDep,
     ConsultarRutaCriticaDep,
     CrearProgramaBaseDep,
     EditarProgramacionActividadDep,
     InstanciarProgramaObraDep,
+    ProgramarNodoDelArbolDep,
     RecalcularRutaCriticaDep,
     ReplicarProgramaEnObrasDep,
 )
@@ -49,15 +51,19 @@ from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
 from obractrl.application.casos_uso.gestionar_programacion import (
     ActividadEnRuta,
+    ArbolDePrograma,
     ComandoCrearProgramaBase,
     ComandoEditarProgramacion,
     ComandoInstanciarPrograma,
+    ComandoProgramarNodo,
     ComandoRecalcularRutaCritica,
     ComandoReplicarPrograma,
+    NodoProgramado,
     ProgramaBaseNoEncontrado,
     ProgramaInstanciadoEnObra,
     ReplicaDePrograma,
     ReplicaEnObra,
+    ResumenNodo,
     RutaCritica,
 )
 from obractrl.domain.programacion.calendario import (
@@ -68,7 +74,7 @@ from obractrl.domain.programacion.calendario import (
 )
 from obractrl.domain.programacion.cpm import Dependencia, TipoDependencia, Tramo
 from obractrl.domain.programacion.reglas import ItemProgramaBase
-from obractrl.domain.shared.diccionario import Rol
+from obractrl.domain.shared.diccionario import ClaseNodo, Rol
 
 router = APIRouter(tags=["programacion"])
 
@@ -286,12 +292,29 @@ class ItemProgramaBasePeticion(BaseModel):
         )
 
 
+_PROFUNDIDAD_KW: dict[str, Any] = {
+    "description": (
+        "A qué altura del árbol WBS se sugiere capturar este programa (§7.4, "
+        "migración 0041): `nivel`, `etapa` o `concepto`. Es el default con el "
+        "que abre el editor para que todo el equipo vea lo mismo, **no** una "
+        "restricción: cualquiera puede bajar a capturar más fino sin "
+        "reversionar la plantilla. `concepto` es renglón por renglón."
+    ),
+    "examples": [ClaseNodo.ETAPA.value, ClaseNodo.CONCEPTO.value],
+}
+"""Mismo campo en la petición y en la respuesta, descrito una sola vez —igual
+que `_DIAS_HABILES_KW`—, para que las dos caras del contrato no se desfasen."""
+
+
 class CrearProgramaBasePeticion(BaseModel):
     """§11.2 `POST /programas-base`. Cada alta es una versión nueva (§7.5)."""
 
     prototipo_id: UUID
     nombre: str | None = None
     items: list[ItemProgramaBasePeticion] = Field(default_factory=list)
+    profundidad_captura: ClaseNodo = Field(
+        default=ClaseNodo.CONCEPTO, **_PROFUNDIDAD_KW
+    )
     calendario: CalendarioPeticion = Field(
         default_factory=CalendarioPeticion,
         description=(
@@ -310,6 +333,7 @@ class ProgramaBaseRespuesta(BaseModel):
     vigente: bool
     nombre: str | None
     calendario: CalendarioRespuesta
+    profundidad_captura: ClaseNodo = Field(**_PROFUNDIDAD_KW)
 
     @classmethod
     def desde_fila(cls, fila: dict) -> ProgramaBaseRespuesta:
@@ -320,6 +344,9 @@ class ProgramaBaseRespuesta(BaseModel):
             vigente=fila["vigente"],
             nombre=fila["nombre"],
             calendario=CalendarioRespuesta.desde_fila(fila["dias_habiles"]),
+            profundidad_captura=ClaseNodo(
+                str(fila.get("profundidad_captura") or ClaseNodo.CONCEPTO)
+            ),
         )
 
 
@@ -328,6 +355,7 @@ class ProgramaBaseCreadoRespuesta(BaseModel):
     version: int
     n_items: int
     calendario: CalendarioRespuesta
+    profundidad_captura: ClaseNodo = Field(**_PROFUNDIDAD_KW)
 
 
 class ItemProgramaBaseRespuesta(BaseModel):
@@ -680,6 +708,209 @@ class ReplicaDeProgramaRespuesta(BaseModel):
         )
 
 
+# --- Programación jerárquica sobre el árbol WBS (§7.4, §11.2) -----------
+
+
+class ConflictoJerarquiaRespuesta(BaseModel):
+    """Un nodo cuya ventana capturada no cuadra con la de sus conceptos (§7.5).
+
+    **No es un error: es la pregunta.** Las dos cifras viajan las dos porque lo
+    que el usuario tiene que decidir es cuál conservar, y darle sólo una lo
+    obligaría a ir a buscar la otra a otra pantalla.
+    """
+
+    nodo_id: UUID
+    nombre: str
+    dias_capturados: Decimal = Field(
+        description="Días que el programa base declara para este nodo (§7.5)."
+    )
+    dias_derivados: Decimal = Field(
+        description="Días que hoy ocupan sus conceptos ya programados (§6)."
+    )
+    actividades: list[UUID] = Field(
+        description=(
+            "Los conceptos programados a mano que están en desacuerdo: es lo "
+            "que se perdería al conservar la cifra del nodo."
+        )
+    )
+
+
+class NodoDelArbolRespuesta(BaseModel):
+    """Un renglón del Gantt jerárquico (§7.4, §6).
+
+    Los nodos `nivel` y `etapa` son **barras resumen derivadas**, no
+    actividades: el residente sigue capturando sólo en conceptos y estas se
+    recalculan de sus hojas en cada lectura (§7.6). Por eso no traen id de
+    actividad ni estatus — no son una fila de `actividad` y no deben poder
+    editarse como si lo fueran.
+    """
+
+    nodo_id: UUID
+    tipo: ClaseNodo = Field(
+        description="`etapa`, `nivel` o `concepto`, del árbol WBS (§7.4)."
+    )
+    nombre: str
+    parent_id: UUID | None
+    profundidad: int = Field(
+        description=(
+            "Cuántos ancestros tiene, la raíz en 0. Es con lo que el cliente "
+            "colapsa o expande por niveles de profundidad."
+        )
+    )
+    actividades: list[UUID] = Field(
+        description="Los conceptos que cuelgan del nodo, a cualquier distancia."
+    )
+    fecha_inicio: date | None
+    fecha_termino: date | None
+    duracion_dias: Decimal = Field(
+        description=(
+            "**Span** de la barra: días de calendario entre el inicio más "
+            "temprano y el fin más tardío de sus conceptos, en la escala del "
+            "calendario del cronograma. No es la suma de sus duraciones."
+        )
+    )
+    duracion_hojas_dias: Decimal = Field(
+        description=(
+            "Suma de los días de **trabajo** de sus conceptos. Coincide con el "
+            "span cuando van uno tras otro y es menor cuando se traslapan."
+        )
+    )
+    avance_pct: Decimal = Field(
+        description=(
+            "Avance **ponderado por importe** de sus conceptos (§6), no el "
+            "promedio simple: el muro de $122k en cero y el castillo de $10k "
+            "terminado no son 50 %."
+        )
+    )
+    importe: Decimal
+    conflicto: ConflictoJerarquiaRespuesta | None
+
+    @classmethod
+    def desde_dominio(cls, nodo: ResumenNodo) -> NodoDelArbolRespuesta:
+        return cls(
+            nodo_id=UUID(nodo.nodo_id),
+            tipo=nodo.tipo,
+            nombre=nodo.nombre,
+            parent_id=UUID(nodo.parent_id) if nodo.parent_id else None,
+            profundidad=nodo.profundidad,
+            actividades=[UUID(a) for a in nodo.actividades],
+            fecha_inicio=nodo.fecha_inicio,
+            fecha_termino=nodo.fecha_termino,
+            duracion_dias=nodo.duracion_dias,
+            duracion_hojas_dias=nodo.duracion_hojas_dias,
+            avance_pct=nodo.avance_pct,
+            importe=nodo.importe,
+            conflicto=(
+                None
+                if nodo.conflicto is None
+                else ConflictoJerarquiaRespuesta(
+                    nodo_id=UUID(nodo.conflicto.nodo_id),
+                    nombre=nodo.conflicto.nombre,
+                    dias_capturados=nodo.conflicto.dias_capturados,
+                    dias_derivados=nodo.conflicto.dias_derivados,
+                    actividades=[UUID(a) for a in nodo.conflicto.actividades],
+                )
+            ),
+        )
+
+
+class ArbolDeProgramaRespuesta(BaseModel):
+    """§11.2 `GET /obras/{id}/programa/arbol`: el cronograma como árbol WBS."""
+
+    obra_id: UUID
+    prototipo_id: UUID
+    profundidad_captura: ClaseNodo = Field(**_PROFUNDIDAD_KW)
+    calendario: CalendarioRespuesta
+    nodos: list[NodoDelArbolRespuesta] = Field(
+        description=(
+            "Un renglón por nodo con conceptos debajo, en recorrido en "
+            "profundidad —padre antes que hijos—, que es el orden del Gantt. "
+            "Los nodos sin conceptos no aparecen: no hay nada que resumir."
+        )
+    )
+    n_conflictos: int = Field(
+        description=(
+            "Cuántos nodos traen `conflicto`. Es un aviso no bloqueante: la "
+            "pantalla lo marca y el usuario decide caso por caso (§7.5)."
+        )
+    )
+
+    @classmethod
+    def desde_dominio(cls, arbol: ArbolDePrograma) -> ArbolDeProgramaRespuesta:
+        return cls(
+            obra_id=arbol.obra_id,
+            prototipo_id=arbol.prototipo_id,
+            profundidad_captura=arbol.profundidad_captura,
+            calendario=CalendarioRespuesta.desde_dominio(arbol.calendario),
+            nodos=[NodoDelArbolRespuesta.desde_dominio(n) for n in arbol.nodos],
+            n_conflictos=len(arbol.conflictos),
+        )
+
+
+class ProgramarNodoPeticion(BaseModel):
+    """§11.2 `POST /obras/{id}/programa/nodos/{prototipo_nodo_id}`."""
+
+    duracion_dias: Decimal = Field(
+        gt=0,
+        description=(
+            "Ventana del nodo. Los conceptos que cuelgan de él se acomodan uno "
+            "tras otro dentro de ella, repartidos en proporción a su importe "
+            "(§7.4)."
+        ),
+    )
+    fecha_inicio: date | None = Field(
+        default=None,
+        description=(
+            "Ancla de la ventana. Sin ella se conserva el inicio que los "
+            "conceptos ya tenían y, si ninguno lo tiene, el arranque de la "
+            "obra: cambiar una duración no debería mover el nodo de lugar."
+        ),
+    )
+    forzar: bool = Field(
+        default=False,
+        description=(
+            "La respuesta al conflicto padre-hijo: `true` conserva la cifra "
+            "del nodo y pisa lo que los conceptos traían. Sin él, un conflicto "
+            "responde 409 sin escribir nada y el usuario decide (§7.5)."
+        ),
+    )
+
+
+class NodoProgramadoRespuesta(BaseModel):
+    """§11.2 `POST /obras/{id}/programa/nodos/{prototipo_nodo_id}`."""
+
+    obra_id: UUID
+    prototipo_nodo_id: UUID
+    duracion_dias: Decimal
+    fecha_inicio: date
+    fecha_termino: date
+    actividades: list[UUID] = Field(
+        description="Conceptos reprogramados, en el orden en que se acomodaron."
+    )
+    omitidas: list[UUID] = Field(
+        description=(
+            "Conceptos que el reparto no tocó por estar interrumpidos en "
+            "tramos (§7.6): una ventana gruesa no tiene con qué decidir cómo "
+            "volver a partirlos, y reescalarlos o borrarlos destruiría la "
+            "secuencia constructiva del prototipo. Prográmalos con el `PATCH`."
+        )
+    )
+    ruta: RutaCriticaRespuesta
+
+    @classmethod
+    def desde_dominio(cls, nodo: NodoProgramado) -> NodoProgramadoRespuesta:
+        return cls(
+            obra_id=nodo.obra_id,
+            prototipo_nodo_id=nodo.prototipo_nodo_id,
+            duracion_dias=nodo.duracion_dias,
+            fecha_inicio=nodo.fecha_inicio,
+            fecha_termino=nodo.fecha_termino,
+            actividades=list(nodo.actividades),
+            omitidas=list(nodo.omitidas),
+            ruta=RutaCriticaRespuesta.desde_dominio(nodo.ruta),
+        )
+
+
 class ProgramacionActividadPeticion(BaseModel):
     """§11.2 `PATCH /actividades/{id}/programacion`.
 
@@ -745,6 +976,7 @@ async def crear_programa_base(
             nombre=peticion.nombre,
             items=tuple(item.a_dominio() for item in peticion.items),
             calendario=peticion.calendario.a_dominio(),
+            profundidad_captura=peticion.profundidad_captura,
         )
     )
     return ProgramaBaseCreadoRespuesta(
@@ -752,6 +984,7 @@ async def crear_programa_base(
         version=creado.version,
         n_items=creado.n_items,
         calendario=CalendarioRespuesta.desde_dominio(creado.calendario),
+        profundidad_captura=creado.profundidad_captura,
     )
 
 
@@ -915,6 +1148,88 @@ async def instanciar_programa_de_obra(
         ComandoInstanciarPrograma(obra_id=obra_id, fecha_corte=peticion.fecha_corte)
     )
     return ProgramaInstanciadoRespuesta.desde_dominio(instanciado)
+
+
+# --- Árbol WBS del cronograma (§7.4, §11.2) -----------------------------
+#
+# Las dos rutas cuelgan de `/obras/{id}/programa` y no de `/actividades` porque
+# el sujeto es el **nodo del árbol**, que no es una actividad: `nivel` y `etapa`
+# son estructura y su barra es derivada (§11.3 A.2). Colgarlas de `/actividades`
+# habría sugerido que existe una actividad de resumen que se puede editar.
+
+
+@router.get(
+    "/obras/{obra_id}/programa/arbol",
+    response_model=ArbolDeProgramaRespuesta,
+    summary="Cronograma de la obra como árbol WBS, con barras resumen",
+    responses={**_NO_ENCONTRADA, **_CICLO},
+)
+async def obtener_arbol_del_programa(
+    obra_id: UUID,
+    caso_uso: ConsultarArbolProgramaDep,
+    fecha_corte: Annotated[
+        date | None,
+        Query(description="Fecha contra la que se mide el desfase; por defecto hoy."),
+    ] = None,
+) -> ArbolDeProgramaRespuesta:
+    """El Gantt jerárquico: nivel y etapa con su barra derivada y su avance
+    ponderado (§7.4, §6).
+
+    Todos los roles, como `GET /obras/{id}/ruta-critica` y por la misma razón:
+    el Residente ve la de su obra porque RLS no le deja ver otra (§12.4). La
+    barra resumen es de **lectura**; capturar sigue siendo en conceptos.
+
+    No escribe nada: el resumen se deriva de las actividades que ya se leyeron.
+    Persistirlo sería un segundo lugar donde vive la misma cifra.
+    """
+    return ArbolDeProgramaRespuesta.desde_dominio(
+        await caso_uso.ejecutar(obra_id, fecha_corte=fecha_corte)
+    )
+
+
+@router.post(
+    "/obras/{obra_id}/programa/nodos/{prototipo_nodo_id}",
+    response_model=NodoProgramadoRespuesta,
+    summary="Programar un nodo del árbol y repartir sus días a los conceptos",
+    dependencies=[PROGRAMA_DE_OBRA],
+    responses={
+        **_NO_ENCONTRADA,
+        **_CICLO,
+        409: {
+            "description": (
+                "La ventana del nodo choca con lo que sus conceptos ya traen "
+                "programado y nadie ha decidido cuál cifra conservar. No se "
+                "escribió nada; el cuerpo trae las dos cifras y las actividades "
+                "en desacuerdo. Repetir con `forzar: true` conserva la del nodo "
+                "(§7.5)."
+            )
+        },
+    },
+)
+async def programar_nodo_del_arbol(
+    obra_id: UUID,
+    prototipo_nodo_id: UUID,
+    peticion: ProgramarNodoPeticion,
+    caso_uso: ProgramarNodoDelArbolDep,
+) -> NodoProgramadoRespuesta:
+    """Captura gruesa: 20 días en una etapa acomodan a sus conceptos uno tras
+    otro dentro de esa ventana, repartidos por importe (§7.4, §11.2).
+
+    **No crea una actividad de resumen**: escribe la duración y las fechas de
+    los conceptos que ya existen. Una fila de resumen duplicaría cantidad,
+    avance y costo sobre los de sus hijos (§6, §7.6).
+    """
+    return NodoProgramadoRespuesta.desde_dominio(
+        await caso_uso.ejecutar(
+            ComandoProgramarNodo(
+                obra_id=obra_id,
+                prototipo_nodo_id=prototipo_nodo_id,
+                duracion_dias=peticion.duracion_dias,
+                fecha_inicio=peticion.fecha_inicio,
+                forzar=peticion.forzar,
+            )
+        )
+    )
 
 
 # --- Ruta crítica (§6, §11.2) -------------------------------------------

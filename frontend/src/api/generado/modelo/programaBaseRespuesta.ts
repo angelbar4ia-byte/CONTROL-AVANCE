@@ -7,6 +7,7 @@
  */
 import type { ProgramaBaseRespuestaNombre } from './programaBaseRespuestaNombre';
 import type { CalendarioRespuesta } from './calendarioRespuesta';
+import type { ClaseNodo } from './claseNodo';
 
 export interface ProgramaBaseRespuesta {
   id: string;
@@ -15,4 +16,6 @@ export interface ProgramaBaseRespuesta {
   vigente: boolean;
   nombre: ProgramaBaseRespuestaNombre;
   calendario: CalendarioRespuesta;
+  /** A qué altura del árbol WBS se sugiere capturar este programa (§7.4, migración 0041): `nivel`, `etapa` o `concepto`. Es el default con el que abre el editor para que todo el equipo vea lo mismo, **no** una restricción: cualquiera puede bajar a capturar más fino sin reversionar la plantilla. `concepto` es renglón por renglón. */
+  profundidad_captura: ClaseNodo;
 }

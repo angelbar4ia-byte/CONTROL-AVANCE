@@ -30,6 +30,7 @@ import {
   nombreDeDia,
   tipoDeSemana,
 } from './calendario';
+import type { ClaseNodo } from '@/api/generado/modelo';
 import { TIPOS_LIGA, type TipoLiga, type Vista } from './grafo';
 import { ayudaTipoDependencia, etiquetaTipoDependencia } from './reglas';
 
@@ -67,6 +68,17 @@ interface Props {
   readonly diasHabiles: readonly number[];
   readonly onDiasHabiles: (dias: readonly number[]) => void;
   readonly onAlternarDia: (dia: number) => void;
+  /**
+   * Profundidad de captura sugerida del programa (§7.4, migración 0041): a qué
+   * altura del árbol WBS abre el Gantt de las obras de este prototipo.
+   *
+   * Vive aquí y no en un diálogo aparte por lo mismo que el calendario: es del
+   * **programa completo**, se decide una vez y se guarda con la versión. Y es
+   * un default, no una restricción — quien necesite bajar a un concepto puede
+   * hacerlo sin reversionar la plantilla.
+   */
+  readonly profundidad: ClaseNodo;
+  readonly onProfundidad: (profundidad: ClaseNodo) => void;
 }
 
 export function BarraProgramacion({
@@ -90,6 +102,8 @@ export function BarraProgramacion({
   diasHabiles,
   onDiasHabiles,
   onAlternarDia,
+  profundidad,
+  onProfundidad,
 }: Props) {
   const tipoSemana = tipoDeSemana(diasHabiles);
   return (
@@ -232,6 +246,27 @@ export function BarraProgramacion({
             );
           })}
         </span>
+      </div>
+
+      <div className="barra-prog__sep" aria-hidden />
+
+      <div className="barra-prog__grupo" role="group" aria-label="Profundidad de captura">
+        <Layers size={13} className="barra-prog__icono" aria-hidden />
+        <select
+          className="select"
+          style={{ width: 175 }}
+          value={profundidad}
+          aria-label="Profundidad de captura"
+          title={
+            'A qué altura del árbol WBS abre el Gantt de las obras de este prototipo ' +
+            '(§7.4). Es un default para que el equipo vea lo mismo, no una restricción.'
+          }
+          onChange={(e) => onProfundidad(e.target.value as ClaseNodo)}
+        >
+          <option value="concepto">Captura por concepto</option>
+          <option value="nivel">Captura por nivel</option>
+          <option value="etapa">Captura por etapa</option>
+        </select>
       </div>
 
       <div className="barra-prog__sep" aria-hidden />

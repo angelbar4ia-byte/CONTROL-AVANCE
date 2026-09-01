@@ -1,0 +1,66 @@
+-- ============================================================
+-- ObraCtrl · 0041 · Profundidad de captura del programa base
+-- Spec §7.4 (árbol WBS) · §7.5 (ProgramaBase) · §6 (ruta crítica) ·
+-- §5.1 (Control de obra administra la configuración de programación)
+--
+-- POR QUÉ EL CAMBIO
+--
+-- El jefe de obra lo pidió así: "se pueden programar por niveles, por etapas y
+-- por conceptos o se puede elegir los niveles de profundidad". Hasta aquí el
+-- programa base sólo sabía hablar de renglones sueltos —un `prototipo_nodo_id`
+-- o una `etapa_id`— y no de a qué altura del árbol se captura. El resultado en
+-- pantalla era que cada quien abría el editor donde se le ocurría: uno metía
+-- duraciones concepto por concepto y otro una sola por etapa, sobre el mismo
+-- prototipo.
+--
+-- Esta columna guarda esa decisión UNA vez, en la plantilla, para que el equipo
+-- vea lo mismo al abrir el editor.
+--
+-- POR QUÉ ES UNA SUGERENCIA Y NO UNA RESTRICCIÓN
+--
+-- No hay check ni trigger que impida capturar más fino que lo que dice la
+-- columna, y es a propósito: es un DEFAULT de la pantalla, no una jaula. La
+-- etapa se planea gruesa hasta que llega la semana en que se construye y
+-- alguien necesita partir el muro día por día; si la columna prohibiera el
+-- renglón fino, esa captura obligaría a reversionar el programa base entero
+-- para poder hacerse.
+--
+-- Por eso tampoco reemplaza a nada: `programa_base_item.prototipo_nodo_id` y
+-- `etapa_id` siguen siendo quienes dicen a qué aplica cada renglón, y esta
+-- columna sólo dice dónde arranca el editor.
+--
+-- POR QUÉ REUSA `tipo_prototipo_nodo`
+--
+-- Las tres profundidades que el usuario nombra —nivel, etapa, concepto— son
+-- exactamente los tres valores del enum del árbol (0002). Un enum nuevo con los
+-- mismos tres literales sería un segundo vocabulario para la misma cosa y el
+-- primero en desincronizarse en cuanto el árbol admitiera un cuarto tipo.
+--
+-- Se resuelve por TIPO de nodo y no por distancia a la raíz porque el árbol no
+-- siempre pone etapa arriba de nivel: el prototipo lo arma quien carga el
+-- presupuesto (§10.6), y una regla por distancia diría cosas distintas en dos
+-- prototipos que se ven igual en pantalla.
+--
+-- EL DEFAULT ES 'concepto' Y ESO NO CAMBIA NADA
+--
+-- 'concepto' es la profundidad más fina: capturar renglón por renglón, que es
+-- lo único que el sistema sabía hacer antes de esta migración. Las filas que ya
+-- existen conservan al día su comportamiento y no hay backfill que hacer.
+--
+-- QUÉ NO INCLUYE, A PROPÓSITO
+--
+-- La ventana capturada en un nodo grueso no se guarda aquí ni en ninguna tabla
+-- nueva: sigue siendo un `programa_base_item` cuyo `prototipo_nodo_id` apunta a
+-- un nodo `nivel` o `etapa` —algo que la columna siempre permitió y que hasta
+-- hoy nadie resolvía—. Y la barra resumen de la obra tampoco se persiste: es
+-- derivada de sus hojas (`domain.programacion.jerarquia.resumir_arbol`).
+-- Guardarla sería un segundo lugar donde vive la misma cifra, y el primero en
+-- desincronizarse en cuanto alguien ajustara una actividad por el PATCH del
+-- §11.2.
+-- ============================================================
+
+alter table programa_base
+  add column profundidad_captura tipo_prototipo_nodo not null default 'concepto';
+
+comment on column programa_base.profundidad_captura is
+  'A qué altura del árbol WBS se sugiere capturar este programa: ''nivel'', ''etapa'' o ''concepto'' (§7.4, §7.5). Es el default con el que abre el editor para que todo el equipo vea lo mismo, NO una restricción: cualquiera puede bajar a capturar más fino sin reversionar la plantilla. ''concepto'' —el default— es renglón por renglón, el comportamiento previo a esta migración.';

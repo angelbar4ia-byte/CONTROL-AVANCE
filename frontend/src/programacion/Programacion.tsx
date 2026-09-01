@@ -27,6 +27,7 @@ import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import {
+  useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet,
   useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGet,
   useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet,
   useRecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost,
@@ -34,6 +35,7 @@ import {
 import { useListarObrasApiV1ObrasGet } from '@/api/generado/obras/obras';
 import { useListarFrentesApiV1FrentesGet } from '@/api/generado/proyectos/proyectos';
 import type {
+  ArbolDeProgramaRespuesta,
   FrenteRespuesta,
   ObraRespuesta,
   ProgramaObraRespuesta,
@@ -48,7 +50,17 @@ import { construirEscala } from './escala';
 import { agruparPorFrente, construirFilas, filtrarPorTexto, resumirPrograma, soloCriticas } from './filas';
 import { Gantt } from './Gantt';
 import { InstanciarPrograma } from './InstanciarPrograma';
+import {
+  alternarColapso,
+  colapsadosPorDefecto,
+  construirFilasJerarquia,
+  filtrarJerarquiaPorTexto,
+  resumirJerarquia,
+  visiblesEnJerarquia,
+  type FilaJerarquia,
+} from './jerarquia';
 import { PanelActividad } from './PanelActividad';
+import { ProgramarNodo } from './ProgramarNodo';
 import { puedeEditarProgramacion, puedeVerCronograma } from './reglas';
 
 const ENCABEZADO: Record<Rol, { readonly eyebrow: string; readonly titulo: string }> = {
@@ -72,6 +84,15 @@ export default function Programacion() {
   const [abierta, setAbierta] = useState<string | null>(null);
   const [instanciando, setInstanciando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  // El Gantt se mira de dos maneras: por frente —lo que se lleva al campo— o
+  // como el árbol WBS, con las barras resumen de nivel y etapa (§7.4). Son dos
+  // lecturas del mismo cronograma, así que es un interruptor y no dos pantallas.
+  const [vistaArbol, setVistaArbol] = useState(false);
+  // `null` = todavía no se aplicó el default que guarda el programa base
+  // (0041). Se distingue del conjunto vacío para no volver a colapsar lo que el
+  // usuario acaba de expandir cada vez que la consulta se revalida.
+  const [colapsados, setColapsados] = useState<ReadonlySet<string> | null>(null);
+  const [nodoAProgramar, setNodoAProgramar] = useState<FilaJerarquia | null>(null);
 
   const obrasQ = useListarObrasApiV1ObrasGet<ObraRespuesta[], ErrorApi>({});
   const frentesQ = useListarFrentesApiV1FrentesGet<FrenteRespuesta[], ErrorApi>({});
@@ -93,6 +114,15 @@ export default function Programacion() {
     ProgramaObraRespuesta,
     ErrorApi
   >(obraId, { query: { enabled: obraId !== '' && verCronograma } });
+
+  // El árbol WBS con sus barras resumen (§7.4). Es de **todos los roles**, como
+  // la ruta crítica: el residente lee el resumen de su obra aunque no pueda
+  // pedir `GET /obras/{id}/programa` (§11.2). Sólo se pide en la vista de
+  // árbol: en la plana no se dibuja nada de él.
+  const arbolQ = useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet<
+    ArbolDeProgramaRespuesta,
+    ErrorApi
+  >(obraId, { fecha_corte: corte }, { query: { enabled: obraId !== '' && vistaArbol } });
 
   const recalcular = useRecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost<ErrorApi>(
     {
@@ -122,15 +152,42 @@ export default function Programacion() {
   const grupos = useMemo(() => agruparPorFrente(visibles, frentes), [visibles, frentes]);
   const resumen = useMemo(() => resumirPrograma(filas), [filas]);
 
+  const nodos = useMemo(
+    () => construirFilasJerarquia(arbolQ.data, filas),
+    [arbolQ.data, filas],
+  );
+  const resumenArbol = useMemo(() => resumirJerarquia(nodos), [nodos]);
+
+  // El default de colapso se aplica una sola vez por árbol recibido: si se
+  // recalculara en cada render, cada revalidación volvería a cerrar lo que el
+  // usuario acabara de abrir (0041: la profundidad es un default, no una jaula).
+  const profundidadCaptura = arbolQ.data?.profundidad_captura ?? null;
+  const colapsadosEfectivos = useMemo(
+    () =>
+      colapsados ??
+      (profundidadCaptura === null
+        ? new Set<string>()
+        : colapsadosPorDefecto(nodos, profundidadCaptura)),
+    [colapsados, nodos, profundidadCaptura],
+  );
+
+  const nodosVisibles = useMemo(
+    () => visiblesEnJerarquia(filtrarJerarquiaPorTexto(nodos, texto), colapsadosEfectivos),
+    [nodos, texto, colapsadosEfectivos],
+  );
+
   const fechaCorteEfectiva = rutaQ.data?.fecha_corte ?? programaQ.data?.fecha_corte ?? null;
 
   const escala = useMemo(
     () =>
       construirEscala(
-        visibles.map((fila) => ({ inicio: fila.inicio, fin: fila.fin })),
+        (vistaArbol ? nodosVisibles : visibles).map((fila) => ({
+          inicio: fila.inicio,
+          fin: fila.fin,
+        })),
         fechaCorteEfectiva,
       ),
-    [visibles, fechaCorteEfectiva],
+    [vistaArbol, nodosVisibles, visibles, fechaCorteEfectiva],
   );
 
   const filaAbierta = filas.find((fila) => fila.actividadId === abierta) ?? null;
@@ -142,13 +199,18 @@ export default function Programacion() {
   const titulo = esVistaProgramas ? 'Programas de obra' : encabezado.titulo;
   const eyebrow = esVistaProgramas ? 'Reportes' : encabezado.eyebrow;
 
-  const errores = [obrasQ.error, frentesQ.error, rutaQ.error, programaQ.error].filter(
-    (error): error is ErrorApi => error !== null && error !== undefined,
-  );
+  const errores = [
+    obrasQ.error,
+    frentesQ.error,
+    rutaQ.error,
+    programaQ.error,
+    arbolQ.error,
+  ].filter((error): error is ErrorApi => error !== null && error !== undefined);
 
   function refrescar() {
     void rutaQ.refetch();
     if (verCronograma) void programaQ.refetch();
+    if (vistaArbol) void arbolQ.refetch();
   }
 
   return (
@@ -262,11 +324,40 @@ export default function Programacion() {
           <input
             type="checkbox"
             checked={soloRutaCritica}
+            disabled={vistaArbol}
             onChange={(e) => setSoloRutaCritica(e.target.checked)}
           />
           <span className="text-sm text-mute">Solo la ruta crítica</span>
         </label>
+
+        <label className="row gap-4" style={{ alignItems: 'center' }}>
+          <input
+            type="checkbox"
+            checked={vistaArbol}
+            onChange={(e) => {
+              setVistaArbol(e.target.checked);
+              // El default de colapso se vuelve a aplicar al entrar: es lo que
+              // hace que el equipo abra viendo la misma profundidad (0041).
+              setColapsados(null);
+              setAbierta(null);
+            }}
+          />
+          <span className="text-sm text-mute">Ver como árbol WBS</span>
+        </label>
       </div>
+
+      {vistaArbol && resumenArbol.nConflictos > 0 && (
+        <div className="mb-8" role="alert">
+          <span className="badge badge--warn">
+            {fmtEntero(resumenArbol.nConflictos)} nodo(s) en conflicto
+          </span>{' '}
+          <span className="text-sm text-mute">
+            La ventana que declara el programa base no cuadra con lo que sus conceptos ya
+            traen programado. Abre &ldquo;Programar&rdquo; en el nodo marcado y elige cuál
+            cifra conservar: nadie decide por ti (§7.5).
+          </span>
+        </div>
+      )}
 
       <div className="kpi-grid mb-8">
         <Kpi etiqueta="Actividades" valor={fmtEntero(resumen.nActividades)} />
@@ -293,7 +384,7 @@ export default function Programacion() {
         />
       </div>
 
-      {rutaQ.isLoading || (verCronograma && programaQ.isLoading) ? (
+      {rutaQ.isLoading || (verCronograma && programaQ.isLoading) || (vistaArbol && arbolQ.isLoading) ? (
         <div className="text-mute text-sm" style={{ padding: '24px 12px' }}>
           Cargando cronograma…
         </div>
@@ -303,6 +394,21 @@ export default function Programacion() {
             ? 'La obra no tiene actividades programadas todavía. Genera las actividades desde el prototipo y luego instancia el programa (§11.3 A).'
             : 'Ninguna actividad visible tiene fechas: instancia el programa o captura inicio y término para dibujar el Gantt (§7.5).'}
         </div>
+      ) : vistaArbol ? (
+        <Gantt
+          jerarquia={nodosVisibles}
+          escala={escala}
+          fechaCorte={fechaCorteEfectiva}
+          seleccionada={abierta}
+          onSeleccionar={(fila) => setAbierta(fila.actividadId)}
+          colapsados={colapsadosEfectivos}
+          onAlternar={(nodoId) =>
+            setColapsados((previos) => alternarColapso(previos ?? colapsadosEfectivos, nodoId))
+          }
+          // Programar un nodo resumen escribe la duración y las fechas de sus
+          // conceptos, así que es el mismo permiso que el `PATCH` (§11.2).
+          onProgramarNodo={edita ? setNodoAProgramar : undefined}
+        />
       ) : (
         <Gantt
           grupos={grupos}
@@ -328,6 +434,16 @@ export default function Programacion() {
           editable={edita}
           onCerrar={() => setAbierta(null)}
           onAjustada={refrescar}
+        />
+      )}
+
+      {nodoAProgramar !== null && (
+        <ProgramarNodo
+          key={nodoAProgramar.nodoId}
+          obraId={obraId}
+          nodo={nodoAProgramar}
+          onCerrar={() => setNodoAProgramar(null)}
+          onProgramado={refrescar}
         />
       )}
 

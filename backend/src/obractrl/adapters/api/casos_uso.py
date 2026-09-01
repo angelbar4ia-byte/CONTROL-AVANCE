@@ -137,10 +137,12 @@ from obractrl.application.casos_uso.gestionar_obra import (
 from obractrl.application.casos_uso.gestionar_organizacion import ReiniciarOrganizacion
 from obractrl.application.casos_uso.gestionar_programacion import (
     ComandoRecalcularRutaCritica,
+    ConsultarArbolPrograma,
     ConsultarRutaCritica,
     CrearProgramaBase,
     EditarProgramacionActividad,
     InstanciarProgramaObra,
+    ProgramarNodoDelArbol,
     RecalcularRutaCritica,
     ReplicarProgramaEnObras,
 )
@@ -189,6 +191,7 @@ __all__ = [
     "CapturarAvanceDep",
     "CerrarIncidenciaDep",
     "ColaDeTrabajosDep",
+    "ConsultarArbolProgramaDep",
     "ConsultarCargaDep",
     "ConsultarCierreDeObraDep",
     "ConsultarExpedienteDep",
@@ -221,6 +224,7 @@ __all__ = [
     "ObtenerCPUDep",
     "ParticiparEnCierreDep",
     "ProgramarIncidenciaDep",
+    "ProgramarNodoDelArbolDep",
     "PublicarVersionCPUDep",
     "RecalcularRutaCriticaDep",
     "RechazarCierreDep",
@@ -751,6 +755,25 @@ def obtener_replicar_programa(sesion: SesionRLS) -> ReplicarProgramaEnObras:
     )
 
 
+def obtener_consultar_arbol_programa(sesion: SesionRLS) -> ConsultarArbolPrograma:
+    """El Gantt jerárquico (§7.4). Mismos repos que la ruta crítica: las barras
+    resumen se derivan de las mismas actividades, no de una tabla propia."""
+    return ConsultarArbolPrograma(
+        actividades=RepositorioActividadesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        programas=RepositorioProgramasSQL(sesion),
+    )
+
+
+def obtener_programar_nodo(sesion: SesionRLS) -> ProgramarNodoDelArbol:
+    return ProgramarNodoDelArbol(
+        actividades=RepositorioActividadesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        programas=RepositorioProgramasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_editar_programacion(sesion: SesionRLS) -> EditarProgramacionActividad:
     return EditarProgramacionActividad(
         actividades=RepositorioActividadesSQL(sesion),
@@ -777,6 +800,12 @@ EditarProgramacionActividadDep = Annotated[
 ]
 ReplicarProgramaEnObrasDep = Annotated[
     ReplicarProgramaEnObras, Depends(obtener_replicar_programa)
+]
+ConsultarArbolProgramaDep = Annotated[
+    ConsultarArbolPrograma, Depends(obtener_consultar_arbol_programa)
+]
+ProgramarNodoDelArbolDep = Annotated[
+    ProgramarNodoDelArbol, Depends(obtener_programar_nodo)
 ]
 
 
