@@ -7,6 +7,7 @@
  * comportamiento por rol y alcance; no hay una copia por rol (§5.3).
  */
 
+import { Suspense, lazy } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
@@ -26,6 +27,14 @@ import Frentes from '@/proyectos/Frentes';
 import Catalogos from '@/catalogos/Catalogos';
 import Programacion from '@/programacion/Programacion';
 import ProgramasBase from '@/programacion/ProgramasBase';
+
+/**
+ * El canvas es la única pantalla que arrastra una librería de terceros
+ * (`@xyflow/react`, ~110 kB). La usa un solo rol y solo cuando entra a armar un
+ * programa, así que se carga bajo demanda en vez de engordar el arranque de
+ * las otras treinta pantallas (§12.9).
+ */
+const EditorPrograma = lazy(() => import('@/programacion/EditorPrograma'));
 import Consumo from '@/materiales/Consumo';
 import Salidas from '@/materiales/Salidas';
 import Incidencias from '@/incidencias/Incidencias';
@@ -128,6 +137,17 @@ function Rutas() {
         <Route path="/ruta-critica" element={<Programacion />} />
         <Route path="/programas" element={<Programacion />} />
         <Route path="/config/programas-base" element={<ProgramasBase />} />
+        {/* El canvas cuelga de la ruta del sidebar, no de una entrada propia:
+            se entra siempre desde un prototipo de la lista, y `rutaPermitida`
+            ya cubre las subrutas de una entrada (§5.1). */}
+        <Route
+          path="/config/programas-base/editor"
+          element={
+            <Suspense fallback={<Cargando />}>
+              <EditorPrograma />
+            </Suspense>
+          }
+        />
         <Route path="/avances" element={<Avances />} />
         <Route path="/cierres" element={<Cierres />} />
         {/* Control de materiales (§7.7, §11.2): Control de obra trae las dos

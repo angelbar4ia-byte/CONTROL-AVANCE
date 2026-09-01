@@ -12,6 +12,7 @@
  */
 
 import { useMemo, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 import {
   useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet,
@@ -196,6 +197,24 @@ export default function ProgramasBase() {
           </div>
         </div>
         <div className="page__actions">
+          {/* El canvas es el camino normal para armar un programa completo; el
+              formulario se queda para el alta de pocos renglones y para
+              capturar sin ratón. Necesita un prototipo: el editor se monta
+              sobre el árbol WBS de uno concreto (§7.4). */}
+          <Link
+            className={`btn btn--accent${prototipoId === '' ? ' btn--ghost' : ''}`}
+            to={`/config/programas-base/editor?prototipo=${prototipoId}`}
+            aria-disabled={prototipoId === ''}
+            onClick={(evento) => {
+              if (prototipoId === '') {
+                evento.preventDefault();
+                setAviso('Elige un prototipo para abrir su editor gráfico.');
+              }
+            }}
+            title="Nodos y cables sobre el árbol WBS del prototipo"
+          >
+            Editor gráfico
+          </Link>
           <button type="button" className="btn btn--primary" onClick={() => setAlta(true)}>
             Nuevo programa base
           </button>
@@ -252,12 +271,13 @@ export default function ProgramasBase() {
                 <th className="is-num">Versión</th>
                 <th>Estado</th>
                 <th>Renglones</th>
+                <th>Editor</th>
               </tr>
             </thead>
             <tbody>
               {basesQ.isLoading ? (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     <div className="text-mute text-sm" style={{ padding: '24px 0' }}>
                       Cargando…
                     </div>
@@ -265,9 +285,30 @@ export default function ProgramasBase() {
                 </tr>
               ) : bases.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>
-                    <div className="text-mute text-sm" style={{ padding: '24px 0' }}>
-                      No hay programas base con estos filtros.
+                  <td colSpan={6}>
+                    {/* Un prototipo sin programa base no es un callejón: su
+                        árbol WBS ya trae las etapas y los conceptos, y el
+                        canvas arranca desde ahí con las duraciones por llenar
+                        (§7.4). */}
+                    <div className="empty">
+                      <div className="empty-title">
+                        {prototipoId === ''
+                          ? 'No hay programas base con estos filtros.'
+                          : 'Este prototipo todavía no tiene programa base.'}
+                      </div>
+                      <div className="empty-sub">
+                        {prototipoId === ''
+                          ? 'Elige un prototipo para armar el suyo desde su árbol WBS.'
+                          : 'El editor gráfico arranca con una caja por etapa y por concepto de su árbol WBS, sin duración: capturar el programa es llenar duraciones y tender cables.'}
+                      </div>
+                      {prototipoId !== '' && (
+                        <Link
+                          className="btn btn--accent"
+                          to={`/config/programas-base/editor?prototipo=${prototipoId}`}
+                        >
+                          Armar desde el árbol WBS
+                        </Link>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -295,6 +336,19 @@ export default function ProgramasBase() {
                         >
                           {abierto === base.id ? 'Ocultar renglones' : 'Ver renglones'}
                         </button>
+                      </td>
+                      <td>
+                        {/* Abrir una versión en el canvas no la modifica: se
+                            carga como borrador y guardar crea la siguiente
+                            (§7.5). Por eso también se puede abrir una retirada
+                            para partir de ella. */}
+                        <Link
+                          className="btn btn--sm"
+                          to={`/config/programas-base/editor?prototipo=${base.prototipo_id}&base=${base.id}`}
+                          title="Abrir esta versión en el canvas; guardar crea la siguiente"
+                        >
+                          Abrir en canvas
+                        </Link>
                       </td>
                     </tr>
                   );

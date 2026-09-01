@@ -10,6 +10,7 @@ import type { ActividadProgramadaRespuestaFrenteId } from './actividadProgramada
 import type { ActividadProgramadaRespuestaEtapaId } from './actividadProgramadaRespuestaEtapaId';
 import type { ActividadProgramadaRespuestaNivelId } from './actividadProgramadaRespuestaNivelId';
 import type { DependenciaDTO } from './dependenciaDTO';
+import type { TramoDTO } from './tramoDTO';
 import type { ActividadProgramadaRespuestaFechaInicio } from './actividadProgramadaRespuestaFechaInicio';
 import type { ActividadProgramadaRespuestaFechaTermino } from './actividadProgramadaRespuestaFechaTermino';
 import type { ActividadProgramadaRespuestaHolgura } from './actividadProgramadaRespuestaHolgura';
@@ -27,6 +28,7 @@ export interface ActividadProgramadaRespuesta {
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   duracion_dias: string;
   dependencias: DependenciaDTO[];
+  tramos: TramoDTO[];
   fecha_inicio: ActividadProgramadaRespuestaFechaInicio;
   fecha_termino: ActividadProgramadaRespuestaFechaTermino;
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */

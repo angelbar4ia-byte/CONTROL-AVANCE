@@ -9,6 +9,7 @@ import type { ItemProgramaBaseRespuestaPrototipoNodoId } from './itemProgramaBas
 import type { ItemProgramaBaseRespuestaEtapaId } from './itemProgramaBaseRespuestaEtapaId';
 import type { ItemProgramaBaseRespuestaFrenteId } from './itemProgramaBaseRespuestaFrenteId';
 import type { DependenciaDTO } from './dependenciaDTO';
+import type { TramoDTO } from './tramoDTO';
 
 export interface ItemProgramaBaseRespuesta {
   id: string;
@@ -19,5 +20,6 @@ export interface ItemProgramaBaseRespuesta {
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   duracion_dias: string;
   dependencias: DependenciaDTO[];
+  tramos: TramoDTO[];
   orden: number;
 }

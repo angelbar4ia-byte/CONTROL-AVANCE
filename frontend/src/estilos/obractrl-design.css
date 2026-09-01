@@ -1494,6 +1494,242 @@ a { color: inherit; text-decoration: none; }
 .empty-title { font-size: var(--fs-base); font-weight: 500; color: var(--c-text-soft); }
 .empty-sub { font-size: var(--fs-sm); max-width: 52ch; }
 
+/* Editor gráfico de programa base (§7.5)
+   ---------------------------------------------------------------------------
+   El canvas lo dibuja React Flow (`@xyflow/react`), la única librería de
+   terceros que pinta dentro de la app. Su hoja trae la mecánica —posición
+   absoluta del viewport, transform del zoom, el hit-area de los anclajes— y
+   nada más: todo el color, el borde, la tipografía y el grosor de línea salen
+   de aquí, con los mismos tokens que el resto del panel. Sin esta sección el
+   canvas se vería como una librería pegada encima de ObraCtrl. */
+.canvas-prog {
+  position: relative;
+  height: calc(100vh - 260px);
+  min-height: 420px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-panel);
+  overflow: hidden;
+}
+.canvas-prog--vacio { display: flex; align-items: center; justify-content: center; }
+
+/* Fondo, controles y minimapa de la librería, con los tokens de la hoja. */
+.react-flow__background-pattern { color: var(--c-line); }
+.react-flow__controls {
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.react-flow__controls-button {
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-line);
+  fill: var(--c-text-soft);
+}
+.react-flow__controls-button:hover { background: var(--c-elev); }
+.react-flow__minimap {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+}
+.react-flow__attribution { display: none; }
+.react-flow__handle { border: none; background: transparent; }
+.react-flow__edge-path { stroke: var(--c-line-strong); stroke-width: 1.6px; }
+.react-flow__edge.selected .react-flow__edge-path { stroke: var(--c-accent); stroke-width: 2.4px; }
+.react-flow__connection-path { stroke: var(--c-accent); stroke-width: 2px; }
+.react-flow__node { font-family: var(--f-sans); }
+
+/* La caja de una actividad: clave, nombre, duración y frente. */
+.nodo-act {
+  width: 224px;
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 11px;
+  border: 1px solid var(--c-line-strong);
+  border-left: 3px solid var(--c-text-faint);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  box-shadow: var(--shadow-sm);
+  cursor: grab;
+}
+.nodo-act:hover { border-color: var(--c-accent); }
+.nodo-act--etapa { border-left-color: var(--c-accent); }
+.nodo-act--concepto { border-left-color: var(--c-info); }
+/* Renglón propuesto desde el árbol WBS, todavía sin duración: no viaja en el
+   POST, así que se dibuja como lo que es —un hueco por llenar— y no como una
+   actividad más. */
+.nodo-act--pendiente {
+  border-style: dashed;
+  background: var(--c-panel);
+  color: var(--c-text-mute);
+}
+/* Concepto de otra etapa que solo se ve porque está cableado con la abierta. */
+.nodo-act--foraneo { opacity: 0.66; }
+.nodo-act--aviso { border-color: var(--c-warn); border-left-color: var(--c-warn); }
+.nodo-act--ciclo { border-color: var(--c-danger); border-left-color: var(--c-danger); }
+.nodo-act.is-selected { border-color: var(--c-accent); box-shadow: var(--shadow-md); }
+.nodo-act__head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.nodo-act__clave {
+  font-family: var(--f-mono);
+  font-size: var(--fs-xs);
+  color: var(--c-text-mute);
+  white-space: nowrap;
+}
+.nodo-act__nombre {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-md);
+  font-weight: 500;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.nodo-act__meta {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: var(--fs-xs);
+  color: var(--c-text-mute);
+}
+.nodo-act__dias { font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--c-text); }
+.nodo-act__ancla {
+  position: absolute;
+  top: 0;
+  width: 13px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nodo-act__ancla::after {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--c-surface);
+  background: var(--c-text-faint);
+  transition: background .1s ease, transform .1s ease;
+}
+.nodo-act__ancla--inicio { left: -7px; }
+.nodo-act__ancla--fin { right: -7px; }
+.nodo-act:hover .nodo-act__ancla::after { background: var(--c-accent); transform: scale(1.15); }
+/* Franja de tramos: el trabajo sólido, la pausa punteada (§7.6). */
+.nodo-act__tramos { display: flex; height: 5px; gap: 0; border-radius: 3px; overflow: hidden; }
+.nodo-act__tramo { background: var(--c-accent); }
+.nodo-act__pausa {
+  background: repeating-linear-gradient(
+    90deg, var(--c-line-strong) 0 3px, transparent 3px 6px
+  );
+}
+
+/* Etiqueta del cable: tipo de liga y lag, editable en su sitio. */
+.cable-etq {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  background: var(--c-surface);
+  font-family: var(--f-mono);
+  font-size: 10px;
+  color: var(--c-text-soft);
+  box-shadow: var(--shadow-sm);
+  pointer-events: all;
+  cursor: pointer;
+}
+.cable-etq:hover { border-color: var(--c-accent); color: var(--c-accent-strong); }
+.cable-etq--aviso { border-color: var(--c-warn); color: oklch(45% 0.13 75); }
+
+/* Barra de herramientas de programación. */
+.barra-prog {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  margin-bottom: 8px;
+}
+.barra-prog__grupo { display: flex; align-items: center; gap: 4px; }
+.barra-prog__sep { width: 1px; align-self: stretch; background: var(--c-line); margin: 0 2px; }
+.barra-prog__spacer { flex: 1; }
+
+/* Inspector de la caja seleccionada, a la derecha del canvas. */
+.panel-prog {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 12px;
+  align-items: start;
+}
+.panel-prog__lado {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+@media (max-width: 1180px) {
+  .panel-prog { grid-template-columns: 1fr; }
+  .panel-prog__lado { max-height: none; }
+}
+
+/* Editor de tramos: una pista de días con los bloques de trabajo encima. */
+.tramos-edit { display: flex; flex-direction: column; gap: 6px; }
+.tramos-edit__pista {
+  position: relative;
+  height: 26px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  background: repeating-linear-gradient(
+    90deg, var(--c-panel) 0 var(--paso-dia, 12px),
+    var(--c-elev) var(--paso-dia, 12px) calc(var(--paso-dia, 12px) * 2)
+  );
+}
+.tramos-edit__bloque {
+  position: absolute;
+  top: 3px;
+  height: 18px;
+  border-radius: var(--r-sm);
+  background: var(--c-accent);
+  color: var(--c-accent-fg);
+  font-family: var(--f-mono);
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ew-resize;
+  user-select: none;
+}
+.tramos-edit__bloque.is-selected { outline: 2px solid var(--c-accent-strong); }
+.tramos-edit__asa {
+  position: absolute;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+}
+.tramos-edit__asa--fin { right: 0; }
+.tramos-edit__leyenda {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--f-mono);
+  font-size: var(--fs-xs);
+  color: var(--c-text-mute);
+}
+
 /* Utility */
 .row { display: flex; align-items: center; gap: 8px; }
 .col { display: flex; flex-direction: column; gap: 8px; }

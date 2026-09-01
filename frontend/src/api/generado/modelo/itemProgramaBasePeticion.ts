@@ -10,6 +10,7 @@ import type { ItemProgramaBasePeticionPrototipoNodoId } from './itemProgramaBase
 import type { ItemProgramaBasePeticionEtapaId } from './itemProgramaBasePeticionEtapaId';
 import type { ItemProgramaBasePeticionFrenteId } from './itemProgramaBasePeticionFrenteId';
 import type { DependenciaDTO } from './dependenciaDTO';
+import type { TramoDTO } from './tramoDTO';
 
 /**
  * Renglón de la plantilla de duraciones (§7.5 `ProgramaBaseItem`).
@@ -24,5 +25,7 @@ export interface ItemProgramaBasePeticion {
   /** Frente del §8.3. */
   frente_id?: ItemProgramaBasePeticionFrenteId;
   dependencias?: DependenciaDTO[];
+  /** Interrupción de la actividad; vacío = continua. La interrupción vive en la plantilla porque es de la secuencia constructiva del prototipo (§7.6). */
+  tramos?: TramoDTO[];
   orden?: number;
 }

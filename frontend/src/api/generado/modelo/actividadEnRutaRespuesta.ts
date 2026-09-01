@@ -8,6 +8,7 @@
 import type { ActividadEnRutaRespuestaDescripcion } from './actividadEnRutaRespuestaDescripcion';
 import type { ActividadEnRutaRespuestaFrenteId } from './actividadEnRutaRespuestaFrenteId';
 import type { DependenciaDTO } from './dependenciaDTO';
+import type { TramoDTO } from './tramoDTO';
 
 /**
  * Una actividad con su cálculo de CPM (§6).
@@ -19,6 +20,7 @@ export interface ActividadEnRutaRespuesta {
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   duracion_dias: string;
   dependencias: DependenciaDTO[];
+  tramos: TramoDTO[];
   inicio_temprano: string;
   fin_temprano: string;
   inicio_tardio: string;

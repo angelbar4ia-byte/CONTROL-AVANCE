@@ -7,6 +7,7 @@
  */
 import type { ProgramacionActividadPeticionDuracionDias } from './programacionActividadPeticionDuracionDias';
 import type { ProgramacionActividadPeticionDependencias } from './programacionActividadPeticionDependencias';
+import type { ProgramacionActividadPeticionTramos } from './programacionActividadPeticionTramos';
 import type { ProgramacionActividadPeticionFrenteId } from './programacionActividadPeticionFrenteId';
 import type { ProgramacionActividadPeticionFechaInicio } from './programacionActividadPeticionFechaInicio';
 import type { ProgramacionActividadPeticionFechaTermino } from './programacionActividadPeticionFechaTermino';
@@ -15,11 +16,14 @@ import type { ProgramacionActividadPeticionFechaTermino } from './programacionAc
  * §11.2 `PATCH /actividades/{id}/programacion`.
 
 Solo se cambia lo que llega. Una lista vacía de `dependencias` **sí** es un
-cambio: deja la actividad sin predecesoras.
+cambio: deja la actividad sin predecesoras; una de `tramos`, sin
+interrupción.
  */
 export interface ProgramacionActividadPeticion {
   duracion_dias?: ProgramacionActividadPeticionDuracionDias;
   dependencias?: ProgramacionActividadPeticionDependencias;
+  /** Interrupción de la actividad. Una lista vacía le quita la interrupción; mandarla sin `duracion_dias` **deriva** la duración de la suma de los tramos (§7.6). */
+  tramos?: ProgramacionActividadPeticionTramos;
   frente_id?: ProgramacionActividadPeticionFrenteId;
   fecha_inicio?: ProgramacionActividadPeticionFechaInicio;
   fecha_termino?: ProgramacionActividadPeticionFechaTermino;

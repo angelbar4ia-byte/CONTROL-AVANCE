@@ -61,6 +61,9 @@ function enRuta(parcial: Partial<ActividadEnRutaRespuesta> = {}): ActividadEnRut
     frente_id: 'f-cim',
     duracion_dias: '5',
     dependencias: [],
+    // Actividad continua: la lista vacía es el caso normal (§7.6). El contrato
+    // la trae desde que existen los tramos, y sin ella el tipo no cierra.
+    tramos: [],
     inicio_temprano: '2026-04-06',
     fin_temprano: '2026-04-10',
     inicio_tardio: '2026-04-06',
@@ -85,6 +88,7 @@ function programada(
     nivel_id: null,
     duracion_dias: '5',
     dependencias: [],
+    tramos: [],
     fecha_inicio: '2026-04-06',
     fecha_termino: '2026-04-10',
     avance_pct: '30',
@@ -294,10 +298,16 @@ describe('tono de la barra (§6, mapeo de presentación)', () => {
   });
 
   it('solo etiqueta los tipos de dependencia que el contrato documenta', () => {
+    // El contrato documentaba dos; hoy documenta los cuatro de MS Project
+    // (`DependenciaDTO.tipo`, §7.5) y `FF` dejó de ser un valor sin nombre.
     expect(etiquetaTipoDependencia('FS')).toBe('Fin → inicio');
     expect(etiquetaTipoDependencia(undefined)).toBe('Fin → inicio');
     expect(etiquetaTipoDependencia('SS')).toBe('Inicio → inicio');
-    expect(etiquetaTipoDependencia('FF')).toBe('FF');
+    expect(etiquetaTipoDependencia('FF')).toBe('Fin → fin');
+    expect(etiquetaTipoDependencia('SF')).toBe('Inicio → fin');
+    // Uno que el contrato no documenta se sigue mostrando tal cual, sin
+    // inventarle nombre.
+    expect(etiquetaTipoDependencia('XX')).toBe('XX');
   });
 });
 

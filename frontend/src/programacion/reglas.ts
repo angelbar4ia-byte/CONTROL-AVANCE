@@ -126,20 +126,62 @@ export function tonoBadgeDeBarra(tono: TonoBarra): TonoBadge {
 const ETIQUETA_DEPENDENCIA: Record<string, string> = {
   FS: 'Fin → inicio',
   SS: 'Inicio → inicio',
+  FF: 'Fin → fin',
+  SF: 'Inicio → fin',
 };
 
 /**
- * Etiqueta legible del tipo de dependencia. El contrato solo documenta `FS`
- * y `SS` (`DependenciaDTO.tipo`, §7.5); cualquier otro valor se muestra tal
- * cual en vez de inventarle nombre.
+ * Etiqueta legible del tipo de dependencia. El contrato documenta los cuatro
+ * de MS Project (`DependenciaDTO.tipo`, §7.5); cualquier otro valor se muestra
+ * tal cual en vez de inventarle nombre.
  */
 export function etiquetaTipoDependencia(tipo: string | undefined): string {
   const clave = (tipo ?? 'FS').toUpperCase();
   return ETIQUETA_DEPENDENCIA[clave] ?? clave;
 }
 
-/** Tipos que el contrato documenta hoy para el select de dependencias (§7.5). */
-export const TIPOS_DEPENDENCIA: readonly string[] = ['FS', 'SS'];
+/** Tipos que el contrato documenta para el select de dependencias (§7.5). */
+export const TIPOS_DEPENDENCIA: readonly string[] = ['FS', 'SS', 'FF', 'SF'];
+
+/**
+ * Explicación de una línea de cada liga, para el `title` del cable y el menú
+ * de la barra: el jefe de obra reconoce el caso de obra mucho antes que las
+ * siglas de MS Project.
+ */
+const AYUDA_DEPENDENCIA: Record<string, string> = {
+  FS: 'La sucesora arranca al terminar la predecesora. Es el caso normal.',
+  SS: 'Arrancan juntas (con lag opcional).',
+  FF: 'La sucesora no termina antes que la predecesora: los acabados que cierran con la obra gruesa.',
+  SF: 'La sucesora no termina antes de que arranque la predecesora: la provisional que se retira cuando entra la definitiva.',
+};
+
+export function ayudaTipoDependencia(tipo: string | undefined): string {
+  return AYUDA_DEPENDENCIA[(tipo ?? 'FS').toUpperCase()] ?? '';
+}
+
+/** Extremo de la caja del que sale o al que entra un cable. */
+export type Anclaje = 'inicio' | 'fin';
+
+/**
+ * De qué extremo sale y a qué extremo entra el cable de cada liga.
+ *
+ * Es la semántica del tipo dibujada: en `FS` el cable sale del borde de fin de
+ * la predecesora y entra por el de inicio de la sucesora; en `SS` sale del
+ * inicio y entra al inicio. Que el anclaje **sea** la primera y la segunda
+ * letra de la sigla no es coincidencia: `S` es start y `F` es finish, y ese es
+ * todo el contenido del tipo. Dibujarlo así hace que el canvas se lea sin
+ * tener que consultar la etiqueta.
+ */
+export function anclajesDe(tipo: string | undefined): {
+  readonly salida: Anclaje;
+  readonly entrada: Anclaje;
+} {
+  const clave = (tipo ?? 'FS').toUpperCase();
+  return {
+    salida: clave.startsWith('S') ? 'inicio' : 'fin',
+    entrada: clave.endsWith('S') ? 'inicio' : 'fin',
+  };
+}
 
 const ETIQUETA_ESTATUS_ACTIVIDAD: Record<string, string> = {
   programada: 'Programada',
