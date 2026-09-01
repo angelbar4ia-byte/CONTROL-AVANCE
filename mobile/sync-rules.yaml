@@ -13,13 +13,29 @@
 # La auditoría tabla por tabla —qué se sincroniza, con qué alcance y por qué
 # lo demás no— vive en `MD/FASE-6.md`, frente 4. Aquí solo las reglas.
 #
-# Espejo de `app.obra_visible()`:
-#   residente        -> obra.residente_id = usuario
-#   supervisor       -> obras de sus clusters (supervisor_cluster)
-#   control_obra     -> obras de sus proyectos (control_proyecto)
-#   super_intendente -> toda la organización
+# Espejo de `app.obra_visible()` tal como lo dejó la migración 0042, donde el
+# alcance dejó de seguir al territorio para seguir a la CADENA DE PERSONAS
+# (Control -> Super intendente -> Supervisor -> Residente -> Obra):
+#   residente        -> sus obras (residente_obra)
+#   supervisor       -> obras de sus residentes (supervisor_residente)
+#   control_obra     -> toda la organización
+#   super_intendente -> obras de su gente (superintendente_usuario)
 #
-# El super intendente es solo web (§5.2), así que no tiene bucket aquí.
+# El super intendente es solo web (§5.2), así que no tiene bucket aquí. Es la
+# única divergencia aceptable con RLS: sincronizar de menos nunca expone datos.
+#
+# LOS TRES BUCKETS DE ABAJO CAMBIARON CON LA 0042, Y HAY QUE DESPLEGARLOS JUNTO
+# CON LA MIGRACIÓN
+#
+# Estas consultas corren del lado del servicio de sync, no del cliente, así que
+# RLS no las cubre. Si la migración se aplica y estas reglas se quedan viejas:
+#   · `residente_obras` seguiría leyendo `obra.residente_id`, que la 0042
+#     conserva sincronizado — así que ese bucket funcionaría, pero perdería las
+#     obras donde el residente NO es el principal (el M2M nuevo).
+#   · `supervisor_obras` seguiría sincronizando el cluster entero, o sea obras
+#     que el supervisor YA NO PUEDE VER por la API. Eso es exposición de datos,
+#     no una molestia.
+#   · `control_obras` sincronizaría de menos: Control ve toda la organización.
 #
 # ------------------------------------------------------------
 # DOS REGLAS DE ESTILO QUE NO SON ESTILO
@@ -57,9 +73,9 @@ bucket_definitions:
   # --- Residente: sus obras (§4, §5.2 "captura offline") ---------------
   residente_obras:
     parameters: |
-      SELECT u.org_id, o.id AS obra_id
+      SELECT u.org_id, ro.obra_id AS obra_id
       FROM usuario u
-      JOIN obra o ON o.residente_id = u.id AND o.org_id = u.org_id
+      JOIN residente_obra ro ON ro.residente_id = u.id AND ro.org_id = u.org_id
       WHERE u.auth_user_id = request.user_id()
         AND u.rol = 'residente'
         AND u.estatus = 'activo'
@@ -89,30 +105,33 @@ bucket_definitions:
                comentario, calidad, sync_status
           FROM revision_fisica WHERE obra_id = bucket.obra_id
 
-  # --- Supervisor: obras de sus clusters (§4) --------------------------
+  # --- Supervisor: obras de sus RESIDENTES (§4, migración 0042) --------
+  # Ya no es "las obras de su cluster": el alcance sigue a la gente, así que al
+  # moverle un residente su cartera de teléfono se mueve con él.
   supervisor_obras:
     parameters: |
-      SELECT u.org_id, o.id AS obra_id
+      SELECT u.org_id, ro.obra_id AS obra_id
       FROM usuario u
-      JOIN supervisor_cluster sc
-        ON sc.supervisor_id = u.id AND sc.org_id = u.org_id
-      JOIN obra o ON o.cluster_id = sc.cluster_id AND o.org_id = u.org_id
+      JOIN supervisor_residente sr
+        ON sr.supervisor_id = u.id AND sr.org_id = u.org_id
+      JOIN residente_obra ro
+        ON ro.residente_id = sr.residente_id AND ro.org_id = u.org_id
       WHERE u.auth_user_id = request.user_id()
         AND u.rol = 'supervisor'
         AND u.estatus = 'activo'
     data: *datos_de_obra
 
-  # --- Control de obra: obras de sus proyectos (§4) --------------------
+  # --- Control de obra: toda su organización (§4, migración 0042) ------
   # En móvil solo hace revisión física; la configuración es solo web (§5.2).
+  # Sin join a ningún puente: Control es el rol de arriba y `control_proyecto`
+  # dejó de acotarlo. Es el bucket más ancho del archivo a propósito, y el
+  # único que crece con el tamaño de la organización — si algún día pesa
+  # demasiado en el teléfono, se acota por estatus de obra, no por alcance.
   control_obras:
     parameters: |
       SELECT u.org_id, o.id AS obra_id
       FROM usuario u
-      JOIN control_proyecto cp
-        ON cp.usuario_id = u.id AND cp.org_id = u.org_id
-      JOIN cluster c
-        ON c.proyecto_id = cp.proyecto_id AND c.org_id = u.org_id
-      JOIN obra o ON o.cluster_id = c.id AND o.org_id = u.org_id
+      JOIN obra o ON o.org_id = u.org_id
       WHERE u.auth_user_id = request.user_id()
         AND u.rol = 'control_obra'
         AND u.estatus = 'activo'

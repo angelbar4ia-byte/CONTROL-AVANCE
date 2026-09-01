@@ -219,6 +219,7 @@ async def test_solicitar_actividad_fuera_de_alcance_da_no_encontrada(
                 residente_id=uuid.uuid4(),
                 supervisor_id=uuid.uuid4(),
                 control_id=uuid.uuid4(),
+                superintendente_id=uuid.uuid4(),
                 proyecto_id=uuid.uuid4(),
                 cluster_id=uuid.uuid4(),
                 prototipo_id=uuid.uuid4(),

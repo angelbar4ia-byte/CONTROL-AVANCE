@@ -204,7 +204,10 @@ async def test_reiniciar_borra_todo_menos_usuario_y_preserva_otra_org(
             )
         ).scalar_one()
     await engine.dispose()
-    assert usuarios == 3  # residente, supervisor, control — ver conftest.escenario
+    # residente, supervisor, control y super intendente — ver conftest.escenario.
+    # El cuarto lo trajo la migración 0042: sin un super intendente con gente
+    # asignada, el escenario no puede ejercitar su alcance.
+    assert usuarios == 4
     assert orgs == 2
 
 

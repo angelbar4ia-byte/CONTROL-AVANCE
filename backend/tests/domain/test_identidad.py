@@ -17,6 +17,8 @@ from obractrl.domain.identidad.reglas import (
     Usuario,
     puede_asignar_alcance_de,
     puede_dar_de_alta,
+    puede_registrar_proyectos_de_control,
+    roles_que_cuelgan_de,
 )
 from obractrl.domain.shared.diccionario import Rol
 
@@ -52,19 +54,67 @@ class TestQuienDaDeAlta:
 
 
 class TestAlcance:
-    def test_control_reparte_clusters_entre_supervisores(self) -> None:
-        """Operación diaria: es la política `supervisor_cluster_*` de la 0012."""
+    """La cadena de mando del §4 tal como la dejó la migración 0042.
+
+    DOS PRUEBAS DE ESTA CLASE CAMBIARON DE SENTIDO, NO SE RELAJARON
+
+    `test_control_no_toca_los_proyectos_de_otro_control` afirmaba que un Super
+    intendente sí repartía el alcance de un Control de obra, y
+    `test_el_residente_no_lleva_puente` que el residente no tenía puente. Las
+    dos eran ciertas mientras Control colgaba de `control_proyecto` y el
+    residente llegaba a su obra por `obra.residente_id`. La 0042 invierte la
+    jerarquía —Control arriba, viendo toda la organización— y le da al
+    residente su propio puente M2M, así que las dos afirmaciones son ahora
+    falsas y se prueba lo contrario, con el mismo nivel de detalle.
+    """
+
+    def test_control_reparte_gente_entre_supervisores(self) -> None:
+        """Operación diaria: es la política `supervisor_residente_*` de la 0042."""
         assert puede_asignar_alcance_de(Rol.CONTROL_OBRA, Rol.SUPERVISOR)
+        assert puede_asignar_alcance_de(Rol.SUPER_INTENDENTE, Rol.SUPERVISOR)
 
-    def test_control_no_toca_los_proyectos_de_otro_control(self) -> None:
-        """Ese puente decide el alcance de quien administra: si Control pudiera
-        editarlo, se ampliaría el suyo."""
+    def test_el_supervisor_no_se_asigna_residentes(self) -> None:
+        """Su alcance ES el de sus residentes: escribir ese puente sería
+        ampliárselo con una fila."""
+        assert not puede_asignar_alcance_de(Rol.SUPERVISOR, Rol.SUPERVISOR)
+
+    def test_solo_control_reparte_la_gente_de_un_super_intendente(self) -> None:
+        """`superintendente_usuario` decide el alcance de quien administra. Es
+        la misma regla que la 0012 le aplicaba a `control_proyecto` —donde el
+        acotado era Control y el que repartía era el SI—, movida un piso hacia
+        arriba junto con la jerarquía."""
+        assert puede_asignar_alcance_de(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE)
+        assert not puede_asignar_alcance_de(
+            Rol.SUPER_INTENDENTE, Rol.SUPER_INTENDENTE
+        )
+
+    def test_a_control_ya_no_se_le_asigna_alcance(self) -> None:
+        """Ve toda la organización desde la 0042: no hay nada que repartirle.
+        `control_proyecto` sigue existiendo pero quedó inerte, y su permiso vive
+        aparte en `puede_registrar_proyectos_de_control`."""
         assert not puede_asignar_alcance_de(Rol.CONTROL_OBRA, Rol.CONTROL_OBRA)
-        assert puede_asignar_alcance_de(Rol.SUPER_INTENDENTE, Rol.CONTROL_OBRA)
+        assert not puede_asignar_alcance_de(Rol.SUPER_INTENDENTE, Rol.CONTROL_OBRA)
+        assert puede_registrar_proyectos_de_control(Rol.SUPER_INTENDENTE)
+        assert not puede_registrar_proyectos_de_control(Rol.CONTROL_OBRA)
 
-    def test_el_residente_no_lleva_puente(self) -> None:
-        """Llega a su obra por `obra.residente_id`, no por una tabla de alcance."""
-        assert not puede_asignar_alcance_de(Rol.SUPER_INTENDENTE, Rol.RESIDENTE)
+    def test_el_residente_ya_lleva_puente_propio(self) -> None:
+        """`residente_obra` (0042) sustituyó a `obra.residente_id` como frontera.
+        Los tres mandos pueden repartirle obras; el límite de los intermedios
+        —que la obra ya les sea visible— lo pone la base, no el dominio."""
+        assert puede_asignar_alcance_de(Rol.CONTROL_OBRA, Rol.RESIDENTE)
+        assert puede_asignar_alcance_de(Rol.SUPER_INTENDENTE, Rol.RESIDENTE)
+        assert puede_asignar_alcance_de(Rol.SUPERVISOR, Rol.RESIDENTE)
+        assert not puede_asignar_alcance_de(Rol.RESIDENTE, Rol.RESIDENTE)
+
+    def test_el_organigrama_no_admite_cualquier_pareja(self) -> None:
+        """Lo que la base NO puede comprobar: sus llaves foráneas apuntan a
+        `usuario` sin mirar el rol."""
+        assert roles_que_cuelgan_de(Rol.SUPER_INTENDENTE) == frozenset(
+            {Rol.SUPERVISOR, Rol.RESIDENTE}
+        )
+        assert roles_que_cuelgan_de(Rol.SUPERVISOR) == frozenset({Rol.RESIDENTE})
+        assert roles_que_cuelgan_de(Rol.RESIDENTE) == frozenset()
+        assert roles_que_cuelgan_de(Rol.CONTROL_OBRA) == frozenset()
 
 
 class TestAltaDeUsuario:

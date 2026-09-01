@@ -48,6 +48,16 @@ router = APIRouter(tags=["usuarios"])
 ADMINISTRA = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE))
 """El alta y la edición del equipo son de C y SI (§5.1, §11.2)."""
 
+REPARTE = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE, Rol.SUPERVISOR))
+"""Repartir alcance incluye al supervisor, y solo desde la migración 0042.
+
+El supervisor distribuye SU cartera entre SUS residentes —es su trabajo diario
+y el usuario lo pidió así ("el supervisor a sus residentes")— pero no puede
+traerse una obra que no ve: eso lo cierra `app.puede_repartir_obra()` en la
+base, no esta lista de roles. Aquí solo se descarta al residente, que no
+reparte nada.
+"""
+
 FiltroRol = Annotated[
     Rol | None, Query(description="Acota el listado a un rol del §4.")
 ]
@@ -121,10 +131,42 @@ class ResetearContrasenaPeticion(BaseModel):
 
 
 class AlcancePeticion(BaseModel):
-    """Clusters para un supervisor, proyectos para un control de obra (§4)."""
+    """Lo que se le da a UNA persona (§4, cadena de mando de la 0042).
 
-    clusters: list[UUID] = Field(default_factory=list)
-    proyectos: list[UUID] = Field(default_factory=list)
+    El `usuario_id` de la ruta es siempre el jefe o el dueño de la cartera. Qué
+    lista aplica lo decide su rol; mandar la que no corresponde es un 422 con
+    el motivo escrito, no un silencio.
+    """
+
+    gente: list[UUID] = Field(
+        default_factory=list,
+        description=(
+            "Personas que cuelgan de él. A un super intendente, supervisores "
+            "y/o residentes; a un supervisor, residentes. Mover un residente "
+            "arrastra su cartera de obras con él."
+        ),
+    )
+    obras: list[UUID] = Field(
+        default_factory=list,
+        description=(
+            "Obras de un residente. Es lo que de verdad decide qué ve él —y, "
+            "hacia arriba, su supervisor y su super intendente."
+        ),
+    )
+    clusters: list[UUID] = Field(
+        default_factory=list,
+        description=(
+            "Manzanas que recorre un supervisor. Dato territorial: desde la "
+            "migración 0042 ya NO le abre ninguna obra."
+        ),
+    )
+    proyectos: list[UUID] = Field(
+        default_factory=list,
+        description=(
+            "Proyectos de un control de obra. Inerte desde la migración 0042: "
+            "Control ve toda la organización."
+        ),
+    )
     retirar: bool = Field(
         default=False, description="Quita en vez de dar."
     )
@@ -132,6 +174,17 @@ class AlcancePeticion(BaseModel):
 
 class AlcanceRespuesta(BaseModel):
     usuario_id: UUID
+    gente: list[dict] = Field(
+        default_factory=list,
+        description="`{id, nombre, email, rol}` de quienes cuelgan de él.",
+    )
+    obras: list[dict] = Field(
+        default_factory=list,
+        description=(
+            "`{id, clave, cluster_id, estatus, avance_pct, es_principal}`. "
+            "`es_principal` es el residente que quedó en `obra.residente_id`."
+        ),
+    )
     clusters: list[dict] = Field(
         default_factory=list, description="`{id, clave, nombre, proyecto_id}`."
     )
@@ -264,18 +317,31 @@ async def resetear_contrasena(
 @router.get(
     "/usuarios/{usuario_id}/alcance",
     response_model=AlcanceRespuesta,
-    summary="Qué clusters y proyectos tiene asignados",
+    summary="Qué gente, obras, clusters y proyectos tiene asignados",
 )
 async def consultar_alcance(usuario_id: UUID, sesion: SesionRLS) -> AlcanceRespuesta:
     """Los puentes del §4.
 
-    Las dos listas se piden siempre, aunque un rol solo pueda tener una: la
-    pantalla no sabe de antemano qué rol tiene la persona que abrió, y dos
-    consultas sobre índices son más baratas que una ida y vuelta extra.
+    Las cuatro listas se piden siempre, aunque cada rol solo pueda llenar una:
+    la pantalla no sabe de antemano qué rol tiene la persona que abrió, y unas
+    cuantas consultas sobre índices son más baratas que una ida y vuelta extra
+    para preguntar primero el rol.
+
+    `gente` sale de dos tablas distintas —`superintendente_usuario` si es SI,
+    `supervisor_residente` si es supervisor— y se devuelven concatenadas
+    porque nadie es las dos cosas: la que no aplica viene vacía.
+
+    Lo que aquí se ve ya está acotado por RLS: un supervisor ve la cartera de
+    sus residentes y la suya, no la de otra rama del organigrama.
     """
     repo = RepositorioAsignacionesSQL(sesion)
     return AlcanceRespuesta(
         usuario_id=usuario_id,
+        gente=(
+            await repo.gente_de_superintendente(usuario_id)
+            + await repo.residentes_de(usuario_id)
+        ),
+        obras=await repo.obras_de(usuario_id),
         clusters=await repo.clusters_de(usuario_id),
         proyectos=await repo.proyectos_de(usuario_id),
     )
@@ -284,8 +350,8 @@ async def consultar_alcance(usuario_id: UUID, sesion: SesionRLS) -> AlcanceRespu
 @router.post(
     "/usuarios/{usuario_id}/alcance",
     response_model=IdRespuesta,
-    dependencies=[ADMINISTRA],
-    summary="Asignar o retirar clusters y proyectos",
+    dependencies=[REPARTE],
+    summary="Asignar o retirar gente, obras, clusters y proyectos",
 )
 async def asignar_alcance(
     usuario_id: UUID,
@@ -293,17 +359,28 @@ async def asignar_alcance(
     caso: AsignarAlcanceDep,
     ctx: ContextoActual,
 ) -> IdRespuesta:
-    """Reparte el alcance (§5.1 "Asignaciones").
+    """Arma la cadena de mando (§5.1 "Asignaciones", §4).
 
-    Los proyectos de un Control de obra solo los mueve un Super intendente: es
-    el alcance de quien administra, y dejarlo en manos de Control sería dejar
-    que se amplíe el suyo. Lo dice `puede_asignar_alcance_de` y lo vuelve a
-    decir la política `control_proyecto_*` de la migración 0012.
+    Quién puede repartir a quién lo decide `puede_asignar_alcance_de`, y lo
+    vuelve a decir la base con las políticas de la 0042 — con un detalle que el
+    dominio no alcanza a ver: que la persona esté bajo el mando de quien
+    reparte y que la obra ya le sea visible. Esa segunda mitad es la que impide
+    que un supervisor se amplíe el alcance solo, y por eso vive en Postgres y
+    no aquí.
+
+    REASIGNAR ES DOS PETICIONES, Y EN ESTE ORDEN
+
+    Para pasar una obra del residente A al B: primero un POST con `obras=[o]`
+    sobre B, después otro con `retirar=true` sobre A. Al revés, quien reasigna
+    puede perder de vista la obra entre las dos peticiones —si A era su único
+    vínculo con ella— y el alta se rechazaría.
     """
     resultado = await caso.ejecutar(
         ComandoAsignarAlcance(
             usuario_id=usuario_id,
             quien=Rol(ctx.rol),
+            gente=tuple(peticion.gente),
+            obras=tuple(peticion.obras),
             clusters=tuple(peticion.clusters),
             proyectos=tuple(peticion.proyectos),
             retirar=peticion.retirar,

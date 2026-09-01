@@ -26,6 +26,10 @@ __all__ = [
     "Usuario",
     "puede_asignar_alcance_de",
     "puede_dar_de_alta",
+    "puede_registrar_proyectos_de_control",
+    "puede_repartir_gente",
+    "puede_repartir_obras",
+    "roles_que_cuelgan_de",
 ]
 
 
@@ -71,26 +75,116 @@ def puede_dar_de_alta(quien: Rol, rol_nuevo: Rol) -> bool:
     return True
 
 
+# --- La cadena de mando (§4, migración 0042) -----------------------------
+#
+# El usuario describió su organización como una cadena:
+#
+#     Control de obra → Super intendente → Supervisor → Residente → Obra
+#
+# y de ahí sale todo lo de abajo. Las tres funciones que siguen espejan las
+# políticas de la migración 0042 (`app.usuario_en_alcance`,
+# `app.puede_repartir_obra` y las de escritura de los tres puentes). Igual que
+# el resto de este módulo: aquí explican, allá garantizan.
+
+_GENTE_DE: dict[Rol, frozenset[Rol]] = {
+    Rol.SUPER_INTENDENTE: frozenset({Rol.SUPERVISOR, Rol.RESIDENTE}),
+    Rol.SUPERVISOR: frozenset({Rol.RESIDENTE}),
+}
+"""Qué roles pueden colgar de cada jefe.
+
+Del Super intendente cuelgan supervisores **y residentes**, las dos cosas: el
+usuario lo pidió textual —"los residentes y supervisores a superintendente"—,
+o sea que un residente puede reportarle directo sin supervisor de por medio.
+Del supervisor solo cuelgan residentes; un supervisor bajo otro supervisor no
+es una jerarquía que exista en esta empresa.
+
+Control de obra no aparece como jefe porque no necesita puente —ve toda la
+organización— ni como subordinado porque es la raíz.
+"""
+
+
+def roles_que_cuelgan_de(rol_jefe: Rol) -> frozenset[Rol]:
+    """Qué roles admite el organigrama debajo de `rol_jefe` (§4).
+
+    Existe porque la base **no** puede contestarlo: las llaves foráneas de la
+    0042 apuntan a `usuario`, que no distingue roles, así que nada en Postgres
+    impide colgar un supervisor de otro supervisor. Es la excepción a la regla
+    de este módulo ("la base garantiza, esto explica"): aquí no hay política
+    que lo cubra, y por eso el caso de uso no puede saltárselo.
+    """
+    return _GENTE_DE.get(rol_jefe, frozenset())
+
+
+def puede_repartir_gente(quien: Rol) -> bool:
+    """¿`quien` puede mover a alguien de una rama del organigrama a otra? (§4)
+
+    Control siempre —toda la organización es su gente—. El Super intendente
+    solo dentro de la suya, y eso el dominio no lo puede comprobar sin ir a la
+    base: aquí se contesta el "por rol" y `app.usuario_en_alcance()` contesta
+    el "por persona". Supervisor y residente, nunca: el alcance de un
+    supervisor ES el de sus residentes, así que dejarlo escribir ese puente
+    sería dejar que se amplíe solo con una fila.
+    """
+    return quien in (Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE)
+
+
+def puede_repartir_obras(quien: Rol) -> bool:
+    """¿`quien` puede mover obras entre residentes? (§4, `residente_obra`)
+
+    Los tres mandos, y no es una excepción a la regla anterior sino su otra
+    mitad: el supervisor **reparte** su cartera entre sus residentes —es su
+    trabajo diario— pero no puede **traerse** una obra que no ve. Ese segundo
+    límite no se decide aquí: lo impone `app.puede_repartir_obra()`, que exige
+    `obra_visible`, porque solo la base sabe qué obras ve alguien.
+    """
+    return quien in (Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE, Rol.SUPERVISOR)
+
+
 def puede_asignar_alcance_de(quien: Rol, rol_destino: Rol) -> bool:
     """¿`quien` puede tocar los puentes de alcance de un `rol_destino`? (§4)
 
-    Espeja las políticas de la migración 0012, que son distintas para cada
-    puente y no por capricho:
+    Espeja las políticas de escritura de la migración 0042, que son distintas
+    para cada puente y no por capricho. La regla que las une es una sola:
 
-    · `supervisor_cluster` — Control de obra y Super intendente. Repartir
-      clusters entre supervisores es trabajo de operación diaria.
-    · `control_proyecto` — solo Super intendente. Ese puente decide **qué
-      proyectos ve un Control de obra**, o sea el alcance de quien administra:
-      si Control pudiera editarlo, se ampliaría su propio alcance.
+        **Quien administra no edita su propio alcance.**
 
-    El residente no lleva puente: llega a su obra por `obra.residente_id`
-    (§4), que se asigna desde la obra y no desde aquí.
+    · gente de un Super intendente (`superintendente_usuario`) — solo Control.
+      Ese puente decide qué ve un SI; si el SI pudiera editarlo se ampliaría
+      solo. Es literalmente la regla que la 0012 le aplicaba a
+      `control_proyecto` —donde el alcance acotado era el de Control y el que
+      repartía era el SI—, movida un piso hacia arriba junto con la jerarquía.
+    · residentes de un Supervisor (`supervisor_residente`) — Control y el SI
+      del que cuelgue ese supervisor. El supervisor no, por lo mismo.
+    · obras de un Residente (`residente_obra`) — los tres mandos, acotados por
+      lo que ya ven (ver `puede_repartir_obras`).
+
+    Control de obra no tiene puente de alcance que se le pueda tocar: ve toda
+    la organización desde la 0042 y no hay nada que asignarle. `control_proyecto`
+    sigue existiendo y se sigue escribiendo, pero ya no gobierna nada — por eso
+    aquí devuelve `False` en vez de mentir diciendo que sirve de algo.
     """
-    if rol_destino is Rol.CONTROL_OBRA:
-        return quien is Rol.SUPER_INTENDENTE
+    if rol_destino is Rol.SUPER_INTENDENTE:
+        return quien is Rol.CONTROL_OBRA
     if rol_destino is Rol.SUPERVISOR:
-        return quien.puede_configurar
+        return puede_repartir_gente(quien)
+    if rol_destino is Rol.RESIDENTE:
+        return puede_repartir_obras(quien)
     return False
+
+
+def puede_registrar_proyectos_de_control(quien: Rol) -> bool:
+    """`control_proyecto`: el puente que la 0042 dejó INERTE.
+
+    Ya no gobierna nada —Control ve toda la organización— pero la tabla, sus
+    datos y su política siguen ahí, y el trigger de la 0016 la sigue llenando.
+    El permiso se queda **exactamente como lo dejó la 0012**, solo Super
+    intendente, y no porque tenga sentido en la jerarquía nueva sino porque esa
+    es la política que sigue vigente en la base: relajarlo aquí y no allá sería
+    prometer en la API algo que Postgres rechaza con un 500.
+
+    Cuando se decida retirar la tabla, esta función se va con ella.
+    """
+    return quien is Rol.SUPER_INTENDENTE
 
 
 @dataclass(frozen=True, slots=True)

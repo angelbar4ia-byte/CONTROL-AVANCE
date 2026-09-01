@@ -1307,11 +1307,54 @@ class RepositorioUsuarios(Protocol):
 class RepositorioAsignaciones(Protocol):
     """Los puentes de alcance del §4: quién ve qué.
 
-    Dos tablas con permisos distintos, y a propósito: `supervisor_cluster` lo
-    escribe Control de obra; `control_proyecto` **solo** el Super intendente,
-    porque decide el alcance de quien administra. El residente no lleva puente:
-    llega a su obra por `obra.residente_id`.
+    Desde la migración 0042 el alcance es una cadena de PERSONAS —Control →
+    Super intendente → Supervisor → Residente → Obra— y los tres puentes que la
+    forman tienen permisos distintos a propósito:
+
+    · `superintendente_usuario` la escribe **solo Control**, porque decide el
+      alcance de quien administra.
+    · `supervisor_residente` la escriben Control y el SI dentro de su gente.
+    · `residente_obra` la escriben los tres mandos, pero los intermedios solo
+      para repartir obras que ya ven.
+
+    `supervisor_cluster` y `control_proyecto` siguen aquí y ya no gobiernan
+    nada: la primera es dato territorial, la segunda quedó inerte al volverse
+    Control un rol de organización completa.
     """
+
+    async def asignar_persona_a_superintendente(
+        self, *, superintendente_id: UUID, usuario_id: UUID
+    ) -> None: ...
+
+    async def retirar_persona_de_superintendente(
+        self, *, superintendente_id: UUID, usuario_id: UUID
+    ) -> None:
+        """Levanta `RegistroNoEncontrado` si no había nada que retirar."""
+        ...
+
+    async def gente_de_superintendente(
+        self, superintendente_id: UUID
+    ) -> list[dict]: ...
+
+    async def asignar_residente(
+        self, *, supervisor_id: UUID, residente_id: UUID
+    ) -> None: ...
+
+    async def retirar_residente(
+        self, *, supervisor_id: UUID, residente_id: UUID
+    ) -> None:
+        """Levanta `RegistroNoEncontrado` si no había nada que retirar."""
+        ...
+
+    async def residentes_de(self, supervisor_id: UUID) -> list[dict]: ...
+
+    async def asignar_obra(self, *, residente_id: UUID, obra_id: UUID) -> None: ...
+
+    async def retirar_obra(self, *, residente_id: UUID, obra_id: UUID) -> None:
+        """Levanta `RegistroNoEncontrado` si no había nada que retirar."""
+        ...
+
+    async def obras_de(self, residente_id: UUID) -> list[dict]: ...
 
     async def asignar_cluster(
         self, *, supervisor_id: UUID, cluster_id: UUID

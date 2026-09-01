@@ -437,8 +437,8 @@
         "tags": [
           "usuarios"
         ],
-        "summary": "Qué clusters y proyectos tiene asignados",
-        "description": "Los puentes del §4.\n\nLas dos listas se piden siempre, aunque un rol solo pueda tener una: la\npantalla no sabe de antemano qué rol tiene la persona que abrió, y dos\nconsultas sobre índices son más baratas que una ida y vuelta extra.",
+        "summary": "Qué gente, obras, clusters y proyectos tiene asignados",
+        "description": "Los puentes del §4.\n\nLas cuatro listas se piden siempre, aunque cada rol solo pueda llenar una:\nla pantalla no sabe de antemano qué rol tiene la persona que abrió, y unas\ncuantas consultas sobre índices son más baratas que una ida y vuelta extra\npara preguntar primero el rol.\n\n`gente` sale de dos tablas distintas —`superintendente_usuario` si es SI,\n`supervisor_residente` si es supervisor— y se devuelven concatenadas\nporque nadie es las dos cosas: la que no aplica viene vacía.\n\nLo que aquí se ve ya está acotado por RLS: un supervisor ve la cartera de\nsus residentes y la suya, no la de otra rama del organigrama.",
         "operationId": "consultar_alcance_api_v1_usuarios__usuario_id__alcance_get",
         "security": [
           {
@@ -484,8 +484,8 @@
         "tags": [
           "usuarios"
         ],
-        "summary": "Asignar o retirar clusters y proyectos",
-        "description": "Reparte el alcance (§5.1 \"Asignaciones\").\n\nLos proyectos de un Control de obra solo los mueve un Super intendente: es\nel alcance de quien administra, y dejarlo en manos de Control sería dejar\nque se amplíe el suyo. Lo dice `puede_asignar_alcance_de` y lo vuelve a\ndecir la política `control_proyecto_*` de la migración 0012.",
+        "summary": "Asignar o retirar gente, obras, clusters y proyectos",
+        "description": "Arma la cadena de mando (§5.1 \"Asignaciones\", §4).\n\nQuién puede repartir a quién lo decide `puede_asignar_alcance_de`, y lo\nvuelve a decir la base con las políticas de la 0042 — con un detalle que el\ndominio no alcanza a ver: que la persona esté bajo el mando de quien\nreparte y que la obra ya le sea visible. Esa segunda mitad es la que impide\nque un supervisor se amplíe el alcance solo, y por eso vive en Postgres y\nno aquí.\n\nREASIGNAR ES DOS PETICIONES, Y EN ESTE ORDEN\n\nPara pasar una obra del residente A al B: primero un POST con `obras=[o]`\nsobre B, después otro con `retirar=true` sobre A. Al revés, quien reasigna\npuede perder de vista la obra entre las dos peticiones —si A era su único\nvínculo con ella— y el alta se rechazaría.",
         "operationId": "asignar_alcance_api_v1_usuarios__usuario_id__alcance_post",
         "security": [
           {
@@ -8306,13 +8306,32 @@
       },
       "AlcancePeticion": {
         "properties": {
+          "gente": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Gente",
+            "description": "Personas que cuelgan de él. A un super intendente, supervisores y/o residentes; a un supervisor, residentes. Mover un residente arrastra su cartera de obras con él."
+          },
+          "obras": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Obras",
+            "description": "Obras de un residente. Es lo que de verdad decide qué ve él —y, hacia arriba, su supervisor y su super intendente."
+          },
           "clusters": {
             "items": {
               "type": "string",
               "format": "uuid"
             },
             "type": "array",
-            "title": "Clusters"
+            "title": "Clusters",
+            "description": "Manzanas que recorre un supervisor. Dato territorial: desde la migración 0042 ya NO le abre ninguna obra."
           },
           "proyectos": {
             "items": {
@@ -8320,7 +8339,8 @@
               "format": "uuid"
             },
             "type": "array",
-            "title": "Proyectos"
+            "title": "Proyectos",
+            "description": "Proyectos de un control de obra. Inerte desde la migración 0042: Control ve toda la organización."
           },
           "retirar": {
             "type": "boolean",
@@ -8331,7 +8351,7 @@
         },
         "type": "object",
         "title": "AlcancePeticion",
-        "description": "Clusters para un supervisor, proyectos para un control de obra (§4)."
+        "description": "Lo que se le da a UNA persona (§4, cadena de mando de la 0042).\n\nEl `usuario_id` de la ruta es siempre el jefe o el dueño de la cartera. Qué\nlista aplica lo decide su rol; mandar la que no corresponde es un 422 con\nel motivo escrito, no un silencio."
       },
       "AlcanceRespuesta": {
         "properties": {
@@ -8339,6 +8359,24 @@
             "type": "string",
             "format": "uuid",
             "title": "Usuario Id"
+          },
+          "gente": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Gente",
+            "description": "`{id, nombre, email, rol}` de quienes cuelgan de él."
+          },
+          "obras": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Obras",
+            "description": "`{id, clave, cluster_id, estatus, avance_pct, es_principal}`. `es_principal` es el residente que quedó en `obra.residente_id`."
           },
           "clusters": {
             "items": {
