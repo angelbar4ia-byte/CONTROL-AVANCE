@@ -35,8 +35,15 @@ import { aDia, aIso } from './escala';
 
 export type ModoEje = 'relativo' | 'fechas';
 
-/** Anchos de columna del zoom, en px por día del programa. */
-export const ZOOM_EJE: readonly number[] = [6, 10, 16, 26, 40];
+/**
+ * Escalones del zoom, en px por día del programa.
+ *
+ * Los dos extremos los pidió el menú de herramientas (`bandasPrograma.ts`): el
+ * de 4 px es el que hace caber un programa de un año en pantalla al pulsar
+ * "Ajustar", y el de 64 px es el que deja legible la etiqueta de un día suelto
+ * cuando la escala baja a días. En medio están los cinco de siempre.
+ */
+export const ZOOM_EJE: readonly number[] = [4, 6, 10, 16, 26, 40, 64];
 
 /** Zoom de entrada: 16 px/día deja legible un programa de ~120 días. */
 export const ZOOM_POR_DEFECTO = 16;
@@ -52,8 +59,15 @@ export const ZOOM_POR_DEFECTO = 16;
  */
 export const ALTO_FILA = 28;
 
-/** Alto del encabezado pegajoso; los dos lados llevan uno y miden igual. */
-export const ALTO_ENCABEZADO = 26;
+/**
+ * Alto del encabezado pegajoso; los dos lados llevan uno y miden igual.
+ *
+ * Son dos bandas —periodo grande arriba, chico abajo (`bandasPrograma.ts`)—, y
+ * por eso mide más que un renglón. Lo que no puede es medir distinto en las dos
+ * mitades: el virtualizador de cada lado lo descuenta como `scrollMargin`, y un
+ * píxel de diferencia corre una lista respecto de la otra.
+ */
+export const ALTO_ENCABEZADO = 34;
 
 /** Días que agrupa una columna del encabezado. Siete, como `escala.ts`. */
 const DIAS_POR_BLOQUE = 7;

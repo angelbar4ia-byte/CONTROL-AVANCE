@@ -176,6 +176,40 @@ export function unirTramo(tramos: readonly Tramo[], indice: number): readonly Tr
 }
 
 /**
+ * Alarga —o acorta— la pausa que hay **delante** del tramo `indice`, corriendo
+ * ese tramo y todos los que le siguen.
+ *
+ * Es "Interrumpir" del menú de herramientas, y es distinto de `moverTramo`:
+ * aquél recorta al hueco que dejan los vecinos, porque su gesto es acomodar un
+ * tramo dentro de una ventana que ya está repartida. Aquí el gesto es el
+ * contrario —hacer la ventana más larga— y por eso lo que sigue se empuja en
+ * vez de frenar el movimiento. Sin ese empujón, alargar la pausa de un tramo
+ * intermedio sería imposible en cuanto hubiera un tercer tramo detrás.
+ *
+ * El primer tramo no tiene pausa delante: está clavado en el día 0 y un hueco
+ * por delante no es una interrupción, es una fecha de inicio más tarde (§7.6).
+ * La pausa nunca baja de `MINIMO_PAUSA`: cerrarla del todo es "unir tramos", y
+ * hacerlo por aquí dejaría dos tramos pegados que son uno solo mal contado.
+ */
+export function alargarPausa(
+  tramos: readonly Tramo[],
+  indice: number,
+  dias: number,
+): readonly Tramo[] {
+  const actual = tramos[indice];
+  const anterior = tramos[indice - 1];
+  if (!actual || !anterior || dias === 0) return tramos;
+
+  const pausa = actual.offsetDias - finDe(anterior);
+  const corrimiento = redondear(Math.max(MINIMO_PAUSA, pausa + dias) - pausa);
+  if (corrimiento === 0) return tramos;
+
+  return tramos.map((tramo, i) =>
+    i < indice ? tramo : { ...tramo, offsetDias: redondear(tramo.offsetDias + corrimiento) },
+  );
+}
+
+/**
  * Mueve el tramo `indice` a `nuevoOffset`, **recortado** al hueco que le dejan
  * sus vecinos: nunca antes de que cierre el anterior, nunca tan a la derecha
  * que pise al siguiente, y el primero clavado en el día 0. Un arrastre que se

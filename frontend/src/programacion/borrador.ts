@@ -280,6 +280,29 @@ export function despachar(historial: Historial, accion: Accion): Historial {
 }
 
 /**
+ * Despacha varias acciones como **un solo** paso de deshacer.
+ *
+ * Lo pide el menú de herramientas: "Reiniciar programa" pone a cero el lag de
+ * cada precedencia y quita los tramos de cada actividad, que en un prototipo
+ * real son doscientas acciones. Despachadas una por una, deshacer tendría que
+ * pulsarse doscientas veces para volver a donde se estaba —y como el historial
+ * guarda sesenta pasos, ni siquiera se podría—. El criterio es el mismo que ya
+ * aplica `mover` al arrastrar: **un gesto del usuario, un paso atrás**; lo que
+ * cambia es que aquí el gesto se compone de acciones distintas entre sí.
+ *
+ * Si ninguna acción cambia nada no apila: un botón que no hizo nada no debe
+ * gastar un paso de deshacer.
+ */
+export function despacharVarias(
+  historial: Historial,
+  acciones: readonly Accion[],
+): Historial {
+  const presente = acciones.reduce(aplicar, historial.presente);
+  if (presente === historial.presente) return historial;
+  return apilar(historial, presente);
+}
+
+/**
  * Deja un punto de deshacer con el estado actual, sin cambiar nada.
  *
  * Es lo que convierte un arrastre entero —decenas de `mover`— en un solo paso

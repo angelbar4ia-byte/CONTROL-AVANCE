@@ -1,6 +1,6 @@
 /**
- * Editor de programa base en **tabla + Gantt** (§7.4, §7.5, §11.2
- * `POST /programas-base`).
+ * Editor de programa base en **tabla + Gantt**, con su menú de herramientas
+ * (§7.4, §7.5, §7.6, §11.2 `POST /programas-base`).
  *
  * Montado en `/config/programa-gantt`, con entrada propia en el sidebar de
  * Control de obra. Se le pasa `?prototipo=<id>` y, si se reedita una versión,
@@ -26,13 +26,25 @@
  * memoria (`borrador.ts`, con deshacer/rehacer) y el POST sale una sola vez.
  * El precio —cerrar la pestaña pierde lo no guardado— se avisa.
  *
+ * ## Las dos clases de herramienta, y por qué sólo una ensucia
+ *
+ * El menú (`BarraHerramientasGantt.tsx`) tiene siete pestañas. Las dos primeras
+ * —Programar y Vínculos— producen **gestos deshacibles**: `gestos.ts` los
+ * traduce a acciones de `borrador.ts` y `despacharVarias` los apila como un
+ * solo paso atrás, aunque el gesto valga doscientas acciones. Las cinco
+ * restantes cambian la mirada y nada más: viven en `vistaGantt.ts`, se guardan
+ * en `localStorage` y **no tocan el borrador ni ponen la pantalla en "sin
+ * guardar"**. Encender la ruta crítica no es editar el programa.
+ *
  * ## Lo que se adelanta al backend
  *
  * Los ciclos de precedencias (`ciclos.ts`). El backend responde 422 **sin
  * escribir nada** del programa completo si hay uno, así que descubrirlo al
- * guardar cuesta la sesión entera; aquí se señala el renglón que participa y no
- * se deja guardar. La ruta crítica y las fechas reales siguen siendo del motor
- * (§6): esta pantalla no las calcula ni pretende hacerlo.
+ * guardar cuesta la sesión entera; aquí se señala el renglón que participa, se
+ * explica al tender el vínculo que lo cerraría y no se deja guardar. La ruta
+ * crítica y las fechas reales de una obra siguen siendo del motor (§6): lo que
+ * traza esta pantalla es la cadena sin holgura **del borrador**, sobre su eje
+ * relativo, y se rotula como tal (`rutaCritica.ts`).
  *
  * ## Días relativos, fechas opcionales
  *
@@ -44,7 +56,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronsDownUp, ChevronsUpDown, Redo2, Undo2 } from 'lucide-react';
 
 import { usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet } from '@/api/generado/presupuesto/presupuesto';
 import {
@@ -69,10 +80,19 @@ import type { ErrorApi } from '@/api/cliente';
 import { useSesion } from '@/app/sesion';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { fmtNum } from '@/lib/formato';
+import { useDensidad } from '@/shell/SelectorDensidad';
 import { resolverArrastre, empezarArrastre, type ClaseArrastre } from './arrastre';
+import { construirBandas, saltosDeCalendario, zoomParaAjustar } from './bandasPrograma';
+import { tonosDeFrente } from './barras';
+import {
+  BarraHerramientasGantt,
+  type AccionesHerramientas,
+  type SeleccionHerramientas,
+} from './BarraHerramientasGantt';
 import {
   deshacer as deshacerHistorial,
   despachar,
+  despacharVarias,
   historialInicial,
   puedeDeshacer,
   puedeRehacer,
@@ -80,44 +100,41 @@ import {
   type Accion,
   type Historial,
 } from './borrador';
-import { SEMANA_NATURAL, descripcionDeSemana, normalizarDias } from './calendario';
+import { SEMANA_NATURAL, alternarDia, descripcionDeSemana, normalizarDias } from './calendario';
 import { buscarCiclo } from './ciclos';
+import { columnasVisibles, desplazamientosCongelados } from './columnasPrograma';
 import type { EntradaConector } from './conectores';
-import {
-  ZOOM_EJE,
-  ZOOM_POR_DEFECTO,
-  construirEje,
-  type ModoEje,
-} from './ejePrograma';
+import { construirEje, etiquetaDeDia } from './ejePrograma';
 import {
   aplanarPrograma,
   colapsadosDeEntrada,
+  colapsarANivel,
   filtrarPorTexto,
+  profundidadMaxima,
   resumirFilas,
-  todosLosPadres,
 } from './filasPrograma';
 import { GanttPrograma } from './GanttPrograma';
-import { armarBorrador, aristas, itemsDelBorrador } from './grafo';
+import * as gestos from './gestos';
+import { armarBorrador, aristas, itemsDelBorrador, type TipoLiga } from './grafo';
 import { alternarColapso, visiblesEnJerarquia } from './jerarquia';
-import { colocar, duracionDelPrograma } from './planificacion';
+import { colocar, duracionDelPrograma, nombreCorto } from './planificacion';
 import { puedeAdministrarProgramasBase } from './reglas';
+import { RejillaCantidades } from './RejillaCantidades';
+import { magnitudesDeFilas, rejillaDeCantidades } from './reparto';
+import { RUTA_CRITICA_VACIA, trazarRutaCritica } from './rutaCritica';
 import { SINCRONIA_INICIAL, alDesplazar, reiniciarSincronia } from './sincronia';
 import { TablaPrograma } from './TablaPrograma';
-
-/**
- * Reparto inicial y topes del panel dividido, en px.
- *
- * El mínimo deja ver número, tipo, clave y descripción —lo que hace falta para
- * saber en qué renglón se está—; el máximo impide dejar el Gantt en una franja
- * donde una barra ya no dice nada.
- */
-const ANCHO_TABLA_POR_DEFECTO = 620;
-const ANCHO_TABLA_MINIMO = 240;
-const ANCHO_TABLA_MAXIMO = 1100;
-
-function recortarAncho(px: number): number {
-  return Math.round(Math.min(ANCHO_TABLA_MAXIMO, Math.max(ANCHO_TABLA_MINIMO, px)));
-}
+import {
+  ANCHO_TABLA_MAXIMO,
+  ANCHO_TABLA_MINIMO,
+  CLAVE_PREFERENCIAS,
+  VISTA_GANTT_INICIAL,
+  deserializarVista,
+  recortarAnchoTabla,
+  serializarVista,
+  temaEfectivo,
+  type VistaGantt,
+} from './vistaGantt';
 
 export default function ProgramaTabla() {
   const { sesion } = useSesion();
@@ -145,10 +162,10 @@ export default function ProgramaTabla() {
     { prototipo_id: prototipoId },
     { query: { enabled: administra && baseId !== null && prototipoId !== '' } },
   );
-  // Unidad y cantidad son del **presupuesto vigente** del prototipo, unidas por
-  // `prototipo_nodo_id`, igual que en `ArbolPrototipo`: el nodo del árbol no
-  // las trae. Sin presupuesto cargado las dos columnas quedan vacías, que es
-  // preferible a inventarlas.
+  // Unidad, cantidad e importe son del **presupuesto vigente** del prototipo,
+  // unidos por `prototipo_nodo_id`, igual que en `ArbolPrototipo`: el nodo del
+  // árbol no las trae. Sin presupuesto cargado esas columnas quedan vacías, que
+  // es preferible a inventarlas.
   const presupuestoQ = usePresupuestoDePrototipoApiV1PrototiposPrototipoIdPresupuestoGet<
     PresupuestoRespuesta,
     ErrorApi
@@ -165,15 +182,59 @@ export default function ProgramaTabla() {
   const [colapsados, setColapsados] = useState<ReadonlySet<string>>(new Set());
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
-  const [zoom, setZoom] = useState(ZOOM_POR_DEFECTO);
-  const [modoEje, setModoEje] = useState<ModoEje>('relativo');
   const [inicioSimulado, setInicioSimulado] = useState(hoyIso());
   const [diasHabiles, setDiasHabiles] = useState<readonly number[]>(SEMANA_NATURAL);
   const [profundidad, setProfundidad] = useState<ClaseNodo>('concepto');
   const [aviso, setAviso] = useState<string | null>(null);
   const [rechazo, setRechazo] = useState<string | null>(null);
-  const [anchoTabla, setAnchoTabla] = useState(ANCHO_TABLA_POR_DEFECTO);
   const tirador = useRef<{ readonly x: number; readonly ancho: number } | null>(null);
+  // El ancho **mientras** se arrastra el divisor. Vive aparte de la vista a
+  // propósito: la vista se persiste en `localStorage` en cada cambio, y un
+  // arrastre son decenas de cambios por segundo. Se confirma al soltar, que es
+  // cuando el usuario decidió el reparto. El `ref` acompaña al estado porque
+  // el manejador de `pointerup` necesita el último valor sin leerlo desde
+  // dentro de un actualizador de estado, que React puede llamar dos veces.
+  const [anchoArrastre, setAnchoArrastre] = useState<number | null>(null);
+  const ultimoAncho = useRef<number | null>(null);
+
+  const densidad = useDensidad((s) => s.densidad);
+  const fijarDensidad = useDensidad((s) => s.fijar);
+
+  // --- Preferencias de vista y apariencia (`localStorage`) -----------------
+  // Se leen una sola vez, en el inicializador perezoso: leerlas en un efecto
+  // dejaría el primer render con el default y produciría el parpadeo de tema
+  // que todo el mundo reconoce como "la página cargó clara y luego se puso
+  // oscura".
+  const [vista, setVista] = useState<VistaGantt>(() => {
+    try {
+      return deserializarVista(window.localStorage.getItem(CLAVE_PREFERENCIAS));
+    } catch {
+      // Un navegador con el almacenamiento bloqueado no puede costar la
+      // pantalla: se abre con los valores de fábrica.
+      return VISTA_GANTT_INICIAL;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CLAVE_PREFERENCIAS, serializarVista(vista));
+    } catch {
+      // Sin almacenamiento la preferencia dura lo que la pestaña. No es un
+      // error que merezca interrumpir a nadie.
+    }
+  }, [vista]);
+
+  // "Sistema" se resuelve aquí y no con un `@media` en la hoja, para que el
+  // módulo lleve un solo atributo y la hoja un solo juego de tokens oscuros.
+  const [prefiereOscuro, setPrefiereOscuro] = useState(() => consultaOscuro()?.matches ?? false);
+  useEffect(() => {
+    const consulta = consultaOscuro();
+    if (!consulta) return undefined;
+    const alCambiar = (evento: MediaQueryListEvent) => setPrefiereOscuro(evento.matches);
+    consulta.addEventListener('change', alCambiar);
+    return () => consulta.removeEventListener('change', alCambiar);
+  }, []);
+  const tema = temaEfectivo(vista.tema, prefiereOscuro);
 
   const listo = nodosQ.isSuccess && (baseId === null || itemsQ.isSuccess);
 
@@ -261,13 +322,64 @@ export default function ProgramaTabla() {
     () =>
       construirEje({
         finMaximo: duracionDelPrograma(colocado),
-        pxPorDia: zoom,
-        modo: modoEje,
+        pxPorDia: vista.zoom,
+        modo: vista.modoEje,
         inicio: inicioSimulado,
         diasHabiles,
         hoy: hoyIso(),
       }),
-    [colocado, zoom, modoEje, inicioSimulado, diasHabiles],
+    [colocado, vista.zoom, vista.modoEje, inicioSimulado, diasHabiles],
+  );
+
+  const bandas = useMemo(() => construirBandas(eje, vista.escala), [eje, vista.escala]);
+  const saltos = useMemo(
+    () => (vista.fondoGantt === 'inhabiles' ? saltosDeCalendario(eje) : []),
+    [eje, vista.fondoGantt],
+  );
+
+  // La ruta crítica se traza sobre el árbol **completo** y no sobre lo visible:
+  // una etapa colapsada tiene que poder decir que la cadena pasa por dentro.
+  const ruta = useMemo(
+    () =>
+      vista.rutaCritica
+        ? trazarRutaCritica(todas, vista.toleranciaHolguraDias)
+        : RUTA_CRITICA_VACIA,
+    [vista.rutaCritica, vista.toleranciaHolguraDias, todas],
+  );
+
+  const magnitudes = useMemo(() => magnitudesDeFilas(todas, partidas), [todas, partidas]);
+
+  // El rollup de la rejilla necesita el árbol completo por el mismo motivo que
+  // la ruta crítica: el renglón de una etapa plegada suma lo que hay dentro.
+  const rejilla = useMemo(
+    () =>
+      vista.modalidad === 'cantidades'
+        ? rejillaDeCantidades({
+            filas: todas,
+            periodos: bandas.inferior,
+            magnitudes,
+            magnitud: vista.magnitud,
+          })
+        : new Map(),
+    [vista.modalidad, vista.magnitud, todas, bandas.inferior, magnitudes],
+  );
+
+  const tonoPorNodo = useMemo(() => {
+    if (!borrador) return new Map<string, number>();
+    const frentePorNodo = new Map(borrador.cajas.map((caja) => [caja.id, caja.frenteId]));
+    const tonos = tonosDeFrente(frentePorNodo, todas.map((fila) => fila.nodoId));
+    const salida = new Map<string, number>();
+    for (const [nodoId, frenteId] of frentePorNodo) {
+      const tono = frenteId === null ? undefined : tonos.get(frenteId);
+      if (tono !== undefined) salida.set(nodoId, tono);
+    }
+    return salida;
+  }, [borrador, todas]);
+
+  const columnas = useMemo(() => columnasVisibles(vista.columnas), [vista.columnas]);
+  const congelados = useMemo(
+    () => desplazamientosCongelados(columnas, vista.fijarColumnas),
+    [columnas, vista.fijarColumnas],
   );
 
   // Sólo se trazan las flechas entre renglones **dibujados**: una liga cuyo
@@ -300,6 +412,22 @@ export default function ProgramaTabla() {
 
   const despacha = useCallback((accion: Accion) => {
     setHistorial((previo) => (previo === null ? previo : despachar(previo, accion)));
+    setSucio(true);
+  }, []);
+
+  /**
+   * Un gesto del menú: o se despacha entero —como un solo paso de deshacer— o
+   * se explica por qué no se pudo. Nunca se descarta en silencio.
+   */
+  const aplicarGesto = useCallback((gesto: gestos.Gesto) => {
+    if (!gesto.ok) {
+      setRechazo(gesto.motivo);
+      return;
+    }
+    setRechazo(null);
+    setHistorial((previo) =>
+      previo === null ? previo : despacharVarias(previo, gesto.acciones),
+    );
     setSucio(true);
   }, []);
 
@@ -351,10 +479,11 @@ export default function ProgramaTabla() {
 
   // Plegar, filtrar o cambiar de programa cambia la altura de la lista: el
   // desplazamiento guardado deja de corresponder a nada y un eco pendiente de
-  // la altura anterior bloquearía el primer scroll de la nueva.
+  // la altura anterior bloquearía el primer scroll de la nueva. Cambiar de
+  // modalidad monta otro contenedor a la derecha y vale lo mismo.
   useEffect(() => {
     sincronia.current = reiniciarSincronia(refTabla.current?.scrollTop ?? 0);
-  }, [visibles.length]);
+  }, [visibles.length, vista.modalidad]);
 
   // Cerrar la pestaña con cambios sin guardar los pierde: el borrador vive solo
   // en memoria, a propósito (una versión por sesión, no por gesto).
@@ -420,11 +549,109 @@ export default function ProgramaTabla() {
     });
   }
 
+  // --- Lo que el menú necesita saber de la selección -----------------------
+  const seleccion = useMemo<SeleccionHerramientas | null>(() => {
+    if (borrador === null || seleccionado === null) return null;
+    const caja = borrador.cajas.find((c) => c.id === seleccionado);
+    const fila = todas.find((f) => f.nodoId === seleccionado);
+    if (!caja || !fila) return null;
+
+    const porId = new Map(borrador.cajas.map((c) => [c.id, c]));
+    return {
+      nodoId: caja.id,
+      etiqueta: nombreCorto(caja),
+      esResumen: fila.esResumen,
+      capturado: fila.capturado,
+      inicioDias: fila.inicioDias,
+      terminoDias: fila.finDias === null ? null : Math.max(0, fila.finDias - 1),
+      diasLaborables: fila.diasLaborables,
+      nTramos: caja.tramos.length,
+      predecesoras: caja.entradas.map((cable) => ({
+        desde: cable.desde,
+        etiqueta: nombreCorto(porId.get(cable.desde)),
+        tipo: cable.tipo,
+        lagDias: cable.lagDias,
+      })),
+      candidatas: gestos
+        .candidatasAPredecesora(borrador, caja.id)
+        .map((otra) => ({ id: otra.id, etiqueta: nombreCorto(otra) })),
+    };
+  }, [borrador, seleccionado, todas]);
+
+  /**
+   * Las herramientas que cambian el programa.
+   *
+   * Todas pasan por `gestos.ts` y por `aplicarGesto`: ninguna despacha una
+   * acción por su cuenta. Es lo que garantiza que un botón que no puede hacer
+   * su trabajo explique por qué, y que un gesto de doscientas acciones siga
+   * siendo un solo paso de deshacer.
+   */
+  const acciones = useMemo<AccionesHerramientas>(() => {
+    const conCaja = <T extends unknown[]>(
+      hacer: (borradorActual: NonNullable<typeof borrador>, cajaId: string, ...args: T) => gestos.Gesto,
+    ) => (...args: T) => {
+      if (borrador === null || seleccionado === null) {
+        setRechazo('Elige primero un renglón de la tabla.');
+        return;
+      }
+      aplicarGesto(hacer(borrador, seleccionado, ...args));
+    };
+
+    return {
+      aplazar: conCaja((b, id, dias: number) => gestos.aplazar(b, colocado, id, dias)),
+      noIniciarAntesDe: conCaja((b, id, dia: number) =>
+        gestos.noIniciarAntesDe(b, colocado, id, dia),
+      ),
+      fijarDuracion: conCaja((b, id, dias: number) => gestos.fijarDuracion(b, id, dias)),
+      fijarInicio: conCaja((b, id, dia: number) => {
+        const puesto = colocado.get(id);
+        if (!puesto) {
+          return { ok: false, motivo: 'La actividad no está colocada todavía (§7.5).' } as const;
+        }
+        return gestos.aplazar(b, colocado, id, Math.round(dia - puesto.inicioDias));
+      }),
+      fijarTermino: conCaja((b, id, dia: number) => gestos.fijarTermino(b, colocado, id, dia)),
+      dividir: conCaja((b, id) => {
+        const caja = b.cajas.find((c) => c.id === id);
+        if (!caja) return { ok: false, motivo: 'La actividad ya no está en el programa.' } as const;
+        return gestos.dividir(b, id, gestos.diaMedioDe(caja));
+      }),
+      interrumpir: conCaja((b, id, indice: number, dias: number) =>
+        gestos.interrumpir(b, id, indice, dias),
+      ),
+      unirTramos: conCaja((b, id, indice: number) => gestos.unirTramos(b, id, indice)),
+      reiniciarActividad: conCaja((b, id) => gestos.reiniciarActividad(b, id)),
+      reiniciarPrograma: () => {
+        if (borrador === null) return;
+        aplicarGesto(gestos.reiniciarPrograma(borrador));
+      },
+      vincular: conCaja((b, id, desde: string, tipo: TipoLiga, lagDias: number) =>
+        gestos.vincular(b, desde, id, tipo, lagDias),
+      ),
+      desvincular: conCaja((b, id, desde: string) => gestos.desvincular(b, desde, id)),
+      invertir: conCaja((b, id, desde: string) => gestos.invertirVinculo(b, desde, id)),
+      retipar: conCaja((b, id, desde: string, tipo: TipoLiga) =>
+        gestos.retipar(b, desde, id, tipo),
+      ),
+      retrasar: conCaja((b, id, desde: string, lagDias: number) =>
+        gestos.retrasar(b, desde, id, lagDias),
+      ),
+    };
+  }, [borrador, seleccionado, colocado, aplicarGesto]);
+
+  /** "Ajustar": el zoom que hace caber el programa en el ancho que hay. */
+  const ajustarZoom = useCallback(() => {
+    const ancho = refGantt.current?.clientWidth ?? 0;
+    setVista((previa) => ({ ...previa, zoom: zoomParaAjustar(eje.dias, ancho - 16) }));
+  }, [eje.dias]);
+
+  const rotularDia = useCallback((dia: number) => etiquetaDeDia(eje, dia), [eje]);
+
   if (!sesion || rol === null) return null;
 
   if (!administra) {
     return (
-      <Marco>
+      <Marco tema={tema} paleta={vista.paleta}>
         <div className="text-mute text-sm" style={{ padding: '24px 12px' }}>
           Los programas base de duraciones los administra Control de obra (§11.2).
         </div>
@@ -434,7 +661,7 @@ export default function ProgramaTabla() {
 
   if (prototipoId === '') {
     return (
-      <Marco>
+      <Marco tema={tema} paleta={vista.paleta}>
         <div className="empty">
           <div className="empty-title">Falta el prototipo</div>
           <div className="empty-sub">
@@ -451,6 +678,8 @@ export default function ProgramaTabla() {
 
   return (
     <Marco
+      tema={tema}
+      paleta={vista.paleta}
       titulo={prototipo ? `${prototipo.clave} · ${prototipo.nombre}` : 'Programa base'}
       acciones={
         <>
@@ -496,7 +725,7 @@ export default function ProgramaTabla() {
       {ciclo !== null && (
         <div className="badge badge--danger" role="alert">
           Hay un ciclo de precedencias entre {ciclo.length - 1} renglones: el backend lo
-          rechazaría sin escribir nada (§6). Quítalo desde el canvas.
+          rechazaría sin escribir nada (§6). Quítalo desde Vínculos o desde el canvas.
         </div>
       )}
       {huerfanos.length > 0 && (
@@ -506,6 +735,34 @@ export default function ProgramaTabla() {
         </div>
       )}
 
+      <BarraHerramientasGantt
+        vista={vista}
+        onVista={setVista}
+        acciones={acciones}
+        seleccion={seleccion}
+        rotularDia={rotularDia}
+        ruta={ruta}
+        diasHabiles={diasHabiles}
+        onDiasHabiles={setDiasHabiles}
+        onAlternarDia={(dia) => setDiasHabiles((previos) => alternarDia(previos, dia))}
+        inicioSimulado={inicioSimulado}
+        onInicioSimulado={setInicioSimulado}
+        onAjustarZoom={ajustarZoom}
+        profundidadMaxima={profundidadMaxima(todas)}
+        onColapsarANivel={(nivel) => setColapsados(colapsarANivel(todas, nivel))}
+        densidad={densidad}
+        onDensidad={fijarDensidad}
+        puedeDeshacer={historial !== null && puedeDeshacer(historial)}
+        puedeRehacer={historial !== null && puedeRehacer(historial)}
+        onDeshacer={() =>
+          setHistorial((previo) => (previo === null ? previo : deshacerHistorial(previo)))
+        }
+        onRehacer={() =>
+          setHistorial((previo) => (previo === null ? previo : rehacerHistorial(previo)))
+        }
+        editable
+      />
+
       <div className="filterbar">
         <input
           className="input search"
@@ -514,96 +771,6 @@ export default function ProgramaTabla() {
           onChange={(evento) => setBusqueda(evento.target.value)}
           aria-label="Buscar renglón"
         />
-
-        <button
-          type="button"
-          className="btn btn--sm"
-          onClick={() => setColapsados(todosLosPadres(todas))}
-          title="Plegar todo el árbol"
-        >
-          <ChevronsDownUp size={14} /> Plegar
-        </button>
-        <button
-          type="button"
-          className="btn btn--sm"
-          onClick={() => setColapsados(new Set())}
-          title="Desplegar todo el árbol"
-        >
-          <ChevronsUpDown size={14} /> Desplegar
-        </button>
-
-        <span className="divider-v" />
-
-        {/* El eje: días relativos por defecto porque un programa base es una
-            plantilla sin fechas propias; las fechas son una simulación contra
-            un arranque concreto y se rotulan como tal (§7.5). */}
-        <label className="field__label" htmlFor="modo-eje">
-          Eje
-        </label>
-        <select
-          id="modo-eje"
-          className="input"
-          style={{ width: 150 }}
-          value={eje.modo}
-          onChange={(evento) => setModoEje(evento.target.value as ModoEje)}
-        >
-          <option value="relativo">Días relativos</option>
-          <option value="fechas">Fechas simuladas</option>
-        </select>
-        {eje.modo === 'fechas' && (
-          <input
-            className="input"
-            style={{ width: 150 }}
-            type="date"
-            value={inicioSimulado}
-            aria-label="Arranque de la simulación"
-            onChange={(evento) => setInicioSimulado(evento.target.value)}
-          />
-        )}
-
-        <label className="field__label" htmlFor="zoom-eje">
-          Zoom
-        </label>
-        <select
-          id="zoom-eje"
-          className="input"
-          style={{ width: 110 }}
-          value={zoom}
-          onChange={(evento) => setZoom(Number(evento.target.value))}
-        >
-          {ZOOM_EJE.map((px) => (
-            <option key={px} value={px}>
-              {px} px/día
-            </option>
-          ))}
-        </select>
-
-        <span className="divider-v" />
-
-        <button
-          type="button"
-          className="btn btn--sm btn--icon"
-          disabled={historial === null || !puedeDeshacer(historial)}
-          title="Deshacer (Ctrl+Z)"
-          aria-label="Deshacer"
-          onClick={() =>
-            setHistorial((previo) => (previo === null ? previo : deshacerHistorial(previo)))
-          }
-        >
-          <Undo2 size={14} />
-        </button>
-        <button
-          type="button"
-          className="btn btn--sm btn--icon"
-          disabled={historial === null || !puedeRehacer(historial)}
-          title="Rehacer (Ctrl+Shift+Z)"
-          aria-label="Rehacer"
-          onClick={() =>
-            setHistorial((previo) => (previo === null ? previo : rehacerHistorial(previo)))
-          }
-        >
-          <Redo2 size={14} />
-        </button>
 
         <span className="topbar__spacer" />
 
@@ -625,10 +792,20 @@ export default function ProgramaTabla() {
           Cargando el árbol del prototipo…
         </div>
       ) : (
-        <div className="prog-split" style={{ ['--prog-tabla-w' as string]: `${anchoTabla}px` }}>
+        <div
+          className="prog-split"
+          style={{
+            ['--prog-tabla-w' as string]: `${anchoArrastre ?? vista.anchoTabla}px`,
+          }}
+        >
           <TablaPrograma
             filas={visibles}
             eje={eje}
+            columnas={columnas}
+            congelados={congelados}
+            vista={vista}
+            magnitudes={magnitudes}
+            criticas={ruta.criticas}
             colapsados={colapsados}
             seleccionado={seleccionado}
             editable
@@ -647,65 +824,120 @@ export default function ProgramaTabla() {
             role="separator"
             aria-orientation="vertical"
             aria-label="Repartir el ancho entre la tabla y el Gantt"
-            aria-valuenow={anchoTabla}
+            aria-valuenow={anchoArrastre ?? vista.anchoTabla}
             aria-valuemin={ANCHO_TABLA_MINIMO}
             aria-valuemax={ANCHO_TABLA_MAXIMO}
             tabIndex={0}
             onPointerDown={(evento) => {
               evento.currentTarget.setPointerCapture(evento.pointerId);
-              tirador.current = { x: evento.clientX, ancho: anchoTabla };
+              tirador.current = { x: evento.clientX, ancho: vista.anchoTabla };
             }}
             onPointerMove={(evento) => {
               const inicio = tirador.current;
               if (inicio === null) return;
-              setAnchoTabla(recortarAncho(inicio.ancho + evento.clientX - inicio.x));
+              const ancho = recortarAnchoTabla(inicio.ancho + evento.clientX - inicio.x);
+              ultimoAncho.current = ancho;
+              setAnchoArrastre(ancho);
             }}
             onPointerUp={() => {
               tirador.current = null;
+              // Al soltar, y sólo al soltar, el reparto pasa a la preferencia.
+              const ancho = ultimoAncho.current;
+              ultimoAncho.current = null;
+              setAnchoArrastre(null);
+              if (ancho !== null) setVista((previa) => ({ ...previa, anchoTabla: ancho }));
             }}
             onKeyDown={(evento) => {
               const paso = evento.key === 'ArrowLeft' ? -24 : evento.key === 'ArrowRight' ? 24 : 0;
               if (paso === 0) return;
               evento.preventDefault();
-              setAnchoTabla((previo) => recortarAncho(previo + paso));
+              setVista((previa) => ({
+                ...previa,
+                anchoTabla: recortarAnchoTabla(previa.anchoTabla + paso),
+              }));
             }}
           />
-          <GanttPrograma
-            filas={visibles}
-            eje={eje}
-            ligas={ligas}
-            seleccionado={seleccionado}
-            editable
-            onSeleccionar={setSeleccionado}
-            onSoltar={alSoltar}
-            contenedorRef={refGantt}
-            onScroll={(top) => desplazar('gantt', top)}
-          />
+          {vista.modalidad === 'gantt' ? (
+            <GanttPrograma
+              filas={visibles}
+              eje={eje}
+              bandas={bandas}
+              saltos={saltos}
+              ligas={ligas}
+              vista={vista}
+              criticas={ruta.criticas}
+              magnitudes={magnitudes}
+              tonoPorNodo={tonoPorNodo}
+              seleccionado={seleccionado}
+              editable
+              onSeleccionar={setSeleccionado}
+              onSoltar={alSoltar}
+              contenedorRef={refGantt}
+              onScroll={(top) => desplazar('gantt', top)}
+            />
+          ) : (
+            <RejillaCantidades
+              filas={visibles}
+              periodos={bandas.inferior}
+              rejilla={rejilla}
+              magnitud={vista.magnitud}
+              seleccionado={seleccionado}
+              onSeleccionar={setSeleccionado}
+              contenedorRef={refGantt}
+              onScroll={(top) => desplazar('gantt', top)}
+            />
+          )}
         </div>
       )}
 
       <p className="text-xs text-mute mt-8">
-        Arrastrar el cuerpo de una barra corre la actividad cambiando el lag de la
-        precedencia que la detiene; arrastrar su borde derecho cambia la duración. Las barras
-        de nivel y etapa son el resumen derivado de sus hijos y no se arrastran (§7.4). Las
-        precedencias se tienden en el canvas.
+        {vista.modalidad === 'gantt' ? (
+          <>
+            Arrastrar el cuerpo de una barra corre la actividad cambiando el lag de la
+            precedencia que la detiene; arrastrar su borde derecho cambia la duración. Las
+            barras de nivel y etapa son el resumen derivado de sus hijos y no se arrastran
+            (§7.4).
+          </>
+        ) : (
+          <>
+            Las cantidades por periodo son <strong>derivadas</strong> de la cantidad del
+            presupuesto y de la colocación del borrador, y son de sólo lectura: el reparto no
+            existe como dato en el contrato, así que capturarlo a mano sería otra fase. Una
+            pausa no consume cantidad (§7.6).
+          </>
+        )}
       </p>
     </Marco>
   );
 }
 
-/** Encabezado de la pantalla, igual en los tres estados (sin rol, sin prototipo, editor). */
+/**
+ * Encabezado de la pantalla, igual en los tres estados (sin rol, sin
+ * prototipo, editor).
+ *
+ * Es también donde vive el **alcance del tema**: `data-tema` y `data-paleta`
+ * van en este contenedor y no en `<body>`. El resto de la app es hoy sólo
+ * clara y tiene una veintena de colores literales fuera de los tokens —el
+ * comparativo de cargas, las bandas del Gantt de obra, los KPI en alerta—, así
+ * que teñir el `<body>` dejaría esas pantallas con parches claros sobre fondo
+ * oscuro. Acotado al módulo, el juego de tokens oscuro sólo tiene que cubrir
+ * lo que este módulo pinta, que sí está tokenizado al cien por cien.
+ */
 function Marco({
   titulo = 'Programa base · tabla y Gantt',
   acciones,
+  tema,
+  paleta,
   children,
 }: {
   readonly titulo?: string;
   readonly acciones?: React.ReactNode;
+  readonly tema: 'claro' | 'oscuro';
+  readonly paleta: 'color' | 'mono';
   readonly children: React.ReactNode;
 }) {
   return (
-    <div className="page">
+    <div className="page prog-modulo" data-tema={tema} data-paleta={paleta}>
       <div className="page__header">
         <div className="page__titlewrap">
           <div className="page__eyebrow mono">Configuración · Programas base</div>
@@ -728,4 +960,16 @@ function hoyIso(): string {
   const mes = String(ahora.getMonth() + 1).padStart(2, '0');
   const dia = String(ahora.getDate()).padStart(2, '0');
   return `${ahora.getFullYear()}-${mes}-${dia}`;
+}
+
+/**
+ * La consulta de tema del sistema, o `null` donde no exista.
+ *
+ * `matchMedia` no está en jsdom por defecto, así que sin esta guarda la
+ * pantalla no montaría en las pruebas de render — y tampoco en un navegador
+ * viejo. La ausencia se lee como "no prefiere oscuro", que es el default.
+ */
+function consultaOscuro(): MediaQueryList | null {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
+  return window.matchMedia('(prefers-color-scheme: dark)');
 }
