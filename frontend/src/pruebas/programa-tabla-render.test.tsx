@@ -25,10 +25,13 @@ import { createRef } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { construirBandas } from '@/programacion/bandasPrograma';
+import { columnasVisibles } from '@/programacion/columnasPrograma';
 import { construirEje } from '@/programacion/ejePrograma';
 import type { FilaPrograma } from '@/programacion/filasPrograma';
 import { GanttPrograma } from '@/programacion/GanttPrograma';
 import { TablaPrograma } from '@/programacion/TablaPrograma';
+import { VISTA_GANTT_INICIAL } from '@/programacion/vistaGantt';
 
 /** Alto y ancho de un contenedor, que jsdom deja en cero. Ver el docstring. */
 function medirComoNavegador(alto = 600, ancho = 900): void {
@@ -69,6 +72,22 @@ function puntero(tipo: 'pointerdown' | 'pointermove' | 'pointerup', clientX: num
 
 const EJE = construirEje({ finMaximo: 9, pxPorDia: 16 });
 
+/**
+ * Lo que el menú de herramientas decide, en su estado de fábrica.
+ *
+ * Las dos mitades dejaron de recibir sólo filas: ahora se les pasa la vista
+ * (`vistaGantt.ts`), las columnas encendidas, las bandas del eje y la cadena
+ * crítica, todo ya resuelto fuera. Estas constantes son ese "todo apagado" con
+ * el que el módulo abre, para que cada prueba siga afirmando sobre una sola
+ * cosa y no sobre la configuración.
+ */
+const VISTA = VISTA_GANTT_INICIAL;
+const COLUMNAS = columnasVisibles(VISTA.columnas);
+const SIN_CONGELAR = new Map<string, number>();
+const SIN_MAGNITUDES = new Map<string, never>();
+const SIN_CRITICAS = new Set<string>();
+const SIN_TONOS = new Map<string, number>();
+
 function fila(sobre: Partial<FilaPrograma> & Pick<FilaPrograma, 'nodoId'>): FilaPrograma {
   return {
     parentId: null,
@@ -103,6 +122,11 @@ function pintarTabla(filas: readonly FilaPrograma[], editable = true) {
     <TablaPrograma
       filas={filas}
       eje={EJE}
+      columnas={COLUMNAS}
+      congelados={SIN_CONGELAR}
+      vista={VISTA}
+      magnitudes={SIN_MAGNITUDES}
+      criticas={SIN_CRITICAS}
       colapsados={new Set()}
       seleccionado={null}
       editable={editable}
@@ -122,7 +146,13 @@ function pintarGantt(filas: readonly FilaPrograma[], editable = true) {
     <GanttPrograma
       filas={filas}
       eje={EJE}
+      bandas={construirBandas(EJE, VISTA.escala)}
+      saltos={[]}
       ligas={[{ desde: 'c1', hasta: 'c2', tipo: 'FS' }]}
+      vista={VISTA}
+      criticas={SIN_CRITICAS}
+      magnitudes={SIN_MAGNITUDES}
+      tonoPorNodo={SIN_TONOS}
       seleccionado={null}
       editable={editable}
       onSeleccionar={vi.fn()}
@@ -315,17 +345,24 @@ describe('GanttPrograma', () => {
     const relativo = pintarGantt([fila({ nodoId: 'c1' })]);
     expect(relativo.container.querySelectorAll('.prog-gantt__hoy')).toHaveLength(0);
 
+    const conFechas = construirEje({
+      finMaximo: 9,
+      modo: 'fechas',
+      inicio: '2026-03-02',
+      diasHabiles: [1, 2, 3, 4, 5, 6],
+      hoy: '2026-03-04',
+    });
     const { container } = render(
       <GanttPrograma
         filas={[fila({ nodoId: 'c1' })]}
-        eje={construirEje({
-          finMaximo: 9,
-          modo: 'fechas',
-          inicio: '2026-03-02',
-          diasHabiles: [1, 2, 3, 4, 5, 6],
-          hoy: '2026-03-04',
-        })}
+        eje={conFechas}
+        bandas={construirBandas(conFechas, VISTA.escala)}
+        saltos={[]}
         ligas={[]}
+        vista={VISTA}
+        criticas={SIN_CRITICAS}
+        magnitudes={SIN_MAGNITUDES}
+        tonoPorNodo={SIN_TONOS}
         seleccionado={null}
         editable
         onSeleccionar={vi.fn()}

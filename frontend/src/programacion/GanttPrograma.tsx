@@ -22,20 +22,27 @@
  * soltar sale una acción, una sola, y el modelo recoloca todo lo que colgaba de
  * ella.
  *
- * Componente de presentación (§12.11): la aritmética del arrastre, la del eje y
- * la de las flechas están fuera, en módulos que se prueban sin render.
+ * ## Todo lo que el menú de herramientas decide llega resuelto
+ *
+ * El encabezado son dos bandas (`bandasPrograma.ts`), el color y la etiqueta de
+ * cada barra los arma `barras.ts`, la cadena crítica llega como un conjunto de
+ * ids (`rutaCritica.ts`) y qué se dibuja y qué no lo dice `vista`. Ninguna de
+ * esas decisiones se toma aquí: este componente pinta (§12.11). Es lo que hace
+ * que se puedan fijar con pruebas sin montar nada, que es lo que un Gantt
+ * virtualizado hace muy incómodo de otra forma.
  */
 
 import { useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
-import { fmtNum } from '@/lib/formato';
 import {
   ASA_PX,
   diasDeDesplazamiento,
   previsualizar,
   type ClaseArrastre,
 } from './arrastre';
+import type { BandasEje, SaltoDeCalendario } from './bandasPrograma';
+import { clasesDeBarra, etiquetaDeBarra, tituloDeBarra } from './barras';
 import {
   comoPolilinea,
   trazarConectores,
@@ -46,16 +53,18 @@ import {
   ALTO_ENCABEZADO,
   ALTO_FILA,
   anchoDeDias,
-  etiquetaDeDia,
   xDeDia,
   type EjePrograma,
 } from './ejePrograma';
 import type { FilaPrograma } from './filasPrograma';
+import type { MagnitudesFila } from './reparto';
 import { tramosVisibles } from './tramos';
 import type { Colocacion } from './planificacion';
+import type { VistaGantt } from './vistaGantt';
 
 /** Alto de la barra de una actividad; el corchete del resumen es más fino. */
 const ALTO_BARRA = 14;
+const ALTO_BARRA_DELGADA = 6;
 const ALTO_CORCHETE = 5;
 
 interface Arrastrando {
@@ -68,8 +77,19 @@ interface Arrastrando {
 interface Props {
   readonly filas: readonly FilaPrograma[];
   readonly eje: EjePrograma;
+  /** Las dos bandas del encabezado y el paso de la rejilla. */
+  readonly bandas: BandasEje;
+  /** Costuras del calendario, para el fondo "bandas inhábiles". */
+  readonly saltos: readonly SaltoDeCalendario[];
   /** Precedencias entre renglones dibujados; ver `conectores.ts`. */
   readonly ligas: readonly EntradaConector[];
+  readonly vista: VistaGantt;
+  /** Nodos de la cadena crítica del borrador (`rutaCritica.ts`). */
+  readonly criticas: ReadonlySet<string>;
+  /** Cantidad, importe y peso por renglón, para la etiqueta (`reparto.ts`). */
+  readonly magnitudes: ReadonlyMap<string, MagnitudesFila>;
+  /** Tono 1–6 del frente de cada renglón, cuando se colorea por frente. */
+  readonly tonoPorNodo: ReadonlyMap<string, number>;
   readonly seleccionado: string | null;
   readonly editable: boolean;
   readonly onSeleccionar: (nodoId: string) => void;
@@ -82,7 +102,13 @@ interface Props {
 export function GanttPrograma({
   filas,
   eje,
+  bandas,
+  saltos,
   ligas,
+  vista,
+  criticas,
+  magnitudes,
+  tonoPorNodo,
   seleccionado,
   editable,
   onSeleccionar,
@@ -122,6 +148,7 @@ export function GanttPrograma({
   }, [filas, eje]);
 
   const conectores = useMemo(() => {
+    if (!vista.verVinculos) return [];
     const primero = montados[0]?.index ?? 0;
     const ultimo = montados[montados.length - 1]?.index ?? 0;
     return trazarConectores(ligas, anclas, {
@@ -129,7 +156,7 @@ export function GanttPrograma({
       desdeFila: primero,
       hastaFila: ultimo,
     });
-  }, [ligas, anclas, montados]);
+  }, [ligas, anclas, montados, vista.verVinculos]);
 
   const xHoy = eje.diaDeHoy === null ? null : xDeDia(eje, eje.diaDeHoy);
 
@@ -158,47 +185,86 @@ export function GanttPrograma({
       onScroll={(evento) => onScroll(evento.currentTarget.scrollTop)}
     >
       <div className="prog-gantt" style={{ width: eje.ancho }}>
+        {/* Dos alturas: el periodo grande arriba, el chico abajo. Con una sola
+            fila, o se ve el detalle y se pierde en qué mes se está, o al revés
+            (`bandasPrograma.ts`). */}
         <div className="prog-gantt__head" style={{ height: ALTO_ENCABEZADO }}>
-          {eje.bloques.map((bloque) => (
-            <div
-              key={bloque.dia}
-              className={`prog-gantt__bloque${bloque.esHoy ? ' is-now' : ''}`}
-              style={{ width: anchoDeDias(eje, 7) }}
-            >
-              {bloque.etiqueta}
-            </div>
-          ))}
+          <div className="prog-gantt__banda">
+            {bandas.superior.map((banda) => (
+              <div
+                key={`sup-${banda.dia}`}
+                className={`prog-gantt__bloque${banda.esHoy ? ' is-now' : ''}`}
+                style={{ width: anchoDeDias(eje, banda.dias) }}
+                title={banda.titulo}
+              >
+                {banda.etiqueta}
+              </div>
+            ))}
+          </div>
+          <div className="prog-gantt__banda prog-gantt__banda--fina">
+            {bandas.inferior.map((banda) => (
+              <div
+                key={`inf-${banda.dia}`}
+                className={`prog-gantt__bloque${banda.esHoy ? ' is-now' : ''}`}
+                style={{ width: anchoDeDias(eje, banda.dias) }}
+                title={banda.titulo}
+              >
+                {/* A poco zoom no cabe ni un número de dos cifras: se deja la
+                    celda muda antes que dibujar medio dígito recortado. */}
+                {anchoDeDias(eje, banda.dias) >= 18 ? banda.etiqueta : ''}
+              </div>
+            ))}
+          </div>
         </div>
 
         <div
           className="prog-gantt__lienzo"
-          style={{ height: alto, ['--paso-dia' as string]: `${eje.pxPorDia}px` }}
+          style={{
+            height: alto,
+            // El paso de la rejilla es el periodo de la banda inferior, no
+            // siete días fijos: cambiar de escala tiene que mover las líneas
+            // del fondo con el encabezado, o dejan de decir lo mismo.
+            ['--paso-rejilla' as string]: `${bandas.diasPorPeriodo * eje.pxPorDia}px`,
+          }}
           onPointerMove={arrastrando === null ? undefined : alMover}
           onPointerUp={arrastrando === null ? undefined : alSoltar}
           onPointerCancel={arrastrando === null ? undefined : alSoltar}
         >
-          <div className="prog-gantt__rejilla" aria-hidden />
+          {vista.fondoGantt === 'cuadricula' && (
+            <div className="prog-gantt__rejilla" aria-hidden />
+          )}
+          {vista.fondoGantt === 'inhabiles' &&
+            saltos.map((salto) => (
+              <div
+                key={`salto-${salto.dia}`}
+                className="prog-gantt__inhabil"
+                style={{ left: xDeDia(eje, salto.dia + 1) - 2 }}
+                title={`${salto.diasSaltados} día(s) de calendario que no se trabajan`}
+              />
+            ))}
           {xHoy !== null && (
             <div className="prog-gantt__hoy" style={{ left: xHoy }} aria-hidden title="Hoy" />
           )}
 
-          <svg
-            className="prog-gantt__flechas"
-            width={eje.ancho}
-            height={alto}
-            aria-hidden
-            focusable="false"
-          >
-            {conectores.map((conector) => (
-              <polyline
-                key={conector.id}
-                className={`prog-gantt__flecha${
-                  conector.alerta ? ' prog-gantt__flecha--alerta' : ''
-                }`}
-                points={comoPolilinea(conector)}
-              />
-            ))}
-          </svg>
+          {vista.verVinculos && (
+            <svg
+              className="prog-gantt__flechas"
+              width={eje.ancho}
+              height={alto}
+              aria-hidden
+              focusable="false"
+            >
+              {conectores.map((conector) => (
+                <polyline
+                  key={conector.id}
+                  className={`prog-gantt__flecha${
+                    conector.alerta ? ' prog-gantt__flecha--alerta' : ''
+                  }`}
+                  points={comoPolilinea(conector)}
+                />
+              ))}
+            </svg>
+          )}
 
           {montados.map((item) => {
             const fila = filas[item.index];
@@ -215,6 +281,10 @@ export function GanttPrograma({
                 <Barra
                   fila={fila}
                   eje={eje}
+                  vista={vista}
+                  esCritica={criticas.has(fila.nodoId)}
+                  magnitudes={magnitudes.get(fila.nodoId)}
+                  tonoFrente={tonoPorNodo.get(fila.nodoId) ?? null}
                   editable={editable}
                   seleccionado={seleccionado === fila.nodoId}
                   arrastre={arrastrando?.cajaId === fila.nodoId ? arrastrando : null}
@@ -247,6 +317,10 @@ export function GanttPrograma({
 function Barra({
   fila,
   eje,
+  vista,
+  esCritica,
+  magnitudes,
+  tonoFrente,
   editable,
   seleccionado,
   arrastre,
@@ -255,6 +329,10 @@ function Barra({
 }: {
   readonly fila: FilaPrograma;
   readonly eje: EjePrograma;
+  readonly vista: VistaGantt;
+  readonly esCritica: boolean;
+  readonly magnitudes: MagnitudesFila | undefined;
+  readonly tonoFrente: number | null;
   readonly editable: boolean;
   readonly seleccionado: boolean;
   readonly arrastre: Arrastrando | null;
@@ -272,28 +350,37 @@ function Barra({
     );
   }
 
+  // El resumen apagado no deja hueco: el renglón sigue ahí en la tabla, y su
+  // pista en blanco es exactamente lo que el usuario pidió al apagarlo.
+  if (fila.esResumen && !vista.verResumen) return null;
+
   const puesto: Colocacion = { inicioDias: fila.inicioDias, finDias: fila.finDias };
   const ventana =
     arrastre === null ? puesto : previsualizar(puesto, arrastre.clase, arrastre.deltaDias);
 
   const izquierda = xDeDia(eje, ventana.inicioDias);
   const ancho = Math.max(2, anchoDeDias(eje, ventana.finDias - ventana.inicioDias));
-  const arriba = (ALTO_FILA - (fila.esResumen ? ALTO_CORCHETE : ALTO_BARRA)) / 2;
+  const altoBarra = vista.estiloBarra === 'delgada' ? ALTO_BARRA_DELGADA : ALTO_BARRA;
+  const arriba = (ALTO_FILA - (fila.esResumen ? ALTO_CORCHETE : altoBarra)) / 2;
 
   if (fila.esResumen) {
     return (
       <>
         <div
-          className="prog-gantt__corchete"
+          className={`prog-gantt__corchete${esCritica && vista.rutaCritica ? ' is-critica' : ''}`}
           style={{ left: izquierda, width: ancho, top: arriba, height: ALTO_CORCHETE }}
-          title={`${fila.descripcion} · ${fmtNum(fila.diasLaborables)} d laborables en ${fmtNum(
-            fila.diasCalendario,
-          )} d de calendario · ${fila.nHojas} concepto${fila.nHojas === 1 ? '' : 's'}`}
+          title={tituloDeBarra(fila, eje, esCritica)}
         />
         <span className="prog-gantt__pata" style={{ left: izquierda, top: arriba + ALTO_CORCHETE }} />
         <span
           className="prog-gantt__pata"
           style={{ left: izquierda + ancho - 8, top: arriba + ALTO_CORCHETE }}
+        />
+        <Etiqueta
+          texto={etiquetaDeBarra(vista, fila, magnitudes)}
+          posicion={vista.posicionEtiqueta}
+          izquierda={izquierda}
+          ancho={ancho}
         />
       </>
     );
@@ -303,7 +390,7 @@ function Barra({
     return (
       <div
         className="prog-gantt__barra prog-gantt__barra--propuesta"
-        style={{ left: izquierda, width: anchoDeDias(eje, 1), top: arriba, height: ALTO_BARRA }}
+        style={{ left: izquierda, width: anchoDeDias(eje, 1), top: arriba, height: altoBarra }}
         title="Sin duración capturada: este renglón no entra al programa (§7.5)"
       />
     );
@@ -312,35 +399,31 @@ function Barra({
   // Los tramos se dibujan relativos al arranque de la barra; sin interrupción
   // `tramosVisibles` devuelve un solo bloque y el bucle es el mismo (§7.6).
   const bloques = tramosVisibles(fila.diasLaborables ?? 0, fila.tramos);
-  const clases = [
-    'prog-gantt__barra',
-    fila.enCiclo ? 'prog-gantt__barra--alerta' : '',
-    seleccionado ? 'is-selected' : '',
-  ]
-    .filter((clase) => clase !== '')
-    .join(' ');
+  const clases = clasesDeBarra({ vista, fila, esCritica, tonoFrente, seleccionada: seleccionado });
+  const titulo = tituloDeBarra(fila, eje, esCritica);
 
   return (
     <>
       {/* La pausa entre dos tramos se dibuja como línea, no como hueco: un
           hueco a secas se lee como dos actividades distintas. */}
-      {bloques.slice(0, -1).map((tramo, i) => {
-        const siguiente = bloques[i + 1];
-        if (!siguiente) return null;
-        const desde = tramo.offsetDias + tramo.duracionDias;
-        return (
-          <div
-            key={`pausa-${tramo.offsetDias}`}
-            className="prog-gantt__pausa"
-            style={{
-              left: izquierda + anchoDeDias(eje, desde),
-              width: anchoDeDias(eje, siguiente.offsetDias - desde),
-              top: arriba + ALTO_BARRA / 2,
-            }}
-            aria-hidden
-          />
-        );
-      })}
+      {vista.verPausas &&
+        bloques.slice(0, -1).map((tramo, i) => {
+          const siguiente = bloques[i + 1];
+          if (!siguiente) return null;
+          const desde = tramo.offsetDias + tramo.duracionDias;
+          return (
+            <div
+              key={`pausa-${tramo.offsetDias}`}
+              className="prog-gantt__pausa"
+              style={{
+                left: izquierda + anchoDeDias(eje, desde),
+                width: anchoDeDias(eje, siguiente.offsetDias - desde),
+                top: arriba + altoBarra / 2,
+              }}
+              aria-hidden
+            />
+          );
+        })}
 
       {bloques.map((tramo, i) => {
         const esUltimo = i === bloques.length - 1;
@@ -357,10 +440,8 @@ function Barra({
             // sin añadir nada, así que el Gantt es la mitad que se mira y la
             // tabla la que se navega (§12.10).
             aria-hidden
-            style={{ left: x, width: w, top: arriba, height: ALTO_BARRA }}
-            title={`${fila.descripcion} · ${fmtNum(fila.diasLaborables)} d laborables · ${fmtNum(
-              fila.diasCalendario,
-            )} d de calendario · arranca ${etiquetaDeDia(eje, fila.inicioDias)}`}
+            style={{ left: x, width: w, top: arriba, height: altoBarra }}
+            title={titulo}
             onClick={() => onSeleccionar(fila.nodoId)}
             onPointerDown={(evento) => {
               if (!editable) return;
@@ -387,18 +468,81 @@ function Barra({
 
       {/* La holgura, en la representación clásica: la cola que sigue a la
           barra y dice cuánto puede correrse sin empujar el cierre. */}
-      {fila.holguraDias !== null && fila.holguraDias > 0 && (
+      {vista.verHolgura && fila.holguraDias !== null && fila.holguraDias > 0 && (
         <div
           className="prog-gantt__holgura"
           style={{
             left: izquierda + ancho,
             width: anchoDeDias(eje, fila.holguraDias),
-            top: arriba + ALTO_BARRA / 2,
+            top: arriba + altoBarra / 2,
           }}
           aria-hidden
-          title={`Holgura ${fmtNum(fila.holguraDias)} d`}
+          title={`Holgura ${fila.holguraDias} d`}
         />
       )}
+
+      <Etiqueta
+        texto={etiquetaDeBarra(vista, fila, magnitudes)}
+        posicion={vista.posicionEtiqueta}
+        izquierda={izquierda}
+        ancho={ancho}
+      />
     </>
+  );
+}
+
+/**
+ * La etiqueta de una barra.
+ *
+ * `aria-hidden` por lo mismo que la barra: repite lo que la tabla ya dice en
+ * columnas, y anunciarla haría que cada renglón se leyera dos veces (§12.10).
+ * A la izquierda se ancla por el borde derecho —`right` sobre el arranque de la
+ * barra— porque una etiqueta izquierda tiene que crecer hacia afuera y no
+ * comerse la barra.
+ */
+function Etiqueta({
+  texto,
+  posicion,
+  izquierda,
+  ancho,
+}: {
+  readonly texto: string;
+  readonly posicion: 'izquierda' | 'dentro' | 'derecha';
+  readonly izquierda: number;
+  readonly ancho: number;
+}) {
+  if (texto === '') return null;
+
+  const arriba = (ALTO_FILA - 12) / 2;
+  if (posicion === 'izquierda') {
+    return (
+      <span
+        className="prog-gantt__etq prog-gantt__etq--izq"
+        aria-hidden
+        style={{ left: Math.max(0, izquierda - 6), top: arriba }}
+      >
+        {texto}
+      </span>
+    );
+  }
+  if (posicion === 'dentro') {
+    return (
+      <span
+        className="prog-gantt__etq prog-gantt__etq--dentro"
+        aria-hidden
+        style={{ left: izquierda + 4, top: arriba, maxWidth: Math.max(0, ancho - 8) }}
+      >
+        {texto}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="prog-gantt__etq"
+      aria-hidden
+      style={{ left: izquierda + ancho + 6, top: arriba }}
+    >
+      {texto}
+    </span>
   );
 }

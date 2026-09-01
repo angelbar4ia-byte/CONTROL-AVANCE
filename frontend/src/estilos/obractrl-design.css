@@ -1819,11 +1819,18 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* --- Mitad izquierda: la tabla ---------------------------------- */
+/* Las pistas ya no son una constante de esta hoja: el menú de
+   herramientas deja apagar columnas, así que la plantilla la calcula
+   `columnasPrograma.ts` y llega en `--prog-cols`. El valor del `var()`
+   es el juego de doce con el que la tabla abre, para que siga
+   dibujándose aunque nadie le pase nada. */
 .prog-tabla { min-width: max-content; }
 .prog-tabla__fila, .prog-tabla__head {
   display: grid;
-  grid-template-columns:
-    44px 74px 104px minmax(280px, 1fr) 58px 92px 96px 96px 92px 92px 74px 64px;
+  grid-template-columns: var(
+    --prog-cols,
+    44px 74px 104px minmax(280px, 1fr) 58px 92px 96px 96px 92px 92px 74px 64px
+  );
   align-items: center;
 }
 .prog-tabla__head {
@@ -1844,9 +1851,15 @@ a { color: inherit; text-decoration: none; }
   text-overflow: ellipsis;
 }
 .prog-tabla__fila {
-  border-bottom: 1px solid var(--c-line-soft);
+  background: var(--c-surface);
   font-size: var(--fs-sm);
 }
+/* Rayado, líneas y tinte por nivel son tres interruptores de Apariencia
+   y por eso salen del renglón base. El fondo sí se queda: una celda
+   congelada hereda de aquí, y sin fondo el resto de las columnas se
+   vería a través de ella al correr la tabla. */
+.prog-tabla.is-lineada .prog-tabla__fila { border-bottom: 1px solid var(--c-line-soft); }
+.prog-tabla.is-rayada:not(.is-tenida) .prog-tabla__fila.is-impar { background: var(--c-panel); }
 .prog-tabla__celda {
   padding: 0 8px;
   white-space: nowrap;
@@ -1875,10 +1888,10 @@ a { color: inherit; text-decoration: none; }
 /* Tinte por profundidad: la jerarquía se lee de un vistazo sin contar
    sangrías. Nivel raíz y su etapa en gris, el siguiente en azul, el
    siguiente en verde, y el concepto en blanco — que es donde se captura. */
-.prog-tabla__fila--p0 { background: var(--c-elev); font-weight: 600; }
-.prog-tabla__fila--p1 { background: var(--c-accent-soft); }
-.prog-tabla__fila--p2 { background: var(--c-ok-soft); }
-.prog-tabla__fila--p3 { background: var(--c-surface); }
+.prog-tabla.is-tenida .prog-tabla__fila--p0 { background: var(--c-elev); font-weight: 600; }
+.prog-tabla.is-tenida .prog-tabla__fila--p1 { background: var(--c-accent-soft); }
+.prog-tabla.is-tenida .prog-tabla__fila--p2 { background: var(--c-ok-soft); }
+.prog-tabla.is-tenida .prog-tabla__fila--p3 { background: var(--c-surface); }
 .prog-tabla__fila.is-selected { outline: 2px solid var(--c-accent-strong); outline-offset: -2px; }
 .prog-tabla__fila.is-propuesta { color: var(--c-text-mute); }
 
@@ -1889,8 +1902,15 @@ a { color: inherit; text-decoration: none; }
   top: 0;
   z-index: 2;
   display: flex;
+  flex-direction: column;
   background: var(--c-panel);
   border-bottom: 1px solid var(--c-line);
+}
+/* Dos alturas: el periodo grande arriba, el chico abajo. */
+.prog-gantt__banda { display: flex; flex: 1; min-height: 0; }
+.prog-gantt__banda--fina {
+  border-top: 1px solid var(--c-line-soft);
+  font-size: 9.5px;
 }
 .prog-gantt__bloque {
   padding: 6px 4px;
@@ -1911,14 +1931,17 @@ a { color: inherit; text-decoration: none; }
 .prog-gantt__lienzo { position: relative; }
 /* La rejilla de días es un degradado repetido y no 300 divs: el paso
    llega en `--paso-dia` desde el zoom del eje, igual que `.tramos-edit`. */
+/* El paso es el periodo de la banda inferior del encabezado, no siete
+   días fijos: cambiar de escala tiene que mover las líneas del fondo
+   con las columnas de arriba, o dejan de decir lo mismo. */
 .prog-gantt__rejilla {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background: repeating-linear-gradient(
     90deg,
-    transparent 0 calc(var(--paso-dia, 16px) * 7 - 1px),
-    var(--c-line-soft) calc(var(--paso-dia, 16px) * 7 - 1px) calc(var(--paso-dia, 16px) * 7)
+    transparent 0 calc(var(--paso-rejilla, 112px) - 1px),
+    var(--c-line-soft) calc(var(--paso-rejilla, 112px) - 1px) var(--paso-rejilla, 112px)
   );
 }
 .prog-gantt__hoy {
@@ -2008,6 +2031,294 @@ a { color: inherit; text-decoration: none; }
   /* En pantalla angosta la tabla se queda con lo mínimo legible y el
      Gantt con el resto; el tirador sigue sirviendo para repartir. */
   .prog-split { grid-template-columns: minmax(220px, 45%) 6px 1fr; }
+}
+
+
+/* ===== Programa base: menú de herramientas, temas y rejilla =========
+   Todo lo que el menú (`BarraHerramientasGantt.tsx`) puede encender.
+   Nada de colores literales: lo que cambia de tema o de paleta cambia
+   redefiniendo TOKENS, que es lo que permite tener un segundo juego
+   completo sin duplicar una sola regla de componente. */
+
+/* --- El módulo y su tema --------------------------------------------
+   `data-tema` y `data-paleta` van en este contenedor y NO en <body>.
+   El resto de la app es hoy sólo clara y conserva una veintena de
+   colores literales fuera de los tokens —el comparativo de cargas, las
+   bandas del Gantt de obra, los KPI en alerta—, así que teñir el body
+   dejaría esas pantallas con parches claros sobre fondo oscuro. Acotado
+   al módulo, el juego oscuro sólo tiene que cubrir lo que este módulo
+   pinta, que sí está tokenizado al cien por cien.
+
+   "Sistema" no aparece aquí: lo resuelve el cliente contra
+   `prefers-color-scheme` y escribe claro u oscuro (`vistaGantt.ts`), de
+   modo que la hoja lleva un solo juego de tokens oscuros y no uno
+   duplicado dentro de una media query. */
+.prog-modulo { color: var(--c-text); }
+
+.prog-modulo[data-tema="oscuro"] {
+  /* Neutrales — la misma escala fría, invertida. Los saltos de
+     luminancia entre superficie, panel y elevado son los mismos que en
+     claro, para que la jerarquía de profundidad se lea igual. */
+  --c-bg:          oklch(17.5% 0.012 255);
+  --c-surface:     oklch(21% 0.013 255);
+  --c-panel:       oklch(24.5% 0.013 255);
+  --c-elev:        oklch(28% 0.014 255);
+  --c-line:        oklch(33% 0.014 255);
+  --c-line-strong: oklch(42% 0.016 255);
+  --c-line-soft:   oklch(28% 0.013 255);
+
+  /* Texto — contraste equivalente al del tema claro: el principal muy
+     por encima de 12:1 sobre el fondo, el tenue por encima de 4.5:1
+     (§12.10). */
+  --c-text:       oklch(96% 0.006 255);
+  --c-text-soft:  oklch(84% 0.010 255);
+  --c-text-mute:  oklch(70% 0.012 255);
+  --c-text-faint: oklch(57% 0.012 255);
+
+  /* Acento y semánticos — se sube la luminancia y se baja el croma: el
+     azul de 55% que funciona sobre blanco desaparece sobre 17%. */
+  --c-accent:        oklch(70% 0.125 255);
+  --c-accent-soft:   oklch(30% 0.055 255);
+  --c-accent-strong: oklch(80% 0.115 255);
+  --c-accent-fg:     oklch(18% 0.02 255);
+
+  --c-ok:          oklch(72% 0.12 155);
+  --c-ok-soft:     oklch(29% 0.05 155);
+  --c-warn:        oklch(80% 0.12 75);
+  --c-warn-soft:   oklch(31% 0.055 75);
+  --c-danger:      oklch(70% 0.15 25);
+  --c-danger-soft: oklch(30% 0.06 25);
+  --c-info:        oklch(74% 0.095 230);
+  --c-info-soft:   oklch(30% 0.04 230);
+
+  background: var(--c-bg);
+}
+/* Los dos únicos literales de la hoja que este módulo llega a pintar:
+   el texto del badge de aviso y el borde del botón de peligro. */
+.prog-modulo[data-tema="oscuro"] .badge--warn { color: var(--c-warn); }
+.prog-modulo[data-tema="oscuro"] .btn--danger { border-color: var(--c-danger); }
+
+/* --- Paleta monocromática --------------------------------------------
+   Neutros más un acento. Se define **en función de los neutrales** y no
+   con valores propios, y eso es lo que la hace funcionar en los dos
+   temas con un solo bloque: los neutrales ya son los del tema activo.
+   La criticidad deja de comunicarse por color y pasa a la trama de más
+   abajo, que sobrevive a una fotocopia y al daltonismo rojo-verde. */
+.prog-modulo[data-paleta="mono"] {
+  --c-accent:        var(--c-text-soft);
+  --c-accent-soft:   var(--c-elev);
+  --c-accent-strong: var(--c-text);
+  --c-accent-fg:     var(--c-surface);
+
+  --c-ok:          var(--c-text-soft);
+  --c-ok-soft:     var(--c-elev);
+  --c-warn:        var(--c-text-soft);
+  --c-warn-soft:   var(--c-elev);
+  --c-danger:      var(--c-text);
+  --c-danger-soft: var(--c-elev);
+  --c-info:        var(--c-text-soft);
+  --c-info-soft:   var(--c-elev);
+}
+
+/* --- La cinta de herramientas ---------------------------------------
+   Siete pestañas; sólo el grupo activo ocupa sitio. La fila de
+   controles envuelve, porque un grupo como "Etiqueta" son diez botones
+   y en una laptop no caben en una línea. */
+.cinta {
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.cinta__pestanas {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  background: var(--c-panel);
+  border-bottom: 1px solid var(--c-line);
+}
+.cinta__pestana {
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--c-text-mute);
+  white-space: nowrap;
+}
+.cinta__pestana:hover { color: var(--c-text); background: var(--c-elev); }
+.cinta__pestana.is-activa {
+  background: var(--c-surface);
+  border-color: var(--c-line);
+  color: var(--c-text);
+}
+.cinta__spacer { flex: 1; }
+.cinta__panel {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 10px;
+}
+.cinta__grupo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cinta__titulo {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--c-text-faint);
+}
+.cinta__fila { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.cinta__sep { width: 1px; align-self: stretch; background: var(--c-line); }
+.cinta__icono { color: var(--c-text-mute); flex-shrink: 0; }
+.cinta__campo { display: inline-flex; align-items: center; gap: 4px; }
+.cinta__campo .input, .cinta__campo .select { height: 24px; font-size: var(--fs-sm); }
+.cinta__nota {
+  font-size: var(--fs-xs);
+  color: var(--c-text-mute);
+  max-width: 460px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Tabla: congelado, rayado y crítica ------------------------------
+   Una celda congelada hereda el fondo de su renglón; sin fondo propio
+   el resto de las columnas se vería a través de ella al correr la
+   tabla, que es el fallo clásico de un `sticky` en una rejilla. */
+.prog-tabla__celda.is-congelada { background: inherit; }
+.prog-tabla__th.is-congelada { background: var(--c-panel); }
+.prog-tabla__fila.is-critica { box-shadow: inset 3px 0 0 var(--c-danger); }
+
+/* --- Gantt: encabezado de dos bandas y fondos ------------------------ */
+.prog-gantt__banda .prog-gantt__bloque {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+/* La costura del calendario: entre dos días del programa pasaron días
+   que nadie trabaja. No es una banda ancha porque esos días **no
+   existen** en el eje — el eje sólo camina días hábiles (§7.5). */
+.prog-gantt__inhabil {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--c-line-soft) 0 2px,
+    transparent 2px 4px
+  );
+}
+
+/* --- Gantt: estilos, colores y trama de la barra --------------------- */
+.prog-gantt__barra--solida { border: 0; }
+.prog-gantt__barra--contorno {
+  background: transparent;
+  border: 1.5px solid var(--c-accent);
+}
+.prog-gantt__barra--delgada { border-radius: 2px; }
+
+.prog-gantt__barra--tipo-nivel { background: var(--c-text-soft); }
+.prog-gantt__barra--tipo-etapa { background: var(--c-info); }
+.prog-gantt__barra--tipo-concepto { background: var(--c-accent); }
+
+/* Un tono por frente. Se reparten por orden de aparición en el árbol y
+   no por un hash del UUID: un color que nadie eligió y que cambia al
+   reasignar un frente no es un color, es ruido (`barras.ts`). */
+.prog-gantt__barra--frente-1 { background: var(--c-accent); }
+.prog-gantt__barra--frente-2 { background: var(--c-ok); }
+.prog-gantt__barra--frente-3 { background: var(--c-warn); }
+.prog-gantt__barra--frente-4 { background: var(--c-info); }
+.prog-gantt__barra--frente-5 { background: var(--c-danger); }
+.prog-gantt__barra--frente-6 { background: var(--c-text-soft); }
+.prog-gantt__barra--sin-frente { background: var(--c-line-strong); }
+
+.prog-gantt__barra--critica { background: var(--c-danger); }
+.prog-gantt__barra--laxa { background: var(--c-accent); }
+
+/* El estilo de contorno gana sobre el color: es un estilo, no un tono,
+   y se elige aparte. Va después para que la cascada lo resuelva sin un
+   `!important`, que en una hoja de tokens siempre acaba pagándose. */
+.prog-gantt__barra.prog-gantt__barra--contorno { background-color: transparent; }
+
+/* La trama es la marca de criticidad que sobrevive al blanco y negro y
+   al daltonismo rojo-verde. Se dibuja también en color, donde redunda
+   con el tono a propósito (§12.10). */
+.prog-gantt__barra.is-critica {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0 3px,
+    var(--c-surface) 3px 5px
+  );
+}
+.prog-gantt__corchete.is-critica { background: var(--c-danger); }
+
+.prog-gantt__etq--izq { transform: translateX(-100%); }
+.prog-gantt__etq--dentro {
+  color: var(--c-accent-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Modalidad "Cantidades por escala" -------------------------------
+   Una columna por periodo del eje, con la cantidad del concepto
+   repartida sobre sus días de trabajo. Es DERIVADO y de sólo lectura:
+   ninguna celda es un campo (`reparto.ts`). */
+.prog-cant { position: relative; min-width: max-content; }
+.prog-cant__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  background: var(--c-panel);
+  border-bottom: 1px solid var(--c-line);
+}
+.prog-cant__th {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 6px;
+  font-size: 10px;
+  font-family: var(--f-mono);
+  color: var(--c-text-mute);
+  border-right: 1px solid var(--c-line-soft);
+  flex: none;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.prog-cant__th--total { color: var(--c-text-soft); font-weight: 600; }
+.prog-cant__fila {
+  display: flex;
+  align-items: center;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-line-soft);
+  font-size: var(--fs-sm);
+}
+.prog-cant__fila.is-selected { outline: 2px solid var(--c-accent-strong); outline-offset: -2px; }
+.prog-cant__celda {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  padding: 0 6px;
+  border-right: 1px solid var(--c-line-soft);
+  flex: none;
+  overflow: hidden;
+  white-space: nowrap;
+}
+/* Un cero y un hueco no son lo mismo: el cero es "esa semana no se
+   trabaja" —cae en una pausa— y el hueco es "no hay cifra que
+   repartir". El punto medio los distingue sin gritar. */
+.prog-cant__celda.is-cero { color: var(--c-text-faint); }
+.prog-cant__celda--total {
+  background: var(--c-panel);
+  font-weight: 600;
+  border-left: 1px solid var(--c-line);
 }
 
 /* Utility */

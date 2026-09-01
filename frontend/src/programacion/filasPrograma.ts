@@ -407,6 +407,35 @@ export function todosLosPadres(filas: readonly FilaPrograma[]): ReadonlySet<stri
 }
 
 /**
+ * Colapsa el árbol a una **profundidad**: se ve todo hasta el escalón `nivel`
+ * y se pliega lo que cuelga por debajo.
+ *
+ * Es "Expandir / Colapsar a nivel" del menú, y se expresa en profundidad y no
+ * en clase de nodo —a diferencia de `colapsadosDeEntrada`, que sigue la
+ * profundidad de captura guardada con la versión— porque el gesto de la barra
+ * es de lectura: "enséñame dos escalones" vale igual en un prototipo cuyo
+ * segundo escalón son etapas que en uno donde son otra cosa.
+ *
+ * `nivel = 0` deja sólo las raíces; un nivel mayor que la profundidad del árbol
+ * no pliega nada, que es exactamente "expandir todo".
+ */
+export function colapsarANivel(
+  filas: readonly FilaPrograma[],
+  nivel: number,
+): ReadonlySet<string> {
+  return new Set(
+    filas
+      .filter((fila) => fila.tieneHijos && fila.profundidad >= nivel)
+      .map((fila) => fila.nodoId),
+  );
+}
+
+/** Profundidad máxima del árbol; cuántos escalones ofrece el menú. */
+export function profundidadMaxima(filas: readonly FilaPrograma[]): number {
+  return filas.reduce((mayor, fila) => Math.max(mayor, fila.profundidad), 0);
+}
+
+/**
  * Filtro por texto sobre clave y descripción, conservando a los ancestros de lo
  * que coincide: en un árbol el resultado de una búsqueda es la rama, no la hoja
  * (mismo criterio que `filtrarJerarquiaPorTexto`).

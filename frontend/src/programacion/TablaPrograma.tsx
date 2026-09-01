@@ -20,33 +20,32 @@
  * calendario" son la distinción trabajo/span que ya vive en `tramos.ts`: la
  * primera es la suma de los tramos —los días que de verdad se trabaja— y la
  * segunda lo que la barra ocupa de punta a punta, que es mayor cuando la
- * actividad está interrumpida. Unidad y cantidad salen del presupuesto vigente
- * del prototipo, unidas por `prototipo_nodo_id` igual que en `ArbolPrototipo`.
+ * actividad está interrumpida. Unidad, cantidad e importe salen del presupuesto
+ * vigente del prototipo, unidos por `prototipo_nodo_id` igual que en
+ * `ArbolPrototipo`.
+ *
+ * ## Cuáles se ven lo decide el menú, no esta hoja
+ *
+ * El catálogo, el orden, los anchos y el congelado están en
+ * `columnasPrograma.ts`; aquí llega la lista ya filtrada y la plantilla de
+ * `grid-template-columns` viaja como `--prog-cols`. Es lo que permite apagar
+ * columnas sin que el encabezado y los renglones se descuadren: los dos leen la
+ * misma plantilla de la misma variable.
  */
 
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
-import { fmtNum } from '@/lib/formato';
+import { fmtMXN, fmtNum } from '@/lib/formato';
+import {
+  plantillaDeColumnas,
+  type ColumnaPrograma,
+} from './columnasPrograma';
 import { ALTO_ENCABEZADO, ALTO_FILA, etiquetaDeDia, type EjePrograma } from './ejePrograma';
 import type { FilaPrograma } from './filasPrograma';
 import { etiquetaClaseNodo } from './reglas';
-
-/** Las doce columnas, en el orden del `grid-template-columns` de la hoja. */
-const COLUMNAS: readonly { readonly clave: string; readonly titulo: string }[] = [
-  { clave: 'num', titulo: '#' },
-  { clave: 'tipo', titulo: 'Tipo' },
-  { clave: 'clave', titulo: 'Clave' },
-  { clave: 'descripcion', titulo: 'Descripción' },
-  { clave: 'unidad', titulo: 'Unidad' },
-  { clave: 'cantidad', titulo: 'Cantidad' },
-  { clave: 'laborables', titulo: 'Días lab.' },
-  { clave: 'calendario', titulo: 'Días cal.' },
-  { clave: 'inicio', titulo: 'Inicio' },
-  { clave: 'termino', titulo: 'Término' },
-  { clave: 'holgura', titulo: 'Holgura' },
-  { clave: 'pred', titulo: 'Pred.' },
-];
+import type { MagnitudesFila } from './reparto';
+import type { VistaGantt } from './vistaGantt';
 
 /**
  * Etiqueta corta de la clase para la columna Tipo.
@@ -64,6 +63,14 @@ const TIPO_CORTO: Record<string, string> = {
 interface Props {
   readonly filas: readonly FilaPrograma[];
   readonly eje: EjePrograma;
+  /** Columnas encendidas, en el orden del catálogo (`columnasPrograma.ts`). */
+  readonly columnas: readonly ColumnaPrograma[];
+  /** `left` de cada columna congelada; vacío con el congelado apagado. */
+  readonly congelados: ReadonlyMap<string, number>;
+  readonly vista: VistaGantt;
+  readonly magnitudes: ReadonlyMap<string, MagnitudesFila>;
+  /** Nodos de la cadena crítica del borrador (`rutaCritica.ts`). */
+  readonly criticas: ReadonlySet<string>;
   readonly colapsados: ReadonlySet<string>;
   readonly seleccionado: string | null;
   /** El rol puede capturar; en lectura las celdas no se editan. */
@@ -79,6 +86,11 @@ interface Props {
 export function TablaPrograma({
   filas,
   eje,
+  columnas,
+  congelados,
+  vista,
+  magnitudes,
+  criticas,
   colapsados,
   seleccionado,
   editable,
@@ -100,6 +112,15 @@ export function TablaPrograma({
     scrollMargin: ALTO_ENCABEZADO,
   });
 
+  const clasesTabla = [
+    'prog-tabla',
+    vista.rayado ? 'is-rayada' : '',
+    vista.lineas ? 'is-lineada' : '',
+    vista.colorPorNivel ? 'is-tenida' : '',
+  ]
+    .filter((clase) => clase !== '')
+    .join(' ');
+
   return (
     <div
       className="prog-split__lado"
@@ -109,10 +130,19 @@ export function TablaPrograma({
       aria-label="Renglones del programa base"
       aria-rowcount={filas.length}
     >
-      <div className="prog-tabla">
+      <div
+        className={clasesTabla}
+        style={{ ['--prog-cols' as string]: plantillaDeColumnas(columnas) }}
+      >
         <div className="prog-tabla__head" role="row" style={{ height: ALTO_ENCABEZADO }}>
-          {COLUMNAS.map((columna) => (
-            <div key={columna.clave} className="prog-tabla__th" role="columnheader">
+          {columnas.map((columna) => (
+            <div
+              key={columna.clave}
+              className={`prog-tabla__th${congelados.has(columna.clave) ? ' is-congelada' : ''}`}
+              role="columnheader"
+              title={columna.ayuda}
+              style={estiloCongelado(congelados, columna.clave)}
+            >
               {columna.titulo}
             </div>
           ))}
@@ -130,6 +160,11 @@ export function TablaPrograma({
                 key={fila.nodoId}
                 fila={fila}
                 eje={eje}
+                columnas={columnas}
+                congelados={congelados}
+                vista={vista}
+                magnitudes={magnitudes.get(fila.nodoId)}
+                esCritica={criticas.has(fila.nodoId)}
                 indice={item.index}
                 desplazamiento={item.start - ALTO_ENCABEZADO}
                 colapsado={colapsados.has(fila.nodoId)}
@@ -148,6 +183,23 @@ export function TablaPrograma({
 }
 
 /**
+ * `position: sticky` con su desplazamiento, o nada.
+ *
+ * El `z-index` mantiene el bloque congelado por encima de lo que pasa por
+ * debajo al correr la tabla; el `background: inherit` lo pone la hoja, porque
+ * sin fondo propio el contenido de las columnas de la derecha se vería a través
+ * de las congeladas — que es el fallo clásico de una tabla con `sticky`.
+ */
+function estiloCongelado(
+  congelados: ReadonlyMap<string, number>,
+  clave: string,
+): React.CSSProperties | undefined {
+  const izquierda = congelados.get(clave);
+  if (izquierda === undefined) return undefined;
+  return { position: 'sticky', left: izquierda, zIndex: 1 };
+}
+
+/**
  * Un renglón.
  *
  * El tinte por profundidad es lo que hace legible el árbol sin contar
@@ -160,6 +212,11 @@ export function TablaPrograma({
 function Renglon({
   fila,
   eje,
+  columnas,
+  congelados,
+  vista,
+  magnitudes,
+  esCritica,
   indice,
   desplazamiento,
   colapsado,
@@ -171,6 +228,11 @@ function Renglon({
 }: {
   readonly fila: FilaPrograma;
   readonly eje: EjePrograma;
+  readonly columnas: readonly ColumnaPrograma[];
+  readonly congelados: ReadonlyMap<string, number>;
+  readonly vista: VistaGantt;
+  readonly magnitudes: MagnitudesFila | undefined;
+  readonly esCritica: boolean;
   readonly indice: number;
   /** Píxeles desde el arranque de la lista; lo pone el virtualizador. */
   readonly desplazamiento: number;
@@ -185,7 +247,9 @@ function Renglon({
   const clases = [
     'prog-tabla__fila',
     tinte,
+    indice % 2 === 1 ? 'is-impar' : '',
     seleccionado ? 'is-selected' : '',
+    esCritica && vista.rutaCritica ? 'is-critica' : '',
     fila.capturado || fila.esResumen ? '' : 'is-propuesta',
   ]
     .filter((clase) => clase !== '')
@@ -211,106 +275,226 @@ function Renglon({
       }}
       onClick={() => onSeleccionar(fila.nodoId)}
     >
-      <div className="prog-tabla__celda mono tnum text-faint" role="gridcell">
-        {fila.numero}
-      </div>
-      <div
-        className="prog-tabla__celda text-xs"
-        role="gridcell"
-        title={etiquetaClaseNodo(fila.tipo)}
-      >
-        {TIPO_CORTO[fila.tipo] ?? fila.tipo}
-      </div>
-      <div className="prog-tabla__celda mono text-xs" role="gridcell">
-        {fila.clave ?? ''}
-      </div>
-
-      <div className="prog-tabla__celda" role="gridcell">
-        <span className="prog-tabla__nombre" style={{ paddingLeft: fila.profundidad * 14 }}>
-          {fila.tieneHijos ? (
-            <button
-              type="button"
-              className="prog-tabla__caret"
-              aria-expanded={!colapsado}
-              aria-label={`${colapsado ? 'Expandir' : 'Colapsar'} ${fila.descripcion}`}
-              onClick={(evento) => {
-                evento.stopPropagation();
-                onAlternar(fila.nodoId);
-              }}
-            >
-              {colapsado ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
-            </button>
-          ) : (
-            <span aria-hidden className="prog-tabla__caret" />
-          )}
-          <span
-            style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-            title={fila.descripcion}
-          >
-            {fila.descripcion}
-          </span>
-          {fila.conflicto && (
-            <span
-              className="badge badge--warn"
-              title={
-                'El nodo declara días propios y sus conceptos programados ocupan otros. ' +
-                'La barra dibuja el resumen; decide cuál conservar (§7.5).'
-              }
-            >
-              conflicto
-            </span>
-          )}
-          {fila.enCiclo && (
-            <span className="badge badge--danger" title="Participa de un ciclo de precedencias (§6)">
-              ciclo
-            </span>
-          )}
-        </span>
-      </div>
-
-      <div className="prog-tabla__celda mono text-xs" role="gridcell">
-        {fila.unidad ?? ''}
-      </div>
-      <div className="prog-tabla__celda mono tnum text-xs" role="gridcell">
-        {fila.cantidad === null ? '' : fmtNum(fila.cantidad)}
-      </div>
-
-      {/* Días laborables es la única celda capturable: es la duración del
-          renglón (`duracion_dias`), y sin ella el nodo no entra al POST. En un
-          resumen es la suma de sus hijos y por eso es de lectura — capturarla
-          ahí duplicaría los días de los conceptos que ya la componen (§7.4). */}
-      <div className="prog-tabla__celda mono tnum text-xs" role="gridcell">
-        {fila.esResumen || !editable ? (
-          fila.diasLaborables === null ? (
-            ''
-          ) : (
-            fmtNum(fila.diasLaborables)
-          )
-        ) : (
-          <CeldaDuracion fila={fila} onDuracion={onDuracion} />
-        )}
-      </div>
-
-      <div className="prog-tabla__celda mono tnum text-xs" role="gridcell">
-        {fila.diasCalendario === null ? '' : fmtNum(fila.diasCalendario)}
-      </div>
-      <div className="prog-tabla__celda mono text-xs" role="gridcell">
-        {fila.inicioDias === null ? '' : etiquetaDeDia(eje, fila.inicioDias)}
-      </div>
-      {/* El cierre se rotula con el **último día trabajado**, no con el día en
-          que la ventana termina: una actividad que arranca el día 1 y dura tres
-          cierra el día 3, no el 4. */}
-      <div className="prog-tabla__celda mono text-xs" role="gridcell">
-        {fila.finDias === null ? '' : etiquetaDeDia(eje, Math.max(0, fila.finDias - 1))}
-      </div>
-      <div className="prog-tabla__celda mono tnum text-xs" role="gridcell">
-        {fila.holguraDias === null ? '' : fmtNum(fila.holguraDias)}
-      </div>
-      <div className="prog-tabla__celda mono tnum text-xs" role="gridcell">
-        {fila.nPredecesoras === 0 ? '' : fila.nPredecesoras}
-      </div>
+      {columnas.map((columna) => (
+        <Celda
+          key={columna.clave}
+          clave={columna.clave}
+          estilo={estiloCongelado(congelados, columna.clave)}
+          congelada={congelados.has(columna.clave)}
+          fila={fila}
+          eje={eje}
+          magnitudes={magnitudes}
+          colapsado={colapsado}
+          editable={editable}
+          onAlternar={onAlternar}
+          onDuracion={onDuracion}
+        />
+      ))}
     </div>
   );
+}
+
+/**
+ * Una celda, elegida por la clave de su columna.
+ *
+ * El `switch` sustituye a los doce `<div>` en orden fijo que había antes: con
+ * las columnas apagables, la posición de una celda ya no dice cuál es, y
+ * emparejarlas por índice sería el fallo que aparece la primera vez que alguien
+ * apaga "Tipo" y ve la clave donde iba el tipo.
+ */
+function Celda({
+  clave,
+  estilo,
+  congelada,
+  fila,
+  eje,
+  magnitudes,
+  colapsado,
+  editable,
+  onAlternar,
+  onDuracion,
+}: {
+  readonly clave: string;
+  readonly estilo: React.CSSProperties | undefined;
+  readonly congelada: boolean;
+  readonly fila: FilaPrograma;
+  readonly eje: EjePrograma;
+  readonly magnitudes: MagnitudesFila | undefined;
+  readonly colapsado: boolean;
+  readonly editable: boolean;
+  readonly onAlternar: (nodoId: string) => void;
+  readonly onDuracion: (nodoId: string, dias: number | null) => void;
+}) {
+  const base = `prog-tabla__celda${congelada ? ' is-congelada' : ''}`;
+
+  switch (clave) {
+    case 'num':
+      return (
+        <div className={`${base} mono tnum text-faint`} role="gridcell" style={estilo}>
+          {fila.numero}
+        </div>
+      );
+
+    case 'tipo':
+      return (
+        <div
+          className={`${base} text-xs`}
+          role="gridcell"
+          style={estilo}
+          title={etiquetaClaseNodo(fila.tipo)}
+        >
+          {TIPO_CORTO[fila.tipo] ?? fila.tipo}
+        </div>
+      );
+
+    case 'clave':
+      return (
+        <div className={`${base} mono text-xs`} role="gridcell" style={estilo}>
+          {fila.clave ?? ''}
+        </div>
+      );
+
+    case 'descripcion':
+      return (
+        <div className={base} role="gridcell" style={estilo}>
+          <span className="prog-tabla__nombre" style={{ paddingLeft: fila.profundidad * 14 }}>
+            {fila.tieneHijos ? (
+              <button
+                type="button"
+                className="prog-tabla__caret"
+                aria-expanded={!colapsado}
+                aria-label={`${colapsado ? 'Expandir' : 'Colapsar'} ${fila.descripcion}`}
+                onClick={(evento) => {
+                  evento.stopPropagation();
+                  onAlternar(fila.nodoId);
+                }}
+              >
+                {colapsado ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+              </button>
+            ) : (
+              <span aria-hidden className="prog-tabla__caret" />
+            )}
+            <span
+              style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              title={fila.descripcion}
+            >
+              {fila.descripcion}
+            </span>
+            {fila.conflicto && (
+              <span
+                className="badge badge--warn"
+                title={
+                  'El nodo declara días propios y sus conceptos programados ocupan otros. ' +
+                  'La barra dibuja el resumen; decide cuál conservar (§7.5).'
+                }
+              >
+                conflicto
+              </span>
+            )}
+            {fila.enCiclo && (
+              <span
+                className="badge badge--danger"
+                title="Participa de un ciclo de precedencias (§6)"
+              >
+                ciclo
+              </span>
+            )}
+          </span>
+        </div>
+      );
+
+    case 'unidad':
+      return (
+        <div className={`${base} mono text-xs`} role="gridcell" style={estilo}>
+          {fila.unidad ?? ''}
+        </div>
+      );
+
+    case 'cantidad':
+      return (
+        <div className={`${base} mono tnum text-xs`} role="gridcell" style={estilo}>
+          {fila.cantidad === null ? '' : fmtNum(fila.cantidad)}
+        </div>
+      );
+
+    case 'importe':
+      return (
+        <div className={`${base} mono tnum text-xs`} role="gridcell" style={estilo}>
+          {magnitudes?.importe === null || magnitudes?.importe === undefined
+            ? ''
+            : fmtMXN(magnitudes.importe)}
+        </div>
+      );
+
+    case 'peso':
+      return (
+        <div className={`${base} mono tnum text-xs`} role="gridcell" style={estilo}>
+          {magnitudes?.pesoPct === null || magnitudes?.pesoPct === undefined
+            ? ''
+            : `${fmtNum(magnitudes.pesoPct)} %`}
+        </div>
+      );
+
+    // Días laborables es la única celda capturable: es la duración del renglón
+    // (`duracion_dias`), y sin ella el nodo no entra al POST. En un resumen es
+    // la suma de sus hijos y por eso es de lectura — capturarla ahí duplicaría
+    // los días de los conceptos que ya la componen (§7.4).
+    case 'laborables':
+      return (
+        <div className={`${base} mono tnum text-xs`} role="gridcell" style={estilo}>
+          {fila.esResumen || !editable ? (
+            fila.diasLaborables === null ? (
+              ''
+            ) : (
+              fmtNum(fila.diasLaborables)
+            )
+          ) : (
+            <CeldaDuracion fila={fila} onDuracion={onDuracion} />
+          )}
+        </div>
+      );
+
+    case 'calendario':
+      return (
+        <div className={`${base} mono tnum text-xs`} role="gridcell" style={estilo}>
+          {fila.diasCalendario === null ? '' : fmtNum(fila.diasCalendario)}
+        </div>
+      );
+
+    case 'inicio':
+      return (
+        <div className={`${base} mono text-xs`} role="gridcell" style={estilo}>
+          {fila.inicioDias === null ? '' : etiquetaDeDia(eje, fila.inicioDias)}
+        </div>
+      );
+
+    // El cierre se rotula con el **último día trabajado**, no con el día en
+    // que la ventana termina: una actividad que arranca el día 1 y dura tres
+    // cierra el día 3, no el 4.
+    case 'termino':
+      return (
+        <div className={`${base} mono text-xs`} role="gridcell" style={estilo}>
+          {fila.finDias === null ? '' : etiquetaDeDia(eje, Math.max(0, fila.finDias - 1))}
+        </div>
+      );
+
+    case 'holgura':
+      return (
+        <div className={`${base} mono tnum text-xs`} role="gridcell" style={estilo}>
+          {fila.holguraDias === null ? '' : fmtNum(fila.holguraDias)}
+        </div>
+      );
+
+    case 'pred':
+      return (
+        <div className={`${base} mono tnum text-xs`} role="gridcell" style={estilo}>
+          {fila.nPredecesoras === 0 ? '' : fila.nPredecesoras}
+        </div>
+      );
+
+    default:
+      return null;
+  }
 }
 
 /**

@@ -102,6 +102,40 @@ export function alcanzable(
 }
 
 /**
+ * Todo lo que se alcanza desde `origen` siguiendo las precedencias, **él
+ * incluido**.
+ *
+ * Es `alcanzable` resuelto de una vez para todos los destinos. La diferencia
+ * importa cuando hay que ofrecer una lista: el menú de vínculos tiene que
+ * decidir, de los ~155 nodos del árbol, cuáles pueden ser predecesora de la
+ * actividad seleccionada sin cerrar un ciclo, y preguntarlo nodo por nodo es
+ * recorrer el grafo ~155 veces para contestar lo mismo que una sola pasada.
+ */
+export function alcanzablesDesde(
+  aristas: readonly Arista[],
+  origen: string,
+): ReadonlySet<string> {
+  const sucesoras = new Map<string, string[]>();
+  for (const arista of aristas) {
+    const lista = sucesoras.get(arista.desde);
+    if (lista) lista.push(arista.hasta);
+    else sucesoras.set(arista.desde, [arista.hasta]);
+  }
+
+  const vistos = new Set<string>([origen]);
+  const pila = [origen];
+  while (pila.length > 0) {
+    const actual = pila.pop()!;
+    for (const sucesora of sucesoras.get(actual) ?? []) {
+      if (vistos.has(sucesora)) continue;
+      vistos.add(sucesora);
+      pila.push(sucesora);
+    }
+  }
+  return vistos;
+}
+
+/**
  * ¿Tender el cable `desde → hasta` cerraría un ciclo?
  *
  * Es `true` también cuando los dos extremos son el mismo nodo: una actividad
