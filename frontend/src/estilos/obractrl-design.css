@@ -1555,8 +1555,19 @@ a { color: inherit; text-decoration: none; }
   cursor: grab;
 }
 .nodo-act:hover { border-color: var(--c-accent); }
+/* Una franja por clase del árbol, de arriba abajo: el nivel es lo más grueso
+   del WBS y lleva el acento más fuerte. */
+.nodo-act--nivel { border-left-color: var(--c-accent-strong); }
 .nodo-act--etapa { border-left-color: var(--c-accent); }
 .nodo-act--concepto { border-left-color: var(--c-info); }
+/* De qué ancestro cuelga la caja cuando el filtro apagó su padre directo. */
+.nodo-act__contexto {
+  font-size: var(--fs-xs);
+  color: var(--c-text-mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 /* Renglón propuesto desde el árbol WBS, todavía sin duración: no viaja en el
    POST, así que se dibuja como lo que es —un hueco por llenar— y no como una
    actividad más. */
@@ -1646,6 +1657,23 @@ a { color: inherit; text-decoration: none; }
 }
 .cable-etq:hover { border-color: var(--c-accent); color: var(--c-accent-strong); }
 .cable-etq--aviso { border-color: var(--c-warn); color: oklch(45% 0.13 75); }
+.cable-etq.is-selected {
+  border-color: var(--c-accent);
+  background: var(--c-accent-soft);
+  color: var(--c-accent-strong);
+}
+
+/* El trazo del cable. El seleccionado se engrosa y se tiñe: es el que va a
+   recibir Supr, y con treinta cables encima del canvas la píldora sola no
+   alcanza para saber cuál.
+   Van anidados bajo `.react-flow__edge` a propósito: la librería trae
+   `.react-flow__edge.selected .react-flow__edge-path` sobre este mismo
+   elemento y con menos especificidad no ganaríamos el color. */
+.react-flow__edge path.cable-dep--aviso { stroke: var(--c-warn); }
+.react-flow__edge path.cable-dep.is-selected {
+  stroke: var(--c-accent);
+  stroke-width: 2.5;
+}
 
 /* Barra de herramientas de programación. */
 .barra-prog {

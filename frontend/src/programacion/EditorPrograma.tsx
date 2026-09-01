@@ -35,9 +35,22 @@
  * ## Estado vacío
  *
  * Un prototipo sin programa base no arranca en un canvas en blanco: arranca
- * con **una caja por etapa y por concepto** de su árbol WBS, en gris, sin
- * duración. Capturar el programa es llenar duraciones y tender cables, no
- * dar de alta renglones uno por uno.
+ * con **una caja por nodo** de su árbol WBS —nivel, etapa y concepto—, en
+ * gris, sin duración. Capturar el programa es llenar duraciones y tender
+ * cables, no dar de alta renglones uno por uno.
+ *
+ * ## Qué se ve, de todo eso
+ *
+ * Las cajas están todas en el borrador desde el primer segundo, pero el canvas
+ * no las dibuja todas: un prototipo real trae ~155 nodos y a esa escala no se
+ * lee nada. La barra enciende y apaga **clases** —niveles, etapas, conceptos—
+ * de forma independiente, y se arranca sólo en etapas. Es un filtro, no un
+ * recorte del modelo: apagar una clase no borra sus cables, y los que quedan
+ * con un extremo oculto simplemente no se dibujan hasta que vuelva a verse.
+ *
+ * Con las clases mezcladas puede faltar un eslabón —niveles y conceptos sin
+ * etapas—; entonces el concepto cuelga de su ancestro visible, que es su
+ * nivel, y lo dice en la caja (`arbolVisible`, `grafo.ts`).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -95,14 +108,21 @@ import { BarraProgramacion, type ModoPuntero } from './BarraProgramacion';
 import { buscarCiclo, cerrariaCiclo } from './ciclos';
 import { CableDependencia, type CableCanvas } from './CableDependencia';
 import {
+  abrirEtapa,
+  arbolVisible,
   armarBorrador,
   aristas,
+  enEtapa,
   esForaneo,
   esRenglon,
+  idDeCable,
   idsVisibles,
   itemsDelBorrador,
   esTipoLiga,
+  VISTA_INICIAL,
   type Borrador,
+  type RamaVisible,
+  type Seleccion,
   type TipoLiga,
   type Vista,
 } from './grafo';
@@ -113,9 +133,10 @@ import {
   normalizarDias,
 } from './calendario';
 import { NodoActividad, type CajaCanvas } from './NodoActividad';
+import { PanelCable } from './PanelCable';
 import { PanelCaja } from './PanelCaja';
 import { colocar, duracionDelPrograma, traslapesConTrabajo } from './planificacion';
-import { puedeAdministrarProgramasBase } from './reglas';
+import { etiquetaClaseNodo, puedeAdministrarProgramasBase } from './reglas';
 
 const TIPOS_NODO = { actividad: NodoActividad };
 const TIPOS_CABLE = { dependencia: CableDependencia };
@@ -185,10 +206,13 @@ function Pantalla() {
   const [historial, setHistorial] = useState<Historial | null>(null);
   const [huerfanos, setHuerfanos] = useState<readonly ItemProgramaBaseRespuesta[]>([]);
   const [sucio, setSucio] = useState(false);
-  const [vista, setVista] = useState<Vista>({ modo: 'etapas' });
+  const [vista, setVista] = useState<Vista>(VISTA_INICIAL);
   const [modo, setModo] = useState<ModoPuntero>('seleccionar');
   const [tipoLigaPorDefecto, setTipoLigaPorDefecto] = useState<TipoLiga>('FS');
-  const [seleccionada, setSeleccionada] = useState<string | null>(null);
+  // Una sola selección para las dos cosas que hay en el canvas: seleccionar un
+  // cable tiene que soltar la caja y al revés, o el inspector no sabría cuál de
+  // las dos está mostrando y Supr no sabría qué borrar.
+  const [seleccion, setSeleccion] = useState<Seleccion>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [rechazo, setRechazo] = useState<string | null>(null);
   const anclajeSalida = useRef<string | null>(null);
@@ -210,8 +234,17 @@ function Pantalla() {
     });
     // Las posiciones no viajan en el contrato, así que siempre se calculan al
     // abrir. Mover una caja no sobrevive al cierre de la pantalla.
+    //
+    // Dentro de una capa las cajas se apilan en el preorden del árbol —no en el
+    // `orden` del renglón guardado— para que los hijos de un nodo queden
+    // contiguos: es lo que hace que la columna se lea como la rama que es.
+    const todas = new Set(borrador.cajas.map((caja) => caja.id));
+    const preorden = arbolVisible(borrador, todas);
     const posiciones = acomodarEnCapas(
-      borrador.cajas.map((caja) => ({ id: caja.id, orden: caja.orden })),
+      borrador.cajas.map((caja) => ({
+        id: caja.id,
+        orden: preorden.get(caja.id)?.orden ?? caja.orden,
+      })),
       aristas(borrador),
     );
     const acomodado: Borrador = {
@@ -278,6 +311,27 @@ function Pantalla() {
     setHistorial((previo) => (previo === null ? previo : marcar(previo)));
   }, []);
 
+  const seleccionarCaja = useCallback(
+    (cajaId: string) => setSeleccion({ clase: 'caja', cajaId }),
+    [],
+  );
+
+  // `despachar` ya apila su propio paso de deshacer para una acción discreta;
+  // aquí no se llama a `marcar`, que es sólo para el arrastre (`borrador.ts`).
+  const desconectarCable = useCallback(
+    (desde: string, hasta: string) => {
+      despacha({ tipo: 'desconectar', desde, hasta });
+      // El cable deja de existir: dejarlo seleccionado dejaría el inspector
+      // enseñando una dependencia que ya no está en el borrador.
+      setSeleccion((previa) =>
+        previa?.clase === 'cable' && previa.desde === desde && previa.hasta === hasta
+          ? null
+          : previa,
+      );
+    },
+    [despacha],
+  );
+
   // Cerrar la pestaña con cambios sin guardar los pierde: el borrador vive
   // solo en memoria, a propósito (una versión por sesión, no por gesto).
   useEffect(() => {
@@ -305,6 +359,23 @@ function Pantalla() {
     window.addEventListener('keydown', alTeclear);
     return () => window.removeEventListener('keydown', alTeclear);
   }, []);
+
+  // Supr sobre el cable seleccionado lo desconecta. No borra cajas: una caja es
+  // un nodo del árbol WBS y no se da de baja desde aquí —lo que la saca del
+  // programa es vaciarle la duración—, así que la tecla sólo actúa sobre lo
+  // único que el canvas sí crea y destruye, que es el cable.
+  useEffect(() => {
+    function alTeclear(evento: KeyboardEvent) {
+      if (evento.key !== 'Delete') return;
+      const destino = evento.target as HTMLElement | null;
+      if (destino && /^(INPUT|TEXTAREA|SELECT)$/.test(destino.tagName)) return;
+      if (seleccion?.clase !== 'cable') return;
+      evento.preventDefault();
+      desconectarCable(seleccion.desde, seleccion.hasta);
+    }
+    window.addEventListener('keydown', alTeclear);
+    return () => window.removeEventListener('keydown', alTeclear);
+  }, [seleccion, desconectarCable]);
 
   const crear = useCrearProgramaBaseApiV1ProgramasBasePost<ErrorApi>({
     mutation: {
@@ -342,50 +413,73 @@ function Pantalla() {
     [borrador, vista],
   );
 
+  // El árbol **filtrado**: de quién cuelga cada caja una vez colapsados los
+  // ancestros que el filtro apagó, y en qué orden se apilan por eso.
+  const rama = useMemo<ReadonlyMap<string, RamaVisible>>(
+    () => (borrador ? arbolVisible(borrador, visibles) : new Map()),
+    [borrador, visibles],
+  );
+
   const nodosCanvas = useMemo<CajaCanvas[]>(() => {
     if (!borrador) return [];
     const conAviso = new Set(traslapes.map((traslape) => traslape.cajaId));
     const enCiclo = new Set(ciclo ?? []);
     const frentePorId = new Map(frentes.map((frente) => [frente.id, frente]));
+    const cajaPorId = new Map(borrador.cajas.map((caja) => [caja.id, caja]));
+    const cajaSel = seleccion?.clase === 'caja' ? seleccion.cajaId : null;
 
     return borrador.cajas
       .filter((caja) => visibles.has(caja.id))
-      .map((caja) => ({
-        id: caja.id,
-        type: 'actividad' as const,
-        position: { x: caja.x, y: caja.y },
-        selected: caja.id === seleccionada,
-        draggable: modo === 'seleccionar',
-        data: {
-          clave: caja.clave,
-          nombre: caja.nombre,
-          tipo: caja.tipo,
-          duracionDias: caja.duracionDias,
-          tramos: caja.tramos,
-          frenteClave: caja.frenteId ? (frentePorId.get(caja.frenteId)?.clave ?? null) : null,
-          foraneo: esForaneo(caja, vista),
-          conAviso: conAviso.has(caja.id),
-          enCiclo: enCiclo.has(caja.id),
-          abrible: caja.tipo === 'etapa',
-        },
-      }));
-  }, [borrador, visibles, vista, traslapes, ciclo, frentes, seleccionada, modo]);
+      .map((caja) => {
+        // El contexto sólo aparece cuando el filtro se comió un eslabón: si la
+        // caja cuelga de su propio padre no hay nada que aclarar, y repetirlo
+        // en cada caja convertiría la ayuda en ruido.
+        const padreVisibleId = rama.get(caja.id)?.padreVisibleId ?? null;
+        const colapsado = padreVisibleId !== null && padreVisibleId !== caja.parentId;
+
+        return {
+          id: caja.id,
+          type: 'actividad' as const,
+          position: { x: caja.x, y: caja.y },
+          selected: caja.id === cajaSel,
+          draggable: modo === 'seleccionar',
+          data: {
+            clave: caja.clave,
+            nombre: caja.nombre,
+            tipo: caja.tipo,
+            contexto: colapsado ? (cajaPorId.get(padreVisibleId)?.nombre ?? null) : null,
+            duracionDias: caja.duracionDias,
+            tramos: caja.tramos,
+            frenteClave: caja.frenteId ? (frentePorId.get(caja.frenteId)?.clave ?? null) : null,
+            foraneo: esForaneo(caja, vista),
+            conAviso: conAviso.has(caja.id),
+            enCiclo: enCiclo.has(caja.id),
+            // Entrar a una etapa sólo tiene sentido desde el filtro por clases:
+            // dentro de una etapa ya se está viendo lo que abriría el gesto.
+            abrible: caja.tipo === 'etapa' && !enEtapa(vista),
+          },
+        };
+      });
+  }, [borrador, visibles, rama, vista, traslapes, ciclo, frentes, seleccion, modo]);
 
   const cablesCanvas = useMemo<CableCanvas[]>(() => {
     if (!borrador) return [];
     const conAviso = new Set(
-      traslapes.map((traslape) => `${traslape.predecesoraId}->${traslape.cajaId}`),
+      traslapes.map((traslape) => idDeCable(traslape.predecesoraId, traslape.cajaId)),
     );
+    const cableSel =
+      seleccion?.clase === 'cable' ? idDeCable(seleccion.desde, seleccion.hasta) : null;
     return borrador.cajas
       .filter((caja) => visibles.has(caja.id))
       .flatMap((caja) =>
         caja.entradas
           .filter((cable) => visibles.has(cable.desde))
           .map((cable) => ({
-            id: `${cable.desde}->${caja.id}`,
+            id: idDeCable(cable.desde, caja.id),
             type: 'dependencia' as const,
             source: cable.desde,
             target: caja.id,
+            selected: idDeCable(cable.desde, caja.id) === cableSel,
             // El anclaje es la semántica: la primera letra del tipo dice de
             // qué extremo sale y la segunda por cuál entra (§7.5).
             sourceHandle: cable.tipo.startsWith('S') ? 'inicio' : 'fin',
@@ -394,11 +488,11 @@ function Pantalla() {
             data: {
               tipoLiga: cable.tipo,
               lagDias: cable.lagDias,
-              conAviso: conAviso.has(`${cable.desde}->${caja.id}`),
+              conAviso: conAviso.has(idDeCable(cable.desde, caja.id)),
             },
           })),
       );
-  }, [borrador, visibles, traslapes]);
+  }, [borrador, visibles, traslapes, seleccion]);
 
   const alCambiarNodos = useCallback(
     (cambios: NodeChange<CajaCanvas>[]) => {
@@ -443,19 +537,22 @@ function Pantalla() {
     if (!borrador) return;
     gesto();
     // Se acomoda solo lo visible: reacomodar el árbol entero movería cajas que
-    // el usuario no está viendo y que colocó a mano en la otra vista.
+    // el usuario no está viendo y que colocó a mano en la otra vista. El orden
+    // dentro de la capa es el del árbol **filtrado**, así que un concepto cuya
+    // etapa está apagada se apila junto a los hermanos con los que comparte
+    // nivel y no intercalado con los de otro.
     const dentro = borrador.cajas.filter((caja) => visibles.has(caja.id));
     despacha({
       tipo: 'acomodar',
       posiciones: acomodarEnCapas(
-        dentro.map((caja) => ({ id: caja.id, orden: caja.orden })),
+        dentro.map((caja) => ({ id: caja.id, orden: rama.get(caja.id)?.orden ?? caja.orden })),
         aristas(borrador).filter(
           (arista) => visibles.has(arista.desde) && visibles.has(arista.hasta),
         ),
       ),
     });
     window.setTimeout(() => void fitView({ duration: 200, padding: 0.2 }), 0);
-  }, [borrador, visibles, despacha, gesto, fitView]);
+  }, [borrador, visibles, rama, despacha, gesto, fitView]);
 
   function guardar() {
     if (!borrador) return;
@@ -522,12 +619,12 @@ function Pantalla() {
   );
 
   const cajaSeleccionada =
-    borrador && seleccionada !== null
-      ? (borrador.cajas.find((caja) => caja.id === seleccionada) ?? null)
+    borrador && seleccion?.clase === 'caja'
+      ? (borrador.cajas.find((caja) => caja.id === seleccion.cajaId) ?? null)
       : null;
 
   const etapaAbierta =
-    vista.modo === 'conceptos-de' && borrador
+    vista.etapaNodoId !== null && borrador
       ? (borrador.cajas.find((caja) => caja.id === vista.etapaNodoId)?.nombre ?? null)
       : null;
 
@@ -655,9 +752,11 @@ function Pantalla() {
           ) : nodosCanvas.length === 0 ? (
             <div className="empty">
               <div className="empty-title">
-                {vista.modo === 'etapas'
-                  ? 'Este prototipo no tiene etapas en su árbol'
-                  : 'Esta vista no tiene conceptos'}
+                {enEtapa(vista)
+                  ? 'Esta etapa no tiene conceptos'
+                  : `El árbol de este prototipo no tiene ${[...vista.clases]
+                      .map((clase) => etiquetaClaseNodo(clase, true).toLowerCase())
+                      .join(' ni ')}`}
               </div>
               <div className="empty-sub">
                 El programa base se arma sobre el árbol WBS del prototipo (§7.4). Sin
@@ -677,13 +776,23 @@ function Pantalla() {
                 gesto();
               }}
               onNodeDragStart={gesto}
-              onNodeClick={(_evento, nodo: Node) => setSeleccionada(nodo.id)}
+              onNodeClick={(_evento, nodo: Node) => seleccionarCaja(nodo.id)}
               onNodeDoubleClick={(_evento, nodo: Node) => {
-                if (vista.modo === 'etapas') setVista({ modo: 'conceptos-de', etapaNodoId: nodo.id });
+                const caja = borrador.cajas.find((c) => c.id === nodo.id);
+                if (caja?.tipo === 'etapa' && !enEtapa(vista)) setVista(abrirEtapa(vista, nodo.id));
               }}
-              onEdgeClick={(_evento, cable: Edge) => setSeleccionada(cable.target)}
-              onPaneClick={() => setSeleccionada(null)}
+              // El clic en el cable selecciona **el cable**, no su sucesora:
+              // sin eso no había forma de actuar sobre la dependencia donde el
+              // usuario la está mirando.
+              onEdgeClick={(_evento, cable: Edge) =>
+                setSeleccion({ clase: 'cable', desde: cable.source, hasta: cable.target })
+              }
+              onPaneClick={() => setSeleccion(null)}
               connectionMode={ConnectionMode.Loose}
+              // El borrado lo lleva el editor (Supr sobre el cable): dejárselo a
+              // React Flow quitaría cajas del canvas, que son nodos del árbol
+              // WBS y no se dan de baja desde aquí.
+              deleteKeyCode={null}
               nodesDraggable={modo === 'seleccionar'}
               proOptions={{ hideAttribution: true }}
               minZoom={0.15}
@@ -696,7 +805,27 @@ function Pantalla() {
           )}
         </div>
 
-        {borrador !== null && (
+        {/* Un solo inspector con dos caras, la de la caja y la del cable: son
+            las dos cosas seleccionables del canvas y nunca lo están las dos. */}
+        {borrador !== null && seleccion?.clase === 'cable' ? (
+          <PanelCable
+            borrador={borrador}
+            desde={seleccion.desde}
+            hasta={seleccion.hasta}
+            onTipoLiga={(desde, hasta, tipoLiga) =>
+              despacha({ tipo: 'ligar', desde, hasta, tipoLiga })
+            }
+            onLag={(desde, hasta, lagDias) => despacha({ tipo: 'lag', desde, hasta, lagDias })}
+            onDesconectar={desconectarCable}
+            onInvertir={(desde, hasta) => {
+              despacha({ tipo: 'invertir', desde, hasta });
+              // Sigue siendo el mismo cable, ahora del otro lado: se conserva
+              // seleccionado para poder retiparlo sin volver a buscarlo.
+              setSeleccion({ clase: 'cable', desde: hasta, hasta: desde });
+            }}
+            onSeleccionarCaja={seleccionarCaja}
+          />
+        ) : borrador !== null ? (
           <PanelCaja
             borrador={borrador}
             caja={cajaSeleccionada}
@@ -714,17 +843,18 @@ function Pantalla() {
             }
             onLag={(desde, hasta, lagDias) => despacha({ tipo: 'lag', desde, hasta, lagDias })}
             onDesconectar={(desde, hasta) => despacha({ tipo: 'desconectar', desde, hasta })}
-            onSeleccionar={setSeleccionada}
+            onSeleccionar={seleccionarCaja}
             onGesto={gesto}
           />
-        )}
+        ) : null}
       </div>
 
       {borrador !== null && (
         <div className="text-xs text-mute mt-8">
           {borrador.cajas.filter(esRenglon).length} de {borrador.cajas.length} nodos del árbol
           tienen duración. Arrastra del anclaje derecho (fin) al izquierdo (inicio) para una
-          liga fin → inicio; los otros tres tipos salen de los otros pares de anclajes.
+          liga fin → inicio; los otros tres tipos salen de los otros pares de anclajes. Clic
+          en un cable para retiparlo, moverle el lag o quitarlo (Supr).
         </div>
       )}
     </div>

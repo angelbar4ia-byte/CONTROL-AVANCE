@@ -22,14 +22,21 @@
  * dependencias que apuntaban a ellos tampoco, lo que este módulo reporta en
  * vez de recortar en silencio.
  *
- * ## Dos granularidades, un solo modelo
+ * ## Tres granularidades, un solo modelo
  *
- * `prototipo_nodo_id` puede apuntar a una **etapa** (plantilla gruesa: toda la
- * etapa constructiva es una actividad) o a un **concepto**. Las dos son nodos
- * del mismo árbol, así que las dos son cajas del mismo tipo y el canvas solo
- * cambia cuáles muestra. Un concepto puede depender de un concepto de otra
- * etapa: el grafo no conoce esa frontera, solo el árbol la conoce, y el árbol
- * no manda sobre las precedencias.
+ * `prototipo_nodo_id` puede apuntar a un **nivel**, a una **etapa** (plantilla
+ * gruesa: toda la etapa constructiva es una actividad) o a un **concepto**. Las
+ * tres son nodos del mismo árbol, así que las tres son cajas del mismo tipo y
+ * el canvas solo cambia cuáles muestra. El nivel entró con la Fase 4
+ * (`programa_base.profundidad_captura` admite `nivel`, y
+ * `domain/programacion/jerarquia.py` reparte su ventana hacia abajo): antes el
+ * editor no lo dibujaba y por eso no se podía programar lo que el backend ya
+ * aceptaba.
+ *
+ * Un concepto puede depender de un concepto de otra etapa, y un nivel de una
+ * etapa o de un concepto: el grafo no conoce esas fronteras, solo el árbol las
+ * conoce, y el árbol no manda sobre las precedencias. Por eso aquí no se
+ * bloquea ninguna combinación de extremos — el backend tampoco lo hace.
  *
  * Las posiciones no viajan al backend —`ProgramaBaseItem` no tiene dónde
  * guardarlas—, así que al abrir un programa existente se recalculan con
@@ -41,6 +48,7 @@
  */
 
 import type {
+  ClaseNodo,
   DependenciaDTO,
   ItemProgramaBasePeticion,
   ItemProgramaBaseRespuesta,
@@ -58,8 +66,18 @@ export function esTipoLiga(valor: string): valor is TipoLiga {
   return (TIPOS_LIGA as readonly string[]).includes(valor.toUpperCase());
 }
 
-/** Qué nodos del árbol pueden ser renglón: etapa (gruesa) o concepto. */
-export type TipoCaja = 'etapa' | 'concepto';
+/**
+ * Qué nodos del árbol pueden ser renglón: las tres clases del WBS (§7.4).
+ *
+ * Es literalmente `ClaseNodo` del contrato, no una copia: cualquier clase que
+ * el backend admita como nodo del árbol es programable, y tener aquí una lista
+ * paralela garantizaría que un día discreparan. Fue el caso hasta la Fase 4,
+ * cuando `nivel` pasó a ser programable y este tipo se quedó en dos.
+ */
+export type TipoCaja = ClaseNodo;
+
+/** De arriba abajo del árbol; es el orden en que se ofrecen en la barra. */
+export const CLASES_CAJA: readonly TipoCaja[] = ['nivel', 'etapa', 'concepto'];
 
 /**
  * Un cable del canvas visto desde su **sucesora**: es exactamente un
@@ -79,9 +97,18 @@ export interface Caja {
   readonly tipo: TipoCaja;
   readonly clave: string | null;
   readonly nombre: string;
+  /**
+   * Padre en el árbol del prototipo (`nodo.parent_id`), tal cual llegó.
+   *
+   * Se guarda crudo —y no sólo la etapa, como antes— porque el canvas dibuja
+   * el árbol **filtrado**: si el usuario apaga las etapas, el concepto tiene
+   * que colgar de su nivel, y eso exige poder subir un eslabón a la vez
+   * (`arbolVisible`).
+   */
+  readonly parentId: string | null;
   /** Etapa constructiva del catálogo (`nodo.etapa_id`), no el nodo etapa. */
   readonly etapaId: string | null;
-  /** Nodo etapa del árbol al que pertenece el concepto; `null` en las etapas. */
+  /** Nodo etapa del árbol al que pertenece el concepto; `null` en el resto. */
   readonly etapaNodoId: string | null;
   /**
    * `null` = renglón propuesto, todavía sin capturar. No viaja en el POST.
@@ -110,12 +137,6 @@ export function spanDeCaja(caja: Caja): number {
 /** ¿Esta caja llega al POST? Solo las que tienen duración capturada y positiva. */
 export function esRenglon(caja: Caja): boolean {
   return caja.duracionDias !== null && caja.duracionDias > 0;
-}
-
-function tipoDeCaja(nodo: NodoPrototipoRespuesta): TipoCaja | null {
-  if (nodo.tipo === 'etapa') return 'etapa';
-  if (nodo.tipo === 'concepto') return 'concepto';
-  return null;
 }
 
 /**
@@ -172,10 +193,14 @@ export interface BorradorArmado {
  * Arma el borrador a partir del árbol del prototipo y —si lo hay— los
  * renglones de un programa base existente.
  *
- * Toda etapa y todo concepto del árbol entra como caja, tenga renglón o no:
- * las que no lo tienen quedan con `duracionDias: null` y son la propuesta que
- * el usuario llena. Las posiciones quedan en `(0, 0)`; las fija después
- * `acomodarEnCapas`, que necesita el grafo ya completo.
+ * **Todo** nodo del árbol entra como caja —nivel, etapa y concepto—, tenga
+ * renglón o no: las que no lo tienen quedan con `duracionDias: null` y son la
+ * propuesta que el usuario llena. Que estén todas no quiere decir que se vean
+ * todas: cuáles se dibujan lo decide la vista (`idsVisibles`), y el borrador no
+ * puede depender de eso o apagar una clase en la barra borraría sus cables.
+ *
+ * Las posiciones quedan en `(0, 0)`; las fija después `acomodarEnCapas`, que
+ * necesita el grafo ya completo.
  */
 export function armarBorrador({
   prototipoId,
@@ -192,9 +217,7 @@ export function armarBorrador({
 
   const cajas: Caja[] = [];
   for (const [indice, nodo] of nodos.entries()) {
-    const tipo = tipoDeCaja(nodo);
-    if (tipo === null) continue;
-
+    const tipo: TipoCaja = nodo.tipo;
     const item = itemPorNodo.get(nodo.id);
     const tramos = normalizarTramos(
       (item?.tramos ?? []).map((tramo) => ({
@@ -208,8 +231,9 @@ export function armarBorrador({
       tipo,
       clave: nodo.clave ?? null,
       nombre: nodo.nombre,
+      parentId: nodo.parent_id ?? null,
       etapaId: nodo.etapa_id ?? null,
-      etapaNodoId: tipo === 'etapa' ? null : etapaNodoDe(nodo, porId),
+      etapaNodoId: tipo === 'concepto' ? etapaNodoDe(nodo, porId) : null,
       duracionDias: item ? Number(item.duracion_dias) : null,
       frenteId: item?.frente_id ?? null,
       tramos,
@@ -250,30 +274,94 @@ export function aristas(borrador: Borrador): readonly Arista[] {
 /**
  * Qué muestra el canvas.
  *
- * Arranca en `etapas` —diez o quince cajas se leen; trescientos conceptos
- * no—. `conceptos-de` es el doble clic en una etapa; `conceptos` es el
- * interruptor de la barra, que las abre todas de golpe.
+ * ## Por qué un conjunto de clases y no un modo excluyente
+ *
+ * El canvas empezó con dos modos que se pisaban —etapas *o* conceptos—, y eso
+ * dejaba fuera justo lo que se pide para programar: ver **niveles, etapas y
+ * conceptos juntos**, o cualquier par de ellos. Un nivel se liga con una etapa
+ * y una etapa con un concepto de otra rama; si las dos clases no se pueden ver
+ * a la vez, ese cable no se puede ni tender ni revisar. Así que la vista deja
+ * de ser un modo y pasa a ser un **filtro por clase**: tres interruptores
+ * independientes, siete combinaciones útiles.
+ *
+ * ## Por qué la etapa abierta convive con el filtro y no lo sustituye
+ *
+ * `etapaNodoId` es el doble clic —entrar a una etapa a ver sus conceptos— y
+ * mientras está puesto manda sobre `clases`. Pero `clases` **se conserva**
+ * debajo: salir de la etapa tiene que devolver al usuario a la combinación que
+ * traía, no a un default. Con una unión discriminada eso obligaría a guardar la
+ * combinación anterior en otro estado paralelo.
+ *
+ * Arranca sólo en etapas —diez o quince cajas se leen; los ~155 nodos de un
+ * prototipo real, no—.
  */
-export type Vista =
-  | { readonly modo: 'etapas' }
-  | { readonly modo: 'conceptos' }
-  | { readonly modo: 'conceptos-de'; readonly etapaNodoId: string };
+export interface Vista {
+  /** Clases dibujadas cuando no hay etapa abierta. Nunca vacío. */
+  readonly clases: ReadonlySet<TipoCaja>;
+  /** Etapa a la que se entró con doble clic; `null` = filtro por clases. */
+  readonly etapaNodoId: string | null;
+}
+
+export const VISTA_INICIAL: Vista = { clases: new Set(['etapa']), etapaNodoId: null };
+
+/** ¿Está el canvas dentro de una etapa (doble clic) y no en el filtro? */
+export function enEtapa(vista: Vista): boolean {
+  return vista.etapaNodoId !== null;
+}
+
+/** ¿La barra debe mostrar esta clase como encendida? */
+export function muestraClase(vista: Vista, clase: TipoCaja): boolean {
+  return !enEtapa(vista) && vista.clases.has(clase);
+}
+
+/**
+ * Enciende o apaga una clase.
+ *
+ * Dos reglas, las dos por el mismo motivo —que el gesto nunca deje un canvas
+ * que no dice nada—: apagar la última clase encendida no hace nada (el canvas
+ * quedaría en blanco sin que el usuario haya pedido vaciarlo), y tocar
+ * cualquier interruptor estando dentro de una etapa **sale** de ella, que es lo
+ * que el usuario está pidiendo al cambiar el filtro.
+ */
+export function alternarClase(vista: Vista, clase: TipoCaja): Vista {
+  // Dentro de una etapa los interruptores no reflejan lo que se ve, así que el
+  // clic no apaga nada: sale al filtro con esa clase encendida.
+  if (enEtapa(vista)) {
+    return { clases: new Set([...vista.clases, clase]), etapaNodoId: null };
+  }
+  if (!vista.clases.has(clase)) {
+    return { ...vista, clases: new Set([...vista.clases, clase]) };
+  }
+  if (vista.clases.size === 1) return vista;
+  const clases = new Set(vista.clases);
+  clases.delete(clase);
+  return { ...vista, clases };
+}
+
+/** Entra a una etapa; conserva debajo la combinación de clases del filtro. */
+export function abrirEtapa(vista: Vista, etapaNodoId: string): Vista {
+  return { ...vista, etapaNodoId };
+}
+
+/** Sale de la etapa abierta y devuelve el filtro tal como estaba. */
+export function salirDeEtapa(vista: Vista): Vista {
+  return { ...vista, etapaNodoId: null };
+}
 
 /**
  * Ids visibles en esta vista.
  *
- * En `conceptos-de` se incluyen además los conceptos de **otras** etapas que
+ * Con etapa abierta se incluyen además los conceptos de **otras** etapas que
  * estén cableados con los de esta: el usuario pidió explícitamente poder ligar
  * conceptos entre etapas, y un cable cuyo otro extremo no se ve no se puede ni
  * revisar ni quitar. Se marcan aparte con `esForaneo` para que el canvas los
  * dibuje como contexto y no como parte de la etapa abierta.
  */
 export function idsVisibles(borrador: Borrador, vista: Vista): ReadonlySet<string> {
-  if (vista.modo === 'etapas') {
-    return new Set(borrador.cajas.filter((caja) => caja.tipo === 'etapa').map((c) => c.id));
-  }
-  if (vista.modo === 'conceptos') {
-    return new Set(borrador.cajas.filter((caja) => caja.tipo === 'concepto').map((c) => c.id));
+  if (vista.etapaNodoId === null) {
+    return new Set(
+      borrador.cajas.filter((caja) => vista.clases.has(caja.tipo)).map((caja) => caja.id),
+    );
   }
 
   const propios = new Set(
@@ -295,7 +383,102 @@ export function idsVisibles(borrador: Borrador, vista: Vista): ReadonlySet<strin
 
 /** ¿Esta caja se ve solo porque está cableada con la etapa abierta? */
 export function esForaneo(caja: Caja, vista: Vista): boolean {
-  return vista.modo === 'conceptos-de' && caja.etapaNodoId !== vista.etapaNodoId;
+  return enEtapa(vista) && caja.etapaNodoId !== vista.etapaNodoId;
+}
+
+/** Dónde cuelga una caja en el árbol filtrado, y en qué lugar del recorrido. */
+export interface RamaVisible {
+  /** Ancestro visible más cercano; `null` si ninguno lo es. */
+  readonly padreVisibleId: string | null;
+  /** Preorden dentro del árbol filtrado. */
+  readonly orden: number;
+}
+
+/**
+ * El árbol tal como queda después del filtro por clases.
+ *
+ * Es la pieza que hace utilizable la vista mixta. Si se ven niveles y conceptos
+ * pero no etapas, el concepto no queda suelto: su padre pasa a ser el ancestro
+ * visible más cercano —su nivel, o sea su abuelo—, porque un ancestro oculto se
+ * **colapsa**, no corta la rama. Es el mismo criterio que `visiblesEnJerarquia`
+ * aplica en el Gantt del árbol (`jerarquia.ts`), pero al revés: allá se esconde
+ * lo que cuelga de un nodo colapsado, aquí se re-cuelga lo que sobrevive al
+ * filtro.
+ *
+ * El `orden` es el preorden de ese árbol filtrado, no el del árbol completo:
+ * así los hijos de un nivel quedan contiguos al acomodar y la columna se lee
+ * como la rama que es, en vez de intercalar conceptos de niveles distintos.
+ *
+ * Sólo devuelve entradas para las cajas visibles.
+ */
+export function arbolVisible(
+  borrador: Borrador,
+  visibles: ReadonlySet<string>,
+): ReadonlyMap<string, RamaVisible> {
+  const conocidos = new Set(borrador.cajas.map((caja) => caja.id));
+  // Un `parent_id` que no está entre las cajas (dato inconsistente, o un nodo
+  // recortado) convierte a la caja en raíz en vez de perderla.
+  const hijos = new Map<string | null, Caja[]>();
+  for (const caja of borrador.cajas) {
+    const padre =
+      caja.parentId !== null && conocidos.has(caja.parentId) ? caja.parentId : null;
+    const lista = hijos.get(padre);
+    if (lista) lista.push(caja);
+    else hijos.set(padre, [caja]);
+  }
+
+  const rama = new Map<string, RamaVisible>();
+  const visitados = new Set<string>();
+  let orden = 0;
+
+  // Recorrido en profundidad sobre el árbol **completo**: se baja también por
+  // los ocultos, porque son ellos los que se colapsan. `visitados` es la red
+  // contra un `parent_id` en ciclo, que colgaría la pantalla.
+  function bajar(id: string | null, padreVisibleId: string | null): void {
+    for (const hijo of hijos.get(id) ?? []) {
+      if (visitados.has(hijo.id)) continue;
+      visitados.add(hijo.id);
+      if (visibles.has(hijo.id)) {
+        rama.set(hijo.id, { padreVisibleId, orden });
+        orden += 1;
+        bajar(hijo.id, hijo.id);
+      } else {
+        bajar(hijo.id, padreVisibleId);
+      }
+    }
+  }
+  bajar(null, null);
+
+  return rama;
+}
+
+/** Qué mira el usuario en el canvas: una caja, un cable, o nada. */
+export type Seleccion =
+  | { readonly clase: 'caja'; readonly cajaId: string }
+  | { readonly clase: 'cable'; readonly desde: string; readonly hasta: string }
+  | null;
+
+/**
+ * Identidad del cable en el canvas.
+ *
+ * Un cable no tiene id propio en el contrato —es una entrada de
+ * `dependencias[]` de su sucesora—, así que su identidad es el par ordenado, y
+ * esta función es el único lugar donde se arma la cadena que usan React Flow y
+ * los avisos de traslape. Los extremos son UUIDs, así que `->` no aparece
+ * dentro de ninguno de los dos.
+ */
+export function idDeCable(desde: string, hasta: string): string {
+  return `${desde}->${hasta}`;
+}
+
+/** El cable `desde → hasta` del borrador, o `null` si ya no existe. */
+export function buscarCable(
+  borrador: Borrador,
+  desde: string,
+  hasta: string,
+): Cable | null {
+  const sucesora = borrador.cajas.find((caja) => caja.id === hasta);
+  return sucesora?.entradas.find((cable) => cable.desde === desde) ?? null;
 }
 
 export interface OpcionNodo {
@@ -317,6 +500,10 @@ const SANGRIA = '\u00a0\u00a0';
  * hasta ahora se capturaban a mano porque el contrato no exponía el árbol
  * (`GET /prototipos/{id}/nodos` ya existe). El orden es el que el backend ya
  * devolvió: padre antes que hijos.
+ *
+ * Se ofrecen las tres clases, niveles incluidos: desde la Fase 4 un nivel es
+ * programable, y que el alta no lo ofreciera mientras el canvas sí lo dibuja
+ * dejaría las dos pantallas contando cosas distintas del mismo contrato.
  *
  * La sangría va con espacios duros y no con anidación porque un `<option>` no
  * admite marcado; con espacios normales el navegador los colapsaría y los tres
@@ -340,11 +527,13 @@ export function opcionesDeNodos(
 
   const opciones: OpcionNodo[] = [];
   for (const nodo of nodos) {
-    const tipo = tipoDeCaja(nodo);
-    if (tipo === null) continue;
     const sangria = SANGRIA.repeat(profundidad(nodo));
     const clave = nodo.clave ? `${nodo.clave} · ` : '';
-    opciones.push({ valor: nodo.id, etiqueta: `${sangria}${clave}${nodo.nombre}`, tipo });
+    opciones.push({
+      valor: nodo.id,
+      etiqueta: `${sangria}${clave}${nodo.nombre}`,
+      tipo: nodo.tipo,
+    });
   }
   return opciones;
 }

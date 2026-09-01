@@ -33,17 +33,28 @@ import {
 } from '@/programacion/borrador';
 import { buscarCiclo, cerrariaCiclo, ordenTopologico } from '@/programacion/ciclos';
 import {
+  abrirEtapa,
+  alternarClase,
+  arbolVisible,
   armarBorrador,
   aristas,
+  buscarCable,
+  enEtapa,
   esForaneo,
   esRenglon,
+  idDeCable,
   idsVisibles,
   itemsDelBorrador,
+  muestraClase,
   opcionesDeEtapas,
   opcionesDeNodos,
+  salirDeEtapa,
   spanDeCaja,
+  VISTA_INICIAL,
   type Borrador,
   type Caja,
+  type TipoCaja,
+  type Vista,
 } from '@/programacion/grafo';
 import { colocar, duracionDelPrograma, traslapesConTrabajo } from '@/programacion/planificacion';
 import { anclajesDe } from '@/programacion/reglas';
@@ -110,13 +121,36 @@ function armar(items: readonly ItemProgramaBaseRespuesta[] = []) {
 /* ------------------------------------------------- caja ↔ renglón ↔ cable */
 
 describe('el grafo son los nodos del WBS y sus dependencias (§7.4, §7.5)', () => {
-  it('toda etapa y todo concepto es una caja; el nivel no', () => {
+  it('todo nodo del árbol es una caja, el nivel incluido', () => {
+    // Hasta la Fase 4 el nivel no era caja porque no era programable. Ahora
+    // `profundidad_captura` admite `nivel` y el backend reparte su ventana
+    // hacia abajo, así que el editor tiene que poder dibujarlo: si no, no se
+    // puede programar lo que el contrato ya acepta.
     const { borrador } = armar();
-    expect(borrador.cajas.map((caja) => caja.id)).toEqual(['e1', 'c1', 'c2', 'e2', 'c3', 'c4']);
+    expect(borrador.cajas.map((caja) => caja.id)).toEqual([
+      'n1',
+      'e1',
+      'c1',
+      'c2',
+      'e2',
+      'c3',
+      'c4',
+    ]);
+    expect(borrador.cajas.find((caja) => caja.id === 'n1')?.tipo).toBe('nivel');
     expect(borrador.cajas.filter((caja) => caja.tipo === 'etapa').map((c) => c.id)).toEqual([
       'e1',
       'e2',
     ]);
+  });
+
+  it('la caja guarda su padre del árbol, no sólo su etapa', () => {
+    // Es lo que permite subir un eslabón a la vez cuando el filtro apaga una
+    // clase intermedia (`arbolVisible`).
+    const { borrador } = armar();
+    const porId = new Map(borrador.cajas.map((caja) => [caja.id, caja]));
+    expect(porId.get('c1')?.parentId).toBe('e1');
+    expect(porId.get('e1')?.parentId).toBe('n1');
+    expect(porId.get('n1')?.parentId).toBeNull();
   });
 
   it('un prototipo sin programa arranca desde su árbol, con las duraciones por llenar', () => {
@@ -224,7 +258,7 @@ describe('el grafo son los nodos del WBS y sus dependencias (§7.4, §7.5)', () 
 
 /* ---------------------------------------------------------------- vistas */
 
-describe('granularidad del canvas', () => {
+describe('granularidad del canvas: el filtro por clases', () => {
   const { borrador } = armar([
     item('i1', 'c1', { duracion_dias: '3' }),
     item('i3', 'c3', {
@@ -234,28 +268,118 @@ describe('granularidad del canvas', () => {
     }),
   ]);
 
-  it('arranca en etapas: diez cajas legibles, no trescientos conceptos', () => {
-    expect([...idsVisibles(borrador, { modo: 'etapas' })].sort()).toEqual(['e1', 'e2']);
+  function conClases(...clases: readonly TipoCaja[]): Vista {
+    return { clases: new Set(clases), etapaNodoId: null };
+  }
+
+  function ve(...clases: readonly TipoCaja[]): readonly string[] {
+    return [...idsVisibles(borrador, conClases(...clases))].sort();
+  }
+
+  it('arranca sólo en etapas: diez cajas legibles, no ciento cincuenta nodos', () => {
+    expect([...idsVisibles(borrador, VISTA_INICIAL)].sort()).toEqual(['e1', 'e2']);
   });
 
-  it('el interruptor de conceptos abre todos los de todas las etapas', () => {
-    expect([...idsVisibles(borrador, { modo: 'conceptos' })].sort()).toEqual([
+  it('las siete combinaciones no vacías se pueden ver, y cada una muestra lo suyo', () => {
+    // Es el hueco que se reportó: el canvas tenía dos modos excluyentes y las
+    // mezclas —que son lo que se usa para programar— no existían.
+    expect(ve('nivel')).toEqual(['n1']);
+    expect(ve('etapa')).toEqual(['e1', 'e2']);
+    expect(ve('concepto')).toEqual(['c1', 'c2', 'c3', 'c4']);
+    expect(ve('nivel', 'etapa')).toEqual(['e1', 'e2', 'n1']);
+    expect(ve('nivel', 'concepto')).toEqual(['c1', 'c2', 'c3', 'c4', 'n1']);
+    expect(ve('etapa', 'concepto')).toEqual(['c1', 'c2', 'c3', 'c4', 'e1', 'e2']);
+    expect(ve('nivel', 'etapa', 'concepto')).toEqual([
       'c1',
       'c2',
       'c3',
       'c4',
+      'e1',
+      'e2',
+      'n1',
     ]);
+  });
+
+  it('los interruptores son independientes y el último no se puede apagar', () => {
+    const soloEtapas = VISTA_INICIAL;
+    const conNiveles = alternarClase(soloEtapas, 'nivel');
+    expect([...conNiveles.clases].sort()).toEqual(['etapa', 'nivel']);
+
+    // Apagar etapas deja niveles: mezcla legítima, no un modo excluyente.
+    const soloNiveles = alternarClase(conNiveles, 'etapa');
+    expect([...soloNiveles.clases]).toEqual(['nivel']);
+
+    // Y apagar la última no vacía el canvas: el gesto no hace nada.
+    expect(alternarClase(soloNiveles, 'nivel')).toBe(soloNiveles);
+  });
+
+  it('entrar a una etapa conserva el filtro debajo, y salir lo devuelve', () => {
+    const mezcla = alternarClase(VISTA_INICIAL, 'concepto');
+    const dentro = abrirEtapa(mezcla, 'e2');
+    expect(enEtapa(dentro)).toBe(true);
+    // Dentro de la etapa manda el doble clic, no las clases encendidas.
+    expect(muestraClase(dentro, 'etapa')).toBe(false);
+    expect([...salirDeEtapa(dentro).clases].sort()).toEqual(['concepto', 'etapa']);
   });
 
   it('al entrar a una etapa se ven también los conceptos de otra que estén cableados', () => {
     // Un cable cuyo otro extremo no se ve no se puede ni revisar ni quitar.
-    const vista = { modo: 'conceptos-de', etapaNodoId: 'e2' } as const;
+    const vista = abrirEtapa(VISTA_INICIAL, 'e2');
     expect([...idsVisibles(borrador, vista)].sort()).toEqual(['c1', 'c3', 'c4']);
 
     const c1 = borrador.cajas.find((caja) => caja.id === 'c1')!;
     const c3 = borrador.cajas.find((caja) => caja.id === 'c3')!;
     expect(esForaneo(c1, vista)).toBe(true);
     expect(esForaneo(c3, vista)).toBe(false);
+  });
+});
+
+/* --------------------------------------------- el árbol filtrado del canvas */
+
+describe('con una clase apagada, lo que cuelga de ella se re-cuelga del abuelo', () => {
+  const { borrador } = armar();
+
+  function ramaCon(...clases: readonly TipoCaja[]) {
+    const vista: Vista = { clases: new Set(clases), etapaNodoId: null };
+    return arbolVisible(borrador, idsVisibles(borrador, vista));
+  }
+
+  it('sin etapas, el concepto cuelga de su nivel y no queda suelto', () => {
+    const rama = ramaCon('nivel', 'concepto');
+    expect(rama.get('c1')?.padreVisibleId).toBe('n1');
+    expect(rama.get('c4')?.padreVisibleId).toBe('n1');
+    expect(rama.get('n1')?.padreVisibleId).toBeNull();
+    // La etapa está apagada: no tiene rama porque no se dibuja.
+    expect(rama.has('e1')).toBe(false);
+  });
+
+  it('con las tres clases cada caja cuelga de su padre real', () => {
+    const rama = ramaCon('nivel', 'etapa', 'concepto');
+    expect(rama.get('c1')?.padreVisibleId).toBe('e1');
+    expect(rama.get('e1')?.padreVisibleId).toBe('n1');
+  });
+
+  it('sin ningún ancestro visible el padre es nulo, no inventado', () => {
+    const rama = ramaCon('concepto');
+    expect(rama.get('c1')?.padreVisibleId).toBeNull();
+  });
+
+  it('el orden es el preorden del árbol filtrado: los hermanos, contiguos', () => {
+    // Sin etapas los cuatro conceptos cuelgan del mismo nivel, y siguen en el
+    // orden del árbol: primero los de cimentación, luego los de albañilería.
+    const rama = ramaCon('nivel', 'concepto');
+    const porOrden = [...rama].sort((a, b) => a[1].orden - b[1].orden).map(([id]) => id);
+    expect(porOrden).toEqual(['n1', 'c1', 'c2', 'c3', 'c4']);
+  });
+
+  it('un padre que no está entre las cajas no pierde a su hijo: lo vuelve raíz', () => {
+    const { borrador: huerfano } = armarBorrador({
+      prototipoId: 'p1',
+      nombre: '',
+      nodos: [nodo('c9', 'concepto', { parent_id: 'e-que-no-esta' })],
+    });
+    const rama = arbolVisible(huerfano, new Set(['c9']));
+    expect(rama.get('c9')).toEqual({ padreVisibleId: null, orden: 0 });
   });
 });
 
@@ -385,6 +509,7 @@ describe('las cuatro ligas y el aviso de tramo (§7.6)', () => {
         tipo: 'concepto' as const,
         clave: null,
         nombre: `k${indice}`,
+        parentId: null,
         etapaId: null,
         etapaNodoId: null,
         duracionDias: 5,
@@ -633,15 +758,135 @@ describe('borrador local e historial', () => {
   });
 });
 
+/* ------------------------------------------------- acciones sobre el cable */
+
+describe('el cable es accionable desde el canvas (§7.5)', () => {
+  // Una cadena c1 → c2 → c3 sobre la que probar las tres acciones.
+  const base = armar([
+    item('i1', 'c1', { duracion_dias: '3' }),
+    item('i2', 'c2', {
+      duracion_dias: '4',
+      dependencias: [{ ref: 'c1', tipo: 'FS', lag_dias: 0 }],
+    }),
+    item('i3', 'c3', {
+      duracion_dias: '5',
+      dependencias: [{ ref: 'c2', tipo: 'FS', lag_dias: 0 }],
+    }),
+  ]).borrador;
+
+  it('el cable se identifica por su par ordenado, que es lo que el canvas nombra', () => {
+    // No hay id de dependencia en el contrato: la dependencia es una entrada de
+    // `dependencias[]` de su sucesora, así que su identidad es el par.
+    expect(idDeCable('c1', 'c2')).toBe('c1->c2');
+    expect(buscarCable(base, 'c1', 'c2')).toEqual({ desde: 'c1', tipo: 'FS', lagDias: 0 });
+    expect(buscarCable(base, 'c2', 'c1')).toBeNull();
+  });
+
+  it('desconectar quita sólo ese cable y deja el resto del grafo en pie', () => {
+    const despues = aplicar(base, { tipo: 'desconectar', desde: 'c1', hasta: 'c2' });
+    expect(buscarCable(despues, 'c1', 'c2')).toBeNull();
+    expect(buscarCable(despues, 'c2', 'c3')).not.toBeNull();
+    // Las dos cajas siguen ahí: quitar un cable no da de baja nodos del WBS.
+    expect(despues.cajas).toHaveLength(base.cajas.length);
+  });
+
+  it('retipar cambia el tipo sin tocar el conjunto de aristas', () => {
+    const despues = aplicar(base, { tipo: 'ligar', desde: 'c1', hasta: 'c2', tipoLiga: 'SS' });
+    expect(buscarCable(despues, 'c1', 'c2')?.tipo).toBe('SS');
+    expect(aristas(despues)).toEqual(aristas(base));
+  });
+
+  it('retipar no puede cerrar un ciclo, porque no cambia por dónde va la flecha', () => {
+    // Es la razón por la que retipar no pide comprobación: los cuatro tipos
+    // describen *cuándo* arranca la sucesora, no *quién* es la predecesora. El
+    // grafo que el backend valida (§6) queda idéntico con los cuatro.
+    const ids = base.cajas.map((caja) => caja.id);
+    for (const tipoLiga of ['FS', 'SS', 'FF', 'SF'] as const) {
+      const despues = aplicar(base, { tipo: 'ligar', desde: 'c1', hasta: 'c2', tipoLiga });
+      expect(aristas(despues)).toEqual(aristas(base));
+      expect(buscarCiclo(ids, aristas(despues))).toBeNull();
+    }
+  });
+
+  it('invertir sí cambia la flecha, así que se rechaza si cerraría un ciclo', () => {
+    // c1 → c2 → c3 y además c1 → c3: darle la vuelta a c1 → c3 dejaría
+    // c3 → c1 → c2 → c3, que es lo que el backend rechaza con un 422 sobre el
+    // programa completo.
+    const conAtajo = aplicar(base, { tipo: 'conectar', desde: 'c1', hasta: 'c3', tipoLiga: 'FS' });
+    expect(aplicar(conAtajo, { tipo: 'invertir', desde: 'c1', hasta: 'c3' })).toBe(conAtajo);
+    expect(buscarCiclo(conAtajo.cajas.map((c) => c.id), aristas(conAtajo))).toBeNull();
+  });
+
+  it('invertir un cable que no cierra nada conserva su tipo y su lag', () => {
+    const conLag = aplicar(base, { tipo: 'lag', desde: 'c1', hasta: 'c2', lagDias: 2 });
+    const retipado = aplicar(conLag, {
+      tipo: 'ligar',
+      desde: 'c1',
+      hasta: 'c2',
+      tipoLiga: 'SS',
+    });
+    const invertido = aplicar(retipado, { tipo: 'invertir', desde: 'c1', hasta: 'c2' });
+
+    expect(buscarCable(invertido, 'c1', 'c2')).toBeNull();
+    expect(buscarCable(invertido, 'c2', 'c1')).toEqual({
+      desde: 'c2',
+      tipo: 'SS',
+      lagDias: 2,
+    });
+  });
+
+  it('retipar al mismo tipo o sobre un cable que no existe no gasta un paso de deshacer', () => {
+    // Ahora que estas acciones salen de un clic en el canvas, apilar un paso
+    // vacío haría que Ctrl+Z pareciera no responder.
+    const igual = despachar(historialInicial(base), {
+      tipo: 'ligar',
+      desde: 'c1',
+      hasta: 'c2',
+      tipoLiga: 'FS',
+    });
+    expect(puedeDeshacer(igual)).toBe(false);
+
+    const fantasma = despachar(historialInicial(base), {
+      tipo: 'lag',
+      desde: 'c3',
+      hasta: 'c1',
+      lagDias: 4,
+    });
+    expect(puedeDeshacer(fantasma)).toBe(false);
+  });
+
+  it('desconectar desde el canvas se deshace como cualquier otro gesto', () => {
+    const historial = despachar(historialInicial(base), {
+      tipo: 'desconectar',
+      desde: 'c1',
+      hasta: 'c2',
+    });
+    expect(buscarCable(historial.presente, 'c1', 'c2')).toBeNull();
+    expect(deshacer(historial).presente).toBe(base);
+  });
+});
+
 /* ------------------------------------------------ el alta sin teclear UUID */
 
 describe('el alta ya no pide UUIDs (§7.4)', () => {
-  it('ofrece las etapas y los conceptos del árbol, sangrados por profundidad', () => {
+  it('ofrece los nodos programables del árbol, sangrados por profundidad', () => {
+    // Los tres tipos: desde la Fase 4 un nivel también es programable, y que el
+    // alta no lo ofreciera mientras el canvas sí lo dibuja dejaría las dos
+    // pantallas contando cosas distintas del mismo contrato.
     const opciones = opcionesDeNodos(ARBOL);
-    expect(opciones.map((opcion) => opcion.valor)).toEqual(['e1', 'c1', 'c2', 'e2', 'c3', 'c4']);
+    expect(opciones.map((opcion) => opcion.valor)).toEqual([
+      'n1',
+      'e1',
+      'c1',
+      'c2',
+      'e2',
+      'c3',
+      'c4',
+    ]);
     // La sangría son espacios duros: en un <option> el espacio normal colapsa.
-    expect(opciones[0]?.etiqueta).toBe('\u00a0\u00a0CIM · Cimentación');
-    expect(opciones[1]?.etiqueta).toBe('\u00a0\u00a0\u00a0\u00a0EX-01 · Excavación');
+    expect(opciones[0]?.etiqueta).toBe('Planta baja');
+    expect(opciones[1]?.etiqueta).toBe('\u00a0\u00a0CIM · Cimentación');
+    expect(opciones[2]?.etiqueta).toBe('\u00a0\u00a0\u00a0\u00a0EX-01 · Excavación');
   });
 
   it('las etapas constructivas del catálogo se listan una sola vez', () => {

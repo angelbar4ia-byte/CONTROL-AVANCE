@@ -18,7 +18,7 @@ import { fmtNum } from '@/lib/formato';
 import { EditorTramos } from './EditorTramos';
 import { spanDeCaja, TIPOS_LIGA, type Borrador, type Caja, type TipoLiga } from './grafo';
 import { nombreCorto, type Colocacion } from './planificacion';
-import { ayudaTipoDependencia, etiquetaTipoDependencia } from './reglas';
+import { ayudaTipoDependencia, etiquetaClaseNodo, etiquetaTipoDependencia } from './reglas';
 import type { Tramo } from './tramos';
 
 interface Props {
@@ -64,8 +64,9 @@ export function PanelCaja({
         <div>
           <div className="page__eyebrow mono">Programa</div>
           <div className="text-sm text-mute">
-            Selecciona una caja para capturar su duración, su frente y sus tramos. Doble
-            clic en una etapa entra a sus conceptos.
+            Selecciona una caja para capturar su duración, su frente y sus tramos, o un
+            cable para retiparlo o quitarlo. Doble clic en una etapa entra a sus
+            conceptos.
           </div>
         </div>
         <div className="sep" />
@@ -91,7 +92,7 @@ export function PanelCaja({
     <aside className="panel-prog__lado" aria-label={`Actividad ${caja.nombre}`}>
       <div>
         <div className="page__eyebrow mono">
-          {caja.tipo === 'etapa' ? 'Etapa constructiva' : 'Concepto'}
+          {etiquetaClaseNodo(caja.tipo)}
           {caja.clave !== null && ` · ${caja.clave}`}
         </div>
         <div style={{ fontWeight: 500 }}>{caja.nombre}</div>
