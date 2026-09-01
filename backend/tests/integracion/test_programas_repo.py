@@ -242,3 +242,138 @@ async def test_una_org_ajena_no_ve_el_programa_de_obra(
         repo = RepositorioProgramasSQL(sesion)
         assert await repo.programa_vigente(escenario.obra_id) is None
         assert await repo.listar_programas(escenario.obra_id) == []
+
+
+# --- Calendario del cronograma (0040) -----------------------------------
+
+
+async def test_la_plantilla_nace_en_semana_natural(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """Sin elección explícita manda el default de la columna.
+
+    Es lo que garantiza que las plantillas que ya existían no cambiaran de
+    comportamiento al aplicar la migración: los siete días hábiles son la
+    aritmética de días corridos de siempre.
+    """
+    async with sesion_con_rls(contexto_control) as sesion:
+        repo = RepositorioProgramasSQL(sesion)
+        base_id = await repo.crear_base({"prototipo_id": escenario.prototipo_id})
+        await sesion.commit()
+        base = await repo.obtener_base(base_id)
+
+    assert base is not None
+    assert list(base["dias_habiles"]) == [1, 2, 3, 4, 5, 6, 7]
+
+
+async def test_el_calendario_de_la_plantilla_va_y_vuelve(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """Lunes a sábado, la semana de obra: se guarda y `base_vigente` la lee."""
+    async with sesion_con_rls(contexto_control) as sesion:
+        repo = RepositorioProgramasSQL(sesion)
+        await repo.crear_base(
+            {
+                "prototipo_id": escenario.prototipo_id,
+                "dias_habiles": [1, 2, 3, 4, 5, 6],
+            }
+        )
+        await sesion.commit()
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        vigente = await RepositorioProgramasSQL(sesion).base_vigente(
+            escenario.prototipo_id
+        )
+
+    assert vigente is not None
+    assert list(vigente["dias_habiles"]) == [1, 2, 3, 4, 5, 6]
+
+
+async def test_base_vigente_solo_devuelve_la_version_vigente(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """Cambiar de calendario es publicar una versión nueva de la plantilla.
+
+    La anterior queda con el suyo: es contra ese calendario que se calcularon
+    las obras que ya se instanciaron (§7.5, §10.8).
+    """
+    async with sesion_con_rls(contexto_control) as sesion:
+        repo = RepositorioProgramasSQL(sesion)
+        await repo.crear_base(
+            {"prototipo_id": escenario.prototipo_id, "dias_habiles": [1, 2, 3, 4, 5]}
+        )
+        await repo.crear_base(
+            {
+                "prototipo_id": escenario.prototipo_id,
+                "dias_habiles": [1, 2, 3, 4, 5, 6],
+            }
+        )
+        await sesion.commit()
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        vigente = await RepositorioProgramasSQL(sesion).base_vigente(
+            escenario.prototipo_id
+        )
+
+    assert vigente is not None
+    assert vigente["version"] == 2
+    assert list(vigente["dias_habiles"]) == [1, 2, 3, 4, 5, 6]
+
+
+async def test_instanciar_congela_el_calendario_en_la_version(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """El calendario se guarda por versión de cronograma, como `fecha_corte`.
+
+    Reinstanciar con otra plantilla no debe reescribir contra qué se calculó la
+    versión anterior.
+    """
+    async with sesion_con_rls(contexto_control) as sesion:
+        repo = RepositorioProgramasSQL(sesion)
+        primera = await repo.instanciar(
+            escenario.obra_id, fecha_corte=None, dias_habiles=[1, 2, 3, 4, 5, 6]
+        )
+        segunda = await repo.instanciar(
+            escenario.obra_id, fecha_corte=None, dias_habiles=[1, 2, 3, 4, 5]
+        )
+        await sesion.commit()
+
+    assert list(primera["dias_habiles"]) == [1, 2, 3, 4, 5, 6]
+    assert list(segunda["dias_habiles"]) == [1, 2, 3, 4, 5]
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        vigente = await RepositorioProgramasSQL(sesion).programa_vigente(
+            escenario.obra_id
+        )
+    assert vigente is not None
+    assert vigente["version"] == 2
+    assert list(vigente["dias_habiles"]) == [1, 2, 3, 4, 5]
+
+
+async def test_el_cronograma_nace_en_semana_natural_sin_calendario(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    async with sesion_con_rls(contexto_control) as sesion:
+        programa = await RepositorioProgramasSQL(sesion).instanciar(
+            escenario.obra_id, fecha_corte=None
+        )
+    assert list(programa["dias_habiles"]) == [1, 2, 3, 4, 5, 6, 7]
+
+
+@pytest.mark.parametrize(
+    "dias", [[], [0, 1], [1, 8], [None, 1]], ids=["vacio", "cero", "ocho", "nulo"]
+)
+async def test_la_base_rechaza_un_calendario_imposible(
+    escenario: Escenario, contexto_control: ContextoSesion, dias: list
+) -> None:
+    """El check de la 0040, que espeja al dominio (§12.11).
+
+    El dominio ya rechaza estos conjuntos con un mensaje legible; el check
+    existe para que nadie los meta por SQL directo y deje un cronograma que el
+    motor no sabe calcular.
+    """
+    async with sesion_con_rls(contexto_control) as sesion:
+        with pytest.raises(Exception):  # noqa: B017 - la base levanta IntegrityError
+            await RepositorioProgramasSQL(sesion).instanciar(
+                escenario.obra_id, fecha_corte=None, dias_habiles=dias
+            )

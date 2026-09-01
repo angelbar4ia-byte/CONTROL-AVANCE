@@ -43,10 +43,15 @@ from obractrl.application.puertos.repositorios import (
     RepositorioProgramas,
     UnidadDeTrabajo,
 )
+from obractrl.domain.programacion.calendario import (
+    SEMANA_NATURAL,
+    CalendarioLaboral,
+)
 from obractrl.domain.programacion.cpm import (
     CicloEnGrafoError,
     Dependencia,
     ResultadoCPM,
+    Tramo,
     calcular_cpm,
 )
 from obractrl.domain.programacion.reglas import (
@@ -63,6 +68,7 @@ from obractrl.domain.programacion.reglas import (
 __all__ = [
     "ActividadEnRuta",
     "ActividadNoProgramable",
+    "CalendarioLaboral",
     "CicloEnGrafoError",
     "ComandoCrearProgramaBase",
     "ComandoEditarProgramacion",
@@ -100,11 +106,18 @@ class ActividadNoProgramable(LookupError):
 
 @dataclass(frozen=True, slots=True)
 class ComandoCrearProgramaBase:
-    """§11.2 `POST /programas-base` (Control de obra)."""
+    """§11.2 `POST /programas-base` (Control de obra).
+
+    `calendario` es la elección de semana laboral o natural del §5.1: la hace
+    Control de obra sobre la plantilla del prototipo, y de ahí baja a cada obra
+    que se genere o instancie con ella. Sin elección explícita, semana natural
+    —el comportamiento de siempre.
+    """
 
     prototipo_id: UUID
     nombre: str | None = None
     items: tuple[ItemProgramaBase, ...] = ()
+    calendario: CalendarioLaboral = SEMANA_NATURAL
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,7 +141,8 @@ class ComandoEditarProgramacion:
     """§11.2 `PATCH /actividades/{id}/programacion` (Supervisor, C).
 
     `None` significa "no lo mandaron"; una lista vacía de `dependencias` sí
-    es un cambio —deja la actividad sin predecesoras.
+    es un cambio —deja la actividad sin predecesoras—, y una de `tramos` le
+    quita la interrupción a la actividad (§7.6).
     """
 
     actividad_id: UUID
@@ -137,6 +151,7 @@ class ComandoEditarProgramacion:
     frente_id: UUID | None = None
     fecha_inicio: date | None = None
     fecha_termino: date | None = None
+    tramos: tuple[Tramo, ...] | None = None
 
 
 # --- Resultados ----------------------------------------------------------
@@ -147,6 +162,7 @@ class ProgramaBaseCreado:
     id: UUID
     version: int
     n_items: int
+    calendario: CalendarioLaboral = SEMANA_NATURAL
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,6 +183,7 @@ class ActividadEnRuta:
     es_critica: bool
     bloqueada: bool
     avance_pct: Decimal
+    tramos: tuple[Tramo, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,6 +196,14 @@ class RutaCritica:
     programa_obra_id: UUID | None
     version: int | None
     actividades: tuple[ActividadEnRuta, ...]
+    calendario: CalendarioLaboral = SEMANA_NATURAL
+    """Con qué calendario se calcularon estas fechas (§7.5, 0040).
+
+    Viaja en la respuesta porque el cliente lo necesita para **dibujar**: el
+    Gantt convierte `duracion_dias` y los `offset_dias` de los tramos a ancho
+    de barra, y sin saber qué días se saltan pintaría una actividad de cinco
+    días laborales como cinco casillas corridas.
+    """
 
     @property
     def fin_programado(self) -> date | None:
@@ -223,6 +248,7 @@ def _a_actividad(fila: dict) -> ActividadProgramable:
         fecha_termino=fila["fecha_termino"],
         avance_pct=Decimal(str(fila["avance_pct"] or 0)),
         bloqueada=bool(fila["bloqueada"]),
+        tramos=tuple(Tramo.desde_jsonb(t) for t in (fila["tramos"] or [])),
     )
 
 
@@ -237,6 +263,7 @@ def _a_item(fila: dict) -> ItemProgramaBase:
         dependencias=tuple(
             Dependencia.desde_jsonb(dep) for dep in (fila["dependencias"] or [])
         ),
+        tramos=tuple(Tramo.desde_jsonb(t) for t in (fila["tramos"] or [])),
         orden=fila["orden"],
     )
 
@@ -252,11 +279,18 @@ def _serializar(dependencias: tuple[Dependencia, ...]) -> str:
     )
 
 
+def _serializar_tramos(tramos: tuple[Tramo, ...]) -> str:
+    """Misma forma que escribe el workflow A (§11.3 A.2), para que el jsonb de
+    `actividad.tramos` tenga una sola representación."""
+    return json.dumps([tramo.a_jsonb() for tramo in tramos])
+
+
 def _a_registro(programacion: ProgramacionDeActividad) -> dict:
     return {
         "id": programacion.actividad_id,
         "duracion_dias": programacion.duracion_dias,
         "dependencias": _serializar(programacion.dependencias),
+        "tramos": _serializar_tramos(programacion.tramos),
         "frente_id": programacion.frente_id,
         "fecha_inicio": programacion.fecha_inicio,
         "fecha_termino": programacion.fecha_termino,
@@ -271,6 +305,7 @@ def _ensamblar_ruta(
     fecha_inicio: date,
     fecha_corte: date,
     programa: dict | None,
+    calendario: CalendarioLaboral,
 ) -> RutaCritica:
     actividades = tuple(
         ActividadEnRuta(
@@ -290,6 +325,7 @@ def _ensamblar_ruta(
             es_critica=resultado.es_critica,
             bloqueada=bool(fila["bloqueada"]),
             avance_pct=Decimal(str(fila["avance_pct"] or 0)),
+            tramos=tuple(Tramo.desde_jsonb(t) for t in (fila["tramos"] or [])),
         )
         for fila in filas
         if (resultado := resultados.get(str(fila["id"]))) is not None
@@ -301,7 +337,21 @@ def _ensamblar_ruta(
         programa_obra_id=programa["id"] if programa else None,
         version=programa["version"] if programa else None,
         actividades=actividades,
+        calendario=calendario,
     )
+
+
+def _calendario_de(programa: dict | None) -> CalendarioLaboral:
+    """El calendario con el que se debe calcular una obra (§7.5, 0040).
+
+    Sin `ProgramaObra` vigente —una obra cuyo cronograma nunca se instanció—
+    manda la semana natural: es el default de la columna y el del motor, y deja
+    la ruta crítica calculable desde el día uno, igual que la `fecha_inicio`
+    ausente cae a hoy (`_ConCronograma`).
+    """
+    if programa is None:
+        return SEMANA_NATURAL
+    return CalendarioLaboral.de(programa.get("dias_habiles"))
 
 
 def _a_guardable(resultados: dict[str, ResultadoCPM]) -> dict[str, dict]:
@@ -370,7 +420,11 @@ class CrearProgramaBase:
 
         async with self._uow:
             programa_base_id = await self._programas.crear_base(
-                {"prototipo_id": cmd.prototipo_id, "nombre": cmd.nombre}
+                {
+                    "prototipo_id": cmd.prototipo_id,
+                    "nombre": cmd.nombre,
+                    "dias_habiles": cmd.calendario.a_lista(),
+                }
             )
             await self._programas.agregar_items_base(
                 programa_base_id,
@@ -388,6 +442,7 @@ class CrearProgramaBase:
                             }
                             for dep in item.dependencias
                         ],
+                        "tramos": [tramo.a_jsonb() for tramo in item.tramos],
                         # Sin `orden` explícito manda la posición en la que
                         # llegó el renglón: es la que el cliente ve (§7.5).
                         "orden": item.orden or orden,
@@ -402,6 +457,11 @@ class CrearProgramaBase:
             id=programa_base_id,
             version=creado["version"] if creado else 1,
             n_items=len(items),
+            # Se relee, no se devuelve `cmd.calendario`: lo que el cliente debe
+            # ver es el calendario que quedó guardado.
+            calendario=CalendarioLaboral.de(
+                creado["dias_habiles"] if creado else None
+            ),
         )
 
 
@@ -417,10 +477,12 @@ class ConsultarRutaCritica(_ConCronograma):
         self, obra_id: UUID, *, fecha_corte: date | None = None
     ) -> RutaCritica:
         filas, arranque, corte, programa = await self._contexto(obra_id, fecha_corte)
+        calendario = _calendario_de(programa)
         resultados = calcular_cpm(
             nodos_cpm([_a_actividad(f) for f in filas]),
             arranque,
             fecha_corte=corte,
+            calendario=calendario,
         )
         return _ensamblar_ruta(
             obra_id=obra_id,
@@ -429,6 +491,7 @@ class ConsultarRutaCritica(_ConCronograma):
             fecha_inicio=arranque,
             fecha_corte=corte,
             programa=programa,
+            calendario=calendario,
         )
 
 
@@ -459,10 +522,12 @@ class RecalcularRutaCritica(_ConCronograma):
         filas, arranque, corte, programa = await self._contexto(
             cmd.obra_id, cmd.fecha_corte
         )
+        calendario = _calendario_de(programa)
         resultados = calcular_cpm(
             nodos_cpm([_a_actividad(f) for f in filas]),
             arranque,
             fecha_corte=corte,
+            calendario=calendario,
         )
 
         async with self._uow:
@@ -482,6 +547,7 @@ class RecalcularRutaCritica(_ConCronograma):
             fecha_inicio=arranque,
             fecha_corte=corte,
             programa=programa,
+            calendario=calendario,
         )
 
 
@@ -522,13 +588,19 @@ class InstanciarProgramaObra(_ConCronograma):
                 f"programa base del cual instanciar su cronograma (§7.5)."
             )
 
+        prototipo_id = UUID(str(obra["prototipo_id"]))
         filas = await self._actividades.programacion_de_obra(cmd.obra_id)
         items = [
             _a_item(f)
-            for f in await self._programas.items_base_vigente(
-                UUID(str(obra["prototipo_id"]))
-            )
+            for f in await self._programas.items_base_vigente(prototipo_id)
         ]
+        # El calendario baja de la plantilla igual que las duraciones, pero no
+        # viene con los items: es del cronograma completo, no de cada renglón
+        # (`programas_sql.base_vigente`, 0040).
+        base = await self._programas.base_vigente(prototipo_id)
+        calendario = CalendarioLaboral.de(
+            base["dias_habiles"] if base else None
+        )
 
         actividades = [_a_actividad(f) for f in filas]
         instanciado = instanciar_programa(actividades=actividades, items=items)
@@ -540,12 +612,17 @@ class InstanciarProgramaObra(_ConCronograma):
         # Antes de escribir: un ciclo levanta `CicloEnGrafoError` aquí y la
         # obra se queda con su cronograma anterior intacto (§6).
         resultados = calcular_cpm(
-            nodos_cpm(actividades, por_id), arranque, fecha_corte=corte
+            nodos_cpm(actividades, por_id),
+            arranque,
+            fecha_corte=corte,
+            calendario=calendario,
         )
 
         async with self._uow:
             programa = await self._programas.instanciar(
-                cmd.obra_id, fecha_corte=corte
+                cmd.obra_id,
+                fecha_corte=corte,
+                dias_habiles=calendario.a_lista(),
             )
             await self._actividades.aplicar_programacion(
                 cmd.obra_id,
@@ -575,6 +652,7 @@ class InstanciarProgramaObra(_ConCronograma):
                 fecha_inicio=arranque,
                 fecha_corte=corte,
                 programa=programa,
+                calendario=calendario,
             ),
         )
 
@@ -586,6 +664,12 @@ class EditarProgramacionActividad:
     ruta crítica de su obra en la misma unidad de trabajo: cambiar una
     duración mueve la holgura de todas las demás, y dejar el CPM sin
     actualizar haría que la Torre reportara una ruta que ya no existe (§6).
+
+    Lee `RepositorioProgramas` sólo para el calendario del cronograma (0040):
+    los días que se ajustan aquí son días hábiles o corridos según lo que diga
+    el `ProgramaObra` vigente, y recalcular con semana natural una obra
+    programada en semana laboral movería las fechas de **todas** las demás
+    actividades en la misma transacción.
     """
 
     def __init__(
@@ -593,10 +677,12 @@ class EditarProgramacionActividad:
         *,
         actividades: RepositorioActividades,
         obras: RepositorioObras,
+        programas: RepositorioProgramas,
         uow: UnidadDeTrabajo,
     ) -> None:
         self._actividades = actividades
         self._obras = obras
+        self._programas = programas
         self._uow = uow
 
     async def ejecutar(self, cmd: ComandoEditarProgramacion) -> ActividadEnRuta:
@@ -620,16 +706,19 @@ class EditarProgramacionActividad:
             frente_id=str(cmd.frente_id) if cmd.frente_id else None,
             fecha_inicio=cmd.fecha_inicio,
             fecha_termino=cmd.fecha_termino,
+            tramos=cmd.tramos,
             refs_de_la_obra=frozenset(a.id for a in actividades),
         )
 
         obra = await self._obras.obtener(obra_id)
         arranque = (obra or {}).get("fecha_inicio") or date.today()
+        calendario = _calendario_de(await self._programas.programa_vigente(obra_id))
 
         # El ciclo se detecta sobre el grafo completo y **antes** de escribir.
         resultados = calcular_cpm(
             nodos_cpm(actividades, {programacion.actividad_id: programacion}),
             arranque,
+            calendario=calendario,
         )
 
         async with self._uow:
@@ -662,6 +751,7 @@ class EditarProgramacionActividad:
             fecha_inicio=arranque,
             fecha_corte=date.today(),
             programa=None,
+            calendario=calendario,
         )
         return ruta.actividades[0]
 
@@ -675,6 +765,13 @@ def _cambios(
         cambios["duracion_dias"] = programacion.duracion_dias
     if cmd.dependencias is not None:
         cambios["dependencias"] = _serializar(programacion.dependencias)
+    if cmd.tramos is not None:
+        cambios["tramos"] = _serializar_tramos(programacion.tramos)
+        # Partir una actividad redefine sus días de trabajo (`editar_programacion`
+        # los deriva de la suma de los tramos), así que la duración se escribe
+        # aunque el cliente no la haya mandado: dejar la columna con el valor
+        # viejo la desincronizaría del detalle que sí se guardó.
+        cambios["duracion_dias"] = programacion.duracion_dias
     if cmd.frente_id is not None:
         cambios["frente_id"] = programacion.frente_id
     if cmd.fecha_inicio is not None:

@@ -1,0 +1,83 @@
+{
+  "ACABADOS": {
+    "desfase": 0.0,
+    "es_critica": true,
+    "fin_tardio": "2026-04-05",
+    "fin_temprano": "2026-04-05",
+    "holgura": 0.0,
+    "inicio_tardio": "2026-03-27",
+    "inicio_temprano": "2026-03-27"
+  },
+  "BOMBEO": {
+    "desfase": 24.0,
+    "es_critica": false,
+    "fin_tardio": "2026-04-07",
+    "fin_temprano": "2026-03-06",
+    "holgura": 32.0,
+    "inicio_tardio": "2026-04-03",
+    "inicio_temprano": "2026-03-02"
+  },
+  "CIMENT": {
+    "desfase": 0.0,
+    "es_critica": true,
+    "fin_tardio": "2026-03-08",
+    "fin_temprano": "2026-03-08",
+    "holgura": 0.0,
+    "inicio_tardio": "2026-03-02",
+    "inicio_temprano": "2026-03-02"
+  },
+  "CISTERNA": {
+    "desfase": 4.0,
+    "es_critica": false,
+    "fin_tardio": "2026-04-07",
+    "fin_temprano": "2026-03-26",
+    "holgura": 12.0,
+    "inicio_tardio": "2026-04-04",
+    "inicio_temprano": "2026-03-23"
+  },
+  "LIMPIEZA": {
+    "desfase": 0.0,
+    "es_critica": true,
+    "fin_tardio": "2026-04-07",
+    "fin_temprano": "2026-04-07",
+    "holgura": 0.0,
+    "inicio_tardio": "2026-04-04",
+    "inicio_temprano": "2026-04-04"
+  },
+  "LOSA": {
+    "desfase": 7.0,
+    "es_critica": false,
+    "fin_tardio": "2026-04-04",
+    "fin_temprano": "2026-03-23",
+    "holgura": 12.0,
+    "inicio_tardio": "2026-03-30",
+    "inicio_temprano": "2026-03-18"
+  },
+  "MURO": {
+    "desfase": 3.0,
+    "es_critica": true,
+    "fin_tardio": "2026-03-27",
+    "fin_temprano": "2026-03-27",
+    "holgura": 0.0,
+    "inicio_tardio": "2026-03-08",
+    "inicio_temprano": "2026-03-08"
+  },
+  "RETIRO_BOMBEO": {
+    "desfase": 7.0,
+    "es_critica": false,
+    "fin_tardio": "2026-04-07",
+    "fin_temprano": "2026-03-23",
+    "holgura": 15.0,
+    "inicio_tardio": "2026-04-05",
+    "inicio_temprano": "2026-03-21"
+  },
+  "SUPERVISION": {
+    "desfase": 0.0,
+    "es_critica": false,
+    "fin_tardio": "2026-04-07",
+    "fin_temprano": "2026-04-05",
+    "holgura": 2.0,
+    "inicio_tardio": "2026-03-29",
+    "inicio_temprano": "2026-03-27"
+  }
+}

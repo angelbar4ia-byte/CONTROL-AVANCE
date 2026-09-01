@@ -335,7 +335,7 @@ class RepositorioObrasSQL:
                 text(
                     """
                     select i.prototipo_nodo_id, i.frente_id, i.etapa_id,
-                           i.duracion_dias, i.dependencias, i.orden
+                           i.duracion_dias, i.dependencias, i.tramos, i.orden
                     from programa_base_item i
                     join programa_base b on b.id = i.programa_base_id
                     where b.prototipo_id = :prototipo_id
@@ -348,7 +348,37 @@ class RepositorioObrasSQL:
         ).mappings().all()
         return [dict(fila) for fila in filas]
 
-    async def instanciar_programa(self, obra_id: UUID) -> UUID:
+    async def calendario_programa_base(
+        self, prototipo_id: UUID
+    ) -> list[int] | None:
+        """Días hábiles del `ProgramaBase` vigente del prototipo (0040, §7.5).
+
+        `None` si el prototipo no tiene plantilla todavía: la obra se genera
+        igual y su cronograma nace con semana natural, que es lo que decide el
+        dominio (`CalendarioLaboral.de(None)`) y no esta consulta.
+
+        Vive aquí por la misma razón que `items_programa_base` —el workflow A
+        aún consume programación por el repositorio de obras—; su gemela del
+        contexto Programación es `programas_sql.base_vigente` (ver el docstring
+        de fronteras del módulo).
+        """
+        dias = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select dias_habiles
+                    from programa_base
+                    where prototipo_id = :prototipo_id and vigente
+                    """
+                ),
+                {"prototipo_id": str(prototipo_id)},
+            )
+        ).scalar_one_or_none()
+        return list(dias) if dias is not None else None
+
+    async def instanciar_programa(
+        self, obra_id: UUID, *, dias_habiles: list[int] | None = None
+    ) -> UUID:
         """Crea el `ProgramaObra` vigente de la obra (§7.5, §11.3 A.2).
 
         `uq_programa_obra_vigente` deja un solo vigente por obra; la versión
@@ -356,22 +386,36 @@ class RepositorioObrasSQL:
         la Fase 3 (instanciar/reversionar) encaje sin migrar datos. El
         `RETURNING` es seguro aquí: `programa_obra_scope` evalúa
         `app.obra_visible(obra_id)` sobre la **obra**, que ya existe.
+
+        `dias_habiles` baja del programa base del prototipo (0040), como la
+        duración y las dependencias: sin esto, la primera ruta crítica de una
+        obra recién generada saldría en semana natural aunque su plantilla
+        dijera otra cosa, y no se corregiría hasta el primer `POST
+        /obras/{id}/programa`.
         """
         return (
             await self._sesion.execute(
                 text(
                     """
-                    insert into programa_obra (org_id, obra_id, version, vigente)
+                    insert into programa_obra
+                        (org_id, obra_id, version, vigente, dias_habiles)
                     select cast(current_setting('app.org_id') as uuid),
                            :obra_id,
                            coalesce(max(version), 0) + 1,
-                           true
+                           true,
+                           -- Ver `programas_sql.crear_base`: el default de la
+                           -- columna se repite porque un `insert ... select`
+                           -- no puede escribir DEFAULT en la lista.
+                           coalesce(
+                               cast(:dias_habiles as smallint[]),
+                               array[1,2,3,4,5,6,7]::smallint[]
+                           )
                     from programa_obra
                     where obra_id = :obra_id
                     returning id
                     """
                 ),
-                {"obra_id": str(obra_id)},
+                {"obra_id": str(obra_id), "dias_habiles": dias_habiles},
             )
         ).scalar_one()
 
@@ -387,8 +431,8 @@ class RepositorioObrasSQL:
         `trg_actividad_recalcular` (§6, migración 0007), que es el espejo en BD
         de la misma regla. Cada dict trae `concepto_id`, `prototipo_nodo_id`,
         `descripcion`, `cant_base`, `precio_unitario`, `precio_destajo`,
-        `modo_pago`, `duracion_dias`, `dependencias` (json ya serializado) y,
-        opcionales, `frente_id`, `nivel_id` y `etapa_id`.
+        `modo_pago`, `duracion_dias`, `dependencias` y `tramos` (json ya
+        serializados) y, opcionales, `frente_id`, `nivel_id` y `etapa_id`.
         """
         if not actividades:
             return
@@ -411,6 +455,7 @@ class RepositorioObrasSQL:
                 "modo_pago": a["modo_pago"],
                 "duracion_dias": a["duracion_dias"],
                 "dependencias": a["dependencias"],
+                "tramos": a["tramos"],
             }
             for a in actividades
         ]
@@ -423,7 +468,7 @@ class RepositorioObrasSQL:
                      prototipo_nodo_id, frente_id,
                      nivel_id, etapa_id, descripcion, cant_base,
                      precio_unitario, precio_destajo, modo_pago, duracion_dias,
-                     dependencias)
+                     dependencias, tramos)
                 values
                     (cast(current_setting('app.org_id') as uuid),
                      cast(:obra_id as uuid), cast(:programa_obra_id as uuid),
@@ -432,7 +477,8 @@ class RepositorioObrasSQL:
                      cast(:nivel_id as uuid), cast(:etapa_id as uuid),
                      :descripcion, :cant_base, :precio_unitario,
                      :precio_destajo, cast(:modo_pago as modo_pago),
-                     :duracion_dias, cast(:dependencias as jsonb))
+                     :duracion_dias, cast(:dependencias as jsonb),
+                     cast(:tramos as jsonb))
                 """
             ),
             params,

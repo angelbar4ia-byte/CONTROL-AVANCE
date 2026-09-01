@@ -741,6 +741,7 @@ def obtener_editar_programacion(sesion: SesionRLS) -> EditarProgramacionActivida
     return EditarProgramacionActividad(
         actividades=RepositorioActividadesSQL(sesion),
         obras=RepositorioObrasSQL(sesion),
+        programas=RepositorioProgramasSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
     )
 

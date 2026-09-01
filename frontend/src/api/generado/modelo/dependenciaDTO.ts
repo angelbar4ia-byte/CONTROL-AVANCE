@@ -15,7 +15,7 @@ export interface DependenciaDTO {
    * @minLength 1
    */
   ref: string;
-  /** FS (fin→inicio) o SS (inicio→inicio). */
+  /** FS (fin→inicio), SS (inicio→inicio), FF (fin→fin) o SF (inicio→fin), como en MS Project. */
   tipo?: string;
   /** Días de desfase de la relación. */
   lag_dias?: number;

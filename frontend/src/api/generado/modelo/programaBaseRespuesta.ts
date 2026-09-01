@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProgramaBaseRespuestaNombre } from './programaBaseRespuestaNombre';
+import type { CalendarioRespuesta } from './calendarioRespuesta';
 
 export interface ProgramaBaseRespuesta {
   id: string;
@@ -13,4 +14,5 @@ export interface ProgramaBaseRespuesta {
   version: number;
   vigente: boolean;
   nombre: ProgramaBaseRespuestaNombre;
+  calendario: CalendarioRespuesta;
 }

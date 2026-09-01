@@ -9,6 +9,7 @@ import type { RutaCriticaRespuestaFinProgramado } from './rutaCriticaRespuestaFi
 import type { RutaCriticaRespuestaProgramaObraId } from './rutaCriticaRespuestaProgramaObraId';
 import type { RutaCriticaRespuestaVersion } from './rutaCriticaRespuestaVersion';
 import type { ActividadEnRutaRespuesta } from './actividadEnRutaRespuesta';
+import type { CalendarioRespuesta } from './calendarioRespuesta';
 
 export interface RutaCriticaRespuesta {
   obra_id: string;
@@ -18,4 +19,6 @@ export interface RutaCriticaRespuesta {
   programa_obra_id: RutaCriticaRespuestaProgramaObraId;
   version: RutaCriticaRespuestaVersion;
   actividades: ActividadEnRutaRespuesta[];
+  /** Con qué calendario se calcularon estas fechas (0040). Fija además en qué unidad están `holgura` y `desfase`: días hábiles con semana laboral, días corridos con semana natural (§6). */
+  calendario: CalendarioRespuesta;
 }
