@@ -27,6 +27,7 @@ programación viven en esa tabla por el §7.6, pero se leen y escriben por
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from datetime import date
 from typing import Any
 from uuid import UUID
@@ -288,6 +289,41 @@ class RepositorioProgramasSQL:
             )
         ).mappings().first()
         return dict(fila) if fila is not None else None
+
+    async def programas_vigentes(
+        self, obra_ids: Sequence[UUID]
+    ) -> dict[str, dict[str, Any]]:
+        """`programa_vigente` de varias obras en una sola consulta (§7.5).
+
+        La pantalla de replicación masiva lo necesita para advertir, antes de
+        replicar, cuáles de las obras del prototipo ya traen cronograma y en
+        qué versión (§11.2 `POST /programas-base/{id}/replicar`): con 40 casas,
+        preguntarlo obra por obra son 40 viajes a la base para pintar una
+        columna.
+
+        RLS sigue mandando: `programa_obra` entra al bloque por obra
+        (`app.obra_visible(obra_id)`), así que una obra fuera del alcance
+        simplemente no vuelve — igual que si no tuviera cronograma. Eso es
+        deliberado (§12.4): la respuesta no distingue "no la puedes ver" de
+        "no tiene versión".
+        """
+        if not obra_ids:
+            return {}
+
+        filas = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    select {_COLUMNAS_OBRA}
+                    from programa_obra
+                    where obra_id = any(cast(:obra_ids as uuid[]))
+                      and vigente
+                    """
+                ),
+                {"obra_ids": [str(obra_id) for obra_id in obra_ids]},
+            )
+        ).mappings().all()
+        return {str(fila["obra_id"]): dict(fila) for fila in filas}
 
     async def listar_programas(self, obra_id: UUID) -> list[dict[str, Any]]:
         filas = (

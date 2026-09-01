@@ -10,6 +10,9 @@ solo entonces persisten. Ninguna regla vive aquí, solo la secuencia.
 * `CrearProgramaBase` — la plantilla de duraciones de un prototipo (§7.5).
 * `InstanciarProgramaObra` — baja esa plantilla al cronograma de una obra,
   versionando el `ProgramaObra` (§11.2 `POST /obras/{id}/programa`).
+* `ReplicarProgramaEnObras` — la misma bajada a **muchas** obras del prototipo
+  de una sola vez (§11.2 `POST /programas-base/{id}/replicar`). Es
+  orquestación sobre `InstanciarProgramaObra`, no un motor aparte.
 * `RecalcularRutaCritica` — corre el motor y **persiste** holgura, criticidad
   y desfase (§11.2 `POST /obras/{id}/ruta-critica/recalcular`).
   `ConsultarRutaCritica` es la misma lectura sin escribir (§11.2 `GET`).
@@ -74,6 +77,7 @@ __all__ = [
     "ComandoEditarProgramacion",
     "ComandoInstanciarPrograma",
     "ComandoRecalcularRutaCritica",
+    "ComandoReplicarPrograma",
     "ConsultarRutaCritica",
     "CrearProgramaBase",
     "EditarProgramacionActividad",
@@ -83,6 +87,9 @@ __all__ = [
     "ProgramaBaseNoEncontrado",
     "ProgramaInstanciadoEnObra",
     "RecalcularRutaCritica",
+    "ReplicaDePrograma",
+    "ReplicaEnObra",
+    "ReplicarProgramaEnObras",
     "RutaCritica",
 ]
 
@@ -125,6 +132,25 @@ class ComandoInstanciarPrograma:
     """§11.2 `POST /obras/{id}/programa` (Control de obra, Supervisor)."""
 
     obra_id: UUID
+    fecha_corte: date | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoReplicarPrograma:
+    """§11.2 `POST /programas-base/{id}/replicar` (Control de obra, Supervisor).
+
+    El gesto que pidió el jefe de obra: "componentes que ayuden a establecer el
+    programa base del prototipo y de ahí replicarse para las obras". Un cluster
+    de 40 casas del mismo modelo son 40 instanciaciones idénticas, y hacerlas
+    de una en una por la pantalla de Programación no es operable.
+
+    `obras` son las obras destino elegidas a mano, no "todas las del
+    prototipo": replicar es una decisión de qué casas se reprograman, y las que
+    ya van avanzadas con su cronograma ajustado no siempre entran.
+    """
+
+    programa_base_id: UUID
+    obras: tuple[UUID, ...] = ()
     fecha_corte: date | None = None
 
 
@@ -227,6 +253,59 @@ class ProgramaInstanciadoEnObra:
     ruta: RutaCritica
     sin_item: tuple[str, ...] = field(default=())
     refs_no_resueltas: tuple[str, ...] = field(default=())
+
+
+@dataclass(frozen=True, slots=True)
+class ReplicaEnObra:
+    """Qué pasó con **una** obra del lote (§11.2 `.../replicar`).
+
+    Es a propósito el mismo reporte que da la instanciación individual —versión
+    creada, actividades programadas, huecos de plantilla y referencias
+    colgantes— más el `motivo` de la que no se pudo. Las dos mitades no
+    coexisten: o quedó programada (`programa_obra_id` y `version` con valor) o
+    trae `motivo`.
+    """
+
+    obra_id: UUID
+    clave: str | None = None
+    """Clave de la obra ("FRESNO 01", §10.1). Viaja en el resultado porque el
+    reporte lo lee una persona: un renglón que solo dijera el UUID de la casa
+    que falló obligaría a cruzarlo contra otra pantalla."""
+    programa_obra_id: UUID | None = None
+    version: int | None = None
+    n_actividades: int = 0
+    sin_item: tuple[str, ...] = ()
+    refs_no_resueltas: tuple[str, ...] = ()
+    motivo: str | None = None
+    """Por qué **no** quedó programada, en el idioma del jefe de obra. `None`
+    en las que sí."""
+
+    @property
+    def programada(self) -> bool:
+        return self.motivo is None
+
+
+@dataclass(frozen=True, slots=True)
+class ReplicaDePrograma:
+    """Resultado del lote completo (§11.2 `POST /programas-base/{id}/replicar`).
+
+    Un renglón por obra pedida, en el orden en que se pidieron: el lote es de
+    **mejor esfuerzo**, así que el resultado no es un sí o un no sino un parte
+    por casa.
+    """
+
+    programa_base_id: UUID
+    prototipo_id: UUID
+    version_base: int
+    obras: tuple[ReplicaEnObra, ...] = ()
+
+    @property
+    def programadas(self) -> tuple[ReplicaEnObra, ...]:
+        return tuple(obra for obra in self.obras if obra.programada)
+
+    @property
+    def fallidas(self) -> tuple[ReplicaEnObra, ...]:
+        return tuple(obra for obra in self.obras if not obra.programada)
 
 
 # --- Mapeo de filas a dominio -------------------------------------------
@@ -655,6 +734,159 @@ class InstanciarProgramaObra(_ConCronograma):
                 calendario=calendario,
             ),
         )
+
+
+class ReplicarProgramaEnObras:
+    """`POST /programas-base/{id}/replicar` — el programa base a muchas obras.
+
+    Spec §7.5 · §11.2. Cierra el pedido del jefe de obra: se arma el programa
+    base del prototipo una vez y de ahí se replica a las casas que lo usan, en
+    vez de repetir la instanciación individual una por una.
+
+    **No es todo-o-nada, y esa es la decisión central.** Cada obra se resuelve
+    en su propia unidad de trabajo —la que abre `InstanciarProgramaObra`— y su
+    fallo se atrapa aquí: si la casa 17 de 40 trae un ciclo, o todavía no se ha
+    generado desde su prototipo, las otras 39 quedan programadas igual y el
+    resultado dice casa por casa qué pasó. Un lote que abortara entero por una
+    obra mala sería inservible en obra: obligaría a depurar el dato de una casa
+    antes de poder programar las demás, que es justo el trabajo manual que esto
+    viene a quitar.
+
+    La transacción **sí** es por obra, no del lote: `InstanciarProgramaObra`
+    commitea lo suyo antes de volver, y el `UnidadDeTrabajoSQL` que comparten
+    hace rollback de lo que quedara a medias si algo revienta dentro de su
+    bloque. Así una obra fallida no deja media programación escrita ni arrastra
+    a las que ya se confirmaron.
+
+    Lo que sí aborta el lote entero son las precondiciones del **programa**, no
+    de las obras: que el programa base exista (404) y que sea el vigente de su
+    prototipo (422). Lo segundo no es un tecnicismo: `instanciar_programa`
+    resuelve la plantilla por `items_base_vigente(prototipo_id)`, así que
+    replicar una versión retirada bajaría en silencio la vigente y el usuario
+    creería haber repartido otra cosa.
+    """
+
+    def __init__(
+        self,
+        *,
+        instanciar: InstanciarProgramaObra,
+        obras: RepositorioObras,
+        programas: RepositorioProgramas,
+    ) -> None:
+        self._instanciar = instanciar
+        self._obras = obras
+        self._programas = programas
+
+    async def ejecutar(self, cmd: ComandoReplicarPrograma) -> ReplicaDePrograma:
+        base = await self._programas.obtener_base(cmd.programa_base_id)
+        if base is None:
+            raise ProgramaBaseNoEncontrado(
+                f"Programa base {cmd.programa_base_id} no encontrado en tu alcance."
+            )
+        if not base["vigente"]:
+            raise ErrorDeProgramacion(
+                f"El programa base v{base['version']} ya no es el vigente de su "
+                f"prototipo: replicarlo bajaría la versión vigente y no esta "
+                f"(§7.5). Ábrelo en el editor y guárdalo para volverlo vigente "
+                f"antes de replicar."
+            )
+
+        prototipo_id = UUID(str(base["prototipo_id"]))
+        resultados = [
+            await self._replicar_en(obra_id, prototipo_id, cmd.fecha_corte)
+            for obra_id in _sin_repetir(cmd.obras)
+        ]
+
+        return ReplicaDePrograma(
+            programa_base_id=cmd.programa_base_id,
+            prototipo_id=prototipo_id,
+            version_base=base["version"],
+            obras=tuple(resultados),
+        )
+
+    async def _replicar_en(
+        self, obra_id: UUID, prototipo_id: UUID, fecha_corte: date | None
+    ) -> ReplicaEnObra:
+        """Una obra del lote. **Nunca levanta** por culpa de la obra: todo lo
+        que puede salir mal de una casa concreta sale como `motivo`."""
+        obra = await self._obras.obtener(obra_id)
+        if obra is None:
+            # Mismo criterio que el 404 individual: RLS hace indistinguible
+            # "no existe" de "no la puedes ver" (§12.4), y en un lote eso no se
+            # puede relajar sin convertir la respuesta en un detector de obras
+            # ajenas.
+            return ReplicaEnObra(
+                obra_id=obra_id,
+                motivo="La obra no existe o está fuera de tu alcance.",
+            )
+
+        clave = obra["clave"]
+        if not obra["prototipo_id"]:
+            return ReplicaEnObra(
+                obra_id=obra_id,
+                clave=clave,
+                motivo=(
+                    "La obra no tiene prototipo asignado (§7.2), así que ningún "
+                    "programa base le aplica."
+                ),
+            )
+        if UUID(str(obra["prototipo_id"])) != prototipo_id:
+            # Se rechaza en vez de dejarla pasar: `InstanciarProgramaObra`
+            # resuelve la plantilla por el prototipo de la **obra**, así que
+            # una obra de otro modelo se programaría con su propio programa
+            # base y el reporte diría "replicada" sobre algo que no se replicó.
+            return ReplicaEnObra(
+                obra_id=obra_id,
+                clave=clave,
+                motivo=(
+                    "La obra es de otro prototipo: este programa base no es su "
+                    "plantilla (§7.5)."
+                ),
+            )
+
+        try:
+            instanciado = await self._instanciar.ejecutar(
+                ComandoInstanciarPrograma(obra_id=obra_id, fecha_corte=fecha_corte)
+            )
+        except CicloEnGrafoError as exc:
+            return ReplicaEnObra(
+                obra_id=obra_id,
+                clave=clave,
+                motivo=(
+                    f"El cronograma que resultaría tiene dependencias "
+                    f"circulares, así que no se calculó ni se escribió nada en "
+                    f"esta obra: {exc}"
+                ),
+            )
+        except (ErrorDeProgramacion, ObraNoEncontrada) as exc:
+            return ReplicaEnObra(obra_id=obra_id, clave=clave, motivo=str(exc))
+
+        return ReplicaEnObra(
+            obra_id=obra_id,
+            clave=clave,
+            programa_obra_id=instanciado.programa_obra_id,
+            version=instanciado.version,
+            n_actividades=instanciado.n_actividades,
+            sin_item=instanciado.sin_item,
+            refs_no_resueltas=instanciado.refs_no_resueltas,
+        )
+
+
+def _sin_repetir(obras: tuple[UUID, ...]) -> tuple[UUID, ...]:
+    """Quita obras repetidas conservando el orden en que llegaron.
+
+    Una obra dos veces en la lista se programaría dos veces y quedaría con dos
+    versiones nuevas de cronograma por un solo clic (§7.5): eso no es lo que
+    nadie quiso pedir, y el resultado traería dos renglones para la misma casa.
+    """
+    vistas: set[UUID] = set()
+    unicas: list[UUID] = []
+    for obra_id in obras:
+        if obra_id in vistas:
+            continue
+        vistas.add(obra_id)
+        unicas.append(obra_id)
+    return tuple(unicas)
 
 
 class EditarProgramacionActividad:

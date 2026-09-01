@@ -12,6 +12,7 @@ entre contextos es por fachada o por evento de dominio (§11.1).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
@@ -506,9 +507,16 @@ class RepositorioObras(Protocol):
         proyecto_id: UUID | None = None,
         cluster_id: UUID | None = None,
         residente_id: UUID | None = None,
+        prototipo_id: UUID | None = None,
         estatus: str | None = None,
     ) -> list[dict]:
-        """Obras visibles para el rol actual: RLS ya acota el alcance (§11.2)."""
+        """Obras visibles para el rol actual: RLS ya acota el alcance (§11.2).
+
+        `prototipo_id` es el filtro que necesita la replicación masiva de un
+        programa base (§11.2 `POST /programas-base/{id}/replicar`): las obras
+        candidatas de un programa son exactamente las casas construidas con el
+        mismo modelo, y eso es `obra.prototipo_id` (§7.2).
+        """
         ...
 
     async def tiene_actividades(self, obra_id: UUID) -> bool:
@@ -614,6 +622,22 @@ class RepositorioProgramas(Protocol):
 
     async def listar_programas(self, obra_id: UUID) -> list[dict]:
         """Historial de versiones del cronograma de la obra (§7.5)."""
+        ...
+
+    async def programas_vigentes(self, obra_ids: Sequence[UUID]) -> dict[str, dict]:
+        """`ProgramaObra` vigente de varias obras a la vez (§7.5).
+
+        Es `programa_vigente` en lote, y existe por la replicación masiva
+        (§11.2 `POST /programas-base/{id}/replicar`): la pantalla tiene que
+        decir, **antes** de replicar, cuáles de las 40 obras del prototipo ya
+        traen cronograma y en qué versión, porque replicar sobre una obra ya
+        programada le crea una versión nueva. Pedirlo obra por obra sería una
+        consulta por casa.
+
+        Las obras sin cronograma simplemente no aparecen en el resultado. La
+        clave es el `obra_id` en texto, para que el llamador no dependa de si
+        el driver devuelve `UUID` o `str`.
+        """
         ...
 
     async def instanciar(

@@ -36,6 +36,7 @@ import type {
   InstanciarProgramaPeticion,
   ItemProgramaBaseRespuesta,
   ListarProgramasBaseApiV1ProgramasBaseGetParams,
+  ObraCandidataRespuesta,
   ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
   ProgramaBaseCreadoRespuesta,
   ProgramaBaseRespuesta,
@@ -43,6 +44,8 @@ import type {
   ProgramaObraRespuesta,
   ProgramacionActividadPeticion,
   RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams,
+  ReplicaDeProgramaRespuesta,
+  ReplicarProgramaPeticion,
   RutaCriticaRespuesta
 } from '.././modelo';
 
@@ -450,6 +453,254 @@ export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsG
 
 
 /**
+ * Las obras del prototipo del programa, con el estado de su cronograma.
+
+Lectura simple, así que consulta los repos directo como
+`obtener_programa_de_obra` (§11.2). Son **dos** repositorios y no uno a
+propósito: la obra la sirve `RepositorioObras` y el `ProgramaObra` vigente
+`RepositorioProgramas`, cada contexto por su puerto (§11.1). Componerlos
+aquí es lo que evita un join entre `obra` y `programa_obra` dentro de un
+repositorio que no es dueño de las dos tablas.
+ * @summary Obras a las que este programa base se puede replicar
+ */
+export const listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet = (
+    programaBaseId: string,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<ObraCandidataRespuesta[]>(
+      {url: `/api/v1/programas-base/${programaBaseId}/obras`, method: 'GET', signal
+    },
+      options);
+    }
+  
+
+
+
+export const getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryKey = (programaBaseId?: string,) => {
+    return [
+    'infinite', `/api/v1/programas-base/${programaBaseId}/obras`
+    ] as const;
+    }
+
+export const getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryKey = (programaBaseId?: string,) => {
+    return [
+    `/api/v1/programas-base/${programaBaseId}/obras`
+    ] as const;
+    }
+
+    
+export const getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>, TError = void | HTTPValidationError>(programaBaseId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryKey(programaBaseId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>> = ({ signal }) => listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet(programaBaseId, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(programaBaseId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>
+export type ListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryError = void | HTTPValidationError
+
+
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>, TError = void | HTTPValidationError>(
+ programaBaseId: string, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>, TError = void | HTTPValidationError>(
+ programaBaseId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>, TError = void | HTTPValidationError>(
+ programaBaseId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Obras a las que este programa base se puede replicar
+ */
+
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>, TError = void | HTTPValidationError>(
+ programaBaseId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryOptions(programaBaseId,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError = void | HTTPValidationError>(programaBaseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryKey(programaBaseId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>> = ({ signal }) => listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet(programaBaseId, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(programaBaseId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>
+export type ListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryError = void | HTTPValidationError
+
+
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet<TData = Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError = void | HTTPValidationError>(
+ programaBaseId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet<TData = Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError = void | HTTPValidationError>(
+ programaBaseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet<TData = Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError = void | HTTPValidationError>(
+ programaBaseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Obras a las que este programa base se puede replicar
+ */
+
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet<TData = Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError = void | HTTPValidationError>(
+ programaBaseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryOptions(programaBaseId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * Instancia el cronograma de varias obras en una sola llamada (§7.5).
+
+Mismos roles que la instanciación individual (`PROGRAMA_DE_OBRA`): repetir
+una operación no la vuelve más privilegiada, y RLS ya acota a qué obras
+llega cada quien (§12.4).
+
+Es de **mejor esfuerzo**: una obra que falla no cancela el lote, y el 422
+documentado arriba solo aparece cuando lo inválido es el programa —una
+versión retirada—, no cuando lo es una obra. Lo que pase con cada casa va
+en `obras[].motivo`.
+ * @summary Replicar el programa base a varias obras del prototipo
+ */
+export const replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost = (
+    programaBaseId: string,
+    replicarProgramaPeticion: ReplicarProgramaPeticion,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<ReplicaDeProgramaRespuesta>(
+      {url: `/api/v1/programas-base/${programaBaseId}/replicar`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: replicarProgramaPeticion, signal
+    },
+      options);
+    }
+  
+
+
+export const getReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost>>, TError,{programaBaseId: string;data: ReplicarProgramaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost>>, TError,{programaBaseId: string;data: ReplicarProgramaPeticion}, TContext> => {
+
+const mutationKey = ['replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost>>, {programaBaseId: string;data: ReplicarProgramaPeticion}> = (props) => {
+          const {programaBaseId,data} = props ?? {};
+
+          return  replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost(programaBaseId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationResult = NonNullable<Awaited<ReturnType<typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost>>>
+    export type ReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationBody = ReplicarProgramaPeticion
+    export type ReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationError = void
+
+    /**
+ * @summary Replicar el programa base a varias obras del prototipo
+ */
+export const useReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost>>, TError,{programaBaseId: string;data: ReplicarProgramaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost>>,
+        TError,
+        {programaBaseId: string;data: ReplicarProgramaPeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * El `ProgramaObra` vigente, su historial de versiones y las actividades
 con su programación (§7.5, §7.6). Sin programa instanciado devuelve las
 actividades igual: es lo que alimenta el Gantt desde el día uno.

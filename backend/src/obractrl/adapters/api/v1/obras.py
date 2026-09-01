@@ -170,6 +170,10 @@ async def listar_obras(
     residente_id: Annotated[
         UUID | None, Query(description="Obras de un residente (§4).")
     ] = None,
+    prototipo_id: Annotated[
+        UUID | None,
+        Query(description="Obras construidas con el mismo modelo de casa (§7.2)."),
+    ] = None,
     estatus: Annotated[
         EstatusObra | None, Query(description="Filtra por estatus de obra (§8.2).")
     ] = None,
@@ -184,6 +188,7 @@ async def listar_obras(
         proyecto_id=proyecto_id,
         cluster_id=cluster_id,
         residente_id=residente_id,
+        prototipo_id=prototipo_id,
         estatus=estatus.value if estatus else None,
     )
     return [ObraRespuesta.desde_fila(fila) for fila in filas]
