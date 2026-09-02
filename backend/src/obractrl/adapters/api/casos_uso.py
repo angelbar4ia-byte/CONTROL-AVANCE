@@ -42,6 +42,7 @@ from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.organizacion_sql import RepositorioOrganizacionSQL
+from obractrl.adapters.repos.planeacion_sql import RepositorioPlaneacionSQL
 from obractrl.adapters.repos.presupuestos_sql import RepositorioPresupuestosSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
 from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
@@ -76,6 +77,10 @@ from obractrl.application.casos_uso.calcular_cpu import (
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
 from obractrl.application.casos_uso.consultar_insumos_programados import (
     ConsultarInsumosProgramados,
+)
+from obractrl.application.casos_uso.consultar_planeacion import (
+    AsignarFrenteDeObra,
+    ConsultarPlaneacion,
 )
 from obractrl.application.casos_uso.dar_de_alta_extra import DarDeAltaExtra
 from obractrl.application.casos_uso.exportar_estimacion import (
@@ -193,6 +198,7 @@ __all__ = [
     "ArmarExpedienteDep",
     "ArmarReporteDeEstimacionDep",
     "AsignarAlcanceDep",
+    "AsignarFrenteDeObraDep",
     "AutorizarCierreDep",
     "CapturarAvanceDep",
     "CerrarIncidenciaDep",
@@ -202,6 +208,7 @@ __all__ = [
     "ConsultarCierreDeObraDep",
     "ConsultarExpedienteDep",
     "ConsultarInsumosProgramadosDep",
+    "ConsultarPlaneacionDep",
     "ConsultarRutaCriticaDep",
     "CrearClusterDep",
     "CrearConceptoDep",
@@ -743,11 +750,41 @@ def obtener_consultar_insumos_programados(
         presupuestos=RepositorioPresupuestosSQL(sesion),
         materiales=RepositorioMaterialesSQL(sesion),
         nodos=RepositorioPrototipoNodoSQL(sesion),
+        # Las fechas del CPM no se persisten (`guardar_resultado_cpm`), así que
+        # la ventana de cada actividad se pide fresca a la ruta crítica.
+        ruta=obtener_consultar_ruta_critica(sesion),
     )
 
 
 ConsultarInsumosProgramadosDep = Annotated[
     ConsultarInsumosProgramados, Depends(obtener_consultar_insumos_programados)
+]
+
+
+# --- Planeación por obra (§8.3, §11.3) ------------------------------------
+
+
+def obtener_consultar_planeacion(sesion: SesionRLS) -> ConsultarPlaneacion:
+    return ConsultarPlaneacion(
+        insumos=obtener_consultar_insumos_programados(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        planeacion=RepositorioPlaneacionSQL(sesion),
+        frentes=RepositorioFrentesSQL(sesion),
+    )
+
+
+def obtener_asignar_frente_de_obra(sesion: SesionRLS) -> AsignarFrenteDeObra:
+    return AsignarFrenteDeObra(
+        planeacion=RepositorioPlaneacionSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+ConsultarPlaneacionDep = Annotated[
+    ConsultarPlaneacion, Depends(obtener_consultar_planeacion)
+]
+AsignarFrenteDeObraDep = Annotated[
+    AsignarFrenteDeObra, Depends(obtener_asignar_frente_de_obra)
 ]
 
 

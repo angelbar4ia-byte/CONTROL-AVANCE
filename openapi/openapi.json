@@ -5948,6 +5948,169 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/planeacion/frentes": {
+      "get": {
+        "tags": [
+          "planeacion"
+        ],
+        "summary": "Cuántas cuadrillas pide cada frente, y quién lo lleva",
+        "description": "La vista con la que se contrata (§8.3).\n\nLas jornadas salen del programa por el APU; las cuadrillas, de dividirlas\nentre los días hábiles del periodo. Lo que ya se decidió viaja al lado, sin\nsustituir a la sugerencia: la sugerencia sale de un rendimiento del\ncatálogo y la decisión la toma quien conoce al contratista.",
+        "operationId": "planeacion_por_frente_api_v1_obras__obra_id__planeacion_frentes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "desde",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primer día del rango.",
+              "title": "Desde"
+            },
+            "description": "Primer día del rango."
+          },
+          {
+            "name": "hasta",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último día del rango.",
+              "title": "Hasta"
+            },
+            "description": "Último día del rango."
+          },
+          {
+            "name": "granularidad",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(semana|mes)$",
+              "description": "Columna por semana o mes.",
+              "default": "semana",
+              "title": "Granularidad"
+            },
+            "description": "Columna por semana o mes."
+          },
+          {
+            "name": "tipo_semana",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TipoSemana",
+              "default": "ordinaria"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaneacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El rango cae en años sin calendario generado (§3.1) o la obra no está en tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/planeacion/frentes/{frente_id}": {
+      "put": {
+        "tags": [
+          "planeacion"
+        ],
+        "summary": "Quién lleva este frente en esta obra",
+        "description": "Idempotente por el par obra-frente: asignarlo dos veces es cambiar de\ncontratista, no crear un segundo trato (§8.3).",
+        "operationId": "asignar_frente_api_v1_obras__obra_id__planeacion_frentes__frente_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "frente_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frente Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AsignarFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "El rango cae en años sin calendario generado (§3.1) o la obra no está en tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/evaluaciones": {
       "post": {
         "tags": [
@@ -8869,6 +9032,48 @@
         ],
         "title": "ArbolDeProgramaRespuesta",
         "description": "§11.2 `GET /obras/{id}/programa/arbol`: el cronograma como árbol WBS."
+      },
+      "AsignarFrentePeticion": {
+        "properties": {
+          "contratista_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista Id"
+          },
+          "cuadrillas_plan": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrillas Plan"
+          },
+          "notas": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notas"
+          }
+        },
+        "type": "object",
+        "title": "AsignarFrentePeticion",
+        "description": "El trato de un frente en una obra.\n\nLos tres campos se escriben aunque vengan nulos: vaciar el contratista\n—\"ya no sé quién lo lleva\"— es un cambio tan válido como ponerlo."
       },
       "AvanceRespuesta": {
         "properties": {
@@ -12172,6 +12377,104 @@
         ],
         "title": "FilaDeInsumoRespuesta"
       },
+      "FrenteDeObraRespuesta": {
+        "properties": {
+          "frente_id": {
+            "type": "string",
+            "title": "Frente Id",
+            "description": "Vacío en el renglón que agrupa lo que no tiene frente."
+          },
+          "frente_clave": {
+            "type": "string",
+            "title": "Frente Clave"
+          },
+          "frente_nombre": {
+            "type": "string",
+            "title": "Frente Nombre"
+          },
+          "jornadas": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Jornadas",
+            "description": "Una por periodo. Una jornada es una cuadrilla un día."
+          },
+          "cuadrillas": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Cuadrillas",
+            "description": "Cuadrillas que hacen falta en cada periodo. **Sin redondear**: 2.3 dice que dos aprietan y tres sobran, y redondear escondería esa lectura justo donde se decide."
+          },
+          "total_jornadas": {
+            "type": "number",
+            "title": "Total Jornadas"
+          },
+          "pico_cuadrillas": {
+            "type": "number",
+            "title": "Pico Cuadrillas",
+            "description": "La semana más cargada. Es la cifra con la que se contrata: quien presta dos cuadrillas todo el mes no resuelve la que pide cinco."
+          },
+          "contratista_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista Id"
+          },
+          "contratista_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista Nombre"
+          },
+          "cuadrillas_plan": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrillas Plan",
+            "description": "Lo que el residente **decidió**, al lado de lo que el cálculo sugiere. Vacío = todavía no lo decide."
+          },
+          "notas": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "frente_id",
+          "frente_clave",
+          "frente_nombre",
+          "jornadas",
+          "cuadrillas",
+          "total_jornadas",
+          "pico_cuadrillas"
+        ],
+        "title": "FrenteDeObraRespuesta"
+      },
       "FrenteRespuesta": {
         "properties": {
           "id": {
@@ -12589,7 +12892,7 @@
         "properties": {
           "periodos": {
             "items": {
-              "$ref": "#/components/schemas/PeriodoRespuesta"
+              "$ref": "#/components/schemas/obractrl__adapters__api__v1__insumos__PeriodoRespuesta"
             },
             "type": "array",
             "title": "Periodos"
@@ -14132,37 +14435,29 @@
         "title": "PerfilRespuesta",
         "description": "Perfil, rol y alcance del usuario del token (§11.2 `GET /me`)."
       },
-      "PeriodoRespuesta": {
+      "PlaneacionRespuesta": {
         "properties": {
-          "clave": {
-            "type": "string",
-            "title": "Clave"
+          "periodos": {
+            "items": {
+              "$ref": "#/components/schemas/obractrl__adapters__api__v1__planeacion__PeriodoRespuesta"
+            },
+            "type": "array",
+            "title": "Periodos"
           },
-          "desde": {
-            "type": "string",
-            "format": "date",
-            "title": "Desde"
-          },
-          "hasta": {
-            "type": "string",
-            "format": "date",
-            "title": "Hasta",
-            "description": "Exclusivo: es el día siguiente al último del periodo."
-          },
-          "etiqueta": {
-            "type": "string",
-            "title": "Etiqueta"
+          "frentes": {
+            "items": {
+              "$ref": "#/components/schemas/FrenteDeObraRespuesta"
+            },
+            "type": "array",
+            "title": "Frentes"
           }
         },
         "type": "object",
         "required": [
-          "clave",
-          "desde",
-          "hasta",
-          "etiqueta"
+          "periodos",
+          "frentes"
         ],
-        "title": "PeriodoRespuesta",
-        "description": "Una columna de la tabla."
+        "title": "PlaneacionRespuesta"
       },
       "PrecioUnitarioRespuesta": {
         "properties": {
@@ -16740,6 +17035,75 @@
         ],
         "title": "VersionSoportadaRespuesta",
         "description": "Lo que la app necesita para decidir entre bloquear, sugerir o callarse."
+      },
+      "obractrl__adapters__api__v1__insumos__PeriodoRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "desde": {
+            "type": "string",
+            "format": "date",
+            "title": "Desde"
+          },
+          "hasta": {
+            "type": "string",
+            "format": "date",
+            "title": "Hasta",
+            "description": "Exclusivo: es el día siguiente al último del periodo."
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "desde",
+          "hasta",
+          "etiqueta"
+        ],
+        "title": "PeriodoRespuesta",
+        "description": "Una columna de la tabla."
+      },
+      "obractrl__adapters__api__v1__planeacion__PeriodoRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "desde": {
+            "type": "string",
+            "format": "date",
+            "title": "Desde"
+          },
+          "hasta": {
+            "type": "string",
+            "format": "date",
+            "title": "Hasta",
+            "description": "Exclusivo: el día siguiente al último."
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta"
+          },
+          "dias_habiles": {
+            "type": "integer",
+            "title": "Dias Habiles",
+            "description": "Días que se trabajan en el periodo, según el calendario del cronograma de la obra (§7.5). Es el divisor de la cuenta."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "desde",
+          "hasta",
+          "etiqueta",
+          "dias_habiles"
+        ],
+        "title": "PeriodoRespuesta"
       }
     },
     "securitySchemes": {

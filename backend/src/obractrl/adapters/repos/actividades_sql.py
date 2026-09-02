@@ -441,6 +441,7 @@ class RepositorioActividadesSQL:
                 text(
                     """
                     select act.id, act.obra_id, act.concepto_id,
+                           eta.frente_id,
                            con.clave as concepto_clave,
                            coalesce(act.descripcion, con.descripcion)
                                      as descripcion,
@@ -449,6 +450,12 @@ class RepositorioActividadesSQL:
                            act.tramos, act.estatus
                       from actividad act
                       left join concepto con on con.id = act.concepto_id
+                      -- El frente sale de la ETAPA del árbol y no de
+                      -- `act.frente_id`: esa columna se llena al generar desde
+                      -- el item del programa base, que casi nunca lo trae. La
+                      -- etapa sí lo tiene desde la 0045 y es donde el jefe de
+                      -- obra lo captura.
+                      left join etapa_constructiva eta on eta.id = act.etapa_id
                      where (cast(:obra_id as uuid) is null
                             or act.obra_id = cast(:obra_id as uuid))
                        and (cast(:residente_id as uuid) is null

@@ -82,6 +82,7 @@ __all__ = [
     "Reparto",
     "insumos_programados",
     "intervalos_de_trabajo",
+    "jornadas_por_frente",
     "repartir_en_periodos",
 ]
 
@@ -117,6 +118,13 @@ class ActividadConVentana:
     inicio: date | None
     fin: date | None
     tramos: tuple[Tramo, ...] = ()
+    frente_id: str | None = None
+    """Frente al que pertenece, derivado de la etapa de su concepto (0045).
+
+    Lo usa la planeación para agrupar la mano de obra y decir cuántas cuadrillas
+    pide cada frente. `None` es una etapa a la que todavía no se le asignó
+    frente: no es un error y se reporta aparte en vez de repartirse a ciegas.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -378,6 +386,62 @@ def insumos_programados(
         sin_programar=tuple(sin_programar),
         sin_explosion=tuple(sin_explosion),
     )
+
+
+def jornadas_por_frente(
+    *,
+    actividades: Sequence[ActividadConVentana],
+    explosiones: Mapping[str, ExplosionCalculada],
+    catalogo: Mapping[str, InsumoDelCatalogo],
+    periodos: Sequence[Periodo],
+) -> dict[str, tuple[Decimal, ...]]:
+    """Jornadas de mano de obra que cada frente pide en cada periodo (§8.3).
+
+    Es el mismo cruce que `insumos_programados` —el programa por el APU,
+    repartido sobre los periodos— pero agrupado por **frente** en vez de por
+    insumo, y quedándose solo con `tipo = 'mano_obra'`: en el APU esa cantidad
+    **son** jornadas, así que dividirlas entre los días hábiles del periodo da
+    cuadrillas (`domain.planeacion.cuadrillas`).
+
+    Sin anticipación: la mano de obra no se pide con plazo de entrega como el
+    material, se contrata para la semana en que se trabaja.
+
+    Las actividades cuya etapa todavía no tiene frente se agrupan bajo `''`
+    —no se descartan—: son trabajo real que alguien tiene que hacer, y
+    esconderlas haría que el total de la obra no cuadrara con la suma de sus
+    frentes.
+    """
+    acumulado: dict[str, list[Decimal]] = {}
+
+    for actividad in actividades:
+        if actividad.concepto_clave is None:
+            continue
+        explosion = explosiones.get(actividad.concepto_clave)
+        if explosion is None or actividad.inicio is None or actividad.fin is None:
+            continue
+
+        intervalos = intervalos_de_trabajo(
+            actividad.inicio, actividad.fin, actividad.tramos
+        )
+        if not intervalos:
+            continue
+
+        clave = actividad.frente_id or ""
+        fila = acumulado.setdefault(clave, [_CERO for _ in periodos])
+
+        for linea in explosion.lineas:
+            insumo = _insumo_de(linea, catalogo, frozenset({"mano_obra"}))
+            if insumo is None:
+                continue
+            jornadas = actividad.cantidad * linea.cantidad
+            if jornadas == 0:
+                continue
+            for i, parte in enumerate(
+                repartir_en_periodos(intervalos, periodos, jornadas)
+            ):
+                fila[i] += parte
+
+    return {clave: tuple(fila) for clave, fila in acumulado.items()}
 
 
 def _fila(
