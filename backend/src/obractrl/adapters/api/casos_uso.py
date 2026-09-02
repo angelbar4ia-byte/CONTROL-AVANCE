@@ -726,6 +726,7 @@ def obtener_consultar_insumos_programados(
         obras=RepositorioObrasSQL(sesion),
         presupuestos=RepositorioPresupuestosSQL(sesion),
         materiales=RepositorioMaterialesSQL(sesion),
+        nodos=RepositorioPrototipoNodoSQL(sesion),
     )
 
 

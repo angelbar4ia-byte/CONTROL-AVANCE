@@ -137,6 +137,7 @@ class ConsultarInsumosProgramados:
         obras,
         presupuestos,
         materiales,
+        nodos,
     ) -> None:
         self._actividades = actividades
         self._conceptos = conceptos
@@ -146,6 +147,7 @@ class ConsultarInsumosProgramados:
         self._obras = obras
         self._presupuestos = presupuestos
         self._materiales = materiales
+        self._nodos = nodos
 
     async def ejecutar(
         self, cmd: ComandoInsumosProgramados
@@ -287,16 +289,33 @@ class ConsultarInsumosProgramados:
             )
 
         partidas = await self._presupuestos.partidas(presupuesto["id"])
-        # Las partidas se agregan por nodo del árbol: dos renglones del mismo
-        # nodo son el mismo trabajo partido en el archivo, no dos actividades.
+        nodos = await self._nodos.por_prototipo(cmd.prototipo_id)
+        programados = {
+            str(item["prototipo_nodo_id"])
+            for item in items
+            if item.get("prototipo_nodo_id")
+        }
+        # El programa base casi nunca se captura al mismo nivel que el
+        # presupuesto: la plantilla dice "PLANTA BAJA dura 60 días" y las
+        # cantidades cuelgan de los conceptos que hay debajo. Cada partida se
+        # asocia al **ancestro programado más cercano**, y hereda su ventana.
+        # Es el mismo reparto en paralelo que el editor del programa base ya
+        # aplica hacia abajo: las ramas de un nivel corren simultáneas.
+        techo = _ancestro_programado(nodos, programados)
+
         por_nodo: dict[str, dict] = {}
         for partida in partidas:
             nodo = partida.get("prototipo_nodo_id")
             if not nodo or not partida.get("concepto_clave"):
                 continue
+            ventana = techo.get(str(nodo))
+            if ventana is None:
+                continue
+            clave = (ventana, str(partida["concepto_clave"]))
             acumulado = por_nodo.setdefault(
-                str(nodo),
+                f"{ventana}|{partida['concepto_clave']}",
                 {
+                    "ventana": clave[0],
                     "concepto_clave": partida["concepto_clave"],
                     "concepto_id": partida["concepto_id"],
                     "descripcion": partida.get("concepto_descripcion") or "",
@@ -330,9 +349,9 @@ class ConsultarInsumosProgramados:
 
         filas: list[dict] = []
         actividades: list[ActividadConVentana] = []
-        for nodo_id, calculo in resultado.items():
-            partida = por_nodo.get(nodo_id)
-            if partida is None:
+        for clave, partida in por_nodo.items():
+            calculo = resultado.get(partida["ventana"])
+            if calculo is None:
                 continue
             filas.append(
                 {
@@ -342,7 +361,7 @@ class ConsultarInsumosProgramados:
             )
             actividades.append(
                 ActividadConVentana(
-                    actividad_id=nodo_id,
+                    actividad_id=clave,
                     obra_id=str(cmd.prototipo_id),
                     concepto_clave=str(partida["concepto_clave"]),
                     descripcion=str(partida["descripcion"]),
@@ -392,6 +411,35 @@ def _a_actividad(fila: dict) -> ActividadConVentana:
         fin=fila.get("fecha_termino"),
         tramos=tuple(Tramo.desde_jsonb(t) for t in (fila.get("tramos") or [])),
     )
+
+
+def _ancestro_programado(
+    nodos: Sequence[dict], programados: set[str]
+) -> dict[str, str]:
+    """Para cada nodo, el ancestro más cercano que sí tiene programa base.
+
+    Incluye al nodo mismo si él está programado. Un nodo que no cuelga de
+    ninguno programado no aparece: no hay ventana en la que colocarlo, y
+    ponerle una inventada sería peor que dejarlo fuera.
+
+    El tope de saltos es la red contra un `parent_id` en ciclo, que sin ella
+    colgaría la consulta — mismo criterio que `etapaNodoDe` en el editor.
+    """
+    padre = {
+        str(n["id"]): (str(n["parent_id"]) if n.get("parent_id") else None)
+        for n in nodos
+    }
+    salida: dict[str, str] = {}
+    for nodo_id in padre:
+        actual: str | None = nodo_id
+        for _ in range(32):
+            if actual is None:
+                break
+            if actual in programados:
+                salida[nodo_id] = actual
+                break
+            actual = padre.get(actual)
+    return salida
 
 
 def _periodo_de_semana(fila: dict) -> Periodo:

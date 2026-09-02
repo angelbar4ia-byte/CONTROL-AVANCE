@@ -23,6 +23,7 @@ import {
   Home,
   Layers,
   LineChart,
+  Boxes,
   Package,
   Settings,
   ShieldCheck,
@@ -81,6 +82,7 @@ const RESIDENTE: readonly SeccionNav[] = [
         icono: Package,
         soloLectura: true,
       },
+      { a: '/insumos-programados', etiqueta: 'Insumos programados', icono: Boxes },
     ],
   },
   {
@@ -110,7 +112,10 @@ const SUPERVISOR: readonly SeccionNav[] = [
   },
   {
     titulo: 'Obras',
-    items: [{ a: '/obras', etiqueta: 'Obras supervisadas', icono: Home }],
+    items: [
+      { a: '/obras', etiqueta: 'Obras supervisadas', icono: Home },
+      { a: '/insumos-programados', etiqueta: 'Insumos programados', icono: Boxes },
+    ],
   },
 ];
 
@@ -130,6 +135,7 @@ const CONTROL_OBRA: readonly SeccionNav[] = [
     items: [
       { a: '/materiales/salidas', etiqueta: 'Salidas de almacén', icono: Truck },
       { a: '/materiales/consumo', etiqueta: 'Consumo vs presupuesto', icono: Package },
+      { a: '/insumos-programados', etiqueta: 'Insumos programados', icono: Boxes },
     ],
   },
   {
@@ -204,6 +210,7 @@ const SUPER_INTENDENTE: readonly SeccionNav[] = [
     items: [
       { a: '/presupuesto', etiqueta: 'Presupuesto de obras', icono: FileSpreadsheet },
       { a: '/rendimientos', etiqueta: 'Rendimientos de obra', icono: LineChart },
+      { a: '/insumos-programados', etiqueta: 'Insumos programados', icono: Boxes },
       { a: '/bitacora', etiqueta: 'Bitácora de eventos', icono: FileText },
       { a: '/procesos', etiqueta: 'Mejora de procesos', icono: Settings },
     ],
