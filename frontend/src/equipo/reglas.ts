@@ -71,25 +71,47 @@ export function puedeEditar(quien: Rol, esUnoMismo: boolean, rolDestino: string)
 }
 
 /**
- * Qué puente de alcance le corresponde a un rol (§4).
+ * Qué puente de alcance le corresponde a un rol (§4, cadena de mando 0042).
  *
- * `null` para el residente: llega a su obra por `obra.residente_id`, que se
- * asigna desde la obra y no desde Asignaciones. Asignarle un cluster no le
- * daría alcance, solo una fila que nadie lee.
+ * `null` para Control de obra: es la raíz, ve toda la organización y no
+ * cuelga de nadie. `clusters` (supervisor↔cluster) y `proyectos`
+ * (control↔proyecto) quedaron inertes desde la 0042 — ya no deciden alcance,
+ * así que esta pantalla ya no los ofrece.
  */
-export function puenteDe(rol: string): 'clusters' | 'proyectos' | null {
-  if (rol === 'supervisor') return 'clusters';
-  if (rol === 'control_obra') return 'proyectos';
+export function puenteDe(rol: string): 'gente' | 'obras' | null {
+  if (rol === 'super_intendente') return 'gente'; // superintendente_usuario
+  if (rol === 'supervisor') return 'gente'; // supervisor_residente
+  if (rol === 'residente') return 'obras'; // residente_obra: decide su alcance real
   return null;
 }
 
-/** ¿`quien` puede cambiar el alcance de alguien con `rolDestino`? (§4) */
+/**
+ * Roles que cuelgan de `rolJefe` en el organigrama (§4, 0042).
+ *
+ * Espejo de `roles_que_cuelgan_de` (`domain/identidad/reglas.py`): de un
+ * super intendente cuelgan supervisores y residentes; de un supervisor,
+ * solo residentes.
+ */
+export function rolesQueCuelganDe(rolJefe: Rol): readonly Rol[] {
+  if (rolJefe === 'super_intendente') return ['supervisor', 'residente'];
+  if (rolJefe === 'supervisor') return ['residente'];
+  return [];
+}
+
+/**
+ * ¿`quien` puede cambiar el alcance de alguien con `rolDestino`? (§4, 0042)
+ *
+ * Espejo de `puede_asignar_alcance_de`: Control arma la gente de un super
+ * intendente; Control o el super intendente (dentro de su propia cadena)
+ * arman la de un supervisor; Control, el super intendente o el supervisor
+ * arman las obras de un residente.
+ */
 export function puedeAsignarAlcanceDe(quien: Rol, rolDestino: string): boolean {
-  // `control_proyecto` decide qué proyectos ve un Control de obra, o sea el
-  // alcance de quien administra: si Control pudiera editarlo se ampliaría el
-  // suyo. Es la política `control_proyecto_*` de la migración 0012.
-  if (rolDestino === 'control_obra') return quien === 'super_intendente';
-  if (rolDestino === 'supervisor') return administraEquipo(quien);
+  if (rolDestino === 'super_intendente') return quien === 'control_obra';
+  if (rolDestino === 'supervisor') return quien === 'control_obra' || quien === 'super_intendente';
+  if (rolDestino === 'residente') {
+    return quien === 'control_obra' || quien === 'super_intendente' || quien === 'supervisor';
+  }
   return false;
 }
 

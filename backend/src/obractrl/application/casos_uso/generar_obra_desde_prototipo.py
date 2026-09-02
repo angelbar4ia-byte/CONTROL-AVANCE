@@ -124,6 +124,7 @@ def _a_item(fila: dict) -> ItemProgramaBase:
             Dependencia.desde_jsonb(dep) for dep in (fila["dependencias"] or [])
         ),
         tramos=tuple(Tramo.desde_jsonb(t) for t in (fila["tramos"] or [])),
+        inicio_dias=fila["inicio_dias"],
         orden=fila["orden"],
     )
 
@@ -160,6 +161,7 @@ def _a_registro(planeada: ActividadPlaneada) -> dict:
             ]
         ),
         "tramos": json.dumps([tramo.a_jsonb() for tramo in planeada.tramos]),
+        "inicio_dias": planeada.inicio_dias,
     }
 
 

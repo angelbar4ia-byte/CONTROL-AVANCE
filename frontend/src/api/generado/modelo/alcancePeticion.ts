@@ -7,10 +7,20 @@
  */
 
 /**
- * Clusters para un supervisor, proyectos para un control de obra (§4).
+ * Lo que se le da a UNA persona (§4, cadena de mando de la 0042).
+
+El `usuario_id` de la ruta es siempre el jefe o el dueño de la cartera. Qué
+lista aplica lo decide su rol; mandar la que no corresponde es un 422 con
+el motivo escrito, no un silencio.
  */
 export interface AlcancePeticion {
+  /** Personas que cuelgan de él. A un super intendente, supervisores y/o residentes; a un supervisor, residentes. Mover un residente arrastra su cartera de obras con él. */
+  gente?: string[];
+  /** Obras de un residente. Es lo que de verdad decide qué ve él —y, hacia arriba, su supervisor y su super intendente. */
+  obras?: string[];
+  /** Manzanas que recorre un supervisor. Dato territorial: desde la migración 0042 ya NO le abre ninguna obra. */
   clusters?: string[];
+  /** Proyectos de un control de obra. Inerte desde la migración 0042: Control ve toda la organización. */
   proyectos?: string[];
   /** Quita en vez de dar. */
   retirar?: boolean;

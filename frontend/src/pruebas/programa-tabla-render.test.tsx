@@ -102,7 +102,7 @@ function fila(sobre: Partial<FilaPrograma> & Pick<FilaPrograma, 'nodoId'>): Fila
     nHojas: 1,
     esResumen: false,
     capturado: true,
-    conflicto: false,
+    anclaDias: null,
     inicioDias: 0,
     finDias: 3,
     diasLaborables: 3,
@@ -117,6 +117,7 @@ function fila(sobre: Partial<FilaPrograma> & Pick<FilaPrograma, 'nodoId'>): Fila
 
 function pintarTabla(filas: readonly FilaPrograma[], editable = true) {
   const onDuracion = vi.fn();
+  const onInicio = vi.fn();
   const onAlternar = vi.fn();
   const salida = render(
     <TablaPrograma
@@ -133,11 +134,12 @@ function pintarTabla(filas: readonly FilaPrograma[], editable = true) {
       onAlternar={onAlternar}
       onSeleccionar={vi.fn()}
       onDuracion={onDuracion}
+      onInicio={onInicio}
       contenedorRef={createRef<HTMLDivElement>()}
       onScroll={vi.fn()}
     />,
   );
-  return { ...salida, onDuracion, onAlternar };
+  return { ...salida, onDuracion, onInicio, onAlternar };
 }
 
 function pintarGantt(filas: readonly FilaPrograma[], editable = true) {
@@ -197,7 +199,7 @@ describe('TablaPrograma', () => {
 
   it('la actividad partida enseña su duración de lectura: es la suma de sus tramos', () => {
     // Dejar las dos cifras editables garantiza que un día discrepen (§7.6).
-    const { container } = pintarTabla([
+    pintarTabla([
       fila({
         nodoId: 'c1',
         diasLaborables: 4,
@@ -208,7 +210,10 @@ describe('TablaPrograma', () => {
         ],
       }),
     ]);
-    expect(container.querySelectorAll('input')).toHaveLength(0);
+    // Su arranque sí se sigue pudiendo clavar: una actividad partida se ancla
+    // igual que una continua. Lo que no se captura es la duración.
+    expect(screen.queryByLabelText('Días laborables de Excavación')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Día de arranque de Excavación')).toBeInTheDocument();
   });
 
   it('en lectura no se captura nada aunque la fila sea un concepto', () => {
@@ -228,17 +233,28 @@ describe('TablaPrograma', () => {
     expect(hoja.container.querySelectorAll('button.prog-tabla__caret')).toHaveLength(0);
   });
 
-  it('el conflicto y el ciclo se marcan en el renglón, no sólo en la barra', () => {
-    pintarTabla([fila({ nodoId: 'e1', conflicto: true, enCiclo: true })]);
-    expect(screen.getByText('conflicto')).toBeInTheDocument();
+  it('el ciclo se marca en el renglón, no sólo en la barra', () => {
+    pintarTabla([fila({ nodoId: 'e1', enCiclo: true })]);
     expect(screen.getByText('ciclo')).toBeInTheDocument();
+  });
+
+  it('ya no hay marca de conflicto: la herencia impide construir ese estado', () => {
+    // Un nodo con duración propia y descendientes capturados era el conflicto.
+    // `gestos.fijarDuracion` vacía uno de los dos lados, así que no se puede.
+    pintarTabla([fila({ nodoId: 'e1', esResumen: true, capturado: false })]);
+    expect(screen.queryByText('conflicto')).not.toBeInTheDocument();
   });
 
   it('el término se rotula con el último día trabajado, no con el día siguiente', () => {
     // Una actividad que arranca el día 1 y dura tres cierra el día 3.
     const { container } = pintarTabla([fila({ nodoId: 'c1', inicioDias: 0, finDias: 3 })]);
     const renglon = container.querySelector('.prog-tabla__fila');
-    expect(renglon).toHaveTextContent('Día 1');
+    // El inicio es capturable y va vacío —no está anclada—, así que el día que
+    // el grafo le puso se anuncia como `placeholder`.
+    expect(screen.getByLabelText('Día de arranque de Excavación')).toHaveAttribute(
+      'placeholder',
+      '1',
+    );
     expect(renglon).toHaveTextContent('Día 3');
     expect(renglon).not.toHaveTextContent('Día 4');
   });

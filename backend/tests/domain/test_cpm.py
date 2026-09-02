@@ -256,6 +256,93 @@ class TestHolguraYCriticidadConFFySF:
         assert r["B"].holgura == 0
 
 
+class TestArranqueFijo:
+    """`inicio_dias`: el ancla gana sobre las predecesoras (§7.5, 0043).
+
+    Es el "Debe comenzar el" de MS Project. La diferencia con un piso —"no
+    comenzar antes del"— se ve cuando la predecesora crece: con piso empujaría
+    a la sucesora, con ancla no.
+    """
+
+    def test_sin_ancla_nada_cambia(self) -> None:
+        # No-regresión: el caso de siempre sigue derivando el arranque.
+        r = _par(FS, 0)
+        assert _dias(r["B"], "inicio_temprano") == 5
+
+    def test_el_ancla_mueve_una_actividad_sin_predecesoras(self) -> None:
+        # Lo que antes no se podía expresar: A no depende de nadie y arranca
+        # el día 3 porque alguien lo decidió.
+        r = calcular_cpm(
+            [NodoCPM(ref="A", duracion_dias=5, inicio_dias=3)],
+            INICIO,
+            fecha_corte=INICIO,
+        )
+        assert _dias(r["A"], "inicio_temprano") == 3
+        assert _dias(r["A"], "fin_temprano") == 8
+
+    @pytest.mark.parametrize("tipo", [FS, SS, FF, SF])
+    def test_el_ancla_gana_sobre_las_cuatro_ligas(self, tipo: str) -> None:
+        nodos = [
+            NodoCPM(ref="A", duracion_dias=5),
+            NodoCPM(
+                ref="B",
+                duracion_dias=3,
+                dependencias=(Dependencia("A", tipo=tipo),),
+                inicio_dias=2,
+            ),
+        ]
+        r = calcular_cpm(nodos, INICIO, fecha_corte=INICIO)
+        assert _dias(r["B"], "inicio_temprano") == 2
+
+    def test_alargar_la_predecesora_no_arrastra_a_la_anclada(self) -> None:
+        # La prueba que separa el ancla del piso: con `max(es, ancla)` B se
+        # habría ido al día 9.
+        def corrida(dur_a: float) -> int:
+            nodos = [
+                NodoCPM(ref="A", duracion_dias=dur_a),
+                NodoCPM(
+                    ref="B",
+                    duracion_dias=3,
+                    dependencias=(Dependencia("A"),),
+                    inicio_dias=6,
+                ),
+            ]
+            return _dias(
+                calcular_cpm(nodos, INICIO, fecha_corte=INICIO)["B"],
+                "inicio_temprano",
+            )
+
+        assert corrida(5) == 6
+        assert corrida(9) == 6
+
+    def test_un_ancla_negativa_se_recorta_al_dia_0(self) -> None:
+        # Misma cota que el clamp del forward pass y que el check de la 0043.
+        r = calcular_cpm(
+            [NodoCPM(ref="A", duracion_dias=5, inicio_dias=-4)],
+            INICIO,
+            fecha_corte=INICIO,
+        )
+        assert _dias(r["A"], "inicio_temprano") == 0
+
+    def test_el_ancla_cuenta_con_los_tramos_para_el_cierre(self) -> None:
+        # El span sigue siendo el de la interrupción; el ancla sólo mueve el
+        # punto de partida.
+        r = calcular_cpm(
+            [
+                NodoCPM(
+                    ref="A",
+                    duracion_dias=4,
+                    inicio_dias=3,
+                    tramos=(Tramo(duracion_dias=2), Tramo(duracion_dias=2, offset_dias=7)),
+                )
+            ],
+            INICIO,
+            fecha_corte=INICIO,
+        )
+        assert _dias(r["A"], "inicio_temprano") == 3
+        assert _dias(r["A"], "fin_temprano") == 12
+
+
 class TestTramos:
     """Interrupción de una actividad (§7.6): trabajo vs. span."""
 

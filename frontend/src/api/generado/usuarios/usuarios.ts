@@ -425,10 +425,18 @@ export const useResetearContrasenaApiV1UsuariosUsuarioIdContrasenaPost = <TError
     /**
  * Los puentes del §4.
 
-Las dos listas se piden siempre, aunque un rol solo pueda tener una: la
-pantalla no sabe de antemano qué rol tiene la persona que abrió, y dos
-consultas sobre índices son más baratas que una ida y vuelta extra.
- * @summary Qué clusters y proyectos tiene asignados
+Las cuatro listas se piden siempre, aunque cada rol solo pueda llenar una:
+la pantalla no sabe de antemano qué rol tiene la persona que abrió, y unas
+cuantas consultas sobre índices son más baratas que una ida y vuelta extra
+para preguntar primero el rol.
+
+`gente` sale de dos tablas distintas —`superintendente_usuario` si es SI,
+`supervisor_residente` si es supervisor— y se devuelven concatenadas
+porque nadie es las dos cosas: la que no aplica viene vacía.
+
+Lo que aquí se ve ya está acotado por RLS: un supervisor ve la cartera de
+sus residentes y la suya, no la de otra rama del organigrama.
+ * @summary Qué gente, obras, clusters y proyectos tiene asignados
  */
 export const consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet = (
     usuarioId: string,
@@ -505,7 +513,7 @@ export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetInfinite<TDat
  , queryClient?: QueryClient
   ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Qué clusters y proyectos tiene asignados
+ * @summary Qué gente, obras, clusters y proyectos tiene asignados
  */
 
 export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>>, TError = HTTPValidationError>(
@@ -572,7 +580,7 @@ export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet<TData = Awai
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Qué clusters y proyectos tiene asignados
+ * @summary Qué gente, obras, clusters y proyectos tiene asignados
  */
 
 export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet<TData = Awaited<ReturnType<typeof consultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet>>, TError = HTTPValidationError>(
@@ -593,13 +601,22 @@ export function useConsultarAlcanceApiV1UsuariosUsuarioIdAlcanceGet<TData = Awai
 
 
 /**
- * Reparte el alcance (§5.1 "Asignaciones").
+ * Arma la cadena de mando (§5.1 "Asignaciones", §4).
 
-Los proyectos de un Control de obra solo los mueve un Super intendente: es
-el alcance de quien administra, y dejarlo en manos de Control sería dejar
-que se amplíe el suyo. Lo dice `puede_asignar_alcance_de` y lo vuelve a
-decir la política `control_proyecto_*` de la migración 0012.
- * @summary Asignar o retirar clusters y proyectos
+Quién puede repartir a quién lo decide `puede_asignar_alcance_de`, y lo
+vuelve a decir la base con las políticas de la 0042 — con un detalle que el
+dominio no alcanza a ver: que la persona esté bajo el mando de quien
+reparte y que la obra ya le sea visible. Esa segunda mitad es la que impide
+que un supervisor se amplíe el alcance solo, y por eso vive en Postgres y
+no aquí.
+
+REASIGNAR ES DOS PETICIONES, Y EN ESTE ORDEN
+
+Para pasar una obra del residente A al B: primero un POST con `obras=[o]`
+sobre B, después otro con `retirar=true` sobre A. Al revés, quien reasigna
+puede perder de vista la obra entre las dos peticiones —si A era su único
+vínculo con ella— y el alta se rechazaría.
+ * @summary Asignar o retirar gente, obras, clusters y proyectos
  */
 export const asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost = (
     usuarioId: string,
@@ -648,7 +665,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type AsignarAlcanceApiV1UsuariosUsuarioIdAlcancePostMutationError = HTTPValidationError
 
     /**
- * @summary Asignar o retirar clusters y proyectos
+ * @summary Asignar o retirar gente, obras, clusters y proyectos
  */
 export const useAsignarAlcanceApiV1UsuariosUsuarioIdAlcancePost = <TError = HTTPValidationError,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarAlcanceApiV1UsuariosUsuarioIdAlcancePost>>, TError,{usuarioId: string;data: AlcancePeticion}, TContext>, request?: SecondParameter<typeof peticion>}

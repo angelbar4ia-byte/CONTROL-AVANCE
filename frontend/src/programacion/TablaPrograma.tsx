@@ -78,6 +78,7 @@ interface Props {
   readonly onAlternar: (nodoId: string) => void;
   readonly onSeleccionar: (nodoId: string) => void;
   readonly onDuracion: (nodoId: string, dias: number | null) => void;
+  readonly onInicio: (nodoId: string, dia: number | null) => void;
   /** Contenedor de scroll: lo comparte con el Gantt (`sincronia.ts`). */
   readonly contenedorRef: React.RefObject<HTMLDivElement>;
   readonly onScroll: (scrollTop: number) => void;
@@ -97,6 +98,7 @@ export function TablaPrograma({
   onAlternar,
   onSeleccionar,
   onDuracion,
+  onInicio,
   contenedorRef,
   onScroll,
 }: Props) {
@@ -173,6 +175,7 @@ export function TablaPrograma({
                 onAlternar={onAlternar}
                 onSeleccionar={onSeleccionar}
                 onDuracion={onDuracion}
+                onInicio={onInicio}
               />
             );
           })}
@@ -225,6 +228,7 @@ function Renglon({
   onAlternar,
   onSeleccionar,
   onDuracion,
+  onInicio,
 }: {
   readonly fila: FilaPrograma;
   readonly eje: EjePrograma;
@@ -242,6 +246,7 @@ function Renglon({
   readonly onAlternar: (nodoId: string) => void;
   readonly onSeleccionar: (nodoId: string) => void;
   readonly onDuracion: (nodoId: string, dias: number | null) => void;
+  readonly onInicio: (nodoId: string, dia: number | null) => void;
 }) {
   const tinte = `prog-tabla__fila--p${Math.min(3, fila.profundidad)}`;
   const clases = [
@@ -288,6 +293,7 @@ function Renglon({
           editable={editable}
           onAlternar={onAlternar}
           onDuracion={onDuracion}
+          onInicio={onInicio}
         />
       ))}
     </div>
@@ -313,6 +319,7 @@ function Celda({
   editable,
   onAlternar,
   onDuracion,
+  onInicio,
 }: {
   readonly clave: string;
   readonly estilo: React.CSSProperties | undefined;
@@ -324,6 +331,7 @@ function Celda({
   readonly editable: boolean;
   readonly onAlternar: (nodoId: string) => void;
   readonly onDuracion: (nodoId: string, dias: number | null) => void;
+  readonly onInicio: (nodoId: string, dia: number | null) => void;
 }) {
   const base = `prog-tabla__celda${congelada ? ' is-congelada' : ''}`;
 
@@ -380,17 +388,6 @@ function Celda({
             >
               {fila.descripcion}
             </span>
-            {fila.conflicto && (
-              <span
-                className="badge badge--warn"
-                title={
-                  'El nodo declara días propios y sus conceptos programados ocupan otros. ' +
-                  'La barra dibuja el resumen; decide cuál conservar (§7.5).'
-                }
-              >
-                conflicto
-              </span>
-            )}
             {fila.enCiclo && (
               <span
                 className="badge badge--danger"
@@ -461,10 +458,21 @@ function Celda({
         </div>
       );
 
+    // El inicio se captura: es el ancla del §7.5 (`inicio_dias`, 0043), que
+    // manda sobre las predecesoras. En un resumen no —la ventana la ponen sus
+    // hojas— y sin colocar tampoco, porque no hay qué clavar todavía.
     case 'inicio':
       return (
         <div className={`${base} mono text-xs`} role="gridcell" style={estilo}>
-          {fila.inicioDias === null ? '' : etiquetaDeDia(eje, fila.inicioDias)}
+          {fila.esResumen || !editable || fila.inicioDias === null ? (
+            fila.inicioDias === null ? (
+              ''
+            ) : (
+              etiquetaDeDia(eje, fila.inicioDias)
+            )
+          ) : (
+            <CeldaInicio fila={fila} eje={eje} onInicio={onInicio} />
+          )}
         </div>
       );
 
@@ -511,6 +519,68 @@ function Celda({
  * POST (`duracion_dias` es obligatorio y `> 0`), que es la forma de sacar del
  * programa un nodo sin borrarlo del árbol.
  */
+/**
+ * El día en que arranca la actividad, capturable.
+ *
+ * Se teclea el **número de día** (1-based, como lo rotula la columna) y no la
+ * fecha simulada: el programa base es una plantilla sin fechas propias (§7.5),
+ * y las que enseña el eje son una simulación contra un arranque elegido. La
+ * fecha va en el `title` para quien tenga el modo encendido.
+ *
+ * Vaciar la celda **desclava** la actividad: vuelve a colocarla su cadena de
+ * precedencias. Por eso el `placeholder` dice de dónde sale el día cuando no
+ * hay ancla — si no, un campo lleno y uno vacío se verían igual de decididos.
+ */
+function CeldaInicio({
+  fila,
+  eje,
+  onInicio,
+}: {
+  readonly fila: FilaPrograma;
+  readonly eje: EjePrograma;
+  readonly onInicio: (nodoId: string, dia: number | null) => void;
+}) {
+  const anclada = fila.anclaDias !== null;
+
+  function confirmar(texto: string): void {
+    const limpio = texto.trim();
+    if (limpio === '') {
+      onInicio(fila.nodoId, null);
+      return;
+    }
+    const numero = Number(limpio);
+    if (!Number.isFinite(numero)) return;
+    // La columna cuenta desde el Día 1 y el modelo desde el 0.
+    onInicio(fila.nodoId, Math.max(0, Math.round(numero) - 1));
+  }
+
+  return (
+    <label
+      className={`cell-edit${anclada ? ' is-anclada' : ''}`}
+      onClick={(evento) => evento.stopPropagation()}
+      title={
+        anclada
+          ? `Arranque fijo: ${etiquetaDeDia(eje, fila.anclaDias ?? 0)}. Vacía la celda para que vuelva a mandar su cadena de precedencias.`
+          : `${etiquetaDeDia(eje, fila.inicioDias ?? 0)} — lo decide su cadena de precedencias. Teclea un día para clavarla ahí.`
+      }
+    >
+      <input
+        key={fila.anclaDias ?? 'libre'}
+        type="number"
+        min={1}
+        step={1}
+        defaultValue={anclada ? (fila.anclaDias ?? 0) + 1 : ''}
+        placeholder={String((fila.inicioDias ?? 0) + 1)}
+        aria-label={`Día de arranque de ${fila.descripcion}`}
+        onBlur={(evento) => confirmar(evento.currentTarget.value)}
+        onKeyDown={(evento) => {
+          if (evento.key === 'Enter') evento.currentTarget.blur();
+        }}
+      />
+    </label>
+  );
+}
+
 function CeldaDuracion({
   fila,
   onDuracion,

@@ -218,6 +218,10 @@ class NodoCPM:
     fecha_real_termino: date | None = None
     bloqueada: bool = False
     tramos: tuple[Tramo, ...] = ()
+    inicio_dias: float | None = None
+    """Ancla de arranque: el día en que la actividad empieza pase lo que pase
+    con sus predecesoras. `None` = el arranque lo deriva el motor, que es el
+    caso de siempre. Ver el forward pass de `calcular_cpm`."""
 
     @property
     def span(self) -> float:
@@ -355,6 +359,17 @@ def calcular_cpm(
             else:  # FIN_INICIO, y cualquier tipo desconocido del jsonb
                 candidato = pred.ef + dep.lag_dias
             es = max(es, candidato)
+
+        # El ancla gana sobre todo lo anterior. Es el "Debe comenzar el" de MS
+        # Project, no el "No comenzar antes del": si fuera un piso —`max(es,
+        # ancla)`— una predecesora que se alargara arrastraría la actividad,
+        # que es justo lo que el ancla existe para impedir ("el inicio manda
+        # sobre la predecesora"). La relación queda entonces sin cumplirse y
+        # eso se ve en el lag negativo que la pantalla muestra; soltarla es
+        # cosa de quien edita, no del motor.
+        if calc.nodo.inicio_dias is not None:
+            es = max(0.0, calc.nodo.inicio_dias)
+
         calc.es = es
         calc.ef = es + span
 

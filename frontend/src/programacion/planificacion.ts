@@ -91,6 +91,12 @@ export function colocar(borrador: Borrador): ReadonlyMap<string, Colocacion> {
       inicio = Math.max(inicio, minimo);
     }
 
+    // El ancla gana sobre lo que impongan las predecesoras: es el "Debe
+    // comenzar el" de Project, no el "No comenzar antes del". Espejo exacto
+    // del forward pass de `domain/programacion/cpm.py`; los dos tienen que
+    // decir lo mismo o la barra se movería al guardar.
+    if (caja.inicioDias !== null) inicio = caja.inicioDias;
+
     const inicioDias = Math.max(inicio, 0);
     colocado.set(id, { inicioDias, finDias: inicioDias + span });
   }

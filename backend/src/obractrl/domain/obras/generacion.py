@@ -102,6 +102,7 @@ class ActividadPlaneada:
     duracion_dias: Decimal = _DURACION_POR_DEFECTO
     dependencias: tuple[Dependencia, ...] = field(default=())
     tramos: tuple[Tramo, ...] = field(default=())
+    inicio_dias: Decimal | None = None
 
 
 def _indexar(nodos: Sequence[NodoPrototipo]) -> dict[str, NodoPrototipo]:
@@ -212,6 +213,10 @@ def planear_actividades(
                 # del item pero sin el hueco, y su span saldría corto: las
                 # sucesoras arrancarían antes de que el último tramo cierre.
                 tramos=item.tramos if item else (),
+                # El ancla baja con el resto de la plantilla: si el prototipo
+                # dice que esta actividad arranca el día 30, la obra generada
+                # nace con ella clavada ahí y no en el día que le tocaría.
+                inicio_dias=item.inicio_dias if item else None,
             )
         )
 

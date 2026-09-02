@@ -46,7 +46,7 @@ _COLUMNAS_BASE = """
 
 _COLUMNAS_ITEM = """
     id, programa_base_id, prototipo_nodo_id, frente_id, etapa_id,
-    duracion_dias, dependencias, tramos, orden
+    duracion_dias, dependencias, tramos, inicio_dias, orden
 """
 
 _COLUMNAS_OBRA = """
@@ -192,6 +192,7 @@ class RepositorioProgramasSQL:
                 "duracion_dias": item["duracion_dias"],
                 "dependencias": json.dumps(item.get("dependencias") or []),
                 "tramos": json.dumps(item.get("tramos") or []),
+                "inicio_dias": item.get("inicio_dias"),
                 "orden": item.get("orden", 0),
             }
             for item in items
@@ -202,14 +203,15 @@ class RepositorioProgramasSQL:
                 """
                 insert into programa_base_item
                     (org_id, programa_base_id, prototipo_nodo_id, etapa_id,
-                     frente_id, duracion_dias, dependencias, tramos, orden)
+                     frente_id, duracion_dias, dependencias, tramos,
+                     inicio_dias, orden)
                 values
                     (cast(current_setting('app.org_id') as uuid),
                      cast(:programa_base_id as uuid),
                      cast(:prototipo_nodo_id as uuid),
                      cast(:etapa_id as uuid), cast(:frente_id as uuid),
                      :duracion_dias, cast(:dependencias as jsonb),
-                     cast(:tramos as jsonb), :orden)
+                     cast(:tramos as jsonb), :inicio_dias, :orden)
                 """
             ),
             params,
@@ -270,7 +272,7 @@ class RepositorioProgramasSQL:
                     """
                     select i.id, i.programa_base_id, i.prototipo_nodo_id,
                            i.frente_id, i.etapa_id, i.duracion_dias,
-                           i.dependencias, i.tramos, i.orden
+                           i.dependencias, i.tramos, i.inicio_dias, i.orden
                     from programa_base_item i
                     join programa_base b on b.id = i.programa_base_id
                     where b.prototipo_id = :prototipo_id

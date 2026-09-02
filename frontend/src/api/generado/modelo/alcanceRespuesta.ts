@@ -5,11 +5,17 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
+import type { AlcanceRespuestaGenteItem } from './alcanceRespuestaGenteItem';
+import type { AlcanceRespuestaObrasItem } from './alcanceRespuestaObrasItem';
 import type { AlcanceRespuestaClustersItem } from './alcanceRespuestaClustersItem';
 import type { AlcanceRespuestaProyectosItem } from './alcanceRespuestaProyectosItem';
 
 export interface AlcanceRespuesta {
   usuario_id: string;
+  /** `{id, nombre, email, rol}` de quienes cuelgan de él. */
+  gente?: AlcanceRespuestaGenteItem[];
+  /** `{id, clave, cluster_id, estatus, avance_pct, es_principal}`. `es_principal` es el residente que quedó en `obra.residente_id`. */
+  obras?: AlcanceRespuestaObrasItem[];
   /** `{id, clave, nombre, proyecto_id}`. */
   clusters?: AlcanceRespuestaClustersItem[];
   /** `{id, clave, nombre}`. */

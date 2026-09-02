@@ -11,7 +11,8 @@
  * no parte la actividad en dos: parte su tramo en dos y deja una pausa, porque
  * el concepto sigue teniendo una cantidad y un avance (§7.6). "Vincular" puede
  * cerrar un ciclo que el backend rechazaría con un 422 sobre el programa
- * entero.
+ * entero. Y capturar una duración no es llenar una celda: es mover el árbol
+ * WBS entero, hacia abajo o hacia arriba (`fijarDuracion`).
  *
  * Toda esa traducción vive aquí, fuera de los componentes, y devuelve **o las
  * acciones o el motivo por el que no hay ninguna**. Un botón que no puede hacer
@@ -41,6 +42,7 @@
 import { ataduraDe } from './arrastre';
 import type { Accion } from './borrador';
 import { alcanzablesDesde } from './ciclos';
+import { indexarArbol } from './filasPrograma';
 import {
   aristas,
   buscarCable,
@@ -90,11 +92,16 @@ function cajaDe(borrador: Borrador, cajaId: string): Caja | null {
 /**
  * Corre la actividad `dias` días, positivo hacia adelante.
  *
- * Es el mismo camino que el arrastre del Gantt (`arrastre.ts`) y por el mismo
- * motivo: la única forma de expresar "más tarde" en un contrato sin fechas es
- * el lag de la precedencia que produce el arranque. De ahí la consecuencia
- * incómoda pero honesta: una actividad sin predecesoras no se puede aplazar,
- * porque arranca el día 1 y no hay dónde guardarle el retraso.
+ * ## Dos formas de guardar "más tarde", y cuál se usa
+ *
+ * Si la actividad **cuelga de una predecesora**, se mueve con el lag de esa
+ * precedencia: es la distancia lo que el usuario está ajustando, y así la
+ * actividad sigue a su predecesora cuando ésta se mueva.
+ *
+ * Si **no depende de nadie** —o ya está anclada—, se mueve su ancla de
+ * arranque (`inicio_dias`, migración 0043). Antes esto era un rechazo: no
+ * había dónde guardar el retraso de una actividad que arranca el día 1. Ahora
+ * sí lo hay, y el ancla manda sobre el grafo.
  */
 export function aplazar(
   borrador: Borrador,
@@ -109,43 +116,46 @@ export function aplazar(
   }
   if (dias === 0) return no('Aplazar cero días no cambia nada.');
 
-  const atadura = ataduraDe(caja, colocado);
-  if (atadura === null) {
-    return no(
-      'Esta actividad no depende de ninguna otra: arranca el día 1 y no hay dónde guardarle ' +
-        'un retraso. Tiéndele una precedencia y muévela con su lag (§7.5).',
-    );
+  const atadura = caja.inicioDias === null ? ataduraDe(caja, colocado) : null;
+  if (atadura !== null) {
+    return si({
+      tipo: 'lag',
+      desde: atadura.desde,
+      hasta: caja.id,
+      lagDias: redondear(atadura.lagDias + dias),
+    });
   }
 
-  return si({
-    tipo: 'lag',
-    desde: atadura.desde,
-    hasta: caja.id,
-    lagDias: redondear(atadura.lagDias + dias),
-  });
+  // Sin atadura el arranque de hoy es el que la colocación ya calculó; si no
+  // está colocada, el día 0.
+  const desde = caja.inicioDias ?? colocado.get(caja.id)?.inicioDias ?? 0;
+  const inicioDias = redondear(desde + dias);
+  if (inicioDias < 0) {
+    return no(
+      `Adelantarla ${-dias} días la sacaría del programa: arranca el día ${desde + 1} y nada ` +
+        'puede empezar antes del día 1 (§7.5).',
+    );
+  }
+  return si({ tipo: 'inicio', cajaId: caja.id, inicioDias });
 }
 
 /**
- * "No iniciar antes de": lleva el arranque de la actividad al día `dia`.
+ * Clava el arranque de la actividad en el día `dia`.
  *
- * ## Por qué no es una restricción
+ * ## Ahora sí es una restricción, y se guarda
  *
- * En MS Project esto es una **constraint** con fecha propia que sobrevive a los
- * cambios: si la predecesora se adelanta, la actividad se queda donde la fecha
- * dice. Aquí no hay dónde guardar una: `ItemProgramaBasePeticion` no tiene
- * campo de restricción, y añadirle uno que el `POST` ignorase sería fingir que
- * el programa recuerda algo que no recuerda.
+ * Hasta la migración 0043 esto se resolvía en el momento como lag, porque
+ * `ItemProgramaBasePeticion` no tenía campo de restricción: la actividad se
+ * movía con su predecesora, porque lo guardado era la distancia y no el día.
+ * Con `inicio_dias` sí hay dónde guardarlo, y lo que se guarda es el día.
  *
- * Lo que sí cabe —y es lo que hace esta función— es resolverla **en el momento**
- * como lag: se calcula cuánto hay que aplazar para que la actividad arranque el
- * día pedido y se guarda esa cantidad. La diferencia se nota después: si la
- * predecesora se mueve, la actividad se mueve con ella, porque lo guardado es
- * la distancia y no la fecha. Es un desplazamiento, no un ancla, y se rotula
- * así en la barra.
+ * Es el "Debe comenzar el" de MS Project: el ancla **gana** sobre las
+ * predecesoras. Si una de ellas se alarga y la alcanza, la actividad no se
+ * corre — el lag que la pantalla muestra se vuelve negativo, y llevarlo a cero
+ * o a positivo es lo que la suelta.
  *
- * Sólo aplaza. Traer una actividad hacia atrás no es lo que "no iniciar antes
- * de" pide, y con un lag negativo el resultado además dependería de qué otra
- * predecesora tomara el relevo.
+ * A diferencia de antes, también sirve para traerla hacia atrás: un ancla
+ * temprana es tan expresable como una tardía.
  */
 export function noIniciarAntesDe(
   borrador: Borrador,
@@ -153,22 +163,55 @@ export function noIniciarAntesDe(
   cajaId: string,
   dia: number,
 ): Gesto {
-  const puesto = colocado.get(cajaId);
-  if (!puesto) {
+  const caja = cajaDe(borrador, cajaId);
+  if (!caja) return no('La actividad ya no está en el programa.');
+  if (!esRenglon(caja)) {
     return no('La actividad no está colocada: captúrale una duración primero (§7.5).');
   }
-  const delta = Math.round(dia - puesto.inicioDias);
-  if (delta <= 0) {
-    return no(
-      `La actividad ya arranca el día ${puesto.inicioDias + 1}, que no es antes del día ` +
-        `${dia + 1}. No hay nada que aplazar.`,
-    );
+  if (dia < 0) return no('Nada puede arrancar antes del día 1 (§7.5).');
+
+  const puesto = colocado.get(cajaId);
+  if (caja.inicioDias === dia && puesto?.inicioDias === dia) {
+    return no(`La actividad ya arranca el día ${dia + 1}.`);
   }
-  return aplazar(borrador, colocado, cajaId, delta);
+  return si({ tipo: 'inicio', cajaId, inicioDias: dia });
+}
+
+/** Suelta el ancla: la actividad vuelve a colocarse donde manda el grafo. */
+export function desclavar(borrador: Borrador, cajaId: string): Gesto {
+  const caja = cajaDe(borrador, cajaId);
+  if (!caja) return no('La actividad ya no está en el programa.');
+  if (caja.inicioDias === null) {
+    return no('La actividad no tiene arranque fijo: ya la coloca su cadena de precedencias.');
+  }
+  return si({ tipo: 'inicio', cajaId, inicioDias: null });
 }
 
 /**
- * Fija la duración de una actividad continua.
+ * Fija la duración de una actividad, y con ella la herencia del árbol WBS.
+ *
+ * ## Las dos direcciones, que son un solo gesto
+ *
+ * El jefe de obra lo pidió así: *"por nivel y hereda a los parientes y
+ * viceversa"*. Capturar días no es escribir una celda, es mover el árbol:
+ *
+ * **Hacia abajo.** Capturar en un nodo con hijos reparte esa ventana a todos
+ * sus descendientes —etapas y conceptos— **en paralelo**: cada uno recibe la
+ * ventana entera, no una tajada. Y la cifra del nodo se vacía, porque a partir
+ * de ahí es resumen de lo que le colgó. No es el reparto secuencial ponderado
+ * por importe de `domain/programacion/jerarquia.py`, que es lo que hace el
+ * programa **de obra**: aquí las partidas de un nivel corren simultáneas.
+ *
+ * **Hacia arriba.** Capturar en una hoja vacía la duración propia de todos sus
+ * ancestros. Si no se vaciaran, el padre seguiría declarando una cifra que ya
+ * no manda —el resumen la pisa al dibujar— y además viajaría al POST como un
+ * ítem más, sumando sus días encima de los de sus hijos.
+ *
+ * Por eso un nodo nunca tiene a la vez duración propia y descendientes
+ * capturados: ese estado era el viejo aviso de "conflicto", y ahora no se
+ * puede construir.
+ *
+ * ## Lo que no cambia
  *
  * Con la actividad partida la duración **es** la suma de sus tramos (§7.6) y no
  * se captura: dejar las dos cifras editables garantiza que un día discrepen, y
@@ -186,7 +229,67 @@ export function fijarDuracion(borrador: Borrador, cajaId: string, dias: number |
   if (dias !== null && dias <= 0) {
     return no('La duración de un renglón del programa es positiva; vacíala para sacarlo (§7.5).');
   }
-  return si({ tipo: 'duracion', cajaId, duracionDias: dias });
+
+  const { hijos } = indexarArbol(borrador.cajas);
+  const debajo = descendientesDe(hijos, cajaId);
+
+  // Vaciar es vaciar y ya: no reparte ceros hacia abajo —eso borraría la
+  // captura de todo el subárbol de un teclazo— ni toca a los ancestros, que
+  // siguen resumiendo a los hermanos que sí tienen días.
+  if (dias === null) return si({ tipo: 'duracion', cajaId, duracionDias: null });
+
+  if (debajo.length > 0) {
+    return si(
+      { tipo: 'duracion', cajaId, duracionDias: null },
+      ...debajo.map(
+        (id): Accion => ({ tipo: 'duracion', cajaId: id, duracionDias: dias }),
+      ),
+    );
+  }
+
+  return si(
+    { tipo: 'duracion', cajaId, duracionDias: dias },
+    ...ancestrosDe(borrador, cajaId).map(
+      (id): Accion => ({ tipo: 'duracion', cajaId: id, duracionDias: null }),
+    ),
+  );
+}
+
+/** Todos los descendientes de `cajaId`, a cualquier profundidad. */
+function descendientesDe(
+  hijos: ReadonlyMap<string | null, readonly Caja[]>,
+  cajaId: string,
+): readonly string[] {
+  const salida: string[] = [];
+  // `vistos` no es una optimización: es la red contra un `parentId` en ciclo,
+  // que sin ella colgaría la pantalla (mismo criterio que `resumirDescendientes`).
+  const vistos = new Set<string>([cajaId]);
+  const pila = [cajaId];
+  while (pila.length > 0) {
+    const actual = pila.pop();
+    if (actual === undefined) continue;
+    for (const hijo of hijos.get(actual) ?? []) {
+      if (vistos.has(hijo.id)) continue;
+      vistos.add(hijo.id);
+      salida.push(hijo.id);
+      pila.push(hijo.id);
+    }
+  }
+  return salida;
+}
+
+/** Los ancestros de `cajaId`, del padre a la raíz. */
+function ancestrosDe(borrador: Borrador, cajaId: string): readonly string[] {
+  const porId = new Map(borrador.cajas.map((caja) => [caja.id, caja]));
+  const salida: string[] = [];
+  const vistos = new Set<string>([cajaId]);
+  let actual = porId.get(cajaId)?.parentId ?? null;
+  while (actual !== null && !vistos.has(actual)) {
+    vistos.add(actual);
+    salida.push(actual);
+    actual = porId.get(actual)?.parentId ?? null;
+  }
+  return salida;
 }
 
 /**

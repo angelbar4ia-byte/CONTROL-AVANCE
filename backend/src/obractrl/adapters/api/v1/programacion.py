@@ -276,6 +276,16 @@ class ItemProgramaBasePeticion(BaseModel):
             "prototipo (§7.6)."
         ),
     )
+    inicio_dias: Decimal | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Ancla de arranque: día del programa (0-based) en que la "
+            "actividad empieza **pase lo que pase con sus predecesoras**. "
+            "Vacío = el arranque lo deriva el CPM, que es el caso de siempre "
+            "(§7.5, §6)."
+        ),
+    )
     orden: int = 0
 
     def a_dominio(self) -> ItemProgramaBase:
@@ -288,6 +298,7 @@ class ItemProgramaBasePeticion(BaseModel):
             frente_id=str(self.frente_id) if self.frente_id else None,
             dependencias=tuple(dep.a_dominio() for dep in self.dependencias),
             tramos=tuple(tramo.a_dominio() for tramo in self.tramos),
+            inicio_dias=self.inicio_dias,
             orden=self.orden,
         )
 
@@ -367,6 +378,7 @@ class ItemProgramaBaseRespuesta(BaseModel):
     duracion_dias: Decimal
     dependencias: list[DependenciaDTO]
     tramos: list[TramoDTO]
+    inicio_dias: Decimal | None
     orden: int
 
     @classmethod
@@ -383,6 +395,7 @@ class ItemProgramaBaseRespuesta(BaseModel):
                 for dep in (fila["dependencias"] or [])
             ],
             tramos=TramoDTO.lista_desde_jsonb(fila["tramos"]),
+            inicio_dias=fila["inicio_dias"],
             orden=fila["orden"],
         )
 
@@ -398,6 +411,7 @@ class ActividadProgramadaRespuesta(BaseModel):
     duracion_dias: Decimal
     dependencias: list[DependenciaDTO]
     tramos: list[TramoDTO]
+    inicio_dias: Decimal | None
     fecha_inicio: date | None
     fecha_termino: date | None
     avance_pct: Decimal
@@ -421,6 +435,7 @@ class ActividadProgramadaRespuesta(BaseModel):
                 for dep in (fila["dependencias"] or [])
             ],
             tramos=TramoDTO.lista_desde_jsonb(fila["tramos"]),
+            inicio_dias=fila["inicio_dias"],
             fecha_inicio=fila["fecha_inicio"],
             fecha_termino=fila["fecha_termino"],
             avance_pct=fila["avance_pct"],
@@ -932,6 +947,15 @@ class ProgramacionActividadPeticion(BaseModel):
     frente_id: UUID | None = None
     fecha_inicio: date | None = None
     fecha_termino: date | None = None
+    inicio_dias: Decimal | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Ancla de arranque de esta actividad (§7.6, §6). Vacío = no se "
+            "toca; para desclavarla se reescribe el programa base, que es "
+            "donde el ancla se decide (§7.5)."
+        ),
+    )
 
 
 # --- Programas base (§11.2) ---------------------------------------------
@@ -1311,6 +1335,7 @@ async def editar_programacion_actividad(
                 frente_id=peticion.frente_id,
                 fecha_inicio=peticion.fecha_inicio,
                 fecha_termino=peticion.fecha_termino,
+                inicio_dias=peticion.inicio_dias,
             )
         )
     )

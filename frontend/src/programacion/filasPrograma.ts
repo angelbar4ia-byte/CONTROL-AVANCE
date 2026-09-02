@@ -28,11 +28,16 @@
  * `prototipo_nodo_id` puede apuntar a un nivel o a una etapa —"toda la etapa
  * constructiva es una actividad"— y ese nodo **sí** tiene duración propia
  * aunque tenga hijos en el árbol. Mientras sus hijos no estén capturados no hay
- * nada que resumir y su barra es una actividad normal. Cuando ambos existen se
- * marca `conflicto`, que es exactamente lo que reporta
- * `ConflictoJerarquiaRespuesta` en la vista de obra: el nodo declara N días y
- * sus conceptos ocupan M. Aquí no se decide cuál gana —eso es del jefe de
- * obra—, se señala.
+ * nada que resumir y su barra es una actividad normal.
+ *
+ * Que un nodo tenga las dos cosas a la vez ya no ocurre. Antes se marcaba
+ * `conflicto` —el nodo declara N días y sus conceptos ocupan M— y se dejaba
+ * al jefe de obra decidir. Ahora la captura hereda: `gestos.fijarDuracion`
+ * reparte la ventana del padre hacia abajo vaciando la suya, y vacía a los
+ * ancestros al capturar una hoja. El estado ambiguo no se puede construir, así
+ * que no hay nada que señalar. La vista de **obra** conserva su propio aviso
+ * (`ConflictoJerarquiaRespuesta`, `jerarquia.ts`), que viene del backend y se
+ * gobierna aparte.
  *
  * ## Días laborables vs días calendario
  *
@@ -40,8 +45,9 @@
  * `trabajoDe` es la suma de los tramos (los días que de verdad se trabaja) y
  * `spanDe` el cierre del último (lo que la barra ocupa en el calendario). Sin
  * interrupción las dos coinciden; con interrupción, la diferencia son las
- * pausas. En el resumen, laborables es la suma de sus hojas y calendario la
- * ventana que las abarca —que puede ser mayor si las hojas no se encadenan.
+ * pausas. En el resumen las dos son la **ventana** que abarca a sus hojas: con
+ * el reparto en paralelo de `gestos.fijarDuracion` las ramas de un nivel corren
+ * simultáneas, así que sumar su trabajo daría un total que nadie ocupa.
  *
  * Módulo puro (§12.11).
  */
@@ -75,15 +81,22 @@ export interface FilaPrograma {
   readonly esResumen: boolean;
   /** El nodo tiene duración propia capturada (entra al POST). */
   readonly capturado: boolean;
-  /**
-   * El nodo declara días propios **y** sus descendientes ocupan otros: las dos
-   * cifras compiten por la misma ventana (§7.5).
-   */
-  readonly conflicto: boolean;
   /** Día del programa en que arranca la barra, 0-based; `null` sin colocar. */
   readonly inicioDias: number | null;
+  /**
+   * Arranque **fijado a mano** (`inicio_dias`, migración 0043), 0-based.
+   * `null` = la barra la coloca su cadena de precedencias. Es distinto de
+   * `inicioDias`, que es dónde acabó quedando: con ancla los dos coinciden,
+   * sin ancla sólo el segundo tiene valor.
+   */
+  readonly anclaDias: number | null;
   readonly finDias: number | null;
-  /** Días de trabajo efectivo (suma de tramos). */
+  /**
+   * Días de trabajo efectivo (suma de tramos). En un resumen es el **span**
+   * de sus hijos, no la suma de su trabajo: con el reparto en paralelo de
+   * `gestos.fijarDuracion` las ramas corren simultáneas, así que un nivel de
+   * 60 días con cinco etapas debajo ocupa 60 y no 300.
+   */
   readonly diasLaborables: number | null;
   /** Días que la barra ocupa en el calendario del programa (span). */
   readonly diasCalendario: number | null;
@@ -108,8 +121,13 @@ interface Resumen {
  *
  * Un `parentId` que no está entre las cajas convierte al nodo en raíz en vez de
  * perderlo — mismo criterio que `arbolVisible` en `grafo.ts`.
+ *
+ * Se exporta porque la herencia de duraciones (`gestos.ts`) recorre el mismo
+ * árbol para repartir hacia abajo y vaciar hacia arriba: dos índices distintos
+ * del mismo `parentId` acabarían discrepando en el caso raro, que es
+ * justamente el padre desconocido.
  */
-function indexarArbol(cajas: readonly Caja[]): {
+export function indexarArbol(cajas: readonly Caja[]): {
   readonly hijos: ReadonlyMap<string | null, readonly Caja[]>;
   readonly raices: readonly Caja[];
 } {
@@ -335,8 +353,10 @@ export function aplanarPrograma({
     const partida = partidas?.get(caja.id);
 
     // Manda el resumen cuando lo hay: la barra que abarca a los hijos es la
-    // lectura correcta del nodo, y su duración propia —si la tiene— es el
-    // conflicto que se marca aparte, no una segunda barra.
+    // lectura correcta del nodo. Que además tenga duración propia ya no se
+    // puede: `gestos.fijarDuracion` vacía al padre al repartirle a los hijos y
+    // vacía a los ancestros al capturar una hoja, justamente para que nadie
+    // tenga que decidir cuál de las dos cifras manda.
     const inicioDias = resumen?.inicioDias ?? propio?.inicioDias ?? null;
     const finDias = resumen?.finDias ?? propio?.finDias ?? null;
 
@@ -354,12 +374,17 @@ export function aplanarPrograma({
       nHojas: resumen?.nHojas ?? (propio ? 1 : 0),
       esResumen: resumen !== null,
       capturado: propio !== null,
-      conflicto: resumen !== null && propio !== null,
       inicioDias,
+      // El ancla es de la caja y no del resumen: un nodo derivado no se clava,
+      // se clavan las hojas que lo componen.
+      anclaDias: resumen === null ? caja.inicioDias : null,
       finDias,
       diasLaborables:
-        resumen?.trabajoDias ??
-        (propio ? trabajoDe(caja.duracionDias ?? 0, caja.tramos) : null),
+        resumen !== null
+          ? resumen.finDias - resumen.inicioDias
+          : propio
+            ? trabajoDe(caja.duracionDias ?? 0, caja.tramos)
+            : null,
       diasCalendario:
         resumen !== null
           ? resumen.finDias - resumen.inicioDias
@@ -467,7 +492,6 @@ export interface ResumenPrograma {
   readonly nNodos: number;
   readonly nCapturados: number;
   readonly nResumenes: number;
-  readonly nConflictos: number;
   /** Días que ocupa el programa completo. */
   readonly diasTotales: number;
 }
@@ -478,7 +502,6 @@ export function resumirFilas(filas: readonly FilaPrograma[]): ResumenPrograma {
     nNodos: filas.length,
     nCapturados: filas.filter((fila) => fila.capturado).length,
     nResumenes: filas.filter((fila) => fila.esResumen).length,
-    nConflictos: filas.filter((fila) => fila.conflicto).length,
     diasTotales: filas.reduce((mayor, fila) => Math.max(mayor, fila.finDias ?? 0), 0),
   };
 }
