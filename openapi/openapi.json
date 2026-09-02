@@ -1246,6 +1246,154 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Dar de alta un frente",
+        "description": "Los ocho del §8.3 son la semilla, no la lista cerrada (§8.7).\n\nUna constructora agrupa sus frentes como los trabaja: `INSTALACIONES`\ncubriendo hidráulica, sanitaria, eléctrica y gas es un frente suyo aunque\nel spec liste esos cuatro por separado — el spec nombra gremios y el frente\nes una decisión de cómo se contrata.",
+        "operationId": "crear_frente_api_v1_frentes_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FrenteRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/frentes/{frente_id}": {
+      "patch": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Editar un frente",
+        "operationId": "editar_frente_api_v1_frentes__frente_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "frente_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frente Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditarFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/frentes/{frente_id}/etapas": {
+      "put": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Qué etapas constructivas agrupa el frente",
+        "description": "El mapeo del §8.3 que la migración 0045 hizo posible.\n\nUna etapa pertenece a **un** frente: tomarla aquí la quita del que tuviera.\nSi estuviera en dos, su trabajo se contaría dos veces al planear cuántas\ncuadrillas hacen falta, que es la cifra para la que existe este mapeo.",
+        "operationId": "asignar_etapas_al_frente_api_v1_frentes__frente_id__etapas_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "frente_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frente Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EtapasDelFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/unidades": {
@@ -9907,6 +10055,45 @@
         ],
         "title": "CrearFamiliaPeticion"
       },
+      "CrearFrentePeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave",
+            "description": "Clave única del catálogo (§3.3)."
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "description": "Orden de obra en que se listan.",
+            "default": 0
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color",
+            "description": "Token de color para el Gantt; opcional."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "CrearFrentePeticion"
+      },
       "CrearInsumoPeticion": {
         "properties": {
           "clave": {
@@ -10842,6 +11029,59 @@
         ],
         "title": "DocumentoRespuesta"
       },
+      "EditarFrentePeticion": {
+        "properties": {
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "orden": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "estatus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estatus",
+            "description": "`activo` o `inactivo` (§8.7)."
+          }
+        },
+        "type": "object",
+        "title": "EditarFrentePeticion",
+        "description": "Solo lo que cambia. La `clave` no está: es la identidad (§3.3)."
+      },
       "EntradaBitacora": {
         "properties": {
           "id": {
@@ -11388,6 +11628,19 @@
             ],
             "title": "Nivel Id"
           },
+          "frente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frente Id",
+            "description": "Frente al que pertenece la etapa (§8.3, migración 0045). Un frente agrupa varias; vacío = sin asignar todavía."
+          },
           "clave": {
             "type": "string",
             "title": "Clave"
@@ -11427,6 +11680,21 @@
           "descripcion"
         ],
         "title": "EtapaRespuesta"
+      },
+      "EtapasDelFrentePeticion": {
+        "properties": {
+          "etapa_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Etapa Ids"
+          }
+        },
+        "type": "object",
+        "title": "EtapasDelFrentePeticion",
+        "description": "Las etapas que pertenecen al frente, **completas**.\n\nEs un reemplazo y no un alta: lo que no venga en la lista se queda sin\nfrente. Así mover una etapa de un frente a otro es una llamada y no dos, y\nla pantalla no tiene que llevar la cuenta de lo que quitó."
       },
       "EvaluacionRespuesta": {
         "properties": {

@@ -9,14 +9,17 @@ usuario de la organización —por eso `GET /frentes` es de todos los roles
 (§11.2)— y escritura solo para `app.es_config()` (§5.1). Ningún método filtra
 por `org_id` a mano.
 
-Solo hay lectura: el catálogo de frentes es semilla editable (§8.7), se siembra
-con los ocho canónicos del §8.3 y se administra desde Configuración, no desde
-este módulo.
+El catálogo se siembra con los ocho canónicos del §8.3 y **se edita** (§8.7):
+una constructora agrupa sus frentes como los trabaja —`INSTALACIONES` cubriendo
+hidráulica, sanitaria, eléctrica y gas— y ésa no es la lista de gremios del
+spec. Qué etapas cuelgan de cada frente vive en `etapa_constructiva.frente_id`
+(0045) y lo escribe `RepositorioNivelesEtapasSQL.asignar_frente`.
 """
 
 from __future__ import annotations
 
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -53,3 +56,44 @@ class RepositorioFrentesSQL:
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]
+
+    async def crear(self, datos: dict[str, Any]) -> UUID:
+        """Alta de un frente propio de la organización (§8.7)."""
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into frente (org_id, clave, nombre, orden, color)
+                    values (cast(current_setting('app.org_id') as uuid),
+                            :clave, :nombre, coalesce(:orden, 0), :color)
+                    returning id
+                    """
+                ),
+                {
+                    "clave": datos["clave"],
+                    "nombre": datos["nombre"],
+                    "orden": datos.get("orden"),
+                    "color": datos.get("color"),
+                },
+            )
+        ).scalar_one()
+
+    async def actualizar(self, frente_id: UUID, cambios: dict[str, Any]) -> None:
+        """Edición parcial; la `clave` no se toca — es la identidad (§3.3).
+
+        Lista blanca como el resto de los catálogos: la clave del dict entra a
+        la sentencia, así que solo pueden entrar éstas.
+        """
+        editables = {
+            "nombre": "nombre = :nombre",
+            "orden": "orden = cast(:orden as smallint)",
+            "color": "color = :color",
+            "estatus": "estatus = cast(:estatus as estatus_registro)",
+        }
+        asignaciones = [sql for campo, sql in editables.items() if campo in cambios]
+        if not asignaciones:
+            return
+        await self._sesion.execute(
+            text(f"update frente set {', '.join(asignaciones)} where id = cast(:id as uuid)"),
+            {"id": str(frente_id), **{c: cambios[c] for c in editables if c in cambios}},
+        )

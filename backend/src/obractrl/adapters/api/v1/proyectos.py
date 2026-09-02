@@ -29,6 +29,7 @@ from obractrl.adapters.api.casos_uso import (
 from obractrl.adapters.api.dependencias import SesionRLS, exigir_rol
 from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
 from obractrl.adapters.repos.frentes_sql import RepositorioFrentesSQL
+from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
 from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
 from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
@@ -371,3 +372,98 @@ async def listar_frentes(
         solo_activos=not incluir_inactivos
     )
     return [FrenteRespuesta.desde_fila(fila) for fila in filas]
+
+
+class CrearFrentePeticion(BaseModel):
+    clave: str = Field(min_length=1, description="Clave única del catálogo (§3.3).")
+    nombre: str = Field(min_length=1)
+    orden: int = Field(default=0, description="Orden de obra en que se listan.")
+    color: str | None = Field(
+        default=None, description="Token de color para el Gantt; opcional."
+    )
+
+
+class EditarFrentePeticion(BaseModel):
+    """Solo lo que cambia. La `clave` no está: es la identidad (§3.3)."""
+
+    nombre: str | None = Field(default=None, min_length=1)
+    orden: int | None = None
+    color: str | None = None
+    estatus: str | None = Field(
+        default=None, description="`activo` o `inactivo` (§8.7)."
+    )
+
+
+class EtapasDelFrentePeticion(BaseModel):
+    """Las etapas que pertenecen al frente, **completas**.
+
+    Es un reemplazo y no un alta: lo que no venga en la lista se queda sin
+    frente. Así mover una etapa de un frente a otro es una llamada y no dos, y
+    la pantalla no tiene que llevar la cuenta de lo que quitó.
+    """
+
+    etapa_ids: list[UUID] = Field(default_factory=list)
+
+
+@router.post(
+    "/frentes",
+    response_model=FrenteRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Dar de alta un frente",
+    dependencies=[CONFIGURA],
+)
+async def crear_frente(
+    peticion: CrearFrentePeticion, sesion: SesionRLS
+) -> FrenteRespuesta:
+    """Los ocho del §8.3 son la semilla, no la lista cerrada (§8.7).
+
+    Una constructora agrupa sus frentes como los trabaja: `INSTALACIONES`
+    cubriendo hidráulica, sanitaria, eléctrica y gas es un frente suyo aunque
+    el spec liste esos cuatro por separado — el spec nombra gremios y el frente
+    es una decisión de cómo se contrata.
+    """
+    repo = RepositorioFrentesSQL(sesion)
+    frente_id = await repo.crear(peticion.model_dump())
+    await sesion.commit()
+    return FrenteRespuesta(
+        id=frente_id,
+        clave=peticion.clave,
+        nombre=peticion.nombre,
+        orden=peticion.orden,
+        color=peticion.color,
+    )
+
+
+@router.patch(
+    "/frentes/{frente_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Editar un frente",
+    dependencies=[CONFIGURA],
+)
+async def editar_frente(
+    frente_id: UUID, peticion: EditarFrentePeticion, sesion: SesionRLS
+) -> None:
+    cambios = peticion.model_dump(exclude_unset=True, exclude_none=True)
+    await RepositorioFrentesSQL(sesion).actualizar(frente_id, cambios)
+    await sesion.commit()
+
+
+@router.put(
+    "/frentes/{frente_id}/etapas",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Qué etapas constructivas agrupa el frente",
+    dependencies=[CONFIGURA],
+)
+async def asignar_etapas_al_frente(
+    frente_id: UUID, peticion: EtapasDelFrentePeticion, sesion: SesionRLS
+) -> None:
+    """El mapeo del §8.3 que la migración 0045 hizo posible.
+
+    Una etapa pertenece a **un** frente: tomarla aquí la quita del que tuviera.
+    Si estuviera en dos, su trabajo se contaría dos veces al planear cuántas
+    cuadrillas hacen falta, que es la cifra para la que existe este mapeo.
+    """
+    await RepositorioNivelesEtapasSQL(sesion).asignar_frente(
+        frente_id=frente_id, etapa_ids=peticion.etapa_ids
+    )
+    await sesion.commit()

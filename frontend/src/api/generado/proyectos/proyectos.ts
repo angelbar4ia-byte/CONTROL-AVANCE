@@ -32,8 +32,11 @@ import type {
 import type {
   ClusterRespuesta,
   CrearClusterPeticion,
+  CrearFrentePeticion,
   CrearPrototipoPeticion,
   CrearProyectoPeticion,
+  EditarFrentePeticion,
+  EtapasDelFrentePeticion,
   FrenteRespuesta,
   HTTPValidationError,
   ListarClustersApiV1ClustersGetParams,
@@ -1082,3 +1085,207 @@ export function useListarFrentesApiV1FrentesGet<TData = Awaited<ReturnType<typeo
 
 
 
+/**
+ * Los ocho del §8.3 son la semilla, no la lista cerrada (§8.7).
+
+Una constructora agrupa sus frentes como los trabaja: `INSTALACIONES`
+cubriendo hidráulica, sanitaria, eléctrica y gas es un frente suyo aunque
+el spec liste esos cuatro por separado — el spec nombra gremios y el frente
+es una decisión de cómo se contrata.
+ * @summary Dar de alta un frente
+ */
+export const crearFrenteApiV1FrentesPost = (
+    crearFrentePeticion: CrearFrentePeticion,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<FrenteRespuesta>(
+      {url: `/api/v1/frentes`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: crearFrentePeticion, signal
+    },
+      options);
+    }
+  
+
+
+export const getCrearFrenteApiV1FrentesPostMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearFrenteApiV1FrentesPost>>, TError,{data: CrearFrentePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof crearFrenteApiV1FrentesPost>>, TError,{data: CrearFrentePeticion}, TContext> => {
+
+const mutationKey = ['crearFrenteApiV1FrentesPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearFrenteApiV1FrentesPost>>, {data: CrearFrentePeticion}> = (props) => {
+          const {data} = props ?? {};
+
+          return  crearFrenteApiV1FrentesPost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CrearFrenteApiV1FrentesPostMutationResult = NonNullable<Awaited<ReturnType<typeof crearFrenteApiV1FrentesPost>>>
+    export type CrearFrenteApiV1FrentesPostMutationBody = CrearFrentePeticion
+    export type CrearFrenteApiV1FrentesPostMutationError = HTTPValidationError
+
+    /**
+ * @summary Dar de alta un frente
+ */
+export const useCrearFrenteApiV1FrentesPost = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearFrenteApiV1FrentesPost>>, TError,{data: CrearFrentePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof crearFrenteApiV1FrentesPost>>,
+        TError,
+        {data: CrearFrentePeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getCrearFrenteApiV1FrentesPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * @summary Editar un frente
+ */
+export const editarFrenteApiV1FrentesFrenteIdPatch = (
+    frenteId: string,
+    editarFrentePeticion: EditarFrentePeticion,
+ options?: SecondParameter<typeof peticion>,) => {
+      
+      
+      return peticion<void>(
+      {url: `/api/v1/frentes/${frenteId}`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: editarFrentePeticion
+    },
+      options);
+    }
+  
+
+
+export const getEditarFrenteApiV1FrentesFrenteIdPatchMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof editarFrenteApiV1FrentesFrenteIdPatch>>, TError,{frenteId: string;data: EditarFrentePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof editarFrenteApiV1FrentesFrenteIdPatch>>, TError,{frenteId: string;data: EditarFrentePeticion}, TContext> => {
+
+const mutationKey = ['editarFrenteApiV1FrentesFrenteIdPatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof editarFrenteApiV1FrentesFrenteIdPatch>>, {frenteId: string;data: EditarFrentePeticion}> = (props) => {
+          const {frenteId,data} = props ?? {};
+
+          return  editarFrenteApiV1FrentesFrenteIdPatch(frenteId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EditarFrenteApiV1FrentesFrenteIdPatchMutationResult = NonNullable<Awaited<ReturnType<typeof editarFrenteApiV1FrentesFrenteIdPatch>>>
+    export type EditarFrenteApiV1FrentesFrenteIdPatchMutationBody = EditarFrentePeticion
+    export type EditarFrenteApiV1FrentesFrenteIdPatchMutationError = HTTPValidationError
+
+    /**
+ * @summary Editar un frente
+ */
+export const useEditarFrenteApiV1FrentesFrenteIdPatch = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof editarFrenteApiV1FrentesFrenteIdPatch>>, TError,{frenteId: string;data: EditarFrentePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof editarFrenteApiV1FrentesFrenteIdPatch>>,
+        TError,
+        {frenteId: string;data: EditarFrentePeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getEditarFrenteApiV1FrentesFrenteIdPatchMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * El mapeo del §8.3 que la migración 0045 hizo posible.
+
+Una etapa pertenece a **un** frente: tomarla aquí la quita del que tuviera.
+Si estuviera en dos, su trabajo se contaría dos veces al planear cuántas
+cuadrillas hacen falta, que es la cifra para la que existe este mapeo.
+ * @summary Qué etapas constructivas agrupa el frente
+ */
+export const asignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPut = (
+    frenteId: string,
+    etapasDelFrentePeticion: EtapasDelFrentePeticion,
+ options?: SecondParameter<typeof peticion>,) => {
+      
+      
+      return peticion<void>(
+      {url: `/api/v1/frentes/${frenteId}/etapas`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: etapasDelFrentePeticion
+    },
+      options);
+    }
+  
+
+
+export const getAsignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPutMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPut>>, TError,{frenteId: string;data: EtapasDelFrentePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof asignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPut>>, TError,{frenteId: string;data: EtapasDelFrentePeticion}, TContext> => {
+
+const mutationKey = ['asignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPut'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof asignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPut>>, {frenteId: string;data: EtapasDelFrentePeticion}> = (props) => {
+          const {frenteId,data} = props ?? {};
+
+          return  asignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPut(frenteId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AsignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPutMutationResult = NonNullable<Awaited<ReturnType<typeof asignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPut>>>
+    export type AsignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPutMutationBody = EtapasDelFrentePeticion
+    export type AsignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPutMutationError = HTTPValidationError
+
+    /**
+ * @summary Qué etapas constructivas agrupa el frente
+ */
+export const useAsignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPut = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPut>>, TError,{frenteId: string;data: EtapasDelFrentePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof asignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPut>>,
+        TError,
+        {frenteId: string;data: EtapasDelFrentePeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getAsignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPutMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    

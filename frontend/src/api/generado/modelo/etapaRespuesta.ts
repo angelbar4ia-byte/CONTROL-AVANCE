@@ -6,11 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EtapaRespuestaNivelId } from './etapaRespuestaNivelId';
+import type { EtapaRespuestaFrenteId } from './etapaRespuestaFrenteId';
 import type { EtapaRespuestaImporte } from './etapaRespuestaImporte';
 
 export interface EtapaRespuesta {
   id: string;
   nivel_id?: EtapaRespuestaNivelId;
+  /** Frente al que pertenece la etapa (§8.3, migración 0045). Un frente agrupa varias; vacío = sin asignar todavía. */
+  frente_id?: EtapaRespuestaFrenteId;
   clave: string;
   descripcion: string;
   orden?: number;

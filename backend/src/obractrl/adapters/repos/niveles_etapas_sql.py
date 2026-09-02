@@ -21,6 +21,7 @@ referencia de otro cargador de pasada.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
@@ -108,7 +109,8 @@ class RepositorioNivelesEtapasSQL:
         filas = (
             await self._sesion.execute(
                 text(
-                    "select id, nivel_id, clave, descripcion, orden, ponderacion, importe "
+                    "select id, nivel_id, frente_id, clave, descripcion, orden, "
+                    "       ponderacion, importe "
                     "from etapa_constructiva order by clave"
                 )
             )
@@ -135,4 +137,35 @@ class RepositorioNivelesEtapasSQL:
         await self._sesion.execute(
             text("update etapa_constructiva set descripcion = :descripcion where id = :id"),
             {"id": str(etapa_id), "descripcion": cambios["descripcion"]},
+        )
+
+    async def asignar_frente(
+        self, *, frente_id: UUID, etapa_ids: Sequence[UUID]
+    ) -> None:
+        """Deja ese frente con **exactamente** esas etapas (§8.3, 0045).
+
+        Es un reemplazo y no un alta: primero suelta las que tenía y luego toma
+        las que llegan. Así una etapa que se quitó de la lista queda sin frente
+        en vez de arrastrarse, y la pantalla no necesita mandar dos llamadas
+        para mover una etapa de un frente a otro.
+
+        Una etapa pertenece a un frente y solo a uno, así que tomarla aquí la
+        quita del frente en el que estuviera — sin eso, su trabajo se contaría
+        dos veces al planear cuántas cuadrillas hacen falta.
+        """
+        await self._sesion.execute(
+            text(
+                "update etapa_constructiva set frente_id = null "
+                "where frente_id = cast(:frente_id as uuid)"
+            ),
+            {"frente_id": str(frente_id)},
+        )
+        if not etapa_ids:
+            return
+        await self._sesion.execute(
+            text(
+                "update etapa_constructiva set frente_id = cast(:frente_id as uuid) "
+                "where id = any(cast(:etapas as uuid[]))"
+            ),
+            {"frente_id": str(frente_id), "etapas": [str(e) for e in etapa_ids]},
         )

@@ -595,6 +595,13 @@ class NivelRespuesta(BaseModel):
 class EtapaRespuesta(BaseModel):
     id: UUID
     nivel_id: UUID | None = None
+    frente_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Frente al que pertenece la etapa (§8.3, migración 0045). Un "
+            "frente agrupa varias; vacío = sin asignar todavía."
+        ),
+    )
     clave: str
     descripcion: str
     orden: int = 0
@@ -606,6 +613,7 @@ class EtapaRespuesta(BaseModel):
         return cls(
             id=fila["id"],
             nivel_id=fila["nivel_id"],
+            frente_id=fila["frente_id"],
             clave=fila["clave"],
             descripcion=fila["descripcion"],
             orden=fila["orden"],
