@@ -272,6 +272,7 @@ class ComandoEditarProgramacion:
     fecha_inicio: date | None = None
     fecha_termino: date | None = None
     tramos: tuple[Tramo, ...] | None = None
+    inicio_dias: Decimal | None = None
 
 
 # --- Resultados ----------------------------------------------------------
@@ -462,6 +463,12 @@ class ReplicaDePrograma:
 # --- Mapeo de filas a dominio -------------------------------------------
 
 
+def _a_decimal(valor: object) -> Decimal | None:
+    """Columna `numeric` opcional → `Decimal`. `None` se conserva: es "sin
+    ancla", no cero, y confundirlos clavaría todo al día 1."""
+    return None if valor is None else Decimal(str(valor))
+
+
 def _a_actividad(fila: dict) -> ActividadProgramable:
     return ActividadProgramable(
         id=str(fila["id"]),
@@ -479,6 +486,7 @@ def _a_actividad(fila: dict) -> ActividadProgramable:
         avance_pct=Decimal(str(fila["avance_pct"] or 0)),
         bloqueada=bool(fila["bloqueada"]),
         tramos=tuple(Tramo.desde_jsonb(t) for t in (fila["tramos"] or [])),
+        inicio_dias=_a_decimal(fila.get("inicio_dias")),
     )
 
 
@@ -494,6 +502,7 @@ def _a_item(fila: dict) -> ItemProgramaBase:
             Dependencia.desde_jsonb(dep) for dep in (fila["dependencias"] or [])
         ),
         tramos=tuple(Tramo.desde_jsonb(t) for t in (fila["tramos"] or [])),
+        inicio_dias=_a_decimal(fila.get("inicio_dias")),
         orden=fila["orden"],
     )
 
@@ -524,6 +533,7 @@ def _a_registro(programacion: ProgramacionDeActividad) -> dict:
         "frente_id": programacion.frente_id,
         "fecha_inicio": programacion.fecha_inicio,
         "fecha_termino": programacion.fecha_termino,
+        "inicio_dias": programacion.inicio_dias,
     }
 
 
@@ -674,6 +684,7 @@ class CrearProgramaBase:
                             for dep in item.dependencias
                         ],
                         "tramos": [tramo.a_jsonb() for tramo in item.tramos],
+                        "inicio_dias": item.inicio_dias,
                         # Sin `orden` explícito manda la posición en la que
                         # llegó el renglón: es la que el cliente ve (§7.5).
                         "orden": item.orden or orden,
@@ -1096,6 +1107,7 @@ class EditarProgramacionActividad:
             fecha_inicio=cmd.fecha_inicio,
             fecha_termino=cmd.fecha_termino,
             tramos=cmd.tramos,
+            inicio_dias=cmd.inicio_dias,
             refs_de_la_obra=frozenset(a.id for a in actividades),
         )
 

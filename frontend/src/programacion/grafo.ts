@@ -115,6 +115,12 @@ export interface Caja {
    * Con tramos es la **suma** de los tramos, no el span (§7.6).
    */
   readonly duracionDias: number | null;
+  /**
+   * Ancla de arranque: el día en que la caja empieza **pase lo que pase con
+   * sus predecesoras**. `null` = lo decide el grafo, que es el caso normal.
+   * Espejo de `programa_base_item.inicio_dias` (migración 0043).
+   */
+  readonly inicioDias: number | null;
   readonly frenteId: string | null;
   readonly tramos: readonly Tramo[];
   readonly entradas: readonly Cable[];
@@ -235,6 +241,10 @@ export function armarBorrador({
       etapaId: nodo.etapa_id ?? null,
       etapaNodoId: tipo === 'concepto' ? etapaNodoDe(nodo, porId) : null,
       duracionDias: item ? Number(item.duracion_dias) : null,
+      inicioDias:
+        item?.inicio_dias === null || item?.inicio_dias === undefined
+          ? null
+          : Number(item.inicio_dias),
       frenteId: item?.frente_id ?? null,
       tramos,
       entradas: (item?.dependencias ?? []).map(cableDeDependencia),
@@ -612,6 +622,7 @@ export function itemsDelBorrador(borrador: Borrador): Guardado {
       }
       return {
         duracion_dias: caja.duracionDias ?? 0,
+        inicio_dias: caja.inicioDias,
         prototipo_nodo_id: caja.id,
         etapa_id: caja.etapaId,
         frente_id: caja.frenteId,

@@ -1,23 +1,25 @@
 /**
  * Arrastrar una barra del Gantt del programa base: mover y estirar (§7.5, §7.6).
  *
- * ## Por qué mover una barra es cambiar un lag
+ * ## Mover una barra: un lag, o el ancla
  *
- * Un renglón de programa base **no tiene fecha ni desplazamiento propio**:
- * `ItemProgramaBasePeticion` lleva duración, tramos y dependencias, y nada más.
- * El arranque de una actividad es lo que dictan sus ligas —lo que resuelve
- * `colocar` (`planificacion.ts`)— y por eso "correr la actividad tres días a la
- * derecha" sólo se puede expresar de una manera en este contrato: **sumarle
- * tres días al lag de la dependencia que la está deteniendo**. Es la misma
- * conclusión que ya deja escrita `tramos.ts` cuando prohíbe un hueco delante
- * del primer tramo: *"un hueco por delante no es una interrupción, es una fecha
- * de inicio más tarde — exprésala con el lag de su dependencia"*.
+ * El arranque de una actividad es normalmente lo que dictan sus ligas —lo que
+ * resuelve `colocar` (`planificacion.ts`)—, así que "correr la actividad tres
+ * días a la derecha" se expresa **sumándole tres días al lag de la dependencia
+ * que la está deteniendo**. Eso conserva la relación: si la predecesora se
+ * mueve, la sucesora la sigue.
  *
- * Consecuencia honesta: una actividad **sin predecesoras** no se puede mover.
- * Arranca el día 1 porque no hay nada que la detenga, y no existe campo donde
- * guardar un retraso. El arrastre se rechaza con esa explicación en vez de
- * moverla en pantalla y perder el gesto al guardar, que es la forma en que un
- * editor pierde la confianza del usuario.
+ * Cuando no hay quien la detenga —o cuando ya está anclada— lo que se mueve es
+ * su `inicio_dias` (migración 0043), el ancla de arranque. Hasta esa migración
+ * este caso era un rechazo: el renglón no tenía dónde guardar un día y mover la
+ * barra en pantalla para perder el gesto al guardar es la forma en que un
+ * editor pierde la confianza del usuario. Ahora sí tiene dónde.
+ *
+ * Las dos son gestos distintos a propósito: el lag guarda una **distancia**, el
+ * ancla guarda un **día**. Es la misma diferencia que `tramos.ts` señala al
+ * prohibir un hueco delante del primer tramo — *"un hueco por delante no es una
+ * interrupción, es una fecha de inicio más tarde"*—, sólo que ahora esa fecha
+ * de inicio tiene columna propia.
  *
  * ## Cuál lag se toca cuando hay varias predecesoras
  *
@@ -69,6 +71,8 @@ export interface Arrastre {
   readonly lagInicial: number;
   /** Predecesora que detiene a la caja; `null` si no tiene ninguna. */
   readonly ataduraId: string | null;
+  /** Día en que la caja arrancaba al empezar; el ancla se mide contra esto. */
+  readonly inicioInicial: number;
 }
 
 export type ResultadoArrastre =
@@ -146,6 +150,7 @@ export function empezarArrastre(
     diasInicial: trabajoDe(caja.duracionDias ?? 0, caja.tramos),
     lagInicial: atadura?.lagDias ?? 0,
     ataduraId: atadura?.desde ?? null,
+    inicioInicial: colocado.get(caja.id)?.inicioDias ?? 0,
   };
 }
 
@@ -170,15 +175,23 @@ export function resolverArrastre(
 }
 
 function mover(caja: Caja, arrastre: Arrastre, deltaDias: number): ResultadoArrastre {
-  if (arrastre.ataduraId === null) {
+  if (deltaDias === 0) return { ok: false, motivo: null };
+
+  // Sin predecesora que la detenga —o ya anclada— lo que se mueve es el ancla
+  // de arranque (`inicio_dias`, 0043). Antes esto era un rechazo porque no
+  // había dónde guardar el día; ahora lo hay. Mismo criterio que
+  // `gestos.aplazar`, del que este arrastre es el equivalente con el ratón.
+  if (arrastre.ataduraId === null || caja.inicioDias !== null) {
+    const desde = caja.inicioDias ?? arrastre.inicioInicial;
+    const inicioDias = redondear(desde + deltaDias);
+    if (inicioDias < 0) return { ok: false, motivo: null };
+    if (inicioDias === caja.inicioDias) return { ok: false, motivo: null };
     return {
-      ok: false,
-      motivo:
-        'Esta actividad no depende de ninguna otra: arranca el día 1 y no hay dónde ' +
-        'guardarle un retraso. Tiéndele una precedencia y muévela con su lag (§7.5).',
+      ok: true,
+      dias: deltaDias,
+      accion: { tipo: 'inicio', cajaId: caja.id, inicioDias },
     };
   }
-  if (deltaDias === 0) return { ok: false, motivo: null };
 
   const lagDias = redondear(arrastre.lagInicial + deltaDias);
   if (lagDias === caja.entradas.find((c) => c.desde === arrastre.ataduraId)?.lagDias) {

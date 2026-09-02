@@ -35,7 +35,8 @@ __all__ = ["ActividadNoModificada", "RepositorioActividadesSQL"]
 
 _COLUMNAS_PROGRAMACION = """
     id, prototipo_nodo_id, frente_id, etapa_id, nivel_id, descripcion,
-    duracion_dias, dependencias, tramos, fecha_inicio, fecha_termino,
+    duracion_dias, dependencias, tramos, inicio_dias,
+    fecha_inicio, fecha_termino,
     avance_pct, estatus, bloqueada, es_critica, holgura, desfase,
     cant_base, precio_unitario
 """
@@ -58,6 +59,7 @@ _CAMPOS_PROGRAMACION = {
     "duracion_dias": "duracion_dias = :duracion_dias",
     "dependencias": "dependencias = cast(:dependencias as jsonb)",
     "tramos": "tramos = cast(:tramos as jsonb)",
+    "inicio_dias": "inicio_dias = :inicio_dias",
     "frente_id": "frente_id = cast(:frente_id as uuid)",
     "fecha_inicio": "fecha_inicio = :fecha_inicio",
     "fecha_termino": "fecha_termino = :fecha_termino",
@@ -279,7 +281,8 @@ class RepositorioActividadesSQL:
             await self._sesion.execute(
                 text(
                     """
-                    select id, duracion_dias, dependencias, tramos, avance_pct,
+                    select id, duracion_dias, dependencias, tramos,
+                           inicio_dias, avance_pct,
                            fecha_termino, bloqueada
                     from actividad
                     where obra_id = :obra_id
@@ -309,6 +312,11 @@ class RepositorioActividadesSQL:
                     # "real" (invalidaría su propio cálculo de desfase).
                     fecha_real_termino=fila["fecha_termino"] if avance >= 100 else None,
                     bloqueada=bool(fila["bloqueada"]),
+                    inicio_dias=(
+                        None
+                        if fila["inicio_dias"] is None
+                        else float(fila["inicio_dias"])
+                    ),
                 )
             )
         return nodos
@@ -447,6 +455,7 @@ class RepositorioActividadesSQL:
                 "frente_id": str(p["frente_id"]) if p.get("frente_id") else None,
                 "fecha_inicio": p.get("fecha_inicio"),
                 "fecha_termino": p.get("fecha_termino"),
+                "inicio_dias": p.get("inicio_dias"),
             }
             for p in programaciones
         ]
@@ -458,6 +467,7 @@ class RepositorioActividadesSQL:
                    set duracion_dias    = :duracion_dias,
                        dependencias     = cast(:dependencias as jsonb),
                        tramos           = cast(:tramos as jsonb),
+                       inicio_dias      = :inicio_dias,
                        frente_id        = cast(:frente_id as uuid),
                        fecha_inicio     = :fecha_inicio,
                        fecha_termino    = :fecha_termino,

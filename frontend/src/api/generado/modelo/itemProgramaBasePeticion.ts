@@ -11,6 +11,7 @@ import type { ItemProgramaBasePeticionEtapaId } from './itemProgramaBasePeticion
 import type { ItemProgramaBasePeticionFrenteId } from './itemProgramaBasePeticionFrenteId';
 import type { DependenciaDTO } from './dependenciaDTO';
 import type { TramoDTO } from './tramoDTO';
+import type { ItemProgramaBasePeticionInicioDias } from './itemProgramaBasePeticionInicioDias';
 
 /**
  * Renglón de la plantilla de duraciones (§7.5 `ProgramaBaseItem`).
@@ -27,5 +28,7 @@ export interface ItemProgramaBasePeticion {
   dependencias?: DependenciaDTO[];
   /** Interrupción de la actividad; vacío = continua. La interrupción vive en la plantilla porque es de la secuencia constructiva del prototipo (§7.6). */
   tramos?: TramoDTO[];
+  /** Ancla de arranque: día del programa (0-based) en que la actividad empieza **pase lo que pase con sus predecesoras**. Vacío = el arranque lo deriva el CPM, que es el caso de siempre (§7.5, §6). */
+  inicio_dias?: ItemProgramaBasePeticionInicioDias;
   orden?: number;
 }

@@ -343,7 +343,8 @@ class RepositorioObrasSQL:
                 text(
                     """
                     select i.prototipo_nodo_id, i.frente_id, i.etapa_id,
-                           i.duracion_dias, i.dependencias, i.tramos, i.orden
+                           i.duracion_dias, i.dependencias, i.tramos,
+                           i.inicio_dias, i.orden
                     from programa_base_item i
                     join programa_base b on b.id = i.programa_base_id
                     where b.prototipo_id = :prototipo_id
@@ -464,6 +465,7 @@ class RepositorioObrasSQL:
                 "duracion_dias": a["duracion_dias"],
                 "dependencias": a["dependencias"],
                 "tramos": a["tramos"],
+                "inicio_dias": a["inicio_dias"],
             }
             for a in actividades
         ]
@@ -476,7 +478,7 @@ class RepositorioObrasSQL:
                      prototipo_nodo_id, frente_id,
                      nivel_id, etapa_id, descripcion, cant_base,
                      precio_unitario, precio_destajo, modo_pago, duracion_dias,
-                     dependencias, tramos)
+                     dependencias, tramos, inicio_dias)
                 values
                     (cast(current_setting('app.org_id') as uuid),
                      cast(:obra_id as uuid), cast(:programa_obra_id as uuid),
@@ -486,7 +488,7 @@ class RepositorioObrasSQL:
                      :descripcion, :cant_base, :precio_unitario,
                      :precio_destajo, cast(:modo_pago as modo_pago),
                      :duracion_dias, cast(:dependencias as jsonb),
-                     cast(:tramos as jsonb))
+                     cast(:tramos as jsonb), :inicio_dias)
                 """
             ),
             params,

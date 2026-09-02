@@ -287,7 +287,7 @@ function fila(sobre: Partial<FilaPrograma> & Pick<FilaPrograma, 'nodoId'>): Fila
     nHojas: 1,
     esResumen: false,
     capturado: true,
-    conflicto: false,
+    anclaDias: null,
     inicioDias: 0,
     finDias: 6,
     diasLaborables: 4,

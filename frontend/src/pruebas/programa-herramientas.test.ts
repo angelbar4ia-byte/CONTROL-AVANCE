@@ -10,10 +10,12 @@
  *     backend valida y rechaza con un 422 sobre el programa **entero** (§7.6),
  *     así que una operación que deje dos tramos encimados no cuesta un aviso:
  *     cuesta la sesión de trabajo.
- *  2. **Aplazar.** No es escribir una fecha —un renglón de programa base no
- *     tiene ninguna— sino cambiar el lag de la precedencia que manda, y una
- *     actividad sin predecesoras no se puede aplazar. Si eso se moviera en
- *     pantalla y se perdiera al guardar, el editor dejaría de ser creíble.
+ *  2. **Aplazar y clavar.** Correr una actividad que cuelga de otra cambia el
+ *     lag de la precedencia que manda —se guarda la distancia, así que sigue a
+ *     su predecesora—; clavarla escribe su `inicio_dias` (0043) —se guarda el
+ *     día, y ahí se queda aunque la predecesora crezca—. Son dos gestos
+ *     distintos con dos consecuencias distintas, y confundirlos es la forma en
+ *     que un programa se mueve solo sin que nadie lo pidiera.
  *  3. **Los vínculos y los ciclos.** Vincular e invertir pueden cerrar un
  *     ciclo; el cliente lo detecta antes de despachar y lo explica en vez de no
  *     hacer nada (§6).
@@ -253,47 +255,76 @@ describe('desplazar una actividad (§7.5)', () => {
     expect(colocar(aplazado).get('c3')?.inicioDias).toBe(10);
   });
 
-  it('una actividad sin predecesoras no se puede aplazar, y se dice por qué', () => {
+  it('una actividad sin predecesoras se aplaza con su ancla de arranque', () => {
+    // Antes de la 0043 esto era un rechazo: no había dónde guardar el día. El
+    // ancla (`inicio_dias`) es ese lugar.
     const gesto = gestos.aplazar(BORRADOR, colocado, 'c1', 2);
-    expect(gesto.ok).toBe(false);
-    if (!gesto.ok) expect(gesto.motivo).toMatch(/no depende de ninguna otra/);
+    expect(gesto.ok && gesto.acciones).toEqual([
+      { tipo: 'inicio', cajaId: 'c1', inicioDias: 2 },
+    ]);
+    expect(colocar(aplicarGesto(BORRADOR, gesto)).get('c1')?.inicioDias).toBe(2);
   });
 
-  it('"no iniciar antes de" se resuelve como lag, no como restricción', () => {
-    // El contrato no tiene dónde guardar una restricción con fecha propia, así
-    // que lo que se guarda es la DISTANCIA: si la predecesora se mueve, la
-    // actividad se mueve con ella. Es un desplazamiento, no un ancla.
+  it('adelantar una actividad más allá del día 1 se rechaza', () => {
+    const gesto = gestos.aplazar(BORRADOR, colocado, 'c1', -3);
+    expect(gesto.ok).toBe(false);
+    if (!gesto.ok) expect(gesto.motivo).toMatch(/nada puede empezar antes del día 1/i);
+  });
+
+  it('clavar el arranque es un ancla, no un desplazamiento (§7.5, 0043)', () => {
+    // Lo que se guarda es el DÍA, no la distancia: si la predecesora se
+    // alarga, la actividad se queda donde la clavaron.
     const gesto = gestos.noIniciarAntesDe(BORRADOR, colocado, 'c2', 9);
     const movido = aplicarGesto(BORRADOR, gesto);
 
     expect(gesto.ok && gesto.acciones).toEqual([
-      { tipo: 'lag', desde: 'c1', hasta: 'c2', lagDias: 5 },
+      { tipo: 'inicio', cajaId: 'c2', inicioDias: 9 },
     ]);
     expect(colocar(movido).get('c2')?.inicioDias).toBe(9);
 
-    // Y aquí se ve que no es un ancla: al alargar la predecesora, la sucesora
-    // se va con ella en vez de quedarse clavada en el día 10.
     const conPredecesoraLarga = aplicar(movido, {
       tipo: 'duracion',
       cajaId: 'c1',
       duracionDias: 6,
     });
-    expect(colocar(conPredecesoraLarga).get('c2')?.inicioDias).toBe(11);
+    expect(colocar(conPredecesoraLarga).get('c2')?.inicioDias).toBe(9);
   });
 
-  it('"no iniciar antes de" un día que ya pasó no aplaza nada', () => {
+  it('el ancla también trae la actividad hacia atrás', () => {
+    // "No iniciar antes de" sólo aplazaba; un ancla temprana es tan
+    // expresable como una tardía.
     const gesto = gestos.noIniciarAntesDe(BORRADOR, colocado, 'c2', 2);
-    expect(gesto.ok).toBe(false);
-    if (!gesto.ok) expect(gesto.motivo).toMatch(/No hay nada que aplazar/);
+    expect(gesto.ok && gesto.acciones).toEqual([
+      { tipo: 'inicio', cajaId: 'c2', inicioDias: 2 },
+    ]);
+    expect(colocar(aplicarGesto(BORRADOR, gesto)).get('c2')?.inicioDias).toBe(2);
+  });
+
+  it('desclavar devuelve la actividad a donde manda su cadena', () => {
+    const clavada = aplicarGesto(
+      BORRADOR,
+      gestos.noIniciarAntesDe(BORRADOR, colocado, 'c2', 9),
+    );
+    const suelta = aplicarGesto(clavada, gestos.desclavar(clavada, 'c2'));
+    expect(cajaDe(suelta, 'c2').inicioDias).toBeNull();
+    expect(colocar(suelta).get('c2')?.inicioDias).toBe(4);
+  });
+
+  it('desclavar lo que no está clavado no es un gesto', () => {
+    expect(gestos.desclavar(BORRADOR, 'c2').ok).toBe(false);
   });
 
   it('fijar el término se traduce a duración contando el último día trabajado', () => {
     // c1 arranca el día 0 y se le pide cerrar el día 5 (0-based): son 6 días,
     // no 5. Es la misma cuenta que rotula la columna Término.
     const gesto = gestos.fijarTermino(BORRADOR, colocado, 'c1', 5);
-    expect(gesto.ok && gesto.acciones).toEqual([
-      { tipo: 'duracion', cajaId: 'c1', duracionDias: 6 },
-    ]);
+    // Pasa por `fijarDuracion`, así que arrastra la herencia: además de la
+    // cifra de c1 vacía la de sus ancestros. Lo que se fija aquí es la cuenta.
+    expect(gesto.ok && gesto.acciones[0]).toEqual({
+      tipo: 'duracion',
+      cajaId: 'c1',
+      duracionDias: 6,
+    });
   });
 
   it('la duración no se captura sobre una actividad partida', () => {
@@ -345,6 +376,75 @@ describe('reiniciar (§7.5, §7.6)', () => {
   it('un programa ya limpio no gasta un paso de deshacer', () => {
     expect(gestos.reiniciarPrograma(BORRADOR).ok).toBe(false);
     expect(despacharVarias(historialInicial(BORRADOR), []).pasado).toHaveLength(0);
+  });
+});
+
+/* ================================================================== *
+ * 2b. Herencia del árbol WBS: capturar mueve a parientes y abuelos
+ * ================================================================== */
+
+describe('herencia de duraciones (§7.4)', () => {
+  /** Nada capturado: la captura arranca desde el árbol desnudo. */
+  const VACIO = armar([]);
+
+  it('capturar en el nivel baja la ventana a etapas y conceptos, en paralelo', () => {
+    // 60 días en el nivel: cada descendiente recibe la ventana **entera**, no
+    // una tajada. Las partidas de un nivel corren simultáneas.
+    const despues = aplicarGesto(VACIO, gestos.fijarDuracion(VACIO, 'n1', 60));
+    expect(cajaDe(despues, 'e1').duracionDias).toBe(60);
+    expect(cajaDe(despues, 'c1').duracionDias).toBe(60);
+    expect(cajaDe(despues, 'c3').duracionDias).toBe(60);
+  });
+
+  it('el padre que reparte se queda sin cifra propia: pasa a ser resumen', () => {
+    // Si conservara los 60 días, el POST mandaría el nivel como un ítem más y
+    // sus días se sumarían encima de los de sus hijos.
+    const despues = aplicarGesto(VACIO, gestos.fijarDuracion(VACIO, 'n1', 60));
+    expect(cajaDe(despues, 'n1').duracionDias).toBeNull();
+  });
+
+  it('capturar en una hoja vacía a sus dos ancestros', () => {
+    const gruesa = armar([item('n1', 60), item('e1', 60)]);
+    const despues = aplicarGesto(gruesa, gestos.fijarDuracion(gruesa, 'c1', 5));
+    expect(cajaDe(despues, 'c1').duracionDias).toBe(5);
+    expect(cajaDe(despues, 'e1').duracionDias).toBeNull();
+    expect(cajaDe(despues, 'n1').duracionDias).toBeNull();
+  });
+
+  it('la herencia entera es un solo paso de deshacer', () => {
+    // El gesto vale cinco acciones; deshacer devuelve el programa a antes de
+    // pulsar, no a la mitad.
+    const gesto = gestos.fijarDuracion(VACIO, 'n1', 60);
+    if (!gesto.ok) throw new Error(gesto.motivo);
+    expect(gesto.acciones.length).toBeGreaterThan(1);
+    expect(despacharVarias(historialInicial(VACIO), gesto.acciones).pasado).toHaveLength(1);
+  });
+
+  it('vaciar una hoja no borra el subárbol ni toca a los ancestros', () => {
+    // Vaciar es sacar ese renglón del programa, no reiniciar la rama entera.
+    const lleno = armar([item('c1', 4), item('c2', 3)]);
+    const despues = aplicarGesto(lleno, gestos.fijarDuracion(lleno, 'c1', null));
+    expect(cajaDe(despues, 'c1').duracionDias).toBeNull();
+    expect(cajaDe(despues, 'c2').duracionDias).toBe(3);
+  });
+
+  it('vaciar un nodo con hijos no arrastra a los hijos a cero', () => {
+    const gruesa = armar([item('e1', 10), item('c1', 4)]);
+    const despues = aplicarGesto(gruesa, gestos.fijarDuracion(gruesa, 'e1', null));
+    expect(cajaDe(despues, 'e1').duracionDias).toBeNull();
+    expect(cajaDe(despues, 'c1').duracionDias).toBe(4);
+  });
+
+  it('sigue sin capturarse la duración de una actividad partida (§7.6)', () => {
+    const partido = armar([
+      item('c1', 4, [], [
+        { duracion_dias: 2, offset_dias: 0 },
+        { duracion_dias: 2, offset_dias: 7 },
+      ]),
+    ]);
+    const gesto = gestos.fijarDuracion(partido, 'c1', 9);
+    expect(gesto.ok).toBe(false);
+    if (!gesto.ok) expect(gesto.motivo).toMatch(/interrumpida/);
   });
 });
 

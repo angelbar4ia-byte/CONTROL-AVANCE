@@ -221,17 +221,18 @@ describe('rollup de las barras resumen (§7.4)', () => {
     expect(porId.get('n1')?.diasCalendario).toBe(9);
   });
 
-  it('la ventana del resumen es mayor que su trabajo cuando sus hojas no se encadenan', () => {
-    // Excavación 0→3 y Castillos 10→14 con un lag de 7: la etapa que las
-    // abarcara mediría 7 días de trabajo en 14 de calendario. Es la
-    // distinción que hace útil tener las dos columnas.
+  it('el resumen mide el span que ocupa, no la suma del trabajo de sus hojas', () => {
+    // Excavación 0→3 y Castillos 10→14 con un lag de 7. La suma del trabajo
+    // son 7 días, pero el nivel **ocupa** 14: con el reparto en paralelo de
+    // `fijarDuracion` las ramas corren a la vez, así que la cifra que dice
+    // algo del resumen es su ventana, no cuánto trabajo cuelga de él.
     const separado = armar([
       item('c1', 3),
       item('c3', 4, [{ ref: 'c1', tipo: 'FS', lag_dias: 7 }]),
     ]);
     const { filas } = filasDe(separado);
     const nivel = filas.find((fila) => fila.nodoId === 'n1');
-    expect(nivel?.diasLaborables).toBe(7);
+    expect(nivel?.diasLaborables).toBe(14);
     expect(nivel?.diasCalendario).toBe(14);
   });
 
@@ -241,18 +242,23 @@ describe('rollup de las barras resumen (§7.4)', () => {
     expect(filas.find((fila) => fila.nodoId === 'c1')?.holguraDias).not.toBeNull();
   });
 
-  it('un nodo con duración propia y con hijos capturados se marca en conflicto', () => {
-    // La plantilla gruesa: la etapa entera es una actividad. Mientras sus
-    // conceptos no estén capturados es una barra normal; cuando lo están, las
-    // dos cifras compiten por la misma ventana y hay que decidir (§7.5).
+  it('la plantilla gruesa sigue siendo una barra normal mientras sus hijos no se capturen', () => {
+    // `prototipo_nodo_id` puede apuntar a la etapa entera: es una actividad
+    // como cualquiera hasta que alguien capture debajo (§7.5).
     const gruesa = armar([item('e1', 10)]);
     const soloEtapa = filasDe(gruesa).filas.find((fila) => fila.nodoId === 'e1');
-    expect(soloEtapa).toMatchObject({ esResumen: false, capturado: true, conflicto: false });
+    expect(soloEtapa).toMatchObject({ esResumen: false, capturado: true });
     expect(soloEtapa?.diasLaborables).toBe(10);
+  });
 
+  it('con hijos capturados el resumen manda y su cifra propia deja de dibujarse', () => {
+    // Este dato ya no lo puede producir la pantalla —`fijarDuracion` vacía uno
+    // de los dos lados—, pero un programa guardado antes de la herencia sí lo
+    // trae. Se dibuja el resumen y no se marca nada: no hay decisión pendiente.
     const ambas = armar([item('e1', 10), item('c1', 3)]);
-    const conConflicto = filasDe(ambas).filas.find((fila) => fila.nodoId === 'e1');
-    expect(conConflicto).toMatchObject({ esResumen: true, capturado: true, conflicto: true });
+    const etapa = filasDe(ambas).filas.find((fila) => fila.nodoId === 'e1');
+    expect(etapa).toMatchObject({ esResumen: true, capturado: true });
+    expect(etapa?.diasLaborables).toBe(3);
   });
 
   it('los tramos separan trabajo de calendario en la propia actividad (§7.6)', () => {
@@ -281,7 +287,6 @@ describe('rollup de las barras resumen (§7.4)', () => {
       nNodos: 6,
       nCapturados: 3,
       nResumenes: 3,
-      nConflictos: 0,
       diasTotales: 9,
     });
   });
@@ -377,13 +382,16 @@ describe('arrastrar una barra (§7.5, §7.6)', () => {
     });
   });
 
-  it('una actividad sin predecesoras no se puede mover, y se explica', () => {
-    // No hay dónde guardar el retraso: `ItemProgramaBasePeticion` no tiene
-    // fecha ni desplazamiento. Mejor rechazar que moverla y perderlo al guardar.
+  it('arrastrar una actividad sin predecesoras mueve su ancla de arranque', () => {
+    // Hasta la 0043 esto era un rechazo: el renglón no tenía dónde guardar un
+    // día. Ahora sí — `inicio_dias` — y la barra se mueve de verdad.
     const arrastre = empezarArrastre(c1, colocado, 'mover', 0);
     const resultado = resolverArrastre(BORRADOR, arrastre, 4);
-    expect(resultado.ok).toBe(false);
-    expect(resultado.ok === false && resultado.motivo).toContain('no depende de ninguna otra');
+    expect(resultado.ok && resultado.accion).toEqual({
+      tipo: 'inicio',
+      cajaId: 'c1',
+      inicioDias: 4,
+    });
   });
 
   it('estirar cambia la duración de la actividad', () => {

@@ -431,15 +431,49 @@ export default function ProgramaTabla() {
     setSucio(true);
   }, []);
 
+  /**
+   * Clava (o suelta) el arranque de una actividad. `null` la desclava y la
+   * devuelve a donde manda su cadena de precedencias.
+   */
+  const cambiarInicio = useCallback(
+    (nodoId: string, dia: number | null) => {
+      if (!borrador) return;
+      aplicarGesto(
+        dia === null
+          ? gestos.desclavar(borrador, nodoId)
+          : gestos.noIniciarAntesDe(borrador, colocado, nodoId, dia),
+      );
+    },
+    [borrador, colocado, aplicarGesto],
+  );
+
   const alternar = useCallback((nodoId: string) => {
     setColapsados((previos) => alternarColapso(previos, nodoId));
   }, []);
 
+  /**
+   * Elegir otro renglón retira el rechazo del gesto anterior. El motivo se
+   * refiere siempre a **una** actividad ("ésta no depende de ninguna otra"),
+   * y dejarlo puesto al cambiar de selección lo convierte en un reproche
+   * sobre la actividad equivocada.
+   */
+  const seleccionar = useCallback((nodoId: string | null) => {
+    setSeleccionado(nodoId);
+    setRechazo(null);
+  }, []);
+
+  /**
+   * Capturar días en la tabla pasa por el gesto y no por la acción cruda:
+   * `fijarDuracion` es quien resuelve la herencia del árbol —repartir hacia
+   * abajo, vaciar hacia arriba— y `aplicarGesto` apila todo eso como un solo
+   * paso de deshacer.
+   */
   const cambiarDuracion = useCallback(
     (nodoId: string, dias: number | null) => {
-      despacha({ tipo: 'duracion', cajaId: nodoId, duracionDias: dias });
+      if (!borrador) return;
+      aplicarGesto(gestos.fijarDuracion(borrador, nodoId, dias));
     },
-    [despacha],
+    [borrador, aplicarGesto],
   );
 
   /**
@@ -810,8 +844,9 @@ export default function ProgramaTabla() {
             seleccionado={seleccionado}
             editable
             onAlternar={alternar}
-            onSeleccionar={setSeleccionado}
+            onSeleccionar={seleccionar}
             onDuracion={cambiarDuracion}
+            onInicio={cambiarInicio}
             contenedorRef={refTabla}
             onScroll={(top) => desplazar('tabla', top)}
           />
@@ -870,7 +905,7 @@ export default function ProgramaTabla() {
               tonoPorNodo={tonoPorNodo}
               seleccionado={seleccionado}
               editable
-              onSeleccionar={setSeleccionado}
+              onSeleccionar={seleccionar}
               onSoltar={alSoltar}
               contenedorRef={refGantt}
               onScroll={(top) => desplazar('gantt', top)}
@@ -882,7 +917,7 @@ export default function ProgramaTabla() {
               rejilla={rejilla}
               magnitud={vista.magnitud}
               seleccionado={seleccionado}
-              onSeleccionar={setSeleccionado}
+              onSeleccionar={seleccionar}
               contenedorRef={refGantt}
               onScroll={(top) => desplazar('gantt', top)}
             />

@@ -10,6 +10,7 @@ criticidad medidas de punta a punta desde una `ActividadProgramable`.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -380,6 +381,44 @@ class TestTramosEnLaInstanciacion:
         assert por_id[ACT_A].duracion_dias == Decimal(14)
         assert nodos_cpm(_actividades(), por_id)[0].duracion_dias == 14.0
         assert nodos_cpm(_actividades(), por_id)[0].span == 19.0
+
+
+class TestArranqueFijoEnLaInstanciacion:
+    """El ancla viaja del prototipo a la obra, igual que los tramos (0043)."""
+
+    def _con_ancla(self) -> list[ItemProgramaBase]:
+        items = _plantilla()
+        items[2] = replace(items[2], inicio_dias=Decimal(30))
+        return items
+
+    def test_el_ancla_del_item_baja_a_la_actividad(self) -> None:
+        resultado = instanciar_programa(actividades=_actividades(), items=self._con_ancla())
+        por_id = {p.actividad_id: p for p in resultado.actividades}
+        assert por_id[ACT_C].inicio_dias == Decimal(30)
+        assert por_id[ACT_A].inicio_dias is None
+
+    def test_el_ancla_llega_al_motor(self) -> None:
+        resultado = instanciar_programa(actividades=_actividades(), items=self._con_ancla())
+        por_id = {p.actividad_id: p for p in resultado.actividades}
+        nodos = {n.ref: n for n in nodos_cpm(_actividades(), por_id)}
+        assert nodos[ACT_C].inicio_dias == 30.0
+        assert nodos[ACT_A].inicio_dias is None
+
+    def test_una_plantilla_sin_ancla_no_desclava_lo_que_la_obra_tenia(self) -> None:
+        # Mismo criterio que `frente_id`: lo que la plantilla no trae, no
+        # borra. Alguien clavó esta actividad en ESTA obra a propósito.
+        actividades = _actividades()
+        actividades[0] = replace(actividades[0], inicio_dias=Decimal(12))
+        resultado = instanciar_programa(actividades=actividades, items=_plantilla())
+        por_id = {p.actividad_id: p for p in resultado.actividades}
+        assert por_id[ACT_A].inicio_dias == Decimal(12)
+
+    def test_el_ancla_de_la_plantilla_pisa_a_la_de_la_obra(self) -> None:
+        actividades = _actividades()
+        actividades[2] = replace(actividades[2], inicio_dias=Decimal(12))
+        resultado = instanciar_programa(actividades=actividades, items=self._con_ancla())
+        por_id = {p.actividad_id: p for p in resultado.actividades}
+        assert por_id[ACT_C].inicio_dias == Decimal(30)
 
 
 class TestCicloEnDependencias:

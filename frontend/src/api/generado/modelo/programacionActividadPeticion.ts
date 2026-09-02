@@ -11,6 +11,7 @@ import type { ProgramacionActividadPeticionTramos } from './programacionActivida
 import type { ProgramacionActividadPeticionFrenteId } from './programacionActividadPeticionFrenteId';
 import type { ProgramacionActividadPeticionFechaInicio } from './programacionActividadPeticionFechaInicio';
 import type { ProgramacionActividadPeticionFechaTermino } from './programacionActividadPeticionFechaTermino';
+import type { ProgramacionActividadPeticionInicioDias } from './programacionActividadPeticionInicioDias';
 
 /**
  * §11.2 `PATCH /actividades/{id}/programacion`.
@@ -27,4 +28,6 @@ export interface ProgramacionActividadPeticion {
   frente_id?: ProgramacionActividadPeticionFrenteId;
   fecha_inicio?: ProgramacionActividadPeticionFechaInicio;
   fecha_termino?: ProgramacionActividadPeticionFechaTermino;
+  /** Ancla de arranque de esta actividad (§7.6, §6). Vacío = no se toca; para desclavarla se reescribe el programa base, que es donde el ancla se decide (§7.5). */
+  inicio_dias?: ProgramacionActividadPeticionInicioDias;
 }

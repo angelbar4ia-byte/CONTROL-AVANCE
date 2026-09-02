@@ -7854,6 +7854,18 @@
             "type": "array",
             "title": "Tramos"
           },
+          "inicio_dias": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inicio Dias"
+          },
           "fecha_inicio": {
             "anyOf": [
               {
@@ -7930,6 +7942,7 @@
           "duracion_dias",
           "dependencias",
           "tramos",
+          "inicio_dias",
           "fecha_inicio",
           "fecha_termino",
           "avance_pct",
@@ -11982,6 +11995,23 @@
             "title": "Tramos",
             "description": "Interrupción de la actividad; vacío = continua. La interrupción vive en la plantilla porque es de la secuencia constructiva del prototipo (§7.6)."
           },
+          "inicio_dias": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inicio Dias",
+            "description": "Ancla de arranque: día del programa (0-based) en que la actividad empieza **pase lo que pase con sus predecesoras**. Vacío = el arranque lo deriva el CPM, que es el caso de siempre (§7.5, §6)."
+          },
           "orden": {
             "type": "integer",
             "title": "Orden",
@@ -12062,6 +12092,18 @@
             "type": "array",
             "title": "Tramos"
           },
+          "inicio_dias": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inicio Dias"
+          },
           "orden": {
             "type": "integer",
             "title": "Orden"
@@ -12077,6 +12119,7 @@
           "duracion_dias",
           "dependencias",
           "tramos",
+          "inicio_dias",
           "orden"
         ],
         "title": "ItemProgramaBaseRespuesta"
@@ -13815,6 +13858,23 @@
               }
             ],
             "title": "Fecha Termino"
+          },
+          "inicio_dias": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inicio Dias",
+            "description": "Ancla de arranque de esta actividad (§7.6, §6). Vacío = no se toca; para desclavarla se reescribe el programa base, que es donde el ancla se decide (§7.5)."
           }
         },
         "type": "object",

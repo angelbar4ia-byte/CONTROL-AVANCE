@@ -44,6 +44,12 @@ export type Accion =
       readonly cajaId: string;
       readonly duracionDias: number | null;
     }
+  | {
+      readonly tipo: 'inicio';
+      readonly cajaId: string;
+      /** `null` desclava la actividad: vuelve a mandar el grafo. */
+      readonly inicioDias: number | null;
+    }
   | { readonly tipo: 'frente'; readonly cajaId: string; readonly frenteId: string | null }
   | {
       readonly tipo: 'conectar';
@@ -129,6 +135,15 @@ export function aplicar(borrador: Borrador, accion: Accion): Borrador {
             ? null
             : redondear(accion.duracionDias);
         return caja.duracionDias === duracionDias ? caja : { ...caja, duracionDias };
+      });
+
+    case 'inicio':
+      return conCaja(borrador, accion.cajaId, (caja) => {
+        // Nada arranca antes que el programa: es la misma cota que aplica
+        // `colocar`, y la que el check de la 0043 impone en la columna.
+        const inicioDias =
+          accion.inicioDias === null ? null : Math.max(0, redondear(accion.inicioDias));
+        return caja.inicioDias === inicioDias ? caja : { ...caja, inicioDias };
       });
 
     case 'frente':

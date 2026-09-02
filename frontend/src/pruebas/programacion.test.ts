@@ -87,6 +87,7 @@ function programada(
     etapa_id: 'e1',
     nivel_id: null,
     duracion_dias: '5',
+    inicio_dias: null,
     dependencias: [],
     tramos: [],
     fecha_inicio: '2026-04-06',

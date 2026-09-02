@@ -97,6 +97,14 @@ class ItemProgramaBase:
     constructiva del prototipo**, no un ajuste de una obra concreta: si solo
     viviera en `actividad`, cada obra generada tendría que volver a partirlo a
     mano."""
+    inicio_dias: Decimal | None = None
+    """Ancla de arranque: el día del programa en que la actividad empieza
+    **pase lo que pase con sus predecesoras** (§7.5, §6). `None` es el
+    comportamiento de siempre —lo deriva el CPM—. Es el "Debe comenzar el" de
+    MS Project y no el "No comenzar antes del": no es un piso que la
+    predecesora pueda empujar, es un clavo. Vive en la plantilla por la misma
+    razón que `tramos`: "la urbanización de esta manzana no arranca hasta el
+    día 30" es del prototipo, no de una obra."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,6 +127,8 @@ class ActividadProgramable:
     avance_pct: Decimal = Decimal(0)
     bloqueada: bool = False
     tramos: tuple[Tramo, ...] = ()
+    inicio_dias: Decimal | None = None
+    """Ancla de arranque ya instanciada; ver `ItemProgramaBase.inicio_dias`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,6 +142,8 @@ class ProgramacionDeActividad:
     fecha_inicio: date | None = None
     fecha_termino: date | None = None
     tramos: tuple[Tramo, ...] = ()
+    inicio_dias: Decimal | None = None
+    """Ancla de arranque; ver `ItemProgramaBase.inicio_dias`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -408,6 +420,7 @@ def instanciar_programa(
                     fecha_inicio=actividad.fecha_inicio,
                     fecha_termino=actividad.fecha_termino,
                     tramos=actividad.tramos,
+                    inicio_dias=actividad.inicio_dias,
                 )
             )
             continue
@@ -435,6 +448,12 @@ def instanciar_programa(
                 # que impusiera su duración dejando los tramos viejos de la
                 # actividad dejaría la suma sin cuadrar (`validar_tramos`).
                 tramos=item.tramos,
+                # El ancla del item manda, pero solo si la trae: una plantilla
+                # sin arranque fijo no debe desclavar la actividad que alguien
+                # ya había anclado en esta obra. Mismo criterio que `frente_id`.
+                inicio_dias=item.inicio_dias
+                if item.inicio_dias is not None
+                else actividad.inicio_dias,
             )
         )
 
@@ -454,6 +473,7 @@ def editar_programacion(
     fecha_inicio: date | None = None,
     fecha_termino: date | None = None,
     tramos: Sequence[Tramo] | None = None,
+    inicio_dias: Decimal | None = None,
     refs_de_la_obra: frozenset[str] = frozenset(),
 ) -> ProgramacionDeActividad:
     """Ajuste manual del cronograma de una actividad (§11.2 `PATCH`).
@@ -546,6 +566,10 @@ def editar_programacion(
         fecha_inicio=nuevo_inicio,
         fecha_termino=nuevo_termino,
         tramos=nuevos_tramos,
+        # Misma convención que `frente_id`: lo que no llega no cambia. Para
+        # desclavar una actividad se reescribe el programa base, que es donde
+        # el ancla se decide (§7.5).
+        inicio_dias=actual.inicio_dias if inicio_dias is None else inicio_dias,
     )
 
 
@@ -587,7 +611,15 @@ def nodos_cpm(
                 # programación propuesta, el span que el motor debe usar es el
                 # de esa propuesta, no el de la interrupción ya persistida.
                 tramos=plan.tramos if plan else actividad.tramos,
+                inicio_dias=_a_float(
+                    plan.inicio_dias if plan else actividad.inicio_dias
+                ),
             )
         )
 
     return nodos
+
+
+def _a_float(valor: Decimal | None) -> float | None:
+    """El ancla cruza al motor como `float`, que es la escala en que trabaja."""
+    return None if valor is None else float(valor)
