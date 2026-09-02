@@ -1147,6 +1147,17 @@ class RepositorioConceptos(Protocol):
         """
         ...
 
+    async def composicion_recursiva_de(self, ids: Sequence[UUID]) -> list[dict]:
+        """Como `composicion_recursiva`, pero desde **varias** raíces.
+
+        La necesitan los insumos programados: explotar los conceptos de una
+        obra uno por uno serían tantos recorridos recursivos como conceptos, y
+        los auxiliares compartidos se recorrerían una vez por padre. El
+        resultado ya viene agrupado por `concepto_clave`, así que el dominio
+        explota todos sobre un solo mapa de composiciones.
+        """
+        ...
+
     async def actualizar(self, concepto_id: UUID, cambios: dict) -> None:
         """Edición parcial; la `clave` no es editable (§3.3). La usa el
         cargador de CPU en modo Actualizar (§10.2)."""
