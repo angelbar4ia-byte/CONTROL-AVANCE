@@ -270,7 +270,23 @@ function PanelProgramar({ acciones, seleccion, rotularDia, editable }: Props) {
 
       <Sep />
 
+      {/* Inicio · Duración · Término: la duración va **entre** los dos
+          extremos porque es lo que hay entre ellos. Tocar un extremo conserva
+          la duración y corre el otro; para cambiar cuánto dura está el campo
+          de en medio. */}
       <Grupo titulo="Ventana">
+        <Numero
+          etiqueta="Inicio"
+          sufijo="día"
+          valor={seleccion === null || seleccion.inicioDias === null ? null : seleccion.inicioDias + 1}
+          ancho={70}
+          deshabilitado={!activa}
+          ayuda={
+            'Día en que arranca. Conserva la duración: el término se corre con ' +
+            'ella. En un nivel o una etapa mueve el bloque entero (§7.4).'
+          }
+          onConfirmar={(valor) => acciones.fijarInicio(valor - 1)}
+        />
         <Numero
           etiqueta="Duración"
           sufijo="d"
@@ -280,29 +296,21 @@ function PanelProgramar({ acciones, seleccion, rotularDia, editable }: Props) {
           ayuda={
             partida
               ? 'La actividad está interrumpida: su duración es la suma de sus tramos (§7.6).'
-              : 'Días de trabajo efectivo del renglón. Es lo que viaja en el POST.'
+              : 'Días de trabajo efectivo del renglón. Es lo que viaja en el POST; ' +
+                'en un nivel o una etapa se reparte hacia abajo (§7.4).'
           }
           onConfirmar={acciones.fijarDuracion}
-        />
-        <Numero
-          etiqueta="Inicio"
-          sufijo="día"
-          valor={seleccion === null || seleccion.inicioDias === null ? null : seleccion.inicioDias + 1}
-          ancho={70}
-          deshabilitado={!activa}
-          ayuda={
-            'Día en que arranca. Se guarda como el lag de la precedencia que la detiene: ' +
-            'un renglón de programa base no tiene fecha propia (§7.5).'
-          }
-          onConfirmar={(valor) => acciones.fijarInicio(valor - 1)}
         />
         <Numero
           etiqueta="Término"
           sufijo="día"
           valor={seleccion === null || seleccion.terminoDias === null ? null : seleccion.terminoDias + 1}
           ancho={70}
-          deshabilitado={!activa || partida}
-          ayuda="Último día trabajado. Se traduce a duración, que es lo que el contrato guarda."
+          deshabilitado={!activa}
+          ayuda={
+            'Último día trabajado. Conserva la duración y corre el arranque ' +
+            'hacia atrás: para cambiar cuánto dura, usa Duración.'
+          }
           onConfirmar={(valor) => acciones.fijarTermino(valor - 1)}
         />
       </Grupo>
