@@ -18,6 +18,7 @@ import {
   puedeAsignarAlcanceDe,
   puedeEditar,
   puenteDe,
+  rolesQueCuelganDe,
   rolesQuePuedeOtorgar,
   sugerirContrasena,
   tonoRol,
@@ -85,21 +86,37 @@ describe('a quién se puede editar', () => {
   });
 });
 
-describe('puentes de alcance (§4)', () => {
-  it('cada rol tiene el suyo, y el residente ninguno', () => {
-    expect(puenteDe('supervisor')).toBe('clusters');
-    expect(puenteDe('control_obra')).toBe('proyectos');
-    // Llega a su obra por `obra.residente_id`: un cluster no le daría alcance.
-    expect(puenteDe('residente')).toBeNull();
-    expect(puenteDe('super_intendente')).toBeNull();
+describe('puentes de alcance (§4, cadena de mando 0042)', () => {
+  it('cada rol tiene el suyo, y Control de obra ninguno', () => {
+    expect(puenteDe('super_intendente')).toBe('gente');
+    expect(puenteDe('supervisor')).toBe('gente');
+    // Sus obras deciden su alcance real, y hacia arriba el de su cadena.
+    expect(puenteDe('residente')).toBe('obras');
+    // Es la raíz: ve toda la organización, no cuelga de nadie.
+    expect(puenteDe('control_obra')).toBeNull();
   });
 
-  it('control reparte clusters pero no proyectos', () => {
+  it('de un super intendente cuelgan supervisores y residentes; de un supervisor, solo residentes', () => {
+    expect(rolesQueCuelganDe('super_intendente')).toEqual(
+      expect.arrayContaining(['supervisor', 'residente']),
+    );
+    expect(rolesQueCuelganDe('supervisor')).toEqual(['residente']);
+    expect(rolesQueCuelganDe('residente')).toHaveLength(0);
+  });
+
+  it('control arma la gente de un super intendente; control o el SI arman la de un supervisor', () => {
+    expect(puedeAsignarAlcanceDe('control_obra', 'super_intendente')).toBe(true);
+    expect(puedeAsignarAlcanceDe('super_intendente', 'super_intendente')).toBe(false);
     expect(puedeAsignarAlcanceDe('control_obra', 'supervisor')).toBe(true);
-    // `control_proyecto` decide el alcance de quien administra: si Control
-    // pudiera editarlo, se ampliaría el suyo.
-    expect(puedeAsignarAlcanceDe('control_obra', 'control_obra')).toBe(false);
-    expect(puedeAsignarAlcanceDe('super_intendente', 'control_obra')).toBe(true);
+    expect(puedeAsignarAlcanceDe('super_intendente', 'supervisor')).toBe(true);
+    expect(puedeAsignarAlcanceDe('supervisor', 'supervisor')).toBe(false);
+  });
+
+  it('control, el SI o el supervisor arman las obras de un residente', () => {
+    expect(puedeAsignarAlcanceDe('control_obra', 'residente')).toBe(true);
+    expect(puedeAsignarAlcanceDe('super_intendente', 'residente')).toBe(true);
+    expect(puedeAsignarAlcanceDe('supervisor', 'residente')).toBe(true);
+    expect(puedeAsignarAlcanceDe('residente', 'residente')).toBe(false);
   });
 });
 
