@@ -68,10 +68,14 @@ export const COLUMNAS_PROGRAMA: readonly ColumnaPrograma[] = [
   { clave: 'cantidad', titulo: 'Cantidad', ayuda: 'Cantidad de la partida; no se agrega hacia arriba', pista: '92px', anchoPx: 92 },
   { clave: 'importe', titulo: 'Importe', ayuda: 'Importe de la partida; en resumen, la suma de sus hijos', pista: '112px', anchoPx: 112 },
   { clave: 'peso', titulo: '% del total', ayuda: 'Peso del renglón sobre el importe del programa', pista: '82px', anchoPx: 82 },
-  { clave: 'laborables', titulo: 'Días lab.', ayuda: 'Días de trabajo efectivo: la suma de los tramos (§7.6)', pista: '96px', anchoPx: 96 },
-  { clave: 'calendario', titulo: 'Días cal.', ayuda: 'Días que la barra ocupa de punta a punta, pausas incluidas', pista: '96px', anchoPx: 96 },
+  // Inicio · Duración · Término, en ese orden: la duración va **entre** los dos
+  // extremos porque es lo que hay entre ellos, y leídos así los tres se
+  // confirman entre sí de un vistazo. Cambiar un extremo conserva la duración
+  // y corre el otro (`gestos.fijarTermino`).
   { clave: 'inicio', titulo: 'Inicio', ayuda: 'Día en que arranca la barra', pista: '92px', anchoPx: 92 },
+  { clave: 'laborables', titulo: 'Días lab.', ayuda: 'Días de trabajo efectivo: la suma de los tramos (§7.6)', pista: '96px', anchoPx: 96 },
   { clave: 'termino', titulo: 'Término', ayuda: 'Último día trabajado', pista: '92px', anchoPx: 92 },
+  { clave: 'calendario', titulo: 'Días cal.', ayuda: 'Días que la barra ocupa de punta a punta, pausas incluidas', pista: '96px', anchoPx: 96 },
   { clave: 'holgura', titulo: 'Holgura', ayuda: 'Días que puede correrse sin empujar el cierre del borrador', pista: '82px', anchoPx: 82 },
   { clave: 'pred', titulo: 'Pred.', ayuda: 'Cuántas precedencias entran al renglón', pista: '64px', anchoPx: 64 },
 ];

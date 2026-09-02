@@ -332,17 +332,46 @@ describe('desplazar una actividad (§7.5)', () => {
     expect(gesto.ok && gesto.acciones).toEqual([]);
   });
 
-  it('fijar el término se traduce a duración contando el último día trabajado', () => {
-    // c1 arranca el día 0 y se le pide cerrar el día 5 (0-based): son 6 días,
-    // no 5. Es la misma cuenta que rotula la columna Término.
-    const gesto = gestos.fijarTermino(BORRADOR, colocado, 'c1', 5);
-    // Pasa por `fijarDuracion`, así que arrastra la herencia: además de la
-    // cifra de c1 vacía la de sus ancestros. Lo que se fija aquí es la cuenta.
-    expect(gesto.ok && gesto.acciones[0]).toEqual({
-      tipo: 'duracion',
-      cajaId: 'c1',
-      duracionDias: 6,
-    });
+  it('fijar el término conserva la duración y corre el arranque', () => {
+    // El caso del jefe de obra: 60 días arrancando el día 2 cierran el 61;
+    // poniendo el término en 60 pasa a arrancar el día 1 y sigue durando 60.
+    const largo = armar([item('c1', 60)]);
+    const conAncla = aplicarGesto(
+      largo,
+      gestos.noIniciarAntesDe(largo, colocar(largo), 'c1', 1), // día 2, 0-based
+    );
+    const puestos = colocar(conAncla);
+    expect(puestos.get('c1')?.inicioDias).toBe(1);
+    expect(puestos.get('c1')?.finDias).toBe(61); // cierra el día 61 (0-based 60)
+
+    const movido = aplicarGesto(
+      conAncla,
+      gestos.fijarTermino(conAncla, puestos, 'c1', 59), // día 60, 0-based
+    );
+    const final = colocar(movido);
+    expect(final.get('c1')?.inicioDias).toBe(0); // día 1
+    expect(cajaDe(movido, 'c1').duracionDias).toBe(60); // la duración no se tocó
+  });
+
+  it('y el inicio hace lo mismo del otro lado', () => {
+    // 60 días desde el día 2 cierran el 61; llevando el inicio al día 10 tiene
+    // que cerrar el 69 — la duración se mantiene.
+    const largo = armar([item('c1', 60)]);
+    const movido = aplicarGesto(
+      largo,
+      gestos.noIniciarAntesDe(largo, colocar(largo), 'c1', 9), // día 10
+    );
+    const puestos = colocar(movido);
+    expect(puestos.get('c1')?.inicioDias).toBe(9);
+    expect(puestos.get('c1')?.finDias).toBe(69);
+    expect(cajaDe(movido, 'c1').duracionDias).toBe(60);
+  });
+
+  it('un término que obligaría a arrancar antes del día 1 se rechaza', () => {
+    const largo = armar([item('c1', 60)]);
+    const gesto = gestos.fijarTermino(largo, colocar(largo), 'c1', 10);
+    expect(gesto.ok).toBe(false);
+    if (!gesto.ok) expect(gesto.motivo).toMatch(/antes del día 1/);
   });
 
   it('la duración no se captura sobre una actividad partida', () => {
@@ -480,6 +509,29 @@ describe('herencia de duraciones (§7.4)', () => {
       { tipo: 'inicio', cajaId: 'c1', inicioDias: 3 },
       { tipo: 'inicio', cajaId: 'c2', inicioDias: 3 },
     ]);
+  });
+
+  it('fijar el inicio de un nivel mueve el bloque, no lo estira', () => {
+    // Es lo que fallaba con un aviso de "no tiene duración capturada": un
+    // resumen no tiene ventana propia, así que el gesto va al bloque.
+    const gesto = gestos.noIniciarAntesDe(BORRADOR, colocar(BORRADOR), 'n1', 5);
+    expect(gesto.ok && gesto.acciones).toEqual([
+      { tipo: 'inicio', cajaId: 'c1', inicioDias: 5 },
+    ]);
+  });
+
+  it('fijar el término de un nivel también mueve el bloque', () => {
+    // El bloque cierra el día 9 (0-based 8); pedirle cerrar el 11 lo corre
+    // tres días completo, sin tocar la duración de nadie.
+    const gesto = gestos.fijarTermino(BORRADOR, colocar(BORRADOR), 'n1', 11);
+    expect(gesto.ok && gesto.acciones).toEqual([
+      { tipo: 'inicio', cajaId: 'c1', inicioDias: 3 },
+    ]);
+  });
+
+  it('aplazar un nivel desde la cinta ya no se rechaza', () => {
+    const gesto = gestos.aplazar(BORRADOR, colocar(BORRADOR), 'n1', 2);
+    expect(gesto.ok).toBe(true);
   });
 
   it('adelantar el bloque más allá del día 1 se rechaza', () => {

@@ -116,6 +116,12 @@ export function aplazar(
 ): Gesto {
   const caja = cajaDe(borrador, cajaId);
   if (!caja) return no('La actividad ya no está en el programa.');
+
+  // Un nivel o una etapa no tienen ventana propia que correr: lo que se
+  // desplaza es el bloque entero, anclando solo sus entradas.
+  if (!esRenglon(caja) && ventanaDeBloque(borrador, colocado, cajaId) !== null) {
+    return desplazarBloque(borrador, colocado, cajaId, dias);
+  }
   if (!esRenglon(caja)) {
     return no('La actividad no tiene duración capturada: todavía no está en el programa (§7.5).');
   }
@@ -173,10 +179,17 @@ export function noIniciarAntesDe(
 ): Gesto {
   const caja = cajaDe(borrador, cajaId);
   if (!caja) return no('La actividad ya no está en el programa.');
-  if (!esRenglon(caja)) {
-    return no('La actividad no está colocada: captúrale una duración primero (§7.5).');
-  }
   if (dia < 0) return no('Nada puede arrancar antes del día 1 (§7.5).');
+
+  // En un resumen, fijar el arranque mueve el bloque: se corre lo que haga
+  // falta para que su primer hijo empiece ese día.
+  if (!esRenglon(caja)) {
+    const bloque = ventanaDeBloque(borrador, colocado, cajaId);
+    if (bloque === null) {
+      return no('La actividad no está colocada: captúrale una duración primero (§7.5).');
+    }
+    return desplazarBloque(borrador, colocado, cajaId, dia - bloque.inicioDias);
+  }
 
   // Reclavarla en el día en que ya está no es un error; es confirmar. Se
   // acepta sin acciones para que el campo se pueda teclear las veces que haga
@@ -184,6 +197,34 @@ export function noIniciarAntesDe(
   const puesto = colocado.get(cajaId);
   if (caja.inicioDias === dia && puesto?.inicioDias === dia) return si();
   return si({ tipo: 'inicio', cajaId, inicioDias: dia });
+}
+
+/**
+ * La ventana que ocupa un nodo resumen: de lo más temprano a lo más tardío de
+ * lo que cuelga de él.
+ *
+ * `colocar` solo coloca cajas con duración, así que un nivel o una etapa no
+ * están en el mapa: su ventana es la de sus hijos, igual que la barra que
+ * dibuja el Gantt (`filasPrograma.resumirDescendientes`). Devuelve `null` si
+ * debajo no hay nada capturado — entonces no es un resumen, es una actividad
+ * sin duración.
+ */
+export function ventanaDeBloque(
+  borrador: Borrador,
+  colocado: ReadonlyMap<string, Colocacion>,
+  nodoId: string,
+): Colocacion | null {
+  const { hijos } = indexarArbol(borrador.cajas);
+  let inicio = Number.POSITIVE_INFINITY;
+  let fin = Number.NEGATIVE_INFINITY;
+
+  for (const id of descendientesDe(hijos, nodoId)) {
+    const puesto = colocado.get(id);
+    if (!puesto) continue;
+    inicio = Math.min(inicio, puesto.inicioDias);
+    fin = Math.max(fin, puesto.finDias);
+  }
+  return Number.isFinite(inicio) ? { inicioDias: inicio, finDias: fin } : null;
 }
 
 /**
@@ -364,10 +405,20 @@ function ancestrosDe(borrador: Borrador, cajaId: string): readonly string[] {
 /**
  * Fija el día en que la actividad **cierra**, que es el último día trabajado.
  *
- * Se traduce a duración, que es lo que el contrato guarda: una actividad que
- * arranca el día 1 y cierra el día 3 dura tres días, no cuatro. Por eso la
- * cuenta lleva el `+ 1` y por eso la columna Término de la tabla rotula
- * `finDias - 1`.
+ * ## Conserva la duración y corre el arranque
+ *
+ * Es el espejo de fijar el inicio: los dos extremos mueven la barra entera y
+ * dejan intacto lo que dura. Una actividad de 60 días que arranca el día 2 y
+ * cierra el 61, con el término puesto en 60, pasa a arrancar el día 1 — sigue
+ * durando 60.
+ *
+ * Antes esto **estiraba** la barra: conservaba el arranque y recalculaba la
+ * duración. Eso dejaba el campo de Duración diciendo una cosa mientras el de
+ * Término decía otra, y dos formas de cambiar lo mismo. Para cambiar cuánto
+ * dura está Duración; los extremos son para colocarla.
+ *
+ * El `+ 1` es porque el término es el último día **trabajado**: una actividad
+ * que arranca el día 1 y dura tres cierra el día 3, no el 4.
  */
 export function fijarTermino(
   borrador: Borrador,
@@ -375,13 +426,30 @@ export function fijarTermino(
   cajaId: string,
   diaTermino: number,
 ): Gesto {
+  const caja = cajaDe(borrador, cajaId);
+  if (!caja) return no('La actividad ya no está en el programa.');
+
+  // En un resumen la ventana la ponen sus hijos: se corre el bloque entero.
+  if (!esRenglon(caja)) {
+    const bloque = ventanaDeBloque(borrador, colocado, cajaId);
+    if (bloque === null) {
+      return no('La actividad no está colocada: captúrale una duración primero (§7.5).');
+    }
+    return desplazarBloque(borrador, colocado, cajaId, diaTermino - (bloque.finDias - 1));
+  }
+
   const puesto = colocado.get(cajaId);
   if (!puesto) return no('La actividad no está colocada: captúrale una duración primero (§7.5).');
-  const dias = Math.round(diaTermino - puesto.inicioDias) + 1;
-  if (dias <= 0) {
-    return no('El término quedaría antes del arranque. Mueve primero el inicio (§7.5).');
+
+  const span = puesto.finDias - puesto.inicioDias;
+  const nuevoInicio = Math.round(diaTermino) - span + 1;
+  if (nuevoInicio < 0) {
+    return no(
+      `Cerrando el día ${diaTermino + 1} y durando ${span} días tendría que ` +
+        'arrancar antes del día 1 (§7.5). Acorta la duración o corre el término.',
+    );
   }
-  return fijarDuracion(borrador, cajaId, dias);
+  return noIniciarAntesDe(borrador, colocado, cajaId, nuevoInicio);
 }
 
 /**
