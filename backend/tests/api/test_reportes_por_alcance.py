@@ -19,7 +19,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 from fastapi.testclient import TestClient
@@ -145,7 +145,7 @@ class TestAvance:
 class TestInsumosProgramados:
     """§7.3, §7.5 — la hoja con la que se compra."""
 
-    _RANGO = {"desde": "2026-09-07", "hasta": "2026-11-30"}
+    _RANGO: ClassVar[dict[str, str]] = {"desde": "2026-09-07", "hasta": "2026-11-30"}
 
     def test_cualquier_rol_la_pide_y_el_alcance_viaja_como_contexto(
         self, residente: TestClient, cola: _ColaFalsa
