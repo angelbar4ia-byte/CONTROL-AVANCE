@@ -48,6 +48,73 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 /**
+ * Deshace el workflow A y **solo eso**: la obra se queda con su clave, su
+cluster y su prototipo, lista para volver a generarse con otro modo de pago.
+
+Generar es la única operación que escribe cientos de renglones de un botón,
+con un parámetro que se elige antes de ver el resultado; equivocarse ahí no
+debería costar reiniciar la organización, que era lo único que había.
+ * @summary Deshacer la generación: borra actividades y programa
+ */
+export const revertirGeneracionApiV1ObrasObraIdActividadesDelete = (
+    obraId: string,
+ options?: SecondParameter<typeof peticion>,) => {
+      
+      
+      return peticion<void>(
+      {url: `/api/v1/obras/${obraId}/actividades`, method: 'DELETE'
+    },
+      options);
+    }
+  
+
+
+export const getRevertirGeneracionApiV1ObrasObraIdActividadesDeleteMutationOptions = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertirGeneracionApiV1ObrasObraIdActividadesDelete>>, TError,{obraId: string}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof revertirGeneracionApiV1ObrasObraIdActividadesDelete>>, TError,{obraId: string}, TContext> => {
+
+const mutationKey = ['revertirGeneracionApiV1ObrasObraIdActividadesDelete'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revertirGeneracionApiV1ObrasObraIdActividadesDelete>>, {obraId: string}> = (props) => {
+          const {obraId} = props ?? {};
+
+          return  revertirGeneracionApiV1ObrasObraIdActividadesDelete(obraId,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevertirGeneracionApiV1ObrasObraIdActividadesDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof revertirGeneracionApiV1ObrasObraIdActividadesDelete>>>
+    
+    export type RevertirGeneracionApiV1ObrasObraIdActividadesDeleteMutationError = void | HTTPValidationError
+
+    /**
+ * @summary Deshacer la generación: borra actividades y programa
+ */
+export const useRevertirGeneracionApiV1ObrasObraIdActividadesDelete = <TError = void | HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertirGeneracionApiV1ObrasObraIdActividadesDelete>>, TError,{obraId: string}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof revertirGeneracionApiV1ObrasObraIdActividadesDelete>>,
+        TError,
+        {obraId: string},
+        TContext
+      > => {
+
+      const mutationOptions = getRevertirGeneracionApiV1ObrasObraIdActividadesDeleteMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * Todos los roles, cada uno con su alcance (§4).
 
 Lectura simple sin orquestación de dominio —como `GET /cierres`

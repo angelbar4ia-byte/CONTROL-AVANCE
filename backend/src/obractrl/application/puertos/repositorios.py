@@ -525,6 +525,22 @@ class RepositorioObras(Protocol):
         """
         ...
 
+    async def rastro_de_ejecucion(self, obra_id: UUID) -> dict[str, int]:
+        """Qué se ha capturado ya sobre las actividades de la obra (§11.3).
+
+        Conteo por concepto —avances, estimaciones, revisiones, cierres— y solo
+        de lo que hay: un dict vacío significa que nadie ha trabajado encima.
+        Es la guarda de `RevertirGeneracionDeObra`.
+        """
+        ...
+
+    async def borrar_generacion(self, obra_id: UUID) -> int:
+        """Borra actividades y `ProgramaObra` de la obra; devuelve cuántas.
+
+        Deshace `POST /obras/{id}/generar` y nada más: la obra se queda.
+        """
+        ...
+
     async def tiene_actividades(self, obra_id: UUID) -> bool:
         """Si la obra ya se generó, volver a generarla la duplicaría (§11.3 A)."""
         ...

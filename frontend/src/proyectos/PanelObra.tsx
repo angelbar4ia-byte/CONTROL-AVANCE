@@ -18,6 +18,7 @@ import { useClavesPorRecurso } from '@/lib/idempotencia';
 import {
   useActualizarObraApiV1ObrasObraIdPatch,
   useGenerarObraApiV1ObrasObraIdGenerarPost,
+  useRevertirGeneracionApiV1ObrasObraIdActividadesDelete,
 } from '@/api/generado/obras/obras';
 import { useListarUsuariosApiV1UsuariosGet } from '@/api/generado/usuarios/usuarios';
 import { ModoPago, Rol as RolUsuario } from '@/api/generado/modelo';
@@ -84,6 +85,25 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
       onError: (err) => setError({ mensaje: err.message, campo: err.campo }),
     },
     ...idempotente,
+  });
+
+  /**
+   * Deshacer el workflow A.
+   *
+   * Generar escribe cientos de renglones de un botón y con un modo de pago que
+   * se elige antes de ver el resultado; equivocarse ahí costaba reiniciar la
+   * organización entera. El backend frena si ya hay avance capturado — ahí
+   * borrar deja de ser deshacer (§11.3 A.2).
+   */
+  const revertir = useRevertirGeneracionApiV1ObrasObraIdActividadesDelete<ErrorApi>({
+    mutation: {
+      onSuccess: () => {
+        setError(null);
+        setGenerada(null);
+        onCambiada();
+      },
+      onError: (err) => setError({ mensaje: err.message, campo: err.campo }),
+    },
   });
 
   // Cualquier rol puede leer `GET /usuarios` (§5.1: quién es el residente de
@@ -283,6 +303,20 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
                     >
                       {generar.isPending ? 'Generando…' : 'Generar actividades'}
                     </button>
+                    {/* Solo tras generar en esta sesión: para una obra que ya
+                        venía generada de antes, el panel ni siquiera se ofrece
+                        —el backend responde 409— y el botón sobraría. */}
+                    {generada !== null && (
+                      <button
+                        type="button"
+                        className="btn"
+                        disabled={revertir.isPending}
+                        title="Borra las actividades y el programa recién creados. La obra se queda."
+                        onClick={() => revertir.mutate({ obraId: obra.id })}
+                      >
+                        {revertir.isPending ? 'Deshaciendo…' : 'Deshacer'}
+                      </button>
+                    )}
                   </div>
                 </>
               )}
