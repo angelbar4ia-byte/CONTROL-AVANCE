@@ -34,6 +34,7 @@ import { colorAvance, fmtFecha, fmtNum, fmtPct } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Sheet } from '@/lib/Sheet';
 import type { Rol } from '@/shell/navegacion';
+import { InstanciarPrograma } from '@/programacion/InstanciarPrograma';
 import { CampoSelect, CampoTexto } from './Campos';
 import { cambiosDeObra, formularioDeObra, hayCambios } from './formulario';
 import {
@@ -58,6 +59,7 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
   const [formulario, setFormulario] = useState(() => formularioDeObra(obra));
   const [modoPago, setModoPago] = useState<ModoPago>(ModoPago.destajo);
   const [generada, setGenerada] = useState<ObraGeneradaRespuesta | null>(null);
+  const [instanciando, setInstanciando] = useState(false);
   const [error, setError] = useState<{ mensaje: string; campo?: string } | null>(null);
 
   // Una clave por (método, ruta): generar la obra A y la obra B son
@@ -328,10 +330,41 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
                   programa <span className="mono">{generada.programa_obra_id.slice(0, 8)}</span>
                 </div>
               )}
+
+              {/* Aplicar el programa base vivía solo dentro del Gantt de obra
+                  (`/programas`), que es donde se mira el cronograma y no donde
+                  se prepara la obra. Se ofrece también aquí porque es el paso
+                  siguiente a generar: la generación baja las duraciones de la
+                  plantilla **de ese momento**, y volver a aplicarla es lo que
+                  recoge los cambios que el programa base tuvo después (§7.5). */}
+              {impedimento === null && (
+                <div className="col gap-2" style={{ alignItems: 'flex-start' }}>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setInstanciando(true)}
+                  >
+                    Aplicar el programa base…
+                  </button>
+                  <span className="field__hint">
+                    Baja la plantilla de duraciones del prototipo al cronograma y
+                    crea una versión nueva (§7.5).
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
+
+      {instanciando && (
+        <InstanciarPrograma
+          obra={obra}
+          rol={rol}
+          onCerrar={() => setInstanciando(false)}
+          onInstanciado={onCambiada}
+        />
+      )}
     </Sheet>
   );
 }
