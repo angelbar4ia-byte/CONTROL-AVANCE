@@ -33,6 +33,7 @@ from obractrl.application.puertos.repositorios import (
     RepositorioContratistas,
     RepositorioCuadrillas,
     RepositorioFamilias,
+    RepositorioFrentes,
     RepositorioInsumos,
     RepositorioMateriales,
     RepositorioNivelesEtapas,
@@ -46,6 +47,7 @@ from obractrl.application.puertos.repositorios import (
 from obractrl.domain.cargadores.almacen import FilaMovimiento, importe_con_iva
 from obractrl.domain.cargadores.claves_automaticas import generar_clave_automatica
 from obractrl.domain.cargadores.conceptos_base import FilaConceptoBase
+from obractrl.domain.cargadores.contratistas import FilaContratista
 from obractrl.domain.cargadores.cpu import ComponenteCargado, ConceptoCargado
 from obractrl.domain.cargadores.cuadrillas import CuadrillaCargada
 from obractrl.domain.cargadores.etapas_constructivas import FilaEtapaConstructiva
@@ -967,6 +969,15 @@ NULL al revertir — mismo criterio que `AplicadorCPU` usa para su propio
 _CAMPOS_RESTAURABLES_UNIDAD = ("nombre", "sinonimos", "factor", "estatus")
 """Lo que el snapshot guarda como ``antes`` (`cargas_sql._RESTAURAR["unidad"]`)."""
 
+_CAMPOS_RESTAURABLES_CONTRATISTA = (
+    "razon_social", "rfc", "contacto", "telefono", "email", "estatus",
+)
+"""Lo que el snapshot guarda como ``antes`` (`cargas_sql._RESTAURAR["contratista"]`).
+Los frentes **no** entran: viven en la tabla puente y el UPDATE de la reversa
+no los toca, así que revertir una carga deja al contratista con los frentes que
+esa carga le puso. Es una pérdida conocida y menor —son capacidad de catálogo,
+no dinero ni programa— y arreglarla pediría versionar el puente entero."""
+
 _CAMPOS_RESTAURABLES_FAMILIA = ("nombre", "parent_id", "aplica_a", "iva_aplica", "estatus")
 """Lo que el snapshot guarda como ``antes`` (`cargas_sql._RESTAURAR["familia"]`).
 Incluye ``parent_id``/``aplica_a``/``iva_aplica`` aunque este cargador no los
@@ -1052,6 +1063,130 @@ class AplicadorUnidades:
             actualizados=len(diff.cambios) + len(diff.bajas),
             omitidos=diff.omitidos + lectura.omitidos,
             detalle={"claves_generadas": claves_generadas},
+        )
+
+
+class AplicadorContratistas:
+    """Catálogo de contratistas (§8.3, §10.6).
+
+    El contratista es la fuerza de trabajo: pone las cuadrillas con las que se
+    ejecuta un frente. Además de su identidad, la fila trae los frentes que
+    sabe hacer, y esos se resuelven aquí de **clave a id** —el cargador no
+    tiene con qué— y se reemplazan enteros: uno que dejó de hacer
+    instalaciones tiene que perder ese frente.
+
+    Una clave de frente que no exista no tumba la fila: el contratista entra
+    igual y la clave sale reportada. Perder el alta de quien está trabajando en
+    la obra por un frente mal escrito sería desproporcionado.
+    """
+
+    def __init__(
+        self,
+        *,
+        contratistas: RepositorioContratistas,
+        frentes: RepositorioFrentes,
+        cargas: RepositorioCargas,
+    ) -> None:
+        self._contratistas = contratistas
+        self._frentes = frentes
+        self._cargas = cargas
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        vigentes_filas = await self._contratistas.listar(solo_activos=False)
+        por_clave = {str(c["clave"]): c for c in vigentes_filas}
+
+        frentes_por_clave = {
+            str(f["clave"]): f["id"]
+            for f in await self._frentes.listar(solo_activos=False)
+        }
+
+        entrantes: dict[str, dict[str, Any]] = {}
+        frentes_de: dict[str, list[UUID]] = {}
+        sin_resolver: list[str] = []
+
+        for registro in lectura.registros:
+            fila: FilaContratista = registro  # type: ignore[assignment]
+            clave = str(fila.clave)
+            entrantes[clave] = {
+                "razon_social": fila.razon_social,
+                "rfc": fila.rfc,
+                "contacto": fila.contacto,
+                "telefono": fila.telefono,
+                "email": fila.email,
+            }
+            ids: list[UUID] = []
+            for clave_frente in fila.frentes:
+                frente_id = frentes_por_clave.get(str(clave_frente))
+                if frente_id is None:
+                    sin_resolver.append(str(clave_frente))
+                    continue
+                ids.append(frente_id)
+            frentes_de[clave] = ids
+
+        vigentes = {
+            clave: _recorte(f, ("razon_social", "rfc", "contacto", "telefono", "email"))
+            for clave, f in por_clave.items()
+        }
+        diff = diferenciar(vigentes=vigentes, entrantes=entrantes, modo=modo)
+
+        operaciones: list[dict[str, Any]] = []
+        if not dry_run:
+            for alta in diff.altas:
+                nuevo_id = await self._contratistas.crear(
+                    {"clave": alta.clave, **alta.despues}
+                )
+                await self._contratistas.reemplazar_frentes(
+                    nuevo_id, frentes_de.get(alta.clave, [])
+                )
+                operaciones.append(
+                    _operacion("contratista", nuevo_id, "insert", despues=dict(alta.despues))
+                )
+            for cambio in diff.cambios:
+                fila_vigente = por_clave[cambio.clave]
+                await self._contratistas.actualizar(
+                    fila_vigente["id"], dict(cambio.despues)
+                )
+                await self._contratistas.reemplazar_frentes(
+                    fila_vigente["id"], frentes_de.get(cambio.clave, [])
+                )
+                operaciones.append(
+                    _operacion(
+                        "contratista",
+                        fila_vigente["id"],
+                        "update",
+                        antes=_recorte(fila_vigente, _CAMPOS_RESTAURABLES_CONTRATISTA),
+                        despues=dict(cambio.despues),
+                    )
+                )
+            for baja in diff.bajas:
+                fila_vigente = por_clave[baja.clave]
+                await self._contratistas.actualizar(
+                    fila_vigente["id"], {"estatus": _ESTATUS_BAJA}
+                )
+                operaciones.append(
+                    _operacion(
+                        "contratista",
+                        fila_vigente["id"],
+                        "update",
+                        antes=_recorte(fila_vigente, _CAMPOS_RESTAURABLES_CONTRATISTA),
+                        despues={"estatus": _ESTATUS_BAJA},
+                    )
+                )
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            insertados=len(diff.altas),
+            actualizados=len(diff.cambios) + len(diff.bajas),
+            omitidos=diff.omitidos + lectura.omitidos,
+            detalle={"frentes_sin_resolver": sorted(set(sin_resolver))},
         )
 
 

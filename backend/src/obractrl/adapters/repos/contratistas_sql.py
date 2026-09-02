@@ -15,6 +15,7 @@ el cruce siga siendo por clave (§3.3).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
@@ -78,6 +79,63 @@ class RepositorioContratistasSQL:
                 {"contratista_id": str(contratista_id), "frentes": frentes},
             )
         return contratista_id
+
+    async def actualizar(self, contratista_id: UUID, cambios: dict[str, Any]) -> None:
+        """Edición parcial; la `clave` no es editable (§3.3).
+
+        Lista blanca como el resto de los catálogos: la clave del dict entra a
+        la sentencia, así que solo pueden entrar éstas. `frentes` no está — es
+        la tabla puente y se reemplaza aparte (`reemplazar_frentes`), porque un
+        `update` no puede expresar "estos y no los otros".
+        """
+        editables = {
+            "razon_social": "razon_social = :razon_social",
+            "rfc": "rfc = :rfc",
+            "contacto": "contacto = :contacto",
+            "telefono": "telefono = :telefono",
+            "email": "email = :email",
+            "estatus": "estatus = cast(:estatus as estatus_registro)",
+        }
+        asignaciones = [sql for campo, sql in editables.items() if campo in cambios]
+        if not asignaciones:
+            return
+        await self._sesion.execute(
+            text(
+                f"update contratista set {', '.join(asignaciones)} "
+                f"where id = cast(:id as uuid)"
+            ),
+            {"id": str(contratista_id), **{c: cambios[c] for c in editables if c in cambios}},
+        )
+
+    async def reemplazar_frentes(
+        self, contratista_id: UUID, frente_ids: Sequence[UUID]
+    ) -> None:
+        """Deja al contratista con **exactamente** esos frentes (§8.3).
+
+        Reemplazo y no alta: un contratista que dejó de hacer instalaciones
+        tiene que perder ese frente, y un `insert ... on conflict do nothing`
+        lo dejaría ahí para siempre.
+        """
+        await self._sesion.execute(
+            text(
+                "delete from contratista_frente "
+                "where contratista_id = cast(:id as uuid)"
+            ),
+            {"id": str(contratista_id)},
+        )
+        if not frente_ids:
+            return
+        await self._sesion.execute(
+            text(
+                """
+                insert into contratista_frente (org_id, contratista_id, frente_id)
+                select cast(current_setting('app.org_id') as uuid),
+                       cast(:id as uuid), f
+                from unnest(cast(:frentes as uuid[])) as f
+                """
+            ),
+            {"id": str(contratista_id), "frentes": [str(f) for f in frente_ids]},
+        )
 
     async def obtener(self, contratista_id: UUID) -> dict[str, Any] | None:
         fila = (

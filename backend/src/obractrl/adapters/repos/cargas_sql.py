@@ -216,6 +216,18 @@ _RESTAURAR: dict[str, str] = {
         from a
         where unidad.id = cast(:id as uuid)
     """,
+    "contratista": """
+        with a as (select cast(:antes as jsonb) as j)
+        update contratista set
+            razon_social = a.j->>'razon_social',
+            rfc          = a.j->>'rfc',
+            contacto     = a.j->>'contacto',
+            telefono     = a.j->>'telefono',
+            email        = a.j->>'email',
+            estatus      = cast(coalesce(a.j->>'estatus', 'activo') as estatus_registro)
+        from a
+        where contratista.id = cast(:id as uuid)
+    """,
     "familia": """
         with a as (select cast(:antes as jsonb) as j)
         update familia set

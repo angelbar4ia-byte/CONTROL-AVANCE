@@ -27,6 +27,7 @@ from obractrl.domain.cargadores.cabeceras import (
     ALMACEN,
     CONCEPTOS_AUXILIARES,
     CONCEPTOS_BASE,
+    CONTRATISTAS,
     CUADRILLAS,
     ETAPAS_CONSTRUCTIVAS,
     FAMILIAS,
@@ -43,6 +44,7 @@ from obractrl.domain.cargadores.cabeceras import (
 )
 from obractrl.domain.cargadores.claves_automaticas import generar_clave_automatica
 from obractrl.domain.cargadores.conceptos_base import validar_concepto_base
+from obractrl.domain.cargadores.contratistas import validar_contratista
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.cuadrillas import agrupar_cuadrillas
 from obractrl.domain.cargadores.etapas_constructivas import validar_etapa_constructiva
@@ -470,6 +472,81 @@ def test_familia_sin_clave_no_se_rechaza() -> None:
 def test_familia_sin_nombre_es_error_de_fila() -> None:
     with pytest.raises(ErrorEnFila, match="nombre"):
         validar_familia(["FML-00099", "", "XXX"], _MAPA_FAMILIAS, 37)
+
+
+# --- Contratistas (§8.3, §10.6) ------------------------------------------
+
+_MAPA_CONTRATISTAS = resolver_encabezados(
+    ["CLAVE", "CONTRATISTA", "RFC", "CONTACTO", "TEL", "CORREO", "FRENTE"],
+    CONTRATISTAS,
+)
+"""Las cabeceras como las escribe una persona: "CONTRATISTA" es la razón
+social de ESTA fila —no una referencia a un tercero, como en materiales— y
+"TEL"/"CORREO"/"FRENTE" son las abreviaturas que el archivo real usa. Todas
+resuelven por el alias propio de `cabeceras.CONTRATISTAS`."""
+
+
+def test_un_contratista_real_queda_validado() -> None:
+    fila = validar_contratista(
+        ["CON-001", "Constructora Zafiro SA", "ZAF010101AAA", "Luis",
+         "5551234567", "luis@zafiro.mx", "EST, INS"],
+        _MAPA_CONTRATISTAS,
+        2,
+    )
+    assert fila.llave == "CON-001"
+    assert fila.razon_social == "Constructora Zafiro SA"
+    assert [str(f) for f in fila.frentes] == ["EST", "INS"]
+
+
+def test_los_opcionales_vacios_quedan_nulos_y_no_en_blanco() -> None:
+    # Cadena vacía y ausente significan lo mismo —"no lo capturaron"— y
+    # guardar `''` haría que la pantalla enseñara un campo lleno de nada.
+    fila = validar_contratista(
+        ["CON-002", "Instalaciones del Norte", "", "Ana", "", "", "INS"],
+        _MAPA_CONTRATISTAS,
+        3,
+    )
+    assert fila.rfc is None
+    assert fila.telefono is None
+    assert fila.email is None
+    assert fila.contacto == "Ana"
+
+
+def test_el_rfc_no_se_valida_de_formato() -> None:
+    # Un contratista real llega con el dato incompleto o con un RFC
+    # provisional; rechazar la fila dejaría fuera a quien sí está en la obra.
+    fila = validar_contratista(
+        ["CON-003", "Herrería López", "no lo tengo", "", "", "", ""],
+        _MAPA_CONTRATISTAS,
+        4,
+    )
+    assert fila.rfc == "no lo tengo"
+
+
+def test_los_frentes_admiten_cualquiera_de_los_separadores() -> None:
+    # El archivo lo escribe una persona y ninguna de las cuatro formas es un
+    # error.
+    for celda in ("EST, INS", "EST; INS", "EST / INS", "EST|INS"):
+        fila = validar_contratista(
+            ["CON-004", "Varios", "", "", "", "", celda], _MAPA_CONTRATISTAS, 5
+        )
+        assert [str(f) for f in fila.frentes] == ["EST", "INS"]
+
+
+def test_un_frente_repetido_no_se_duplica() -> None:
+    fila = validar_contratista(
+        ["CON-005", "Repetido", "", "", "", "", "INS, INS, EST"],
+        _MAPA_CONTRATISTAS,
+        6,
+    )
+    assert [str(f) for f in fila.frentes] == ["INS", "EST"]
+
+
+def test_sin_razon_social_es_error_de_fila() -> None:
+    with pytest.raises(ErrorEnFila, match="razon_social"):
+        validar_contratista(
+            ["CON-006", "", "", "", "", "", ""], _MAPA_CONTRATISTAS, 7
+        )
 
 
 # --- Clave automática (§8.7: catálogo base sin indicador de clave) -------

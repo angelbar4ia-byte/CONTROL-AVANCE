@@ -35,6 +35,7 @@ from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
 from obractrl.adapters.repos.evaluaciones_sql import RepositorioEvaluacionesSQL
 from obractrl.adapters.repos.expediente_sql import RepositorioExpedienteSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
+from obractrl.adapters.repos.frentes_sql import RepositorioFrentesSQL
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
@@ -53,6 +54,7 @@ from obractrl.adapters.repos.usuarios_sql import RepositorioUsuariosSQL
 from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorAlmacen,
     AplicadorConceptosBase,
+    AplicadorContratistas,
     AplicadorCPU,
     AplicadorCuadrillas,
     AplicadorDeCarga,
@@ -999,6 +1001,15 @@ class FabricaDeCargas:
             return AplicadorUnidades(unidades=RepositorioUnidadesSQL(sesion), cargas=cargas)
         if tipo is TipoCarga.FAMILIAS:
             return AplicadorFamilias(familias=RepositorioFamiliasSQL(sesion), cargas=cargas)
+        if tipo is TipoCarga.CONTRATISTAS:
+            return AplicadorContratistas(
+                contratistas=RepositorioContratistasSQL(sesion),
+                # Los frentes se leen para resolver las claves del archivo a
+                # ids: el cargador habla en claves porque es lo que una persona
+                # escribe en un Excel.
+                frentes=RepositorioFrentesSQL(sesion),
+                cargas=cargas,
+            )
         if tipo is TipoCarga.CPU:
             return AplicadorCPU(
                 conceptos=RepositorioConceptosSQL(sesion),

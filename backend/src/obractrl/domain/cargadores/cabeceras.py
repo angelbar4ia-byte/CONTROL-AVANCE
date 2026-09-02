@@ -345,6 +345,48 @@ sin dónde vivir aquí; se ignora sin romper, §10.6) y una segunda hoja con un
 subconjunto sin sinónimo, ordenado distinto — no es el catálogo a cargar,
 por eso `hoja` fija "Hoja1" en vez de la hoja activa."""
 
+CONTRATISTAS = EspecificacionArchivo(
+    tipo="Catálogo de contratistas",
+    archivo="CATALOGO_DE_CONTRATISTAS.xlsx",
+    hoja=None,
+    obligatorias=("clave", "razon_social"),
+    opcionales=("rfc", "contacto", "telefono", "email", "frentes"),
+    alias={
+        # "CONTRATISTA" es el nombre de ESTE contratista, no una referencia a
+        # otro: en materiales y almacén la misma cabecera apunta a un tercero,
+        # y sin este alias propio la razón social de cada fila se descartaría
+        # en silencio. Mismo caso que "FAMILIA" en `FAMILIAS`.
+        "contratista": "razon_social",
+        "razon social": "razon_social",
+        "nombre": "razon_social",
+        "correo": "email",
+        "tel": "telefono",
+        # `rfc` y `contacto` se declaran aunque la cabecera se llame igual que
+        # el campo: el mapa global del §8.6 no los conoce —ningún otro archivo
+        # los trae— y `canonizar_encabezado` los devolvería como `None`, así
+        # que sin este alias la columna se ignoraría en silencio.
+        "rfc": "rfc",
+        "contacto": "contacto",
+        "telefono": "telefono",
+        "email": "email",
+        # Los frentes que sabe hacer, separados por coma. Singular y plural
+        # porque quien llena el archivo escribe cualquiera de los dos.
+        "frente": "frentes",
+        "frentes": "frentes",
+    },
+)
+"""Catálogo de contratistas (§8.3, §10.6).
+
+El contratista es la fuerza de trabajo: pone las cuadrillas con las que se
+ejecuta un frente. `frentes` es la lista de claves que sabe hacer —`EST, INS`—
+y alimenta `contratista_frente`, que es **capacidad de catálogo** y no la
+asignación a una obra: quién lleva INSTALACIONES en MAPLE 01 se decide al
+planear esa obra.
+
+`hoja=None` —la activa— porque este archivo no viene de un exportador con hoja
+fija: lo escribe alguien de la constructora y no hay contrato que la nombre."""
+
+
 FAMILIAS = EspecificacionArchivo(
     tipo="Catálogo de familias",
     archivo="CATALOGO_DE_FAMILIAS.xlsx",
