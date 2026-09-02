@@ -45,7 +45,6 @@ import {
   acercarZoom,
   alejarZoom,
   construirBandas,
-  saltosDeCalendario,
   zoomParaAjustar,
 } from '@/programacion/bandasPrograma';
 import { clasesDeBarra, etiquetaDeBarra, tonosDeFrente } from '@/programacion/barras';
@@ -649,8 +648,12 @@ describe('escalas del eje (§7.5)', () => {
     const dias = construirBandas(eje, 'dias');
     expect(dias.diasPorPeriodo).toBe(1);
     expect(dias.inferior).toHaveLength(eje.dias);
-    // Arriba, semanas: siete días cada una.
-    expect(dias.superior[0]).toMatchObject({ dia: 0, dias: 7 });
+    // Arriba, las iniciales del día: es lo que deja ver dónde cae el fin de
+    // semana. La semana no se pierde — la marca cada `L`.
+    expect(dias.superior).toHaveLength(eje.dias);
+    expect(dias.superior.slice(0, 7).map((b) => b.etiqueta)).toEqual([
+      'L', 'M', 'M', 'J', 'V', 'S', 'D',
+    ]);
 
     const semanas = construirBandas(eje, 'semanas');
     expect(semanas.diasPorPeriodo).toBe(7);
@@ -692,18 +695,26 @@ describe('escalas del eje (§7.5)', () => {
     expect(bandas.inferior.every((banda) => banda.dias <= bandas.diasPorPeriodo)).toBe(true);
   });
 
-  it('los saltos de calendario sólo existen con fechas', () => {
-    expect(saltosDeCalendario(eje)).toEqual([]);
-
+  it('el fin de semana ocupa su columna, en blanco', () => {
+    // Antes el hueco se señalaba con una línea porque el sábado y el domingo no
+    // existían en el lienzo. Ahora ocupan su sitio y lo que hay que ver es que
+    // no llevan número: son el `1 2 3 4 5 · · 6` de una semana de lunes a
+    // viernes.
     const laboral = construirEje({
       finMaximo: 12,
       modo: 'fechas',
-      inicio: '2026-03-02',
+      inicio: '2026-03-02', // lunes
       diasHabiles: [1, 2, 3, 4, 5],
     });
-    const saltos = saltosDeCalendario(laboral);
-    // Lunes a viernes: la costura cae después del quinto día y salta dos.
-    expect(saltos[0]).toEqual({ dia: 4, diasSaltados: 2 });
+    const dias = construirBandas(laboral, 'dias').inferior;
+
+    expect(dias.slice(0, 7).map((b) => b.laborable)).toEqual([
+      true, true, true, true, true, false, false,
+    ]);
+    expect(dias[5]?.etiqueta).toBe('');
+    expect(dias[6]?.etiqueta).toBe('');
+    // Y el lunes siguiente retoma la cuenta donde se quedó.
+    expect(dias[7]?.laborable).toBe(true);
   });
 
   it('acercar y alejar caminan por escalones, y ajustar produce un valor libre', () => {

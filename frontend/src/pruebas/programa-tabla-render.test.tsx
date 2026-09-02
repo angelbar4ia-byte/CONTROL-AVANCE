@@ -118,6 +118,7 @@ function fila(sobre: Partial<FilaPrograma> & Pick<FilaPrograma, 'nodoId'>): Fila
 function pintarTabla(filas: readonly FilaPrograma[], editable = true) {
   const onDuracion = vi.fn();
   const onInicio = vi.fn();
+  const onTermino = vi.fn();
   const onAlternar = vi.fn();
   const salida = render(
     <TablaPrograma
@@ -135,11 +136,12 @@ function pintarTabla(filas: readonly FilaPrograma[], editable = true) {
       onSeleccionar={vi.fn()}
       onDuracion={onDuracion}
       onInicio={onInicio}
+      onTermino={onTermino}
       contenedorRef={createRef<HTMLDivElement>()}
       onScroll={vi.fn()}
     />,
   );
-  return { ...salida, onDuracion, onInicio, onAlternar };
+  return { ...salida, onDuracion, onInicio, onTermino, onAlternar };
 }
 
 function pintarGantt(filas: readonly FilaPrograma[], editable = true) {
@@ -149,7 +151,6 @@ function pintarGantt(filas: readonly FilaPrograma[], editable = true) {
       filas={filas}
       eje={EJE}
       bandas={construirBandas(EJE, VISTA.escala)}
-      saltos={[]}
       ligas={[{ desde: 'c1', hasta: 'c2', tipo: 'FS' }]}
       vista={VISTA}
       criticas={SIN_CRITICAS}
@@ -184,17 +185,27 @@ describe('TablaPrograma', () => {
     expect(within(renglon).getByText('M3')).toBeInTheDocument();
   });
 
-  it('un concepto ofrece capturar su duración; un resumen no', () => {
-    // La regla que sostiene la Fase 4: sólo los conceptos son actividades
-    // reales, y la barra de nivel/etapa es derivada de sus hijos (§7.4).
-    pintarTabla([fila({ nodoId: 'c1' })]);
-    expect(screen.getByLabelText('Días laborables de Excavación')).toBeInTheDocument();
-
-    const soloResumen = pintarTabla([
-      fila({ nodoId: 'e1', tipo: 'etapa', descripcion: 'Cimentación', esResumen: true, tieneHijos: true }),
+  it('duración, inicio y término se capturan también en un resumen', () => {
+    // Desde la herencia jerárquica capturar en un nivel o una etapa significa
+    // algo: reparte su ventana hacia abajo (§7.4). Antes las tres celdas eran
+    // de lectura y el nivel solo se podía programar concepto por concepto.
+    pintarTabla([
+      fila({
+        nodoId: 'e1',
+        tipo: 'etapa',
+        descripcion: 'Cimentación',
+        esResumen: true,
+        tieneHijos: true,
+      }),
     ]);
-    expect(soloResumen.container.querySelectorAll('input')).toHaveLength(0);
-    expect(soloResumen.container.querySelector('.prog-tabla__fila')).toHaveTextContent('3');
+    expect(screen.getByLabelText('Días laborables de Cimentación')).toBeInTheDocument();
+    expect(screen.getByLabelText('Día de arranque de Cimentación')).toBeInTheDocument();
+    expect(screen.getByLabelText('Día de término de Cimentación')).toBeInTheDocument();
+  });
+
+  it('en lectura ninguna de las tres se captura', () => {
+    const { container } = pintarTabla([fila({ nodoId: 'c1' })], false);
+    expect(container.querySelectorAll('input')).toHaveLength(0);
   });
 
   it('la actividad partida enseña su duración de lectura: es la suma de sus tramos', () => {
@@ -255,8 +266,9 @@ describe('TablaPrograma', () => {
       'placeholder',
       '1',
     );
-    expect(renglon).toHaveTextContent('Día 3');
-    expect(renglon).not.toHaveTextContent('Día 4');
+    // Y el término también es capturable: lleva el último día trabajado, no el
+    // día en que la ventana termina.
+    expect(screen.getByLabelText('Día de término de Excavación')).toHaveValue(3);
   });
 
   it('la rejilla declara cuántos renglones tiene el programa, no cuántos monta', () => {
@@ -373,8 +385,7 @@ describe('GanttPrograma', () => {
         filas={[fila({ nodoId: 'c1' })]}
         eje={conFechas}
         bandas={construirBandas(conFechas, VISTA.escala)}
-        saltos={[]}
-        ligas={[]}
+          ligas={[]}
         vista={VISTA}
         criticas={SIN_CRITICAS}
         magnitudes={SIN_MAGNITUDES}

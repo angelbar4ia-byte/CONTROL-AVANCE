@@ -36,13 +36,20 @@
  * Módulo puro (§12.11).
  */
 
-import { ZOOM_EJE, type EjePrograma } from './ejePrograma';
+import { ZOOM_EJE, type ColumnaEje, type EjePrograma } from './ejePrograma';
 import type { EscalaEje } from './vistaGantt';
 
 /** Un tramo del encabezado: dónde arranca, cuánto abarca y cómo se rotula. */
 export interface BandaEje {
-  /** Primer día del programa que cubre, 0-based. */
+  /** Primera **columna** del lienzo que cubre, 0-based. */
   readonly dia: number;
+  /**
+   * Día de la semana ISO de esa columna (1 = lunes), o `null` en una banda que
+   * abarca varios días. Es de donde sale la letra del encabezado.
+   */
+  readonly diaSemana?: number | null;
+  /** `false` en una columna que no se trabaja; solo aplica a la banda de días. */
+  readonly laborable?: boolean;
   /** Días del programa que abarca; el último tramo puede quedar corto. */
   readonly dias: number;
   readonly etiqueta: string;
@@ -83,8 +90,12 @@ const BANDA_INFERIOR: Record<EscalaEje, 'dia' | 'semana'> = {
   'meses-semanas': 'semana',
 };
 
-const BANDA_SUPERIOR: Record<EscalaEje, 'semana' | 'mes'> = {
-  dias: 'semana',
+const BANDA_SUPERIOR: Record<EscalaEje, 'letra' | 'semana' | 'mes'> = {
+  // A escala de días la banda de arriba son las **iniciales del día**: es lo
+  // que deja entender de un vistazo dónde cae el fin de semana y por qué la
+  // numeración salta. La semana no se pierde —la marca cada `L`— y la fecha
+  // exacta sigue en el `title` de la celda.
+  dias: 'letra',
   semanas: 'mes',
   'meses-dias': 'mes',
   'meses-semanas': 'mes',
@@ -103,7 +114,11 @@ export function construirBandas(eje: EjePrograma, escala: EscalaEje): BandasEje 
   const inferior =
     BANDA_INFERIOR[escala] === 'dia' ? bandaDeDias(eje) : bandaDeSemanas(eje);
   const superior =
-    BANDA_SUPERIOR[escala] === 'mes' ? bandaDeMeses(eje) : bandaDeSemanas(eje);
+    BANDA_SUPERIOR[escala] === 'mes'
+      ? bandaDeMeses(eje)
+      : BANDA_SUPERIOR[escala] === 'letra'
+        ? bandaDeLetras(eje)
+        : bandaDeSemanas(eje);
 
   return { superior, inferior, diasPorPeriodo };
 }
@@ -111,16 +126,64 @@ export function construirBandas(eje: EjePrograma, escala: EscalaEje): BandasEje 
 /** Un tramo por día del programa. */
 function bandaDeDias(eje: EjePrograma): readonly BandaEje[] {
   const bandas: BandaEje[] = [];
-  for (let dia = 0; dia < eje.dias; dia += 1) {
+  for (const columna of eje.columnas) {
+    const laborable = columna.diaHabil !== null;
     bandas.push({
-      dia,
+      dia: columna.columna,
       dias: 1,
-      etiqueta: eje.modo === 'fechas' ? diaDeFecha(eje.fechas[dia]) : String(dia + 1),
-      titulo: tituloDeDia(eje, dia),
-      esHoy: eje.diaDeHoy === dia,
+      diaSemana: columna.diaSemana,
+      laborable,
+      // Una columna que no se trabaja va **en blanco**: el sitio lo ocupa —de
+      // eso se trata, de ver el hueco— pero no lleva número, porque no hay
+      // ningún día de programa que le corresponda. Es el `1 2 3 4 5 · · 6` de
+      // una semana de lunes a viernes.
+      etiqueta: !laborable
+        ? ''
+        : eje.modo === 'fechas'
+          ? diaDeFecha(eje.fechas[columna.diaHabil ?? 0])
+          : String((columna.diaHabil ?? 0) + 1),
+      titulo: tituloDeColumna(eje, columna),
+      esHoy: eje.diaDeHoy !== null && eje.diaDeHoy === columna.diaHabil,
     });
   }
   return bandas;
+}
+
+/**
+ * Una celda por columna con la inicial de su día: `L M M J V S D`.
+ *
+ * Es la fila de arriba del encabezado a escala de días. Junto con la de abajo
+ * —el número de día del programa, en blanco donde no se trabaja— produce la
+ * lectura que el jefe de obra pidió: `L M M J V S D` sobre `1 2 3 4 5 · · 6`
+ * en una semana de lunes a viernes.
+ */
+function bandaDeLetras(eje: EjePrograma): readonly BandaEje[] {
+  return eje.columnas.map((columna) => ({
+    dia: columna.columna,
+    dias: 1,
+    diaSemana: columna.diaSemana,
+    laborable: columna.diaHabil !== null,
+    etiqueta: LETRA_DIA[columna.diaSemana - 1] ?? '',
+    titulo: tituloDeColumna(eje, columna),
+    esHoy: eje.diaDeHoy !== null && eje.diaDeHoy === columna.diaHabil,
+  }));
+}
+
+/** Iniciales de los días, ISO: índice 0 = lunes. */
+export const LETRA_DIA: readonly string[] = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+const NOMBRE_DIA: readonly string[] = [
+  'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo',
+];
+
+function tituloDeColumna(eje: EjePrograma, columna: ColumnaEje): string {
+  const nombre = NOMBRE_DIA[columna.diaSemana - 1] ?? '';
+  if (columna.diaHabil === null) return `${nombre} — no se trabaja`;
+  const cuando =
+    eje.modo === 'fechas' && columna.fecha !== null
+      ? columna.fecha
+      : `día ${columna.diaHabil + 1} del programa`;
+  return `${nombre}, ${cuando}`;
 }
 
 /**
@@ -207,11 +270,6 @@ function agrupar(
   return bandas;
 }
 
-function tituloDeDia(eje: EjePrograma, dia: number): string {
-  if (eje.modo !== 'fechas') return `Día ${dia + 1} del programa`;
-  return `Día ${dia + 1} · ${eje.fechas[dia] ?? '—'}`;
-}
-
 /** `YYYY-MM` de una fecha ISO; cadena vacía si no la hay. */
 function mesDe(iso: string | undefined): string {
   return iso === undefined ? '' : iso.slice(0, 7);
@@ -234,48 +292,6 @@ function etiquetaDeFecha(iso: string | undefined): string {
   if (iso === undefined) return '';
   const mes = MESES[Number(iso.slice(5, 7)) - 1] ?? '';
   return `${iso.slice(8, 10)} ${mes}`;
-}
-
-/** Dónde el calendario se saltó días entre dos días consecutivos del programa. */
-export interface SaltoDeCalendario {
-  /** Día del programa **después** del cual cae el salto, 0-based. */
-  readonly dia: number;
-  readonly diasSaltados: number;
-}
-
-/**
- * Los saltos de calendario del eje: fin de semana, día no laborable.
- *
- * Es lo que puede dibujar el fondo "bandas inhábiles", y hay que entender por
- * qué no es lo que parece. El eje del programa **sólo tiene días hábiles**: lo
- * construye `calendarioDelPrograma` caminando el conjunto de días de trabajo,
- * así que dentro del lienzo no hay ni un domingo que sombrear. Lo que sí existe
- * —y es la información útil— es la **costura**: entre el día 5 y el día 6 del
- * programa pasaron dos días de calendario que nadie trabajó. Se marca ahí, en
- * la juntura, con su cuenta en el `title`.
- *
- * En días relativos no hay ninguno: sin fechas no hay calendario del que
- * saltarse nada, y devolver algo sería inventarlo.
- */
-export function saltosDeCalendario(eje: EjePrograma): readonly SaltoDeCalendario[] {
-  if (eje.modo !== 'fechas') return [];
-
-  const saltos: SaltoDeCalendario[] = [];
-  for (let dia = 0; dia + 1 < eje.fechas.length; dia += 1) {
-    const actual = julianoDe(eje.fechas[dia]);
-    const siguiente = julianoDe(eje.fechas[dia + 1]);
-    if (actual === null || siguiente === null) continue;
-    const brecha = siguiente - actual - 1;
-    if (brecha > 0) saltos.push({ dia, diasSaltados: brecha });
-  }
-  return saltos;
-}
-
-/** Días julianos de una fecha ISO; `null` si no la hay. */
-function julianoDe(iso: string | undefined): number | null {
-  if (iso === undefined) return null;
-  const ms = Date.parse(`${iso}T00:00:00Z`);
-  return Number.isFinite(ms) ? Math.floor(ms / 86_400_000) : null;
 }
 
 /** Zoom mínimo y máximo: los extremos del escalonado. */

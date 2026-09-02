@@ -66,8 +66,13 @@ import {
 /**
  * Lo que produce una herramienta: las acciones a despachar, o la explicación.
  *
- * No hay un tercer caso "no pasó nada y da igual": si el usuario pulsó un botón
- * y el programa no cambió, hay algo que contarle.
+ * Un gesto **aceptado y vacío** es el tercer caso, y es deliberado: teclear en
+ * un campo el mismo número que ya tenía es confirmar, no equivocarse.
+ * Rechazarlo pintaba un aviso rojo que se leía como que el campo dejó de
+ * funcionar. `despacharVarias` con una lista vacía no gasta paso de deshacer.
+ *
+ * Un rechazo se reserva para lo que hay que contarle a alguien: una duración
+ * que no es positiva, un ciclo, un término antes del arranque.
  */
 export type Gesto =
   | { readonly ok: true; readonly acciones: readonly Accion[] }
@@ -114,7 +119,10 @@ export function aplazar(
   if (!esRenglon(caja)) {
     return no('La actividad no tiene duración capturada: todavía no está en el programa (§7.5).');
   }
-  if (dias === 0) return no('Aplazar cero días no cambia nada.');
+  // Aplazar cero es teclear el mismo número otra vez. No es un error: es un
+  // gesto que no cambia nada, y responderlo con un aviso rojo se lee como que
+  // el campo dejó de funcionar.
+  if (dias === 0) return si();
 
   const atadura = caja.inicioDias === null ? ataduraDe(caja, colocado) : null;
   if (atadura !== null) {
@@ -170,10 +178,11 @@ export function noIniciarAntesDe(
   }
   if (dia < 0) return no('Nada puede arrancar antes del día 1 (§7.5).');
 
+  // Reclavarla en el día en que ya está no es un error; es confirmar. Se
+  // acepta sin acciones para que el campo se pueda teclear las veces que haga
+  // falta sin que aparezca un aviso.
   const puesto = colocado.get(cajaId);
-  if (caja.inicioDias === dia && puesto?.inicioDias === dia) {
-    return no(`La actividad ya arranca el día ${dia + 1}.`);
-  }
+  if (caja.inicioDias === dia && puesto?.inicioDias === dia) return si();
   return si({ tipo: 'inicio', cajaId, inicioDias: dia });
 }
 

@@ -245,7 +245,11 @@ function PanelProgramar({ acciones, seleccion, rotularDia, editable }: Props) {
   const [pausa, setPausa] = useState(1);
   const [tramo, setTramo] = useState(1);
 
-  const activa = seleccion !== null && !seleccion.esResumen && editable;
+  // Un resumen **sí** se programa: capturarle días reparte su ventana hacia
+  // abajo y capturarle el arranque mueve el bloque (`gestos.fijarDuracion`,
+  // `desplazarBloque`). Excluirlo era de cuando el padre no heredaba nada, y
+  // dejaba la cinta entera muerta con un nivel seleccionado.
+  const activa = seleccion !== null && editable;
   const partida = seleccion !== null && seleccion.nTramos > 1;
 
   return (
@@ -258,7 +262,7 @@ function PanelProgramar({ acciones, seleccion, rotularDia, editable }: Props) {
         ) : (
           <span className="cinta__nota" title={seleccion.etiqueta}>
             {seleccion.esResumen
-              ? `${seleccion.etiqueta} — es un resumen: se programa sobre sus conceptos (§7.4)`
+              ? `${seleccion.etiqueta} — es un resumen: lo que le captures baja a sus conceptos (§7.4)`
               : seleccion.etiqueta}
           </span>
         )}

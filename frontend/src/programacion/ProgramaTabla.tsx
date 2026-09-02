@@ -82,7 +82,7 @@ import { ErrorBanner } from '@/lib/ErrorBanner';
 import { fmtNum } from '@/lib/formato';
 import { useDensidad } from '@/shell/SelectorDensidad';
 import { resolverArrastre, empezarArrastre, type ClaseArrastre } from './arrastre';
-import { construirBandas, saltosDeCalendario, zoomParaAjustar } from './bandasPrograma';
+import { construirBandas, zoomParaAjustar } from './bandasPrograma';
 import { tonosDeFrente } from './barras';
 import {
   BarraHerramientasGantt,
@@ -332,11 +332,6 @@ export default function ProgramaTabla() {
   );
 
   const bandas = useMemo(() => construirBandas(eje, vista.escala), [eje, vista.escala]);
-  const saltos = useMemo(
-    () => (vista.fondoGantt === 'inhabiles' ? saltosDeCalendario(eje) : []),
-    [eje, vista.fondoGantt],
-  );
-
   // La ruta crítica se traza sobre el árbol **completo** y no sobre lo visible:
   // una etapa colapsada tiene que poder decir que la cadena pasa por dentro.
   const ruta = useMemo(
@@ -425,6 +420,10 @@ export default function ProgramaTabla() {
       return;
     }
     setRechazo(null);
+    // Un gesto aceptado y vacío —confirmar el valor que ya estaba— no ensucia
+    // el borrador: marcarlo "sin guardar" por teclear dos veces lo mismo
+    // obligaría a guardar una versión que no cambia nada (§7.5).
+    if (gesto.acciones.length === 0) return;
     setHistorial((previo) =>
       previo === null ? previo : despacharVarias(previo, gesto.acciones),
     );
@@ -443,6 +442,18 @@ export default function ProgramaTabla() {
           ? gestos.desclavar(borrador, nodoId)
           : gestos.noIniciarAntesDe(borrador, colocado, nodoId, dia),
       );
+    },
+    [borrador, colocado, aplicarGesto],
+  );
+
+  /**
+   * Fija el día en que la actividad cierra. Se traduce a duración, que es lo
+   * que el contrato guarda; en un resumen eso hereda hacia abajo.
+   */
+  const cambiarTermino = useCallback(
+    (nodoId: string, dia: number) => {
+      if (!borrador) return;
+      aplicarGesto(gestos.fijarTermino(borrador, colocado, nodoId, dia));
     },
     [borrador, colocado, aplicarGesto],
   );
@@ -847,6 +858,7 @@ export default function ProgramaTabla() {
             onSeleccionar={seleccionar}
             onDuracion={cambiarDuracion}
             onInicio={cambiarInicio}
+            onTermino={cambiarTermino}
             contenedorRef={refTabla}
             onScroll={(top) => desplazar('tabla', top)}
           />
@@ -897,7 +909,6 @@ export default function ProgramaTabla() {
               filas={visibles}
               eje={eje}
               bandas={bandas}
-              saltos={saltos}
               ligas={ligas}
               vista={vista}
               criticas={ruta.criticas}

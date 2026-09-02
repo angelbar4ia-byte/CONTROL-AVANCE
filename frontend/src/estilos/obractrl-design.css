@@ -2213,14 +2213,22 @@ a { color: inherit; text-decoration: none; }
   justify-content: center;
   padding: 0 3px;
 }
-/* La costura del calendario: entre dos días del programa pasaron días
-   que nadie trabaja. No es una banda ancha porque esos días **no
-   existen** en el eje — el eje sólo camina días hábiles (§7.5). */
-.prog-gantt__inhabil {
+/* Las columnas que no se trabajan. El eje camina días de CALENDARIO, así
+   que el sábado y el domingo ocupan su sitio en el lienzo y lo que hace
+   falta es distinguirlos —antes se marcaba con una línea el punto de la
+   costura, porque esos días no existían en el eje (§7.5). */
+/* La celda del encabezado de un día que no se trabaja: la letra se apaga y
+   el número simplemente no está. Se atenúa en vez de esconderse porque la
+   columna sí ocupa su sitio, y de eso se trata. */
+.prog-gantt__bloque.is-descanso {
+  color: var(--c-text-faint);
+  background: var(--c-bg);
+}
+
+.prog-gantt__descanso {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 4px;
   pointer-events: none;
   background: repeating-linear-gradient(
     45deg,
