@@ -367,11 +367,18 @@ a { color: inherit; text-decoration: none; }
   background: var(--c-bg);
   min-width: 0;
 }
+/* El área de trabajo ocupa el ancho que haya.
+   Antes tenía `max-width: 1600px`, que en un monitor de 34" (3440 px) dejaba
+   la mitad de la pantalla vacía. Este sistema es de tablas anchas —el Gantt,
+   el catálogo, los insumos por semana— y ahí cada píxel es una columna más
+   que se ve sin correr la barra; el límite de medida legible solo aplica al
+   texto corrido, y ese se acota por elemento (`.page__subtitle`). */
 .page {
   padding: 20px 28px 56px;
-  max-width: 1600px;
-  margin: 0 auto;
 }
+/* Lo que sí es prosa se queda en una medida legible: un subtítulo de 3000 px
+   se lee peor que uno de 90 caracteres, por mucha pantalla que haya. */
+.page__subtitle { max-width: 96ch; }
 .page__header {
   display: flex; align-items: flex-end; justify-content: space-between;
   gap: 20px;
@@ -1803,7 +1810,14 @@ a { color: inherit; text-decoration: none; }
 }
 .prog-split__lado {
   overflow: auto;
-  height: var(--prog-alto, 560px);
+  /* Crece con la ventana en vez de quedarse en 560 px fijos: en un monitor
+     grande sobraba media pantalla debajo del Gantt y había que correr la
+     tabla para ver renglones que cabían de sobra. El piso es para que en una
+     laptop de 13" siga entrando algo más que el encabezado, y el techo para
+     que un renglón no quede a un palmo de su barra en una pantalla vertical.
+     El `72vh` descuenta a ojo el encabezado de la página y la cinta de
+     herramientas, que juntos ocupan un tercio largo del alto. */
+  height: var(--prog-alto, clamp(420px, 72vh, 1100px));
   /* La barra horizontal de cada mitad queda pegada abajo; sin esto el
      encabezado pegajoso se despega al correr a los lados. */
   position: relative;
