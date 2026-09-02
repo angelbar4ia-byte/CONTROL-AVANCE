@@ -90,6 +90,23 @@ def _exigir_positivo(valor: Decimal, campo: str) -> Decimal:
     return valor
 
 
+def _exigir_plazo(valor: int | None) -> int | None:
+    """Plazo de entrega en días (§10.1, migración 0044).
+
+    `None` se conserva: es "no se ha capturado", que no es lo mismo que cero
+    —llega el mismo día—. Confundirlos haría que un insumo sin capturar
+    ignorara la anticipación global en vez de heredarla.
+    """
+    if valor is None:
+        return None
+    if valor < 0:
+        raise ErrorDeCatalogo(
+            f"El plazo de entrega no puede ser negativo: {valor}. Pedir un "
+            f"insumo despues de usarlo no es un plazo (§10.1)."
+        )
+    return int(valor)
+
+
 def resolver_iva(*, iva_familia: bool, override_insumo: bool | None) -> bool:
     """IVA efectivo de un insumo (§3.5).
 
@@ -229,6 +246,11 @@ class Insumo:
     costo_base: Decimal = Decimal(0)
     iva_aplica: bool | None = None
     factor_conversion: Decimal = Decimal(1)
+    dias_entrega: int | None = None
+    """Plazo de entrega: con cuánta anticipación hay que pedirlo para tenerlo
+    cuando el cronograma lo pide (§7.3, migración 0044). `None` = no se ha
+    capturado y manda la anticipación global de quien consulta; cero es un
+    dato —llega el mismo día—, no un hueco."""
 
     @classmethod
     def crear(
@@ -242,6 +264,7 @@ class Insumo:
         costo_base: Decimal = Decimal(0),
         iva_aplica: bool | None = None,
         factor_conversion: Decimal = Decimal(1),
+        dias_entrega: int | None = None,
     ) -> Insumo:
         try:
             tipo_canonico = TipoInsumo(tipo)
@@ -261,6 +284,7 @@ class Insumo:
             costo_base=_exigir_no_negativo(costo_base, "costo_base"),
             iva_aplica=iva_aplica,
             factor_conversion=_exigir_positivo(factor_conversion, "factor_conversion"),
+            dias_entrega=_exigir_plazo(dias_entrega),
         )
 
     @property

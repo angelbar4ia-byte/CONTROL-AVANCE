@@ -96,6 +96,7 @@ class ComandoCrearInsumo:
     costo_base: Decimal = Decimal(0)
     iva_aplica: bool | None = None
     factor_conversion: Decimal = Decimal(1)
+    dias_entrega: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -298,6 +299,7 @@ class CrearInsumo:
             costo_base=cmd.costo_base,
             iva_aplica=cmd.iva_aplica,
             factor_conversion=cmd.factor_conversion,
+            dias_entrega=cmd.dias_entrega,
         )
         async with self._uow:
             insumo_id = await self._insumos.crear(
@@ -312,6 +314,10 @@ class CrearInsumo:
                     # significa "hereda de la familia" (§3.5), no "sin dato".
                     "iva_aplica": insumo.iva_aplica,
                     "factor_conversion": insumo.factor_conversion,
+                    # Igual que `iva_aplica`: el `None` significa "no
+                    # capturado", y ahi manda la anticipacion global de quien
+                    # consulta (0044).
+                    "dias_entrega": insumo.dias_entrega,
                 }
             )
             await self._uow.commit()
