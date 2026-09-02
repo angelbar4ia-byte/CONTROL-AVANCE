@@ -45,6 +45,9 @@ import { useSesion } from '@/app/sesion';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { fmtEntero } from '@/lib/formato';
 import { SelectorObra } from '@/lib/SelectorObra';
+import { useEncolarReporteApiV1ReportesTipoPost } from '@/api/generado/reportes/reportes';
+import type { TrabajoRespuesta } from '@/api/generado/modelo';
+import { SeguimientoDeReporte } from '@/reportes/SeguimientoDeReporte';
 import { TablaInsumos } from './TablaInsumos';
 import {
   TIPOS_INSUMO,
@@ -71,6 +74,21 @@ export default function InsumosProgramados() {
     filtroInicial(rol, new Date()),
   );
   const [abiertos, setAbiertos] = useState<ReadonlySet<string>>(new Set());
+  const [reporteId, setReporteId] = useState<string | null>(null);
+  const [errorReporte, setErrorReporte] = useState<string | null>(null);
+
+  // El `.xlsx` lo arma el mismo caso de uso que la tabla, en el worker: si el
+  // archivo lo generara la pantalla, el papel y la vista dirían números
+  // distintos en cuanto uno de los dos cambiara (§11.2).
+  const encolar = useEncolarReporteApiV1ReportesTipoPost<ErrorApi>({
+    mutation: {
+      onSuccess: (trabajo) => {
+        setErrorReporte(null);
+        setReporteId((trabajo as TrabajoRespuesta).id);
+      },
+      onError: (err) => setErrorReporte(err.message),
+    },
+  });
 
   const listo = listoParaConsultar(filtro);
   const parametros = useMemo(() => parametrosDeConsulta(filtro), [filtro]);
@@ -130,9 +148,38 @@ export default function InsumosProgramados() {
             el programa y cambia esta tabla.
           </div>
         </div>
+        <div className="page__actions">
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={!listo || encolar.isPending}
+            title={
+              listo
+                ? 'Genera el archivo en segundo plano'
+                : 'Elige primero el alcance y un rango válido'
+            }
+            onClick={() =>
+              encolar.mutate({
+                tipo: 'insumos-programados',
+                data: parametros as never,
+              })
+            }
+          >
+            {encolar.isPending ? 'Encolando…' : 'Generar Excel'}
+          </button>
+        </div>
       </div>
 
       {consulta.error && <ErrorBanner mensaje={consulta.error.message} />}
+      {errorReporte && <ErrorBanner mensaje={errorReporte} />}
+
+      {reporteId && (
+        <SeguimientoDeReporte
+          reporteId={reporteId}
+          titulo="Insumos programados"
+          onCerrar={() => setReporteId(null)}
+        />
+      )}
 
       <div className="filterbar">
         <div className="field">

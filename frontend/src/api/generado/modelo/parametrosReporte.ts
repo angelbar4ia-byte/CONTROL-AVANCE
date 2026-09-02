@@ -9,6 +9,14 @@ import type { ParametrosReporteObraId } from './parametrosReporteObraId';
 import type { ParametrosReporteEstimacionId } from './parametrosReporteEstimacionId';
 import type { ParametrosReporteProyectoId } from './parametrosReporteProyectoId';
 import type { ParametrosReporteClusterId } from './parametrosReporteClusterId';
+import type { ParametrosReporteDesde } from './parametrosReporteDesde';
+import type { ParametrosReporteHasta } from './parametrosReporteHasta';
+import type { ParametrosReporteGranularidad } from './parametrosReporteGranularidad';
+import type { ParametrosReporteResidenteId } from './parametrosReporteResidenteId';
+import type { ParametrosReporteSupervisorId } from './parametrosReporteSupervisorId';
+import type { ParametrosReportePrototipoId } from './parametrosReportePrototipoId';
+import type { ParametrosReporteNCasas } from './parametrosReporteNCasas';
+import type { ParametrosReporteDiasAnticipacion } from './parametrosReporteDiasAnticipacion';
 
 /**
  * Lo que puede necesitar un reporte del catálogo.
@@ -32,4 +40,20 @@ export interface ParametrosReporte {
   proyecto_id?: ParametrosReporteProyectoId;
   /** Acota `avance` a un cluster visible. */
   cluster_id?: ParametrosReporteClusterId;
+  /** Primer día del rango. Obligatorio para insumos. */
+  desde?: ParametrosReporteDesde;
+  /** Último día del rango. Obligatorio para insumos. */
+  hasta?: ParametrosReporteHasta;
+  /** Una columna por semana o por mes; por default, semana. */
+  granularidad?: ParametrosReporteGranularidad;
+  /** Acota a las obras de un residente (§4). */
+  residente_id?: ParametrosReporteResidenteId;
+  /** Acota a las obras de los residentes de un supervisor. */
+  supervisor_id?: ParametrosReporteSupervisorId;
+  /** Simula sobre el programa base y el presupuesto del prototipo. */
+  prototipo_id?: ParametrosReportePrototipoId;
+  /** Cuántas casas simular; solo con `prototipo_id`. */
+  n_casas?: ParametrosReporteNCasas;
+  /** Con cuántos días de anticipación se necesita el material. */
+  dias_anticipacion?: ParametrosReporteDiasAnticipacion;
 }

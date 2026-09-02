@@ -13337,6 +13337,110 @@
             ],
             "title": "Cluster Id",
             "description": "Acota `avance` a un cluster visible."
+          },
+          "desde": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desde",
+            "description": "Primer día del rango. Obligatorio para insumos."
+          },
+          "hasta": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hasta",
+            "description": "Último día del rango. Obligatorio para insumos."
+          },
+          "granularidad": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(semana|mes)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Granularidad",
+            "description": "Una columna por semana o por mes; por default, semana."
+          },
+          "residente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residente Id",
+            "description": "Acota a las obras de un residente (§4)."
+          },
+          "supervisor_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supervisor Id",
+            "description": "Acota a las obras de los residentes de un supervisor."
+          },
+          "prototipo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Id",
+            "description": "Simula sobre el programa base y el presupuesto del prototipo."
+          },
+          "n_casas": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Casas",
+            "description": "Cuántas casas simular; solo con `prototipo_id`."
+          },
+          "dias_anticipacion": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Anticipacion",
+            "description": "Con cuántos días de anticipación se necesita el material."
           }
         },
         "type": "object",
