@@ -41,7 +41,7 @@ import {
   previsualizar,
   type ClaseArrastre,
 } from './arrastre';
-import type { BandasEje, SaltoDeCalendario } from './bandasPrograma';
+import { LETRA_DIA, type BandasEje } from './bandasPrograma';
 import { clasesDeBarra, etiquetaDeBarra, tituloDeBarra } from './barras';
 import {
   comoPolilinea,
@@ -52,7 +52,8 @@ import {
 import {
   ALTO_ENCABEZADO,
   ALTO_FILA,
-  anchoDeDias,
+  anchoDeColumnas,
+  anchoEntre,
   xDeDia,
   type EjePrograma,
 } from './ejePrograma';
@@ -80,7 +81,6 @@ interface Props {
   /** Las dos bandas del encabezado y el paso de la rejilla. */
   readonly bandas: BandasEje;
   /** Costuras del calendario, para el fondo "bandas inhábiles". */
-  readonly saltos: readonly SaltoDeCalendario[];
   /** Precedencias entre renglones dibujados; ver `conectores.ts`. */
   readonly ligas: readonly EntradaConector[];
   readonly vista: VistaGantt;
@@ -103,7 +103,6 @@ export function GanttPrograma({
   filas,
   eje,
   bandas,
-  saltos,
   ligas,
   vista,
   criticas,
@@ -193,8 +192,8 @@ export function GanttPrograma({
             {bandas.superior.map((banda) => (
               <div
                 key={`sup-${banda.dia}`}
-                className={`prog-gantt__bloque${banda.esHoy ? ' is-now' : ''}`}
-                style={{ width: anchoDeDias(eje, banda.dias) }}
+                className={`prog-gantt__bloque${banda.esHoy ? ' is-now' : ''}${banda.laborable === false ? ' is-descanso' : ''}`}
+                style={{ width: anchoDeColumnas(eje, banda.dias) }}
                 title={banda.titulo}
               >
                 {banda.etiqueta}
@@ -205,13 +204,13 @@ export function GanttPrograma({
             {bandas.inferior.map((banda) => (
               <div
                 key={`inf-${banda.dia}`}
-                className={`prog-gantt__bloque${banda.esHoy ? ' is-now' : ''}`}
-                style={{ width: anchoDeDias(eje, banda.dias) }}
+                className={`prog-gantt__bloque${banda.esHoy ? ' is-now' : ''}${banda.laborable === false ? ' is-descanso' : ''}`}
+                style={{ width: anchoDeColumnas(eje, banda.dias) }}
                 title={banda.titulo}
               >
                 {/* A poco zoom no cabe ni un número de dos cifras: se deja la
                     celda muda antes que dibujar medio dígito recortado. */}
-                {anchoDeDias(eje, banda.dias) >= 18 ? banda.etiqueta : ''}
+                {anchoDeColumnas(eje, banda.dias) >= 18 ? banda.etiqueta : ''}
               </div>
             ))}
           </div>
@@ -233,15 +232,24 @@ export function GanttPrograma({
           {vista.fondoGantt === 'cuadricula' && (
             <div className="prog-gantt__rejilla" aria-hidden />
           )}
+          {/* Las columnas que no se trabajan se tiñen enteras. Antes se
+              marcaba con una línea el punto del salto, porque el fin de semana
+              no ocupaba lugar en el lienzo; ahora ocupa el suyo y lo que hace
+              falta es distinguirlo, no señalarlo. */}
           {vista.fondoGantt === 'inhabiles' &&
-            saltos.map((salto) => (
-              <div
-                key={`salto-${salto.dia}`}
-                className="prog-gantt__inhabil"
-                style={{ left: xDeDia(eje, salto.dia + 1) - 2 }}
-                title={`${salto.diasSaltados} día(s) de calendario que no se trabajan`}
-              />
-            ))}
+            eje.columnas
+              .filter((columna) => columna.diaHabil === null)
+              .map((columna) => (
+                <div
+                  key={`descanso-${columna.columna}`}
+                  className="prog-gantt__descanso"
+                  style={{
+                    left: columna.columna * eje.pxPorDia,
+                    width: eje.pxPorDia,
+                  }}
+                  title={`${LETRA_DIA[columna.diaSemana - 1]} — no se trabaja`}
+                />
+              ))}
           {xHoy !== null && (
             <div className="prog-gantt__hoy" style={{ left: xHoy }} aria-hidden title="Hoy" />
           )}
@@ -359,17 +367,34 @@ function Barra({
     arrastre === null ? puesto : previsualizar(puesto, arrastre.clase, arrastre.deltaDias);
 
   const izquierda = xDeDia(eje, ventana.inicioDias);
-  const ancho = Math.max(2, anchoDeDias(eje, ventana.finDias - ventana.inicioDias));
+  // El ancho va de extremo a extremo y no es la duración por el zoom: cinco
+  // días de trabajo ocupan siete columnas si les cae un fin de semana en medio.
+  const ancho = Math.max(2, anchoEntre(eje, ventana.inicioDias, ventana.finDias));
   const altoBarra = vista.estiloBarra === 'delgada' ? ALTO_BARRA_DELGADA : ALTO_BARRA;
   const arriba = (ALTO_FILA - (fila.esResumen ? ALTO_CORCHETE : altoBarra)) / 2;
 
   if (fila.esResumen) {
     return (
       <>
+        {/* El corchete se arrastra y se lleva el bloque entero
+            (`gestos.desplazarBloque`). No tiene asa de borde: estirar un
+            resumen no es una operación —su ancho lo ponen sus hijos. */}
         <div
           className={`prog-gantt__corchete${esCritica && vista.rutaCritica ? ' is-critica' : ''}`}
-          style={{ left: izquierda, width: ancho, top: arriba, height: ALTO_CORCHETE }}
+          style={{
+            left: izquierda,
+            width: ancho,
+            top: arriba,
+            height: ALTO_CORCHETE,
+            cursor: editable ? 'grab' : undefined,
+          }}
           title={tituloDeBarra(fila, eje, esCritica)}
+          onClick={() => onSeleccionar(fila.nodoId)}
+          onPointerDown={(evento) => {
+            if (!editable) return;
+            evento.currentTarget.setPointerCapture(evento.pointerId);
+            onEmpezar('mover', evento.clientX);
+          }}
         />
         <span className="prog-gantt__pata" style={{ left: izquierda, top: arriba + ALTO_CORCHETE }} />
         <span
@@ -390,7 +415,7 @@ function Barra({
     return (
       <div
         className="prog-gantt__barra prog-gantt__barra--propuesta"
-        style={{ left: izquierda, width: anchoDeDias(eje, 1), top: arriba, height: altoBarra }}
+        style={{ left: izquierda, width: anchoEntre(eje, ventana.inicioDias, ventana.inicioDias + 1), top: arriba, height: altoBarra }}
         title="Sin duración capturada: este renglón no entra al programa (§7.5)"
       />
     );
@@ -416,8 +441,12 @@ function Barra({
               key={`pausa-${tramo.offsetDias}`}
               className="prog-gantt__pausa"
               style={{
-                left: izquierda + anchoDeDias(eje, desde),
-                width: anchoDeDias(eje, siguiente.offsetDias - desde),
+                left: izquierda + anchoEntre(eje, ventana.inicioDias, ventana.inicioDias + desde),
+                width: anchoEntre(
+                  eje,
+                  ventana.inicioDias + desde,
+                  ventana.inicioDias + siguiente.offsetDias,
+                ),
                 top: arriba + altoBarra / 2,
               }}
               aria-hidden
@@ -427,8 +456,16 @@ function Barra({
 
       {bloques.map((tramo, i) => {
         const esUltimo = i === bloques.length - 1;
-        const x = izquierda + anchoDeDias(eje, tramo.offsetDias);
-        const w = Math.max(2, anchoDeDias(eje, tramo.duracionDias));
+        const x =
+          izquierda + anchoEntre(eje, ventana.inicioDias, ventana.inicioDias + tramo.offsetDias);
+        const w = Math.max(
+          2,
+          anchoEntre(
+            eje,
+            ventana.inicioDias + tramo.offsetDias,
+            ventana.inicioDias + tramo.offsetDias + tramo.duracionDias,
+          ),
+        );
         return (
           <div
             key={`tramo-${tramo.offsetDias}`}
@@ -473,7 +510,7 @@ function Barra({
           className="prog-gantt__holgura"
           style={{
             left: izquierda + ancho,
-            width: anchoDeDias(eje, fila.holguraDias),
+            width: anchoEntre(eje, ventana.finDias, ventana.finDias + fila.holguraDias),
             top: arriba + altoBarra / 2,
           }}
           aria-hidden

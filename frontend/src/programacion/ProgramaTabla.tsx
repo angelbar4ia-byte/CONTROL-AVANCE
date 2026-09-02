@@ -82,7 +82,7 @@ import { ErrorBanner } from '@/lib/ErrorBanner';
 import { fmtNum } from '@/lib/formato';
 import { useDensidad } from '@/shell/SelectorDensidad';
 import { resolverArrastre, empezarArrastre, type ClaseArrastre } from './arrastre';
-import { construirBandas, saltosDeCalendario, zoomParaAjustar } from './bandasPrograma';
+import { construirBandas, zoomParaAjustar } from './bandasPrograma';
 import { tonosDeFrente } from './barras';
 import {
   BarraHerramientasGantt,
@@ -300,6 +300,14 @@ export default function ProgramaTabla() {
     [borrador, colocado, partidas, enCiclo],
   );
 
+  // Qué renglones dibujan un corchete en vez de una barra. Se deriva del
+  // aplanado y no del árbol: un nivel cuyos conceptos nadie capturó todavía es
+  // una actividad normal, no un resumen (§7.4).
+  const esResumen = useMemo(
+    () => new Set(todas.filter((fila) => fila.esResumen).map((fila) => fila.nodoId)),
+    [todas],
+  );
+
   // El colapso de entrada se siembra con la profundidad de captura, una sola
   // vez y cuando ya hay filas **y** ya se sabe la profundidad: sembrarlo en
   // cada cambio volvería a plegar lo que el usuario acabara de abrir, y
@@ -332,11 +340,6 @@ export default function ProgramaTabla() {
   );
 
   const bandas = useMemo(() => construirBandas(eje, vista.escala), [eje, vista.escala]);
-  const saltos = useMemo(
-    () => (vista.fondoGantt === 'inhabiles' ? saltosDeCalendario(eje) : []),
-    [eje, vista.fondoGantt],
-  );
-
   // La ruta crítica se traza sobre el árbol **completo** y no sobre lo visible:
   // una etapa colapsada tiene que poder decir que la cadena pasa por dentro.
   const ruta = useMemo(
@@ -425,6 +428,10 @@ export default function ProgramaTabla() {
       return;
     }
     setRechazo(null);
+    // Un gesto aceptado y vacío —confirmar el valor que ya estaba— no ensucia
+    // el borrador: marcarlo "sin guardar" por teclear dos veces lo mismo
+    // obligaría a guardar una versión que no cambia nada (§7.5).
+    if (gesto.acciones.length === 0) return;
     setHistorial((previo) =>
       previo === null ? previo : despacharVarias(previo, gesto.acciones),
     );
@@ -443,6 +450,18 @@ export default function ProgramaTabla() {
           ? gestos.desclavar(borrador, nodoId)
           : gestos.noIniciarAntesDe(borrador, colocado, nodoId, dia),
       );
+    },
+    [borrador, colocado, aplicarGesto],
+  );
+
+  /**
+   * Fija el día en que la actividad cierra. Se traduce a duración, que es lo
+   * que el contrato guarda; en un resumen eso hereda hacia abajo.
+   */
+  const cambiarTermino = useCallback(
+    (nodoId: string, dia: number) => {
+      if (!borrador) return;
+      aplicarGesto(gestos.fijarTermino(borrador, colocado, nodoId, dia));
     },
     [borrador, colocado, aplicarGesto],
   );
@@ -486,6 +505,16 @@ export default function ProgramaTabla() {
       if (!borrador) return;
       const caja = borrador.cajas.find((c) => c.id === cajaId);
       if (!caja) return;
+
+      // Un nivel o una etapa no tienen ventana propia que mover: lo que se
+      // arrastra es el bloque, y eso es otro gesto (`desplazarBloque`). Se
+      // reconoce por tener hijos capturados, que es lo que hace que su barra
+      // sea un corchete y no una actividad.
+      if (esResumen.has(cajaId)) {
+        aplicarGesto(gestos.desplazarBloque(borrador, colocado, cajaId, deltaDias));
+        return;
+      }
+
       const inicio = empezarArrastre(caja, colocado, clase, 0);
       const resultado = resolverArrastre(borrador, inicio, deltaDias);
       if (resultado.ok) {
@@ -495,7 +524,7 @@ export default function ProgramaTabla() {
       }
       if (resultado.motivo !== null) setRechazo(resultado.motivo);
     },
-    [borrador, colocado, despacha],
+    [borrador, colocado, despacha, esResumen, aplicarGesto],
   );
 
   // --- Scroll sincronizado (`sincronia.ts`) --------------------------------
@@ -847,6 +876,7 @@ export default function ProgramaTabla() {
             onSeleccionar={seleccionar}
             onDuracion={cambiarDuracion}
             onInicio={cambiarInicio}
+            onTermino={cambiarTermino}
             contenedorRef={refTabla}
             onScroll={(top) => desplazar('tabla', top)}
           />
@@ -897,7 +927,6 @@ export default function ProgramaTabla() {
               filas={visibles}
               eje={eje}
               bandas={bandas}
-              saltos={saltos}
               ligas={ligas}
               vista={vista}
               criticas={ruta.criticas}

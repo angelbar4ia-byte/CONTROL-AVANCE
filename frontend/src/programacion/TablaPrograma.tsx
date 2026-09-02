@@ -79,6 +79,7 @@ interface Props {
   readonly onSeleccionar: (nodoId: string) => void;
   readonly onDuracion: (nodoId: string, dias: number | null) => void;
   readonly onInicio: (nodoId: string, dia: number | null) => void;
+  readonly onTermino: (nodoId: string, dia: number) => void;
   /** Contenedor de scroll: lo comparte con el Gantt (`sincronia.ts`). */
   readonly contenedorRef: React.RefObject<HTMLDivElement>;
   readonly onScroll: (scrollTop: number) => void;
@@ -99,6 +100,7 @@ export function TablaPrograma({
   onSeleccionar,
   onDuracion,
   onInicio,
+  onTermino,
   contenedorRef,
   onScroll,
 }: Props) {
@@ -176,6 +178,7 @@ export function TablaPrograma({
                 onSeleccionar={onSeleccionar}
                 onDuracion={onDuracion}
                 onInicio={onInicio}
+                onTermino={onTermino}
               />
             );
           })}
@@ -229,6 +232,7 @@ function Renglon({
   onSeleccionar,
   onDuracion,
   onInicio,
+  onTermino,
 }: {
   readonly fila: FilaPrograma;
   readonly eje: EjePrograma;
@@ -247,6 +251,7 @@ function Renglon({
   readonly onSeleccionar: (nodoId: string) => void;
   readonly onDuracion: (nodoId: string, dias: number | null) => void;
   readonly onInicio: (nodoId: string, dia: number | null) => void;
+  readonly onTermino: (nodoId: string, dia: number) => void;
 }) {
   const tinte = `prog-tabla__fila--p${Math.min(3, fila.profundidad)}`;
   const clases = [
@@ -294,6 +299,7 @@ function Renglon({
           onAlternar={onAlternar}
           onDuracion={onDuracion}
           onInicio={onInicio}
+          onTermino={onTermino}
         />
       ))}
     </div>
@@ -320,6 +326,7 @@ function Celda({
   onAlternar,
   onDuracion,
   onInicio,
+  onTermino,
 }: {
   readonly clave: string;
   readonly estilo: React.CSSProperties | undefined;
@@ -332,6 +339,7 @@ function Celda({
   readonly onAlternar: (nodoId: string) => void;
   readonly onDuracion: (nodoId: string, dias: number | null) => void;
   readonly onInicio: (nodoId: string, dia: number | null) => void;
+  readonly onTermino: (nodoId: string, dia: number) => void;
 }) {
   const base = `prog-tabla__celda${congelada ? ' is-congelada' : ''}`;
 
@@ -439,7 +447,7 @@ function Celda({
     case 'laborables':
       return (
         <div className={`${base} mono tnum text-xs`} role="gridcell" style={estilo}>
-          {fila.esResumen || !editable ? (
+          {!editable ? (
             fila.diasLaborables === null ? (
               ''
             ) : (
@@ -464,7 +472,7 @@ function Celda({
     case 'inicio':
       return (
         <div className={`${base} mono text-xs`} role="gridcell" style={estilo}>
-          {fila.esResumen || !editable || fila.inicioDias === null ? (
+          {!editable || fila.inicioDias === null ? (
             fila.inicioDias === null ? (
               ''
             ) : (
@@ -479,10 +487,21 @@ function Celda({
     // El cierre se rotula con el **último día trabajado**, no con el día en
     // que la ventana termina: una actividad que arranca el día 1 y dura tres
     // cierra el día 3, no el 4.
+    // El término también se captura: se traduce a duración (`fijarTermino`), y
+    // en un resumen eso hereda hacia abajo igual que capturarle los días — es
+    // la misma operación dicha de otra manera.
     case 'termino':
       return (
         <div className={`${base} mono text-xs`} role="gridcell" style={estilo}>
-          {fila.finDias === null ? '' : etiquetaDeDia(eje, Math.max(0, fila.finDias - 1))}
+          {!editable || fila.finDias === null ? (
+            fila.finDias === null ? (
+              ''
+            ) : (
+              etiquetaDeDia(eje, Math.max(0, fila.finDias - 1))
+            )
+          ) : (
+            <CeldaTermino fila={fila} eje={eje} onTermino={onTermino} />
+          )}
         </div>
       );
 
@@ -572,6 +591,55 @@ function CeldaInicio({
         defaultValue={anclada ? (fila.anclaDias ?? 0) + 1 : ''}
         placeholder={String((fila.inicioDias ?? 0) + 1)}
         aria-label={`Día de arranque de ${fila.descripcion}`}
+        onBlur={(evento) => confirmar(evento.currentTarget.value)}
+        onKeyDown={(evento) => {
+          if (evento.key === 'Enter') evento.currentTarget.blur();
+        }}
+      />
+    </label>
+  );
+}
+
+/**
+ * El día en que la actividad **cierra**, capturable.
+ *
+ * Se teclea el último día trabajado —una actividad que arranca el día 1 y dura
+ * tres cierra el día 3, no el 4—, que es lo mismo que rotula la columna. El
+ * gesto lo traduce a duración, porque es lo que el contrato guarda (§7.5).
+ */
+function CeldaTermino({
+  fila,
+  eje,
+  onTermino,
+}: {
+  readonly fila: FilaPrograma;
+  readonly eje: EjePrograma;
+  readonly onTermino: (nodoId: string, dia: number) => void;
+}) {
+  const ultimo = fila.finDias === null ? null : Math.max(0, fila.finDias - 1);
+
+  function confirmar(texto: string): void {
+    const limpio = texto.trim();
+    if (limpio === '') return;
+    const numero = Number(limpio);
+    if (!Number.isFinite(numero)) return;
+    // La columna cuenta desde el Día 1 y el modelo desde el 0.
+    onTermino(fila.nodoId, Math.max(0, Math.round(numero) - 1));
+  }
+
+  return (
+    <label
+      className="cell-edit"
+      onClick={(evento) => evento.stopPropagation()}
+      title={`Cierra el ${etiquetaDeDia(eje, ultimo)}. Teclea otro día para estirar o acortar la actividad.`}
+    >
+      <input
+        key={ultimo ?? 'vacio'}
+        type="number"
+        min={1}
+        step={1}
+        defaultValue={ultimo === null ? '' : ultimo + 1}
+        aria-label={`Día de término de ${fila.descripcion}`}
         onBlur={(evento) => confirmar(evento.currentTarget.value)}
         onKeyDown={(evento) => {
           if (evento.key === 'Enter') evento.currentTarget.blur();

@@ -45,7 +45,6 @@ import {
   acercarZoom,
   alejarZoom,
   construirBandas,
-  saltosDeCalendario,
   zoomParaAjustar,
 } from '@/programacion/bandasPrograma';
 import { clasesDeBarra, etiquetaDeBarra, tonosDeFrente } from '@/programacion/barras';
@@ -314,6 +313,25 @@ describe('desplazar una actividad (§7.5)', () => {
     expect(gestos.desclavar(BORRADOR, 'c2').ok).toBe(false);
   });
 
+  it('teclear el mismo día otra vez no es un error', () => {
+    // Confirmar el valor que ya estaba se rechazaba con un aviso rojo, que se
+    // lee como que el campo dejó de funcionar. Ahora se acepta sin acciones.
+    const clavada = aplicarGesto(
+      BORRADOR,
+      gestos.noIniciarAntesDe(BORRADOR, colocado, 'c2', 9),
+    );
+    const otraVez = gestos.noIniciarAntesDe(clavada, colocar(clavada), 'c2', 9);
+    expect(otraVez.ok).toBe(true);
+    expect(otraVez.ok && otraVez.acciones).toEqual([]);
+    // Y no gasta paso de deshacer.
+    expect(despacharVarias(historialInicial(clavada), []).pasado).toHaveLength(0);
+  });
+
+  it('aplazar cero tampoco', () => {
+    const gesto = gestos.aplazar(BORRADOR, colocado, 'c1', 0);
+    expect(gesto.ok && gesto.acciones).toEqual([]);
+  });
+
   it('fijar el término se traduce a duración contando el último día trabajado', () => {
     // c1 arranca el día 0 y se le pide cerrar el día 5 (0-based): son 6 días,
     // no 5. Es la misma cuenta que rotula la columna Término.
@@ -433,6 +451,47 @@ describe('herencia de duraciones (§7.4)', () => {
     const despues = aplicarGesto(gruesa, gestos.fijarDuracion(gruesa, 'e1', null));
     expect(cajaDe(despues, 'e1').duracionDias).toBeNull();
     expect(cajaDe(despues, 'c1').duracionDias).toBe(4);
+  });
+
+  it('arrastrar un nivel mueve el bloque anclando solo su entrada', () => {
+    // c1 no depende de nadie; c2 sigue a c1 y c3 a c2. Mover el nivel clava
+    // **solo** c1: los otros dos se recorren por su precedencia, y así alargar
+    // c1 después sigue empujando a c2.
+    const gesto = gestos.desplazarBloque(BORRADOR, colocar(BORRADOR), 'n1', 5);
+    expect(gesto.ok && gesto.acciones).toEqual([
+      { tipo: 'inicio', cajaId: 'c1', inicioDias: 5 },
+    ]);
+
+    const movido = aplicarGesto(BORRADOR, gesto);
+    const puestos = colocar(movido);
+    expect(puestos.get('c1')?.inicioDias).toBe(5);
+    // El encadenado interno se conserva: c2 arranca al cerrar c1 (5 + 4).
+    expect(puestos.get('c2')?.inicioDias).toBe(9);
+    expect(puestos.get('c3')?.inicioDias).toBe(12);
+    expect(cajaDe(movido, 'c2').inicioDias).toBeNull();
+  });
+
+  it('una caja detenida desde fuera del bloque también es entrada', () => {
+    // Si a c2 la detiene algo que no se mueve, no se movería sola: hay que
+    // clavarla igual que a la primera de la cadena.
+    const suelto = armar([item('c1', 4), item('c2', 3)]);
+    const gesto = gestos.desplazarBloque(suelto, colocar(suelto), 'e1', 3);
+    expect(gesto.ok && gesto.acciones).toEqual([
+      { tipo: 'inicio', cajaId: 'c1', inicioDias: 3 },
+      { tipo: 'inicio', cajaId: 'c2', inicioDias: 3 },
+    ]);
+  });
+
+  it('adelantar el bloque más allá del día 1 se rechaza', () => {
+    const gesto = gestos.desplazarBloque(BORRADOR, colocar(BORRADOR), 'n1', -4);
+    expect(gesto.ok).toBe(false);
+    if (!gesto.ok) expect(gesto.motivo).toMatch(/antes del día 1/);
+  });
+
+  it('un renglón sin nada capturado debajo no se puede arrastrar', () => {
+    const vacio = armar([]);
+    const gesto = gestos.desplazarBloque(vacio, colocar(vacio), 'n1', 3);
+    expect(gesto.ok).toBe(false);
   });
 
   it('sigue sin capturarse la duración de una actividad partida (§7.6)', () => {
@@ -649,8 +708,12 @@ describe('escalas del eje (§7.5)', () => {
     const dias = construirBandas(eje, 'dias');
     expect(dias.diasPorPeriodo).toBe(1);
     expect(dias.inferior).toHaveLength(eje.dias);
-    // Arriba, semanas: siete días cada una.
-    expect(dias.superior[0]).toMatchObject({ dia: 0, dias: 7 });
+    // Arriba, las iniciales del día: es lo que deja ver dónde cae el fin de
+    // semana. La semana no se pierde — la marca cada `L`.
+    expect(dias.superior).toHaveLength(eje.dias);
+    expect(dias.superior.slice(0, 7).map((b) => b.etiqueta)).toEqual([
+      'L', 'M', 'M', 'J', 'V', 'S', 'D',
+    ]);
 
     const semanas = construirBandas(eje, 'semanas');
     expect(semanas.diasPorPeriodo).toBe(7);
@@ -692,18 +755,26 @@ describe('escalas del eje (§7.5)', () => {
     expect(bandas.inferior.every((banda) => banda.dias <= bandas.diasPorPeriodo)).toBe(true);
   });
 
-  it('los saltos de calendario sólo existen con fechas', () => {
-    expect(saltosDeCalendario(eje)).toEqual([]);
-
+  it('el fin de semana ocupa su columna, en blanco', () => {
+    // Antes el hueco se señalaba con una línea porque el sábado y el domingo no
+    // existían en el lienzo. Ahora ocupan su sitio y lo que hay que ver es que
+    // no llevan número: son el `1 2 3 4 5 · · 6` de una semana de lunes a
+    // viernes.
     const laboral = construirEje({
       finMaximo: 12,
       modo: 'fechas',
-      inicio: '2026-03-02',
+      inicio: '2026-03-02', // lunes
       diasHabiles: [1, 2, 3, 4, 5],
     });
-    const saltos = saltosDeCalendario(laboral);
-    // Lunes a viernes: la costura cae después del quinto día y salta dos.
-    expect(saltos[0]).toEqual({ dia: 4, diasSaltados: 2 });
+    const dias = construirBandas(laboral, 'dias').inferior;
+
+    expect(dias.slice(0, 7).map((b) => b.laborable)).toEqual([
+      true, true, true, true, true, false, false,
+    ]);
+    expect(dias[5]?.etiqueta).toBe('');
+    expect(dias[6]?.etiqueta).toBe('');
+    // Y el lunes siguiente retoma la cuenta donde se quedó.
+    expect(dias[7]?.laborable).toBe(true);
   });
 
   it('acercar y alejar caminan por escalones, y ajustar produce un valor libre', () => {

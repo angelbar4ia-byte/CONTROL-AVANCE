@@ -66,8 +66,13 @@ import {
 /**
  * Lo que produce una herramienta: las acciones a despachar, o la explicación.
  *
- * No hay un tercer caso "no pasó nada y da igual": si el usuario pulsó un botón
- * y el programa no cambió, hay algo que contarle.
+ * Un gesto **aceptado y vacío** es el tercer caso, y es deliberado: teclear en
+ * un campo el mismo número que ya tenía es confirmar, no equivocarse.
+ * Rechazarlo pintaba un aviso rojo que se leía como que el campo dejó de
+ * funcionar. `despacharVarias` con una lista vacía no gasta paso de deshacer.
+ *
+ * Un rechazo se reserva para lo que hay que contarle a alguien: una duración
+ * que no es positiva, un ciclo, un término antes del arranque.
  */
 export type Gesto =
   | { readonly ok: true; readonly acciones: readonly Accion[] }
@@ -114,7 +119,10 @@ export function aplazar(
   if (!esRenglon(caja)) {
     return no('La actividad no tiene duración capturada: todavía no está en el programa (§7.5).');
   }
-  if (dias === 0) return no('Aplazar cero días no cambia nada.');
+  // Aplazar cero es teclear el mismo número otra vez. No es un error: es un
+  // gesto que no cambia nada, y responderlo con un aviso rojo se lee como que
+  // el campo dejó de funcionar.
+  if (dias === 0) return si();
 
   const atadura = caja.inicioDias === null ? ataduraDe(caja, colocado) : null;
   if (atadura !== null) {
@@ -170,11 +178,72 @@ export function noIniciarAntesDe(
   }
   if (dia < 0) return no('Nada puede arrancar antes del día 1 (§7.5).');
 
+  // Reclavarla en el día en que ya está no es un error; es confirmar. Se
+  // acepta sin acciones para que el campo se pueda teclear las veces que haga
+  // falta sin que aparezca un aviso.
   const puesto = colocado.get(cajaId);
-  if (caja.inicioDias === dia && puesto?.inicioDias === dia) {
-    return no(`La actividad ya arranca el día ${dia + 1}.`);
-  }
+  if (caja.inicioDias === dia && puesto?.inicioDias === dia) return si();
   return si({ tipo: 'inicio', cajaId, inicioDias: dia });
+}
+
+/**
+ * Corre un nivel o una etapa `dias` días, y con él todo lo que cuelga.
+ *
+ * ## Solo se clava la entrada del bloque
+ *
+ * Un nivel con veinte conceptos encadenados no necesita veinte anclas: basta
+ * mover **las entradas** —las cajas que no dependen de nadie de dentro— y las
+ * demás se recorren solas por su precedencia. Así el encadenado interno se
+ * conserva: alargar un concepto sigue empujando al siguiente, que es lo que se
+ * perdería si cada uno quedara clavado en su día.
+ *
+ * Una caja cuya atadura apunta **fuera** del bloque también es entrada: la
+ * detiene algo que no se está moviendo, así que si no se clava, no se mueve.
+ *
+ * El resumen no se estira: su ancho lo ponen sus hijos, y no hay ninguna cifra
+ * propia que cambiar.
+ */
+export function desplazarBloque(
+  borrador: Borrador,
+  colocado: ReadonlyMap<string, Colocacion>,
+  nodoId: string,
+  dias: number,
+): Gesto {
+  if (dias === 0) return si();
+
+  const { hijos } = indexarArbol(borrador.cajas);
+  const dentro = new Set(descendientesDe(hijos, nodoId));
+  if (dentro.size === 0) return no('Este renglón no tiene nada debajo que mover.');
+
+  const porId = new Map(borrador.cajas.map((caja) => [caja.id, caja]));
+  const acciones: Accion[] = [];
+
+  for (const id of dentro) {
+    const caja = porId.get(id);
+    if (!caja || !esRenglon(caja)) continue;
+
+    const atadura = ataduraDe(caja, colocado);
+    const laDetieneAlguienDeDentro = atadura !== null && dentro.has(atadura.desde);
+    if (laDetieneAlguienDeDentro) continue;
+
+    const desde = caja.inicioDias ?? colocado.get(id)?.inicioDias ?? 0;
+    const inicioDias = redondear(desde + dias);
+    if (inicioDias < 0) {
+      return no(
+        `Adelantar el bloque ${-dias} días lo sacaría del programa: nada puede ` +
+          'empezar antes del día 1 (§7.5).',
+      );
+    }
+    acciones.push({ tipo: 'inicio', cajaId: id, inicioDias });
+  }
+
+  if (acciones.length === 0) {
+    return no(
+      'No hay de dónde agarrar este bloque: todo lo que cuelga de él espera a ' +
+        'algo de dentro. Mueve la primera actividad de la cadena.',
+    );
+  }
+  return si(...acciones);
 }
 
 /** Suelta el ancla: la actividad vuelve a colocarse donde manda el grafo. */

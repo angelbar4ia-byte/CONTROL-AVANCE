@@ -210,11 +210,12 @@ describe('la cinta de herramientas', () => {
     expect(screen.getByText(/Elige un renglón de la tabla/)).toBeInTheDocument();
   });
 
-  it('sobre un resumen no se programa: se dice y no se deja', () => {
-    // La barra de un nivel o una etapa es derivada de sus hijos (§7.4).
+  it('sobre un resumen sí se programa, y se dice que baja a sus conceptos', () => {
+    // Desde la herencia jerárquica capturar en un nivel significa algo:
+    // reparte su ventana hacia abajo. Antes la cinta entera quedaba muerta.
     pintarCinta({ ...SELECCION, esResumen: true });
-    expect(screen.getByRole('button', { name: /Dividir/ })).toBeDisabled();
-    expect(screen.getByText(/es un resumen/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Duración')).toBeEnabled();
+    expect(screen.getByText(/baja a sus conceptos/)).toBeInTheDocument();
   });
 
   it('interrumpir y unir tramos sólo se ofrecen sobre una actividad partida', () => {
