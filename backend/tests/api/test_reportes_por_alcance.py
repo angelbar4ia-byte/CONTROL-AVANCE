@@ -19,7 +19,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 from fastapi.testclient import TestClient
@@ -30,6 +30,7 @@ from obractrl.adapters.export.catalogo import CATALOGO
 from obractrl.adapters.export.trabajos import (
     EXPEDIENTE_PDF,
     EXPORTAR_ESTIMACION_XLSX,
+    INSUMOS_PROGRAMADOS_XLSX,
     REPORTE_DE_AVANCE_XLSX,
 )
 from obractrl.domain.shared.diccionario import Rol
@@ -139,6 +140,59 @@ class TestAvance:
 
         _, argumentos = cola.encolados[0]
         assert "obra_id" not in argumentos
+
+
+class TestInsumosProgramados:
+    """§7.3, §7.5 — la hoja con la que se compra."""
+
+    _RANGO: ClassVar[dict[str, str]] = {"desde": "2026-09-07", "hasta": "2026-11-30"}
+
+    def test_cualquier_rol_la_pide_y_el_alcance_viaja_como_contexto(
+        self, residente: TestClient, cola: _ColaFalsa
+    ) -> None:
+        # Un residente necesita la hoja de su obra tanto como Control la de
+        # todas; quién ve qué lo decide RLS, no la guarda de la ruta.
+        respuesta = residente.post(
+            "/api/v1/reportes/insumos-programados", json=self._RANGO
+        )
+
+        assert respuesta.status_code == 202
+        trabajo, argumentos = cola.encolados[0]
+        assert trabajo == INSUMOS_PROGRAMADOS_XLSX
+        assert argumentos["rol"] == Rol.RESIDENTE.value
+        assert argumentos["desde"] == "2026-09-07"
+
+    def test_sin_rango_no_se_encola(self, residente: TestClient) -> None:
+        # Sin fechas no hay columnas, y elegirlas por el usuario sería adivinar
+        # su horizonte de compra. Se rechaza antes de gastar un viaje al worker.
+        respuesta = residente.post("/api/v1/reportes/insumos-programados", json={})
+        assert respuesta.status_code == 422
+
+    def test_los_filtros_de_foco_viajan(
+        self, control: TestClient, cola: _ColaFalsa
+    ) -> None:
+        prototipo = str(uuid.uuid4())
+        control.post(
+            "/api/v1/reportes/insumos-programados",
+            json={**self._RANGO, "prototipo_id": prototipo, "n_casas": 40},
+        )
+
+        _, argumentos = cola.encolados[0]
+        assert argumentos["prototipo_id"] == prototipo
+        assert argumentos["n_casas"] == 40
+
+    def test_no_le_pasa_al_worker_lo_que_no_entiende(
+        self, residente: TestClient, cola: _ColaFalsa
+    ) -> None:
+        # `estimacion_id` es de otro reporte; mandárselo sería un `TypeError`
+        # dentro del worker y un reporte `fallido` sin explicación.
+        residente.post(
+            "/api/v1/reportes/insumos-programados",
+            json={**self._RANGO, "estimacion_id": str(uuid.uuid4())},
+        )
+
+        _, argumentos = cola.encolados[0]
+        assert "estimacion_id" not in argumentos
 
 
 class TestGuardas:

@@ -5543,6 +5543,217 @@
         }
       }
     },
+    "/api/v1/insumos-programados": {
+      "get": {
+        "tags": [
+          "insumos"
+        ],
+        "summary": "Qué insumos pide el programa, y cuándo",
+        "description": "Insumos que el programa pide, por periodo (§7.3, §7.5).\n\nTodos los roles, cada uno con su alcance (§4): RLS decide qué obras entran\ny los importes solo viajan a Control de obra y Super intendente.",
+        "operationId": "insumos_programados__api_v1_insumos_programados_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "desde",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primer día del rango.",
+              "title": "Desde"
+            },
+            "description": "Primer día del rango."
+          },
+          {
+            "name": "hasta",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último día del rango.",
+              "title": "Hasta"
+            },
+            "description": "Último día del rango."
+          },
+          {
+            "name": "granularidad",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(semana|mes)$",
+              "description": "Una columna por semana o por mes (§3.1).",
+              "default": "semana",
+              "title": "Granularidad"
+            },
+            "description": "Una columna por semana o por mes (§3.1)."
+          },
+          {
+            "name": "obra_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Acota a una obra.",
+              "title": "Obra Id"
+            },
+            "description": "Acota a una obra."
+          },
+          {
+            "name": "residente_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Obras de un residente (§4).",
+              "title": "Residente Id"
+            },
+            "description": "Obras de un residente (§4)."
+          },
+          {
+            "name": "supervisor_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Obras de los residentes de un supervisor (§4).",
+              "title": "Supervisor Id"
+            },
+            "description": "Obras de los residentes de un supervisor (§4)."
+          },
+          {
+            "name": "prototipo_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Simulación: en vez del cronograma real, el programa base y el presupuesto vigentes de este prototipo (§7.5).",
+              "title": "Prototipo Id"
+            },
+            "description": "Simulación: en vez del cronograma real, el programa base y el presupuesto vigentes de este prototipo (§7.5)."
+          },
+          {
+            "name": "n_casas",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Cuántas casas simular. Solo con `prototipo_id`.",
+              "default": 1,
+              "title": "N Casas"
+            },
+            "description": "Cuántas casas simular. Solo con `prototipo_id`."
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TipoInsumo"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra por tipo de insumo; vacío los trae los cuatro.",
+              "title": "Tipo"
+            },
+            "description": "Filtra por tipo de insumo; vacío los trae los cuatro."
+          },
+          {
+            "name": "dias_anticipacion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Con cuántos días de anticipación se necesita el material. Lo pisa el `dias_entrega` del insumo cuando está capturado.",
+              "default": 0,
+              "title": "Dias Anticipacion"
+            },
+            "description": "Con cuántos días de anticipación se necesita el material. Lo pisa el `dias_entrega` del insumo cuando está capturado."
+          },
+          {
+            "name": "tipo_semana",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TipoSemana",
+              "default": "ordinaria"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsumosProgramadosRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El rango cae en años sin calendario generado, o el prototipo no tiene programa base y presupuesto vigentes (§3.1, §7.5)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/evaluaciones": {
       "post": {
         "tags": [
@@ -9727,6 +9938,19 @@
             ],
             "title": "Factor Conversion",
             "default": "1"
+          },
+          "dias_entrega": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Entrega",
+            "description": "Plazo de entrega en dias: con cuanta anticipacion hay que pedirlo para tenerlo cuando el cronograma lo pide (§10.1). Vacio = usa la anticipacion global de quien consulta; cero = llega el mismo dia."
           }
         },
         "type": "object",
@@ -9808,6 +10032,19 @@
             ],
             "title": "Factor Conversion",
             "default": "1"
+          },
+          "dias_entrega": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Entrega",
+            "description": "Plazo de entrega en dias: con cuanta anticipacion hay que pedirlo para tenerlo cuando el cronograma lo pide (§10.1). Vacio = usa la anticipacion global de quien consulta; cero = llega el mismo dia."
           }
         },
         "type": "object",
@@ -11523,6 +11760,104 @@
         ],
         "title": "FamiliaRespuesta"
       },
+      "FilaDeInsumoRespuesta": {
+        "properties": {
+          "insumo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Insumo Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "dias_entrega": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Entrega",
+            "description": "Plazo capturado del insumo (§10.1). Vacío = se usó la anticipación global de la consulta."
+          },
+          "cantidades": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Cantidades",
+            "description": "Una por periodo, en el mismo orden que `periodos`."
+          },
+          "total": {
+            "type": "number",
+            "title": "Total"
+          },
+          "importe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importe",
+            "description": "Solo para Control de obra y Super intendente. Nulo no es cero: cero diría que el insumo es gratis."
+          },
+          "ya_surtido": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ya Surtido",
+            "description": "Lo que ya salió del almacén para estas obras (§10.5). No es una existencia: no hay inventario todavía."
+          },
+          "desglose": {
+            "items": {
+              "$ref": "#/components/schemas/RepartoRespuesta"
+            },
+            "type": "array",
+            "title": "Desglose"
+          }
+        },
+        "type": "object",
+        "required": [
+          "insumo_id",
+          "clave",
+          "descripcion",
+          "unidad",
+          "tipo",
+          "cantidades",
+          "total"
+        ],
+        "title": "FilaDeInsumoRespuesta"
+      },
       "FrenteRespuesta": {
         "properties": {
           "id": {
@@ -11910,6 +12245,17 @@
             ],
             "title": "Rendimiento Teorico"
           },
+          "dias_entrega": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Entrega"
+          },
           "estatus": {
             "type": "string",
             "title": "Estatus",
@@ -11924,6 +12270,47 @@
           "descripcion"
         ],
         "title": "InsumoRespuesta"
+      },
+      "InsumosProgramadosRespuesta": {
+        "properties": {
+          "periodos": {
+            "items": {
+              "$ref": "#/components/schemas/PeriodoRespuesta"
+            },
+            "type": "array",
+            "title": "Periodos"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/FilaDeInsumoRespuesta"
+            },
+            "type": "array",
+            "title": "Filas"
+          },
+          "sin_programar": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sin Programar",
+            "description": "Actividades sin ventana: la obra se generó pero no se ha calendarizado (`POST /obras/{id}/programa`). No es un error."
+          },
+          "sin_explosion": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sin Explosion",
+            "description": "Actividades sin concepto —extra-catálogo (§7.6)— o cuyo APU no se pudo explotar. No tienen insumos que derivar."
+          }
+        },
+        "type": "object",
+        "required": [
+          "periodos",
+          "filas"
+        ],
+        "title": "InsumosProgramadosRespuesta",
+        "description": "La matriz completa, más lo que quedó fuera y por qué."
       },
       "ItemProgramaBasePeticion": {
         "properties": {
@@ -12950,6 +13337,110 @@
             ],
             "title": "Cluster Id",
             "description": "Acota `avance` a un cluster visible."
+          },
+          "desde": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desde",
+            "description": "Primer día del rango. Obligatorio para insumos."
+          },
+          "hasta": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hasta",
+            "description": "Último día del rango. Obligatorio para insumos."
+          },
+          "granularidad": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(semana|mes)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Granularidad",
+            "description": "Una columna por semana o por mes; por default, semana."
+          },
+          "residente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residente Id",
+            "description": "Acota a las obras de un residente (§4)."
+          },
+          "supervisor_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supervisor Id",
+            "description": "Acota a las obras de los residentes de un supervisor."
+          },
+          "prototipo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Id",
+            "description": "Simula sobre el programa base y el presupuesto del prototipo."
+          },
+          "n_casas": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Casas",
+            "description": "Cuántas casas simular; solo con `prototipo_id`."
+          },
+          "dias_anticipacion": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Anticipacion",
+            "description": "Con cuántos días de anticipación se necesita el material."
           }
         },
         "type": "object",
@@ -13326,6 +13817,38 @@
         ],
         "title": "PerfilRespuesta",
         "description": "Perfil, rol y alcance del usuario del token (§11.2 `GET /me`)."
+      },
+      "PeriodoRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "desde": {
+            "type": "string",
+            "format": "date",
+            "title": "Desde"
+          },
+          "hasta": {
+            "type": "string",
+            "format": "date",
+            "title": "Hasta",
+            "description": "Exclusivo: es el día siguiente al último del periodo."
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "desde",
+          "hasta",
+          "etiqueta"
+        ],
+        "title": "PeriodoRespuesta",
+        "description": "Una columna de la tabla."
       },
       "PrecioUnitarioRespuesta": {
         "properties": {
@@ -14535,6 +15058,30 @@
         "title": "RendimientoPorCuadrillaRespuesta",
         "description": "Lo que produjo cada cuadrilla (§5.1).\n\nSin contraparte presupuestada: el presupuesto es por concepto y no reparte\nel trabajo entre cuadrillas. Lo comparable es su `rendimiento` de catálogo."
       },
+      "RepartoRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "title": "Obra Id"
+          },
+          "concepto_clave": {
+            "type": "string",
+            "title": "Concepto Clave"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "concepto_clave",
+          "cantidad"
+        ],
+        "title": "RepartoRespuesta",
+        "description": "De dónde salió una parte del renglón (§7.3)."
+      },
       "ReplicaDeProgramaRespuesta": {
         "properties": {
           "programa_base_id": {
@@ -15463,6 +16010,14 @@
           "subcontrato"
         ],
         "title": "TipoInsumo"
+      },
+      "TipoSemana": {
+        "type": "string",
+        "enum": [
+          "ordinaria",
+          "obra"
+        ],
+        "title": "TipoSemana"
       },
       "TrabajoRespuesta": {
         "properties": {

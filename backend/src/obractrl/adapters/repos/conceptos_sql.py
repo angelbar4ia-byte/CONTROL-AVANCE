@@ -18,6 +18,7 @@ dominio lo recorre.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -61,8 +62,14 @@ absurdo— es el dominio, con un error legible.
 
 _ALCANCE = f"""
     with recursive alcance as (
-        select cast(:id as uuid) as concepto_id,
-               array[cast(:id as uuid)] as camino
+        -- Se siembra desde un ARREGLO y no desde un id suelto: explotar los
+        -- ~150 conceptos de una obra uno por uno serían 150 recorridos
+        -- recursivos, y los auxiliares compartidos se recorrerían una vez por
+        -- padre. Con varias raíces el motor los visita una sola vez, y el
+        -- resultado ya viene agrupado por `concepto_clave`, que es como el
+        -- dominio lo indexa.
+        select raiz as concepto_id, array[raiz] as camino
+        from unnest(cast(:ids as uuid[])) as raiz
         union all
         select e.concepto_hijo_id, a.camino || e.concepto_hijo_id
         from explosion e
@@ -195,7 +202,20 @@ class RepositorioConceptosSQL:
         return [dict(fila) for fila in filas]
 
     async def composicion_recursiva(self, concepto_id: UUID) -> list[dict[str, Any]]:
-        """Filas de `Explosion` de todo concepto alcanzable desde la raíz (§7.3).
+        """La composición de UN concepto. Ver `composicion_recursiva_de`."""
+        return await self.composicion_recursiva_de([concepto_id])
+
+    async def composicion_recursiva_de(
+        self, ids: Sequence[UUID]
+    ) -> list[dict[str, Any]]:
+        """Filas de `Explosion` de todo concepto alcanzable desde las raíces (§7.3).
+
+        Recibe **varias** raíces de una vez porque quien las necesita en lote
+        —los insumos programados de una obra— tendría que hacer una consulta
+        por concepto, cada una con su propio recorrido recursivo, y los
+        auxiliares que comparten se recorrerían una vez por padre. El
+        resultado ya viene agrupado por `concepto_clave`, así que el dominio
+        explota N conceptos sobre un solo mapa de composiciones.
 
         Las claves vienen resueltas porque el dominio explota por CLAVE
         (§3.3). ``costo_insumo_vigente`` es el costo del catálogo
@@ -236,7 +256,7 @@ class RepositorioConceptosSQL:
                     order by padre.clave, e.orden, e.id
                     """
                 ),
-                {"id": str(concepto_id)},
+                {"ids": [str(cid) for cid in ids]},
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]

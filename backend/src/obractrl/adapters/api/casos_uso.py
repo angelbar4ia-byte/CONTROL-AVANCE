@@ -72,6 +72,9 @@ from obractrl.application.casos_uso.calcular_cpu import (
     PublicarVersionCPU,
 )
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
+from obractrl.application.casos_uso.consultar_insumos_programados import (
+    ConsultarInsumosProgramados,
+)
 from obractrl.application.casos_uso.dar_de_alta_extra import DarDeAltaExtra
 from obractrl.application.casos_uso.exportar_estimacion import (
     ArmarReporteDeEstimacion,
@@ -195,6 +198,7 @@ __all__ = [
     "ConsultarCargaDep",
     "ConsultarCierreDeObraDep",
     "ConsultarExpedienteDep",
+    "ConsultarInsumosProgramadosDep",
     "ConsultarRutaCriticaDep",
     "CrearClusterDep",
     "CrearConceptoDep",
@@ -704,6 +708,30 @@ ExplotarConceptoDep = Annotated[ExplotarConcepto, Depends(obtener_explotar_conce
 ObtenerCPUDep = Annotated[ObtenerCPU, Depends(obtener_cpu)]
 PublicarVersionCPUDep = Annotated[
     PublicarVersionCPU, Depends(obtener_publicar_version_cpu)
+]
+
+
+# --- Insumos programados (§11.2) -----------------------------------------
+
+
+def obtener_consultar_insumos_programados(
+    sesion: SesionRLS,
+) -> ConsultarInsumosProgramados:
+    return ConsultarInsumosProgramados(
+        actividades=RepositorioActividadesSQL(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        insumos=RepositorioInsumosSQL(sesion),
+        unidades=RepositorioUnidadesSQL(sesion),
+        calendario=RepositorioCalendarioSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        presupuestos=RepositorioPresupuestosSQL(sesion),
+        materiales=RepositorioMaterialesSQL(sesion),
+        nodos=RepositorioPrototipoNodoSQL(sesion),
+    )
+
+
+ConsultarInsumosProgramadosDep = Annotated[
+    ConsultarInsumosProgramados, Depends(obtener_consultar_insumos_programados)
 ]
 
 

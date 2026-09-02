@@ -31,6 +31,7 @@ es subirlo y devolver la clave, sin tocar ni el router ni el caso de uso.
 from __future__ import annotations
 
 import logging
+from datetime import date
 from typing import Any, Final
 from uuid import UUID
 
@@ -48,20 +49,37 @@ from obractrl.adapters.export.xlsx_avance import (
     avance_a_xlsx,
     nombre_de_archivo_avance,
 )
+from obractrl.adapters.export.xlsx_insumos import (
+    insumos_a_xlsx,
+    nombre_de_archivo_insumos,
+)
+from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
+from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
+from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
 from obractrl.adapters.repos.expediente_sql import RepositorioExpedienteSQL
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
+from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
+from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
+from obractrl.adapters.repos.presupuestos_sql import RepositorioPresupuestosSQL
+from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
 from obractrl.adapters.repos.revisiones_sql import RepositorioRevisionesSQL
 from obractrl.adapters.repos.torre_sql import RepositorioTorreSQL
+from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
 from obractrl.application.casos_uso.armar_reporte_de_avance import (
     ArmarReporteDeAvance,
+)
+from obractrl.application.casos_uso.consultar_insumos_programados import (
+    ComandoInsumosProgramados,
+    ConsultarInsumosProgramados,
 )
 from obractrl.application.casos_uso.exportar_estimacion import (
     ArmarReporteDeEstimacion,
 )
 from obractrl.application.casos_uso.gestionar_expediente import ArmarExpediente
+from obractrl.domain.shared.diccionario import Rol
 from obractrl.infrastructure.db.sesion import ContextoSesion, sesion_con_rls
 
 __all__ = [
@@ -79,6 +97,7 @@ _log = logging.getLogger(__name__)
 EXPORTAR_ESTIMACION_XLSX: Final = "exportar_estimacion_xlsx"
 EXPEDIENTE_PDF: Final = "generar_expediente_pdf"
 REPORTE_DE_AVANCE_XLSX: Final = "reporte_de_avance_xlsx"
+INSUMOS_PROGRAMADOS_XLSX: Final = "insumos_programados_xlsx"
 """Nombres con los que se encola y con los que el worker resuelve la función.
 Son constantes y no literales sueltos porque los comparten dos procesos: un
 typo aquí es un trabajo que se encola y nunca corre."""
@@ -204,7 +223,86 @@ async def reporte_de_avance_xlsx(
     )
 
 
-FUNCIONES = (exportar_estimacion_xlsx, generar_expediente_pdf, reporte_de_avance_xlsx)
+async def insumos_programados_xlsx(
+    _ctx: dict[str, Any],
+    *,
+    org_id: str,
+    usuario_id: str,
+    rol: str,
+    desde: str,
+    hasta: str,
+    granularidad: str = "semana",
+    obra_id: str | None = None,
+    residente_id: str | None = None,
+    supervisor_id: str | None = None,
+    prototipo_id: str | None = None,
+    n_casas: int = 1,
+    dias_anticipacion: int = 0,
+) -> dict[str, Any]:
+    """§11.2 `POST /reportes/insumos-programados` — qué comprar y cuándo.
+
+    La hoja que se manda al proveedor. Como el de avance, no cuelga de una
+    entidad: lo que sale depende de quién lo pidió, y funciona porque el
+    contexto RLS viaja en el payload y se vuelve a fijar aquí.
+
+    **El rol decide si el archivo trae dinero**, con el mismo criterio que el
+    endpoint: cantidades para los cuatro, importes solo para Control de obra y
+    el Super intendente. Un residente que baja su hoja obtiene exactamente lo
+    que ve en pantalla — si aquí fuera distinto, el reporte sería el rodeo para
+    saltarse la guarda de la ruta.
+    """
+    ctx = _contexto(org_id=org_id, usuario_id=usuario_id, rol=rol)
+    con_importe = rol in {Rol.CONTROL_OBRA.value, Rol.SUPER_INTENDENTE.value}
+
+    async with sesion_con_rls(ctx) as sesion:
+        caso_uso = ConsultarInsumosProgramados(
+            actividades=RepositorioActividadesSQL(sesion),
+            conceptos=RepositorioConceptosSQL(sesion),
+            insumos=RepositorioInsumosSQL(sesion),
+            unidades=RepositorioUnidadesSQL(sesion),
+            calendario=RepositorioCalendarioSQL(sesion),
+            obras=RepositorioObrasSQL(sesion),
+            presupuestos=RepositorioPresupuestosSQL(sesion),
+            materiales=RepositorioMaterialesSQL(sesion),
+            nodos=RepositorioPrototipoNodoSQL(sesion),
+        )
+        resultado = await caso_uso.ejecutar(
+            ComandoInsumosProgramados(
+                desde=date.fromisoformat(desde),
+                hasta=date.fromisoformat(hasta),
+                granularidad=granularidad,
+                obra_id=UUID(obra_id) if obra_id else None,
+                residente_id=UUID(residente_id) if residente_id else None,
+                supervisor_id=UUID(supervisor_id) if supervisor_id else None,
+                prototipo_id=UUID(prototipo_id) if prototipo_id else None,
+                n_casas=n_casas,
+                dias_anticipacion=dias_anticipacion,
+                con_importe=con_importe,
+            )
+        )
+
+    hoy = date.today()
+    _log.info(
+        "Insumos programados para el rol %s: %d insumos en %d periodos.",
+        rol,
+        len(resultado.matriz.filas),
+        len(resultado.matriz.periodos),
+    )
+    return _archivo(
+        contenido=insumos_a_xlsx(
+            resultado, con_importe=con_importe, generado_en=hoy
+        ),
+        nombre=nombre_de_archivo_insumos(hoy),
+        content_type=CONTENT_TYPE_XLSX,
+    )
+
+
+FUNCIONES = (
+    exportar_estimacion_xlsx,
+    generar_expediente_pdf,
+    reporte_de_avance_xlsx,
+    insumos_programados_xlsx,
+)
 """Lo que el worker registra (`obractrl/trabajador.py`). Arq resuelve cada
 trabajo por el `__name__` de la función, que es lo que
 `EXPORTAR_ESTIMACION_XLSX` y `EXPEDIENTE_PDF` deletrean."""

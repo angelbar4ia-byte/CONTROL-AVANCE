@@ -69,7 +69,7 @@ def _cantidad_de(fila: dict) -> Decimal:
     return Decimal(str(fila.get("rendimiento") or 0))
 
 
-def _componentes_por_clave(
+def componentes_por_clave(
     filas: Sequence[dict],
 ) -> tuple[dict[str, list[Componente]], dict[str, Decimal]]:
     """Traduce filas de `Explosion` al lenguaje del dominio (claves, §3.3)."""
@@ -174,7 +174,7 @@ class _ConCatalogoDeConceptos:
             )
 
         filas = await self._conceptos.composicion_recursiva(concepto_id)
-        composiciones, costos_insumo = _componentes_por_clave(filas)
+        composiciones, costos_insumo = componentes_por_clave(filas)
         calculada = explotar(
             str(concepto["clave"]),
             composiciones=composiciones,

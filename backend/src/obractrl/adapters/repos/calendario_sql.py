@@ -14,6 +14,7 @@ es exactamente el tipo de divergencia que ya costó una corrección en
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -83,6 +84,42 @@ class RepositorioCalendarioSQL:
                 f"{semana} de {anio}. Genera el calendario de ese año (§3.1)."
             )
         return fila.fecha_inicio, fila.fecha_fin
+
+    async def semanas_entre(
+        self, desde: date, hasta: date, tipo: TipoSemana
+    ) -> list[dict[str, Any]]:
+        """Las semanas que **tocan** el rango, en orden (§3.1).
+
+        Se pide un solape y no una contención: la semana que arranca antes de
+        `desde` y termina dentro sí es una columna de la tabla, y exigir que
+        cupiera entera dejaría fuera justo la del borde.
+
+        Trae `mes` porque la agrupación mensual sale de aquí y no de
+        `fecha.month`: una semana a caballo entre dos meses cae en el que la
+        organización decidió al generar su calendario, y calcularlo por la
+        fecha la pondría en uno u otro según de qué lado se mire.
+
+        Devuelve lista vacía si el año no está generado. **No levanta**
+        `CalendarioNoConfigurado`: aquí un rango sin calendario es una consulta
+        que no tiene columnas que enseñar, no una operación imposible — quien
+        llama lo reporta como "genera el calendario" y no como un 500.
+        """
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select semana, anio, fecha_inicio, fecha_fin, mes
+                      from calendario
+                     where tipo = :tipo
+                       and fecha_fin >= :desde
+                       and fecha_inicio <= :hasta
+                     order by anio, semana
+                    """
+                ),
+                {"tipo": tipo.value, "desde": desde, "hasta": hasta},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
 
     async def semana_activa(self, tipo: TipoSemana) -> tuple[int, int]:
         """Ancla fijada por el admin en Configuración (§3.1)."""

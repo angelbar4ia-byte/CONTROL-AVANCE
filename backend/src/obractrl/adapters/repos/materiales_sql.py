@@ -18,6 +18,8 @@ Postgres)—, pero tampoco acota por una sola obra. Por eso
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -133,6 +135,40 @@ class RepositorioMaterialesSQL:
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]
+
+    async def surtido_por_insumo(
+        self, *, obra_ids: Sequence[UUID]
+    ) -> dict[str, Decimal]:
+        """Cuánto ha **salido** del almacén de cada insumo, para esas obras.
+
+        Es la mitad real de los insumos programados: al lado de lo que el
+        cronograma pide, lo que ya se surtió. No es una existencia — no hay
+        tabla de inventario (§7.7, el módulo de almacén viene después)—, así
+        que contesta "¿cuánto se ha entregado?" y no "¿cuánto me queda?".
+
+        `abs(cantidad)` porque la columna trae signo (§10.5, "Efecto Qty") y
+        aquí lo que interesa es el movimiento, no su dirección. Es el mismo
+        criterio que usa la CTE `consumido` de `v_consumo_vs_presupuesto`.
+
+        Sin obras devuelve vacío en vez de barrer la organización: quien no
+        acotó no está pidiendo todo, está pidiendo nada.
+        """
+        if not obra_ids:
+            return {}
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select insumo_id, sum(abs(cantidad)) as surtido
+                      from salida_almacen
+                     where obra_id = any(cast(:obra_ids as uuid[]))
+                     group by insumo_id
+                    """
+                ),
+                {"obra_ids": [str(o) for o in obra_ids]},
+            )
+        ).mappings().all()
+        return {str(fila["insumo_id"]): Decimal(str(fila["surtido"])) for fila in filas}
 
     async def listar_salidas(self, obra_id: UUID | None = None) -> list[dict[str, Any]]:
         filas = (

@@ -442,6 +442,14 @@ class RepositorioObrasSQL:
         `descripcion`, `cant_base`, `precio_unitario`, `precio_destajo`,
         `modo_pago`, `duracion_dias`, `dependencias` y `tramos` (json ya
         serializados) y, opcionales, `frente_id`, `nivel_id` y `etapa_id`.
+
+        `cant_programada` nace igual a `cant_base`: una actividad se genera ya
+        **programada** —es su estatus inicial (§7.6)— y con la cantidad que el
+        presupuesto le dio. Dejarla en el default 0 la hacía nacer sin nada que
+        hacer, y todo lo que se deriva de la cantidad programada —los insumos
+        del cronograma, el tope `cant_ejecutada <= cant_programada`— salía en
+        cero hasta que alguien capturara un avance. Es el mismo criterio que
+        `actividades_sql.crear_extra` ya aplicaba a los extra-catálogo.
         """
         if not actividades:
             return
@@ -477,6 +485,7 @@ class RepositorioObrasSQL:
                     (org_id, obra_id, programa_obra_id, concepto_id,
                      prototipo_nodo_id, frente_id,
                      nivel_id, etapa_id, descripcion, cant_base,
+                     cant_programada,
                      precio_unitario, precio_destajo, modo_pago, duracion_dias,
                      dependencias, tramos, inicio_dias)
                 values
@@ -485,7 +494,7 @@ class RepositorioObrasSQL:
                      cast(:concepto_id as uuid),
                      cast(:prototipo_nodo_id as uuid), cast(:frente_id as uuid),
                      cast(:nivel_id as uuid), cast(:etapa_id as uuid),
-                     :descripcion, :cant_base, :precio_unitario,
+                     :descripcion, :cant_base, :cant_base, :precio_unitario,
                      :precio_destajo, cast(:modo_pago as modo_pago),
                      :duracion_dias, cast(:dependencias as jsonb),
                      cast(:tramos as jsonb), :inicio_dias)

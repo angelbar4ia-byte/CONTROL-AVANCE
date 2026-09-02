@@ -48,6 +48,7 @@ documento quedara más ortodoxo rompería el contrato que la web ya usa
 
 from __future__ import annotations
 
+from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -165,6 +166,37 @@ class ParametrosReporte(BaseModel):
         default=None, description="Acota `avance` a un cluster visible."
     )
 
+    # --- `insumos-programados` (§7.3, §7.5) ---
+    desde: date | None = Field(
+        default=None, description="Primer día del rango. Obligatorio para insumos."
+    )
+    hasta: date | None = Field(
+        default=None, description="Último día del rango. Obligatorio para insumos."
+    )
+    granularidad: str | None = Field(
+        default=None,
+        pattern="^(semana|mes)$",
+        description="Una columna por semana o por mes; por default, semana.",
+    )
+    residente_id: UUID | None = Field(
+        default=None, description="Acota a las obras de un residente (§4)."
+    )
+    supervisor_id: UUID | None = Field(
+        default=None, description="Acota a las obras de los residentes de un supervisor."
+    )
+    prototipo_id: UUID | None = Field(
+        default=None,
+        description="Simula sobre el programa base y el presupuesto del prototipo.",
+    )
+    n_casas: int | None = Field(
+        default=None, ge=1, description="Cuántas casas simular; solo con `prototipo_id`."
+    )
+    dias_anticipacion: int | None = Field(
+        default=None,
+        ge=0,
+        description="Con cuántos días de anticipación se necesita el material.",
+    )
+
 
 class TipoDeReporteRespuesta(BaseModel):
     """Un renglón del catálogo, para que el cliente arme su menú."""
@@ -263,7 +295,7 @@ async def encolar_reporte(
         # avance sería un `TypeError` dentro del worker, o sea un reporte
         # `fallido` sin explicación para quien lo pidió.
         **{
-            campo: str(valor)
+            campo: _a_payload(valor)
             for campo, valor in argumentos.items()
             if campo in _PARAMETROS_ACEPTADOS[tipo]
         },
@@ -271,10 +303,37 @@ async def encolar_reporte(
     return TrabajoRespuesta.desde(encolado)
 
 
+def _a_payload(valor: object) -> object:
+    """Deja el argumento listo para viajar a Redis como JSON.
+
+    `UUID` y `date` no son serializables y van como texto; **un número se
+    queda número**. Antes se convertía todo con `str()` porque todos los
+    parámetros eran ids, y el primero que no lo fue —`n_casas`— habría llegado
+    al worker como `"40"` para reventar al multiplicarlo por una cantidad. La
+    firma del trabajo dice `int` y esto es lo que la hace cierta.
+    """
+    if isinstance(valor, UUID | date):
+        return str(valor)
+    return valor
+
+
 _PARAMETROS_ACEPTADOS: dict[str, frozenset[str]] = {
     "avance": frozenset({"proyecto_id", "cluster_id"}),
     "estimacion": frozenset({"estimacion_id"}),
     "expediente": frozenset({"obra_id"}),
+    "insumos-programados": frozenset(
+        {
+            "desde",
+            "hasta",
+            "granularidad",
+            "obra_id",
+            "residente_id",
+            "supervisor_id",
+            "prototipo_id",
+            "n_casas",
+            "dias_anticipacion",
+        }
+    ),
 }
 """Qué argumentos acepta el job de cada tipo.
 

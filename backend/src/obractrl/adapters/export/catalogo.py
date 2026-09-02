@@ -38,6 +38,7 @@ from typing import Final
 from obractrl.adapters.export.trabajos import (
     EXPEDIENTE_PDF,
     EXPORTAR_ESTIMACION_XLSX,
+    INSUMOS_PROGRAMADOS_XLSX,
     REPORTE_DE_AVANCE_XLSX,
 )
 from obractrl.domain.shared.diccionario import Rol
@@ -96,6 +97,23 @@ CATALOGO: Final[dict[str, TipoDeReporte]] = {
         # guarda de la ruta específica.
         roles=(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE),
         requiere=("estimacion_id",),
+    ),
+    "insumos-programados": TipoDeReporte(
+        clave="insumos-programados",
+        trabajo=INSUMOS_PROGRAMADOS_XLSX,
+        descripcion=(
+            "Qué insumos pide el programa y en qué semana o mes, con lo que ya "
+            "salió del almacén (§7.3, §7.5)."
+        ),
+        formato="xlsx",
+        # Sin roles, como `avance`: un residente necesita la hoja de su obra
+        # tanto como Control la de todas, y RLS ya acota. Lo que sí cambia por
+        # rol es que el archivo traiga importes, y eso lo decide el trabajo.
+        roles=(),
+        # El rango es lo único sin default razonable: sin fechas no hay
+        # columnas, y elegirlas por el usuario sería adivinar su horizonte de
+        # compra.
+        requiere=("desde", "hasta"),
     ),
     "expediente": TipoDeReporte(
         clave="expediente",

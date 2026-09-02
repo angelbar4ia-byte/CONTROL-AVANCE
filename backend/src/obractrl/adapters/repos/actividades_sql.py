@@ -406,6 +406,84 @@ class RepositorioActividadesSQL:
         ).mappings().all()
         return [dict(fila) for fila in filas]
 
+    async def actividades_para_insumos(
+        self,
+        *,
+        obra_id: UUID | None = None,
+        residente_id: UUID | None = None,
+        supervisor_id: UUID | None = None,
+        desde: date | None = None,
+        hasta: date | None = None,
+    ) -> list[dict[str, Any]]:
+        """Lo que los insumos programados necesitan de cada actividad (§7.3, §7.5).
+
+        Trae la cantidad, la ventana del CPM, los tramos y la **clave** del
+        concepto —el dominio explota por clave (§3.3)—, para todas las
+        actividades del alcance.
+
+        **El alcance lo impone RLS** (`app.obra_visible`, migración 0042) y
+        estos parámetros solo enfocan: es la misma convención que
+        `obras_sql.listar` deja escrita —un rol que no ve la obra no la ve por
+        más que la pida, y el alcance no se puede ampliar desde aquí.
+
+        `residente_id` y `supervisor_id` bajan por los puentes de la 0042
+        (`residente_obra`, `supervisor_residente`) y no por la columna
+        `obra.residente_id`, que es solo la etiqueta del residente principal:
+        en una obra con dos residentes, filtrar por la columna dejaría fuera
+        al segundo.
+
+        La ventana se recorta por fecha con un solape, no por contención: una
+        actividad que arranca antes del rango y termina dentro sí aporta a las
+        semanas visibles, y exigir que quepa entera la dejaría fuera.
+        """
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select act.id, act.obra_id, act.concepto_id,
+                           con.clave as concepto_clave,
+                           coalesce(act.descripcion, con.descripcion)
+                                     as descripcion,
+                           act.cant_programada, act.cant_base,
+                           act.fecha_inicio, act.fecha_termino,
+                           act.tramos, act.estatus
+                      from actividad act
+                      left join concepto con on con.id = act.concepto_id
+                     where (cast(:obra_id as uuid) is null
+                            or act.obra_id = cast(:obra_id as uuid))
+                       and (cast(:residente_id as uuid) is null
+                            or exists (select 1 from residente_obra ro
+                                        where ro.obra_id = act.obra_id
+                                          and ro.residente_id
+                                              = cast(:residente_id as uuid)))
+                       and (cast(:supervisor_id as uuid) is null
+                            or exists (select 1
+                                         from supervisor_residente sr
+                                         join residente_obra ro
+                                           on ro.residente_id = sr.residente_id
+                                        where ro.obra_id = act.obra_id
+                                          and sr.supervisor_id
+                                              = cast(:supervisor_id as uuid)))
+                       and (cast(:desde as date) is null
+                            or act.fecha_termino is null
+                            or act.fecha_termino >= cast(:desde as date))
+                       and (cast(:hasta as date) is null
+                            or act.fecha_inicio is null
+                            or act.fecha_inicio <= cast(:hasta as date))
+                     order by act.obra_id, act.created_at, act.id
+                    """
+                ),
+                {
+                    "obra_id": str(obra_id) if obra_id else None,
+                    "residente_id": str(residente_id) if residente_id else None,
+                    "supervisor_id": str(supervisor_id) if supervisor_id else None,
+                    "desde": desde,
+                    "hasta": hasta,
+                },
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
     async def programacion_de(self, actividad_id: UUID) -> dict[str, Any] | None:
         """Programación de una actividad, con su `obra_id` (§11.2 `PATCH`).
 

@@ -34,7 +34,7 @@ _COLUMNAS = """
     id, tipo, clave, descripcion, unidad_id, familia_id,
     costo_base, costo_base_actualizado, costo_promedio_almacen, costo_ultimo,
     origen, iva_aplica, factor_conversion, estatus,
-    cuadrilla_id, rendimiento_teorico
+    cuadrilla_id, rendimiento_teorico, dias_entrega
 """
 
 _CAMPOS_EDITABLES: dict[str, str] = {
@@ -57,6 +57,7 @@ _CAMPOS_EDITABLES: dict[str, str] = {
     "rendimiento_teorico": (
         "rendimiento_teorico = cast(:rendimiento_teorico as numeric)"
     ),
+    "dias_entrega": "dias_entrega = cast(:dias_entrega as smallint)",
 }
 """Campos que una edición puede tocar. La `clave` no está: es la identidad
 del registro (§3.3). El diccionario es también la lista blanca que evita
@@ -83,7 +84,7 @@ class RepositorioInsumosSQL:
                     insert into insumo
                         (org_id, tipo, clave, descripcion, unidad_id, familia_id,
                          costo_base, iva_aplica, factor_conversion,
-                         cuadrilla_id, rendimiento_teorico)
+                         cuadrilla_id, rendimiento_teorico, dias_entrega)
                     values (cast(current_setting('app.org_id') as uuid),
                             cast(:tipo as tipo_insumo), :clave, :descripcion,
                             cast(:unidad_id as uuid), cast(:familia_id as uuid),
@@ -95,7 +96,8 @@ class RepositorioInsumosSQL:
                             cast(:iva_aplica as boolean),
                             coalesce(cast(:factor_conversion as numeric), 1),
                             cast(:cuadrilla_id as uuid),
-                            cast(:rendimiento_teorico as numeric))
+                            cast(:rendimiento_teorico as numeric),
+                            cast(:dias_entrega as smallint))
                     returning id
                     """
                 ),
@@ -116,6 +118,7 @@ class RepositorioInsumosSQL:
                         str(datos["cuadrilla_id"]) if datos.get("cuadrilla_id") else None
                     ),
                     "rendimiento_teorico": datos.get("rendimiento_teorico"),
+                    "dias_entrega": datos.get("dias_entrega"),
                 },
             )
         ).scalar_one()
@@ -139,7 +142,7 @@ class RepositorioInsumosSQL:
                     insert into insumo
                         (org_id, tipo, clave, descripcion, unidad_id, familia_id,
                          costo_base, iva_aplica, factor_conversion,
-                         cuadrilla_id, rendimiento_teorico)
+                         cuadrilla_id, rendimiento_teorico, dias_entrega)
                     values (cast(current_setting('app.org_id') as uuid),
                             cast(:tipo as tipo_insumo), :clave, :descripcion,
                             cast(:unidad_id as uuid), cast(:familia_id as uuid),
@@ -147,7 +150,8 @@ class RepositorioInsumosSQL:
                             cast(:iva_aplica as boolean),
                             coalesce(cast(:factor_conversion as numeric), 1),
                             cast(:cuadrilla_id as uuid),
-                            cast(:rendimiento_teorico as numeric))
+                            cast(:rendimiento_teorico as numeric),
+                            cast(:dias_entrega as smallint))
                     on conflict (org_id, clave) do update set clave = excluded.clave
                     returning id
                     """
@@ -169,6 +173,7 @@ class RepositorioInsumosSQL:
                         str(datos["cuadrilla_id"]) if datos.get("cuadrilla_id") else None
                     ),
                     "rendimiento_teorico": datos.get("rendimiento_teorico"),
+                    "dias_entrega": datos.get("dias_entrega"),
                 },
             )
         ).scalar_one()

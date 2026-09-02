@@ -278,6 +278,15 @@ class CrearInsumoPeticion(BaseModel):
         ),
     )
     factor_conversion: Decimal = Decimal(1)
+    dias_entrega: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Plazo de entrega en dias: con cuanta anticipacion hay que pedirlo "
+            "para tenerlo cuando el cronograma lo pide (§10.1). Vacio = usa la "
+            "anticipacion global de quien consulta; cero = llega el mismo dia."
+        ),
+    )
 
 
 class CrearMaterialPeticion(BaseModel):
@@ -290,6 +299,15 @@ class CrearMaterialPeticion(BaseModel):
     costo_base: Decimal = Decimal(0)
     iva_aplica: bool | None = None
     factor_conversion: Decimal = Decimal(1)
+    dias_entrega: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Plazo de entrega en dias: con cuanta anticipacion hay que pedirlo "
+            "para tenerlo cuando el cronograma lo pide (§10.1). Vacio = usa la "
+            "anticipacion global de quien consulta; cero = llega el mismo dia."
+        ),
+    )
 
 
 class InsumoRespuesta(BaseModel):
@@ -311,6 +329,9 @@ class InsumoRespuesta(BaseModel):
     rendimiento_teorico: Decimal | None = None
     """Del archivo de mano de obra (§10.6). El "real" se deriva de la
     duración real de la obra — no es dato que se cargue ni se exponga aquí."""
+    dias_entrega: int | None = None
+    """Plazo de entrega (§10.1, migración 0044). `null` = no capturado, y ahí
+    manda la anticipación global de quien consulta."""
     estatus: str = "activo"
 
     @classmethod
@@ -331,6 +352,7 @@ class InsumoRespuesta(BaseModel):
             factor_conversion=fila["factor_conversion"],
             cuadrilla_id=fila["cuadrilla_id"],
             rendimiento_teorico=fila["rendimiento_teorico"],
+            dias_entrega=fila["dias_entrega"],
             estatus=fila["estatus"],
         )
 
@@ -347,6 +369,7 @@ def _insumo_creado(creado: InsumoCreado) -> InsumoRespuesta:
         costo_base=creado.insumo.costo_base,
         iva_aplica=creado.insumo.iva_aplica,
         factor_conversion=creado.insumo.factor_conversion,
+        dias_entrega=creado.insumo.dias_entrega,
     )
 
 
@@ -394,6 +417,7 @@ async def crear_insumo(
                 costo_base=peticion.costo_base,
                 iva_aplica=peticion.iva_aplica,
                 factor_conversion=peticion.factor_conversion,
+                dias_entrega=peticion.dias_entrega,
             )
         )
     )
@@ -442,6 +466,7 @@ async def crear_material(
                 costo_base=peticion.costo_base,
                 iva_aplica=peticion.iva_aplica,
                 factor_conversion=peticion.factor_conversion,
+                dias_entrega=peticion.dias_entrega,
             )
         )
     )

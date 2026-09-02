@@ -14,6 +14,7 @@ import type { InsumoRespuestaCostoUltimo } from './insumoRespuestaCostoUltimo';
 import type { InsumoRespuestaIvaAplica } from './insumoRespuestaIvaAplica';
 import type { InsumoRespuestaCuadrillaId } from './insumoRespuestaCuadrillaId';
 import type { InsumoRespuestaRendimientoTeorico } from './insumoRespuestaRendimientoTeorico';
+import type { InsumoRespuestaDiasEntrega } from './insumoRespuestaDiasEntrega';
 
 export interface InsumoRespuesta {
   id: string;
@@ -33,5 +34,6 @@ export interface InsumoRespuesta {
   factor_conversion?: string;
   cuadrilla_id?: InsumoRespuestaCuadrillaId;
   rendimiento_teorico?: InsumoRespuestaRendimientoTeorico;
+  dias_entrega?: InsumoRespuestaDiasEntrega;
   estatus?: string;
 }
