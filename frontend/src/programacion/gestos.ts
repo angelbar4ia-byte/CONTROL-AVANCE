@@ -186,6 +186,66 @@ export function noIniciarAntesDe(
   return si({ tipo: 'inicio', cajaId, inicioDias: dia });
 }
 
+/**
+ * Corre un nivel o una etapa `dias` días, y con él todo lo que cuelga.
+ *
+ * ## Solo se clava la entrada del bloque
+ *
+ * Un nivel con veinte conceptos encadenados no necesita veinte anclas: basta
+ * mover **las entradas** —las cajas que no dependen de nadie de dentro— y las
+ * demás se recorren solas por su precedencia. Así el encadenado interno se
+ * conserva: alargar un concepto sigue empujando al siguiente, que es lo que se
+ * perdería si cada uno quedara clavado en su día.
+ *
+ * Una caja cuya atadura apunta **fuera** del bloque también es entrada: la
+ * detiene algo que no se está moviendo, así que si no se clava, no se mueve.
+ *
+ * El resumen no se estira: su ancho lo ponen sus hijos, y no hay ninguna cifra
+ * propia que cambiar.
+ */
+export function desplazarBloque(
+  borrador: Borrador,
+  colocado: ReadonlyMap<string, Colocacion>,
+  nodoId: string,
+  dias: number,
+): Gesto {
+  if (dias === 0) return si();
+
+  const { hijos } = indexarArbol(borrador.cajas);
+  const dentro = new Set(descendientesDe(hijos, nodoId));
+  if (dentro.size === 0) return no('Este renglón no tiene nada debajo que mover.');
+
+  const porId = new Map(borrador.cajas.map((caja) => [caja.id, caja]));
+  const acciones: Accion[] = [];
+
+  for (const id of dentro) {
+    const caja = porId.get(id);
+    if (!caja || !esRenglon(caja)) continue;
+
+    const atadura = ataduraDe(caja, colocado);
+    const laDetieneAlguienDeDentro = atadura !== null && dentro.has(atadura.desde);
+    if (laDetieneAlguienDeDentro) continue;
+
+    const desde = caja.inicioDias ?? colocado.get(id)?.inicioDias ?? 0;
+    const inicioDias = redondear(desde + dias);
+    if (inicioDias < 0) {
+      return no(
+        `Adelantar el bloque ${-dias} días lo sacaría del programa: nada puede ` +
+          'empezar antes del día 1 (§7.5).',
+      );
+    }
+    acciones.push({ tipo: 'inicio', cajaId: id, inicioDias });
+  }
+
+  if (acciones.length === 0) {
+    return no(
+      'No hay de dónde agarrar este bloque: todo lo que cuelga de él espera a ' +
+        'algo de dentro. Mueve la primera actividad de la cadena.',
+    );
+  }
+  return si(...acciones);
+}
+
 /** Suelta el ancla: la actividad vuelve a colocarse donde manda el grafo. */
 export function desclavar(borrador: Borrador, cajaId: string): Gesto {
   const caja = cajaDe(borrador, cajaId);

@@ -300,6 +300,14 @@ export default function ProgramaTabla() {
     [borrador, colocado, partidas, enCiclo],
   );
 
+  // Qué renglones dibujan un corchete en vez de una barra. Se deriva del
+  // aplanado y no del árbol: un nivel cuyos conceptos nadie capturó todavía es
+  // una actividad normal, no un resumen (§7.4).
+  const esResumen = useMemo(
+    () => new Set(todas.filter((fila) => fila.esResumen).map((fila) => fila.nodoId)),
+    [todas],
+  );
+
   // El colapso de entrada se siembra con la profundidad de captura, una sola
   // vez y cuando ya hay filas **y** ya se sabe la profundidad: sembrarlo en
   // cada cambio volvería a plegar lo que el usuario acabara de abrir, y
@@ -497,6 +505,16 @@ export default function ProgramaTabla() {
       if (!borrador) return;
       const caja = borrador.cajas.find((c) => c.id === cajaId);
       if (!caja) return;
+
+      // Un nivel o una etapa no tienen ventana propia que mover: lo que se
+      // arrastra es el bloque, y eso es otro gesto (`desplazarBloque`). Se
+      // reconoce por tener hijos capturados, que es lo que hace que su barra
+      // sea un corchete y no una actividad.
+      if (esResumen.has(cajaId)) {
+        aplicarGesto(gestos.desplazarBloque(borrador, colocado, cajaId, deltaDias));
+        return;
+      }
+
       const inicio = empezarArrastre(caja, colocado, clase, 0);
       const resultado = resolverArrastre(borrador, inicio, deltaDias);
       if (resultado.ok) {
@@ -506,7 +524,7 @@ export default function ProgramaTabla() {
       }
       if (resultado.motivo !== null) setRechazo(resultado.motivo);
     },
-    [borrador, colocado, despacha],
+    [borrador, colocado, despacha, esResumen, aplicarGesto],
   );
 
   // --- Scroll sincronizado (`sincronia.ts`) --------------------------------

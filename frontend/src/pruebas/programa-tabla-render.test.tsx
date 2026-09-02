@@ -258,8 +258,7 @@ describe('TablaPrograma', () => {
 
   it('el término se rotula con el último día trabajado, no con el día siguiente', () => {
     // Una actividad que arranca el día 1 y dura tres cierra el día 3.
-    const { container } = pintarTabla([fila({ nodoId: 'c1', inicioDias: 0, finDias: 3 })]);
-    const renglon = container.querySelector('.prog-tabla__fila');
+    pintarTabla([fila({ nodoId: 'c1', inicioDias: 0, finDias: 3 })]);
     // El inicio es capturable y va vacío —no está anclada—, así que el día que
     // el grafo le puso se anuncia como `placeholder`.
     expect(screen.getByLabelText('Día de arranque de Excavación')).toHaveAttribute(
@@ -430,14 +429,26 @@ describe('GanttPrograma', () => {
     expect(onSoltar).toHaveBeenCalledWith('c1', 'estirar', 2);
   });
 
-  it('el resumen no se arrastra: no hay dónde presionar', () => {
+  it('el corchete de un resumen se arrastra y mueve el bloque', () => {
+    // Lo que se mueve no es la barra —un resumen no tiene ventana propia—
+    // sino todo lo que cuelga de él; quien lo traduce es
+    // `gestos.desplazarBloque`, y aquí sólo se comprueba que el gesto salga.
     const { container, onSoltar } = pintarGantt([
       fila({ nodoId: 'e1', tipo: 'etapa', esResumen: true, tieneHijos: true, holguraDias: null }),
     ]);
     const corchete = container.querySelector('.prog-gantt__corchete') as HTMLElement;
+    const lienzo = container.querySelector('.prog-gantt__lienzo') as HTMLElement;
     fireEvent(corchete, puntero('pointerdown', 100));
-    fireEvent(corchete, puntero('pointerup', 200));
-    expect(onSoltar).not.toHaveBeenCalled();
+    fireEvent(lienzo, puntero('pointermove', 100 + 16 * 3));
+    fireEvent(lienzo, puntero('pointerup', 100 + 16 * 3));
+    expect(onSoltar).toHaveBeenCalledWith('e1', 'mover', 3);
+  });
+
+  it('el resumen no tiene asa de borde: su ancho lo ponen sus hijos', () => {
+    const { container } = pintarGantt([
+      fila({ nodoId: 'e1', tipo: 'etapa', esResumen: true, tieneHijos: true, holguraDias: null }),
+    ]);
+    expect(container.querySelectorAll('.prog-gantt__asa')).toHaveLength(0);
   });
 
   it('virtualiza: 400 renglones no llegan enteros al DOM', () => {

@@ -376,10 +376,25 @@ function Barra({
   if (fila.esResumen) {
     return (
       <>
+        {/* El corchete se arrastra y se lleva el bloque entero
+            (`gestos.desplazarBloque`). No tiene asa de borde: estirar un
+            resumen no es una operación —su ancho lo ponen sus hijos. */}
         <div
           className={`prog-gantt__corchete${esCritica && vista.rutaCritica ? ' is-critica' : ''}`}
-          style={{ left: izquierda, width: ancho, top: arriba, height: ALTO_CORCHETE }}
+          style={{
+            left: izquierda,
+            width: ancho,
+            top: arriba,
+            height: ALTO_CORCHETE,
+            cursor: editable ? 'grab' : undefined,
+          }}
           title={tituloDeBarra(fila, eje, esCritica)}
+          onClick={() => onSeleccionar(fila.nodoId)}
+          onPointerDown={(evento) => {
+            if (!editable) return;
+            evento.currentTarget.setPointerCapture(evento.pointerId);
+            onEmpezar('mover', evento.clientX);
+          }}
         />
         <span className="prog-gantt__pata" style={{ left: izquierda, top: arriba + ALTO_CORCHETE }} />
         <span
