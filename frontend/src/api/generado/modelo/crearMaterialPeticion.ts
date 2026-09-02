@@ -10,6 +10,7 @@ import type { CrearMaterialPeticionFamiliaId } from './crearMaterialPeticionFami
 import type { CrearMaterialPeticionCostoBase } from './crearMaterialPeticionCostoBase';
 import type { CrearMaterialPeticionIvaAplica } from './crearMaterialPeticionIvaAplica';
 import type { CrearMaterialPeticionFactorConversion } from './crearMaterialPeticionFactorConversion';
+import type { CrearMaterialPeticionDiasEntrega } from './crearMaterialPeticionDiasEntrega';
 
 /**
  * `POST /materiales` — mismo cuerpo, sin `tipo`: es siempre `material` (§7.3).
@@ -24,4 +25,6 @@ export interface CrearMaterialPeticion {
   costo_base?: CrearMaterialPeticionCostoBase;
   iva_aplica?: CrearMaterialPeticionIvaAplica;
   factor_conversion?: CrearMaterialPeticionFactorConversion;
+  /** Plazo de entrega en dias: con cuanta anticipacion hay que pedirlo para tenerlo cuando el cronograma lo pide (§10.1). Vacio = usa la anticipacion global de quien consulta; cero = llega el mismo dia. */
+  dias_entrega?: CrearMaterialPeticionDiasEntrega;
 }

@@ -47,6 +47,10 @@ from obractrl.application.casos_uso.capturar_avance import (
     ActividadBloqueada,
     ActividadNoEncontrada,
 )
+from obractrl.application.casos_uso.consultar_insumos_programados import (
+    CalendarioSinGenerar,
+    PrototipoSinPrograma,
+)
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import ObraNoEncontrada
 from obractrl.application.casos_uso.gestionar_carga import (
     CargaConDependientes,
@@ -638,6 +642,33 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="programa-base-no-encontrado",
             titulo="Programa base no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(CalendarioSinGenerar)
+    async def _calendario_sin_generar(
+        request: Request, exc: CalendarioSinGenerar
+    ) -> JSONResponse:
+        # No es un 500: la organización todavía no corrió
+        # `app.generar_calendario()` para esos años (§3.1), y el mensaje dice
+        # exactamente eso para que se pueda arreglar sin abrir el log.
+        return _problema(
+            request,
+            status=404,
+            tipo="calendario-sin-generar",
+            titulo="Calendario sin generar",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(PrototipoSinPrograma)
+    async def _prototipo_sin_programa(
+        request: Request, exc: PrototipoSinPrograma
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="prototipo-sin-programa",
+            titulo="Prototipo sin programa o sin presupuesto",
             detalle=str(exc),
         )
 

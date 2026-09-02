@@ -11,6 +11,7 @@ import type { CrearInsumoPeticionFamiliaId } from './crearInsumoPeticionFamiliaI
 import type { CrearInsumoPeticionCostoBase } from './crearInsumoPeticionCostoBase';
 import type { CrearInsumoPeticionIvaAplica } from './crearInsumoPeticionIvaAplica';
 import type { CrearInsumoPeticionFactorConversion } from './crearInsumoPeticionFactorConversion';
+import type { CrearInsumoPeticionDiasEntrega } from './crearInsumoPeticionDiasEntrega';
 
 export interface CrearInsumoPeticion {
   /** @minLength 1 */
@@ -24,4 +25,6 @@ export interface CrearInsumoPeticion {
   /** Override del IVA de la familia (§3.5). Nulo = hereda de la familia. */
   iva_aplica?: CrearInsumoPeticionIvaAplica;
   factor_conversion?: CrearInsumoPeticionFactorConversion;
+  /** Plazo de entrega en dias: con cuanta anticipacion hay que pedirlo para tenerlo cuando el cronograma lo pide (§10.1). Vacio = usa la anticipacion global de quien consulta; cero = llega el mismo dia. */
+  dias_entrega?: CrearInsumoPeticionDiasEntrega;
 }

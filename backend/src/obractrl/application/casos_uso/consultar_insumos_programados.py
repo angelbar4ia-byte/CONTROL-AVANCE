@@ -54,6 +54,7 @@ __all__ = [
     "ComandoInsumosProgramados",
     "ConsultarInsumosProgramados",
     "Granularidad",
+    "InsumosProgramados",
     "PrototipoSinPrograma",
 ]
 
@@ -82,6 +83,18 @@ class PrototipoSinPrograma(LookupError):
     Sin uno de los dos no hay nada que simular: el programa da las ventanas y
     el presupuesto las cantidades.
     """
+
+
+@dataclass(frozen=True, slots=True)
+class InsumosProgramados:
+    """Lo que el programa pide, y lo que el almacén ya entregó.
+
+    El `surtido` viaja aparte de la matriz y no dentro: la matriz es del
+    dominio, que no sabe que existe un almacén (§11.1). Juntarlos es del borde.
+    """
+
+    matriz: MatrizDeInsumos
+    surtido: dict[str, Decimal]
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,6 +136,7 @@ class ConsultarInsumosProgramados:
         calendario,
         obras,
         presupuestos,
+        materiales,
     ) -> None:
         self._actividades = actividades
         self._conceptos = conceptos
@@ -131,8 +145,11 @@ class ConsultarInsumosProgramados:
         self._calendario = calendario
         self._obras = obras
         self._presupuestos = presupuestos
+        self._materiales = materiales
 
-    async def ejecutar(self, cmd: ComandoInsumosProgramados) -> MatrizDeInsumos:
+    async def ejecutar(
+        self, cmd: ComandoInsumosProgramados
+    ) -> InsumosProgramados:
         if cmd.prototipo_id is not None:
             filas, actividades = await self._simular(cmd)
         else:
@@ -149,7 +166,7 @@ class ConsultarInsumosProgramados:
         catalogo = await self._catalogo()
         explosiones = await self._explosiones(filas)
 
-        return insumos_programados(
+        matriz = insumos_programados(
             actividades=actividades,
             explosiones=explosiones,
             catalogo=catalogo,
@@ -158,6 +175,20 @@ class ConsultarInsumosProgramados:
             dias_anticipacion=cmd.dias_anticipacion,
             con_importe=cmd.con_importe,
         )
+        return InsumosProgramados(matriz=matriz, surtido=await self._surtido(cmd, filas))
+
+    async def _surtido(
+        self, cmd: ComandoInsumosProgramados, filas: Sequence[dict]
+    ) -> dict[str, Decimal]:
+        """Lo que ya salió del almacén, por insumo.
+
+        Solo tiene sentido contra obras reales: una simulación por prototipo no
+        tiene almacén del que haya salido nada.
+        """
+        if cmd.prototipo_id is not None:
+            return {}
+        obras = {fila["obra_id"] for fila in filas if fila.get("obra_id")}
+        return await self._materiales.surtido_por_insumo(obra_ids=sorted(obras))
 
     # --- Carga ------------------------------------------------------------
 
@@ -303,8 +334,12 @@ class ConsultarInsumosProgramados:
             partida = por_nodo.get(nodo_id)
             if partida is None:
                 continue
-            filas.append({"concepto_id": partida["concepto_id"],
-                          "concepto_clave": partida["concepto_clave"]})
+            filas.append(
+                {
+                    "concepto_id": partida["concepto_id"],
+                    "concepto_clave": partida["concepto_clave"],
+                }
+            )
             actividades.append(
                 ActividadConVentana(
                     actividad_id=nodo_id,
