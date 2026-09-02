@@ -296,6 +296,66 @@ class RepositorioObrasSQL:
             )
         )
 
+    async def rastro_de_ejecucion(self, obra_id: UUID) -> dict[str, int]:
+        """Qué se ha capturado ya sobre las actividades de la obra (§11.3).
+
+        Es la guarda de la reversión: mientras no haya nada de esto, deshacer
+        la generación solo borra lo que la generación creó. En cuanto alguien
+        capturó un avance o se estimó, borrar dejaría de ser deshacer y pasaría
+        a ser perder trabajo.
+
+        Devuelve el conteo por concepto —y no un booleano— para que el mensaje
+        del 409 pueda decir **qué** hay, que es lo que permite decidir sin
+        abrir la base.
+        """
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select
+                      (select count(*) from registro_avance ra
+                        join actividad a on a.id = ra.actividad_id
+                       where a.obra_id = :obra_id)            as avances,
+                      (select count(*) from estimacion_concepto ec
+                        join actividad a on a.id = ec.actividad_id
+                       where a.obra_id = :obra_id)            as estimaciones,
+                      (select count(*) from revision_fisica rf
+                        join actividad a on a.id = rf.actividad_id
+                       where a.obra_id = :obra_id)            as revisiones,
+                      (select count(*) from solicitud_cierre sc
+                        join actividad a on a.id = sc.actividad_id
+                       where a.obra_id = :obra_id)            as cierres
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().one()
+        return {clave: int(valor) for clave, valor in fila.items() if valor}
+
+    async def borrar_generacion(self, obra_id: UUID) -> int:
+        """Borra las actividades y el `ProgramaObra` de la obra (§11.3 A.2).
+
+        Deshace lo que hizo `POST /obras/{id}/generar` y **solo eso**: la obra
+        se queda con su clave, su cluster y su prototipo, lista para volver a
+        generarse. Quien llama ya comprobó que no hay ejecución capturada
+        (`rastro_de_ejecucion`).
+
+        Se borra la actividad antes que el programa porque `actividad` apunta
+        al `programa_obra` con `on delete set null`: al revés quedarían
+        actividades huérfanas del programa que las instanció.
+        """
+        borradas = (
+            await self._sesion.execute(
+                text("delete from actividad where obra_id = :obra_id"),
+                {"obra_id": str(obra_id)},
+            )
+        ).rowcount
+        await self._sesion.execute(
+            text("delete from programa_obra where obra_id = :obra_id"),
+            {"obra_id": str(obra_id)},
+        )
+        return int(borradas)
+
     async def precios_vigentes(self, concepto_ids: list[UUID]) -> dict[str, dict[str, Any]]:
         """CPU vigente de cada concepto (§7.3, §11.3 A.2).
 

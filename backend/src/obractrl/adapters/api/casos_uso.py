@@ -81,6 +81,7 @@ from obractrl.application.casos_uso.exportar_estimacion import (
 )
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     GenerarObraDesdePrototipo,
+    RevertirGeneracionDeObra,
 )
 from obractrl.application.casos_uso.gestionar_carga import (
     ConsultarCarga,
@@ -242,6 +243,7 @@ __all__ = [
     "ResolverPendienteDep",
     "RevertirCargaDep",
     "RevertirCargaEnCadenaDep",
+    "RevertirGeneracionDeObraDep",
     "SolicitarCierreDep",
     "ValidarCierreDep",
     "ValidarEstimacionDep",
@@ -614,6 +616,18 @@ def obtener_generar_obra(sesion: SesionRLS) -> GenerarObraDesdePrototipo:
         obras=RepositorioObrasSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
     )
+
+
+def obtener_revertir_generacion(sesion: SesionRLS) -> RevertirGeneracionDeObra:
+    return RevertirGeneracionDeObra(
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+RevertirGeneracionDeObraDep = Annotated[
+    RevertirGeneracionDeObra, Depends(obtener_revertir_generacion)
+]
 
 
 # --- Catálogos · APU (§11.2) ---------------------------------------------

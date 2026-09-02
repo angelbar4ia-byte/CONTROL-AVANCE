@@ -51,7 +51,10 @@ from obractrl.application.casos_uso.consultar_insumos_programados import (
     CalendarioSinGenerar,
     PrototipoSinPrograma,
 )
-from obractrl.application.casos_uso.generar_obra_desde_prototipo import ObraNoEncontrada
+from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
+    ObraNoEncontrada,
+    ObraYaEjecutada,
+)
 from obractrl.application.casos_uso.gestionar_carga import (
     CargaConDependientes,
     CargaNoEliminable,
@@ -642,6 +645,20 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="programa-base-no-encontrado",
             titulo="Programa base no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ObraYaEjecutada)
+    async def _obra_ya_ejecutada(
+        request: Request, exc: ObraYaEjecutada
+    ) -> JSONResponse:
+        # 409 y no 422: el cuerpo era correcto, es el estado de la obra el que
+        # no admite la operación (§11.2).
+        return _problema(
+            request,
+            status=409,
+            tipo="obra-ya-ejecutada",
+            titulo="La obra ya tiene ejecución capturada",
             detalle=str(exc),
         )
 

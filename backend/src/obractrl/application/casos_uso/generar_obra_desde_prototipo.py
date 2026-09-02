@@ -57,12 +57,35 @@ __all__ = [
     "GenerarObraDesdePrototipo",
     "ObraGenerada",
     "ObraNoEncontrada",
+    "ObraYaEjecutada",
+    "RevertirGeneracionDeObra",
     "reconstruir_obra",
 ]
 
 
 class ObraNoEncontrada(LookupError):
     """La obra no existe o está fuera del alcance del usuario (RLS)."""
+
+
+class ObraYaEjecutada(ValueError):
+    """Se pidió deshacer la generación de una obra sobre la que ya se trabajó.
+
+    Deshacer solo es deshacer mientras no haya nada capturado encima. Con un
+    avance, una estimación, una revisión o un cierre de por medio, borrar las
+    actividades dejaría de revertir el botón y pasaría a perder trabajo — y ni
+    siquiera de forma limpia, porque esos registros cuelgan de la actividad.
+
+    El mensaje dice **qué** hay para que se pueda decidir sin abrir la base.
+    """
+
+    def __init__(self, rastro: dict[str, int]) -> None:
+        detalle = ", ".join(f"{n} {que}" for que, n in sorted(rastro.items()))
+        super().__init__(
+            f"La obra ya tiene ejecución capturada ({detalle}): deshacer la "
+            f"generación borraría trabajo real, no solo lo que el botón creó "
+            f"(§11.3 A.2)."
+        )
+        self.rastro = rastro
 
 
 @dataclass(frozen=True, slots=True)
@@ -231,3 +254,38 @@ class GenerarObraDesdePrototipo:
             programa_obra_id=programa_obra_id,
             n_actividades=len(planeadas),
         )
+
+
+class RevertirGeneracionDeObra:
+    """`DELETE /obras/{id}/actividades` (Creador de obra, §11.3 A.2).
+
+    Deshace el workflow A: borra las actividades y el `ProgramaObra` que creó,
+    y deja la obra con su clave, su cluster y su prototipo, lista para volver a
+    generarse. Existe porque generar es la única operación del sistema que
+    escribe cientos de renglones de un botón y con un parámetro —el modo de
+    pago— que se elige antes de ver el resultado: equivocarse ahí no debería
+    costar reiniciar la organización, que es lo único que había.
+
+    **La guarda es la ejecución, no el estatus.** Una obra que ya tiene un
+    avance capturado, una estimación, una revisión o un cierre no se revierte:
+    ahí borrar deja de ser deshacer. Lo que no se comprueba es que la obra esté
+    "pendiente" — el estatus lo mueve el trigger del §6 en cuanto hay avance, y
+    sería la misma condición dicha peor.
+    """
+
+    def __init__(self, *, obras: RepositorioObras, uow: UnidadDeTrabajo) -> None:
+        self._obras = obras
+        self._uow = uow
+
+    async def ejecutar(self, obra_id: UUID) -> int:
+        if await self._obras.obtener(obra_id) is None:
+            raise ObraNoEncontrada(f"Obra {obra_id} no encontrada en tu alcance.")
+
+        rastro = await self._obras.rastro_de_ejecucion(obra_id)
+        if rastro:
+            raise ObraYaEjecutada(rastro)
+
+        async with self._uow:
+            borradas = await self._obras.borrar_generacion(obra_id)
+            await self._uow.commit()
+        return borradas

@@ -28,6 +28,7 @@ from obractrl.adapters.api.casos_uso import (
     CrearObraDep,
     CrearObrasEnLoteDep,
     GenerarObraDesdePrototipoDep,
+    RevertirGeneracionDeObraDep,
 )
 from obractrl.adapters.api.dependencias import SesionRLS, exigir_rol
 from obractrl.adapters.api.idempotencia import Idempotencia
@@ -303,6 +304,34 @@ async def actualizar_obra(
         )
     )
     return ObraRespuesta.desde_dominio(obra_id, obra)
+
+
+@router.delete(
+    "/obras/{obra_id}/actividades",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Deshacer la generación: borra actividades y programa",
+    dependencies=[CREADOR_DE_OBRA],
+    responses={
+        **_NO_ENCONTRADA,
+        409: {
+            "description": (
+                "La obra ya tiene ejecución capturada —avance, estimación, "
+                "revisión o cierre—: deshacer borraría trabajo real (§11.3 A.2)."
+            )
+        },
+    },
+)
+async def revertir_generacion(
+    obra_id: UUID, caso_uso: RevertirGeneracionDeObraDep
+) -> None:
+    """Deshace el workflow A y **solo eso**: la obra se queda con su clave, su
+    cluster y su prototipo, lista para volver a generarse con otro modo de pago.
+
+    Generar es la única operación que escribe cientos de renglones de un botón,
+    con un parámetro que se elige antes de ver el resultado; equivocarse ahí no
+    debería costar reiniciar la organización, que era lo único que había.
+    """
+    await caso_uso.ejecutar(obra_id)
 
 
 @router.post(

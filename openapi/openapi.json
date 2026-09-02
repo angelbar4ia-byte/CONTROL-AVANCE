@@ -712,6 +712,52 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "obras"
+        ],
+        "summary": "Deshacer la generación: borra actividades y programa",
+        "description": "Deshace el workflow A y **solo eso**: la obra se queda con su clave, su\ncluster y su prototipo, lista para volver a generarse con otro modo de pago.\n\nGenerar es la única operación que escribe cientos de renglones de un botón,\ncon un parámetro que se elige antes de ver el resultado; equivocarse ahí no\ndebería costar reiniciar la organización, que era lo único que había.",
+        "operationId": "revertir_generacion_api_v1_obras__obra_id__actividades_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La obra ya tiene ejecución capturada —avance, estimación, revisión o cierre—: deshacer borraría trabajo real (§11.3 A.2)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/actividades/{actividad_id}": {
