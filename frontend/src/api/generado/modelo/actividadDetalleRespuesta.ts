@@ -24,6 +24,7 @@ import type { ActividadDetalleRespuestaContratistaId } from './actividadDetalleR
 import type { ActividadDetalleRespuestaContratistaNombre } from './actividadDetalleRespuestaContratistaNombre';
 import type { ActividadDetalleRespuestaCuadrillaId } from './actividadDetalleRespuestaCuadrillaId';
 import type { ActividadDetalleRespuestaCuadrillaNombre } from './actividadDetalleRespuestaCuadrillaNombre';
+import type { ActividadDetalleRespuestaCantAutorizada } from './actividadDetalleRespuestaCantAutorizada';
 import type { ActividadDetalleRespuestaHolgura } from './actividadDetalleRespuestaHolgura';
 import type { ActividadDetalleRespuestaDesfase } from './actividadDetalleRespuestaDesfase';
 import type { ActividadDetalleRespuestaFechaInicio } from './actividadDetalleRespuestaFechaInicio';
@@ -66,6 +67,13 @@ export interface ActividadDetalleRespuesta {
   cant_programada: string;
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cant_ejecutada: string;
+  /**
+   * Cuánto puede exceder la programada a la base sin control de cambio (§6, migración 0049). Copia del umbral de la obra.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
+  tolerancia_pct?: string;
+  /** Techo que un control de cambio ya autorizó. Cuando existe manda sobre la tolerancia: es la cantidad que Control firmó. */
+  cant_autorizada?: ActividadDetalleRespuestaCantAutorizada;
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   avance_pct: string;
   estatus: string;

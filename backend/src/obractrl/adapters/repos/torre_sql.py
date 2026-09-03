@@ -193,6 +193,9 @@ class RepositorioTorreSQL:
                            fre.clave as contratacion_clave,
                            esp.clave as especialidad_clave,
                            act.cant_base, act.cant_programada, act.cant_ejecutada,
+                           -- El techo con el que el residente sabe cuánto puede
+                           -- programar sin pedirle nada a nadie (§6, 0049).
+                           act.tolerancia_pct, act.cant_autorizada,
                            act.avance_pct, act.estatus, act.bloqueada, act.extra,
                            act.orden_cambio,
                            act.es_critica, act.holgura, act.desfase,

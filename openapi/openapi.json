@@ -8947,6 +8947,26 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Ejecutada"
           },
+          "tolerancia_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tolerancia Pct",
+            "description": "Cuánto puede exceder la programada a la base sin control de cambio (§6, migración 0049). Copia del umbral de la obra.",
+            "default": "20"
+          },
+          "cant_autorizada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cant Autorizada",
+            "description": "Techo que un control de cambio ya autorizó. Cuando existe manda sobre la tolerancia: es la cantidad que Control firmó."
+          },
           "avance_pct": {
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -9609,6 +9629,26 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Ejecutada"
+          },
+          "tolerancia_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tolerancia Pct",
+            "description": "Cuánto puede exceder la programada a la base sin control de cambio (§6, migración 0049). Copia del umbral de la obra.",
+            "default": "20"
+          },
+          "cant_autorizada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cant Autorizada",
+            "description": "Techo que un control de cambio ya autorizó. Cuando existe manda sobre la tolerancia: es la cantidad que Control firmó."
           },
           "avance_pct": {
             "type": "string",

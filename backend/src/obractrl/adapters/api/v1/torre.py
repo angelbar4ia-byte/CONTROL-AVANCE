@@ -116,6 +116,20 @@ class ActividadRespuesta(BaseModel):
     cant_base: Decimal
     cant_programada: Decimal
     cant_ejecutada: Decimal
+    tolerancia_pct: Decimal = Field(
+        default=Decimal(20),
+        description=(
+            "Cuánto puede exceder la programada a la base sin control de "
+            "cambio (§6, migración 0049). Copia del umbral de la obra."
+        ),
+    )
+    cant_autorizada: Decimal | None = Field(
+        default=None,
+        description=(
+            "Techo que un control de cambio ya autorizó. Cuando existe manda "
+            "sobre la tolerancia: es la cantidad que Control firmó."
+        ),
+    )
     avance_pct: Decimal
 
     estatus: str
