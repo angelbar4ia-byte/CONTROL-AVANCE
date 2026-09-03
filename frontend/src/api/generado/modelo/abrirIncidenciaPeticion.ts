@@ -9,6 +9,8 @@ import type { TipoIncidencia } from './tipoIncidencia';
 import type { ImpactoIncidencia } from './impactoIncidencia';
 import type { AbrirIncidenciaPeticionDescripcion } from './abrirIncidenciaPeticionDescripcion';
 import type { AbrirIncidenciaPeticionFrenteId } from './abrirIncidenciaPeticionFrenteId';
+import type { AbrirIncidenciaPeticionNivelId } from './abrirIncidenciaPeticionNivelId';
+import type { AbrirIncidenciaPeticionEtapaId } from './abrirIncidenciaPeticionEtapaId';
 import type { AbrirIncidenciaPeticionFechaLimite } from './abrirIncidenciaPeticionFechaLimite';
 
 /**
@@ -22,6 +24,10 @@ export interface AbrirIncidenciaPeticion {
   titulo: string;
   descripcion?: AbrirIncidenciaPeticionDescripcion;
   frente_id?: AbrirIncidenciaPeticionFrenteId;
+  /** Dónde en la obra: el **frente** (§7.4) — cimentación, planta baja, azotea. Distinto de `frente_id`, que es el tipo de contratación (0005). */
+  nivel_id?: AbrirIncidenciaPeticionNivelId;
+  /** El **sub-frente** dentro del nivel. */
+  etapa_id?: AbrirIncidenciaPeticionEtapaId;
   evidencias?: string[];
   /** Solo válido con impacto 'detiene' (§6). */
   bloquea_actividades?: string[];

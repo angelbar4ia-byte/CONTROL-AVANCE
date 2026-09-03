@@ -20,6 +20,7 @@ import { supabase } from '@/lib/supabase';
 import { useEnLinea } from '@/lib/useEnLinea';
 import Avances from '@/avance/Avances';
 import Cierres from '@/cierres/Cierres';
+import ControlCambio from '@/control-cambio/ControlCambio';
 import Estimacion from '@/estimacion/Estimacion';
 import Obras from '@/proyectos/Obras';
 import Prototipos from '@/proyectos/Prototipos';
@@ -172,6 +173,7 @@ function Rutas() {
         />
         <Route path="/avances" element={<Avances />} />
         <Route path="/cierres" element={<Cierres />} />
+        <Route path="/control-cambio" element={<ControlCambio />} />
         {/* Control de materiales (§7.7, §11.2): Control de obra trae las dos
             entradas en su sidebar —"Salidas de almacén" y "Consumo vs
             presupuesto"—; el Residente trae una sola, "Control de materiales

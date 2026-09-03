@@ -139,6 +139,35 @@ class ControlCambioRespuesta(BaseModel):
     renglones: int = 0
 
 
+class LineaDeControlRespuesta(BaseModel):
+    """Un renglón, con la actividad afectada ya resuelta (§11.3).
+
+    Es lo que Control necesita para decidir sin abrir otra pantalla: cuánto
+    tenía la actividad, cuánto lleva programado, y hasta dónde puede llegar
+    sin esta autorización.
+    """
+
+    id: UUID
+    actividad_id: UUID | None = None
+    concepto_id: UUID | None = None
+    descripcion: str | None = None
+    cantidad: Decimal
+    precio_unitario: Decimal
+    sustituye_a: UUID | None = None
+
+    actividad_descripcion: str | None = None
+    concepto_clave: str | None = None
+    cant_base: Decimal | None = None
+    cant_programada: Decimal | None = None
+    cant_ejecutada: Decimal | None = None
+    tolerancia_pct: Decimal | None = None
+    cant_autorizada: Decimal | None = None
+
+    @classmethod
+    def desde_fila(cls, fila: dict[str, Any]) -> LineaDeControlRespuesta:
+        return cls(**{campo: fila.get(campo) for campo in cls.model_fields})
+
+
 class EfectoRespuesta(BaseModel):
     """Qué cambió en la obra al autorizar."""
 
@@ -255,15 +284,17 @@ async def listar_controles_de_cambio(
 
 @router.get(
     "/controles-cambio/{control_id}/lineas",
+    response_model=list[LineaDeControlRespuesta],
     summary="Los renglones de un control de cambio",
     dependencies=[CONSULTA],
 )
 async def lineas_del_control(
     control_id: UUID, sesion: SesionRLS
-) -> list[dict[str, Any]]:
+) -> list[LineaDeControlRespuesta]:
     """Con la actividad afectada resuelta: cantidad base, programada y techo.
 
     Es lo que Control necesita para decidir sin abrir otra pantalla — cuánto
     tenía, cuánto lleva y cuánto se está pidiendo.
     """
-    return await RepositorioControlCambioSQL(sesion).lineas_de(control_id)
+    filas = await RepositorioControlCambioSQL(sesion).lineas_de(control_id)
+    return [LineaDeControlRespuesta.desde_fila(fila) for fila in filas]

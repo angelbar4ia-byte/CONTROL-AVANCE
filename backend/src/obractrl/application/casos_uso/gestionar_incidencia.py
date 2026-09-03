@@ -92,6 +92,8 @@ class ComandoAbrirIncidencia:
     titulo: str
     descripcion: str | None = None
     frente_id: UUID | None = None
+    nivel_id: UUID | None = None
+    etapa_id: UUID | None = None
     evidencias: list[str] = field(default_factory=list)
     bloquea_actividades: list[UUID] = field(default_factory=list)
     fecha_limite: date | None = None
@@ -212,6 +214,8 @@ class AbrirIncidencia:
             titulo=cmd.titulo,
             descripcion=cmd.descripcion,
             frente_id=str(cmd.frente_id) if cmd.frente_id else None,
+            nivel_id=str(cmd.nivel_id) if cmd.nivel_id else None,
+            etapa_id=str(cmd.etapa_id) if cmd.etapa_id else None,
             evidencias=cmd.evidencias,
             bloquea_actividades=[str(ref) for ref in cmd.bloquea_actividades],
             fecha_limite=cmd.fecha_limite,
@@ -226,6 +230,8 @@ class AbrirIncidencia:
                 titulo=incidencia.titulo,
                 descripcion=incidencia.descripcion,
                 frente_id=cmd.frente_id,
+                nivel_id=cmd.nivel_id,
+                etapa_id=cmd.etapa_id,
                 evidencias=incidencia.evidencias,
                 bloquea_actividades=incidencia.bloquea_actividades,
                 fecha_limite=incidencia.fecha_limite,

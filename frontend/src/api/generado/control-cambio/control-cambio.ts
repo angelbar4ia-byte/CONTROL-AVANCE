@@ -33,7 +33,7 @@ import type {
   ControlCambioRespuesta,
   EfectoRespuesta,
   HTTPValidationError,
-  LineasDelControlApiV1ControlesCambioControlIdLineasGet200Item,
+  LineaDeControlRespuesta,
   ListarControlesDeCambioApiV1ControlesCambioGetParams,
   ResolverCambioPeticion,
   SolicitarCambioPeticion,
@@ -370,7 +370,7 @@ export const lineasDelControlApiV1ControlesCambioControlIdLineasGet = (
 ) => {
       
       
-      return peticion<LineasDelControlApiV1ControlesCambioControlIdLineasGet200Item[]>(
+      return peticion<LineaDeControlRespuesta[]>(
       {url: `/api/v1/controles-cambio/${controlId}/lineas`, method: 'GET', signal
     },
       options);

@@ -15,6 +15,7 @@ import {
   Building2,
   ClipboardCheck,
   ClipboardList,
+  FileEdit,
   FileSpreadsheet,
   FileText,
   FolderTree,
@@ -130,6 +131,8 @@ const CONTROL_OBRA: readonly SeccionNav[] = [
       { a: '/incidencias', etiqueta: 'Incidencias', icono: ClipboardList },
       // Control valida y comenta; NO autoriza (§4)
       { a: '/cierres', etiqueta: 'Cierres', icono: ClipboardCheck },
+      // Control SÍ autoriza aquí — es distinto del cierre (§11.3)
+      { a: '/control-cambio', etiqueta: 'Control de cambio', icono: FileEdit },
       { a: '/ruta-critica', etiqueta: 'Ruta crítica', icono: GitBranch },
     ],
   },
@@ -198,6 +201,7 @@ const SUPER_INTENDENTE: readonly SeccionNav[] = [
       // Cierre de obra final: participan todos los roles (§6)
       { a: '/cierres-obra', etiqueta: 'Cierres de obra', icono: ShieldCheck },
       { a: '/incidencias', etiqueta: 'Incidencias', icono: ClipboardList },
+      { a: '/control-cambio', etiqueta: 'Control de cambio', icono: FileEdit },
       { a: '/ruta-critica', etiqueta: 'Ruta crítica', icono: GitBranch },
       { a: '/avance-proyecto', etiqueta: 'Avance de proyecto', icono: LineChart },
     ],

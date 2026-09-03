@@ -5485,6 +5485,56 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "estimacion"
+        ],
+        "summary": "La guía de estimación: renglones y resumen por frente",
+        "description": "La pantalla que reemplaza abrir el `.xlsx` para ver qué lleva la\nsemana: mismo reporte que arma el job de exportación\n(`ArmarReporteDeEstimacion`), con el resumen por frente que en el Excel\nes una hoja aparte y aquí es la vista de entrada.",
+        "operationId": "detalle_de_estimacion_api_v1_estimaciones__estimacion_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "estimacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Estimacion Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstimacionDetalleRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La estimación no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/estimaciones/{estimacion_id}/validar": {
@@ -6791,8 +6841,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "additionalProperties": true
+                    "$ref": "#/components/schemas/LineaDeControlRespuesta"
                   },
                   "title": "Response Lineas Del Control Api V1 Controles Cambio  Control Id  Lineas Get"
                 }
@@ -8660,6 +8709,32 @@
               }
             ],
             "title": "Frente Id"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id",
+            "description": "Dónde en la obra: el **frente** (§7.4) — cimentación, planta baja, azotea. Distinto de `frente_id`, que es el tipo de contratación (0005)."
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id",
+            "description": "El **sub-frente** dentro del nivel."
           },
           "evidencias": {
             "items": {
@@ -10814,6 +10889,96 @@
           "nombre"
         ],
         "title": "ClusterRespuesta"
+      },
+      "ConceptoDelReporteRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "precio_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Unitario"
+          },
+          "importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe"
+          },
+          "fuera_catalogo": {
+            "type": "boolean",
+            "title": "Fuera Catalogo"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "nivel_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Clave"
+          },
+          "nivel_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Descripcion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad",
+          "cantidad",
+          "precio_unitario",
+          "importe",
+          "fuera_catalogo"
+        ],
+        "title": "ConceptoDelReporteRespuesta"
       },
       "ConceptoRespuesta": {
         "properties": {
@@ -13151,6 +13316,130 @@
         ],
         "title": "EstimacionDelExpedienteRespuesta"
       },
+      "EstimacionDetalleRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "folio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folio"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "obra_clave": {
+            "type": "string",
+            "title": "Obra Clave"
+          },
+          "semana": {
+            "type": "integer",
+            "title": "Semana"
+          },
+          "anio": {
+            "type": "integer",
+            "title": "Anio"
+          },
+          "modo": {
+            "type": "string",
+            "title": "Modo"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "monto_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto Total",
+            "description": "Lo que dice la cabecera guardada."
+          },
+          "monto_calculado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto Calculado",
+            "description": "Σ de los renglones, recalculada al leer."
+          },
+          "cuadra": {
+            "type": "boolean",
+            "title": "Cuadra",
+            "description": "¿Cabecera y renglones coinciden? Falso es una señal de auditoría, no un error de captura."
+          },
+          "conceptos": {
+            "items": {
+              "$ref": "#/components/schemas/ConceptoDelReporteRespuesta"
+            },
+            "type": "array",
+            "title": "Conceptos"
+          },
+          "n_conceptos_catalogo": {
+            "type": "integer",
+            "title": "N Conceptos Catalogo"
+          },
+          "n_conceptos_extra": {
+            "type": "integer",
+            "title": "N Conceptos Extra"
+          },
+          "por_frente": {
+            "items": {
+              "$ref": "#/components/schemas/FrenteDelReporteRespuesta"
+            },
+            "type": "array",
+            "title": "Por Frente"
+          },
+          "acumulado_proyecto": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Acumulado Proyecto",
+            "description": "Suma de lo enviado y validado de esta obra a la fecha. No incluye borradores."
+          },
+          "presupuesto_base": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presupuesto Base",
+            "description": "El presupuesto vigente del prototipo de la obra. `null` si el prototipo no tiene uno cargado."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "folio",
+          "obra_id",
+          "obra_clave",
+          "semana",
+          "anio",
+          "modo",
+          "estatus",
+          "monto_total",
+          "monto_calculado",
+          "cuadra",
+          "conceptos",
+          "n_conceptos_catalogo",
+          "n_conceptos_extra",
+          "por_frente",
+          "acumulado_proyecto"
+        ],
+        "title": "EstimacionDetalleRespuesta",
+        "description": "La guía de estimación completa: cabecera, renglones y el resumen por\nfrente, en una sola lectura (§11.3 E).\n\nNo es un job como el `.xlsx`: armar el reporte es una consulta barata —\nunos cuantos `select`—, así que se sirve síncrono. El Excel sigue siendo\nun job porque *dibujarlo* con openpyxl sí es trabajo que conviene sacar de\nla petición."
+      },
       "EstimacionRespuesta": {
         "properties": {
           "id": {
@@ -13921,6 +14210,43 @@
         ],
         "title": "FrenteDeObraRespuesta"
       },
+      "FrenteDelReporteRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "conceptos": {
+            "type": "integer",
+            "title": "Conceptos"
+          },
+          "subtotal": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Subtotal"
+          },
+          "porcentaje": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Porcentaje",
+            "description": "0–100."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "conceptos",
+          "subtotal",
+          "porcentaje"
+        ],
+        "title": "FrenteDelReporteRespuesta",
+        "description": "Un renglón de «Resumen general»: un frente, cuánto suma y qué\nproporción de la semana es."
+      },
       "FrenteRespuesta": {
         "properties": {
           "id": {
@@ -14178,6 +14504,95 @@
             },
             "type": "array",
             "title": "Evidencias"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "nivel_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Clave",
+            "description": "El **frente** (§7.4)."
+          },
+          "nivel_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Descripcion"
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id"
+          },
+          "etapa_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Clave",
+            "description": "El **sub-frente**."
+          },
+          "etapa_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Descripcion"
+          },
+          "obra_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Clave"
+          },
+          "bloquea_claves": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Bloquea Claves",
+            "description": "`bloquea_actividades` resuelto a la clave del concepto de cada actividad, para mostrar «bloquea ALB-003» sin ir a buscarlo."
           }
         },
         "type": "object",
@@ -14612,6 +15027,162 @@
           "orden"
         ],
         "title": "ItemProgramaBaseRespuesta"
+      },
+      "LineaDeControlRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "actividad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad Id"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "precio_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Unitario"
+          },
+          "sustituye_a": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sustituye A"
+          },
+          "actividad_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad Descripcion"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "cant_base": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cant Base"
+          },
+          "cant_programada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cant Programada"
+          },
+          "cant_ejecutada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cant Ejecutada"
+          },
+          "tolerancia_pct": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tolerancia Pct"
+          },
+          "cant_autorizada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cant Autorizada"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cantidad",
+          "precio_unitario"
+        ],
+        "title": "LineaDeControlRespuesta",
+        "description": "Un renglón, con la actividad afectada ya resuelta (§11.3).\n\nEs lo que Control necesita para decidir sin abrir otra pantalla: cuánto\ntenía la actividad, cuánto lleva programado, y hasta dónde puede llegar\nsin esta autorización."
       },
       "LineaDeCuadrillaPeticion": {
         "properties": {

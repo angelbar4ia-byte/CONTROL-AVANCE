@@ -25,7 +25,6 @@ import {
   tonoImpacto,
 } from '@/incidencias/reglas';
 import {
-  actividadesBloqueadas,
   formularioIncidenciaVacio,
   incidenciaCompleta,
   peticionDeIncidencia,
@@ -155,7 +154,7 @@ describe('peticionDeIncidencia (DTO en el borde, §11.2)', () => {
   const base = {
     ...formularioIncidenciaVacio('obra-1', 'falta_material', 'detiene'),
     titulo: '  Falta cemento  ',
-    bloqueaActividades: 'act-1\n\nact-2\nact-1\n',
+    bloqueaActividades: ['act-1', 'act-2'],
   };
 
   it('manda bloquea_actividades solo con impacto "detiene" (§6)', () => {
@@ -164,13 +163,8 @@ describe('peticionDeIncidencia (DTO en el borde, §11.2)', () => {
     expect(conRetraso.bloquea_actividades).toBeUndefined();
   });
 
-  it('descarta líneas vacías y repetidas de la lista de actividades', () => {
-    expect(actividadesBloqueadas('a\n\n b \na\n')).toEqual(['a', 'b']);
-    expect(actividadesBloqueadas('')).toEqual([]);
-  });
-
-  it('con impacto "detiene" pero sin actividades, omite el campo', () => {
-    const dto = peticionDeIncidencia({ ...base, bloqueaActividades: '  \n ' });
+  it('con impacto "detiene" pero sin actividades elegidas, omite el campo', () => {
+    const dto = peticionDeIncidencia({ ...base, bloqueaActividades: [] });
     expect(dto.bloquea_actividades).toBeUndefined();
   });
 
@@ -179,7 +173,22 @@ describe('peticionDeIncidencia (DTO en el borde, §11.2)', () => {
     expect(dto.titulo).toBe('Falta cemento');
     expect(dto.descripcion).toBeUndefined();
     expect(dto.frente_id).toBeUndefined();
+    expect(dto.nivel_id).toBeUndefined();
+    expect(dto.etapa_id).toBeUndefined();
     expect(dto.fecha_limite).toBeUndefined();
+  });
+
+  it('manda nivel_id y etapa_id cuando el formulario los trae', () => {
+    // Vienen de "va junto a esta actividad" en AltaIncidencia, no de un
+    // select propio — el residente sabe con qué actividad está la
+    // incidencia, no con qué nivel.
+    const dto = peticionDeIncidencia({
+      ...base,
+      nivelId: 'niv-1',
+      etapaId: 'eta-1',
+    });
+    expect(dto.nivel_id).toBe('niv-1');
+    expect(dto.etapa_id).toBe('eta-1');
   });
 });
 
