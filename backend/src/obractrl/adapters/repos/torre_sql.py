@@ -165,6 +165,14 @@ class RepositorioTorreSQL:
         Trae la descripción del concepto además de la propia: una actividad
         generada desde el prototipo puede no tener `descripcion` y quedarse sin
         nada que mostrar en la tabla.
+
+        Y trae la **jerarquía resuelta**, que es como el residente mira su obra
+        (§7.4): el nivel es el *frente* —cimentación, planta baja, azotea— y la
+        etapa el *sub-frente*. Sin ellos, la única agrupación disponible era
+        `act.frente_id`, que está vacío en todas las actividades porque se
+        llena desde el item del programa base y ése casi nunca lo trae; el
+        frente de contratación —OBRA, INSTALACIONES…— sale de la etapa, igual
+        que en `actividades_para_insumos`.
         """
         filas = (
             await self._sesion.execute(
@@ -172,15 +180,35 @@ class RepositorioTorreSQL:
                     """
                     select act.id, act.obra_id, act.concepto_id, act.frente_id,
                            coalesce(act.descripcion, con.descripcion) as descripcion,
-                           f.nombre as frente_nombre,
+                           con.clave as concepto_clave,
+                           uni.clave as unidad,
+                           coalesce(act.nivel_id, eta.nivel_id) as nivel_id,
+                           niv.clave       as nivel_clave,
+                           niv.descripcion as nivel_descripcion,
+                           act.etapa_id,
+                           eta.clave       as etapa_clave,
+                           eta.descripcion as etapa_descripcion,
+                           coalesce(f.nombre, fre.nombre) as frente_nombre,
+                           fre.clave as contratacion_clave,
+                           esp.clave as especialidad_clave,
                            act.cant_base, act.cant_programada, act.cant_ejecutada,
                            act.avance_pct, act.estatus, act.bloqueada, act.extra,
+                           act.orden_cambio,
                            act.es_critica, act.holgura, act.desfase,
                            act.fecha_inicio, act.fecha_termino, act.duracion_dias,
-                           act.modo_pago, act.precio_unitario, act.precio_destajo
+                           act.modo_pago, act.precio_unitario, act.precio_destajo,
+                           act.contratista_id, ctr.razon_social as contratista_nombre,
+                           act.cuadrilla_id,  cua.nombre        as cuadrilla_nombre
                       from actividad act
                       left join concepto con on con.id = act.concepto_id
+                      left join unidad   uni on uni.id = con.unidad_id
                       left join frente f     on f.id = act.frente_id
+                      left join etapa_constructiva eta on eta.id = act.etapa_id
+                      left join nivel  niv on niv.id = coalesce(act.nivel_id, eta.nivel_id)
+                      left join frente fre on fre.id = eta.frente_id
+                      left join especialidad esp on esp.id = con.especialidad_id
+                      left join contratista  ctr on ctr.id = act.contratista_id
+                      left join cuadrilla    cua on cua.id = act.cuadrilla_id
                      where act.obra_id = :obra_id
                        and (cast(:estatus as estatus_actividad) is null
                             or act.estatus = cast(:estatus as estatus_actividad))

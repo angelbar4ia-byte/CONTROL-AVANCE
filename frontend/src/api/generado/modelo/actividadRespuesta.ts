@@ -9,6 +9,21 @@ import type { ActividadRespuestaConceptoId } from './actividadRespuestaConceptoI
 import type { ActividadRespuestaFrenteId } from './actividadRespuestaFrenteId';
 import type { ActividadRespuestaDescripcion } from './actividadRespuestaDescripcion';
 import type { ActividadRespuestaFrenteNombre } from './actividadRespuestaFrenteNombre';
+import type { ActividadRespuestaConceptoClave } from './actividadRespuestaConceptoClave';
+import type { ActividadRespuestaUnidad } from './actividadRespuestaUnidad';
+import type { ActividadRespuestaNivelId } from './actividadRespuestaNivelId';
+import type { ActividadRespuestaNivelClave } from './actividadRespuestaNivelClave';
+import type { ActividadRespuestaNivelDescripcion } from './actividadRespuestaNivelDescripcion';
+import type { ActividadRespuestaEtapaId } from './actividadRespuestaEtapaId';
+import type { ActividadRespuestaEtapaClave } from './actividadRespuestaEtapaClave';
+import type { ActividadRespuestaEtapaDescripcion } from './actividadRespuestaEtapaDescripcion';
+import type { ActividadRespuestaContratacionClave } from './actividadRespuestaContratacionClave';
+import type { ActividadRespuestaEspecialidadClave } from './actividadRespuestaEspecialidadClave';
+import type { ActividadRespuestaOrdenCambio } from './actividadRespuestaOrdenCambio';
+import type { ActividadRespuestaContratistaId } from './actividadRespuestaContratistaId';
+import type { ActividadRespuestaContratistaNombre } from './actividadRespuestaContratistaNombre';
+import type { ActividadRespuestaCuadrillaId } from './actividadRespuestaCuadrillaId';
+import type { ActividadRespuestaCuadrillaNombre } from './actividadRespuestaCuadrillaNombre';
 import type { ActividadRespuestaHolgura } from './actividadRespuestaHolgura';
 import type { ActividadRespuestaDesfase } from './actividadRespuestaDesfase';
 import type { ActividadRespuestaFechaInicio } from './actividadRespuestaFechaInicio';
@@ -24,6 +39,25 @@ export interface ActividadRespuesta {
   frente_id?: ActividadRespuestaFrenteId;
   descripcion?: ActividadRespuestaDescripcion;
   frente_nombre?: ActividadRespuestaFrenteNombre;
+  concepto_clave?: ActividadRespuestaConceptoClave;
+  unidad?: ActividadRespuestaUnidad;
+  nivel_id?: ActividadRespuestaNivelId;
+  /** El **frente**. */
+  nivel_clave?: ActividadRespuestaNivelClave;
+  nivel_descripcion?: ActividadRespuestaNivelDescripcion;
+  etapa_id?: ActividadRespuestaEtapaId;
+  /** El **sub-frente**. */
+  etapa_clave?: ActividadRespuestaEtapaClave;
+  etapa_descripcion?: ActividadRespuestaEtapaDescripcion;
+  /** A quién se le compra: OBRA, INSTALACIONES, SUBCONTRATOS, PINTURA. */
+  contratacion_clave?: ActividadRespuestaContratacionClave;
+  /** El oficio del concepto (migración 0047). */
+  especialidad_clave?: ActividadRespuestaEspecialidadClave;
+  orden_cambio?: ActividadRespuestaOrdenCambio;
+  contratista_id?: ActividadRespuestaContratistaId;
+  contratista_nombre?: ActividadRespuestaContratistaNombre;
+  cuadrilla_id?: ActividadRespuestaCuadrillaId;
+  cuadrilla_nombre?: ActividadRespuestaCuadrillaNombre;
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cant_base: string;
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */

@@ -83,6 +83,30 @@ class ActividadRespuesta(BaseModel):
     frente_id: UUID | None = None
     descripcion: str | None = None
     frente_nombre: str | None = None
+    concepto_clave: str | None = None
+    unidad: str | None = None
+
+    # La jerarquía como el residente mira su obra (§7.4): el nivel es el
+    # frente de trabajo y la etapa el sub-frente. No confundir `nivel_clave`
+    # con `contratacion_clave`, que dice a quién se le compra.
+    nivel_id: UUID | None = None
+    nivel_clave: str | None = Field(default=None, description="El **frente**.")
+    nivel_descripcion: str | None = None
+    etapa_id: UUID | None = None
+    etapa_clave: str | None = Field(default=None, description="El **sub-frente**.")
+    etapa_descripcion: str | None = None
+    contratacion_clave: str | None = Field(
+        default=None,
+        description="A quién se le compra: OBRA, INSTALACIONES, SUBCONTRATOS, PINTURA.",
+    )
+    especialidad_clave: str | None = Field(
+        default=None, description="El oficio del concepto (migración 0047)."
+    )
+    orden_cambio: str | None = None
+    contratista_id: UUID | None = None
+    contratista_nombre: str | None = None
+    cuadrilla_id: UUID | None = None
+    cuadrilla_nombre: str | None = None
 
     cant_base: Decimal
     cant_programada: Decimal
