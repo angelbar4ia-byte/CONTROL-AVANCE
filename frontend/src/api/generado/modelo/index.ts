@@ -8,8 +8,10 @@
 
 export * from './abrirIncidenciaPeticion';
 export * from './abrirIncidenciaPeticionDescripcion';
+export * from './abrirIncidenciaPeticionEtapaId';
 export * from './abrirIncidenciaPeticionFechaLimite';
 export * from './abrirIncidenciaPeticionFrenteId';
+export * from './abrirIncidenciaPeticionNivelId';
 export * from './actividadDetalleRespuesta';
 export * from './actividadDetalleRespuestaCantAutorizada';
 export * from './actividadDetalleRespuestaConceptoClave';
@@ -320,8 +322,15 @@ export * from './incidenciaRespuesta';
 export * from './incidenciaRespuestaAsignadaA';
 export * from './incidenciaRespuestaCreadaPor';
 export * from './incidenciaRespuestaDescripcion';
+export * from './incidenciaRespuestaEtapaClave';
+export * from './incidenciaRespuestaEtapaDescripcion';
+export * from './incidenciaRespuestaEtapaId';
 export * from './incidenciaRespuestaFechaLimite';
 export * from './incidenciaRespuestaFrenteId';
+export * from './incidenciaRespuestaNivelClave';
+export * from './incidenciaRespuestaNivelDescripcion';
+export * from './incidenciaRespuestaNivelId';
+export * from './incidenciaRespuestaObraClave';
 export * from './instanciarProgramaPeticion';
 export * from './instanciarProgramaPeticionFechaCorte';
 export * from './insumoRespuesta';

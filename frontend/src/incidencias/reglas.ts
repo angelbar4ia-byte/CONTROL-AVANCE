@@ -183,3 +183,99 @@ export const ESTATUS_DE_ACCION: Readonly<
   atender: 'en_atencion',
   solicitar_cierre: 'cierre_solicitado',
 };
+
+// --- La bandeja: KPIs, chips y vencimiento (§7.8, §11.3 F) -----------------
+
+/**
+ * ¿Esta incidencia "requiere acción" hoy?
+ *
+ * Es la pregunta de la tarjeta KPI «Activas», y no es un estatus suelto: las
+ * tres primeras etapas del flujo (`abierta`, `programada`, `en_atencion`)
+ * todavía necesitan que alguien haga algo. `cierre_solicitado` ya no —está
+ * esperando a Control, no a que alguien la trabaje— y por eso tiene su propia
+ * tarjeta en vez de sumarse aquí.
+ */
+export function requiereAccion(estatus: string): boolean {
+  return estatus === 'abierta' || estatus === 'programada' || estatus === 'en_atencion';
+}
+
+/**
+ * ¿Esta incidencia está deteniendo la obra ahora mismo?
+ *
+ * `detieneObra` solo mira el impacto; esto además exige que el flujo siga
+ * abierto. Una `detiene` ya `cerrada` no sigue frenando nada — contarla en el
+ * KPI la dejaría inflado para siempre.
+ */
+export function detieneAhora(impacto: string, estatus: string): boolean {
+  return detieneObra(impacto) && !flujoCerrado(estatus);
+}
+
+/**
+ * Días de atraso contra `fecha_limite`, calculados **al momento de mirar la
+ * pantalla** y no leídos de una columna.
+ *
+ * `incidencia.dias_retraso` existe en la base desde la migración 0009 pero
+ * nada la escribe —ningún trigger, ningún caso de uso—: confiarla mostraría
+ * siempre 0. "Cuántos días lleva vencida" cambia cada día sin que la fila
+ * cambie, así que se deriva aquí, igual que el resto de lo temporal en esta
+ * app (`colorAvance`, el semáforo de captura).
+ *
+ * `null` sin `fecha_limite` — no hay contra qué medir. Positivo = días de
+ * atraso; cero o negativo = todavía en plazo.
+ */
+export function diasDeAtraso(fechaLimite: string | null | undefined, hoy = new Date()): number | null {
+  if (!fechaLimite) return null;
+  const limite = new Date(`${fechaLimite}T00:00:00`);
+  const medianoche = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  return Math.round((medianoche.getTime() - limite.getTime()) / 86_400_000);
+}
+
+/**
+ * ¿Vencida? Fuera de fecha límite y el flujo todavía no la cerró.
+ *
+ * Una incidencia `cerrada` con `fecha_limite` en el pasado no está vencida:
+ * ya se resolvió, tarde o no. "Vencida" describe algo pendiente, no un dato
+ * histórico.
+ */
+export function incidenciaVencida(
+  fechaLimite: string | null | undefined,
+  estatus: string,
+  hoy = new Date(),
+): boolean {
+  if (flujoCerrado(estatus)) return false;
+  const dias = diasDeAtraso(fechaLimite, hoy);
+  return dias !== null && dias > 0;
+}
+
+/** Rótulo de la columna DÍAS: "+4 d" vencida, "en plazo" si no. */
+export function etiquetaDiasDeAtraso(dias: number | null): string {
+  if (dias === null) return '—';
+  return dias > 0 ? `+${dias} d` : 'en plazo';
+}
+
+export interface ConteoPorTipo {
+  readonly tipo: string;
+  readonly etiqueta: string;
+  readonly cantidad: number;
+}
+
+/**
+ * Cuántas incidencias hay de cada tipo, en el orden en que aparecen — no
+ * alfabético, para que el tipo más frecuente no salte de lugar cada vez que
+ * cambia el filtro y quien mira los chips pierda la referencia.
+ */
+export function contarPorTipo(
+  incidencias: readonly { readonly tipo: string }[],
+): readonly ConteoPorTipo[] {
+  const orden: string[] = [];
+  const cuenta = new Map<string, number>();
+  for (const { tipo } of incidencias) {
+    if (!cuenta.has(tipo)) orden.push(tipo);
+    cuenta.set(tipo, (cuenta.get(tipo) ?? 0) + 1);
+  }
+  return orden.map((tipo) => ({
+    tipo,
+    etiqueta: etiquetaTipo(tipo),
+    cantidad: cuenta.get(tipo)!,
+  }));
+}

@@ -58,6 +58,17 @@ class AbrirIncidenciaPeticion(BaseModel):
     titulo: str = Field(min_length=1)
     descripcion: str | None = None
     frente_id: UUID | None = None
+    nivel_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Dónde en la obra: el **frente** (§7.4) — cimentación, planta "
+            "baja, azotea. Distinto de `frente_id`, que es el tipo de "
+            "contratación (0005)."
+        ),
+    )
+    etapa_id: UUID | None = Field(
+        default=None, description="El **sub-frente** dentro del nivel."
+    )
     evidencias: list[str] = Field(default_factory=list)
     bloquea_actividades: list[UUID] = Field(
         default_factory=list,
@@ -104,6 +115,26 @@ class IncidenciaRespuesta(BaseModel):
     bloquea_actividades: list[str]
     evidencias: list[str]
 
+    # Resueltos por `desde_fila` (bandeja, `GET /incidencias`) — las acciones
+    # de flujo (abrir/programar/cerrar/rechazar) usan `desde_dominio`, que no
+    # tiene con qué resolverlos sin otra ida a la base, y la pantalla vuelve a
+    # leer la bandeja después de cada acción (mismo criterio que el cajón de
+    # detalle). Por eso quedan opcionales y no en los dos caminos.
+    nivel_id: UUID | None = None
+    nivel_clave: str | None = Field(default=None, description="El **frente** (§7.4).")
+    nivel_descripcion: str | None = None
+    etapa_id: UUID | None = None
+    etapa_clave: str | None = Field(default=None, description="El **sub-frente**.")
+    etapa_descripcion: str | None = None
+    obra_clave: str | None = None
+    bloquea_claves: list[str] = Field(
+        default_factory=list,
+        description=(
+            "`bloquea_actividades` resuelto a la clave del concepto de cada "
+            "actividad, para mostrar «bloquea ALB-003» sin ir a buscarlo."
+        ),
+    )
+
     @classmethod
     def desde_dominio(cls, incidencia_id: UUID, incidencia: Incidencia) -> IncidenciaRespuesta:
         return cls(
@@ -120,6 +151,8 @@ class IncidenciaRespuesta(BaseModel):
             fecha_limite=incidencia.fecha_limite,
             bloquea_actividades=incidencia.bloquea_actividades,
             evidencias=incidencia.evidencias,
+            nivel_id=UUID(incidencia.nivel_id) if incidencia.nivel_id else None,
+            etapa_id=UUID(incidencia.etapa_id) if incidencia.etapa_id else None,
         )
 
     @classmethod
@@ -138,6 +171,14 @@ class IncidenciaRespuesta(BaseModel):
             fecha_limite=fila["fecha_limite"],
             bloquea_actividades=fila["bloquea_actividades"],
             evidencias=fila["evidencias"],
+            nivel_id=fila.get("nivel_id"),
+            nivel_clave=fila.get("nivel_clave"),
+            nivel_descripcion=fila.get("nivel_descripcion"),
+            etapa_id=fila.get("etapa_id"),
+            etapa_clave=fila.get("etapa_clave"),
+            etapa_descripcion=fila.get("etapa_descripcion"),
+            obra_clave=fila.get("obra_clave"),
+            bloquea_claves=fila.get("bloquea_claves") or [],
         )
 
 
@@ -173,6 +214,8 @@ async def abrir_incidencia(
             titulo=peticion.titulo,
             descripcion=peticion.descripcion,
             frente_id=peticion.frente_id,
+            nivel_id=peticion.nivel_id,
+            etapa_id=peticion.etapa_id,
             evidencias=peticion.evidencias,
             bloquea_actividades=peticion.bloquea_actividades,
             fecha_limite=peticion.fecha_limite,

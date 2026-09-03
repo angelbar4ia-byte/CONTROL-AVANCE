@@ -77,6 +77,11 @@ class Incidencia:
     titulo: str
     descripcion: str | None = None
     frente_id: str | None = None
+    nivel_id: str | None = None
+    """Dónde en la obra: el nivel (§7.4). Mismo eje que `actividad.nivel_id`;
+    `frente_id` sigue siendo el tipo de contratación (0005), otro eje."""
+    etapa_id: str | None = None
+    """El sub-frente dentro del nivel."""
     evidencias: list[str] = field(default_factory=list)
     bloquea_actividades: list[str] = field(default_factory=list)
     estatus: EstatusIncidencia = EstatusIncidencia.ABIERTA
@@ -94,6 +99,8 @@ class Incidencia:
         titulo: str,
         descripcion: str | None = None,
         frente_id: str | None = None,
+        nivel_id: str | None = None,
+        etapa_id: str | None = None,
         evidencias: list[str] | None = None,
         bloquea_actividades: list[str] | None = None,
         fecha_limite: date | None = None,
@@ -117,6 +124,8 @@ class Incidencia:
             titulo=titulo,
             descripcion=descripcion,
             frente_id=frente_id,
+            nivel_id=nivel_id,
+            etapa_id=etapa_id,
             evidencias=list(evidencias or []),
             bloquea_actividades=refs,
             fecha_limite=fecha_limite,

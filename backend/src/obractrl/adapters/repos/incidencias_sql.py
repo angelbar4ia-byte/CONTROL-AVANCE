@@ -27,9 +27,43 @@ from obractrl.application.puertos.repositorios import RegistroNoEncontrado
 __all__ = ["IncidenciaNoModificada", "RepositorioIncidenciasSQL"]
 
 _COLUMNAS = """
-    id, obra_id, frente_id, tipo, impacto, titulo, descripcion, creada_por,
-    asignada_a, estatus, fecha_creada, fecha_limite, dias_retraso,
-    bloquea_actividades, evidencias
+    i.id, i.obra_id, i.frente_id, i.tipo, i.impacto, i.titulo, i.descripcion,
+    i.creada_por, i.asignada_a, i.estatus, i.fecha_creada, i.fecha_limite,
+    i.bloquea_actividades, i.evidencias
+"""
+# `i.dias_retraso` no está aquí a propósito: la columna existe desde la 0009
+# pero nada la escribe —ningún trigger, ningún caso de uso— así que siempre
+# vale su default (0). Confiarla mentiría. Los días de atraso se calculan al
+# vuelo contra `fecha_limite`, que sí se captura, y viven en el borde
+# (`IncidenciaRespuesta`) porque son de presentación: "cuántos días lleva
+# vencida hoy" cambia cada día sin que la fila cambie.
+
+_COLUMNAS_RESUELTAS = f"""
+    {_COLUMNAS},
+    -- Dónde en la obra (§7.4, migración 0050): el nivel es el frente y la
+    -- etapa el sub-frente, mismo eje que `actividad`. `i.frente_id` de arriba
+    -- sigue siendo el tipo de contratación (0005), otro eje.
+    niv.clave as nivel_clave, niv.descripcion as nivel_descripcion,
+    eta.clave as etapa_clave, eta.descripcion as etapa_descripcion,
+    obr.clave as obra_clave,
+    -- Las actividades bloqueadas resueltas a la clave de su concepto, para
+    -- poder decir "bloquea ALB-003" en vez de un UUID. `bloquea_actividades`
+    -- es un jsonb con ids en texto porque nace de una lista libre (§6); esto
+    -- la reconcilia contra el catálogo cada vez, así que una actividad que
+    -- cambió de concepto o se borró no deja una clave fantasma.
+    coalesce((
+        select array_agg(coalesce(con.clave, act.descripcion) order by con.clave)
+          from jsonb_array_elements_text(i.bloquea_actividades) as ref(actividad_id)
+          join actividad act on act.id = ref.actividad_id::uuid
+          left join concepto con on con.id = act.concepto_id
+    ), array[]::text[]) as bloquea_claves
+"""
+
+_DESDE_RESUELTA = """
+    from incidencia i
+    left join nivel niv              on niv.id = i.nivel_id
+    left join etapa_constructiva eta on eta.id = i.etapa_id
+    left join obra obr               on obr.id = i.obra_id
 """
 
 
@@ -45,7 +79,10 @@ class RepositorioIncidenciasSQL:
     async def obtener(self, incidencia_id: UUID) -> dict[str, Any] | None:
         fila = (
             await self._sesion.execute(
-                text(f"select {_COLUMNAS} from incidencia where id = :id"),
+                text(
+                    f"select {_COLUMNAS_RESUELTAS} {_DESDE_RESUELTA} "
+                    f"where i.id = :id"
+                ),
                 {"id": str(incidencia_id)},
             )
         ).mappings().first()
@@ -61,6 +98,8 @@ class RepositorioIncidenciasSQL:
         titulo: str,
         descripcion: str | None = None,
         frente_id: UUID | None = None,
+        nivel_id: UUID | None = None,
+        etapa_id: UUID | None = None,
         evidencias: list[str] | None = None,
         bloquea_actividades: list[str] | None = None,
         fecha_limite: date | None = None,
@@ -70,12 +109,13 @@ class RepositorioIncidenciasSQL:
                 text(
                     """
                     insert into incidencia
-                        (org_id, obra_id, frente_id, tipo, impacto, titulo,
-                         descripcion, creada_por, evidencias,
+                        (org_id, obra_id, frente_id, nivel_id, etapa_id, tipo,
+                         impacto, titulo, descripcion, creada_por, evidencias,
                          bloquea_actividades, fecha_limite, estatus)
                     values
                         (cast(current_setting('app.org_id') as uuid),
-                         :obra_id, :frente_id, cast(:tipo as tipo_incidencia),
+                         :obra_id, :frente_id, cast(:nivel_id as uuid),
+                         cast(:etapa_id as uuid), cast(:tipo as tipo_incidencia),
                          cast(:impacto as impacto_incidencia), :titulo,
                          :descripcion, :creada_por, cast(:evidencias as jsonb),
                          cast(:bloquea_actividades as jsonb), :fecha_limite,
@@ -86,6 +126,8 @@ class RepositorioIncidenciasSQL:
                 {
                     "obra_id": str(obra_id),
                     "frente_id": str(frente_id) if frente_id else None,
+                    "nivel_id": str(nivel_id) if nivel_id else None,
+                    "etapa_id": str(etapa_id) if etapa_id else None,
                     "tipo": tipo,
                     "impacto": impacto,
                     "titulo": titulo,
@@ -172,15 +214,15 @@ class RepositorioIncidenciasSQL:
             await self._sesion.execute(
                 text(
                     f"""
-                    select {_COLUMNAS}
-                    from incidencia
+                    select {_COLUMNAS_RESUELTAS}
+                    {_DESDE_RESUELTA}
                     -- El cast del lado `is null` fija el tipo del parámetro;
                     -- sin él asyncpg levanta AmbiguousParameterError.
                     where (cast(:estatus as estatus_incidencia) is null
-                           or estatus = cast(:estatus as estatus_incidencia))
+                           or i.estatus = cast(:estatus as estatus_incidencia))
                       and (cast(:obra_id as uuid) is null
-                           or obra_id = cast(:obra_id as uuid))
-                    order by fecha_creada desc
+                           or i.obra_id = cast(:obra_id as uuid))
+                    order by i.fecha_creada desc
                     """
                 ),
                 {"estatus": estatus, "obra_id": str(obra_id) if obra_id else None},

@@ -19,9 +19,16 @@ export interface FormularioIncidencia {
   readonly titulo: string;
   readonly descripcion: string;
   readonly frenteId: string;
+  /** El nivel (§7.4): dónde en la obra. Distinto de `frenteId` (tipo de
+   * contratación). Se deriva de "va junto a esta actividad" o de la primera
+   * actividad bloqueada; el formulario no ofrece un select aparte porque el
+   * residente ya sabe con qué actividad está la incidencia, no con qué nivel. */
+  readonly nivelId: string;
+  readonly etapaId: string;
   readonly fechaLimite: string;
-  /** Ids de actividad, uno por línea. Solo aplica con impacto `detiene`. */
-  readonly bloqueaActividades: string;
+  /** Ids de actividad elegidos en el multi-select. Solo aplica con impacto
+   * `detiene`; antes era un textarea donde se pegaba un id por línea. */
+  readonly bloqueaActividades: readonly string[];
 }
 
 export function formularioIncidenciaVacio(
@@ -36,8 +43,10 @@ export function formularioIncidenciaVacio(
     titulo: '',
     descripcion: '',
     frenteId: '',
+    nivelId: '',
+    etapaId: '',
     fechaLimite: '',
-    bloqueaActividades: '',
+    bloqueaActividades: [],
   };
 }
 
@@ -46,20 +55,9 @@ function textoOpcional(valor: string): string | undefined {
   return limpio === '' ? undefined : limpio;
 }
 
-/** Una actividad por línea; se descartan líneas vacías y repetidas. */
-export function actividadesBloqueadas(texto: string): readonly string[] {
-  const ids: string[] = [];
-  for (const linea of texto.split('\n')) {
-    const id = linea.trim();
-    if (id !== '' && !ids.includes(id)) ids.push(id);
-  }
-  return ids;
-}
-
 export function peticionDeIncidencia(
   formulario: FormularioIncidencia,
 ): AbrirIncidenciaPeticion {
-  const bloquea = actividadesBloqueadas(formulario.bloqueaActividades);
   return {
     obra_id: formulario.obraId.trim(),
     tipo: formulario.tipo,
@@ -67,10 +65,14 @@ export function peticionDeIncidencia(
     titulo: formulario.titulo.trim(),
     descripcion: textoOpcional(formulario.descripcion),
     frente_id: textoOpcional(formulario.frenteId),
+    nivel_id: textoOpcional(formulario.nivelId),
+    etapa_id: textoOpcional(formulario.etapaId),
     fecha_limite: textoOpcional(formulario.fechaLimite),
     // El contrato solo acepta la lista con impacto 'detiene' (§6).
     bloquea_actividades:
-      formulario.impacto === 'detiene' && bloquea.length > 0 ? [...bloquea] : undefined,
+      formulario.impacto === 'detiene' && formulario.bloqueaActividades.length > 0
+        ? [...formulario.bloqueaActividades]
+        : undefined,
   };
 }
 

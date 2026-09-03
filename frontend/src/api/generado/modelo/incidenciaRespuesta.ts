@@ -10,6 +10,13 @@ import type { IncidenciaRespuestaDescripcion } from './incidenciaRespuestaDescri
 import type { IncidenciaRespuestaCreadaPor } from './incidenciaRespuestaCreadaPor';
 import type { IncidenciaRespuestaAsignadaA } from './incidenciaRespuestaAsignadaA';
 import type { IncidenciaRespuestaFechaLimite } from './incidenciaRespuestaFechaLimite';
+import type { IncidenciaRespuestaNivelId } from './incidenciaRespuestaNivelId';
+import type { IncidenciaRespuestaNivelClave } from './incidenciaRespuestaNivelClave';
+import type { IncidenciaRespuestaNivelDescripcion } from './incidenciaRespuestaNivelDescripcion';
+import type { IncidenciaRespuestaEtapaId } from './incidenciaRespuestaEtapaId';
+import type { IncidenciaRespuestaEtapaClave } from './incidenciaRespuestaEtapaClave';
+import type { IncidenciaRespuestaEtapaDescripcion } from './incidenciaRespuestaEtapaDescripcion';
+import type { IncidenciaRespuestaObraClave } from './incidenciaRespuestaObraClave';
 
 export interface IncidenciaRespuesta {
   id: string;
@@ -25,4 +32,15 @@ export interface IncidenciaRespuesta {
   fecha_limite: IncidenciaRespuestaFechaLimite;
   bloquea_actividades: string[];
   evidencias: string[];
+  nivel_id?: IncidenciaRespuestaNivelId;
+  /** El **frente** (§7.4). */
+  nivel_clave?: IncidenciaRespuestaNivelClave;
+  nivel_descripcion?: IncidenciaRespuestaNivelDescripcion;
+  etapa_id?: IncidenciaRespuestaEtapaId;
+  /** El **sub-frente**. */
+  etapa_clave?: IncidenciaRespuestaEtapaClave;
+  etapa_descripcion?: IncidenciaRespuestaEtapaDescripcion;
+  obra_clave?: IncidenciaRespuestaObraClave;
+  /** `bloquea_actividades` resuelto a la clave del concepto de cada actividad, para mostrar «bloquea ALB-003» sin ir a buscarlo. */
+  bloquea_claves?: string[];
 }

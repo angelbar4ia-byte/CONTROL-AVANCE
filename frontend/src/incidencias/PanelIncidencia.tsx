@@ -120,9 +120,13 @@ export function PanelIncidencia({ incidencia, onCerrar, onCambio }: Props) {
           >
             <strong>Impacto «detiene»: frena la obra.</strong> {descripcionImpacto('detiene')}
             {incidencia.bloquea_actividades.length > 0 && (
-              <div className="mono text-xs mt-8">
+              <div className="text-xs mt-8">
                 {incidencia.bloquea_actividades.length} actividad(es) bloqueada(s):{' '}
-                {incidencia.bloquea_actividades.map((id) => id.slice(0, 8)).join(' · ')}
+                <span className="mono">
+                  {incidencia.bloquea_claves && incidencia.bloquea_claves.length > 0
+                    ? incidencia.bloquea_claves.join(' · ')
+                    : incidencia.bloquea_actividades.map((id) => id.slice(0, 8)).join(' · ')}
+                </span>
               </div>
             )}
           </div>
@@ -183,8 +187,32 @@ export function PanelIncidencia({ incidencia, onCerrar, onCambio }: Props) {
         </div>
 
         <dl className="col gap-4 text-sm" style={{ margin: 0 }}>
-          <Dato etiqueta="Obra" valor={incidencia.obra_id.slice(0, 8)} mono />
-          <Dato etiqueta="Frente" valor={incidencia.frente_id?.slice(0, 8) ?? '—'} mono />
+          <Dato
+            etiqueta="Obra"
+            valor={incidencia.obra_clave ?? incidencia.obra_id.slice(0, 8)}
+            mono={!incidencia.obra_clave}
+          />
+          <Dato
+            etiqueta="Frente"
+            valor={
+              incidencia.nivel_descripcion
+                ? `${incidencia.nivel_clave} · ${incidencia.nivel_descripcion}`
+                : '—'
+            }
+          />
+          <Dato
+            etiqueta="Sub-frente"
+            valor={
+              incidencia.etapa_descripcion
+                ? `${incidencia.etapa_clave} · ${incidencia.etapa_descripcion}`
+                : '—'
+            }
+          />
+          <Dato
+            etiqueta="A quién se le compra"
+            valor={incidencia.frente_id?.slice(0, 8) ?? '—'}
+            mono
+          />
           <Dato etiqueta="Creada por" valor={incidencia.creada_por?.slice(0, 8) ?? '—'} mono />
           <Dato etiqueta="Asignada a" valor={incidencia.asignada_a?.slice(0, 8) ?? '—'} mono />
           <Dato etiqueta="Fecha límite" valor={fmtFecha(incidencia.fecha_limite)} />
