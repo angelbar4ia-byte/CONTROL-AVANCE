@@ -30,6 +30,7 @@ from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
+from obractrl.adapters.repos.control_cambio_sql import RepositorioControlCambioSQL
 from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.especialidades_sql import (
     RepositorioEspecialidadesSQL,
@@ -121,6 +122,10 @@ from obractrl.application.casos_uso.gestionar_cierre_de_obra import (
     AbrirCierreDeObra,
     ConsultarCierreDeObra,
     Participar,
+)
+from obractrl.application.casos_uso.gestionar_control_cambio import (
+    ResolverControlDeCambio,
+    SolicitarControlDeCambio,
 )
 from obractrl.application.casos_uso.gestionar_estimacion import (
     EnviarEstimacion,
@@ -779,6 +784,25 @@ def obtener_consultar_planeacion(sesion: SesionRLS) -> ConsultarPlaneacion:
     )
 
 
+def obtener_solicitar_control_de_cambio(
+    sesion: SesionRLS,
+) -> SolicitarControlDeCambio:
+    return SolicitarControlDeCambio(
+        controles=RepositorioControlCambioSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_resolver_control_de_cambio(sesion: SesionRLS) -> ResolverControlDeCambio:
+    return ResolverControlDeCambio(
+        controles=RepositorioControlCambioSQL(sesion),
+        # Autorizar puede crear actividades —un trabajo fuera de catálogo, o la
+        # nueva de una sustitución—, así que necesita el repo que las da de alta.
+        actividades=RepositorioActividadesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_asignar_frente_de_obra(sesion: SesionRLS) -> AsignarFrenteDeObra:
     return AsignarFrenteDeObra(
         planeacion=RepositorioPlaneacionSQL(sesion),
@@ -788,6 +812,12 @@ def obtener_asignar_frente_de_obra(sesion: SesionRLS) -> AsignarFrenteDeObra:
 
 ConsultarPlaneacionDep = Annotated[
     ConsultarPlaneacion, Depends(obtener_consultar_planeacion)
+]
+SolicitarControlDeCambioDep = Annotated[
+    SolicitarControlDeCambio, Depends(obtener_solicitar_control_de_cambio)
+]
+ResolverControlDeCambioDep = Annotated[
+    ResolverControlDeCambio, Depends(obtener_resolver_control_de_cambio)
 ]
 AsignarFrenteDeObraDep = Annotated[
     AsignarFrenteDeObra, Depends(obtener_asignar_frente_de_obra)

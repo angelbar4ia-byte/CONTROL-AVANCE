@@ -875,6 +875,46 @@
         }
       }
     },
+    "/api/v1/actividades/precio-armado": {
+      "post": {
+        "tags": [
+          "torre"
+        ],
+        "summary": "Armar el precio de un trabajo fuera de catálogo",
+        "description": "Calcula sin guardar: es una simulación mientras el residente decide.\n\nEl cálculo vive en el servidor y no en la pantalla a propósito. Los costos\n—jornada de la cuadrilla, costo del insumo— son del catálogo, y mandarlos al\ncliente para que multiplique allá significaría exponer el costo a quien solo\nnecesita el precio, y tener la fórmula en dos lugares que un día divergen.",
+        "operationId": "armar_precio_de_extra_api_v1_actividades_precio_armado_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArmarPrecioPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrecioArmadoRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El precio no se puede armar con eso (§11.2)."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/proyectos": {
       "get": {
         "tags": [
@@ -2249,6 +2289,58 @@
         ]
       }
     },
+    "/api/v1/etapas/{etapa_id}/nivel": {
+      "put": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "A qué nivel pertenece esta etapa",
+        "description": "Cierra a mano lo que el árbol del prototipo no puede derivar.\n\nEl nivel de una etapa se deduce del árbol WBS —ahí cuelga de él— y eso\nresuelve las que algún prototipo usa. Las que ningún prototipo toca todavía\nno tienen de dónde derivarse, y sin nivel no caen en ninguna tarjeta cuando\nel residente mira su obra agrupada.",
+        "operationId": "asignar_nivel_a_la_etapa_api_v1_etapas__etapa_id__nivel_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "etapa_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Etapa Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NivelDeLaEtapaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/cuadrillas": {
       "get": {
         "tags": [
@@ -2337,6 +2429,58 @@
           },
           "422": {
             "description": "Datos de catálogo inválidos (§7.6)."
+          }
+        }
+      }
+    },
+    "/api/v1/cuadrillas/{cuadrilla_id}/costo-jornada": {
+      "put": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Cuánto cuesta un día de esta cuadrilla",
+        "description": "La otra mitad del precio que el residente arma (§11.2).\n\n`rendimiento` dice cuánto hace la cuadrilla en un día y esto cuánto vale ese\ndía. Sin lo segundo, un trabajo fuera de catálogo se puede describir pero no\ncostear: el precio armado sale reportando que le falta esta cuadrilla, y\nautorizarlo así sería autorizar por debajo del costo.",
+        "operationId": "asignar_costo_de_jornada_api_v1_cuadrillas__cuadrilla_id__costo_jornada_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cuadrilla_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cuadrilla Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CostoDeJornadaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -6424,6 +6568,250 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/controles-cambio": {
+      "post": {
+        "tags": [
+          "control-cambio"
+        ],
+        "summary": "Pedir un control de cambio",
+        "description": "El residente pide; no autoriza nada todavía (§11.3).\n\nLa orden de cambio **no** viaja aquí: se captura al autorizar. Eso es lo que\nsepara pedir de autorizar, y antes no existía — el residente tecleaba él\nmismo la orden al dar de alta un extra.",
+        "operationId": "solicitar_control_de_cambio_api_v1_obras__obra_id__controles_cambio_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitarCambioPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Solicitar Control De Cambio Api V1 Obras  Obra Id  Controles Cambio Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "La solicitud no cumple su tipo (§11.3)."
+          }
+        }
+      }
+    },
+    "/api/v1/controles-cambio/{control_id}/resolver": {
+      "post": {
+        "tags": [
+          "control-cambio"
+        ],
+        "summary": "Autorizar o rechazar un control de cambio",
+        "description": "Autorizar **aplica el efecto** en la misma transacción (§11.3).\n\nSubir el techo de una actividad, dar de alta el trabajo nuevo, o cancelar la\nque se sustituye. Guardar el \"sí\" y dejar el efecto para después haría que\nuna solicitud autorizada y sin aplicar fuera invisible: ni sale como\npendiente ni cambió nada.",
+        "operationId": "resolver_control_de_cambio_api_v1_controles_cambio__control_id__resolver_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "control_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Control Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolverCambioPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EfectoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe, no lo ves, o ya se resolvió (§12.4)."
+          },
+          "422": {
+            "description": "Autorizar sin orden de cambio (§11.3)."
+          }
+        }
+      }
+    },
+    "/api/v1/controles-cambio": {
+      "get": {
+        "tags": [
+          "control-cambio"
+        ],
+        "summary": "Controles de cambio de tus obras",
+        "description": "Lo ven los cuatro roles: el residente para seguir lo suyo, Control para\ndecidir, el supervisor y el Super intendente para saber cuánto se movió el\ncosto. **RLS acota cuáles** son sus obras (§12.4).",
+        "operationId": "listar_controles_de_cambio_api_v1_controles_cambio_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra a una obra.",
+              "title": "Obra Id"
+            },
+            "description": "Filtra a una obra."
+          },
+          {
+            "name": "estatus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(solicitado|autorizado|rechazado)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Estatus"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ControlCambioRespuesta"
+                  },
+                  "title": "Response Listar Controles De Cambio Api V1 Controles Cambio Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/controles-cambio/{control_id}/lineas": {
+      "get": {
+        "tags": [
+          "control-cambio"
+        ],
+        "summary": "Los renglones de un control de cambio",
+        "description": "Con la actividad afectada resuelta: cantidad base, programada y techo.\n\nEs lo que Control necesita para decidir sin abrir otra pantalla — cuánto\ntenía, cuánto lleva y cuánto se está pidiendo.",
+        "operationId": "lineas_del_control_api_v1_controles_cambio__control_id__lineas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "control_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Control Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "title": "Response Lineas Del Control Api V1 Controles Cambio  Control Id  Lineas Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/evaluaciones": {
       "post": {
         "tags": [
@@ -8370,6 +8758,180 @@
             ],
             "title": "Frente Nombre"
           },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "nivel_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Clave",
+            "description": "El **frente**."
+          },
+          "nivel_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Descripcion"
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id"
+          },
+          "etapa_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Clave",
+            "description": "El **sub-frente**."
+          },
+          "etapa_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Descripcion"
+          },
+          "contratacion_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratacion Clave",
+            "description": "A quién se le compra: OBRA, INSTALACIONES, SUBCONTRATOS, PINTURA."
+          },
+          "especialidad_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Especialidad Clave",
+            "description": "El oficio del concepto (migración 0047)."
+          },
+          "orden_cambio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden Cambio",
+            "description": "Si es extra-catálogo, la OC que lo autorizó (§11.2)."
+          },
+          "contratista_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista Id"
+          },
+          "contratista_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista Nombre"
+          },
+          "cuadrilla_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Id"
+          },
+          "cuadrilla_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Nombre"
+          },
           "cant_base": {
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -8384,6 +8946,26 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Ejecutada"
+          },
+          "tolerancia_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tolerancia Pct",
+            "description": "Cuánto puede exceder la programada a la base sin control de cambio (§6, migración 0049). Copia del umbral de la obra.",
+            "default": "20"
+          },
+          "cant_autorizada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cant Autorizada",
+            "description": "Techo que un control de cambio ya autorizó. Cuando existe manda sobre la tolerancia: es la cantidad que Control firmó."
           },
           "avance_pct": {
             "type": "string",
@@ -8493,40 +9075,6 @@
               }
             ],
             "title": "Notas"
-          },
-          "orden_cambio": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Orden Cambio",
-            "description": "Si es extra-catálogo, la OC que lo autorizó (§11.2)."
-          },
-          "contratista_nombre": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contratista Nombre"
-          },
-          "cuadrilla_nombre": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cuadrilla Nombre"
           }
         },
         "type": "object",
@@ -8894,6 +9442,179 @@
             ],
             "title": "Frente Nombre"
           },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "nivel_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Clave",
+            "description": "El **frente**."
+          },
+          "nivel_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Descripcion"
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id"
+          },
+          "etapa_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Clave",
+            "description": "El **sub-frente**."
+          },
+          "etapa_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Descripcion"
+          },
+          "contratacion_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratacion Clave",
+            "description": "A quién se le compra: OBRA, INSTALACIONES, SUBCONTRATOS, PINTURA."
+          },
+          "especialidad_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Especialidad Clave",
+            "description": "El oficio del concepto (migración 0047)."
+          },
+          "orden_cambio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden Cambio"
+          },
+          "contratista_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista Id"
+          },
+          "contratista_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista Nombre"
+          },
+          "cuadrilla_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Id"
+          },
+          "cuadrilla_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Nombre"
+          },
           "cant_base": {
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -8908,6 +9629,26 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Ejecutada"
+          },
+          "tolerancia_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Tolerancia Pct",
+            "description": "Cuánto puede exceder la programada a la base sin control de cambio (§6, migración 0049). Copia del umbral de la obra.",
+            "default": "20"
+          },
+          "cant_autorizada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cant Autorizada",
+            "description": "Techo que un control de cambio ya autorizó. Cuando existe manda sobre la tolerancia: es la cantidad que Control firmó."
           },
           "avance_pct": {
             "type": "string",
@@ -9345,6 +10086,44 @@
         ],
         "title": "ArbolDeProgramaRespuesta",
         "description": "§11.2 `GET /obras/{id}/programa/arbol`: el cronograma como árbol WBS."
+      },
+      "ArmarPrecioPeticion": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cantidad",
+            "description": "La cantidad del **trabajo** —30 m² de muro—, no de gente: el precio unitario es lo que se cobra por unidad de obra."
+          },
+          "cuadrillas": {
+            "items": {
+              "$ref": "#/components/schemas/LineaDeCuadrillaPeticion"
+            },
+            "type": "array",
+            "title": "Cuadrillas"
+          },
+          "materiales": {
+            "items": {
+              "$ref": "#/components/schemas/LineaDeMaterialPeticion"
+            },
+            "type": "array",
+            "title": "Materiales"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad"
+        ],
+        "title": "ArmarPrecioPeticion",
+        "description": "Con qué se va a hacer un trabajo que no está en el catálogo.\n\nEl jefe de obra lo describió así: *\"el residente dice qué cuadrilla va a\nutilizar, cuántas y el tiempo, también el material, y se crea el precio\"*."
       },
       "AsignarFrentePeticion": {
         "properties": {
@@ -10314,6 +11093,163 @@
           "razon_social"
         ],
         "title": "ContratistaRespuesta"
+      },
+      "ControlCambioRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "motivo": {
+            "type": "string",
+            "title": "Motivo"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id"
+          },
+          "solicitado_por": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Solicitado Por"
+          },
+          "solicitado_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Solicitado En"
+          },
+          "orden_cambio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden Cambio"
+          },
+          "autorizado_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autorizado Por"
+          },
+          "resuelto_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resuelto En"
+          },
+          "nota_resolucion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota Resolucion"
+          },
+          "descuenta_ejecutado": {
+            "type": "boolean",
+            "title": "Descuenta Ejecutado",
+            "default": false
+          },
+          "importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe",
+            "description": "Lo que esta solicitud le mueve al costo final de la obra.",
+            "default": "0"
+          },
+          "renglones": {
+            "type": "integer",
+            "title": "Renglones",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "tipo",
+          "estatus",
+          "motivo",
+          "solicitado_por",
+          "solicitado_en"
+        ],
+        "title": "ControlCambioRespuesta"
+      },
+      "CostoDeJornadaPeticion": {
+        "properties": {
+          "costo_jornada": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo Jornada"
+          }
+        },
+        "type": "object",
+        "title": "CostoDeJornadaPeticion",
+        "description": "Lo que cuesta un día de esta cuadrilla (§7.6, migración 0048).\n\n`null` lo quita: dejar de saberlo es un estado real —una cuadrilla nueva sin\nprecio negociado— y un cero diría que es gratis."
       },
       "CrearClusterPeticion": {
         "properties": {
@@ -11357,6 +12293,19 @@
             "title": "Precio Unitario",
             "description": "PU de la versión vigente, si ya se cargó una (§10.8)."
           },
+          "costo_jornada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo Jornada",
+            "description": "Lo que cuesta un día de esta cuadrilla (§7.6, migración 0048). Con `rendimiento` se sabe cuánto hace en un día; con esto, cuánto vale. Nulo = no capturado; un cero diría que la cuadrilla es gratis."
+          },
           "version_vigente": {
             "anyOf": [
               {
@@ -11469,6 +12418,32 @@
               }
             ],
             "title": "Frente Id"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id",
+            "description": "El **frente** donde cae el trabajo (§7.4). Sin él la actividad no aparece en ningún grupo de la pantalla del residente, que agrupa por nivel y etapa."
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id",
+            "description": "El **sub-frente**: la etapa dentro del nivel (§7.4)."
           },
           "duracion_dias": {
             "anyOf": [
@@ -11695,6 +12670,25 @@
         "type": "object",
         "title": "EditarFrentePeticion",
         "description": "Solo lo que cambia. La `clave` no está: es la identidad (§3.3)."
+      },
+      "EfectoRespuesta": {
+        "properties": {
+          "actividades_afectadas": {
+            "type": "integer",
+            "title": "Actividades Afectadas"
+          },
+          "actividades_creadas": {
+            "type": "integer",
+            "title": "Actividades Creadas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividades_afectadas",
+          "actividades_creadas"
+        ],
+        "title": "EfectoRespuesta",
+        "description": "Qué cambió en la obra al autorizar."
       },
       "EntradaBitacora": {
         "properties": {
@@ -13619,6 +14613,78 @@
         ],
         "title": "ItemProgramaBaseRespuesta"
       },
+      "LineaDeCuadrillaPeticion": {
+        "properties": {
+          "cuadrilla_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cuadrilla Id"
+          },
+          "cuadrillas": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cuadrillas",
+            "description": "Cuántas cuadrillas de ésas."
+          },
+          "dias": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Dias",
+            "description": "Cuántos días las va a tener."
+          }
+        },
+        "type": "object",
+        "required": [
+          "cuadrilla_id",
+          "cuadrillas",
+          "dias"
+        ],
+        "title": "LineaDeCuadrillaPeticion"
+      },
+      "LineaDeMaterialPeticion": {
+        "properties": {
+          "insumo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Insumo Id"
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cantidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "insumo_id",
+          "cantidad"
+        ],
+        "title": "LineaDeMaterialPeticion"
+      },
       "LineaExplosionRespuesta": {
         "properties": {
           "ruta": {
@@ -13684,6 +14750,94 @@
           "es_destajo"
         ],
         "title": "LineaExplosionRespuesta"
+      },
+      "LineaPeticion": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "actividad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad Id",
+            "description": "La actividad afectada. Obligatoria al pedir más cantidad."
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id",
+            "description": "Obligatorio al traer algo del catálogo."
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion",
+            "description": "Obligatoria fuera de catálogo: no hay concepto."
+          },
+          "precio_unitario": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Precio Unitario",
+            "default": "0"
+          },
+          "sustituye_a": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sustituye A",
+            "description": "Obligatoria en una sustitución."
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad"
+        ],
+        "title": "LineaPeticion",
+        "description": "Una actividad dentro de la solicitud.\n\nVarias a propósito: el residente pide por sub-frente, y si se le agotó el\ncemento en tres actividades de albañilería manda **una** solicitud con tres\nrenglones, no tres que alguien tenga que relacionar después."
       },
       "LoteRespuesta": {
         "properties": {
@@ -13790,6 +14944,25 @@
         ],
         "title": "ModoPago",
         "description": "``actividad.modo_pago`` y ``estimacion.modo`` comparten valores (§8.2)."
+      },
+      "NivelDeLaEtapaPeticion": {
+        "properties": {
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          }
+        },
+        "type": "object",
+        "title": "NivelDeLaEtapaPeticion",
+        "description": "A qué nivel pertenece la etapa (§7.4).\n\n`null` lo quita: corregir uno mal puesto es tan válido como ponerlo."
       },
       "NivelEvaluacion": {
         "type": "string",
@@ -15019,6 +16192,57 @@
           "frentes"
         ],
         "title": "PlaneacionRespuesta"
+      },
+      "PrecioArmadoRespuesta": {
+        "properties": {
+          "mano_obra": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Mano Obra"
+          },
+          "materiales": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Materiales"
+          },
+          "total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total"
+          },
+          "precio_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Unitario"
+          },
+          "jornadas": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Jornadas"
+          },
+          "sin_costo": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sin Costo",
+            "description": "Lo que se incluyó sin saber cuánto vale. Mientras haya algo aquí el total está **por debajo** del costo real, y autorizar contra esa cifra es autorizar de menos."
+          },
+          "completo": {
+            "type": "boolean",
+            "title": "Completo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mano_obra",
+          "materiales",
+          "total",
+          "precio_unitario",
+          "jornadas",
+          "completo"
+        ],
+        "title": "PrecioArmadoRespuesta"
       },
       "PrecioUnitarioRespuesta": {
         "properties": {
@@ -16438,6 +17662,48 @@
         ],
         "title": "ResetearContrasenaPeticion"
       },
+      "ResolverCambioPeticion": {
+        "properties": {
+          "autorizado": {
+            "type": "boolean",
+            "title": "Autorizado"
+          },
+          "orden_cambio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden Cambio",
+            "description": "**Obligatoria al autorizar**: es lo que vuelve válida la autorización. Se captura aquí y no al pedir — una orden tecleada por quien pide no autoriza nada. La base lo repite como CHECK."
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          },
+          "descuenta_ejecutado": {
+            "type": "boolean",
+            "title": "Descuenta Ejecutado",
+            "description": "Solo en una sustitución. Lo ejecutado de la actividad reemplazada **se estima por defecto** —el trabajo se hizo y alguien lo pagó—; esto lo descuenta cuando el caso lo pide.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "autorizado"
+        ],
+        "title": "ResolverCambioPeticion"
+      },
       "ResolverPendientePeticion": {
         "properties": {
           "aprobado": {
@@ -17010,6 +18276,60 @@
         ],
         "title": "SalidaRespuesta"
       },
+      "SolicitarCambioPeticion": {
+        "properties": {
+          "tipo": {
+            "$ref": "#/components/schemas/TipoControlCambio"
+          },
+          "motivo": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Motivo",
+            "description": "Por qué hace falta. Quien autoriza no estuvo en la obra: esto es todo lo que va a tener para decidir."
+          },
+          "lineas": {
+            "items": {
+              "$ref": "#/components/schemas/LineaPeticion"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Lineas"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id",
+            "description": "El **frente** (§7.4)."
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id",
+            "description": "El **sub-frente**."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "motivo",
+          "lineas"
+        ],
+        "title": "SolicitarCambioPeticion"
+      },
       "SolicitarCierrePeticion": {
         "properties": {
           "cantidad": {
@@ -17096,6 +18416,16 @@
           "basico"
         ],
         "title": "TipoConcepto"
+      },
+      "TipoControlCambio": {
+        "type": "string",
+        "enum": [
+          "extra_catalogo",
+          "fuera_catalogo",
+          "sustitucion",
+          "alta_catalogo"
+        ],
+        "title": "TipoControlCambio"
       },
       "TipoDeReporteRespuesta": {
         "properties": {

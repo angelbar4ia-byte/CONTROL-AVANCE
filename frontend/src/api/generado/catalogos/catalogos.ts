@@ -33,6 +33,7 @@ import type {
   CPURespuesta,
   ConceptoRespuesta,
   ContratistaRespuesta,
+  CostoDeJornadaPeticion,
   CrearConceptoPeticion,
   CrearContratistaPeticion,
   CrearCuadrillaPeticion,
@@ -54,6 +55,7 @@ import type {
   ListarInsumosApiV1InsumosGetParams,
   ListarMaterialesApiV1MaterialesGetParams,
   ListarUnidadesApiV1UnidadesGetParams,
+  NivelDeLaEtapaPeticion,
   NivelRespuesta,
   ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
   OficioDelConceptoPeticion,
@@ -1557,6 +1559,76 @@ export function useListarEtapasApiV1EtapasGet<TData = Awaited<ReturnType<typeof 
 
 
 /**
+ * Cierra a mano lo que el árbol del prototipo no puede derivar.
+
+El nivel de una etapa se deduce del árbol WBS —ahí cuelga de él— y eso
+resuelve las que algún prototipo usa. Las que ningún prototipo toca todavía
+no tienen de dónde derivarse, y sin nivel no caen en ninguna tarjeta cuando
+el residente mira su obra agrupada.
+ * @summary A qué nivel pertenece esta etapa
+ */
+export const asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut = (
+    etapaId: string,
+    nivelDeLaEtapaPeticion: NivelDeLaEtapaPeticion,
+ options?: SecondParameter<typeof peticion>,) => {
+      
+      
+      return peticion<void>(
+      {url: `/api/v1/etapas/${etapaId}/nivel`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: nivelDeLaEtapaPeticion
+    },
+      options);
+    }
+  
+
+
+export const getAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>, TError,{etapaId: string;data: NivelDeLaEtapaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>, TError,{etapaId: string;data: NivelDeLaEtapaPeticion}, TContext> => {
+
+const mutationKey = ['asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>, {etapaId: string;data: NivelDeLaEtapaPeticion}> = (props) => {
+          const {etapaId,data} = props ?? {};
+
+          return  asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut(etapaId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationResult = NonNullable<Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>>
+    export type AsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationBody = NivelDeLaEtapaPeticion
+    export type AsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationError = HTTPValidationError
+
+    /**
+ * @summary A qué nivel pertenece esta etapa
+ */
+export const useAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>, TError,{etapaId: string;data: NivelDeLaEtapaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>,
+        TError,
+        {etapaId: string;data: NivelDeLaEtapaPeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * Lectura simple sin orquestación de dominio —como `GET /unidades`—, así
 que consulta el repo directo: RLS ya acota el alcance (§12.4).
  * @summary Catálogo de cuadrillas
@@ -1785,6 +1857,76 @@ export const useCrearCuadrillaApiV1CuadrillasPost = <TError = void,
       > => {
 
       const mutationOptions = getCrearCuadrillaApiV1CuadrillasPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * La otra mitad del precio que el residente arma (§11.2).
+
+`rendimiento` dice cuánto hace la cuadrilla en un día y esto cuánto vale ese
+día. Sin lo segundo, un trabajo fuera de catálogo se puede describir pero no
+costear: el precio armado sale reportando que le falta esta cuadrilla, y
+autorizarlo así sería autorizar por debajo del costo.
+ * @summary Cuánto cuesta un día de esta cuadrilla
+ */
+export const asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut = (
+    cuadrillaId: string,
+    costoDeJornadaPeticion: CostoDeJornadaPeticion,
+ options?: SecondParameter<typeof peticion>,) => {
+      
+      
+      return peticion<void>(
+      {url: `/api/v1/cuadrillas/${cuadrillaId}/costo-jornada`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: costoDeJornadaPeticion
+    },
+      options);
+    }
+  
+
+
+export const getAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>, TError,{cuadrillaId: string;data: CostoDeJornadaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>, TError,{cuadrillaId: string;data: CostoDeJornadaPeticion}, TContext> => {
+
+const mutationKey = ['asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>, {cuadrillaId: string;data: CostoDeJornadaPeticion}> = (props) => {
+          const {cuadrillaId,data} = props ?? {};
+
+          return  asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut(cuadrillaId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationResult = NonNullable<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>>
+    export type AsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationBody = CostoDeJornadaPeticion
+    export type AsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationError = HTTPValidationError
+
+    /**
+ * @summary Cuánto cuesta un día de esta cuadrilla
+ */
+export const useAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>, TError,{cuadrillaId: string;data: CostoDeJornadaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>,
+        TError,
+        {cuadrillaId: string;data: CostoDeJornadaPeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

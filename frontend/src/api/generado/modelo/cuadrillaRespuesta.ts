@@ -8,6 +8,7 @@
 import type { CuadrillaRespuestaUnidadId } from './cuadrillaRespuestaUnidadId';
 import type { CuadrillaRespuestaRendimiento } from './cuadrillaRespuestaRendimiento';
 import type { CuadrillaRespuestaPrecioUnitario } from './cuadrillaRespuestaPrecioUnitario';
+import type { CuadrillaRespuestaCostoJornada } from './cuadrillaRespuestaCostoJornada';
 import type { CuadrillaRespuestaVersionVigente } from './cuadrillaRespuestaVersionVigente';
 
 export interface CuadrillaRespuesta {
@@ -19,6 +20,8 @@ export interface CuadrillaRespuesta {
   rendimiento?: CuadrillaRespuestaRendimiento;
   /** PU de la versión vigente, si ya se cargó una (§10.8). */
   precio_unitario?: CuadrillaRespuestaPrecioUnitario;
+  /** Lo que cuesta un día de esta cuadrilla (§7.6, migración 0048). Con `rendimiento` se sabe cuánto hace en un día; con esto, cuánto vale. Nulo = no capturado; un cero diría que la cuadrilla es gratis. */
+  costo_jornada?: CuadrillaRespuestaCostoJornada;
   version_vigente?: CuadrillaRespuestaVersionVigente;
   estatus?: string;
 }

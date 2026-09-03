@@ -24,7 +24,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type {
   FilaDeInsumoRespuesta,
-  PeriodoRespuesta,
+  ObractrlAdaptersApiV1InsumosPeriodoRespuesta as PeriodoRespuesta,
 } from '@/api/generado/modelo';
 import { TablaInsumos } from '@/insumos/TablaInsumos';
 

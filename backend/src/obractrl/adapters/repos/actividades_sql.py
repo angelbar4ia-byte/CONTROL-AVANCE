@@ -166,13 +166,15 @@ class RepositorioActividadesSQL:
             text(
                 """
                 insert into actividad
-                    (id, org_id, obra_id, concepto_id, frente_id, descripcion,
+                    (id, org_id, obra_id, concepto_id, frente_id,
+                     nivel_id, etapa_id, descripcion,
                      cant_base, cant_programada, cant_ejecutada,
                      precio_unitario, precio_destajo, modo_pago,
                      duracion_dias, estatus, extra, orden_cambio)
                 values
                     (:id, cast(current_setting('app.org_id') as uuid), :obra_id,
                      cast(:concepto_id as uuid), cast(:frente_id as uuid),
+                     cast(:nivel_id as uuid), cast(:etapa_id as uuid),
                      :descripcion, :cant_base, :cant_base, 0,
                      :precio_unitario, :precio_destajo,
                      cast(:modo_pago as modo_pago), :duracion_dias,
@@ -188,6 +190,8 @@ class RepositorioActividadesSQL:
                 "frente_id": (
                     str(datos["frente_id"]) if datos.get("frente_id") else None
                 ),
+                "nivel_id": str(datos["nivel_id"]) if datos.get("nivel_id") else None,
+                "etapa_id": str(datos["etapa_id"]) if datos.get("etapa_id") else None,
                 "descripcion": datos["descripcion"],
                 "cant_base": datos["cant_base"],
                 "precio_unitario": datos["precio_unitario"],

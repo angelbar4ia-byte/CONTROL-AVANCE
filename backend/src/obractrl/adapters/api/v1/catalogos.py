@@ -646,6 +646,35 @@ async def listar_etapas(sesion: SesionRLS) -> list[EtapaRespuesta]:
     return [EtapaRespuesta.desde_fila(fila) for fila in filas]
 
 
+class NivelDeLaEtapaPeticion(BaseModel):
+    """A qué nivel pertenece la etapa (§7.4).
+
+    `null` lo quita: corregir uno mal puesto es tan válido como ponerlo.
+    """
+
+    nivel_id: UUID | None = None
+
+
+@router.put(
+    "/etapas/{etapa_id}/nivel",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="A qué nivel pertenece esta etapa",
+    dependencies=[CATALOGOS],
+)
+async def asignar_nivel_a_la_etapa(
+    etapa_id: UUID, peticion: NivelDeLaEtapaPeticion, sesion: SesionRLS
+) -> None:
+    """Cierra a mano lo que el árbol del prototipo no puede derivar.
+
+    El nivel de una etapa se deduce del árbol WBS —ahí cuelga de él— y eso
+    resuelve las que algún prototipo usa. Las que ningún prototipo toca todavía
+    no tienen de dónde derivarse, y sin nivel no caen en ninguna tarjeta cuando
+    el residente mira su obra agrupada.
+    """
+    await RepositorioNivelesEtapasSQL(sesion).asignar_nivel(etapa_id, peticion.nivel_id)
+    await sesion.commit()
+
+
 # --- Cuadrillas (§7.6, §10.6) ---------------------------------------------
 #
 # El alta manual de aquí es mínima (clave, nombre, unidad); la composición y
@@ -674,6 +703,14 @@ class CuadrillaRespuesta(BaseModel):
     precio_unitario: Decimal | None = Field(
         default=None, description="PU de la versión vigente, si ya se cargó una (§10.8)."
     )
+    costo_jornada: Decimal | None = Field(
+        default=None,
+        description=(
+            "Lo que cuesta un día de esta cuadrilla (§7.6, migración 0048). Con "
+            "`rendimiento` se sabe cuánto hace en un día; con esto, cuánto vale. "
+            "Nulo = no capturado; un cero diría que la cuadrilla es gratis."
+        ),
+    )
     version_vigente: int | None = None
     estatus: str = "activo"
 
@@ -686,6 +723,7 @@ class CuadrillaRespuesta(BaseModel):
             unidad_id=fila.get("unidad_id"),
             rendimiento=fila.get("rendimiento"),
             precio_unitario=fila.get("precio_unitario"),
+            costo_jornada=fila.get("costo_jornada"),
             version_vigente=fila.get("version_vigente"),
             estatus=fila["estatus"],
         )
@@ -735,6 +773,38 @@ async def listar_cuadrillas(
             )
         )
     return respuestas
+
+
+class CostoDeJornadaPeticion(BaseModel):
+    """Lo que cuesta un día de esta cuadrilla (§7.6, migración 0048).
+
+    `null` lo quita: dejar de saberlo es un estado real —una cuadrilla nueva sin
+    precio negociado— y un cero diría que es gratis.
+    """
+
+    costo_jornada: Decimal | None = Field(default=None, ge=0)
+
+
+@router.put(
+    "/cuadrillas/{cuadrilla_id}/costo-jornada",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Cuánto cuesta un día de esta cuadrilla",
+    dependencies=[CATALOGOS],
+)
+async def asignar_costo_de_jornada(
+    cuadrilla_id: UUID, peticion: CostoDeJornadaPeticion, sesion: SesionRLS
+) -> None:
+    """La otra mitad del precio que el residente arma (§11.2).
+
+    `rendimiento` dice cuánto hace la cuadrilla en un día y esto cuánto vale ese
+    día. Sin lo segundo, un trabajo fuera de catálogo se puede describir pero no
+    costear: el precio armado sale reportando que le falta esta cuadrilla, y
+    autorizarlo así sería autorizar por debajo del costo.
+    """
+    await RepositorioCuadrillasSQL(sesion).actualizar(
+        cuadrilla_id, {"costo_jornada": peticion.costo_jornada}
+    )
+    await sesion.commit()
 
 
 @router.post(

@@ -6,13 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-/**
- * Una columna de la tabla.
- */
-export interface PeriodoRespuesta {
-  clave: string;
-  desde: string;
-  /** Exclusivo: es el día siguiente al último del periodo. */
-  hasta: string;
-  etiqueta: string;
-}
+export type ActividadRespuestaContratistaId = string | null;

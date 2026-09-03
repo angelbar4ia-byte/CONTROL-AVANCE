@@ -33,10 +33,12 @@ import type {
   ActividadDetalleRespuesta,
   ActividadRespuesta,
   ActividadesDeObraApiV1ObrasObraIdActividadesGetParams,
+  ArmarPrecioPeticion,
   DarDeAltaExtraPeticion,
   EstadoDeObraRespuesta,
   ExtraRespuesta,
   HTTPValidationError,
+  PrecioArmadoRespuesta,
   TorreDeControlApiV1TorreGetParams
 } from '.././modelo';
 
@@ -643,6 +645,76 @@ export const useDarDeAltaExtraApiV1ActividadesPost = <TError = void,
       > => {
 
       const mutationOptions = getDarDeAltaExtraApiV1ActividadesPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Calcula sin guardar: es una simulación mientras el residente decide.
+
+El cálculo vive en el servidor y no en la pantalla a propósito. Los costos
+—jornada de la cuadrilla, costo del insumo— son del catálogo, y mandarlos al
+cliente para que multiplique allá significaría exponer el costo a quien solo
+necesita el precio, y tener la fórmula en dos lugares que un día divergen.
+ * @summary Armar el precio de un trabajo fuera de catálogo
+ */
+export const armarPrecioDeExtraApiV1ActividadesPrecioArmadoPost = (
+    armarPrecioPeticion: ArmarPrecioPeticion,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<PrecioArmadoRespuesta>(
+      {url: `/api/v1/actividades/precio-armado`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: armarPrecioPeticion, signal
+    },
+      options);
+    }
+  
+
+
+export const getArmarPrecioDeExtraApiV1ActividadesPrecioArmadoPostMutationOptions = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof armarPrecioDeExtraApiV1ActividadesPrecioArmadoPost>>, TError,{data: ArmarPrecioPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof armarPrecioDeExtraApiV1ActividadesPrecioArmadoPost>>, TError,{data: ArmarPrecioPeticion}, TContext> => {
+
+const mutationKey = ['armarPrecioDeExtraApiV1ActividadesPrecioArmadoPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof armarPrecioDeExtraApiV1ActividadesPrecioArmadoPost>>, {data: ArmarPrecioPeticion}> = (props) => {
+          const {data} = props ?? {};
+
+          return  armarPrecioDeExtraApiV1ActividadesPrecioArmadoPost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ArmarPrecioDeExtraApiV1ActividadesPrecioArmadoPostMutationResult = NonNullable<Awaited<ReturnType<typeof armarPrecioDeExtraApiV1ActividadesPrecioArmadoPost>>>
+    export type ArmarPrecioDeExtraApiV1ActividadesPrecioArmadoPostMutationBody = ArmarPrecioPeticion
+    export type ArmarPrecioDeExtraApiV1ActividadesPrecioArmadoPostMutationError = void
+
+    /**
+ * @summary Armar el precio de un trabajo fuera de catálogo
+ */
+export const useArmarPrecioDeExtraApiV1ActividadesPrecioArmadoPost = <TError = void,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof armarPrecioDeExtraApiV1ActividadesPrecioArmadoPost>>, TError,{data: ArmarPrecioPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof armarPrecioDeExtraApiV1ActividadesPrecioArmadoPost>>,
+        TError,
+        {data: ArmarPrecioPeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getArmarPrecioDeExtraApiV1ActividadesPrecioArmadoPostMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

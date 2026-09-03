@@ -139,6 +139,25 @@ class RepositorioNivelesEtapasSQL:
             {"id": str(etapa_id), "descripcion": cambios["descripcion"]},
         )
 
+    async def asignar_nivel(self, etapa_id: UUID, nivel_id: UUID | None) -> None:
+        """A qué nivel pertenece esta etapa (§7.4).
+
+        `derivar_nivel_desde_arbol` resuelve las que el prototipo usa; esto
+        cierra las que ningún prototipo toca todavía y que por eso no tienen de
+        dónde derivarse. Sin nivel, la etapa no cae en ninguna tarjeta cuando el
+        residente mira su obra agrupada por nivel.
+
+        `None` lo quita: corregir un nivel mal puesto es tan válido como
+        ponerlo, y omitir el campo no podría expresarlo.
+        """
+        await self._sesion.execute(
+            text(
+                "update etapa_constructiva set nivel_id = cast(:nivel_id as uuid) "
+                "where id = cast(:id as uuid)"
+            ),
+            {"id": str(etapa_id), "nivel_id": str(nivel_id) if nivel_id else None},
+        )
+
     async def asignar_frente(
         self, *, frente_id: UUID, etapa_ids: Sequence[UUID]
     ) -> None:
@@ -197,5 +216,54 @@ class RepositorioNivelesEtapasSQL:
                     "frente_id": str(frente_id) if frente_id else None,
                     "claves": claves,
                 },
+            )
+        ).rowcount
+
+    async def derivar_nivel_desde_arbol(self) -> int:
+        """Le pone a cada etapa el nivel del que cuelga en el árbol WBS (§7.4).
+
+        `etapa_constructiva.nivel_id` nació vacío: el catálogo de etapas del
+        §10.1 no trae a qué nivel pertenece cada una —su columna `TIPO` es la
+        clasificación del exportador, no una referencia— y asumirlo sería
+        inventar una relación que el archivo no da (§3.3).
+
+        Pero el **árbol del prototipo sí la da**: `prototipo_nodo` cuelga cada
+        etapa de su nivel, y eso lo capturó una persona al armar la ingeniería.
+        Derivarlo de ahí no es adivinar, es leer lo que ya está dicho.
+
+        Es lo que deja agrupar la obra por nivel —cimentación, planta baja,
+        azotea— que es como el residente la mira: sin esto, sus actividades solo
+        se pueden agrupar por el tipo de contratación, que le dice a quién se le
+        compra y no qué se está construyendo.
+
+        Solo llena lo que está vacío: una etapa que alguien movió a mano no se
+        pisa. Y solo cuando el árbol es **unánime** —`having count(distinct) = 1`—
+        porque una etapa colgada de dos niveles distintos en dos prototipos no
+        tiene un nivel que derivar, y elegir uno al azar sería peor que dejarla.
+        """
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    with del_arbol as (
+                      -- El `having` de abajo garantiza que hay uno solo,
+                      -- así que el primero del arreglo ES el nivel.
+                      -- (Postgres no tiene `min(uuid)`.)
+                      select pe.etapa_id,
+                             (array_agg(distinct pn.nivel_id))[1] as nivel_id
+                        from prototipo_nodo pe
+                        join prototipo_nodo pn on pn.id = pe.parent_id
+                       where pe.etapa_id is not null
+                         and pn.nivel_id is not null
+                       group by pe.etapa_id
+                      having count(distinct pn.nivel_id) = 1
+                    )
+                    update etapa_constructiva e
+                       set nivel_id = d.nivel_id
+                      from del_arbol d
+                     where d.etapa_id = e.id
+                       and e.nivel_id is null
+                    """
+                )
             )
         ).rowcount

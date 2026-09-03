@@ -100,3 +100,4 @@ async def capturar_avance(
         avance_pct=resultado.avance.pct,
         estatus=resultado.estatus.value,
     )
+
