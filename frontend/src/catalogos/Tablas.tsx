@@ -32,6 +32,7 @@ import type {
   NivelRespuesta,
   PrototipoRespuesta,
   ProyectoRespuesta,
+  EspecialidadRespuesta,
   UnidadRespuesta,
 } from '@/api/generado/modelo';
 import { fmtMXN, fmtNum, fmtPct } from '@/lib/formato';
@@ -300,23 +301,41 @@ export function TablaInsumos({
   );
 }
 
-const COLUMNAS_CONCEPTOS = ['Clave', 'Descripción', 'Tipo', 'Unidad', 'Familia', 'Estatus', 'APU'] as const;
+const COLUMNAS_CONCEPTOS = [
+  'Clave',
+  'Descripción',
+  'Tipo',
+  'Unidad',
+  'Familia',
+  // El oficio con el que se ejecuta (§8.3, migración 0047). Editable en la
+  // tabla y no en un diálogo aparte porque lo que hace falta es rellenar
+  // decenas seguidas: el catálogo cargado clasifica 461 de 898 conceptos y el
+  // resto sale como «Sin oficio» al desglosar un frente.
+  'Oficio',
+  'Estatus',
+  'APU',
+] as const;
 
 export function TablaConceptos({
   resultados,
   unidades,
   familias,
+  especialidades,
   cargando,
   conceptoAbierto,
   onAbrirAPU,
+  onCambiarOficio,
 }: {
   readonly resultados: readonly Resultado<ConceptoRespuesta>[];
   readonly unidades: readonly UnidadRespuesta[];
   readonly familias: readonly FamiliaRespuesta[];
+  readonly especialidades?: readonly EspecialidadRespuesta[];
   readonly cargando: boolean;
   readonly conceptoAbierto: string | null;
   /** Ausente cuando el rol no consulta el APU (§11.2: CPU/explosión = C, SI). */
   readonly onAbrirAPU?: (concepto: ConceptoRespuesta) => void;
+  /** Ausente cuando el rol no configura catálogos: la celda queda de lectura. */
+  readonly onCambiarOficio?: (conceptoId: string, especialidadId: string | null) => void;
 }) {
   const virtual = useTablaVirtual(resultados);
   return (
@@ -342,6 +361,11 @@ export function TablaConceptos({
           <td className="mono text-xs">
             {familias.find((f) => f.id === item.familia_id)?.clave ?? '—'}
           </td>
+          <CeldaOficio
+            concepto={item}
+            especialidades={especialidades ?? []}
+            onCambiar={onCambiarOficio}
+          />
           <Estatus estatus={item.estatus ?? 'activo'} />
           <td className="cell-actions">
             {onAbrirAPU && (
@@ -554,5 +578,54 @@ export function TablaPrototipos({
         );
       })}
     </TablaCatalogo>
+  );
+}
+
+/**
+ * El oficio de un concepto, editable en la celda.
+ *
+ * Un `<select>` y no un diálogo porque el trabajo real es rellenar decenas
+ * seguidas: el catálogo cargado clasifica 461 de 898 conceptos, y abrir y
+ * cerrar un modal por cada uno haría que nadie lo terminara.
+ *
+ * Guarda al elegir, sin botón de confirmar. Es un solo campo de una lista
+ * cerrada: no hay estado a medias que confirmar, y el valor anterior se
+ * recupera volviendo a elegirlo.
+ */
+function CeldaOficio({
+  concepto,
+  especialidades,
+  onCambiar,
+}: {
+  readonly concepto: ConceptoRespuesta;
+  readonly especialidades: readonly EspecialidadRespuesta[];
+  readonly onCambiar?: (conceptoId: string, especialidadId: string | null) => void;
+}) {
+  const actual = especialidades.find((e) => e.id === concepto.especialidad_id);
+
+  if (!onCambiar || especialidades.length === 0) {
+    return (
+      <td className="mono text-xs">
+        {actual?.clave ?? <span className="text-mute">—</span>}
+      </td>
+    );
+  }
+
+  return (
+    <td>
+      <select
+        className="select"
+        value={concepto.especialidad_id ?? ''}
+        aria-label={`Oficio de ${concepto.clave}`}
+        onChange={(e) => onCambiar(concepto.id, e.target.value || null)}
+      >
+        <option value="">Sin oficio</option>
+        {especialidades.map((especialidad) => (
+          <option key={especialidad.id} value={especialidad.id}>
+            {especialidad.clave} · {especialidad.nombre}
+          </option>
+        ))}
+      </select>
+    </td>
   );
 }

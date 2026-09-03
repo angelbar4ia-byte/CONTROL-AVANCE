@@ -31,6 +31,7 @@ from obractrl.domain.insumos.programado import (
     Periodo,
     insumos_programados,
     intervalos_de_trabajo,
+    jornadas_por_frente,
     repartir_en_periodos,
 )
 from obractrl.domain.programacion.cpm import Tramo
@@ -81,9 +82,12 @@ def _actividad(
     tramos: tuple[Tramo, ...] = (),
     concepto: str | None = "MURO",
     obra: str = "obra-1",
+    frente: str | None = None,
+    especialidad: str | None = None,
+    actividad_id: str = "act-1",
 ) -> ActividadConVentana:
     return ActividadConVentana(
-        actividad_id="act-1",
+        actividad_id=actividad_id,
         obra_id=obra,
         concepto_clave=concepto,
         descripcion="Muro de tabique",
@@ -91,6 +95,8 @@ def _actividad(
         inicio=inicio,
         fin=fin,
         tramos=tramos,
+        frente_id=frente,
+        especialidad_id=especialidad,
     )
 
 
@@ -392,3 +398,104 @@ class TestMatriz:
             periodos=SEMANAS,
         )
         assert matriz.filas == ()
+
+
+class TestJornadasPorFrente:
+    """Las jornadas que cada frente pide, periodo a periodo (§8.3).
+
+    Es de dónde sale la cuenta de cuadrillas, y lo que estas pruebas protegen
+    es que **agrupar por frente no cambie el reparto**: es el mismo repartidor
+    que el de los materiales, filtrado a mano de obra. Si un día divergieran,
+    el material y la gente dirían cosas distintas sobre el mismo programa.
+    """
+
+    _MANO_DE_OBRA = Componente(
+        categoria="mano_obra", cantidad=Decimal("2"), clave_insumo="MO-01"
+    )
+    _MATERIAL = Componente(
+        categoria="material", cantidad=Decimal("3"), clave_insumo="CEM-01"
+    )
+
+    def _jornadas(self, *actividades: ActividadConVentana):
+        return jornadas_por_frente(
+            actividades=list(actividades),
+            explosiones={"MURO": _explosion(self._MANO_DE_OBRA, self._MATERIAL)},
+            catalogo=CATALOGO,
+            periodos=SEMANAS,
+        )
+
+    def test_solo_cuenta_mano_de_obra(self) -> None:
+        # El cemento no se mide en cuadrillas. Colarlo inflaría la gente que
+        # hace falta en la proporción del APU, que no significa nada.
+        jornadas = self._jornadas(_actividad(frente="est"))
+        assert sum(jornadas["est"]) == Decimal(20)
+
+    def test_suma_las_actividades_del_mismo_frente(self) -> None:
+        # Un frente son varias etapas: si cada actividad saliera por su lado,
+        # la tabla pediría contratar por renglón en vez de por frente.
+        jornadas = self._jornadas(
+            _actividad(frente="est"),
+            _actividad(frente="est", actividad_id="act-2"),
+        )
+        assert sum(jornadas["est"]) == Decimal(40)
+
+    def test_separa_frentes_distintos(self) -> None:
+        jornadas = self._jornadas(
+            _actividad(frente="est"),
+            _actividad(frente="ins", actividad_id="act-2", cantidad="5"),
+        )
+        assert sum(jornadas["est"]) == Decimal(20)
+        assert sum(jornadas["ins"]) == Decimal(10)
+
+    def test_lo_que_no_tiene_frente_se_agrupa_y_no_se_descarta(self) -> None:
+        # Es trabajo real cuya etapa todavía no se mapeó (migración 0045).
+        # Descartarlo haría que el total de la obra no cuadrara con la suma de
+        # sus frentes, y nadie sabría que falta capturar algo.
+        jornadas = self._jornadas(_actividad(frente=None))
+        assert sum(jornadas[""]) == Decimal(20)
+
+    def test_el_agrupador_cambia_el_eje_sin_cambiar_el_reparto(self) -> None:
+        """El segundo eje (0047): el mismo cruce agrupado por oficio.
+
+        Lo que se protege es que **la suma no cambie** al cambiar de eje. El
+        frente y la especialidad son dos lecturas del mismo trabajo; si cada una
+        tuviera su propio recorrido, un día el total de la obra no sería ni la
+        suma de sus frentes ni la de sus oficios.
+        """
+        actividades = [
+            _actividad(frente="est", especialidad="alb"),
+            _actividad(frente="est", especialidad="aca", actividad_id="act-2"),
+        ]
+        por_frente = self._jornadas(*actividades)
+        por_oficio = jornadas_por_frente(
+            actividades=actividades,
+            explosiones={"MURO": _explosion(self._MANO_DE_OBRA, self._MATERIAL)},
+            catalogo=CATALOGO,
+            periodos=SEMANAS,
+            agrupar=lambda a: a.especialidad_id or "",
+        )
+        assert set(por_oficio) == {"alb", "aca"}
+        assert sum(por_frente["est"]) == sum(
+            sum(fila) for fila in por_oficio.values()
+        )
+
+    def test_lo_que_no_tiene_oficio_tampoco_se_descarta(self) -> None:
+        # Un concepto sin especialidad capturada sigue siendo trabajo real: si
+        # se cayera, la suma de los oficios no daría el frente.
+        por_oficio = jornadas_por_frente(
+            actividades=[_actividad(frente="est", especialidad=None)],
+            explosiones={"MURO": _explosion(self._MANO_DE_OBRA)},
+            catalogo=CATALOGO,
+            periodos=SEMANAS,
+            agrupar=lambda a: a.especialidad_id or "",
+        )
+        assert sum(por_oficio[""]) == Decimal(20)
+
+    def test_reparte_sobre_los_periodos_como_los_materiales(self) -> None:
+        # Mismo repartidor: la actividad va del 11 al 21 de mayo, así que cae
+        # en dos semanas y no entera en la primera.
+        jornadas = self._jornadas(_actividad(frente="est"))
+        assert len(jornadas["est"]) == len(SEMANAS)
+        assert jornadas["est"][0] > 0
+        assert jornadas["est"][1] > 0
+        assert jornadas["est"][2] == 0

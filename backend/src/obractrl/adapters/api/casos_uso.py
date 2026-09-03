@@ -31,16 +31,21 @@ from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
+from obractrl.adapters.repos.especialidades_sql import (
+    RepositorioEspecialidadesSQL,
+)
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
 from obractrl.adapters.repos.evaluaciones_sql import RepositorioEvaluacionesSQL
 from obractrl.adapters.repos.expediente_sql import RepositorioExpedienteSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
+from obractrl.adapters.repos.frentes_sql import RepositorioFrentesSQL
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.organizacion_sql import RepositorioOrganizacionSQL
+from obractrl.adapters.repos.planeacion_sql import RepositorioPlaneacionSQL
 from obractrl.adapters.repos.presupuestos_sql import RepositorioPresupuestosSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
 from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
@@ -53,6 +58,7 @@ from obractrl.adapters.repos.usuarios_sql import RepositorioUsuariosSQL
 from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorAlmacen,
     AplicadorConceptosBase,
+    AplicadorContratistas,
     AplicadorCPU,
     AplicadorCuadrillas,
     AplicadorDeCarga,
@@ -74,6 +80,10 @@ from obractrl.application.casos_uso.calcular_cpu import (
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
 from obractrl.application.casos_uso.consultar_insumos_programados import (
     ConsultarInsumosProgramados,
+)
+from obractrl.application.casos_uso.consultar_planeacion import (
+    AsignarFrenteDeObra,
+    ConsultarPlaneacion,
 )
 from obractrl.application.casos_uso.dar_de_alta_extra import DarDeAltaExtra
 from obractrl.application.casos_uso.exportar_estimacion import (
@@ -191,6 +201,7 @@ __all__ = [
     "ArmarExpedienteDep",
     "ArmarReporteDeEstimacionDep",
     "AsignarAlcanceDep",
+    "AsignarFrenteDeObraDep",
     "AutorizarCierreDep",
     "CapturarAvanceDep",
     "CerrarIncidenciaDep",
@@ -200,6 +211,7 @@ __all__ = [
     "ConsultarCierreDeObraDep",
     "ConsultarExpedienteDep",
     "ConsultarInsumosProgramadosDep",
+    "ConsultarPlaneacionDep",
     "ConsultarRutaCriticaDep",
     "CrearClusterDep",
     "CrearConceptoDep",
@@ -741,11 +753,44 @@ def obtener_consultar_insumos_programados(
         presupuestos=RepositorioPresupuestosSQL(sesion),
         materiales=RepositorioMaterialesSQL(sesion),
         nodos=RepositorioPrototipoNodoSQL(sesion),
+        # Las fechas del CPM no se persisten (`guardar_resultado_cpm`), así que
+        # la ventana de cada actividad se pide fresca a la ruta crítica.
+        ruta=obtener_consultar_ruta_critica(sesion),
     )
 
 
 ConsultarInsumosProgramadosDep = Annotated[
     ConsultarInsumosProgramados, Depends(obtener_consultar_insumos_programados)
+]
+
+
+# --- Planeación por obra (§8.3, §11.3) ------------------------------------
+
+
+def obtener_consultar_planeacion(sesion: SesionRLS) -> ConsultarPlaneacion:
+    return ConsultarPlaneacion(
+        insumos=obtener_consultar_insumos_programados(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        planeacion=RepositorioPlaneacionSQL(sesion),
+        frentes=RepositorioFrentesSQL(sesion),
+        # El segundo eje (0047): con qué oficio se parte un frente que solo,
+        # entero, es demasiado grueso para contratar.
+        especialidades=RepositorioEspecialidadesSQL(sesion),
+    )
+
+
+def obtener_asignar_frente_de_obra(sesion: SesionRLS) -> AsignarFrenteDeObra:
+    return AsignarFrenteDeObra(
+        planeacion=RepositorioPlaneacionSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+ConsultarPlaneacionDep = Annotated[
+    ConsultarPlaneacion, Depends(obtener_consultar_planeacion)
+]
+AsignarFrenteDeObraDep = Annotated[
+    AsignarFrenteDeObra, Depends(obtener_asignar_frente_de_obra)
 ]
 
 
@@ -980,6 +1025,9 @@ class FabricaDeCargas:
                 conceptos=RepositorioConceptosSQL(sesion),
                 unidades=RepositorioUnidadesSQL(sesion),
                 cargas=cargas,
+                # El oficio con el que se ejecuta el concepto (0047). Se pasa
+                # solo aquí: un concepto auxiliar no se contrata por oficio.
+                especialidades=RepositorioEspecialidadesSQL(sesion),
             )
         if tipo is TipoCarga.CONCEPTOS_AUXILIARES:
             return AplicadorConceptosBase(
@@ -993,12 +1041,28 @@ class FabricaDeCargas:
             return AplicadorNiveles(niveles_etapas=RepositorioNivelesEtapasSQL(sesion))
         if tipo is TipoCarga.ETAPAS_CONSTRUCTIVAS:
             return AplicadorEtapasConstructivas(
-                niveles_etapas=RepositorioNivelesEtapasSQL(sesion)
+                niveles_etapas=RepositorioNivelesEtapasSQL(sesion),
+                # El frente de cada etapa (0045). El catálogo se lee para
+                # resolverlo por nombre y para crear el que no exista: el
+                # archivo del cliente es la autoridad sobre su vocabulario.
+                frentes=RepositorioFrentesSQL(sesion),
+                cargas=cargas,
             )
         if tipo is TipoCarga.UNIDADES:
             return AplicadorUnidades(unidades=RepositorioUnidadesSQL(sesion), cargas=cargas)
         if tipo is TipoCarga.FAMILIAS:
             return AplicadorFamilias(familias=RepositorioFamiliasSQL(sesion), cargas=cargas)
+        if tipo is TipoCarga.CONTRATISTAS:
+            return AplicadorContratistas(
+                contratistas=RepositorioContratistasSQL(sesion),
+                # Los frentes se leen para resolver las claves del archivo a
+                # ids: el cargador habla en claves porque es lo que una persona
+                # escribe en un Excel.
+                frentes=RepositorioFrentesSQL(sesion),
+                cargas=cargas,
+                # El otro eje: qué oficios sabe hacer (0047).
+                especialidades=RepositorioEspecialidadesSQL(sesion),
+            )
         if tipo is TipoCarga.CPU:
             return AplicadorCPU(
                 conceptos=RepositorioConceptosSQL(sesion),

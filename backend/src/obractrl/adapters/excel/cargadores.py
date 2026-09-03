@@ -8,9 +8,9 @@ Cada clase implementa el puerto `LectorDeCarga`
 §10.6 con su especificación de columnas y su validador de dominio. Toda la
 regla vive en `domain.cargadores`; aquí solo se recorre el `.xlsx`.
 
-Los cargadores del §10.6 que **no** están implementados —obras/lotes,
-contratistas y estimaciones— no tienen entrada en `CARGADORES`: pedir uno
-de esos tipos falla explícito en vez de cargar cualquier cosa.
+Los cargadores del §10.6 que **no** están implementados —obras/lotes y
+estimaciones— no tienen entrada en `CARGADORES`: pedir uno de esos tipos falla
+explícito en vez de cargar cualquier cosa.
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ from obractrl.domain.cargadores import cabeceras
 from obractrl.domain.cargadores.almacen import validar_movimiento
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera, resolver_encabezados
 from obractrl.domain.cargadores.conceptos_base import validar_concepto_base
+from obractrl.domain.cargadores.contratistas import validar_contratista
 from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.cuadrillas import agrupar_cuadrillas
 from obractrl.domain.cargadores.etapas_constructivas import validar_etapa_constructiva
@@ -48,6 +49,7 @@ __all__ = [
     "CargadorCPU",
     "CargadorConceptosAuxiliares",
     "CargadorConceptosBase",
+    "CargadorContratistas",
     "CargadorCuadrillas",
     "CargadorEtapasConstructivas",
     "CargadorFamilias",
@@ -275,6 +277,24 @@ class CargadorUnidades:
         )
 
 
+class CargadorContratistas:
+    """Catálogo de contratistas — `CATALOGO_DE_CONTRATISTAS.xlsx` (§8.3)."""
+
+    tipo = TipoCarga.CONTRATISTAS
+    especificacion = cabeceras.CONTRATISTAS
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            validar_contratista,
+            limites=self._limites,
+        )
+
+
 class CargadorFamilias:
     """Catálogo base de familias — `CATALOGO_DE_FAMILIAS.xlsx` (§3.5)."""
 
@@ -464,6 +484,7 @@ CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.ETAPAS_CONSTRUCTIVAS: CargadorEtapasConstructivas,
     TipoCarga.UNIDADES: CargadorUnidades,
     TipoCarga.FAMILIAS: CargadorFamilias,
+    TipoCarga.CONTRATISTAS: CargadorContratistas,
     TipoCarga.CPU: CargadorCPU,
     TipoCarga.ALMACEN: CargadorAlmacen,
     TipoCarga.PROTOTIPOS: CargadorPrototipos,

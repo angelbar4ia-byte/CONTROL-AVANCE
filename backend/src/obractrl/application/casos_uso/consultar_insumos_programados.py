@@ -26,7 +26,7 @@ El dominio no sabe de cuál viene: las dos producen `ActividadConVentana`.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID
@@ -56,6 +56,7 @@ __all__ = [
     "Granularidad",
     "InsumosProgramados",
     "PrototipoSinPrograma",
+    "a_actividad",
 ]
 
 Granularidad = str
@@ -138,6 +139,7 @@ class ConsultarInsumosProgramados:
         presupuestos,
         materiales,
         nodos,
+        ruta=None,
     ) -> None:
         self._actividades = actividades
         self._conceptos = conceptos
@@ -148,6 +150,7 @@ class ConsultarInsumosProgramados:
         self._presupuestos = presupuestos
         self._materiales = materiales
         self._nodos = nodos
+        self._ruta = ruta
 
     async def ejecutar(
         self, cmd: ComandoInsumosProgramados
@@ -162,11 +165,19 @@ class ConsultarInsumosProgramados:
                 desde=cmd.desde,
                 hasta=cmd.hasta,
             )
-            actividades = [_a_actividad(fila) for fila in filas]
+            actividades = [a_actividad(fila) for fila in filas]
+            # Las fechas del CPM **no se persisten**: `guardar_resultado_cpm`
+            # solo guarda criticidad, holgura y desfase, y lo dice —
+            # `calcular_cpm` es puro y barato, así que se recalcula bajo
+            # demanda para no tener dos significados en `fecha_termino`.
+            # Consecuencia para este módulo: sin recalcular aquí, toda obra
+            # cuyo residente no haya capturado fechas a mano saldría entera en
+            # `sin_programar`. Se pide la ruta y se usa su ventana.
+            actividades = await self.con_ventana_del_cpm(cmd.obra_id, actividades)
 
-        periodos = await self._periodos(cmd)
-        catalogo = await self._catalogo()
-        explosiones = await self._explosiones(filas)
+        periodos = await self.periodos(cmd)
+        catalogo = await self.catalogo()
+        explosiones = await self.explosiones(filas)
 
         matriz = insumos_programados(
             actividades=actividades,
@@ -194,8 +205,51 @@ class ConsultarInsumosProgramados:
 
     # --- Carga ------------------------------------------------------------
 
-    async def _catalogo(self) -> dict[str, InsumoDelCatalogo]:
+    async def con_ventana_del_cpm(
+        self, obra_id: UUID | None, actividades: list[ActividadConVentana]
+    ) -> list[ActividadConVentana]:
+        """Le pone a cada actividad la ventana que el CPM calcula ahora.
+
+        Sin obra —una consulta por residente o por supervisor, que barre
+        varias— no se recalcula: la ruta se pide obra por obra y hacerlo aquí
+        multiplicaría el trabajo por el número de obras del alcance. En ese caso
+        manda lo que la actividad tenga capturado, y lo que no, sale en
+        `sin_programar`.
+
+        Una fecha **capturada** gana sobre la calculada: si alguien la fijó a
+        mano es una decisión, y el motor no la debe pisar (§7.6).
+        """
+        if obra_id is None or self._ruta is None:
+            return actividades
+
+        ruta = await self._ruta.ejecutar(obra_id)
+        ventana = {
+            str(a.actividad_id): (a.inicio_temprano, a.fin_temprano)
+            for a in ruta.actividades
+        }
+
+        salida: list[ActividadConVentana] = []
+        for actividad in actividades:
+            calculada = ventana.get(actividad.actividad_id)
+            if calculada is None:
+                salida.append(actividad)
+                continue
+            inicio, fin = calculada
+            salida.append(
+                replace(
+                    actividad,
+                    inicio=actividad.inicio or inicio,
+                    fin=actividad.fin or fin,
+                )
+            )
+        return salida
+
+    async def catalogo(self) -> dict[str, InsumoDelCatalogo]:
         """El catálogo entero, indexado por clave.
+
+        Público porque la planeación por obra carga exactamente lo mismo
+        (`consultar_planeacion`): dos cargadores del mismo dato acabarían
+        diciendo cosas distintas del mismo programa.
 
         Se trae completo y no insumo por insumo: el dominio explota por clave
         (§3.3) y necesita poder resolver cualquiera que aparezca en el árbol,
@@ -224,7 +278,7 @@ class ConsultarInsumosProgramados:
             for fila in filas
         }
 
-    async def _explosiones(
+    async def explosiones(
         self, filas: Sequence[dict]
     ) -> dict[str, ExplosionCalculada]:
         """Explota de una sola pasada los conceptos que aparecen.
@@ -375,7 +429,7 @@ class ConsultarInsumosProgramados:
             )
         return filas, actividades
 
-    async def _periodos(self, cmd: ComandoInsumosProgramados) -> list[Periodo]:
+    async def periodos(self, cmd: ComandoInsumosProgramados) -> list[Periodo]:
         semanas = await self._calendario.semanas_entre(
             cmd.desde, cmd.hasta, cmd.tipo_semana
         )
@@ -393,7 +447,7 @@ class ConsultarInsumosProgramados:
 # --- Traductores ---------------------------------------------------------
 
 
-def _a_actividad(fila: dict) -> ActividadConVentana:
+def a_actividad(fila: dict) -> ActividadConVentana:
     """Fila del repo → lo que el dominio consume.
 
     La cantidad es `cant_programada` —lo que se mandó hacer—, con `cant_base`
@@ -410,6 +464,8 @@ def _a_actividad(fila: dict) -> ActividadConVentana:
         inicio=fila.get("fecha_inicio"),
         fin=fila.get("fecha_termino"),
         tramos=tuple(Tramo.desde_jsonb(t) for t in (fila.get("tramos") or [])),
+        frente_id=_texto(fila.get("frente_id")),
+        especialidad_id=_texto(fila.get("especialidad_id")),
     )
 
 

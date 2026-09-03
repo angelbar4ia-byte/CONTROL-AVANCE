@@ -1246,6 +1246,415 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Dar de alta un frente",
+        "description": "Los ocho del §8.3 son la semilla, no la lista cerrada (§8.7).\n\nUna constructora agrupa sus frentes como los trabaja: `INSTALACIONES`\ncubriendo hidráulica, sanitaria, eléctrica y gas es un frente suyo aunque\nel spec liste esos cuatro por separado — el spec nombra gremios y el frente\nes una decisión de cómo se contrata.",
+        "operationId": "crear_frente_api_v1_frentes_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FrenteRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/frentes/{frente_id}": {
+      "patch": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Editar un frente",
+        "operationId": "editar_frente_api_v1_frentes__frente_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "frente_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frente Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditarFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/frentes/{frente_id}/etapas": {
+      "put": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Qué etapas constructivas agrupa el frente",
+        "description": "El mapeo del §8.3 que la migración 0045 hizo posible.\n\nUna etapa pertenece a **un** frente: tomarla aquí la quita del que tuviera.\nSi estuviera en dos, su trabajo se contaría dos veces al planear cuántas\ncuadrillas hacen falta, que es la cifra para la que existe este mapeo.",
+        "operationId": "asignar_etapas_al_frente_api_v1_frentes__frente_id__etapas_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "frente_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frente Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EtapasDelFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/especialidades": {
+      "get": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Catálogo de oficios",
+        "description": "Todos los roles: alimenta el desglose de la pantalla de cuadrillas.",
+        "operationId": "listar_especialidades_api_v1_especialidades_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incluir_inactivos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluye los dados de baja (§8.7).",
+              "default": false,
+              "title": "Incluir Inactivos"
+            },
+            "description": "Incluye los dados de baja (§8.7)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EspecialidadRespuesta"
+                  },
+                  "title": "Response Listar Especialidades Api V1 Especialidades Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Dar de alta un oficio",
+        "operationId": "crear_especialidad_api_v1_especialidades_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearEspecialidadPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EspecialidadRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/especialidades/{especialidad_id}": {
+      "patch": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Editar un oficio",
+        "operationId": "editar_especialidad_api_v1_especialidades__especialidad_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "especialidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Especialidad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditarEspecialidadPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/especialidades/{especialidad_id}/conceptos": {
+      "put": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Qué conceptos se ejecutan con este oficio",
+        "description": "Con esto se llena a mano lo que el archivo no trajo (§8.3, 0047).\n\nEl catálogo del cliente cubre 461 de 898 conceptos; el resto no tiene\noficio y sale agrupado como «Sin oficio» al desglosar un frente. Aquí se\ncompleta sin volver a subir un Excel.\n\nUn concepto tiene **un** oficio: tomarlo aquí lo quita del que tuviera.",
+        "operationId": "asignar_conceptos_al_oficio_api_v1_especialidades__especialidad_id__conceptos_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "especialidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Especialidad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConceptosDelOficioPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/especialidades/{especialidad_id}/fusionar": {
+      "post": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Unir dos oficios que resultaron ser el mismo",
+        "description": "Todo lo de la absorbida pasa a la de la ruta, y la absorbida desaparece.\n\nPasa cuando el catálogo escribe el mismo oficio de dos formas —\n`EQUIPAMIENTO` y `EQUIPAMIENTOS`, con prefijos de clave distintos—:\nseparados parten el desglose de un frente en dos renglones que nadie puede\ncontratar por separado.\n\nEl nombre de la absorbida queda registrado como alias (§10.3). Sin eso, la\npróxima carga del mismo archivo —que sigue trayendo los dos nombres— la\nvolvería a crear y la fusión se desharía sola.",
+        "operationId": "fusionar_especialidad_api_v1_especialidades__especialidad_id__fusionar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "especialidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Especialidad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FusionarEspecialidadPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FusionRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/unidades": {
@@ -2167,6 +2576,58 @@
           },
           "422": {
             "description": "Datos de catálogo inválidos (§7.3)."
+          }
+        }
+      }
+    },
+    "/api/v1/conceptos/{concepto_id}/especialidad": {
+      "put": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Con qué oficio se ejecuta este concepto",
+        "description": "Rellenar a mano lo que el catálogo cargado no clasifica.\n\nEl archivo del cliente cubre 461 de 898 conceptos; el resto sale agrupado\ncomo «Sin oficio» al desglosar un frente en la pantalla de cuadrillas. Esto\npermite completarlo renglón por renglón, sin volver a subir un Excel.\n\nUno por uno y no la lista entera —para eso está\n`PUT /especialidades/{id}/conceptos`—: corregir un concepto suelto no debe\nobligar a mandar los otros cuatrocientos, donde cualquiera que se olvide se\nquedaría sin oficio.",
+        "operationId": "asignar_especialidad_al_concepto_api_v1_conceptos__concepto_id__especialidad_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OficioDelConceptoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -5800,6 +6261,169 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/planeacion/frentes": {
+      "get": {
+        "tags": [
+          "planeacion"
+        ],
+        "summary": "Cuántas cuadrillas pide cada frente, y quién lo lleva",
+        "description": "La vista con la que se contrata (§8.3).\n\nLas jornadas salen del programa por el APU; las cuadrillas, de dividirlas\nentre los días hábiles del periodo. Lo que ya se decidió viaja al lado, sin\nsustituir a la sugerencia: la sugerencia sale de un rendimiento del\ncatálogo y la decisión la toma quien conoce al contratista.",
+        "operationId": "planeacion_por_frente_api_v1_obras__obra_id__planeacion_frentes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "desde",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primer día del rango.",
+              "title": "Desde"
+            },
+            "description": "Primer día del rango."
+          },
+          {
+            "name": "hasta",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último día del rango.",
+              "title": "Hasta"
+            },
+            "description": "Último día del rango."
+          },
+          {
+            "name": "granularidad",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(semana|mes)$",
+              "description": "Columna por semana o mes.",
+              "default": "semana",
+              "title": "Granularidad"
+            },
+            "description": "Columna por semana o mes."
+          },
+          {
+            "name": "tipo_semana",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TipoSemana",
+              "default": "ordinaria"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaneacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El rango cae en años sin calendario generado (§3.1) o la obra no está en tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/planeacion/frentes/{frente_id}": {
+      "put": {
+        "tags": [
+          "planeacion"
+        ],
+        "summary": "Quién lleva este frente en esta obra",
+        "description": "Idempotente por el par obra-frente: asignarlo dos veces es cambiar de\ncontratista, no crear un segundo trato (§8.3).",
+        "operationId": "asignar_frente_api_v1_obras__obra_id__planeacion_frentes__frente_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "frente_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frente Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AsignarFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "El rango cae en años sin calendario generado (§3.1) o la obra no está en tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/evaluaciones": {
       "post": {
         "tags": [
@@ -8722,6 +9346,48 @@
         "title": "ArbolDeProgramaRespuesta",
         "description": "§11.2 `GET /obras/{id}/programa/arbol`: el cronograma como árbol WBS."
       },
+      "AsignarFrentePeticion": {
+        "properties": {
+          "contratista_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista Id"
+          },
+          "cuadrillas_plan": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrillas Plan"
+          },
+          "notas": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notas"
+          }
+        },
+        "type": "object",
+        "title": "AsignarFrentePeticion",
+        "description": "El trato de un frente en una obra.\n\nLos tres campos se escriben aunque vengan nulos: vaciar el contratista\n—\"ya no sé quién lo lleva\"— es un cambio tan válido como ponerlo."
+      },
       "AvanceRespuesta": {
         "properties": {
           "actividad_id": {
@@ -9416,6 +10082,19 @@
             "type": "string",
             "title": "Estatus",
             "default": "activo"
+          },
+          "especialidad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Especialidad Id",
+            "description": "El oficio con el que se ejecuta (§8.3, migración 0047). Vacío en los conceptos que el catálogo cargado todavía no clasifica: salen como «Sin oficio» al desglosar un frente y se completan desde el catálogo."
           }
         },
         "type": "object",
@@ -9426,6 +10105,21 @@
           "descripcion"
         ],
         "title": "ConceptoRespuesta"
+      },
+      "ConceptosDelOficioPeticion": {
+        "properties": {
+          "concepto_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Concepto Ids"
+          }
+        },
+        "type": "object",
+        "title": "ConceptosDelOficioPeticion",
+        "description": "Los conceptos que se ejecutan con ese oficio, **completos**.\n\nReemplazo y no alta, igual que las etapas de un frente: lo que no venga en\nla lista se queda sin oficio. Así mover un concepto de un oficio a otro es\nuna llamada y no dos."
       },
       "ConflictoJerarquiaRespuesta": {
         "properties": {
@@ -9819,6 +10513,32 @@
         ],
         "title": "CrearCuadrillaPeticion"
       },
+      "CrearEspecialidadPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave",
+            "description": "Clave única del catálogo (§3.3)."
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "CrearEspecialidadPeticion"
+      },
       "CrearEvaluacionPeticion": {
         "properties": {
           "nivel": {
@@ -9906,6 +10626,45 @@
           "nombre"
         ],
         "title": "CrearFamiliaPeticion"
+      },
+      "CrearFrentePeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave",
+            "description": "Clave única del catálogo (§3.3)."
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "description": "Orden de obra en que se listan.",
+            "default": 0
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color",
+            "description": "Token de color para el Gantt; opcional."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "CrearFrentePeticion"
       },
       "CrearInsumoPeticion": {
         "properties": {
@@ -10842,6 +11601,101 @@
         ],
         "title": "DocumentoRespuesta"
       },
+      "EditarEspecialidadPeticion": {
+        "properties": {
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "orden": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden"
+          },
+          "estatus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estatus",
+            "description": "`activo` o `inactivo`."
+          }
+        },
+        "type": "object",
+        "title": "EditarEspecialidadPeticion",
+        "description": "Solo lo que cambia. La `clave` no está: es la identidad (§3.3)."
+      },
+      "EditarFrentePeticion": {
+        "properties": {
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "orden": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "estatus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estatus",
+            "description": "`activo` o `inactivo` (§8.7)."
+          }
+        },
+        "type": "object",
+        "title": "EditarFrentePeticion",
+        "description": "Solo lo que cambia. La `clave` no está: es la identidad (§3.3)."
+      },
       "EntradaBitacora": {
         "properties": {
           "id": {
@@ -10959,6 +11813,41 @@
         ],
         "title": "ErrorDeFilaRespuesta",
         "description": "Un renglón del reporte de errores por fila/columna (§9.3)."
+      },
+      "EspecialidadRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "default": 0
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "default": "activo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "nombre"
+        ],
+        "title": "EspecialidadRespuesta",
+        "description": "Un oficio del catálogo: ESTRUCTURA, ACABADOS, CARPINTERIA…\n\nEl segundo eje del trabajo. El **frente** dice qué clase de contratista se\ncontrata —OBRA, INSTALACIONES— y cuelga de la etapa; la **especialidad**\ndice qué oficio hace falta y cuelga del concepto. Hacen falta los dos: un\nfrente entero es demasiado grueso para contratar, porque en la obra real\nOBRA concentra el 90% de las jornadas."
       },
       "EstadoDeObraRespuesta": {
         "properties": {
@@ -11388,6 +12277,19 @@
             ],
             "title": "Nivel Id"
           },
+          "frente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frente Id",
+            "description": "Frente al que pertenece la etapa (§8.3, migración 0045). Un frente agrupa varias; vacío = sin asignar todavía."
+          },
           "clave": {
             "type": "string",
             "title": "Clave"
@@ -11427,6 +12329,21 @@
           "descripcion"
         ],
         "title": "EtapaRespuesta"
+      },
+      "EtapasDelFrentePeticion": {
+        "properties": {
+          "etapa_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Etapa Ids"
+          }
+        },
+        "type": "object",
+        "title": "EtapasDelFrentePeticion",
+        "description": "Las etapas que pertenecen al frente, **completas**.\n\nEs un reemplazo y no un alta: lo que no venga en la lista se queda sin\nfrente. Así mover una etapa de un frente a otro es una llamada y no dos, y\nla pantalla no tiene que llevar la cuenta de lo que quitó."
       },
       "EvaluacionRespuesta": {
         "properties": {
@@ -11904,6 +12821,112 @@
         ],
         "title": "FilaDeInsumoRespuesta"
       },
+      "FrenteDeObraRespuesta": {
+        "properties": {
+          "frente_id": {
+            "type": "string",
+            "title": "Frente Id",
+            "description": "Vacío en el renglón que agrupa lo que no tiene frente."
+          },
+          "frente_clave": {
+            "type": "string",
+            "title": "Frente Clave"
+          },
+          "frente_nombre": {
+            "type": "string",
+            "title": "Frente Nombre"
+          },
+          "jornadas": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Jornadas",
+            "description": "Una por periodo. Una jornada es una cuadrilla un día."
+          },
+          "cuadrillas": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Cuadrillas",
+            "description": "Cuadrillas que hacen falta en cada periodo. **Sin redondear**: 2.3 dice que dos aprietan y tres sobran, y redondear escondería esa lectura justo donde se decide."
+          },
+          "total_jornadas": {
+            "type": "number",
+            "title": "Total Jornadas"
+          },
+          "pico_cuadrillas": {
+            "type": "number",
+            "title": "Pico Cuadrillas",
+            "description": "La semana más cargada. Es la cifra con la que se contrata: quien presta dos cuadrillas todo el mes no resuelve la que pide cinco."
+          },
+          "contratista_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista Id"
+          },
+          "contratista_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista Nombre"
+          },
+          "cuadrillas_plan": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrillas Plan",
+            "description": "Lo que el residente **decidió**, al lado de lo que el cálculo sugiere. Vacío = todavía no lo decide."
+          },
+          "notas": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notas"
+          },
+          "oficios": {
+            "items": {
+              "$ref": "#/components/schemas/OficioDeFrenteRespuesta"
+            },
+            "type": "array",
+            "title": "Oficios",
+            "description": "Desglose por oficio, de mayor a menor pico. Suma el frente."
+          }
+        },
+        "type": "object",
+        "required": [
+          "frente_id",
+          "frente_clave",
+          "frente_nombre",
+          "jornadas",
+          "cuadrillas",
+          "total_jornadas",
+          "pico_cuadrillas"
+        ],
+        "title": "FrenteDeObraRespuesta"
+      },
       "FrenteRespuesta": {
         "properties": {
           "id": {
@@ -11954,6 +12977,45 @@
           "nombre"
         ],
         "title": "FrenteRespuesta"
+      },
+      "FusionRespuesta": {
+        "properties": {
+          "conceptos": {
+            "type": "integer",
+            "title": "Conceptos"
+          },
+          "contratistas": {
+            "type": "integer",
+            "title": "Contratistas"
+          },
+          "alias_registrado": {
+            "type": "string",
+            "title": "Alias Registrado",
+            "description": "El nombre del oficio absorbido queda homologado (§10.3): la próxima carga del catálogo no lo vuelve a crear."
+          }
+        },
+        "type": "object",
+        "required": [
+          "conceptos",
+          "contratistas",
+          "alias_registrado"
+        ],
+        "title": "FusionRespuesta"
+      },
+      "FusionarEspecialidadPeticion": {
+        "properties": {
+          "absorbida_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Absorbida Id",
+            "description": "El oficio que desaparece. Todo lo suyo pasa al de la ruta."
+          }
+        },
+        "type": "object",
+        "required": [
+          "absorbida_id"
+        ],
+        "title": "FusionarEspecialidadPeticion"
       },
       "GenerarEstimacionPeticion": {
         "properties": {
@@ -12321,7 +13383,7 @@
         "properties": {
           "periodos": {
             "items": {
-              "$ref": "#/components/schemas/PeriodoRespuesta"
+              "$ref": "#/components/schemas/obractrl__adapters__api__v1__insumos__PeriodoRespuesta"
             },
             "type": "array",
             "title": "Periodos"
@@ -13298,6 +14360,76 @@
         ],
         "title": "ObraRespuesta"
       },
+      "OficioDeFrenteRespuesta": {
+        "properties": {
+          "especialidad_id": {
+            "type": "string",
+            "title": "Especialidad Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre",
+            "description": "«Sin oficio» en los conceptos a los que todavía no se les capturó especialidad. No se descartan: la suma de los oficios es el frente."
+          },
+          "jornadas": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Jornadas"
+          },
+          "cuadrillas": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Cuadrillas"
+          },
+          "total_jornadas": {
+            "type": "number",
+            "title": "Total Jornadas"
+          },
+          "pico_cuadrillas": {
+            "type": "number",
+            "title": "Pico Cuadrillas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "especialidad_id",
+          "clave",
+          "nombre",
+          "jornadas",
+          "cuadrillas",
+          "total_jornadas",
+          "pico_cuadrillas"
+        ],
+        "title": "OficioDeFrenteRespuesta",
+        "description": "Cómo se reparte por oficio lo que un frente pide (§8.3, migración 0047).\n\nEl frente solo es demasiado grueso para contratar: en la obra real OBRA\nconcentra el 90% de las jornadas, y nadie contrata \"noventa por ciento de la\nobra\". Partido por oficio, cada renglón ya es algo que se le pide a alguien."
+      },
+      "OficioDelConceptoPeticion": {
+        "properties": {
+          "especialidad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Especialidad Id"
+          }
+        },
+        "type": "object",
+        "title": "OficioDelConceptoPeticion",
+        "description": "Con qué oficio se ejecuta este concepto (§8.3, migración 0047).\n\n`null` lo deja sin oficio: quitarlo —\"esto no era carpintería\"— es un cambio\ntan válido como ponerlo, y omitir el campo no podría expresarlo."
+      },
       "PaginaBitacora": {
         "properties": {
           "total": {
@@ -13864,37 +14996,29 @@
         "title": "PerfilRespuesta",
         "description": "Perfil, rol y alcance del usuario del token (§11.2 `GET /me`)."
       },
-      "PeriodoRespuesta": {
+      "PlaneacionRespuesta": {
         "properties": {
-          "clave": {
-            "type": "string",
-            "title": "Clave"
+          "periodos": {
+            "items": {
+              "$ref": "#/components/schemas/obractrl__adapters__api__v1__planeacion__PeriodoRespuesta"
+            },
+            "type": "array",
+            "title": "Periodos"
           },
-          "desde": {
-            "type": "string",
-            "format": "date",
-            "title": "Desde"
-          },
-          "hasta": {
-            "type": "string",
-            "format": "date",
-            "title": "Hasta",
-            "description": "Exclusivo: es el día siguiente al último del periodo."
-          },
-          "etiqueta": {
-            "type": "string",
-            "title": "Etiqueta"
+          "frentes": {
+            "items": {
+              "$ref": "#/components/schemas/FrenteDeObraRespuesta"
+            },
+            "type": "array",
+            "title": "Frentes"
           }
         },
         "type": "object",
         "required": [
-          "clave",
-          "desde",
-          "hasta",
-          "etiqueta"
+          "periodos",
+          "frentes"
         ],
-        "title": "PeriodoRespuesta",
-        "description": "Una columna de la tabla."
+        "title": "PlaneacionRespuesta"
       },
       "PrecioUnitarioRespuesta": {
         "properties": {
@@ -16472,6 +17596,75 @@
         ],
         "title": "VersionSoportadaRespuesta",
         "description": "Lo que la app necesita para decidir entre bloquear, sugerir o callarse."
+      },
+      "obractrl__adapters__api__v1__insumos__PeriodoRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "desde": {
+            "type": "string",
+            "format": "date",
+            "title": "Desde"
+          },
+          "hasta": {
+            "type": "string",
+            "format": "date",
+            "title": "Hasta",
+            "description": "Exclusivo: es el día siguiente al último del periodo."
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "desde",
+          "hasta",
+          "etiqueta"
+        ],
+        "title": "PeriodoRespuesta",
+        "description": "Una columna de la tabla."
+      },
+      "obractrl__adapters__api__v1__planeacion__PeriodoRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "desde": {
+            "type": "string",
+            "format": "date",
+            "title": "Desde"
+          },
+          "hasta": {
+            "type": "string",
+            "format": "date",
+            "title": "Hasta",
+            "description": "Exclusivo: el día siguiente al último."
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta"
+          },
+          "dias_habiles": {
+            "type": "integer",
+            "title": "Dias Habiles",
+            "description": "Días que se trabajan en el periodo, según el calendario del cronograma de la obra (§7.5). Es el divisor de la cuenta."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "desde",
+          "hasta",
+          "etiqueta",
+          "dias_habiles"
+        ],
+        "title": "PeriodoRespuesta"
       }
     },
     "securitySchemes": {

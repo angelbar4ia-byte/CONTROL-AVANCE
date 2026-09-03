@@ -30,6 +30,7 @@ from obractrl.adapters.api.v1.insumos import router as router_insumos
 from obractrl.adapters.api.v1.materiales import router as router_materiales
 from obractrl.adapters.api.v1.obras import router as router_obras
 from obractrl.adapters.api.v1.organizacion import router as router_organizacion
+from obractrl.adapters.api.v1.planeacion import router as router_planeacion
 from obractrl.adapters.api.v1.presupuesto import router as router_presupuesto
 from obractrl.adapters.api.v1.procesos import router as router_procesos
 from obractrl.adapters.api.v1.programacion import router as router_programacion
@@ -59,6 +60,7 @@ api_v1.include_router(router_estimacion)
 api_v1.include_router(router_materiales)
 api_v1.include_router(router_incidencias)
 api_v1.include_router(router_insumos)
+api_v1.include_router(router_planeacion)
 api_v1.include_router(router_evaluaciones)
 api_v1.include_router(router_revisiones)
 api_v1.include_router(router_evidencias)

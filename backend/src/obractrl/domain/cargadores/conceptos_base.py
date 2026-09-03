@@ -48,6 +48,18 @@ class FilaConceptoBase:
     obra: el archivo real de conceptos auxiliares trae las dos columnas
     por separado."""
 
+    especialidad: str | None = None
+    """El oficio con el que se ejecuta (§8.3, migración 0047).
+
+    El archivo real lo rotula "FRENTE", pero sus quince valores —ESTRUCTURA,
+    ACABADOS, CARPINTERIA…— son más finos que los cuatro frentes de la etapa y
+    coinciden con las especialidades del catálogo de contratistas. La
+    traducción la hace la cabecera (`CONCEPTOS_BASE.alias`); aquí ya llega con
+    el nombre que no se confunde.
+
+    Viaja como texto: resolverlo contra el catálogo de `especialidad` es
+    trabajo del aplicador, que tiene la base delante."""
+
     fila: int = 0
     """Renglón del archivo. Viaja con el registro para que un pendiente
     pueda ligar al origen (§10.3) sin volver a abrir el libro, y para darle
@@ -98,5 +110,6 @@ def validar_concepto_base(
         descripcion=descripcion,
         unidad=texto_limpio(mapa.valor(fila, "unidad")) or None,
         clave_unidad=texto_limpio(mapa.valor(fila, "clave_unidad")) or None,
+        especialidad=texto_limpio(mapa.valor(fila, "especialidad")) or None,
         fila=numero,
     )

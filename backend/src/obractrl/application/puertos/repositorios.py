@@ -1123,6 +1123,16 @@ class RepositorioContratistas(Protocol):
 
     async def crear(self, datos: dict) -> UUID: ...
 
+    async def actualizar(self, contratista_id: UUID, cambios: dict) -> None:
+        """Edición parcial; la `clave` no es editable (§3.3)."""
+        ...
+
+    async def reemplazar_frentes(
+        self, contratista_id: UUID, frente_ids: Sequence[UUID]
+    ) -> None:
+        """Deja al contratista con exactamente esos frentes (§8.3)."""
+        ...
+
     async def obtener(self, contratista_id: UUID) -> dict | None: ...
 
     async def listar(self, *, solo_activos: bool = True) -> list[dict]: ...

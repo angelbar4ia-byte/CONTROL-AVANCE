@@ -83,9 +83,27 @@ class EspecificacionArchivo:
     particular del archivo.
     """
 
+    series: dict[str, str] = field(default_factory=dict)
+    """Cabecera **repetida** (ya normalizada) → campo canónico que la colecciona.
+
+    Para las columnas que el archivo real reparte en varias en vez de una lista
+    separada por comas: `ESPECIALIDAD 1 … ESPECIALIDAD 5`, `TIPO 1`, `TIPO 2`.
+    Se busca por prefijo, así que `"especialidad"` captura las cinco, y también
+    la columna a secas cuando el archivo no la numera.
+
+    A diferencia de `alias`, aquí la repetición **no es ambigüedad**: son cinco
+    huecos del mismo dato, y el campo recibe la tupla de índices en el orden en
+    que aparecen. Un archivo que numera hasta ESPECIALIDAD 8 sigue cargando sin
+    tocar el contrato.
+    """
+
     @property
     def canonicas(self) -> frozenset[str]:
-        return frozenset(self.obligatorias) | frozenset(self.opcionales)
+        return (
+            frozenset(self.obligatorias)
+            | frozenset(self.opcionales)
+            | frozenset(self.series.values())
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,12 +118,35 @@ class MapaColumnas:
     nombra 16. Se listan para que el reporte diga qué se dejó fuera.
     """
 
+    series: dict[str, tuple[int, ...]] = field(default_factory=dict)
+    """Campo canónico → todas las columnas que lo alimentan, en orden."""
+
     def valor(self, fila: Sequence[object], campo: str) -> object:
         """Celda de ``campo`` en ``fila``, o ``None`` si la columna no vino."""
         indice = self.indices.get(campo)
         if indice is None or indice >= len(fila):
             return None
         return fila[indice]
+
+    def valores(self, fila: Sequence[object], campo: str) -> tuple[object, ...]:
+        """Las celdas de una serie, sin las vacías y sin repetir.
+
+        Los huecos se descartan porque son la forma normal del archivo: un
+        contratista con dos especialidades deja tres columnas en blanco. Las
+        repetidas también, porque duplicar un puente no dice nada nuevo y la
+        única de la tabla lo rechazaría de todos modos.
+        """
+        vistos: list[object] = []
+        for indice in self.series.get(campo, ()):
+            if indice >= len(fila):
+                continue
+            celda = fila[indice]
+            if celda is None or not str(celda).strip():
+                continue
+            clave = normalizar(celda)
+            if clave and clave not in {normalizar(v) for v in vistos}:
+                vistos.append(celda)
+        return tuple(vistos)
 
 
 def resolver_encabezados(
@@ -124,14 +165,25 @@ def resolver_encabezados(
        real y el archivo se rechaza —adivinar cuál es la buena es justo lo que
        el §3.3 prohíbe.
     4. Falta una obligatoria → :class:`ErrorDeCabecera`.
+
+    Las **series** (`especificacion.series`) se resuelven antes que todo lo
+    demás y no pasan por la regla 3: `ESPECIALIDAD 1 … 5` son cinco huecos del
+    mismo dato, no cinco candidatas a serlo, así que se coleccionan en orden en
+    vez de pelearse por una sola casilla.
     """
     indices: dict[str, int] = {}
     por_alias_propio: set[str] = set()
     ignoradas: list[str] = []
+    series: dict[str, list[int]] = {}
 
     for posicion, crudo in enumerate(encabezados):
         texto = normalizar(crudo)
         if not texto:
+            continue
+
+        de_serie = _campo_de_serie(texto, especificacion.series)
+        if de_serie is not None:
+            series.setdefault(de_serie, []).append(posicion)
             continue
 
         propio = especificacion.alias.get(texto)
@@ -163,7 +215,11 @@ def resolver_encabezados(
         if propio is not None:
             por_alias_propio.add(canonico)
 
-    faltantes = [c for c in especificacion.obligatorias if c not in indices]
+    faltantes = [
+        c
+        for c in especificacion.obligatorias
+        if c not in indices and c not in series
+    ]
     if faltantes:
         raise ErrorDeCabecera(
             f"{especificacion.archivo}: faltan las columnas obligatorias "
@@ -171,7 +227,28 @@ def resolver_encabezados(
             f"{', '.join(str(e) for e in encabezados if normalizar(e)) or '(ninguno)'}."
         )
 
-    return MapaColumnas(indices=indices, ignoradas=tuple(ignoradas))
+    return MapaColumnas(
+        indices=indices,
+        ignoradas=tuple(ignoradas),
+        series={campo: tuple(cols) for campo, cols in series.items()},
+    )
+
+
+def _campo_de_serie(texto: str, series: dict[str, str]) -> str | None:
+    """¿Esta cabecera es uno de los huecos de una serie?
+
+    Coincide la cabecera exacta (`TIPO`) o la numerada (`TIPO 1`, `TIPO 2`),
+    nunca una que solo empiece igual: sin el corte por sufijo, un prefijo
+    `"tipo"` se tragaría `TIPO DE CAMBIO` y el dato se cargaría en la columna
+    equivocada sin que nadie lo note.
+    """
+    for prefijo, campo in series.items():
+        if texto == prefijo:
+            return campo
+        resto = texto.removeprefix(f"{prefijo} ")
+        if resto != texto and resto.isdigit():
+            return campo
+    return None
 
 
 def indice_de_letra(letra: str) -> int:
@@ -258,11 +335,25 @@ CONCEPTOS_BASE = EspecificacionArchivo(
     archivo="CABECERAS_CONCEPTOS.xlsx",
     hoja=None,
     obligatorias=("clave", "descripcion"),
-    opcionales=("unidad", "clave_unidad"),
+    opcionales=("unidad", "clave_unidad", "especialidad"),
+    alias={
+        # `especialidad` va **primero** a propósito: `plantillas.py` rotula la
+        # columna con el primer alias del campo, y la plantilla que alguien
+        # descarga tiene que decir "especialidad". Rotulada "frente", quien la
+        # llene escribiría OBRA o INSTALACIONES —el vocabulario de la etapa— y
+        # el oficio quedaría capturado en el eje equivocado.
+        "especialidad": "especialidad",
+        # El archivo real del cliente sí la rotula "FRENTE", y se sigue
+        # aceptando: sus quince valores —ESTRUCTURA, ACABADOS, CARPINTERIA…—
+        # no son los cuatro frentes de la etapa. La traducción vive aquí, en el
+        # borde, para que adentro los dos ejes no se confundan.
+        "frente": "especialidad",
+    },
 )
 """Catálogo base de identidad de conceptos (§8.7): clave, descripción,
-unidad — nada más. La composición (qué lleva cada concepto y con qué
-costo) es CPU (`CPU`, más abajo), un archivo y un cargador distintos.
+unidad y la especialidad con la que se ejecuta (§8.3, migración 0047). La
+composición (qué lleva cada concepto y con qué costo) es CPU (`CPU`, más
+abajo), un archivo y un cargador distintos.
 
 El archivo real de conceptos auxiliares (mismo contrato, ver
 `CONCEPTOS_AUXILIARES`) trae también costo y familia (`CLAVE UNIDAD,
@@ -277,7 +368,12 @@ CONCEPTOS_AUXILIARES = EspecificacionArchivo(
     archivo="CABECERAS_CONCEPTOS_AUXILIARES.xlsx",
     hoja=None,
     obligatorias=CONCEPTOS_BASE.obligatorias,
-    opcionales=CONCEPTOS_BASE.opcionales,
+    # Las de `CONCEPTOS_BASE` **menos** la especialidad: un auxiliar es un
+    # componente de otro concepto, no algo que se contrate por oficio, y el
+    # aplicador de auxiliares no recibe el catálogo de especialidades. Dejarla
+    # en el contrato haría que la columna se leyera y se tirara en silencio,
+    # que es justo lo que le pasó a RFC y CONTACTO en contratistas.
+    opcionales=tuple(c for c in CONCEPTOS_BASE.opcionales if c != "especialidad"),
 )
 """Mismo contrato que `CONCEPTOS_BASE`: un concepto auxiliar es un
 `concepto` más (`tipo=auxiliar`, §7.3), con su propio archivo y su propio
@@ -307,15 +403,39 @@ ETAPAS_CONSTRUCTIVAS = EspecificacionArchivo(
     archivo="CATALOGO_DE_ETAPAS_DE_CONSTRUCCION.xlsx",
     hoja=None,
     obligatorias=("clave", "descripcion"),
-    opcionales=(),
+    opcionales=("frente",),
+    alias={
+        # `DESCRIPCIÓN CORTA` se manda a un campo que la especificación **no**
+        # declara, así que acaba en `ignoradas`. Sin este alias, el mapa global
+        # del §8.6 la canoniza como `descripcion` y choca con la columna
+        # `DESCRIPCIÓN` de al lado: el archivo entero se rechazaría por
+        # ambigüedad. Es una forma de decir "esta columna se ignora a
+        # propósito", no un campo a medio implementar.
+        "descripcion corta": "descripcion_corta",
+    },
+    series={
+        # El archivo real trae **dos** columnas llamadas "TIPO": la primera es
+        # el tipo de renglón de la herramienta que lo exportó (`Nivel 2` en las
+        # cincuenta filas) y la última es el frente (`OBRA`, `INSTALACIONES`,
+        # `SUBCONTRATOS`, `PINTURA`). Normalizadas son la misma cadena, así que
+        # la regla de ambigüedad rechazaría el archivo y por posición sería
+        # frágil. Se leen las dos como serie y `validar_etapa_constructiva`
+        # descarta el tipo de renglón, que es un vocabulario cerrado y conocido.
+        "tipo": "frente",
+    },
 )
-"""Catálogo base de identidad de etapas (§10.1): clave, descripción, nada
-más. `etapa_constructiva.nivel_id` no se resuelve aquí: el archivo real no
-trae a qué nivel pertenece cada etapa — su columna "TIPO" (`Nivel 2`,
-`Subcapítulo`) es la clasificación de la herramienta de origen, no una
-referencia a `NIVELES` — así que asumir un nivel sería inventar una
+"""Catálogo base de identidad de etapas (§10.1): clave, descripción y el
+frente al que pertenece la etapa (§8.3, migración 0045).
+
+`etapa_constructiva.nivel_id` no se resuelve aquí: el archivo real no trae a
+qué nivel pertenece cada etapa, así que asumir un nivel sería inventar una
 relación que el archivo no da (§3.3). Se llena a mano desde el catálogo
-mientras no haya un archivo real que sí la traiga."""
+mientras no haya un archivo real que sí la traiga.
+
+El **frente** sí viene, y es la clase de fuerza de trabajo que se contrata
+—OBRA, INSTALACIONES, SUBCONTRATOS, PINTURA—: los mismos cuatro valores que
+la columna `TIPO` del catálogo de contratistas. No confundir con la
+especialidad, que es el oficio y vive en el concepto (`CONCEPTOS_BASE`)."""
 
 UNIDADES = EspecificacionArchivo(
     tipo="Catálogo de unidades",
@@ -344,6 +464,59 @@ trae además "CLAVE UNIDAD" (un consecutivo numérico del sistema de origen,
 sin dónde vivir aquí; se ignora sin romper, §10.6) y una segunda hoja con un
 subconjunto sin sinónimo, ordenado distinto — no es el catálogo a cargar,
 por eso `hoja` fija "Hoja1" en vez de la hoja activa."""
+
+CONTRATISTAS = EspecificacionArchivo(
+    tipo="Catálogo de contratistas",
+    archivo="CATALOGO_DE_CONTRATISTAS.xlsx",
+    hoja=None,
+    obligatorias=("clave", "razon_social"),
+    opcionales=("rfc", "contacto", "telefono", "email", "frentes", "especialidades"),
+    alias={
+        # "CONTRATISTA" es el nombre de ESTE contratista, no una referencia a
+        # otro: en materiales y almacén la misma cabecera apunta a un tercero,
+        # y sin este alias propio la razón social de cada fila se descartaría
+        # en silencio. Mismo caso que "FAMILIA" en `FAMILIAS`.
+        "contratista": "razon_social",
+        "razon social": "razon_social",
+        "nombre": "razon_social",
+        "correo": "email",
+        "tel": "telefono",
+        # `rfc` y `contacto` se declaran aunque la cabecera se llame igual que
+        # el campo: el mapa global del §8.6 no los conoce —ningún otro archivo
+        # los trae— y `canonizar_encabezado` los devolvería como `None`, así
+        # que sin este alias la columna se ignoraría en silencio.
+        "rfc": "rfc",
+        "contacto": "contacto",
+        "telefono": "telefono",
+        "email": "email",
+        # Los frentes que sabe hacer, separados por coma. Plural primero
+        # porque es el rótulo que `plantillas.py` pone en la plantilla y la
+        # columna admite varios; el singular se sigue aceptando porque quien
+        # llena el archivo escribe cualquiera de los dos.
+        "frentes": "frentes",
+        "frente": "frentes",
+    },
+    series={
+        # El archivo real no trae una lista separada por comas: reparte los
+        # frentes en `TIPO 1` y `TIPO 2`, y los oficios en `ESPECIALIDAD 1..5`.
+        # Se leen como series y no como alias porque cinco columnas del mismo
+        # dato no son cinco candidatas a serlo: son cinco huecos, y la regla de
+        # ambigüedad rechazaría el archivo entero.
+        "tipo": "frentes",
+        "especialidad": "especialidades",
+    },
+)
+"""Catálogo de contratistas (§8.3, §10.6).
+
+El contratista es la fuerza de trabajo: pone las cuadrillas con las que se
+ejecuta un frente. `frentes` es la lista de claves que sabe hacer —`EST, INS`—
+y alimenta `contratista_frente`, que es **capacidad de catálogo** y no la
+asignación a una obra: quién lleva INSTALACIONES en MAPLE 01 se decide al
+planear esa obra.
+
+`hoja=None` —la activa— porque este archivo no viene de un exportador con hoja
+fija: lo escribe alguien de la constructora y no hay contrato que la nombre."""
+
 
 FAMILIAS = EspecificacionArchivo(
     tipo="Catálogo de familias",

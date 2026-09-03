@@ -216,6 +216,18 @@ _RESTAURAR: dict[str, str] = {
         from a
         where unidad.id = cast(:id as uuid)
     """,
+    "contratista": """
+        with a as (select cast(:antes as jsonb) as j)
+        update contratista set
+            razon_social = a.j->>'razon_social',
+            rfc          = a.j->>'rfc',
+            contacto     = a.j->>'contacto',
+            telefono     = a.j->>'telefono',
+            email        = a.j->>'email',
+            estatus      = cast(coalesce(a.j->>'estatus', 'activo') as estatus_registro)
+        from a
+        where contratista.id = cast(:id as uuid)
+    """,
     "familia": """
         with a as (select cast(:antes as jsonb) as j)
         update familia set
@@ -755,3 +767,33 @@ class RepositorioCargasSQL:
             )
         ).mappings().all()
         return {str(fila["alias"]): str(fila["clave_canonica"]) for fila in filas}
+
+    async def registrar_mapeo(
+        self, *, entidad: str, alias: str, clave_canonica: str
+    ) -> None:
+        """Deja escrito que un alias significa una clave del catálogo (§10.3).
+
+        Es la mitad que faltaba: `mapeos()` ya lo leía —"lo resuelto re-alimenta
+        la carga"— pero nada lo escribía, así que una decisión humana se perdía
+        en la siguiente carga del mismo archivo.
+
+        El caso concreto: al fusionar dos oficios que resultaron ser el mismo,
+        el archivo del cliente sigue trayendo los dos nombres. Sin el mapeo, la
+        próxima carga vuelve a crear el que se acaba de absorber y la fusión se
+        deshace sola.
+
+        Idempotente por el par entidad-alias: homologar dos veces es corregir,
+        no acumular.
+        """
+        await self._sesion.execute(
+            text(
+                """
+                insert into mapeo (org_id, entidad, alias, clave_canonica)
+                values (cast(current_setting('app.org_id') as uuid),
+                        :entidad, :alias, :clave_canonica)
+                on conflict (org_id, entidad, alias)
+                    do update set clave_canonica = excluded.clave_canonica
+                """
+            ),
+            {"entidad": entidad, "alias": alias, "clave_canonica": clave_canonica},
+        )

@@ -56,6 +56,7 @@ import type {
   ListarUnidadesApiV1UnidadesGetParams,
   NivelRespuesta,
   ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
+  OficioDelConceptoPeticion,
   PublicarCPUPeticion,
   UnidadRespuesta,
   VersionCuadrillaRespuesta,
@@ -2245,6 +2246,80 @@ export const useCrearConceptoApiV1ConceptosPost = <TError = void,
       > => {
 
       const mutationOptions = getCrearConceptoApiV1ConceptosPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Rellenar a mano lo que el catálogo cargado no clasifica.
+
+El archivo del cliente cubre 461 de 898 conceptos; el resto sale agrupado
+como «Sin oficio» al desglosar un frente en la pantalla de cuadrillas. Esto
+permite completarlo renglón por renglón, sin volver a subir un Excel.
+
+Uno por uno y no la lista entera —para eso está
+`PUT /especialidades/{id}/conceptos`—: corregir un concepto suelto no debe
+obligar a mandar los otros cuatrocientos, donde cualquiera que se olvide se
+quedaría sin oficio.
+ * @summary Con qué oficio se ejecuta este concepto
+ */
+export const asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut = (
+    conceptoId: string,
+    oficioDelConceptoPeticion: OficioDelConceptoPeticion,
+ options?: SecondParameter<typeof peticion>,) => {
+      
+      
+      return peticion<void>(
+      {url: `/api/v1/conceptos/${conceptoId}/especialidad`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: oficioDelConceptoPeticion
+    },
+      options);
+    }
+  
+
+
+export const getAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut>>, TError,{conceptoId: string;data: OficioDelConceptoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut>>, TError,{conceptoId: string;data: OficioDelConceptoPeticion}, TContext> => {
+
+const mutationKey = ['asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut>>, {conceptoId: string;data: OficioDelConceptoPeticion}> = (props) => {
+          const {conceptoId,data} = props ?? {};
+
+          return  asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut(conceptoId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationResult = NonNullable<Awaited<ReturnType<typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut>>>
+    export type AsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationBody = OficioDelConceptoPeticion
+    export type AsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationError = HTTPValidationError
+
+    /**
+ * @summary Con qué oficio se ejecuta este concepto
+ */
+export const useAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut>>, TError,{conceptoId: string;data: OficioDelConceptoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut>>,
+        TError,
+        {conceptoId: string;data: OficioDelConceptoPeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }
