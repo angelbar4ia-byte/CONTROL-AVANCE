@@ -37,6 +37,7 @@ import { ErrorBanner } from '@/lib/ErrorBanner';
 import { SelectorObra } from '@/lib/SelectorObra';
 import { useClavesPorRecurso } from '@/lib/idempotencia';
 import { SeguimientoDeReporte } from '@/reportes/SeguimientoDeReporte';
+import { EstimacionDetalle } from './EstimacionDetalle';
 import { accionesDisponiblesEstimacion, etiquetaModo, puedeGenerar, tonoEstatusEstimacion } from './reglas';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -48,6 +49,7 @@ export default function Estimacion() {
   const [error, setError] = useState<string | null>(null);
   const [reporteId, setReporteId] = useState<string | null>(null);
   const [estimacionAExportar, setEstimacionAExportar] = useState('');
+  const [abierta, setAbierta] = useState<string | null>(null);
   // Una clave por (método, ruta): en una lista el mismo hook opera sobre
   // recursos distintos y una clave fija haría que el segundo llegara con la
   // del primero (regla 1 del ROADMAP).
@@ -102,6 +104,12 @@ export default function Estimacion() {
 
   if (!sesion) return null;
   const rol = sesion.rol;
+
+  if (abierta !== null) {
+    return (
+      <EstimacionDetalle estimacionId={abierta} rol={rol} onVolver={() => setAbierta(null)} />
+    );
+  }
 
   async function encolarExport(estimacionId: string) {
     setError(null);
@@ -220,7 +228,15 @@ export default function Estimacion() {
                   const acciones = accionesDisponiblesEstimacion(rol, estimacion.estatus);
                   return (
                     <tr key={estimacion.id}>
-                      <td className="is-key">{estimacion.folio ?? estimacion.id.slice(0, 8)}</td>
+                      <td className="is-key">
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => setAbierta(estimacion.id)}
+                        >
+                          {estimacion.folio ?? estimacion.id.slice(0, 8)}
+                        </button>
+                      </td>
                       <td className="mono tnum">{fmtSemana(estimacion.semana, estimacion.anio)}</td>
                       <td>{etiquetaModo(estimacion.modo)}</td>
                       <td className="is-num">{fmtMXN(estimacion.monto_total)}</td>
@@ -231,6 +247,13 @@ export default function Estimacion() {
                       </td>
                       <td className="cell-actions">
                         <div className="row gap-4">
+                          <button
+                            type="button"
+                            className="btn btn--sm"
+                            onClick={() => setAbierta(estimacion.id)}
+                          >
+                            Ver guía
+                          </button>
                           {acciones.includes('enviar') && (
                             <button
                               type="button"

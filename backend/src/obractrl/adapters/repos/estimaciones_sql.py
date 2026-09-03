@@ -9,6 +9,7 @@ RLS filtra `estimacion` por alcance de rol (política `estimacion_scope`,
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -206,7 +207,7 @@ class RepositorioEstimacionesSQL:
 
     async def conceptos_de(self, estimacion_id: UUID) -> list[dict[str, Any]]:
         """Renglones de la estimación con lo necesario para rotularlos (§11.2
-        `GET /estimaciones/{id}/export`).
+        `GET /estimaciones/{id}/export`, `GET /estimaciones/{id}`).
 
         Acompaña cada `estimacion_concepto` con la descripción de su actividad
         y con la clave/unidad del concepto de catálogo, igual que
@@ -215,6 +216,12 @@ class RepositorioEstimacionesSQL:
         `left join` son deliberados —una actividad extra-catálogo no tiene
         `concepto_id` (§11.2 `POST /actividades`) y debe salir igual, marcada
         como fuera de catálogo.
+
+        Trae también el **frente** (§7.4): el nivel de la actividad, con la
+        etapa como respaldo cuando la actividad no lo trae directo — mismo
+        criterio que `actividades_para_insumos` y `torre_sql.actividades_de_obra`.
+        Es lo que deja agrupar la guía de estimación como el residente mira su
+        obra, en vez de solo como una lista plana de renglones.
         """
         filas = (
             await self._sesion.execute(
@@ -224,19 +231,68 @@ class RepositorioEstimacionesSQL:
                            ec.cantidad_validada, ec.precio_unitario,
                            ec.importe, ec.fuera_catalogo,
                            coalesce(a.descripcion, c.descripcion) as descripcion,
-                           c.clave, u.clave as unidad
+                           c.clave, u.clave as unidad,
+                           coalesce(a.nivel_id, eta.nivel_id) as nivel_id,
+                           niv.clave       as nivel_clave,
+                           niv.descripcion as nivel_descripcion
                     from estimacion_concepto ec
                     left join actividad a on a.id = ec.actividad_id
                     left join concepto  c on c.id = ec.concepto_id
                     left join unidad    u on u.id = c.unidad_id
+                    left join etapa_constructiva eta on eta.id = a.etapa_id
+                    left join nivel niv on niv.id = coalesce(a.nivel_id, eta.nivel_id)
                     where ec.estimacion_id = cast(:id as uuid)
-                    order by c.clave nulls last, ec.created_at
+                    order by niv.orden nulls last, c.clave nulls last, ec.created_at
                     """
                 ),
                 {"id": str(estimacion_id)},
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]
+
+    async def presupuesto_base_de(self, obra_id: UUID) -> Decimal | None:
+        """El presupuesto vigente del prototipo del que nació esta obra (§7.4).
+
+        `presupuesto` cuelga de `prototipo`, no de `obra` —es el costo de la
+        plantilla, no de la casa construida—, así que se llega por
+        `obra.prototipo_id`. `None` si el prototipo no tiene una versión
+        vigente: pasa en un prototipo que nunca cargó presupuesto, y devolver
+        cero mentiría diciendo que cuesta cero en vez de "no se sabe".
+        """
+        return await self._sesion.scalar(
+            text(
+                """
+                select p.monto_total
+                  from obra o
+                  join presupuesto p on p.prototipo_id = o.prototipo_id and p.vigente
+                 where o.id = cast(:obra_id as uuid)
+                """
+            ),
+            {"obra_id": str(obra_id)},
+        )
+
+    async def acumulado_de(self, obra_id: UUID) -> Decimal:
+        """Lo ya comprometido del proyecto: la suma de lo enviado y validado.
+
+        `borrador` no cuenta: todavía es una cifra que nadie más ha visto, y
+        sumarla inflaría el acumulado con algo que se puede editar o
+        descartar. En cuanto se envía, deja de ser privada del residente —por
+        eso `enviada` sí entra, aunque a Control le falte darle el visto
+        bueno—.
+        """
+        return (
+            await self._sesion.scalar(
+                text(
+                    """
+                    select coalesce(sum(monto_total), 0)
+                      from estimacion
+                     where obra_id = cast(:obra_id as uuid)
+                       and estatus in ('enviada', 'validada')
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ) or Decimal(0)
 
     # --- Bloqueo del periodo (§11.3 E.5) ---------------------------------
 

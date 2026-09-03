@@ -13,10 +13,11 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from obractrl.adapters.api.casos_uso import (
+    ArmarReporteDeEstimacionDep,
     EnviarEstimacionDep,
     GenerarEstimacionDep,
     ValidarEstimacionDep,
@@ -24,6 +25,7 @@ from obractrl.adapters.api.casos_uso import (
 from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS, exigir_rol
 from obractrl.adapters.api.idempotencia import Idempotencia
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
+from obractrl.application.casos_uso.exportar_estimacion import EstimacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_estimacion import (
     ComandoEnviarEstimacion,
     ComandoGenerarEstimacion,
@@ -31,6 +33,7 @@ from obractrl.application.casos_uso.gestionar_estimacion import (
     EstimacionCreada,
 )
 from obractrl.domain.estimacion.reglas import Estimacion
+from obractrl.domain.reportes.estimacion import por_frente
 from obractrl.domain.shared.diccionario import ModoPago, Rol
 
 router = APIRouter(tags=["estimacion"])
@@ -191,3 +194,146 @@ async def listar_estimaciones(obra_id: UUID, sesion: SesionRLS) -> list[Estimaci
     repo = RepositorioEstimacionesSQL(sesion)
     filas = await repo.listar(obra_id)
     return [EstimacionRespuesta.desde_fila(fila) for fila in filas]
+
+
+# --- El detalle: guía de estimación, agrupada por frente (§11.3 E) --------
+
+
+class ConceptoDelReporteRespuesta(BaseModel):
+    actividad_id: str | None = None
+    clave: str
+    descripcion: str
+    unidad: str
+    cantidad: Decimal
+    precio_unitario: Decimal
+    importe: Decimal
+    fuera_catalogo: bool
+    nivel_id: str | None = None
+    nivel_clave: str | None = None
+    nivel_descripcion: str | None = None
+
+
+class FrenteDelReporteRespuesta(BaseModel):
+    """Un renglón de «Resumen general»: un frente, cuánto suma y qué
+    proporción de la semana es."""
+
+    clave: str
+    nombre: str
+    conceptos: int
+    subtotal: Decimal
+    porcentaje: Decimal = Field(description="0–100.")
+
+
+class EstimacionDetalleRespuesta(BaseModel):
+    """La guía de estimación completa: cabecera, renglones y el resumen por
+    frente, en una sola lectura (§11.3 E).
+
+    No es un job como el `.xlsx`: armar el reporte es una consulta barata —
+    unos cuantos `select`—, así que se sirve síncrono. El Excel sigue siendo
+    un job porque *dibujarlo* con openpyxl sí es trabajo que conviene sacar de
+    la petición.
+    """
+
+    id: UUID
+    folio: str | None
+    obra_id: UUID
+    obra_clave: str
+    semana: int
+    anio: int
+    modo: str
+    estatus: str
+    monto_total: Decimal = Field(description="Lo que dice la cabecera guardada.")
+    monto_calculado: Decimal = Field(description="Σ de los renglones, recalculada al leer.")
+    cuadra: bool = Field(
+        description="¿Cabecera y renglones coinciden? Falso es una señal de auditoría, no un error de captura."
+    )
+    conceptos: list[ConceptoDelReporteRespuesta]
+    n_conceptos_catalogo: int
+    n_conceptos_extra: int
+    por_frente: list[FrenteDelReporteRespuesta]
+    acumulado_proyecto: Decimal = Field(
+        description="Suma de lo enviado y validado de esta obra a la fecha. No incluye borradores."
+    )
+    presupuesto_base: Decimal | None = Field(
+        default=None,
+        description="El presupuesto vigente del prototipo de la obra. `null` si el prototipo no tiene uno cargado.",
+    )
+
+
+@router.get(
+    "/estimaciones/{estimacion_id}",
+    response_model=EstimacionDetalleRespuesta,
+    summary="La guía de estimación: renglones y resumen por frente",
+    dependencies=[
+        Depends(
+            exigir_rol(
+                Rol.RESIDENTE, Rol.SUPERVISOR, Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE
+            )
+        )
+    ],
+    responses={404: {"description": "La estimación no existe o está fuera de tu alcance."}},
+)
+async def detalle_de_estimacion(
+    estimacion_id: UUID,
+    sesion: SesionRLS,
+    caso_uso: ArmarReporteDeEstimacionDep,
+) -> EstimacionDetalleRespuesta:
+    """La pantalla que reemplaza abrir el `.xlsx` para ver qué lleva la
+    semana: mismo reporte que arma el job de exportación
+    (`ArmarReporteDeEstimacion`), con el resumen por frente que en el Excel
+    es una hoja aparte y aquí es la vista de entrada.
+    """
+    try:
+        reporte = await caso_uso.ejecutar(estimacion_id)
+    except EstimacionNoEncontrada as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(error)
+        ) from error
+
+    repo = RepositorioEstimacionesSQL(sesion)
+    acumulado = await repo.acumulado_de(reporte.obra_id)
+    base = await repo.presupuesto_base_de(reporte.obra_id)
+
+    return EstimacionDetalleRespuesta(
+        id=UUID(reporte.id),
+        folio=reporte.folio,
+        obra_id=UUID(reporte.obra_id),
+        obra_clave=reporte.obra_clave,
+        semana=reporte.semana,
+        anio=reporte.anio,
+        modo=reporte.modo.value,
+        estatus=reporte.estatus.value,
+        monto_total=reporte.monto_total.monto,
+        monto_calculado=reporte.monto_calculado.monto,
+        cuadra=reporte.cuadra,
+        conceptos=[
+            ConceptoDelReporteRespuesta(
+                actividad_id=c.actividad_id or None,
+                clave=c.clave,
+                descripcion=c.descripcion,
+                unidad=c.unidad,
+                cantidad=c.cantidad,
+                precio_unitario=c.precio_unitario.monto,
+                importe=c.importe.monto,
+                fuera_catalogo=c.fuera_catalogo,
+                nivel_id=c.nivel_id,
+                nivel_clave=c.nivel_clave,
+                nivel_descripcion=c.nivel_descripcion,
+            )
+            for c in reporte.conceptos
+        ],
+        n_conceptos_catalogo=sum(1 for c in reporte.conceptos if not c.fuera_catalogo),
+        n_conceptos_extra=sum(1 for c in reporte.conceptos if c.fuera_catalogo),
+        por_frente=[
+            FrenteDelReporteRespuesta(
+                clave=f.clave,
+                nombre=f.nombre,
+                conceptos=f.conceptos,
+                subtotal=f.subtotal.monto,
+                porcentaje=f.porcentaje,
+            )
+            for f in por_frente(reporte)
+        ],
+        acumulado_proyecto=acumulado,
+        presupuesto_base=base,
+    )

@@ -29,7 +29,13 @@ from decimal import Decimal
 from obractrl.domain.shared.diccionario import EstatusEstimacion, ModoPago
 from obractrl.domain.shared.valores import Dinero
 
-__all__ = ["ConceptoDelReporte", "ReporteDeEstimacion"]
+__all__ = ["ConceptoDelReporte", "FrenteDelReporte", "ReporteDeEstimacion"]
+
+SIN_FRENTE = ""
+"""Clave con la que se agrupa lo que no tiene frente (§8.3, mismo criterio que
+`consultar_planeacion.SIN_FRENTE`). No se descarta: es dinero real que la
+estimación reconoce, y esconderlo haría que la suma de los frentes no cuadrara
+con el total de la estimación."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +51,32 @@ class ConceptoDelReporte:
     precio_unitario: Dinero
     importe: Dinero
     fuera_catalogo: bool = False
+    nivel_id: str | None = None
+    """El frente (§7.4): el nivel de la actividad que generó este renglón.
+    `None` cuando la actividad no tiene nivel capturado — se agrupa bajo
+    `SIN_FRENTE`, no se descarta."""
+    nivel_clave: str | None = None
+    nivel_descripcion: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class FrenteDelReporte:
+    """Un renglón de la vista «Resumen general»: un frente, cuánto suma y qué
+    proporción del total es (§7.4, §11.3 E).
+
+    Es la vista con la que se lee una estimación de un vistazo —cimentación
+    73%, estructura 17%— en vez de recorrer renglón por renglón.
+    """
+
+    clave: str
+    nombre: str
+    conceptos: int
+    subtotal: Dinero
+    porcentaje: Decimal
+    """0–100. Redondeado a dos decimales; la suma de todos los frentes puede
+    quedar en 99.99 o 100.01 por el redondeo de cada uno — es el mismo costo
+    de presentar porcentajes legibles que paga cualquier reporte, y preferible
+    a mostrar 17.333333%."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,4 +153,60 @@ def _concepto(fila: dict) -> ConceptoDelReporte:
         precio_unitario=Dinero(fila.get("precio_unitario") or 0),
         importe=Dinero(fila.get("importe") or 0),
         fuera_catalogo=bool(fila.get("fuera_catalogo")),
+        nivel_id=str(fila["nivel_id"]) if fila.get("nivel_id") else None,
+        nivel_clave=fila.get("nivel_clave"),
+        nivel_descripcion=fila.get("nivel_descripcion"),
     )
+
+
+def por_frente(reporte: ReporteDeEstimacion) -> tuple[FrenteDelReporte, ...]:
+    """Agrupa los renglones de una estimación por frente (§7.4, §11.3 E).
+
+    Es la vista «Resumen general»: en vez de recorrer renglón por renglón, se
+    lee de un vistazo qué frente pesa más en la semana.
+
+    Se reparte sobre `monto_calculado` —la suma real de los renglones— y no
+    sobre `monto_total` de la cabecera: si algún día los dos no cuadran
+    (`reporte.cuadra`), los porcentajes tienen que seguir sumando 100% entre
+    ellos, no perseguir una cifra que quedó descuadrada.
+
+    Ordenado de mayor a menor subtotal: es la lectura con la que se contrata y
+    se revisa —"¿qué frente se llevó la semana?"—, la misma prioridad que
+    `domain.planeacion.cuadrillas.demanda_por_frente`.
+    """
+    grupos: dict[str, list[ConceptoDelReporte]] = {}
+    etiquetas: dict[str, tuple[str, str]] = {}
+    orden: list[str] = []
+    for concepto in reporte.conceptos:
+        clave = concepto.nivel_id or SIN_FRENTE
+        if clave not in grupos:
+            grupos[clave] = []
+            orden.append(clave)
+            etiquetas[clave] = (
+                (concepto.nivel_clave or "—", concepto.nivel_descripcion or "Sin frente")
+                if clave != SIN_FRENTE
+                else ("—", "Sin frente asignado")
+            )
+        grupos[clave].append(concepto)
+
+    total = reporte.monto_calculado.monto
+    salida = []
+    for clave in orden:
+        conceptos_del_frente = grupos[clave]
+        subtotal = Dinero(sum((c.importe.monto for c in conceptos_del_frente), Decimal(0)))
+        nombre_clave, nombre = etiquetas[clave]
+        porcentaje = (
+            (subtotal.monto * Decimal(100) / total).quantize(Decimal("0.01"))
+            if total != 0
+            else Decimal(0)
+        )
+        salida.append(
+            FrenteDelReporte(
+                clave=nombre_clave,
+                nombre=nombre,
+                conceptos=len(conceptos_del_frente),
+                subtotal=subtotal,
+                porcentaje=porcentaje,
+            )
+        )
+    return tuple(sorted(salida, key=lambda f: f.subtotal.monto, reverse=True))

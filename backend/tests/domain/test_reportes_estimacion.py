@@ -19,7 +19,7 @@ from decimal import Decimal
 
 import pytest
 
-from obractrl.domain.reportes.estimacion import ReporteDeEstimacion
+from obractrl.domain.reportes.estimacion import ReporteDeEstimacion, por_frente
 from obractrl.domain.shared.diccionario import EstatusEstimacion, ModoPago
 from obractrl.domain.shared.valores import Dinero
 
@@ -191,3 +191,142 @@ class TestDatosCanonicos:
         de datos y tiene que verse aquí, no en el `.xlsx` del cliente."""
         with pytest.raises(ValueError, match="raro"):
             _reporte(**{campo: "raro"})
+
+
+class TestPorFrente:
+    """La vista «Resumen general»: un renglón por frente, con su subtotal y su
+    proporción de la semana (§7.4, §11.3 E)."""
+
+    def _conceptos(self) -> list[dict]:
+        return [
+            {
+                "actividad_id": "act-1",
+                "clave": "CIM-001",
+                "descripcion": "Cadena de cimentación",
+                "unidad": "ML",
+                "cantidad_validada": Decimal("10"),
+                "precio_unitario": Decimal("300"),
+                "importe": Decimal("3000"),
+                "nivel_id": "niv-cim",
+                "nivel_clave": "CIM",
+                "nivel_descripcion": "Cimentación",
+            },
+            {
+                "actividad_id": "act-2",
+                "clave": "CIM-002",
+                "descripcion": "Zapata corrida",
+                "unidad": "M3",
+                "cantidad_validada": Decimal("2"),
+                "precio_unitario": Decimal("500"),
+                "importe": Decimal("1000"),
+                "nivel_id": "niv-cim",
+                "nivel_clave": "CIM",
+                "nivel_descripcion": "Cimentación",
+            },
+            {
+                "actividad_id": "act-3",
+                "clave": "EST-001",
+                "descripcion": "Castillo K-1",
+                "unidad": "PZA",
+                "cantidad_validada": Decimal("5"),
+                "precio_unitario": Decimal("200"),
+                "importe": Decimal("1000"),
+                "nivel_id": "niv-est",
+                "nivel_clave": "EST",
+                "nivel_descripcion": "Estructura",
+            },
+            {
+                "actividad_id": "",
+                "clave": "",
+                "descripcion": "Trabajo fuera de catálogo",
+                "unidad": "PZA",
+                "cantidad_validada": Decimal("1"),
+                "precio_unitario": Decimal("1000"),
+                "importe": Decimal("1000"),
+                "fuera_catalogo": True,
+                "nivel_id": None,
+                "nivel_clave": None,
+                "nivel_descripcion": None,
+            },
+        ]
+
+    def test_agrupa_por_nivel_y_suma_los_importes(self) -> None:
+        reporte = _reporte(self._conceptos(), monto_total=Decimal("6000"))
+        frentes = por_frente(reporte)
+        cimentacion = next(f for f in frentes if f.clave == "CIM")
+        assert cimentacion.subtotal == Dinero(Decimal("4000"))
+        assert cimentacion.conceptos == 2
+
+    def test_lo_sin_frente_no_se_descarta(self) -> None:
+        # Es dinero real que la estimación reconoce; esconderlo haría que la
+        # suma de los frentes no cuadrara con el total.
+        reporte = _reporte(self._conceptos(), monto_total=Decimal("6000"))
+        frentes = por_frente(reporte)
+        sin_frente = next(f for f in frentes if f.nombre == "Sin frente asignado")
+        assert sin_frente.subtotal == Dinero(Decimal("1000"))
+        assert sin_frente.conceptos == 1
+
+    def test_ordena_de_mayor_a_menor_subtotal(self) -> None:
+        # Es la lectura con la que se revisa: "¿qué frente se llevó la semana?"
+        reporte = _reporte(self._conceptos(), monto_total=Decimal("6000"))
+        frentes = por_frente(reporte)
+        assert [f.clave or f.nombre for f in frentes][0:1] == ["CIM"]
+        assert frentes[0].subtotal.monto >= frentes[1].subtotal.monto
+
+    def test_los_porcentajes_suman_cerca_de_cien(self) -> None:
+        # "Cerca" y no "exacto": cada uno se redondea a dos decimales por
+        # separado, y esa es la misma concesión que paga cualquier reporte de
+        # porcentajes legibles.
+        reporte = _reporte(self._conceptos(), monto_total=Decimal("6000"))
+        frentes = por_frente(reporte)
+        total_pct = sum((f.porcentaje for f in frentes), Decimal(0))
+        assert abs(total_pct - Decimal(100)) < Decimal("0.1")
+
+    def test_un_frente_es_el_cien_por_ciento_de_si_mismo(self) -> None:
+        reporte = _reporte(
+            [
+                {
+                    "actividad_id": "act-1",
+                    "clave": "CIM-001",
+                    "descripcion": "Cadena de cimentación",
+                    "unidad": "ML",
+                    "cantidad_validada": Decimal("10"),
+                    "precio_unitario": Decimal("100"),
+                    "importe": Decimal("1000"),
+                    "nivel_id": "niv-cim",
+                    "nivel_clave": "CIM",
+                    "nivel_descripcion": "Cimentación",
+                }
+            ],
+            monto_total=Decimal("1000"),
+        )
+        frentes = por_frente(reporte)
+        assert len(frentes) == 1
+        assert frentes[0].porcentaje == Decimal(100)
+
+    def test_una_estimacion_sin_renglones_no_produce_frentes(self) -> None:
+        reporte = _reporte(conceptos=[], monto_total=Decimal("0"))
+        assert por_frente(reporte) == ()
+
+    def test_sin_total_no_divide_entre_cero(self) -> None:
+        # Un total de cero es un caso real: una estimación toda de renglones
+        # en cero, o una obra que apenas arranca.
+        reporte = _reporte(
+            [
+                {
+                    "actividad_id": "act-1",
+                    "clave": "CIM-001",
+                    "descripcion": "Cadena de cimentación",
+                    "unidad": "ML",
+                    "cantidad_validada": Decimal("0"),
+                    "precio_unitario": Decimal("100"),
+                    "importe": Decimal("0"),
+                    "nivel_id": "niv-cim",
+                    "nivel_clave": "CIM",
+                    "nivel_descripcion": "Cimentación",
+                }
+            ],
+            monto_total=Decimal("0"),
+        )
+        frentes = por_frente(reporte)
+        assert frentes[0].porcentaje == Decimal(0)
