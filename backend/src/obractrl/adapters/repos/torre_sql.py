@@ -27,6 +27,7 @@ haberlo: sería una segunda frontera que puede desincronizarse de la primera.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
@@ -263,3 +264,62 @@ class RepositorioTorreSQL:
             )
         ).mappings().first()
         return dict(fila) if fila is not None else None
+
+    async def costos_de_cuadrillas(
+        self, cuadrilla_ids: Sequence[UUID]
+    ) -> dict[str, dict[str, Any]]:
+        """Nombre y costo por jornada de esas cuadrillas (§7.6, migración 0048).
+
+        Se piden todas de una: son cuatro o cinco renglones en un formulario y
+        una ida por cada uno sería una consulta por tecla.
+
+        Una cuadrilla sin `costo_jornada` capturado vuelve con `None`, no con
+        cero: el dominio lo reporta como "no se sabe cuánto vale" en vez de
+        sumarlo como gratis.
+        """
+        if not cuadrilla_ids:
+            return {}
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, nombre, costo_jornada
+                      from cuadrilla
+                     where id = any(cast(:ids as uuid[]))
+                    """
+                ),
+                {"ids": [str(x) for x in cuadrilla_ids]},
+            )
+        ).mappings().all()
+        return {str(fila["id"]): dict(fila) for fila in filas}
+
+    async def costos_de_insumos(
+        self, insumo_ids: Sequence[UUID]
+    ) -> dict[str, dict[str, Any]]:
+        """Descripción y costo de esos insumos (§7.3, §10.5).
+
+        El costo es `coalesce(costo_base_actualizado, costo_base)`, la **misma**
+        regla de valuación que usa la explosión del APU
+        (`conceptos_sql.composicion_recursiva`). Elegir otra aquí haría que el
+        mismo cemento valiera distinto en el precio de un extra que en el de un
+        concepto de catálogo, sobre la misma obra y el mismo día.
+
+        Mismo criterio que arriba: en bloque, y sin costo vuelve `None` —no
+        cero— para que el dominio lo reporte en vez de sumarlo como gratis.
+        """
+        if not insumo_ids:
+            return {}
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, descripcion,
+                           coalesce(costo_base_actualizado, costo_base) as costo
+                      from insumo
+                     where id = any(cast(:ids as uuid[]))
+                    """
+                ),
+                {"ids": [str(x) for x in insumo_ids]},
+            )
+        ).mappings().all()
+        return {str(fila["id"]): dict(fila) for fila in filas}

@@ -33,6 +33,7 @@ import type {
   CPURespuesta,
   ConceptoRespuesta,
   ContratistaRespuesta,
+  CostoDeJornadaPeticion,
   CrearConceptoPeticion,
   CrearContratistaPeticion,
   CrearCuadrillaPeticion,
@@ -1856,6 +1857,76 @@ export const useCrearCuadrillaApiV1CuadrillasPost = <TError = void,
       > => {
 
       const mutationOptions = getCrearCuadrillaApiV1CuadrillasPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * La otra mitad del precio que el residente arma (§11.2).
+
+`rendimiento` dice cuánto hace la cuadrilla en un día y esto cuánto vale ese
+día. Sin lo segundo, un trabajo fuera de catálogo se puede describir pero no
+costear: el precio armado sale reportando que le falta esta cuadrilla, y
+autorizarlo así sería autorizar por debajo del costo.
+ * @summary Cuánto cuesta un día de esta cuadrilla
+ */
+export const asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut = (
+    cuadrillaId: string,
+    costoDeJornadaPeticion: CostoDeJornadaPeticion,
+ options?: SecondParameter<typeof peticion>,) => {
+      
+      
+      return peticion<void>(
+      {url: `/api/v1/cuadrillas/${cuadrillaId}/costo-jornada`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: costoDeJornadaPeticion
+    },
+      options);
+    }
+  
+
+
+export const getAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>, TError,{cuadrillaId: string;data: CostoDeJornadaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>, TError,{cuadrillaId: string;data: CostoDeJornadaPeticion}, TContext> => {
+
+const mutationKey = ['asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>, {cuadrillaId: string;data: CostoDeJornadaPeticion}> = (props) => {
+          const {cuadrillaId,data} = props ?? {};
+
+          return  asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut(cuadrillaId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationResult = NonNullable<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>>
+    export type AsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationBody = CostoDeJornadaPeticion
+    export type AsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationError = HTTPValidationError
+
+    /**
+ * @summary Cuánto cuesta un día de esta cuadrilla
+ */
+export const useAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>, TError,{cuadrillaId: string;data: CostoDeJornadaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>,
+        TError,
+        {cuadrillaId: string;data: CostoDeJornadaPeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

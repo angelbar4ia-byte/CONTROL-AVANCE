@@ -44,6 +44,11 @@ class ComandoDarDeAltaExtra:
     precio_destajo: Decimal = Decimal(0)
     concepto_id: UUID | None = None
     frente_id: UUID | None = None
+    nivel_id: UUID | None = None
+    """El **frente** donde cae el trabajo (§7.4): sin él la actividad no aparece
+    en ningún grupo de la pantalla del residente."""
+    etapa_id: UUID | None = None
+    """El **sub-frente**: la etapa dentro del nivel."""
     duracion_dias: Decimal = Decimal(1)
 
 
@@ -74,6 +79,8 @@ class DarDeAltaExtra:
             precio_destajo=cmd.precio_destajo,
             concepto_id=str(cmd.concepto_id) if cmd.concepto_id else None,
             frente_id=str(cmd.frente_id) if cmd.frente_id else None,
+            nivel_id=str(cmd.nivel_id) if cmd.nivel_id else None,
+            etapa_id=str(cmd.etapa_id) if cmd.etapa_id else None,
             duracion_dias=cmd.duracion_dias,
         )
 
@@ -89,6 +96,8 @@ class DarDeAltaExtra:
                     "precio_destajo": actividad.precio_destajo,
                     "concepto_id": actividad.concepto_id,
                     "frente_id": actividad.frente_id,
+                    "nivel_id": actividad.nivel_id,
+                    "etapa_id": actividad.etapa_id,
                     "duracion_dias": actividad.duracion_dias,
                     "estatus": actividad.estatus.value,
                 }

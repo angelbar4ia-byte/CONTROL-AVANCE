@@ -35,13 +35,17 @@ from obractrl.application.puertos.repositorios import (
 __all__ = ["RepositorioCuadrillasSQL"]
 
 _COLUMNAS = """
-    id, clave, nombre, unidad_id, rendimiento, estatus
+    id, clave, nombre, unidad_id, rendimiento, costo_jornada, estatus
 """
 
 _CAMPOS_EDITABLES: dict[str, str] = {
     "nombre": "nombre = :nombre",
     "unidad_id": "unidad_id = cast(:unidad_id as uuid)",
     "rendimiento": "rendimiento = cast(:rendimiento as numeric)",
+    # Lo que cuesta un día de esta cuadrilla (0048). Con `rendimiento` se sabe
+    # cuánto hace en un día; con esto, cuánto vale — las dos mitades del precio
+    # que el residente arma para un trabajo fuera de catálogo.
+    "costo_jornada": "costo_jornada = cast(:costo_jornada as numeric)",
     "estatus": "estatus = cast(:estatus as estatus_registro)",
 }
 """Campos que una edición puede tocar. La `clave` no está: es la identidad

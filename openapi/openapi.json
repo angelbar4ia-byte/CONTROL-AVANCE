@@ -875,6 +875,46 @@
         }
       }
     },
+    "/api/v1/actividades/precio-armado": {
+      "post": {
+        "tags": [
+          "torre"
+        ],
+        "summary": "Armar el precio de un trabajo fuera de catálogo",
+        "description": "Calcula sin guardar: es una simulación mientras el residente decide.\n\nEl cálculo vive en el servidor y no en la pantalla a propósito. Los costos\n—jornada de la cuadrilla, costo del insumo— son del catálogo, y mandarlos al\ncliente para que multiplique allá significaría exponer el costo a quien solo\nnecesita el precio, y tener la fórmula en dos lugares que un día divergen.",
+        "operationId": "armar_precio_de_extra_api_v1_actividades_precio_armado_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArmarPrecioPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrecioArmadoRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El precio no se puede armar con eso (§11.2)."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/proyectos": {
       "get": {
         "tags": [
@@ -2389,6 +2429,58 @@
           },
           "422": {
             "description": "Datos de catálogo inválidos (§7.6)."
+          }
+        }
+      }
+    },
+    "/api/v1/cuadrillas/{cuadrilla_id}/costo-jornada": {
+      "put": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Cuánto cuesta un día de esta cuadrilla",
+        "description": "La otra mitad del precio que el residente arma (§11.2).\n\n`rendimiento` dice cuánto hace la cuadrilla en un día y esto cuánto vale ese\ndía. Sin lo segundo, un trabajo fuera de catálogo se puede describir pero no\ncostear: el precio armado sale reportando que le falta esta cuadrilla, y\nautorizarlo así sería autorizar por debajo del costo.",
+        "operationId": "asignar_costo_de_jornada_api_v1_cuadrillas__cuadrilla_id__costo_jornada_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cuadrilla_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cuadrilla Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CostoDeJornadaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -9711,6 +9803,44 @@
         "title": "ArbolDeProgramaRespuesta",
         "description": "§11.2 `GET /obras/{id}/programa/arbol`: el cronograma como árbol WBS."
       },
+      "ArmarPrecioPeticion": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cantidad",
+            "description": "La cantidad del **trabajo** —30 m² de muro—, no de gente: el precio unitario es lo que se cobra por unidad de obra."
+          },
+          "cuadrillas": {
+            "items": {
+              "$ref": "#/components/schemas/LineaDeCuadrillaPeticion"
+            },
+            "type": "array",
+            "title": "Cuadrillas"
+          },
+          "materiales": {
+            "items": {
+              "$ref": "#/components/schemas/LineaDeMaterialPeticion"
+            },
+            "type": "array",
+            "title": "Materiales"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad"
+        ],
+        "title": "ArmarPrecioPeticion",
+        "description": "Con qué se va a hacer un trabajo que no está en el catálogo.\n\nEl jefe de obra lo describió así: *\"el residente dice qué cuadrilla va a\nutilizar, cuántas y el tiempo, también el material, y se crea el precio\"*."
+      },
       "AsignarFrentePeticion": {
         "properties": {
           "contratista_id": {
@@ -10679,6 +10809,29 @@
           "razon_social"
         ],
         "title": "ContratistaRespuesta"
+      },
+      "CostoDeJornadaPeticion": {
+        "properties": {
+          "costo_jornada": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo Jornada"
+          }
+        },
+        "type": "object",
+        "title": "CostoDeJornadaPeticion",
+        "description": "Lo que cuesta un día de esta cuadrilla (§7.6, migración 0048).\n\n`null` lo quita: dejar de saberlo es un estado real —una cuadrilla nueva sin\nprecio negociado— y un cero diría que es gratis."
       },
       "CrearClusterPeticion": {
         "properties": {
@@ -11722,6 +11875,19 @@
             "title": "Precio Unitario",
             "description": "PU de la versión vigente, si ya se cargó una (§10.8)."
           },
+          "costo_jornada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo Jornada",
+            "description": "Lo que cuesta un día de esta cuadrilla (§7.6, migración 0048). Con `rendimiento` se sabe cuánto hace en un día; con esto, cuánto vale. Nulo = no capturado; un cero diría que la cuadrilla es gratis."
+          },
           "version_vigente": {
             "anyOf": [
               {
@@ -11834,6 +12000,32 @@
               }
             ],
             "title": "Frente Id"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id",
+            "description": "El **frente** donde cae el trabajo (§7.4). Sin él la actividad no aparece en ningún grupo de la pantalla del residente, que agrupa por nivel y etapa."
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id",
+            "description": "El **sub-frente**: la etapa dentro del nivel (§7.4)."
           },
           "duracion_dias": {
             "anyOf": [
@@ -13984,6 +14176,78 @@
         ],
         "title": "ItemProgramaBaseRespuesta"
       },
+      "LineaDeCuadrillaPeticion": {
+        "properties": {
+          "cuadrilla_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cuadrilla Id"
+          },
+          "cuadrillas": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cuadrillas",
+            "description": "Cuántas cuadrillas de ésas."
+          },
+          "dias": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Dias",
+            "description": "Cuántos días las va a tener."
+          }
+        },
+        "type": "object",
+        "required": [
+          "cuadrilla_id",
+          "cuadrillas",
+          "dias"
+        ],
+        "title": "LineaDeCuadrillaPeticion"
+      },
+      "LineaDeMaterialPeticion": {
+        "properties": {
+          "insumo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Insumo Id"
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cantidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "insumo_id",
+          "cantidad"
+        ],
+        "title": "LineaDeMaterialPeticion"
+      },
       "LineaExplosionRespuesta": {
         "properties": {
           "ruta": {
@@ -15403,6 +15667,57 @@
           "frentes"
         ],
         "title": "PlaneacionRespuesta"
+      },
+      "PrecioArmadoRespuesta": {
+        "properties": {
+          "mano_obra": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Mano Obra"
+          },
+          "materiales": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Materiales"
+          },
+          "total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total"
+          },
+          "precio_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Unitario"
+          },
+          "jornadas": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Jornadas"
+          },
+          "sin_costo": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sin Costo",
+            "description": "Lo que se incluyó sin saber cuánto vale. Mientras haya algo aquí el total está **por debajo** del costo real, y autorizar contra esa cifra es autorizar de menos."
+          },
+          "completo": {
+            "type": "boolean",
+            "title": "Completo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mano_obra",
+          "materiales",
+          "total",
+          "precio_unitario",
+          "jornadas",
+          "completo"
+        ],
+        "title": "PrecioArmadoRespuesta"
       },
       "PrecioUnitarioRespuesta": {
         "properties": {

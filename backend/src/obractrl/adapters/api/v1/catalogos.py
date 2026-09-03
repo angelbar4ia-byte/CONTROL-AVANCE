@@ -703,6 +703,14 @@ class CuadrillaRespuesta(BaseModel):
     precio_unitario: Decimal | None = Field(
         default=None, description="PU de la versión vigente, si ya se cargó una (§10.8)."
     )
+    costo_jornada: Decimal | None = Field(
+        default=None,
+        description=(
+            "Lo que cuesta un día de esta cuadrilla (§7.6, migración 0048). Con "
+            "`rendimiento` se sabe cuánto hace en un día; con esto, cuánto vale. "
+            "Nulo = no capturado; un cero diría que la cuadrilla es gratis."
+        ),
+    )
     version_vigente: int | None = None
     estatus: str = "activo"
 
@@ -715,6 +723,7 @@ class CuadrillaRespuesta(BaseModel):
             unidad_id=fila.get("unidad_id"),
             rendimiento=fila.get("rendimiento"),
             precio_unitario=fila.get("precio_unitario"),
+            costo_jornada=fila.get("costo_jornada"),
             version_vigente=fila.get("version_vigente"),
             estatus=fila["estatus"],
         )
@@ -764,6 +773,38 @@ async def listar_cuadrillas(
             )
         )
     return respuestas
+
+
+class CostoDeJornadaPeticion(BaseModel):
+    """Lo que cuesta un día de esta cuadrilla (§7.6, migración 0048).
+
+    `null` lo quita: dejar de saberlo es un estado real —una cuadrilla nueva sin
+    precio negociado— y un cero diría que es gratis.
+    """
+
+    costo_jornada: Decimal | None = Field(default=None, ge=0)
+
+
+@router.put(
+    "/cuadrillas/{cuadrilla_id}/costo-jornada",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Cuánto cuesta un día de esta cuadrilla",
+    dependencies=[CATALOGOS],
+)
+async def asignar_costo_de_jornada(
+    cuadrilla_id: UUID, peticion: CostoDeJornadaPeticion, sesion: SesionRLS
+) -> None:
+    """La otra mitad del precio que el residente arma (§11.2).
+
+    `rendimiento` dice cuánto hace la cuadrilla en un día y esto cuánto vale ese
+    día. Sin lo segundo, un trabajo fuera de catálogo se puede describir pero no
+    costear: el precio armado sale reportando que le falta esta cuadrilla, y
+    autorizarlo así sería autorizar por debajo del costo.
+    """
+    await RepositorioCuadrillasSQL(sesion).actualizar(
+        cuadrilla_id, {"costo_jornada": peticion.costo_jornada}
+    )
+    await sesion.commit()
 
 
 @router.post(

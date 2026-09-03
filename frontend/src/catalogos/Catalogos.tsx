@@ -47,6 +47,7 @@ import { useMemo, useState } from 'react';
 
 import {
   useAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut,
+  useAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut,
   useAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut,
   useListarConceptosApiV1ConceptosGet,
   useListarContratistasApiV1ContratistasGet,
@@ -213,6 +214,19 @@ export default function Catalogos() {
       onError: (err) => setAviso(err.message),
     },
   });
+
+  const asignarCosto =
+    useAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut<ErrorApi>({
+      mutation: {
+        onSuccess: () => void cuadrillasQ.refetch(),
+        onError: (err) => setAviso(err.message),
+      },
+    });
+
+  function cambiarCostoDeJornada(cuadrillaId: string, costo: number | null): void {
+    setAviso(null);
+    asignarCosto.mutate({ cuadrillaId, data: { costo_jornada: costo } });
+  }
 
   function cambiarNivel(etapaId: string, nivelId: string | null): void {
     setAviso(null);
@@ -726,6 +740,7 @@ export default function Catalogos() {
             resultados={resCuadrillas}
             unidades={unidades}
             cargando={cuadrillasQ.isLoading}
+            onCambiarCosto={administra ? cambiarCostoDeJornada : undefined}
           />
         )}
 

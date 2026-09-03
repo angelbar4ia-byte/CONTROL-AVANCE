@@ -80,6 +80,17 @@ class ActividadExtra:
     precio_destajo: Decimal
     concepto_id: str | None = None
     frente_id: str | None = None
+    nivel_id: str | None = None
+    """El **frente** donde cae este trabajo (§7.4): cimentación, planta baja.
+
+    Sin él la actividad no aparece en ningún grupo de la pantalla del residente
+    —que agrupa por nivel y etapa— y queda como trabajo huérfano que solo se ve
+    filtrando por «fuera de catálogo». El trabajo existe en algún lado de la
+    obra; decir dónde es parte de darlo de alta.
+    """
+    etapa_id: str | None = None
+    """El **sub-frente**: la etapa dentro del nivel. Es la unidad con la que se
+    reprograma, así que un extra sin ella no se puede mover con su grupo."""
     duracion_dias: Decimal = Decimal(1)
 
     @property
@@ -107,6 +118,8 @@ class ActividadExtra:
         precio_destajo: Decimal = Decimal(0),
         concepto_id: str | None = None,
         frente_id: str | None = None,
+        nivel_id: str | None = None,
+        etapa_id: str | None = None,
         duracion_dias: Decimal = Decimal(1),
     ) -> ActividadExtra:
         if not puede_dar_de_alta_extra(rol):
@@ -175,5 +188,7 @@ class ActividadExtra:
             precio_destajo=precio_destajo,
             concepto_id=concepto_id,
             frente_id=frente_id,
+            nivel_id=nivel_id,
+            etapa_id=etapa_id,
             duracion_dias=duracion_dias,
         )

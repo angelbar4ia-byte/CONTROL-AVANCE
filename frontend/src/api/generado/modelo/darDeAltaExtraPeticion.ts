@@ -11,6 +11,8 @@ import type { DarDeAltaExtraPeticionPrecioUnitario } from './darDeAltaExtraPetic
 import type { DarDeAltaExtraPeticionPrecioDestajo } from './darDeAltaExtraPeticionPrecioDestajo';
 import type { DarDeAltaExtraPeticionConceptoId } from './darDeAltaExtraPeticionConceptoId';
 import type { DarDeAltaExtraPeticionFrenteId } from './darDeAltaExtraPeticionFrenteId';
+import type { DarDeAltaExtraPeticionNivelId } from './darDeAltaExtraPeticionNivelId';
+import type { DarDeAltaExtraPeticionEtapaId } from './darDeAltaExtraPeticionEtapaId';
 import type { DarDeAltaExtraPeticionDuracionDias } from './darDeAltaExtraPeticionDuracionDias';
 
 /**
@@ -34,5 +36,9 @@ export interface DarDeAltaExtraPeticion {
   precio_destajo?: DarDeAltaExtraPeticionPrecioDestajo;
   concepto_id?: DarDeAltaExtraPeticionConceptoId;
   frente_id?: DarDeAltaExtraPeticionFrenteId;
+  /** El **frente** donde cae el trabajo (§7.4). Sin él la actividad no aparece en ningún grupo de la pantalla del residente, que agrupa por nivel y etapa. */
+  nivel_id?: DarDeAltaExtraPeticionNivelId;
+  /** El **sub-frente**: la etapa dentro del nivel (§7.4). */
+  etapa_id?: DarDeAltaExtraPeticionEtapaId;
   duracion_dias?: DarDeAltaExtraPeticionDuracionDias;
 }

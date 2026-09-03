@@ -99,6 +99,7 @@ from obractrl.domain.identidad.reglas import ErrorDeIdentidad
 from obractrl.domain.incidencias.reglas import ErrorDeIncidencia
 from obractrl.domain.materiales.reglas import ErrorDeMaterial
 from obractrl.domain.obras.generacion import ErrorDeGeneracion
+from obractrl.domain.obras.precio_armado import ErrorDePrecioArmado
 from obractrl.domain.obras.reglas import ErrorDeObra, TransicionDeObraInvalida
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
 from obractrl.domain.programacion.reglas import ErrorDeProgramacion
@@ -553,6 +554,19 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=422,
             tipo="regla-de-captura",
             titulo="Captura de avance inválida",
+            detalle=str(exc),
+            campo=exc.campo,
+        )
+
+    @app.exception_handler(ErrorDePrecioArmado)
+    async def _precio_armado(
+        request: Request, exc: ErrorDePrecioArmado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="precio-no-armable",
+            titulo="El precio no se puede armar con eso",
             detalle=str(exc),
             campo=exc.campo,
         )

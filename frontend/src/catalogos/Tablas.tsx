@@ -430,6 +430,10 @@ const COLUMNAS_CUADRILLAS = [
   'Nombre',
   'Unidad',
   'Rendimiento',
+  // Lo que cuesta un día de la cuadrilla (§7.6, migración 0048). Editable
+  // aquí porque es la mitad que falta del precio que el residente arma para un
+  // trabajo fuera de catálogo: sin esto sale reportado como "no se sabe".
+  'Costo jornada',
   'PU vigente',
   'Versión',
   'Estatus',
@@ -439,11 +443,14 @@ export function TablaCuadrillas({
   resultados,
   unidades,
   cargando,
+  onCambiarCosto,
 }: {
   readonly resultados: readonly Resultado<CuadrillaRespuesta>[];
   /** Para resolver la unidad a la que refiere el PU (§10.6). */
   readonly unidades: readonly UnidadRespuesta[];
   readonly cargando: boolean;
+  /** Ausente cuando el rol no configura catálogos: la celda queda de lectura. */
+  readonly onCambiarCosto?: (cuadrillaId: string, costo: number | null) => void;
 }) {
   return (
     <TablaCatalogo
@@ -462,6 +469,35 @@ export function TablaCuadrillas({
             {/* Rendimiento teórico asignado por el cargador de mano de obra
                 (§10.6) — no el que trae la propia fila cabecera de cuadrillas. */}
             <td className="is-num">{fmtNum(item.rendimiento)}</td>
+            {onCambiarCosto ? (
+              <td className="is-num">
+                <input
+                  className="input is-num"
+                  type="number"
+                  min={0}
+                  step="any"
+                  style={{ maxWidth: 110 }}
+                  defaultValue={item.costo_jornada ?? ''}
+                  placeholder="—"
+                  aria-label={`Costo por jornada de ${item.clave}`}
+                  onBlur={(e) => {
+                    const texto = e.target.value.trim();
+                    // Vacío quita el costo. No es lo mismo que cero: cero diría
+                    // que la cuadrilla es gratis y el precio armado lo sumaría
+                    // como tal; vacío dice que no se ha capturado y se reporta.
+                    const valor = texto === '' ? null : Number(texto);
+                    if (String(item.costo_jornada ?? '') === texto) return;
+                    onCambiarCosto(item.id, valor);
+                  }}
+                />
+              </td>
+            ) : (
+              <td className="is-num">
+                {item.costo_jornada === null || item.costo_jornada === undefined
+                  ? '—'
+                  : fmtMXN(item.costo_jornada)}
+              </td>
+            )}
             <td className="is-num">
               {item.precio_unitario === null || item.precio_unitario === undefined
                 ? '—'

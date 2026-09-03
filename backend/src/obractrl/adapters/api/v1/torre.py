@@ -35,6 +35,11 @@ from obractrl.adapters.api.idempotencia import Idempotencia
 from obractrl.adapters.repos.torre_sql import RepositorioTorreSQL
 from obractrl.application.casos_uso.dar_de_alta_extra import ComandoDarDeAltaExtra
 from obractrl.domain.obras.extra_catalogo import ActividadExtra
+from obractrl.domain.obras.precio_armado import (
+    LineaDeCuadrilla,
+    LineaDeMaterial,
+    armar_precio,
+)
 from obractrl.domain.shared.diccionario import EstatusActividad, ModoPago, Rol
 
 router = APIRouter(tags=["torre"])
@@ -150,6 +155,18 @@ class DarDeAltaExtraPeticion(BaseModel):
     precio_destajo: Decimal = Field(default=Decimal(0), ge=0)
     concepto_id: UUID | None = None
     frente_id: UUID | None = None
+    nivel_id: UUID | None = Field(
+        default=None,
+        description=(
+            "El **frente** donde cae el trabajo (§7.4). Sin él la actividad no "
+            "aparece en ningún grupo de la pantalla del residente, que agrupa "
+            "por nivel y etapa."
+        ),
+    )
+    etapa_id: UUID | None = Field(
+        default=None,
+        description="El **sub-frente**: la etapa dentro del nivel (§7.4).",
+    )
     duracion_dias: Decimal = Field(default=Decimal(1), gt=0)
 
 
@@ -319,7 +336,123 @@ async def dar_de_alta_extra(
             precio_destajo=peticion.precio_destajo,
             concepto_id=peticion.concepto_id,
             frente_id=peticion.frente_id,
+            nivel_id=peticion.nivel_id,
+            etapa_id=peticion.etapa_id,
             duracion_dias=peticion.duracion_dias,
         )
     )
     return ExtraRespuesta.desde_dominio(resultado.id, resultado.actividad)
+
+
+# --- El precio de un trabajo fuera de catálogo (§11.2, migración 0048) -----
+
+
+class LineaDeCuadrillaPeticion(BaseModel):
+    cuadrilla_id: UUID
+    cuadrillas: Decimal = Field(gt=0, description="Cuántas cuadrillas de ésas.")
+    dias: Decimal = Field(gt=0, description="Cuántos días las va a tener.")
+
+
+class LineaDeMaterialPeticion(BaseModel):
+    insumo_id: UUID
+    cantidad: Decimal = Field(gt=0)
+
+
+class ArmarPrecioPeticion(BaseModel):
+    """Con qué se va a hacer un trabajo que no está en el catálogo.
+
+    El jefe de obra lo describió así: *"el residente dice qué cuadrilla va a
+    utilizar, cuántas y el tiempo, también el material, y se crea el precio"*.
+    """
+
+    cantidad: Decimal = Field(
+        gt=0,
+        description=(
+            "La cantidad del **trabajo** —30 m² de muro—, no de gente: el "
+            "precio unitario es lo que se cobra por unidad de obra."
+        ),
+    )
+    cuadrillas: list[LineaDeCuadrillaPeticion] = Field(default_factory=list)
+    materiales: list[LineaDeMaterialPeticion] = Field(default_factory=list)
+
+
+class PrecioArmadoRespuesta(BaseModel):
+    mano_obra: Decimal
+    materiales: Decimal
+    total: Decimal
+    precio_unitario: Decimal
+    jornadas: Decimal
+    sin_costo: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Lo que se incluyó sin saber cuánto vale. Mientras haya algo aquí "
+            "el total está **por debajo** del costo real, y autorizar contra "
+            "esa cifra es autorizar de menos."
+        ),
+    )
+    completo: bool
+
+
+@router.post(
+    "/actividades/precio-armado",
+    response_model=PrecioArmadoRespuesta,
+    summary="Armar el precio de un trabajo fuera de catálogo",
+    dependencies=[Depends(exigir_rol(Rol.RESIDENTE, Rol.CONTROL_OBRA))],
+    responses={422: {"description": "El precio no se puede armar con eso (§11.2)."}},
+)
+async def armar_precio_de_extra(
+    peticion: ArmarPrecioPeticion, sesion: SesionRLS
+) -> PrecioArmadoRespuesta:
+    """Calcula sin guardar: es una simulación mientras el residente decide.
+
+    El cálculo vive en el servidor y no en la pantalla a propósito. Los costos
+    —jornada de la cuadrilla, costo del insumo— son del catálogo, y mandarlos al
+    cliente para que multiplique allá significaría exponer el costo a quien solo
+    necesita el precio, y tener la fórmula en dos lugares que un día divergen.
+    """
+    repo = RepositorioTorreSQL(sesion)
+    costos_cuadrilla = await repo.costos_de_cuadrillas(
+        [linea.cuadrilla_id for linea in peticion.cuadrillas]
+    )
+    costos_insumo = await repo.costos_de_insumos(
+        [material.insumo_id for material in peticion.materiales]
+    )
+
+    precio = armar_precio(
+        cantidad=peticion.cantidad,
+        cuadrillas=[
+            LineaDeCuadrilla(
+                cuadrilla_id=str(linea.cuadrilla_id),
+                nombre=costos_cuadrilla.get(str(linea.cuadrilla_id), {}).get(
+                    "nombre", "(cuadrilla desconocida)"
+                ),
+                cuadrillas=linea.cuadrillas,
+                dias=linea.dias,
+                costo_jornada=costos_cuadrilla.get(
+                    str(linea.cuadrilla_id), {}
+                ).get("costo_jornada"),
+            )
+            for linea in peticion.cuadrillas
+        ],
+        materiales=[
+            LineaDeMaterial(
+                insumo_id=str(material.insumo_id),
+                descripcion=costos_insumo.get(str(material.insumo_id), {}).get(
+                    "descripcion", "(insumo desconocido)"
+                ),
+                cantidad=material.cantidad,
+                costo=costos_insumo.get(str(material.insumo_id), {}).get("costo"),
+            )
+            for material in peticion.materiales
+        ],
+    )
+
+    return PrecioArmadoRespuesta(
+        mano_obra=precio.mano_obra,
+        materiales=precio.materiales,
+        total=precio.total,
+        precio_unitario=precio.precio_unitario,
+        jornadas=precio.jornadas,
+        sin_costo=list(precio.sin_costo),
+        completo=precio.completo,
+    )
