@@ -27,7 +27,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 
 import type {
   FilaDeInsumoRespuesta,
-  PeriodoRespuesta,
+  ObractrlAdaptersApiV1InsumosPeriodoRespuesta as PeriodoRespuesta,
 } from '@/api/generado/modelo';
 import { fmtMXN, fmtNum } from '@/lib/formato';
 import { etiquetaTipo } from './reglas';
