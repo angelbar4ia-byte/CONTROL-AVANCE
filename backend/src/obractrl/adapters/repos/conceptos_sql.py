@@ -34,7 +34,7 @@ from obractrl.application.puertos.repositorios import (
 __all__ = ["RepositorioConceptosSQL"]
 
 _COLUMNAS = """
-    id, tipo, clave, descripcion, unidad_id, familia_id, estatus
+    id, tipo, clave, descripcion, unidad_id, familia_id, estatus, especialidad_id
 """
 
 _CAMPOS_EDITABLES: dict[str, str] = {
@@ -43,6 +43,7 @@ _CAMPOS_EDITABLES: dict[str, str] = {
     "unidad_id": "unidad_id = cast(:unidad_id as uuid)",
     "familia_id": "familia_id = cast(:familia_id as uuid)",
     "estatus": "estatus = cast(:estatus as estatus_registro)",
+    "especialidad_id": "especialidad_id = cast(:especialidad_id as uuid)",
 }
 """Lista blanca de campos editables; también evita armar SQL con nombres que
 vengan de un archivo externo. La `clave` no está: es la identidad (§3.3)."""

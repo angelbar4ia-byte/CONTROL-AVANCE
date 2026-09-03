@@ -102,3 +102,107 @@ class RepositorioEspecialidadesSQL:
                 },
             )
         ).rowcount
+
+    async def actualizar(self, especialidad_id: UUID, cambios: dict[str, Any]) -> None:
+        """Edición parcial; la `clave` no es editable (§3.3: es la identidad)."""
+        campos = {c: v for c, v in cambios.items() if c in _EDITABLES}
+        if not campos:
+            return
+        sets = ", ".join(f"{c} = :{c}" for c in campos)
+        await self._sesion.execute(
+            text(f"update especialidad set {sets} where id = cast(:id as uuid)"),
+            {**campos, "id": str(especialidad_id)},
+        )
+
+    async def reemplazar_conceptos(
+        self, especialidad_id: UUID, concepto_ids: list[UUID]
+    ) -> None:
+        """Deja ese oficio con **exactamente** esos conceptos.
+
+        Reemplazo y no alta, igual que `asignar_frente` para las etapas (0045):
+        un concepto que se quitó de la lista queda sin oficio en vez de
+        arrastrarse, y la pantalla no manda dos llamadas para moverlo de un
+        oficio a otro.
+
+        Un concepto tiene **un** oficio: tomarlo aquí lo quita del que tuviera.
+        En dos, su trabajo se contaría dos veces al desglosar un frente.
+        """
+        await self._sesion.execute(
+            text(
+                "update concepto set especialidad_id = null "
+                "where especialidad_id = cast(:id as uuid)"
+            ),
+            {"id": str(especialidad_id)},
+        )
+        if not concepto_ids:
+            return
+        await self._sesion.execute(
+            text(
+                "update concepto set especialidad_id = cast(:id as uuid) "
+                "where id = any(cast(:conceptos as uuid[]))"
+            ),
+            {"id": str(especialidad_id), "conceptos": [str(c) for c in concepto_ids]},
+        )
+
+    async def fusionar(self, *, destino: UUID, absorbida: UUID) -> dict[str, Any]:
+        """Une dos oficios que resultaron ser el mismo.
+
+        Pasa **todo** lo que apunta a `absorbida` —conceptos y contratistas— a
+        `destino` y borra la absorbida. Es lo que hace falta cuando el catálogo
+        del cliente escribe el mismo oficio de dos formas: `EQUIPAMIENTO` con
+        claves `EQU` y `EQUIPAMIENTOS` con claves `MSA` resultaron ser uno solo,
+        y separados partían el desglose de un frente en dos renglones que nadie
+        podía contratar por separado.
+
+        El puente de contratistas usa `on conflict do nothing`: quien ya sabía
+        hacer los dos oficios acabaría con la fila repetida, y la única de la
+        tabla lo rechazaría a media fusión.
+
+        Devuelve qué se movió, para poder decírselo a quien lo pidió — una
+        fusión es difícil de revertir y merece un resumen, no un 204 mudo.
+        """
+        parametros = {"destino": str(destino), "absorbida": str(absorbida)}
+
+        conceptos = (
+            await self._sesion.execute(
+                text(
+                    "update concepto set especialidad_id = cast(:destino as uuid) "
+                    "where especialidad_id = cast(:absorbida as uuid)"
+                ),
+                parametros,
+            )
+        ).rowcount
+
+        contratistas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into contratista_especialidad
+                        (org_id, contratista_id, especialidad_id)
+                    select org_id, contratista_id, cast(:destino as uuid)
+                      from contratista_especialidad
+                     where especialidad_id = cast(:absorbida as uuid)
+                    on conflict (contratista_id, especialidad_id) do nothing
+                    """
+                ),
+                parametros,
+            )
+        ).rowcount
+        await self._sesion.execute(
+            text(
+                "delete from contratista_especialidad "
+                "where especialidad_id = cast(:absorbida as uuid)"
+            ),
+            parametros,
+        )
+
+        await self._sesion.execute(
+            text("delete from especialidad where id = cast(:absorbida as uuid)"),
+            parametros,
+        )
+        return {"conceptos": conceptos, "contratistas": contratistas}
+
+
+_EDITABLES = ("nombre", "orden", "estatus")
+"""Lo que se puede cambiar de un oficio ya creado. La `clave` no: es la
+identidad con la que se vuelve a cargar el archivo (§3.3)."""

@@ -46,6 +46,7 @@
 import { useMemo, useState } from 'react';
 
 import {
+  useAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut,
   useListarConceptosApiV1ConceptosGet,
   useListarContratistasApiV1ContratistasGet,
   useListarCuadrillasApiV1CuadrillasGet,
@@ -57,6 +58,7 @@ import {
   useListarUnidadesApiV1UnidadesGet,
 } from '@/api/generado/catalogos/catalogos';
 import {
+  useListarEspecialidadesApiV1EspecialidadesGet,
   useListarPrototiposApiV1PrototiposGet,
   useListarProyectosApiV1ProyectosGet,
 } from '@/api/generado/proyectos/proyectos';
@@ -65,6 +67,7 @@ import type {
   ConceptoRespuesta,
   ContratistaRespuesta,
   CuadrillaRespuesta,
+  EspecialidadRespuesta,
   EtapaRespuesta,
   FamiliaRespuesta,
   InsumoRespuesta,
@@ -83,6 +86,7 @@ import { AltaCuadrilla } from './AltaCuadrilla';
 import { AltaFamilia } from './AltaFamilia';
 import { AltaInsumo } from './AltaInsumo';
 import { AltaUnidad } from './AltaUnidad';
+import { Especialidades } from './Especialidades';
 import { PanelAPU } from './PanelAPU';
 import {
   TablaConceptos,
@@ -114,6 +118,7 @@ type Pestania =
   | 'cuadrillas'
   | 'niveles'
   | 'etapas'
+  | 'especialidades'
   | 'prototipos';
 
 const PESTANIAS: readonly { readonly clave: Pestania; readonly etiqueta: string }[] = [
@@ -130,6 +135,10 @@ const PESTANIAS: readonly { readonly clave: Pestania; readonly etiqueta: string 
   { clave: 'prototipos', etiqueta: 'Prototipos' },
   { clave: 'niveles', etiqueta: 'Nivel de construcción' },
   { clave: 'etapas', etiqueta: 'Etapa de construcción' },
+  // El segundo eje del trabajo (§8.3, 0047): va junto a Etapa de construcción
+  // porque las dos clasifican lo mismo desde lados distintos —la etapa lleva
+  // el frente y el concepto el oficio— y se capturan en la misma sentada.
+  { clave: 'especialidades', etiqueta: 'Oficios' },
 ];
 
 /** Las cinco caras de `Insumo` (§7.3): mismo repositorio/endpoint, `tipo`
@@ -171,10 +180,36 @@ export default function Catalogos() {
   const [texto, setTexto] = useState('');
   const [familiaId, setFamiliaId] = useState('');
   const [tipoConcepto, setTipoConcepto] = useState<TipoConcepto | ''>('');
+  const [soloSinOficio, setSoloSinOficio] = useState(false);
   const [incluirInactivos, setIncluirInactivos] = useState(false);
   const [dialogo, setDialogo] = useState<Dialogo>(null);
   const [conceptoAbierto, setConceptoAbierto] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+
+  // El catálogo de oficios (§8.3, 0047) alimenta la columna editable de
+  // conceptos: es la forma de rellenar lo que el archivo cargado no clasifica.
+  const especialidadesQ = useListarEspecialidadesApiV1EspecialidadesGet<
+    EspecialidadRespuesta[],
+    ErrorApi
+  >(undefined, {
+    query: { enabled: pestania === 'conceptos' || pestania === 'especialidades' },
+  });
+
+  const asignarOficio =
+    useAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut<ErrorApi>({
+      mutation: {
+        onSuccess: () => void conceptosQ.refetch(),
+        onError: (err) => setAviso(err.message),
+      },
+    });
+
+  function cambiarOficio(conceptoId: string, especialidadId: string | null): void {
+    setAviso(null);
+    asignarOficio.mutate({
+      conceptoId,
+      data: { especialidad_id: especialidadId },
+    });
+  }
 
   // Unidades y familias se piden siempre: además de su pestaña, resuelven
   // las claves que las demás tablas muestran y alimentan los selects de las
@@ -280,6 +315,20 @@ export default function Catalogos() {
   const familias = useMemo(() => familiasQ.data ?? [], [familiasQ.data]);
   const cuadrillasParaInsumos = useMemo(() => cuadrillasQ.data ?? [], [cuadrillasQ.data]);
   const conceptos = useMemo(() => conceptosQ.data ?? [], [conceptosQ.data]);
+
+  // Cuántos conceptos usa cada oficio: es lo que deja decidir cuál absorbe a
+  // cuál al fusionar. Sale de los conceptos ya cargados, sin otra consulta.
+  const conceptosPorOficio = useMemo(() => {
+    const cuenta = new Map<string, number>();
+    for (const concepto of conceptos) {
+      if (!concepto.especialidad_id) continue;
+      cuenta.set(
+        concepto.especialidad_id,
+        (cuenta.get(concepto.especialidad_id) ?? 0) + 1,
+      );
+    }
+    return cuenta;
+  }, [conceptos]);
   const niveles = useMemo(() => nivelesQ.data ?? [], [nivelesQ.data]);
   const proyectos = useMemo(() => proyectosQ.data ?? [], [proyectosQ.data]);
 
@@ -312,8 +361,16 @@ export default function Catalogos() {
     [materialesQ.data, texto],
   );
   const resConceptos = useMemo(
-    () => buscarPorClave(conceptos, texto, (concepto) => concepto.descripcion),
-    [conceptos, texto],
+    () =>
+      buscarPorClave(
+        // El filtro va antes de la búsqueda y no después: "sin oficio" es lo
+        // que se está buscando, no un adorno del resultado, y aplicarlo al
+        // final dejaría el contador diciendo cuántos hay en total.
+        soloSinOficio ? conceptos.filter((c) => !c.especialidad_id) : conceptos,
+        texto,
+        (concepto) => concepto.descripcion,
+      ),
+    [conceptos, texto, soloSinOficio],
   );
   const resContratistas = useMemo(
     () =>
@@ -392,6 +449,9 @@ export default function Catalogos() {
         return 'Nueva cuadrilla';
       case 'niveles':
       case 'etapas':
+      // Los oficios se dan de alta en su propia pestaña, con clave y nombre a
+      // la vista: son dos campos y un diálogo sobraría.
+      case 'especialidades':
       case 'prototipos':
         return null;
     }
@@ -498,6 +558,17 @@ export default function Catalogos() {
               </option>
             ))}
           </select>
+        )}
+
+        {pestania === 'conceptos' && (
+          <label className="row gap-4" style={{ alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={soloSinOficio}
+              onChange={(e) => setSoloSinOficio(e.target.checked)}
+            />
+            <span className="text-sm">Solo sin oficio</span>
+          </label>
         )}
 
         {(PESTANIAS_TIPO_INSUMO.has(pestania) || pestania === 'materiales' || pestania === 'conceptos') && (
@@ -609,9 +680,24 @@ export default function Catalogos() {
             resultados={resConceptos}
             unidades={unidades}
             familias={familias}
+            especialidades={especialidadesQ.data ?? []}
             cargando={conceptosQ.isLoading}
             conceptoAbierto={conceptoAbierto}
             onAbrirAPU={consultaAPU ? (elegido) => setConceptoAbierto(elegido.id) : undefined}
+            onCambiarOficio={administra ? cambiarOficio : undefined}
+          />
+        )}
+
+        {pestania === 'especialidades' && (
+          <Especialidades
+            especialidades={especialidadesQ.data ?? []}
+            conceptosPorOficio={conceptosPorOficio}
+            cargando={especialidadesQ.isLoading}
+            administra={administra}
+            onCambio={() => {
+              void especialidadesQ.refetch();
+              void conceptosQ.refetch();
+            }}
           />
         )}
 

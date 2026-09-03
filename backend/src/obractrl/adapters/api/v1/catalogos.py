@@ -818,6 +818,15 @@ class ConceptoRespuesta(BaseModel):
     unidad_id: UUID | None = None
     familia_id: UUID | None = None
     estatus: str = "activo"
+    especialidad_id: UUID | None = Field(
+        default=None,
+        description=(
+            "El oficio con el que se ejecuta (§8.3, migración 0047). Vacío en "
+            "los conceptos que el catálogo cargado todavía no clasifica: salen "
+            "como «Sin oficio» al desglosar un frente y se completan desde el "
+            "catálogo."
+        ),
+    )
 
     @classmethod
     def desde_fila(cls, fila: dict) -> ConceptoRespuesta:
@@ -829,6 +838,7 @@ class ConceptoRespuesta(BaseModel):
             unidad_id=fila["unidad_id"],
             familia_id=fila["familia_id"],
             estatus=fila["estatus"],
+            especialidad_id=fila.get("especialidad_id"),
         )
 
 
@@ -987,6 +997,42 @@ async def listar_conceptos(
         solo_activos=not incluir_inactivos,
     )
     return [ConceptoRespuesta.desde_fila(fila) for fila in filas]
+
+
+class OficioDelConceptoPeticion(BaseModel):
+    """Con qué oficio se ejecuta este concepto (§8.3, migración 0047).
+
+    `null` lo deja sin oficio: quitarlo —"esto no era carpintería"— es un cambio
+    tan válido como ponerlo, y omitir el campo no podría expresarlo.
+    """
+
+    especialidad_id: UUID | None = None
+
+
+@router.put(
+    "/conceptos/{concepto_id}/especialidad",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Con qué oficio se ejecuta este concepto",
+    dependencies=[CATALOGOS],
+)
+async def asignar_especialidad_al_concepto(
+    concepto_id: UUID, peticion: OficioDelConceptoPeticion, sesion: SesionRLS
+) -> None:
+    """Rellenar a mano lo que el catálogo cargado no clasifica.
+
+    El archivo del cliente cubre 461 de 898 conceptos; el resto sale agrupado
+    como «Sin oficio» al desglosar un frente en la pantalla de cuadrillas. Esto
+    permite completarlo renglón por renglón, sin volver a subir un Excel.
+
+    Uno por uno y no la lista entera —para eso está
+    `PUT /especialidades/{id}/conceptos`—: corregir un concepto suelto no debe
+    obligar a mandar los otros cuatrocientos, donde cualquiera que se olvide se
+    quedaría sin oficio.
+    """
+    await RepositorioConceptosSQL(sesion).actualizar(
+        concepto_id, {"especialidad_id": peticion.especialidad_id}
+    )
+    await sesion.commit()
 
 
 @router.post(

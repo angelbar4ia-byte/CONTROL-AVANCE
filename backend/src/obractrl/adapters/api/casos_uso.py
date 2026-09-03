@@ -1046,6 +1046,7 @@ class FabricaDeCargas:
                 # resolverlo por nombre y para crear el que no exista: el
                 # archivo del cliente es la autoridad sobre su vocabulario.
                 frentes=RepositorioFrentesSQL(sesion),
+                cargas=cargas,
             )
         if tipo is TipoCarga.UNIDADES:
             return AplicadorUnidades(unidades=RepositorioUnidadesSQL(sesion), cargas=cargas)

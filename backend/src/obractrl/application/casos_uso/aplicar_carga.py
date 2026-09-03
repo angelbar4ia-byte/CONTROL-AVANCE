@@ -21,7 +21,7 @@ idénticos, que es lo que hace útil a la vista previa (§9.3).
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
@@ -537,10 +537,19 @@ class _CatalogoPorNombre:
     resuelve por parecido sale nombrado en el reporte de la carga.
     """
 
-    def __init__(self, filas: list[dict[str, Any]]) -> None:
+    def __init__(
+        self, filas: list[dict[str, Any]], mapeos: Mapping[str, str] | None = None
+    ) -> None:
         self._por_clave = {normalizar(f["clave"]): f["id"] for f in filas}
         self._por_nombre = {normalizar(f["nombre"]): f["id"] for f in filas}
         self._nombres = [(normalizar(f["nombre"]), str(f["nombre"]), f["id"]) for f in filas]
+        # Homologaciones confirmadas por una persona (§10.3). Se aplican antes
+        # que nada: si alguien ya dijo que `EQUIPAMIENTOS` es `EQUIPAMIENTO`,
+        # la carga no lo vuelve a preguntar ni a crear.
+        self._alias = {
+            normalizar(alias): normalizar(canonica)
+            for alias, canonica in (mapeos or {}).items()
+        }
 
     def agregar(self, *, clave: str, nombre: str, id_: Any) -> None:
         """Registra lo que se acaba de crear, para que lo siguiente lo vea.
@@ -558,6 +567,7 @@ class _CatalogoPorNombre:
         texto = normalizar(referencia)
         if not texto:
             return _Resolucion(id=None)
+        texto = self._alias.get(texto, texto)
         exacto = self._por_clave.get(texto) or self._por_nombre.get(texto)
         if exacto is not None:
             return _Resolucion(id=exacto)
@@ -611,6 +621,7 @@ async def _mapear_clasificacion(
     asignar,
     crear_faltantes: bool,
     dry_run: bool = False,
+    mapeos: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """Le pone a cada grupo de claves la clasificación que el archivo les da.
 
@@ -628,7 +639,7 @@ async def _mapear_clasificacion(
     callara esta parte dejaría el cambio más grande sin revisar.
     """
     vigentes = await catalogo.listar(solo_activos=False)
-    indice = _CatalogoPorNombre(vigentes)
+    indice = _CatalogoPorNombre(vigentes, mapeos)
     tomadas = {str(f["clave"]).upper() for f in vigentes}
 
     asignadas = 0
@@ -1179,6 +1190,9 @@ class AplicadorConceptosBase:
                 ),
                 crear_faltantes=True,
                 dry_run=dry_run,
+                # Lo que una persona ya homologó (§10.3): fusionar dos oficios
+                # desde la pantalla no se puede deshacer en la siguiente carga.
+                mapeos=await self._cargas.mapeos("especialidad"),
             )
 
         return Aplicacion(
@@ -1358,14 +1372,17 @@ class AplicadorContratistas:
         por_clave = {str(c["clave"]): c for c in vigentes_filas}
 
         catalogo_frentes = _CatalogoPorNombre(
-            await self._frentes.listar(solo_activos=False)
+            await self._frentes.listar(solo_activos=False),
+            await self._cargas.mapeos("frente"),
         )
         oficios_vigentes = (
             await self._especialidades.listar(solo_activos=False)
             if self._especialidades is not None
             else []
         )
-        catalogo_oficios = _CatalogoPorNombre(oficios_vigentes)
+        catalogo_oficios = _CatalogoPorNombre(
+            oficios_vigentes, await self._cargas.mapeos("especialidad")
+        )
         claves_de_oficio = {str(f["clave"]).upper() for f in oficios_vigentes}
 
         entrantes: dict[str, dict[str, Any]] = {}
@@ -1675,9 +1692,11 @@ class AplicadorEtapasConstructivas:
         *,
         niveles_etapas: RepositorioNivelesEtapas,
         frentes: RepositorioFrentes | None = None,
+        cargas: RepositorioCargas | None = None,
     ) -> None:
         self._niveles_etapas = niveles_etapas
         self._frentes = frentes
+        self._cargas = cargas
 
     async def aplicar(
         self,
@@ -1750,6 +1769,9 @@ class AplicadorEtapasConstructivas:
                 ),
                 crear_faltantes=True,
                 dry_run=dry_run,
+                mapeos=await self._cargas.mapeos("frente")
+                if self._cargas is not None
+                else None,
             )
 
         return Aplicacion(

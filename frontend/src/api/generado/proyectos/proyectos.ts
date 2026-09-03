@@ -31,15 +31,22 @@ import type {
 
 import type {
   ClusterRespuesta,
+  ConceptosDelOficioPeticion,
   CrearClusterPeticion,
+  CrearEspecialidadPeticion,
   CrearFrentePeticion,
   CrearPrototipoPeticion,
   CrearProyectoPeticion,
+  EditarEspecialidadPeticion,
   EditarFrentePeticion,
+  EspecialidadRespuesta,
   EtapasDelFrentePeticion,
   FrenteRespuesta,
+  FusionRespuesta,
+  FusionarEspecialidadPeticion,
   HTTPValidationError,
   ListarClustersApiV1ClustersGetParams,
+  ListarEspecialidadesApiV1EspecialidadesGetParams,
   ListarFrentesApiV1FrentesGetParams,
   ListarPrototiposApiV1PrototiposGetParams,
   NodoPrototipoRespuesta,
@@ -1285,6 +1292,447 @@ export const useAsignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPut = <TError = H
       > => {
 
       const mutationOptions = getAsignarEtapasAlFrenteApiV1FrentesFrenteIdEtapasPutMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Todos los roles: alimenta el desglose de la pantalla de cuadrillas.
+ * @summary Catálogo de oficios
+ */
+export const listarEspecialidadesApiV1EspecialidadesGet = (
+    params?: ListarEspecialidadesApiV1EspecialidadesGetParams,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<EspecialidadRespuesta[]>(
+      {url: `/api/v1/especialidades`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+  
+
+
+
+export const getListarEspecialidadesApiV1EspecialidadesGetInfiniteQueryKey = (params?: ListarEspecialidadesApiV1EspecialidadesGetParams,) => {
+    return [
+    'infinite', `/api/v1/especialidades`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+export const getListarEspecialidadesApiV1EspecialidadesGetQueryKey = (params?: ListarEspecialidadesApiV1EspecialidadesGetParams,) => {
+    return [
+    `/api/v1/especialidades`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getListarEspecialidadesApiV1EspecialidadesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>>, TError = HTTPValidationError>(params?: ListarEspecialidadesApiV1EspecialidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarEspecialidadesApiV1EspecialidadesGetInfiniteQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>> = ({ signal }) => listarEspecialidadesApiV1EspecialidadesGet(params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarEspecialidadesApiV1EspecialidadesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>>
+export type ListarEspecialidadesApiV1EspecialidadesGetInfiniteQueryError = HTTPValidationError
+
+
+export function useListarEspecialidadesApiV1EspecialidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>>, TError = HTTPValidationError>(
+ params: undefined |  ListarEspecialidadesApiV1EspecialidadesGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarEspecialidadesApiV1EspecialidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>>, TError = HTTPValidationError>(
+ params?: ListarEspecialidadesApiV1EspecialidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarEspecialidadesApiV1EspecialidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>>, TError = HTTPValidationError>(
+ params?: ListarEspecialidadesApiV1EspecialidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Catálogo de oficios
+ */
+
+export function useListarEspecialidadesApiV1EspecialidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>>, TError = HTTPValidationError>(
+ params?: ListarEspecialidadesApiV1EspecialidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarEspecialidadesApiV1EspecialidadesGetInfiniteQueryOptions(params,options)
+
+  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+export const getListarEspecialidadesApiV1EspecialidadesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError = HTTPValidationError>(params?: ListarEspecialidadesApiV1EspecialidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListarEspecialidadesApiV1EspecialidadesGetQueryKey(params);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>> = ({ signal }) => listarEspecialidadesApiV1EspecialidadesGet(params, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListarEspecialidadesApiV1EspecialidadesGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>>
+export type ListarEspecialidadesApiV1EspecialidadesGetQueryError = HTTPValidationError
+
+
+export function useListarEspecialidadesApiV1EspecialidadesGet<TData = Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError = HTTPValidationError>(
+ params: undefined |  ListarEspecialidadesApiV1EspecialidadesGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarEspecialidadesApiV1EspecialidadesGet<TData = Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError = HTTPValidationError>(
+ params?: ListarEspecialidadesApiV1EspecialidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListarEspecialidadesApiV1EspecialidadesGet<TData = Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError = HTTPValidationError>(
+ params?: ListarEspecialidadesApiV1EspecialidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Catálogo de oficios
+ */
+
+export function useListarEspecialidadesApiV1EspecialidadesGet<TData = Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError = HTTPValidationError>(
+ params?: ListarEspecialidadesApiV1EspecialidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEspecialidadesApiV1EspecialidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListarEspecialidadesApiV1EspecialidadesGetQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+/**
+ * @summary Dar de alta un oficio
+ */
+export const crearEspecialidadApiV1EspecialidadesPost = (
+    crearEspecialidadPeticion: CrearEspecialidadPeticion,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<EspecialidadRespuesta>(
+      {url: `/api/v1/especialidades`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: crearEspecialidadPeticion, signal
+    },
+      options);
+    }
+  
+
+
+export const getCrearEspecialidadApiV1EspecialidadesPostMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearEspecialidadApiV1EspecialidadesPost>>, TError,{data: CrearEspecialidadPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof crearEspecialidadApiV1EspecialidadesPost>>, TError,{data: CrearEspecialidadPeticion}, TContext> => {
+
+const mutationKey = ['crearEspecialidadApiV1EspecialidadesPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearEspecialidadApiV1EspecialidadesPost>>, {data: CrearEspecialidadPeticion}> = (props) => {
+          const {data} = props ?? {};
+
+          return  crearEspecialidadApiV1EspecialidadesPost(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CrearEspecialidadApiV1EspecialidadesPostMutationResult = NonNullable<Awaited<ReturnType<typeof crearEspecialidadApiV1EspecialidadesPost>>>
+    export type CrearEspecialidadApiV1EspecialidadesPostMutationBody = CrearEspecialidadPeticion
+    export type CrearEspecialidadApiV1EspecialidadesPostMutationError = HTTPValidationError
+
+    /**
+ * @summary Dar de alta un oficio
+ */
+export const useCrearEspecialidadApiV1EspecialidadesPost = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearEspecialidadApiV1EspecialidadesPost>>, TError,{data: CrearEspecialidadPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof crearEspecialidadApiV1EspecialidadesPost>>,
+        TError,
+        {data: CrearEspecialidadPeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getCrearEspecialidadApiV1EspecialidadesPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * @summary Editar un oficio
+ */
+export const editarEspecialidadApiV1EspecialidadesEspecialidadIdPatch = (
+    especialidadId: string,
+    editarEspecialidadPeticion: EditarEspecialidadPeticion,
+ options?: SecondParameter<typeof peticion>,) => {
+      
+      
+      return peticion<void>(
+      {url: `/api/v1/especialidades/${especialidadId}`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: editarEspecialidadPeticion
+    },
+      options);
+    }
+  
+
+
+export const getEditarEspecialidadApiV1EspecialidadesEspecialidadIdPatchMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof editarEspecialidadApiV1EspecialidadesEspecialidadIdPatch>>, TError,{especialidadId: string;data: EditarEspecialidadPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof editarEspecialidadApiV1EspecialidadesEspecialidadIdPatch>>, TError,{especialidadId: string;data: EditarEspecialidadPeticion}, TContext> => {
+
+const mutationKey = ['editarEspecialidadApiV1EspecialidadesEspecialidadIdPatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof editarEspecialidadApiV1EspecialidadesEspecialidadIdPatch>>, {especialidadId: string;data: EditarEspecialidadPeticion}> = (props) => {
+          const {especialidadId,data} = props ?? {};
+
+          return  editarEspecialidadApiV1EspecialidadesEspecialidadIdPatch(especialidadId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EditarEspecialidadApiV1EspecialidadesEspecialidadIdPatchMutationResult = NonNullable<Awaited<ReturnType<typeof editarEspecialidadApiV1EspecialidadesEspecialidadIdPatch>>>
+    export type EditarEspecialidadApiV1EspecialidadesEspecialidadIdPatchMutationBody = EditarEspecialidadPeticion
+    export type EditarEspecialidadApiV1EspecialidadesEspecialidadIdPatchMutationError = HTTPValidationError
+
+    /**
+ * @summary Editar un oficio
+ */
+export const useEditarEspecialidadApiV1EspecialidadesEspecialidadIdPatch = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof editarEspecialidadApiV1EspecialidadesEspecialidadIdPatch>>, TError,{especialidadId: string;data: EditarEspecialidadPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof editarEspecialidadApiV1EspecialidadesEspecialidadIdPatch>>,
+        TError,
+        {especialidadId: string;data: EditarEspecialidadPeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getEditarEspecialidadApiV1EspecialidadesEspecialidadIdPatchMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Con esto se llena a mano lo que el archivo no trajo (§8.3, 0047).
+
+El catálogo del cliente cubre 461 de 898 conceptos; el resto no tiene
+oficio y sale agrupado como «Sin oficio» al desglosar un frente. Aquí se
+completa sin volver a subir un Excel.
+
+Un concepto tiene **un** oficio: tomarlo aquí lo quita del que tuviera.
+ * @summary Qué conceptos se ejecutan con este oficio
+ */
+export const asignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPut = (
+    especialidadId: string,
+    conceptosDelOficioPeticion: ConceptosDelOficioPeticion,
+ options?: SecondParameter<typeof peticion>,) => {
+      
+      
+      return peticion<void>(
+      {url: `/api/v1/especialidades/${especialidadId}/conceptos`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: conceptosDelOficioPeticion
+    },
+      options);
+    }
+  
+
+
+export const getAsignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPutMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPut>>, TError,{especialidadId: string;data: ConceptosDelOficioPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof asignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPut>>, TError,{especialidadId: string;data: ConceptosDelOficioPeticion}, TContext> => {
+
+const mutationKey = ['asignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPut'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof asignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPut>>, {especialidadId: string;data: ConceptosDelOficioPeticion}> = (props) => {
+          const {especialidadId,data} = props ?? {};
+
+          return  asignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPut(especialidadId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AsignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPutMutationResult = NonNullable<Awaited<ReturnType<typeof asignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPut>>>
+    export type AsignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPutMutationBody = ConceptosDelOficioPeticion
+    export type AsignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPutMutationError = HTTPValidationError
+
+    /**
+ * @summary Qué conceptos se ejecutan con este oficio
+ */
+export const useAsignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPut = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPut>>, TError,{especialidadId: string;data: ConceptosDelOficioPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof asignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPut>>,
+        TError,
+        {especialidadId: string;data: ConceptosDelOficioPeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getAsignarConceptosAlOficioApiV1EspecialidadesEspecialidadIdConceptosPutMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
+ * Todo lo de la absorbida pasa a la de la ruta, y la absorbida desaparece.
+
+Pasa cuando el catálogo escribe el mismo oficio de dos formas —
+`EQUIPAMIENTO` y `EQUIPAMIENTOS`, con prefijos de clave distintos—:
+separados parten el desglose de un frente en dos renglones que nadie puede
+contratar por separado.
+
+El nombre de la absorbida queda registrado como alias (§10.3). Sin eso, la
+próxima carga del mismo archivo —que sigue trayendo los dos nombres— la
+volvería a crear y la fusión se desharía sola.
+ * @summary Unir dos oficios que resultaron ser el mismo
+ */
+export const fusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPost = (
+    especialidadId: string,
+    fusionarEspecialidadPeticion: FusionarEspecialidadPeticion,
+ options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+) => {
+      
+      
+      return peticion<FusionRespuesta>(
+      {url: `/api/v1/especialidades/${especialidadId}/fusionar`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: fusionarEspecialidadPeticion, signal
+    },
+      options);
+    }
+  
+
+
+export const getFusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPostMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPost>>, TError,{especialidadId: string;data: FusionarEspecialidadPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+): UseMutationOptions<Awaited<ReturnType<typeof fusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPost>>, TError,{especialidadId: string;data: FusionarEspecialidadPeticion}, TContext> => {
+
+const mutationKey = ['fusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof fusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPost>>, {especialidadId: string;data: FusionarEspecialidadPeticion}> = (props) => {
+          const {especialidadId,data} = props ?? {};
+
+          return  fusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPost(especialidadId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPostMutationResult = NonNullable<Awaited<ReturnType<typeof fusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPost>>>
+    export type FusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPostMutationBody = FusionarEspecialidadPeticion
+    export type FusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPostMutationError = HTTPValidationError
+
+    /**
+ * @summary Unir dos oficios que resultaron ser el mismo
+ */
+export const useFusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPost = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPost>>, TError,{especialidadId: string;data: FusionarEspecialidadPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof fusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPost>>,
+        TError,
+        {especialidadId: string;data: FusionarEspecialidadPeticion},
+        TContext
+      > => {
+
+      const mutationOptions = getFusionarEspecialidadApiV1EspecialidadesEspecialidadIdFusionarPostMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

@@ -8,6 +8,7 @@
 import type { TipoConcepto } from './tipoConcepto';
 import type { ConceptoRespuestaUnidadId } from './conceptoRespuestaUnidadId';
 import type { ConceptoRespuestaFamiliaId } from './conceptoRespuestaFamiliaId';
+import type { ConceptoRespuestaEspecialidadId } from './conceptoRespuestaEspecialidadId';
 
 export interface ConceptoRespuesta {
   id: string;
@@ -17,4 +18,6 @@ export interface ConceptoRespuesta {
   unidad_id?: ConceptoRespuestaUnidadId;
   familia_id?: ConceptoRespuestaFamiliaId;
   estatus?: string;
+  /** El oficio con el que se ejecuta (§8.3, migración 0047). Vacío en los conceptos que el catálogo cargado todavía no clasifica: salen como «Sin oficio» al desglosar un frente y se completan desde el catálogo. */
+  especialidad_id?: ConceptoRespuestaEspecialidadId;
 }

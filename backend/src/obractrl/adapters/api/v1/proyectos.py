@@ -15,10 +15,10 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from obractrl.adapters.api.casos_uso import (
@@ -27,7 +27,9 @@ from obractrl.adapters.api.casos_uso import (
     CrearProyectoDep,
 )
 from obractrl.adapters.api.dependencias import SesionRLS, exigir_rol
+from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
 from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
+from obractrl.adapters.repos.especialidades_sql import RepositorioEspecialidadesSQL
 from obractrl.adapters.repos.frentes_sql import RepositorioFrentesSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
@@ -467,3 +469,203 @@ async def asignar_etapas_al_frente(
         frente_id=frente_id, etapa_ids=peticion.etapa_ids
     )
     await sesion.commit()
+
+
+# --- Especialidades: el oficio del concepto (§8.3, migración 0047) ---------
+
+
+class EspecialidadRespuesta(BaseModel):
+    """Un oficio del catálogo: ESTRUCTURA, ACABADOS, CARPINTERIA…
+
+    El segundo eje del trabajo. El **frente** dice qué clase de contratista se
+    contrata —OBRA, INSTALACIONES— y cuelga de la etapa; la **especialidad**
+    dice qué oficio hace falta y cuelga del concepto. Hacen falta los dos: un
+    frente entero es demasiado grueso para contratar, porque en la obra real
+    OBRA concentra el 90% de las jornadas.
+    """
+
+    id: UUID
+    clave: str
+    nombre: str
+    orden: int = 0
+    estatus: str = "activo"
+
+    @classmethod
+    def desde_fila(cls, fila: dict[str, Any]) -> EspecialidadRespuesta:
+        return cls(
+            id=fila["id"],
+            clave=fila["clave"],
+            nombre=fila["nombre"],
+            orden=fila["orden"],
+            estatus=str(fila.get("estatus") or "activo"),
+        )
+
+
+class CrearEspecialidadPeticion(BaseModel):
+    clave: str = Field(min_length=1, description="Clave única del catálogo (§3.3).")
+    nombre: str = Field(min_length=1)
+    orden: int = Field(default=0)
+
+
+class EditarEspecialidadPeticion(BaseModel):
+    """Solo lo que cambia. La `clave` no está: es la identidad (§3.3)."""
+
+    nombre: str | None = Field(default=None, min_length=1)
+    orden: int | None = None
+    estatus: str | None = Field(default=None, description="`activo` o `inactivo`.")
+
+
+class ConceptosDelOficioPeticion(BaseModel):
+    """Los conceptos que se ejecutan con ese oficio, **completos**.
+
+    Reemplazo y no alta, igual que las etapas de un frente: lo que no venga en
+    la lista se queda sin oficio. Así mover un concepto de un oficio a otro es
+    una llamada y no dos.
+    """
+
+    concepto_ids: list[UUID] = Field(default_factory=list)
+
+
+class FusionarEspecialidadPeticion(BaseModel):
+    absorbida_id: UUID = Field(
+        description="El oficio que desaparece. Todo lo suyo pasa al de la ruta."
+    )
+
+
+class FusionRespuesta(BaseModel):
+    conceptos: int
+    contratistas: int
+    alias_registrado: str = Field(
+        description=(
+            "El nombre del oficio absorbido queda homologado (§10.3): la "
+            "próxima carga del catálogo no lo vuelve a crear."
+        )
+    )
+
+
+@router.get(
+    "/especialidades",
+    response_model=list[EspecialidadRespuesta],
+    summary="Catálogo de oficios",
+)
+async def listar_especialidades(
+    sesion: SesionRLS,
+    incluir_inactivos: Annotated[
+        bool, Query(description="Incluye los dados de baja (§8.7).")
+    ] = False,
+) -> list[EspecialidadRespuesta]:
+    """Todos los roles: alimenta el desglose de la pantalla de cuadrillas."""
+    filas = await RepositorioEspecialidadesSQL(sesion).listar(
+        solo_activos=not incluir_inactivos
+    )
+    return [EspecialidadRespuesta.desde_fila(fila) for fila in filas]
+
+
+@router.post(
+    "/especialidades",
+    response_model=EspecialidadRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Dar de alta un oficio",
+    dependencies=[CONFIGURA],
+)
+async def crear_especialidad(
+    peticion: CrearEspecialidadPeticion, sesion: SesionRLS
+) -> EspecialidadRespuesta:
+    repo = RepositorioEspecialidadesSQL(sesion)
+    nuevo_id = await repo.crear(peticion.model_dump())
+    await sesion.commit()
+    return EspecialidadRespuesta(
+        id=nuevo_id,
+        clave=peticion.clave,
+        nombre=peticion.nombre,
+        orden=peticion.orden,
+    )
+
+
+@router.patch(
+    "/especialidades/{especialidad_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Editar un oficio",
+    dependencies=[CONFIGURA],
+)
+async def editar_especialidad(
+    especialidad_id: UUID, peticion: EditarEspecialidadPeticion, sesion: SesionRLS
+) -> None:
+    cambios = peticion.model_dump(exclude_unset=True, exclude_none=True)
+    await RepositorioEspecialidadesSQL(sesion).actualizar(especialidad_id, cambios)
+    await sesion.commit()
+
+
+@router.put(
+    "/especialidades/{especialidad_id}/conceptos",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Qué conceptos se ejecutan con este oficio",
+    dependencies=[CONFIGURA],
+)
+async def asignar_conceptos_al_oficio(
+    especialidad_id: UUID, peticion: ConceptosDelOficioPeticion, sesion: SesionRLS
+) -> None:
+    """Con esto se llena a mano lo que el archivo no trajo (§8.3, 0047).
+
+    El catálogo del cliente cubre 461 de 898 conceptos; el resto no tiene
+    oficio y sale agrupado como «Sin oficio» al desglosar un frente. Aquí se
+    completa sin volver a subir un Excel.
+
+    Un concepto tiene **un** oficio: tomarlo aquí lo quita del que tuviera.
+    """
+    await RepositorioEspecialidadesSQL(sesion).reemplazar_conceptos(
+        especialidad_id, peticion.concepto_ids
+    )
+    await sesion.commit()
+
+
+@router.post(
+    "/especialidades/{especialidad_id}/fusionar",
+    response_model=FusionRespuesta,
+    summary="Unir dos oficios que resultaron ser el mismo",
+    dependencies=[CONFIGURA],
+)
+async def fusionar_especialidad(
+    especialidad_id: UUID, peticion: FusionarEspecialidadPeticion, sesion: SesionRLS
+) -> FusionRespuesta:
+    """Todo lo de la absorbida pasa a la de la ruta, y la absorbida desaparece.
+
+    Pasa cuando el catálogo escribe el mismo oficio de dos formas —
+    `EQUIPAMIENTO` y `EQUIPAMIENTOS`, con prefijos de clave distintos—:
+    separados parten el desglose de un frente en dos renglones que nadie puede
+    contratar por separado.
+
+    El nombre de la absorbida queda registrado como alias (§10.3). Sin eso, la
+    próxima carga del mismo archivo —que sigue trayendo los dos nombres— la
+    volvería a crear y la fusión se desharía sola.
+    """
+    if peticion.absorbida_id == especialidad_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Un oficio no se puede fusionar consigo mismo.",
+        )
+
+    repo = RepositorioEspecialidadesSQL(sesion)
+    por_id = {str(f["id"]): f for f in await repo.listar(solo_activos=False)}
+    destino = por_id.get(str(especialidad_id))
+    absorbida = por_id.get(str(peticion.absorbida_id))
+    if destino is None or absorbida is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Alguno de los dos oficios no existe en tu organización.",
+        )
+
+    movido = await repo.fusionar(
+        destino=especialidad_id, absorbida=peticion.absorbida_id
+    )
+    await RepositorioCargasSQL(sesion).registrar_mapeo(
+        entidad="especialidad",
+        alias=str(absorbida["nombre"]),
+        clave_canonica=str(destino["clave"]),
+    )
+    await sesion.commit()
+    return FusionRespuesta(
+        conceptos=movido["conceptos"],
+        contratistas=movido["contratistas"],
+        alias_registrado=str(absorbida["nombre"]),
+    )

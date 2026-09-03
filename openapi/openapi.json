@@ -1396,6 +1396,267 @@
         }
       }
     },
+    "/api/v1/especialidades": {
+      "get": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Catálogo de oficios",
+        "description": "Todos los roles: alimenta el desglose de la pantalla de cuadrillas.",
+        "operationId": "listar_especialidades_api_v1_especialidades_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incluir_inactivos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluye los dados de baja (§8.7).",
+              "default": false,
+              "title": "Incluir Inactivos"
+            },
+            "description": "Incluye los dados de baja (§8.7)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EspecialidadRespuesta"
+                  },
+                  "title": "Response Listar Especialidades Api V1 Especialidades Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Dar de alta un oficio",
+        "operationId": "crear_especialidad_api_v1_especialidades_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearEspecialidadPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EspecialidadRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/especialidades/{especialidad_id}": {
+      "patch": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Editar un oficio",
+        "operationId": "editar_especialidad_api_v1_especialidades__especialidad_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "especialidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Especialidad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditarEspecialidadPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/especialidades/{especialidad_id}/conceptos": {
+      "put": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Qué conceptos se ejecutan con este oficio",
+        "description": "Con esto se llena a mano lo que el archivo no trajo (§8.3, 0047).\n\nEl catálogo del cliente cubre 461 de 898 conceptos; el resto no tiene\noficio y sale agrupado como «Sin oficio» al desglosar un frente. Aquí se\ncompleta sin volver a subir un Excel.\n\nUn concepto tiene **un** oficio: tomarlo aquí lo quita del que tuviera.",
+        "operationId": "asignar_conceptos_al_oficio_api_v1_especialidades__especialidad_id__conceptos_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "especialidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Especialidad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConceptosDelOficioPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/especialidades/{especialidad_id}/fusionar": {
+      "post": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Unir dos oficios que resultaron ser el mismo",
+        "description": "Todo lo de la absorbida pasa a la de la ruta, y la absorbida desaparece.\n\nPasa cuando el catálogo escribe el mismo oficio de dos formas —\n`EQUIPAMIENTO` y `EQUIPAMIENTOS`, con prefijos de clave distintos—:\nseparados parten el desglose de un frente en dos renglones que nadie puede\ncontratar por separado.\n\nEl nombre de la absorbida queda registrado como alias (§10.3). Sin eso, la\npróxima carga del mismo archivo —que sigue trayendo los dos nombres— la\nvolvería a crear y la fusión se desharía sola.",
+        "operationId": "fusionar_especialidad_api_v1_especialidades__especialidad_id__fusionar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "especialidad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Especialidad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FusionarEspecialidadPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FusionRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/unidades": {
       "get": {
         "tags": [
@@ -2315,6 +2576,58 @@
           },
           "422": {
             "description": "Datos de catálogo inválidos (§7.3)."
+          }
+        }
+      }
+    },
+    "/api/v1/conceptos/{concepto_id}/especialidad": {
+      "put": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Con qué oficio se ejecuta este concepto",
+        "description": "Rellenar a mano lo que el catálogo cargado no clasifica.\n\nEl archivo del cliente cubre 461 de 898 conceptos; el resto sale agrupado\ncomo «Sin oficio» al desglosar un frente en la pantalla de cuadrillas. Esto\npermite completarlo renglón por renglón, sin volver a subir un Excel.\n\nUno por uno y no la lista entera —para eso está\n`PUT /especialidades/{id}/conceptos`—: corregir un concepto suelto no debe\nobligar a mandar los otros cuatrocientos, donde cualquiera que se olvide se\nquedaría sin oficio.",
+        "operationId": "asignar_especialidad_al_concepto_api_v1_conceptos__concepto_id__especialidad_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OficioDelConceptoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -9769,6 +10082,19 @@
             "type": "string",
             "title": "Estatus",
             "default": "activo"
+          },
+          "especialidad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Especialidad Id",
+            "description": "El oficio con el que se ejecuta (§8.3, migración 0047). Vacío en los conceptos que el catálogo cargado todavía no clasifica: salen como «Sin oficio» al desglosar un frente y se completan desde el catálogo."
           }
         },
         "type": "object",
@@ -9779,6 +10105,21 @@
           "descripcion"
         ],
         "title": "ConceptoRespuesta"
+      },
+      "ConceptosDelOficioPeticion": {
+        "properties": {
+          "concepto_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Concepto Ids"
+          }
+        },
+        "type": "object",
+        "title": "ConceptosDelOficioPeticion",
+        "description": "Los conceptos que se ejecutan con ese oficio, **completos**.\n\nReemplazo y no alta, igual que las etapas de un frente: lo que no venga en\nla lista se queda sin oficio. Así mover un concepto de un oficio a otro es\nuna llamada y no dos."
       },
       "ConflictoJerarquiaRespuesta": {
         "properties": {
@@ -10171,6 +10512,32 @@
           "nombre"
         ],
         "title": "CrearCuadrillaPeticion"
+      },
+      "CrearEspecialidadPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave",
+            "description": "Clave única del catálogo (§3.3)."
+          },
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "CrearEspecialidadPeticion"
       },
       "CrearEvaluacionPeticion": {
         "properties": {
@@ -11234,6 +11601,48 @@
         ],
         "title": "DocumentoRespuesta"
       },
+      "EditarEspecialidadPeticion": {
+        "properties": {
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "orden": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden"
+          },
+          "estatus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estatus",
+            "description": "`activo` o `inactivo`."
+          }
+        },
+        "type": "object",
+        "title": "EditarEspecialidadPeticion",
+        "description": "Solo lo que cambia. La `clave` no está: es la identidad (§3.3)."
+      },
       "EditarFrentePeticion": {
         "properties": {
           "nombre": {
@@ -11404,6 +11813,41 @@
         ],
         "title": "ErrorDeFilaRespuesta",
         "description": "Un renglón del reporte de errores por fila/columna (§9.3)."
+      },
+      "EspecialidadRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "default": 0
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "default": "activo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "nombre"
+        ],
+        "title": "EspecialidadRespuesta",
+        "description": "Un oficio del catálogo: ESTRUCTURA, ACABADOS, CARPINTERIA…\n\nEl segundo eje del trabajo. El **frente** dice qué clase de contratista se\ncontrata —OBRA, INSTALACIONES— y cuelga de la etapa; la **especialidad**\ndice qué oficio hace falta y cuelga del concepto. Hacen falta los dos: un\nfrente entero es demasiado grueso para contratar, porque en la obra real\nOBRA concentra el 90% de las jornadas."
       },
       "EstadoDeObraRespuesta": {
         "properties": {
@@ -12533,6 +12977,45 @@
           "nombre"
         ],
         "title": "FrenteRespuesta"
+      },
+      "FusionRespuesta": {
+        "properties": {
+          "conceptos": {
+            "type": "integer",
+            "title": "Conceptos"
+          },
+          "contratistas": {
+            "type": "integer",
+            "title": "Contratistas"
+          },
+          "alias_registrado": {
+            "type": "string",
+            "title": "Alias Registrado",
+            "description": "El nombre del oficio absorbido queda homologado (§10.3): la próxima carga del catálogo no lo vuelve a crear."
+          }
+        },
+        "type": "object",
+        "required": [
+          "conceptos",
+          "contratistas",
+          "alias_registrado"
+        ],
+        "title": "FusionRespuesta"
+      },
+      "FusionarEspecialidadPeticion": {
+        "properties": {
+          "absorbida_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Absorbida Id",
+            "description": "El oficio que desaparece. Todo lo suyo pasa al de la ruta."
+          }
+        },
+        "type": "object",
+        "required": [
+          "absorbida_id"
+        ],
+        "title": "FusionarEspecialidadPeticion"
       },
       "GenerarEstimacionPeticion": {
         "properties": {
@@ -13927,6 +14410,25 @@
         ],
         "title": "OficioDeFrenteRespuesta",
         "description": "Cómo se reparte por oficio lo que un frente pide (§8.3, migración 0047).\n\nEl frente solo es demasiado grueso para contratar: en la obra real OBRA\nconcentra el 90% de las jornadas, y nadie contrata \"noventa por ciento de la\nobra\". Partido por oficio, cada renglón ya es algo que se le pide a alguien."
+      },
+      "OficioDelConceptoPeticion": {
+        "properties": {
+          "especialidad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Especialidad Id"
+          }
+        },
+        "type": "object",
+        "title": "OficioDelConceptoPeticion",
+        "description": "Con qué oficio se ejecuta este concepto (§8.3, migración 0047).\n\n`null` lo deja sin oficio: quitarlo —\"esto no era carpintería\"— es un cambio\ntan válido como ponerlo, y omitir el campo no podría expresarlo."
       },
       "PaginaBitacora": {
         "properties": {
