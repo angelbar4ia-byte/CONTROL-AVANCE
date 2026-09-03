@@ -42,6 +42,7 @@ __all__ = [
     "ComandoPlaneacion",
     "ConsultarPlaneacion",
     "FrenteDeObra",
+    "OficioDeFrente",
     "PlaneacionDeObra",
 ]
 
@@ -75,6 +76,25 @@ class ComandoAsignarFrente:
 
 
 @dataclass(frozen=True, slots=True)
+class OficioDeFrente:
+    """El desglose de un frente por oficio (§8.3, migración 0047).
+
+    Hace falta porque el frente solo es demasiado grueso para contratar: en la
+    obra real OBRA concentra el 90% de las jornadas, y nadie contrata "noventa
+    por ciento de la obra". Partido por oficio —estructura, acabados,
+    albañilería— cada renglón ya es algo que se le pide a alguien.
+
+    La suma de los oficios de un frente es el frente: salen del mismo reparto
+    (`jornadas_por_frente` con otro agrupador), no de un segundo cálculo.
+    """
+
+    especialidad_id: str
+    clave: str
+    nombre: str
+    demanda: DemandaDeFrente
+
+
+@dataclass(frozen=True, slots=True)
 class FrenteDeObra:
     """Un renglón de la vista por frente: lo que pide y lo que se decidió."""
 
@@ -90,6 +110,9 @@ class FrenteDeObra:
     rendimiento del catálogo y la decisión la toma quien conoce al contratista.
     """
     notas: str | None = None
+
+    oficios: tuple[OficioDeFrente, ...] = ()
+    """Cómo se reparte por oficio lo que este frente pide."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,11 +132,13 @@ class ConsultarPlaneacion:
         actividades,
         planeacion,
         frentes,
+        especialidades=None,
     ) -> None:
         self._insumos = insumos
         self._actividades = actividades
         self._planeacion = planeacion
         self._frentes = frentes
+        self._especialidades = especialidades
 
     async def ejecutar(self, cmd: ComandoPlaneacion) -> PlaneacionDeObra:
         # Se reusa el cargador de insumos programados entero: mismas
@@ -146,6 +171,17 @@ class ConsultarPlaneacion:
             catalogo=catalogo,
             periodos=periodos,
         )
+        # El mismo reparto agrupado por el par frente-oficio. Se pide aparte y
+        # no se deriva del anterior porque una actividad aporta a los dos ejes
+        # a la vez: repartir dos veces la misma cantidad es correcto, dividir
+        # el resultado del primero entre oficios sería inventar una proporción.
+        por_oficio = jornadas_por_frente(
+            actividades=actividades,
+            explosiones=explosiones,
+            catalogo=catalogo,
+            periodos=periodos,
+            agrupar=_por_frente_y_oficio,
+        )
 
         calendario = CalendarioLaboral.de(
             await self._planeacion.dias_habiles_de_obra(cmd.obra_id)
@@ -162,6 +198,14 @@ class ConsultarPlaneacion:
         catalogo_frentes = {
             str(f["id"]): f for f in await self._frentes.listar(solo_activos=False)
         }
+        catalogo_oficios = {
+            str(f["id"]): f
+            for f in (
+                await self._especialidades.listar(solo_activos=False)
+                if self._especialidades is not None
+                else []
+            )
+        }
 
         demandas = demanda_por_frente(
             jornadas_por_frente=jornadas,
@@ -176,14 +220,79 @@ class ConsultarPlaneacion:
                     demanda,
                     asignado.get(demanda.frente_id),
                     catalogo_frentes.get(demanda.frente_id),
+                    _oficios_de(
+                        demanda.frente_id, por_oficio, dias_habiles, catalogo_oficios
+                    ),
                 )
                 for demanda in demandas
             ),
         )
 
 
+SEPARADOR_EJES = "|"
+"""Separa los dos ejes en la clave compuesta del agrupador.
+
+Los dos son uuid o cadena vacía, y ninguno puede contener una barra, así que
+partir por la primera devuelve exactamente lo que se juntó.
+"""
+
+
+def _por_frente_y_oficio(actividad) -> str:
+    """Agrupador del cruce: `frente|oficio`.
+
+    Una clave compuesta y no dos pasadas porque el reparto sobre los periodos
+    tiene que ser el mismo que el del frente: dos recorridos distintos
+    divergirían y la suma de los oficios dejaría de dar el frente.
+    """
+    return (
+        f"{actividad.frente_id or ''}"
+        f"{SEPARADOR_EJES}"
+        f"{actividad.especialidad_id or ''}"
+    )
+
+
+def _oficios_de(
+    frente_id: str,
+    por_oficio: dict[str, tuple],
+    dias_habiles: tuple[int, ...],
+    catalogo: dict[str, dict],
+) -> tuple[OficioDeFrente, ...]:
+    """El desglose por oficio de un frente, ordenado por pico.
+
+    Un oficio que el catálogo no nombra sale como "Sin oficio": es el concepto
+    al que todavía no se le capturó especialidad. No se descarta, porque
+    entonces la suma de los oficios ya no daría el frente y la tabla dejaría de
+    cuadrar consigo misma.
+    """
+    del_frente = {
+        clave.split(SEPARADOR_EJES, 1)[1]: valores
+        for clave, valores in por_oficio.items()
+        if clave.split(SEPARADOR_EJES, 1)[0] == frente_id
+    }
+    if not del_frente:
+        return ()
+
+    salida = []
+    for demanda in demanda_por_frente(
+        jornadas_por_frente=del_frente, dias_habiles_por_periodo=dias_habiles
+    ):
+        oficio = catalogo.get(demanda.frente_id)
+        salida.append(
+            OficioDeFrente(
+                especialidad_id=demanda.frente_id,
+                clave=str(oficio["clave"]) if oficio else "—",
+                nombre=str(oficio["nombre"]) if oficio else "Sin oficio",
+                demanda=demanda,
+            )
+        )
+    return tuple(salida)
+
+
 def _renglon(
-    demanda: DemandaDeFrente, trato: dict | None, frente: dict | None
+    demanda: DemandaDeFrente,
+    trato: dict | None,
+    frente: dict | None,
+    oficios: tuple[OficioDeFrente, ...] = (),
 ) -> FrenteDeObra:
     if demanda.frente_id == SIN_FRENTE:
         return FrenteDeObra(
@@ -191,6 +300,7 @@ def _renglon(
             frente_clave="—",
             frente_nombre="Sin frente asignado",
             demanda=demanda,
+            oficios=oficios,
         )
 
     clave = str(frente["clave"]) if frente else ""
@@ -204,6 +314,7 @@ def _renglon(
             frente_clave=clave,
             frente_nombre=nombre,
             demanda=demanda,
+            oficios=oficios,
         )
     return FrenteDeObra(
         frente_id=demanda.frente_id,
@@ -214,6 +325,7 @@ def _renglon(
         contratista_nombre=trato["contratista_nombre"],
         cuadrillas_plan=trato["cuadrillas_plan"],
         notas=trato["notas"],
+        oficios=oficios,
     )
 
 

@@ -21,11 +21,11 @@ idénticos, que es lo que hace útil a la vista previa (§9.3).
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from obractrl.application.puertos.cargadores import RepositorioCargas
 from obractrl.application.puertos.repositorios import (
@@ -88,7 +88,7 @@ from obractrl.domain.shared.diccionario import (
     TipoHijoExplosion,
     TipoInsumo,
 )
-from obractrl.domain.shared.normalizacion import similar
+from obractrl.domain.shared.normalizacion import normalizar, similar
 from obractrl.domain.shared.valores import Dinero, PrecioUnitario
 
 __all__ = [
@@ -494,6 +494,242 @@ class AplicadorMateriales:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class _Resolucion:
+    """Lo que se pudo resolver de un catálogo, y cómo."""
+
+    id: UUID | None
+    aproximada: str | None = None
+    """El nombre del catálogo con el que empató, cuando no fue exacto.
+
+    Se guarda para reportarlo: una coincidencia aproximada es una decisión que
+    alguien tiene que poder revisar, y callarla la volvería invisible.
+    """
+
+
+class _CatalogoPorNombre:
+    """Índice de un catálogo para buscar por clave **o** por nombre.
+
+    Los archivos reales de la constructora no traen la clave del catálogo: la
+    etapa dice `OBRA` y el contratista dice `INSTALACIONES`, que son los
+    *nombres*. Exigir la clave obligaría a traducir a mano cincuenta filas cada
+    vez que se sube el archivo.
+
+    Dos pasos siempre, y un tercero solo cuando se pide:
+
+    1. Clave exacta (§3.3: la clave manda cuando viene).
+    2. Nombre normalizado — sin acentos, sin mayúsculas, sin dobles espacios.
+    3. Parecido (`similar`, §8.6) **solo con `tolerante=True`**, y se reporta.
+
+    La tolerancia es opt-in porque los dos usos son distintos y confundirlos
+    corrompe el catálogo:
+
+    * El archivo que **define** el catálogo se lee exacto. `similar` trata una
+      subcadena como coincidencia, así que `CARPINTERIA OBRA` empataría con
+      `CARPINTERIA` y las doce filas de la primera se irían a la segunda —
+      borrando una distinción que el cliente sí hace.
+    * El archivo que solo lo **referencia** puede ser tolerante. El catálogo de
+      contratistas escribe `SUBCONTRATO` donde el de etapas escribe
+      `SUBCONTRATOS`: es el mismo frente en singular y en plural, y no crear
+      nada nuevo hace que el peor caso sea apuntar a la fila de al lado.
+
+    Adivinar en silencio sería inaceptable en los dos casos, así que quien
+    resuelve por parecido sale nombrado en el reporte de la carga.
+    """
+
+    def __init__(self, filas: list[dict[str, Any]]) -> None:
+        self._por_clave = {normalizar(f["clave"]): f["id"] for f in filas}
+        self._por_nombre = {normalizar(f["nombre"]): f["id"] for f in filas}
+        self._nombres = [(normalizar(f["nombre"]), str(f["nombre"]), f["id"]) for f in filas]
+
+    def agregar(self, *, clave: str, nombre: str, id_: Any) -> None:
+        """Registra lo que se acaba de crear, para que lo siguiente lo vea.
+
+        Sin esto, `EQUIPAMIENTO` y `EQUIPAMIENTOS` en el mismo archivo crean dos
+        filas: la segunda no encuentra a la primera porque el índice se leyó una
+        vez al empezar. El archivo trae las dos formas del mismo oficio y el
+        catálogo acabaría con las dos.
+        """
+        self._por_clave[normalizar(clave)] = id_
+        self._por_nombre[normalizar(nombre)] = id_
+        self._nombres.append((normalizar(nombre), nombre, id_))
+
+    def resolver(self, referencia: object, *, tolerante: bool = False) -> _Resolucion:
+        texto = normalizar(referencia)
+        if not texto:
+            return _Resolucion(id=None)
+        exacto = self._por_clave.get(texto) or self._por_nombre.get(texto)
+        if exacto is not None:
+            return _Resolucion(id=exacto)
+        if not tolerante:
+            return _Resolucion(id=None)
+        for normalizado, nombre, id_ in self._nombres:
+            if similar(texto, normalizado):
+                return _Resolucion(id=id_, aproximada=nombre)
+        return _Resolucion(id=None)
+
+
+def _clave_desde_nombre(nombre: str, tomadas: set[str]) -> str:
+    """Una clave corta y estable para un catálogo que llega solo con nombres.
+
+    Los archivos de la constructora traen `OBRA`, `CARPINTERIA OBRA`,
+    `BARDA PERIMETRAL` — nombres, sin código. Hace falta uno porque la clave es
+    la identidad con la que se vuelve a cargar el mismo archivo mañana (§3.3);
+    sin ella, la segunda carga crearía todo otra vez.
+
+    Tres intentos, en orden: las tres primeras letras, las iniciales de las
+    palabras, y un consecutivo. Determinista: el mismo nombre da la misma clave
+    en cualquier orden de carga, que es lo que hace la recarga idempotente.
+    """
+    limpio = "".join(c for c in normalizar(nombre).upper() if c.isalnum() or c == " ")
+    palabras = [p for p in limpio.split() if p]
+    if not palabras:
+        return "X"
+
+    candidatos = [palabras[0][:3]]
+    if len(palabras) > 1:
+        # `CARPINTERIA OBRA` → `CAO`, no `CO`: tres letras se leen de un vistazo
+        # en una tabla y dos se confunden con una unidad.
+        candidatos.append(palabras[0][:2] + palabras[1][:1])
+        candidatos.append(palabras[0][:1] + palabras[1][:2])
+        candidatos.append("".join(p[0] for p in palabras[:4]))
+    for candidato in candidatos:
+        if candidato and candidato not in tomadas:
+            return candidato
+
+    base = candidatos[0] or "X"
+    numero = 2
+    while f"{base}{numero}" in tomadas:
+        numero += 1
+    return f"{base}{numero}"
+
+
+async def _mapear_clasificacion(
+    *,
+    por_referencia: dict[str, list[str]],
+    catalogo,
+    asignar,
+    crear_faltantes: bool,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Le pone a cada grupo de claves la clasificación que el archivo les da.
+
+    Va aparte del diff de identidad a propósito: el diff decide qué se da de
+    alta y qué cambió de nombre, y esto decide a qué frente u oficio pertenece
+    cada uno. Mezclarlos haría que corregir una descripción y remapear un frente
+    fueran el mismo cambio, y el reporte de la carga ya no diría cuál pasó.
+
+    Una llamada por clasificación y no por fila: son cuatro frentes para
+    cincuenta etapas, y quinientas idas a la base para el mismo dato.
+
+    En `dry_run` resuelve igual pero no escribe: la previsualización tiene que
+    poder decir qué frentes se crearían y cuántas etapas se moverían, que es
+    justo lo que alguien quiere ver antes de aceptar la carga. Un preview que
+    callara esta parte dejaría el cambio más grande sin revisar.
+    """
+    vigentes = await catalogo.listar(solo_activos=False)
+    indice = _CatalogoPorNombre(vigentes)
+    tomadas = {str(f["clave"]).upper() for f in vigentes}
+
+    asignadas = 0
+    creadas: list[str] = []
+    sin_resolver: list[str] = []
+    aproximadas: list[str] = []
+
+    for referencia, claves in sorted(por_referencia.items()):
+        resuelta = indice.resolver(referencia)
+        destino = resuelta.id
+        if destino is None:
+            if not crear_faltantes:
+                sin_resolver.append(referencia)
+                continue
+            # El archivo del cliente es la autoridad sobre su propio
+            # vocabulario: sembrar una lista a mano ya salió mal una vez.
+            clave_nueva = _clave_desde_nombre(referencia, tomadas)
+            tomadas.add(clave_nueva)
+            creadas.append(f"{clave_nueva} · {referencia}")
+            if dry_run:
+                # Un id de mentira, nunca escrito: sirve para que la
+                # previsualización vea lo que ella misma acaba de "crear" y no
+                # cuente dos veces `EQUIPAMIENTO` y `EQUIPAMIENTOS`. Con `None`
+                # el índice lo daría por no encontrado y el preview mentiría
+                # sobre lo que la carga real haría.
+                indice.agregar(clave=clave_nueva, nombre=referencia, id_=uuid4())
+                asignadas += len(claves)
+                continue
+            destino = await catalogo.crear(
+                {"clave": clave_nueva, "nombre": referencia, "orden": len(creadas)}
+            )
+            indice.agregar(clave=clave_nueva, nombre=referencia, id_=destino)
+        elif resuelta.aproximada is not None:
+            aproximadas.append(f"{referencia} → {resuelta.aproximada}")
+
+        if dry_run:
+            asignadas += len(claves)
+            continue
+        asignadas += await asignar(destino, claves)
+
+    return {
+        "asignadas": asignadas,
+        "creadas": creadas,
+        "sin_resolver": sorted(set(sin_resolver)),
+        "resueltas_por_parecido": sorted(set(aproximadas)),
+    }
+
+
+async def _resolver_todas(
+    referencias: Sequence[object],
+    catalogo: _CatalogoPorNombre,
+    sin_resolver: list[str],
+    aproximadas: list[str],
+    *,
+    crear=None,
+    creadas: list[str] | None = None,
+    tomadas: set[str] | None = None,
+) -> list[UUID]:
+    """Resuelve una lista de referencias, apuntando lo que no salió limpio.
+
+    Una que no exista **no** tumba la fila: el contratista entra igual y la
+    referencia sale reportada. Perder el alta de quien está trabajando en la
+    obra por un frente mal escrito sería desproporcionado.
+
+    Con `crear`, lo que no existe se da de alta en vez de reportarse. Se usa
+    para los **oficios** y no para los frentes, y la asimetría es a propósito:
+
+    * Los frentes son cuatro y su autoridad es el catálogo de etapas. Uno que
+      no resuelva aquí es casi siempre un error de dedo, y crearlo metería un
+      quinto frente fantasma en la pantalla de planeación.
+    * Los oficios los declara cada contratista sobre sí mismo. `LIMPIEZA` y
+      `URBANIZACION` no aparecen en ningún concepto y aun así son reales: sin
+      crearlos, veintinueve contratistas entrarían casi sin capacidades y el
+      cruce que justifica capturarlas no se podría hacer.
+
+    Lo creado se reporta en `creadas`, que es lo que vuelve revisable la
+    decisión.
+    """
+    ids: list[UUID] = []
+    for referencia in referencias:
+        resuelta = catalogo.resolver(referencia, tolerante=True)
+        if resuelta.id is None:
+            if crear is None:
+                sin_resolver.append(str(referencia))
+                continue
+            nombre = str(referencia)
+            clave_nueva = _clave_desde_nombre(nombre, tomadas if tomadas is not None else set())
+            if tomadas is not None:
+                tomadas.add(clave_nueva)
+            nuevo = await crear({"clave": clave_nueva, "nombre": nombre})
+            catalogo.agregar(clave=clave_nueva, nombre=nombre, id_=nuevo)
+            if creadas is not None:
+                creadas.append(f"{clave_nueva} · {nombre}")
+            ids.append(nuevo)
+            continue
+        if resuelta.aproximada is not None:
+            aproximadas.append(f"{referencia} → {resuelta.aproximada}")
+        ids.append(resuelta.id)
+    return ids
+
+
 def _recorte(fila: dict[str, Any], campos: tuple[str, ...]) -> dict[str, Any]:
     return {campo: fila.get(campo) for campo in campos}
 
@@ -783,12 +1019,14 @@ class AplicadorConceptosBase:
         cargas: RepositorioCargas,
         tipo: TipoConcepto = TipoConcepto.CONCEPTO,
         prefijo_clave: str = "CPT",
+        especialidades=None,
     ) -> None:
         self._conceptos = conceptos
         self._unidades = unidades
         self._cargas = cargas
         self._tipo = tipo
         self._prefijo_clave = prefijo_clave
+        self._especialidades = especialidades
 
     async def aplicar(
         self,
@@ -810,6 +1048,7 @@ class AplicadorConceptosBase:
 
         pendientes: list[PendientePropuesto] = []
         entrantes: dict[str, dict[str, Any]] = {}
+        conceptos_por_oficio: dict[str, list[str]] = {}
         nuevas_unidades: dict[str, UUID | None] = {}
         claves_generadas = 0
         # Semilla del consecutivo con el catálogo vigente; crece con cada
@@ -874,6 +1113,8 @@ class AplicadorConceptosBase:
                 "descripcion": base.descripcion,
                 "unidad_id": unidad_id,
             }
+            if base.especialidad:
+                conceptos_por_oficio.setdefault(base.especialidad, []).append(clave)
 
         vigentes = {
             clave: {
@@ -925,6 +1166,21 @@ class AplicadorConceptosBase:
                     )
                 )
 
+        detalle: dict[str, Any] = {
+            "unidades_creadas": len(nuevas_unidades),
+            "claves_generadas": claves_generadas,
+        }
+        if conceptos_por_oficio and self._especialidades is not None:
+            detalle["especialidades"] = await _mapear_clasificacion(
+                por_referencia=conceptos_por_oficio,
+                catalogo=self._especialidades,
+                asignar=lambda destino, claves: (
+                    self._especialidades.asignar_a_conceptos(destino, claves)
+                ),
+                crear_faltantes=True,
+                dry_run=dry_run,
+            )
+
         return Aplicacion(
             diff=diff,
             operaciones=tuple(operaciones),
@@ -932,10 +1188,7 @@ class AplicadorConceptosBase:
             insertados=len(diff.altas),
             actualizados=len(diff.cambios) + len(diff.bajas),
             omitidos=diff.omitidos + lectura.omitidos,
-            detalle={
-                "unidades_creadas": len(nuevas_unidades),
-                "claves_generadas": claves_generadas,
-            },
+            detalle=detalle,
         )
 
 
@@ -1086,10 +1339,12 @@ class AplicadorContratistas:
         contratistas: RepositorioContratistas,
         frentes: RepositorioFrentes,
         cargas: RepositorioCargas,
+        especialidades=None,
     ) -> None:
         self._contratistas = contratistas
         self._frentes = frentes
         self._cargas = cargas
+        self._especialidades = especialidades
 
     async def aplicar(
         self,
@@ -1102,14 +1357,24 @@ class AplicadorContratistas:
         vigentes_filas = await self._contratistas.listar(solo_activos=False)
         por_clave = {str(c["clave"]): c for c in vigentes_filas}
 
-        frentes_por_clave = {
-            str(f["clave"]): f["id"]
-            for f in await self._frentes.listar(solo_activos=False)
-        }
+        catalogo_frentes = _CatalogoPorNombre(
+            await self._frentes.listar(solo_activos=False)
+        )
+        oficios_vigentes = (
+            await self._especialidades.listar(solo_activos=False)
+            if self._especialidades is not None
+            else []
+        )
+        catalogo_oficios = _CatalogoPorNombre(oficios_vigentes)
+        claves_de_oficio = {str(f["clave"]).upper() for f in oficios_vigentes}
 
         entrantes: dict[str, dict[str, Any]] = {}
         frentes_de: dict[str, list[UUID]] = {}
+        oficios_de: dict[str, list[UUID]] = {}
         sin_resolver: list[str] = []
+        sin_oficio: list[str] = []
+        aproximadas: list[str] = []
+        oficios_creados: list[str] = []
 
         for registro in lectura.registros:
             fila: FilaContratista = registro  # type: ignore[assignment]
@@ -1121,14 +1386,22 @@ class AplicadorContratistas:
                 "telefono": fila.telefono,
                 "email": fila.email,
             }
-            ids: list[UUID] = []
-            for clave_frente in fila.frentes:
-                frente_id = frentes_por_clave.get(str(clave_frente))
-                if frente_id is None:
-                    sin_resolver.append(str(clave_frente))
-                    continue
-                ids.append(frente_id)
-            frentes_de[clave] = ids
+            frentes_de[clave] = await _resolver_todas(
+                fila.frentes, catalogo_frentes, sin_resolver, aproximadas
+            )
+            oficios_de[clave] = await _resolver_todas(
+                fila.especialidades,
+                catalogo_oficios,
+                sin_oficio,
+                aproximadas,
+                crear=(
+                    self._especialidades.crear
+                    if self._especialidades is not None and not dry_run
+                    else None
+                ),
+                creadas=oficios_creados,
+                tomadas=claves_de_oficio,
+            )
 
         vigentes = {
             clave: _recorte(f, ("razon_social", "rfc", "contacto", "telefono", "email"))
@@ -1145,6 +1418,7 @@ class AplicadorContratistas:
                 await self._contratistas.reemplazar_frentes(
                     nuevo_id, frentes_de.get(alta.clave, [])
                 )
+                await self._reemplazar_oficios(nuevo_id, oficios_de.get(alta.clave, []))
                 operaciones.append(
                     _operacion("contratista", nuevo_id, "insert", despues=dict(alta.despues))
                 )
@@ -1155,6 +1429,9 @@ class AplicadorContratistas:
                 )
                 await self._contratistas.reemplazar_frentes(
                     fila_vigente["id"], frentes_de.get(cambio.clave, [])
+                )
+                await self._reemplazar_oficios(
+                    fila_vigente["id"], oficios_de.get(cambio.clave, [])
                 )
                 operaciones.append(
                     _operacion(
@@ -1186,8 +1463,30 @@ class AplicadorContratistas:
             insertados=len(diff.altas),
             actualizados=len(diff.cambios) + len(diff.bajas),
             omitidos=diff.omitidos + lectura.omitidos,
-            detalle={"frentes_sin_resolver": sorted(set(sin_resolver))},
+            detalle={
+                "frentes_sin_resolver": sorted(set(sin_resolver)),
+                "especialidades_sin_resolver": sorted(set(sin_oficio)),
+                "especialidades_creadas": oficios_creados,
+                # Las que empataron por parecido y no exactas. Se nombran para
+                # que alguien las pueda revisar: `SUBCONTRATO` contra
+                # `SUBCONTRATOS` es correcto, pero decidirlo en silencio no.
+                "resueltas_por_parecido": sorted(set(aproximadas)),
+            },
         )
+
+    async def _reemplazar_oficios(
+        self, contratista_id: UUID, ids: list[UUID]
+    ) -> None:
+        """Guarda el segundo eje, si el repositorio lo soporta.
+
+        Opcional porque el puente nació en la 0047 y hay dobles de prueba que
+        no lo implementan: un contratista sin oficios registrados sigue siendo
+        un contratista válido, y romper la carga entera por eso no ayuda a
+        nadie.
+        """
+        reemplazar = getattr(self._contratistas, "reemplazar_especialidades", None)
+        if reemplazar is not None:
+            await reemplazar(contratista_id, ids)
 
 
 class AplicadorFamilias:
@@ -1360,11 +1659,25 @@ class AplicadorNiveles:
 
 class AplicadorEtapasConstructivas:
     """Catálogo base de etapas de construcción (§10.1): identidad
-    únicamente — clave y descripción. ``nivel_id`` no se resuelve aquí (ver
-    `domain.cargadores.etapas_constructivas`)."""
+    clave, descripción y el **frente** al que pertenece la etapa (§8.3,
+    migración 0045).
 
-    def __init__(self, *, niveles_etapas: RepositorioNivelesEtapas) -> None:
+    ``nivel_id`` sigue sin resolverse aquí (ver
+    `domain.cargadores.etapas_constructivas`): el archivo real no lo trae.
+
+    El frente sí viene, y se resuelve por nombre contra el catálogo. Uno que no
+    exista **se crea**: el archivo del cliente es la autoridad sobre su propio
+    vocabulario de frentes, y sembrar una lista a mano ya salió mal una vez
+    —los seis del §8.3 no eran los cuatro que esta constructora usa—."""
+
+    def __init__(
+        self,
+        *,
+        niveles_etapas: RepositorioNivelesEtapas,
+        frentes: RepositorioFrentes | None = None,
+    ) -> None:
         self._niveles_etapas = niveles_etapas
+        self._frentes = frentes
 
     async def aplicar(
         self,
@@ -1378,6 +1691,7 @@ class AplicadorEtapasConstructivas:
         por_clave = {str(f["clave"]): f for f in vigentes_filas}
 
         entrantes: dict[str, dict[str, Any]] = {}
+        etapas_por_frente: dict[str, list[str]] = {}
         claves_generadas = 0
         claves_conocidas = list(por_clave.keys())
 
@@ -1390,6 +1704,8 @@ class AplicadorEtapasConstructivas:
                 claves_conocidas.append(clave)
                 claves_generadas += 1
             entrantes[clave] = {"descripcion": fila.descripcion}
+            if fila.frente:
+                etapas_por_frente.setdefault(fila.frente, []).append(clave)
 
         vigentes = {
             clave: {"descripcion": f.get("descripcion")} for clave, f in por_clave.items()
@@ -1422,13 +1738,27 @@ class AplicadorEtapasConstructivas:
                     )
                 )
 
+        detalle: dict[str, Any] = {"claves_generadas": claves_generadas}
+        if etapas_por_frente and self._frentes is not None:
+            detalle["frentes"] = await _mapear_clasificacion(
+                por_referencia=etapas_por_frente,
+                catalogo=self._frentes,
+                asignar=lambda destino, claves: (
+                    self._niveles_etapas.asignar_frente_por_clave(
+                        frente_id=destino, claves=claves
+                    )
+                ),
+                crear_faltantes=True,
+                dry_run=dry_run,
+            )
+
         return Aplicacion(
             diff=diff,
             operaciones=tuple(operaciones),
             insertados=len(diff.altas),
             actualizados=len(diff.cambios),
             omitidos=diff.omitidos + lectura.omitidos,
-            detalle={"claves_generadas": claves_generadas},
+            detalle=detalle,
         )
 
 

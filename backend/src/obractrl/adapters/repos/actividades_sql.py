@@ -442,6 +442,11 @@ class RepositorioActividadesSQL:
                     """
                     select act.id, act.obra_id, act.concepto_id,
                            eta.frente_id,
+                           -- El oficio va en el CONCEPTO y el frente en la
+                           -- ETAPA (0047): son dos ejes, no el mismo dato a
+                           -- distinta escala. Una etapa de frente OBRA lleva
+                           -- conceptos de acabados, estructura y albañilería.
+                           con.especialidad_id,
                            con.clave as concepto_clave,
                            coalesce(act.descripcion, con.descripcion)
                                      as descripcion,

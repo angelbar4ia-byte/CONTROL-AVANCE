@@ -362,6 +362,7 @@ export * from './obractrlAdaptersApiV1PlaneacionPeriodoRespuesta';
 export * from './obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams';
 export * from './obtenerCpuApiV1ConceptosConceptoIdCpuGetParams';
 export * from './obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams';
+export * from './oficioDeFrenteRespuesta';
 export * from './paginaBitacora';
 export * from './parametrosReporte';
 export * from './parametrosReporteClusterId';

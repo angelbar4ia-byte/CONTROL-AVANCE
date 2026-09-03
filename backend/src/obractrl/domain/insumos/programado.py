@@ -65,7 +65,7 @@ Módulo puro: recibe y devuelve dataclasses, no toca la BD ni el reloj (§12.11)
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
@@ -124,6 +124,16 @@ class ActividadConVentana:
     Lo usa la planeación para agrupar la mano de obra y decir cuántas cuadrillas
     pide cada frente. `None` es una etapa a la que todavía no se le asignó
     frente: no es un error y se reporta aparte en vez de repartirse a ciegas.
+    """
+
+    especialidad_id: str | None = None
+    """Oficio con el que se ejecuta, del concepto (0047).
+
+    El segundo eje. El frente dice qué clase de contratista se contrata —OBRA,
+    INSTALACIONES— y la especialidad qué oficio hace falta —ESTRUCTURA,
+    ACABADOS, CARPINTERIA—. Hace falta porque un frente solo es demasiado
+    grueso para contratar: en la obra real, OBRA concentra el 90% de las
+    jornadas y nadie contrata "noventa por ciento de la obra".
     """
 
 
@@ -394,8 +404,9 @@ def jornadas_por_frente(
     explosiones: Mapping[str, ExplosionCalculada],
     catalogo: Mapping[str, InsumoDelCatalogo],
     periodos: Sequence[Periodo],
+    agrupar: Callable[[ActividadConVentana], str] = lambda a: a.frente_id or "",
 ) -> dict[str, tuple[Decimal, ...]]:
-    """Jornadas de mano de obra que cada frente pide en cada periodo (§8.3).
+    """Jornadas de mano de obra que cada grupo pide en cada periodo (§8.3).
 
     Es el mismo cruce que `insumos_programados` —el programa por el APU,
     repartido sobre los periodos— pero agrupado por **frente** en vez de por
@@ -410,6 +421,13 @@ def jornadas_por_frente(
     —no se descartan—: son trabajo real que alguien tiene que hacer, y
     esconderlas haría que el total de la obra no cuadrara con la suma de sus
     frentes.
+
+    `agrupar` elige el eje. Por defecto el frente, que es con lo que se
+    contrata; pasando `lambda a: a.especialidad_id or ""` da el desglose por
+    oficio, y una tupla de los dos da el cruce. Es un parámetro y no otra
+    función porque el reparto sobre los periodos tiene que ser **el mismo**: dos
+    copias divergirían y un día el total de la obra no sería la suma de sus
+    frentes ni la de sus oficios.
     """
     acumulado: dict[str, list[Decimal]] = {}
 
@@ -426,7 +444,7 @@ def jornadas_por_frente(
         if not intervalos:
             continue
 
-        clave = actividad.frente_id or ""
+        clave = agrupar(actividad)
         fila = acumulado.setdefault(clave, [_CERO for _ in periodos])
 
         for linea in explosion.lineas:

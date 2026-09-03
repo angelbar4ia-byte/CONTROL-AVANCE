@@ -9,6 +9,7 @@ import type { FrenteDeObraRespuestaContratistaId } from './frenteDeObraRespuesta
 import type { FrenteDeObraRespuestaContratistaNombre } from './frenteDeObraRespuestaContratistaNombre';
 import type { FrenteDeObraRespuestaCuadrillasPlan } from './frenteDeObraRespuestaCuadrillasPlan';
 import type { FrenteDeObraRespuestaNotas } from './frenteDeObraRespuestaNotas';
+import type { OficioDeFrenteRespuesta } from './oficioDeFrenteRespuesta';
 
 export interface FrenteDeObraRespuesta {
   /** Vacío en el renglón que agrupa lo que no tiene frente. */
@@ -27,4 +28,6 @@ export interface FrenteDeObraRespuesta {
   /** Lo que el residente **decidió**, al lado de lo que el cálculo sugiere. Vacío = todavía no lo decide. */
   cuadrillas_plan?: FrenteDeObraRespuestaCuadrillasPlan;
   notas?: FrenteDeObraRespuestaNotas;
+  /** Desglose por oficio, de mayor a menor pico. Suma el frente. */
+  oficios?: OficioDeFrenteRespuesta[];
 }

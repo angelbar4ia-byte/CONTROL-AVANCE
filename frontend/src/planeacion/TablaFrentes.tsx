@@ -17,9 +17,22 @@
  * 2.3 cuadrillas significa que dos aprietan y tres sobran. Redondear aquí
  * escondería esa lectura justo donde se decide, así que se enseñan los dos
  * decimales que el dominio devuelve y quien contrata resuelve.
+ *
+ * ## Por qué el renglón se abre
+ *
+ * Un frente entero es demasiado grueso para contratar: en la obra real OBRA
+ * concentra el 90% de las jornadas, y nadie contrata "noventa por ciento de la
+ * obra". Abierto se ve de qué oficios está hecho —albañilería, acabados,
+ * estructura— y cada uno ya es algo que se le pide a alguien. La suma de los
+ * oficios es el frente, así que las dos lecturas nunca se contradicen.
  */
 
-import type { FrenteDeObraRespuesta } from '@/api/generado/modelo';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+
+import type {
+  FrenteDeObraRespuesta,
+  OficioDeFrenteRespuesta,
+} from '@/api/generado/modelo';
 import { fmtNum } from '@/lib/formato';
 import { claseDeCobertura, cobertura, esContratable, textoDeCobertura } from './reglas';
 
@@ -40,9 +53,19 @@ interface Props {
   /** El rol planifica: con `false` la columna de contratar no se dibuja. */
   readonly puedeAsignar: boolean;
   readonly onAsignar: (frente: FrenteDeObraRespuesta) => void;
+  /** Frentes con el desglose por oficio abierto. */
+  readonly abiertos?: ReadonlySet<string>;
+  readonly onAlternar?: (frenteId: string) => void;
 }
 
-export function TablaFrentes({ periodos, frentes, puedeAsignar, onAsignar }: Props) {
+export function TablaFrentes({
+  periodos,
+  frentes,
+  puedeAsignar,
+  onAsignar,
+  abiertos,
+  onAlternar,
+}: Props) {
   return (
     <div className="table-wrap">
       <div className="table-scroll">
@@ -84,15 +107,23 @@ export function TablaFrentes({ periodos, frentes, puedeAsignar, onAsignar }: Pro
             </tr>
           </thead>
           <tbody>
-            {frentes.map((frente) => (
-              <FilaFrente
-                key={frente.frente_id || '__sin_frente__'}
-                frente={frente}
-                periodos={periodos}
-                puedeAsignar={puedeAsignar}
-                onAsignar={onAsignar}
-              />
-            ))}
+            {frentes.map((frente) => {
+              const clave = frente.frente_id || SIN_FRENTE_KEY;
+              const oficios = frente.oficios ?? [];
+              const abierto = abiertos?.has(clave) ?? false;
+              return (
+                <FilaFrente
+                  key={clave}
+                  frente={frente}
+                  periodos={periodos}
+                  puedeAsignar={puedeAsignar}
+                  onAsignar={onAsignar}
+                  oficios={oficios}
+                  abierto={abierto}
+                  onAlternar={onAlternar ? () => onAlternar(clave) : undefined}
+                />
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -100,23 +131,49 @@ export function TablaFrentes({ periodos, frentes, puedeAsignar, onAsignar }: Pro
   );
 }
 
+const SIN_FRENTE_KEY = '__sin_frente__';
+
 function FilaFrente({
   frente,
   periodos,
   puedeAsignar,
   onAsignar,
+  oficios,
+  abierto,
+  onAlternar,
 }: {
   readonly frente: FrenteDeObraRespuesta;
   readonly periodos: readonly PeriodoDePlaneacion[];
   readonly puedeAsignar: boolean;
   readonly onAsignar: (frente: FrenteDeObraRespuesta) => void;
+  readonly oficios: readonly OficioDeFrenteRespuesta[];
+  readonly abierto: boolean;
+  readonly onAlternar?: () => void;
 }) {
   const contratable = esContratable(frente.frente_id);
   const plan = frente.cuadrillas_plan ?? null;
+  // Un solo oficio no es un desglose: abrirlo repetiría el renglón de arriba.
+  const hayDesglose = oficios.length > 1 && onAlternar !== undefined;
 
   return (
+    <>
     <tr>
-      <td className="mono">{frente.frente_clave}</td>
+      <td className="mono">
+        {hayDesglose ? (
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            aria-expanded={abierto}
+            aria-label={`Oficios de ${frente.frente_nombre}`}
+            onClick={onAlternar}
+          >
+            {abierto ? <ChevronDown size={14} /> : <ChevronRight size={14} />}{' '}
+            {frente.frente_clave}
+          </button>
+        ) : (
+          frente.frente_clave
+        )}
+      </td>
       <td>
         {frente.frente_nombre}
         {!contratable && (
@@ -176,6 +233,60 @@ function FilaFrente({
           )}
         </td>
       )}
+    </tr>
+    {abierto &&
+      oficios.map((oficio) => (
+        <FilaOficio
+          key={`${frente.frente_id}-${oficio.especialidad_id || 'sin'}`}
+          oficio={oficio}
+          periodos={periodos}
+          puedeAsignar={puedeAsignar}
+        />
+      ))}
+    </>
+  );
+}
+
+function FilaOficio({
+  oficio,
+  periodos,
+  puedeAsignar,
+}: {
+  readonly oficio: OficioDeFrenteRespuesta;
+  readonly periodos: readonly PeriodoDePlaneacion[];
+  readonly puedeAsignar: boolean;
+}) {
+  return (
+    // Fondo del panel para que el desglose se lea como parte del renglón de
+    // arriba y no como otro frente. Mismo recurso que el desglose de insumos.
+    <tr style={{ background: 'var(--c-panel-2)' }}>
+      <td className="mono text-mute" style={{ paddingLeft: 28 }}>
+        {oficio.clave}
+      </td>
+      <td className="text-mute">{oficio.nombre}</td>
+      <td />
+      <td className="is-num text-mute">{fmtNum(oficio.pico_cuadrillas)}</td>
+      <td />
+      <td />
+      {periodos.map((periodo, i) => {
+        const cuadrillas = oficio.cuadrillas[i] ?? 0;
+        const jornadas = oficio.jornadas[i] ?? 0;
+        return (
+          <td
+            key={periodo.clave}
+            className="is-num text-mute"
+            title={
+              jornadas > 0
+                ? `${fmtNum(jornadas)} jornada(s) ÷ ${periodo.dias_habiles} día(s) hábil(es)`
+                : undefined
+            }
+          >
+            {cuadrillas > 0 ? fmtNum(cuadrillas) : <span className="text-mute">·</span>}
+          </td>
+        );
+      })}
+      <td className="is-num text-mute">{fmtNum(oficio.total_jornadas)}</td>
+      {puedeAsignar && <td />}
     </tr>
   );
 }

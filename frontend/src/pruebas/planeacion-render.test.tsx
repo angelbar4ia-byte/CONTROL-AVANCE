@@ -20,7 +20,10 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { FrenteDeObraRespuesta } from '@/api/generado/modelo';
+import type {
+  FrenteDeObraRespuesta,
+  OficioDeFrenteRespuesta,
+} from '@/api/generado/modelo';
 import { TablaFrentes, type PeriodoDePlaneacion } from '@/planeacion/TablaFrentes';
 
 const PERIODOS: readonly PeriodoDePlaneacion[] = [
@@ -57,20 +60,43 @@ function frente(sobre: Partial<FrenteDeObraRespuesta> = {}): FrenteDeObraRespues
   } as FrenteDeObraRespuesta;
 }
 
+function oficio(
+  sobre: Partial<OficioDeFrenteRespuesta> = {},
+): OficioDeFrenteRespuesta {
+  return {
+    especialidad_id: '44444444-4444-4444-4444-444444444444',
+    clave: 'ALB',
+    nombre: 'Albañilería',
+    jornadas: [6, 20],
+    cuadrillas: [1.2, 4],
+    total_jornadas: 26,
+    pico_cuadrillas: 4,
+    ...sobre,
+  } as OficioDeFrenteRespuesta;
+}
+
 function pintar(
   frentes: readonly FrenteDeObraRespuesta[],
-  opciones: { puedeAsignar?: boolean; onAsignar?: () => void } = {},
+  opciones: {
+    puedeAsignar?: boolean;
+    onAsignar?: () => void;
+    abiertos?: ReadonlySet<string>;
+    onAlternar?: (id: string) => void;
+  } = {},
 ) {
   const onAsignar = opciones.onAsignar ?? vi.fn();
+  const onAlternar = opciones.onAlternar ?? vi.fn();
   render(
     <TablaFrentes
       periodos={PERIODOS}
       frentes={frentes}
       puedeAsignar={opciones.puedeAsignar ?? true}
       onAsignar={onAsignar}
+      abiertos={opciones.abiertos}
+      onAlternar={onAlternar}
     />,
   );
-  return { onAsignar };
+  return { onAsignar, onAlternar };
 }
 
 describe('la cifra con la que se contrata', () => {
@@ -184,5 +210,74 @@ describe('el orden de la tabla', () => {
     const filas = screen.getAllByRole('row').slice(1);
     expect(within(filas[0]!).getByText('ALB')).toBeInTheDocument();
     expect(within(filas[1]!).getByText('EST')).toBeInTheDocument();
+  });
+});
+
+describe('el desglose por oficio', () => {
+  const CON_OFICIOS = frente({
+    oficios: [
+      oficio({ clave: 'ALB', nombre: 'Albañilería', pico_cuadrillas: 4 }),
+      oficio({
+        especialidad_id: '55555555-5555-5555-5555-555555555555',
+        clave: 'ACA',
+        nombre: 'Acabados',
+        pico_cuadrillas: 2,
+        total_jornadas: 25.5,
+      }),
+    ],
+  });
+
+  it('un frente con varios oficios se puede abrir', () => {
+    // Un frente entero casi nunca es lo que se contrata: OBRA concentra el 90%
+    // de las jornadas de la obra real y hay que poder ver de qué está hecho.
+    pintar([CON_OFICIOS]);
+    expect(
+      screen.getByRole('button', { name: /Oficios de Estructura/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('cerrado no enseña los oficios', () => {
+    pintar([CON_OFICIOS]);
+    expect(screen.queryByText('Albañilería')).toBeNull();
+  });
+
+  it('abierto los enseña', () => {
+    pintar([CON_OFICIOS], { abiertos: new Set([CON_OFICIOS.frente_id]) });
+    expect(screen.getByText('Albañilería')).toBeInTheDocument();
+    expect(screen.getByText('Acabados')).toBeInTheDocument();
+  });
+
+  it('un solo oficio no ofrece abrir: repetiría el renglón de arriba', () => {
+    pintar([frente({ oficios: [oficio()] })]);
+    expect(screen.queryByRole('button', { name: /Oficios de/i })).toBeNull();
+  });
+
+  it('sin oficios tampoco', () => {
+    pintar([frente({ oficios: [] })]);
+    expect(screen.queryByRole('button', { name: /Oficios de/i })).toBeNull();
+  });
+
+  it('al pulsar avisa cuál frente se abrió', () => {
+    const onAlternar = vi.fn();
+    pintar([CON_OFICIOS], { onAlternar });
+    fireEvent.click(screen.getByRole('button', { name: /Oficios de Estructura/i }));
+    expect(onAlternar).toHaveBeenCalledWith(CON_OFICIOS.frente_id);
+  });
+
+  it('el oficio sin nombre sigue apareciendo', () => {
+    // Es el concepto al que no se le capturó especialidad. Esconderlo haría que
+    // la suma de los oficios dejara de dar el frente.
+    pintar(
+      [
+        frente({
+          oficios: [
+            oficio({ clave: '—', nombre: 'Sin oficio', especialidad_id: '' }),
+            oficio(),
+          ],
+        }),
+      ],
+      { abiertos: new Set([frente().frente_id]) },
+    );
+    expect(screen.getByText('Sin oficio')).toBeInTheDocument();
   });
 });

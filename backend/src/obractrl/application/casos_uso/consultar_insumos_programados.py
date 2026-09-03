@@ -465,6 +465,7 @@ def a_actividad(fila: dict) -> ActividadConVentana:
         fin=fila.get("fecha_termino"),
         tramos=tuple(Tramo.desde_jsonb(t) for t in (fila.get("tramos") or [])),
         frente_id=_texto(fila.get("frente_id")),
+        especialidad_id=_texto(fila.get("especialidad_id")),
     )
 
 

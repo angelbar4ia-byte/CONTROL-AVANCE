@@ -83,6 +83,7 @@ def _actividad(
     concepto: str | None = "MURO",
     obra: str = "obra-1",
     frente: str | None = None,
+    especialidad: str | None = None,
     actividad_id: str = "act-1",
 ) -> ActividadConVentana:
     return ActividadConVentana(
@@ -95,6 +96,7 @@ def _actividad(
         fin=fin,
         tramos=tramos,
         frente_id=frente,
+        especialidad_id=especialidad,
     )
 
 
@@ -451,6 +453,43 @@ class TestJornadasPorFrente:
         # sus frentes, y nadie sabría que falta capturar algo.
         jornadas = self._jornadas(_actividad(frente=None))
         assert sum(jornadas[""]) == Decimal(20)
+
+    def test_el_agrupador_cambia_el_eje_sin_cambiar_el_reparto(self) -> None:
+        """El segundo eje (0047): el mismo cruce agrupado por oficio.
+
+        Lo que se protege es que **la suma no cambie** al cambiar de eje. El
+        frente y la especialidad son dos lecturas del mismo trabajo; si cada una
+        tuviera su propio recorrido, un día el total de la obra no sería ni la
+        suma de sus frentes ni la de sus oficios.
+        """
+        actividades = [
+            _actividad(frente="est", especialidad="alb"),
+            _actividad(frente="est", especialidad="aca", actividad_id="act-2"),
+        ]
+        por_frente = self._jornadas(*actividades)
+        por_oficio = jornadas_por_frente(
+            actividades=actividades,
+            explosiones={"MURO": _explosion(self._MANO_DE_OBRA, self._MATERIAL)},
+            catalogo=CATALOGO,
+            periodos=SEMANAS,
+            agrupar=lambda a: a.especialidad_id or "",
+        )
+        assert set(por_oficio) == {"alb", "aca"}
+        assert sum(por_frente["est"]) == sum(
+            sum(fila) for fila in por_oficio.values()
+        )
+
+    def test_lo_que_no_tiene_oficio_tampoco_se_descarta(self) -> None:
+        # Un concepto sin especialidad capturada sigue siendo trabajo real: si
+        # se cayera, la suma de los oficios no daría el frente.
+        por_oficio = jornadas_por_frente(
+            actividades=[_actividad(frente="est", especialidad=None)],
+            explosiones={"MURO": _explosion(self._MANO_DE_OBRA)},
+            catalogo=CATALOGO,
+            periodos=SEMANAS,
+            agrupar=lambda a: a.especialidad_id or "",
+        )
+        assert sum(por_oficio[""]) == Decimal(20)
 
     def test_reparte_sobre_los_periodos_como_los_materiales(self) -> None:
         # Mismo repartidor: la actividad va del 11 al 21 de mayo, así que cae

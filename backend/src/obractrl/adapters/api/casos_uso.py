@@ -31,6 +31,9 @@ from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
+from obractrl.adapters.repos.especialidades_sql import (
+    RepositorioEspecialidadesSQL,
+)
 from obractrl.adapters.repos.estimaciones_sql import RepositorioEstimacionesSQL
 from obractrl.adapters.repos.evaluaciones_sql import RepositorioEvaluacionesSQL
 from obractrl.adapters.repos.expediente_sql import RepositorioExpedienteSQL
@@ -770,6 +773,9 @@ def obtener_consultar_planeacion(sesion: SesionRLS) -> ConsultarPlaneacion:
         actividades=RepositorioActividadesSQL(sesion),
         planeacion=RepositorioPlaneacionSQL(sesion),
         frentes=RepositorioFrentesSQL(sesion),
+        # El segundo eje (0047): con qué oficio se parte un frente que solo,
+        # entero, es demasiado grueso para contratar.
+        especialidades=RepositorioEspecialidadesSQL(sesion),
     )
 
 
@@ -1019,6 +1025,9 @@ class FabricaDeCargas:
                 conceptos=RepositorioConceptosSQL(sesion),
                 unidades=RepositorioUnidadesSQL(sesion),
                 cargas=cargas,
+                # El oficio con el que se ejecuta el concepto (0047). Se pasa
+                # solo aquí: un concepto auxiliar no se contrata por oficio.
+                especialidades=RepositorioEspecialidadesSQL(sesion),
             )
         if tipo is TipoCarga.CONCEPTOS_AUXILIARES:
             return AplicadorConceptosBase(
@@ -1032,7 +1041,11 @@ class FabricaDeCargas:
             return AplicadorNiveles(niveles_etapas=RepositorioNivelesEtapasSQL(sesion))
         if tipo is TipoCarga.ETAPAS_CONSTRUCTIVAS:
             return AplicadorEtapasConstructivas(
-                niveles_etapas=RepositorioNivelesEtapasSQL(sesion)
+                niveles_etapas=RepositorioNivelesEtapasSQL(sesion),
+                # El frente de cada etapa (0045). El catálogo se lee para
+                # resolverlo por nombre y para crear el que no exista: el
+                # archivo del cliente es la autoridad sobre su vocabulario.
+                frentes=RepositorioFrentesSQL(sesion),
             )
         if tipo is TipoCarga.UNIDADES:
             return AplicadorUnidades(unidades=RepositorioUnidadesSQL(sesion), cargas=cargas)
@@ -1046,6 +1059,8 @@ class FabricaDeCargas:
                 # escribe en un Excel.
                 frentes=RepositorioFrentesSQL(sesion),
                 cargas=cargas,
+                # El otro eje: qué oficios sabe hacer (0047).
+                especialidades=RepositorioEspecialidadesSQL(sesion),
             )
         if tipo is TipoCarga.CPU:
             return AplicadorCPU(

@@ -17,9 +17,20 @@ dato incompleto o con un RFC provisional, y rechazar la fila por eso dejaría
 fuera a quien sí está trabajando en la obra. El catálogo es una agenda, no un
 registro fiscal.
 
-`frentes` es una lista de **claves** separadas por coma —`EST, INS`—. Las
-claves se normalizan pero no se comprueban contra el catálogo: eso lo hace el
-aplicador, que es quien las puede resolver a ids y mandar a la bandeja las que
+`frentes` y `especialidades` son los **dos ejes** de lo que sabe hacer (§8.3):
+
+* el **frente** es la clase de fuerza de trabajo —OBRA, INSTALACIONES,
+  SUBCONTRATOS, PINTURA—, la misma clasificación que llevan las etapas;
+* la **especialidad** es el oficio —OBRA CIVIL, ACABADOS, CARPINTERIA,
+  HERRERIA…—, la misma que llevan los conceptos (migración 0047).
+
+Los dos aceptan dos formas, porque los archivos reales usan las dos: una celda
+con la lista separada por coma (`EST, INS`) o varias columnas numeradas
+(`TIPO 1`, `TIPO 2`, `ESPECIALIDAD 1..5`), que la cabecera junta como serie.
+
+Las referencias se normalizan pero **no** se comprueban contra el catálogo: eso
+lo hace el aplicador, que es quien las puede resolver a ids —por clave o por
+nombre, que en estos archivos viene lo segundo— y mandar a la bandeja las que
 no existan. Aquí no hay con qué.
 
 Módulo puro (§12.11): recibe la fila ya leída como celdas y devuelve la
@@ -54,9 +65,16 @@ class FilaContratista:
     telefono: str | None = None
     email: str | None = None
     frentes: tuple[Clave, ...] = field(default=())
-    """Claves de los frentes que sabe hacer. Alimentan `contratista_frente`,
-    que es **capacidad de catálogo** y no la asignación a una obra: quién lleva
-    un frente en MAPLE 01 se decide al planear esa obra."""
+    """Frentes que sabe hacer, por clave o por nombre. Alimentan
+    `contratista_frente`, que es **capacidad de catálogo** y no la asignación a
+    una obra: quién lleva un frente en MAPLE 01 se decide al planear esa obra."""
+
+    especialidades: tuple[Clave, ...] = field(default=())
+    """Oficios que sabe hacer, por clave o por nombre (migración 0047).
+
+    El otro eje: un contratista de frente OBRA puede hacer OBRA CIVIL y
+    ACABADOS, y es lo que deja proponerlo cuando el trabajo pendiente es de
+    ese oficio. Alimentan `contratista_especialidad`."""
 
     fila: int = 0
     """Renglón del archivo, para que un pendiente pueda ligar al origen (§10.3)."""
@@ -93,7 +111,8 @@ def validar_contratista(
         contacto=_opcional(mapa.valor(fila, "contacto")),
         telefono=_opcional(mapa.valor(fila, "telefono")),
         email=_opcional(mapa.valor(fila, "email")),
-        frentes=_claves_de_frentes(mapa.valor(fila, "frentes")),
+        frentes=_referencias(mapa, fila, "frentes"),
+        especialidades=_referencias(mapa, fila, "especialidades"),
         fila=numero,
     )
 
@@ -107,6 +126,28 @@ def _opcional(celda: object) -> str | None:
     """
     texto = texto_limpio(celda)
     return texto or None
+
+
+def _referencias(
+    mapa: MapaColumnas, fila: Sequence[object], campo: str
+) -> tuple[Clave, ...]:
+    """Las referencias de un campo, vengan en una celda o en varias columnas.
+
+    Los archivos reales usan las dos formas y ninguna es un error: una plantilla
+    escribe `EST, INS` en una celda y el export de la constructora reparte
+    `ESPECIALIDAD 1..5`. Se juntan aquí para que el resto del cargador no tenga
+    que saber cuál de las dos llegó.
+    """
+    celdas = mapa.valores(fila, campo) or (mapa.valor(fila, campo),)
+    salida: list[Clave] = []
+    vistas: set[str] = set()
+    for celda in celdas:
+        for clave in _claves_de_frentes(celda):
+            if str(clave) in vistas:
+                continue
+            vistas.add(str(clave))
+            salida.append(clave)
+    return tuple(salida)
 
 
 def _claves_de_frentes(celda: object) -> tuple[Clave, ...]:

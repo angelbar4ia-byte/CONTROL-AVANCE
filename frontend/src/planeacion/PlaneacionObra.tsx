@@ -70,6 +70,7 @@ export default function PlaneacionObra() {
     rango: rangoPorDefecto(new Date(), 'semana'),
   }));
   const [enEdicion, setEnEdicion] = useState<FrenteDeObraRespuesta | null>(null);
+  const [abiertos, setAbiertos] = useState<ReadonlySet<string>>(new Set());
 
   const listo = listoParaConsultar(filtro);
   const parametros = useMemo(() => parametrosDeConsulta(filtro), [filtro]);
@@ -111,6 +112,14 @@ export default function PlaneacionObra() {
 
   function cambiar(cambios: Partial<FiltroPlaneacion>): void {
     setFiltro((previo) => ({ ...previo, ...cambios }));
+  }
+
+  function alternarOficios(frenteId: string): void {
+    setAbiertos((previos) => {
+      const siguiente = new Set(previos);
+      if (!siguiente.delete(frenteId)) siguiente.add(frenteId);
+      return siguiente;
+    });
   }
 
   function cambiarGranularidad(granularidad: Granularidad): void {
@@ -225,12 +234,15 @@ export default function PlaneacionObra() {
             frentes={frentes}
             puedeAsignar={puedeAsignar}
             onAsignar={setEnEdicion}
+            abiertos={abiertos}
+            onAlternar={alternarOficios}
           />
           <div className="field__hint mt-8">
             {fmtEntero(frentes.length)} frente(s) en {fmtEntero(periodos.length)}{' '}
             periodo(s), {fmtNum(jornadasTotales)} jornada(s) de mano de obra. Las
             cuadrillas <strong>no se redondean</strong>: 2.3 dice que dos
-            aprietan y tres sobran.
+            aprietan y tres sobran. Abre un frente para ver de qué oficios
+            está hecho: un frente entero casi nunca es lo que se contrata.
             {sinFrente !== undefined &&
               ` ${fmtNum(sinFrente.total_jornadas)} jornada(s) están en etapas sin frente: se mapean en Frentes de obra.`}
           </div>

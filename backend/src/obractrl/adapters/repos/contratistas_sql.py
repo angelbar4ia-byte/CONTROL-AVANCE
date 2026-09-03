@@ -137,6 +137,39 @@ class RepositorioContratistasSQL:
             {"id": str(contratista_id), "frentes": [str(f) for f in frente_ids]},
         )
 
+    async def reemplazar_especialidades(
+        self, contratista_id: UUID, especialidad_ids: Sequence[UUID]
+    ) -> None:
+        """Deja al contratista con **exactamente** esos oficios (§8.3, 0047).
+
+        Mismo criterio que `reemplazar_frentes` y por la misma razón: quien
+        dejó de hacer herrería tiene que perder esa especialidad, y un
+        `insert ... on conflict do nothing` la dejaría ahí para siempre.
+
+        Es el otro eje: el frente dice qué clase de contratista es y la
+        especialidad qué oficios sabe. Se cruzan para proponer candidatos.
+        """
+        await self._sesion.execute(
+            text(
+                "delete from contratista_especialidad "
+                "where contratista_id = cast(:id as uuid)"
+            ),
+            {"id": str(contratista_id)},
+        )
+        if not especialidad_ids:
+            return
+        await self._sesion.execute(
+            text(
+                """
+                insert into contratista_especialidad (org_id, contratista_id, especialidad_id)
+                select cast(current_setting('app.org_id') as uuid),
+                       cast(:id as uuid), f
+                from unnest(cast(:especialidades as uuid[])) as f
+                """
+            ),
+            {"id": str(contratista_id), "especialidades": [str(f) for f in especialidad_ids]},
+        )
+
     async def obtener(self, contratista_id: UUID) -> dict[str, Any] | None:
         fila = (
             await self._sesion.execute(

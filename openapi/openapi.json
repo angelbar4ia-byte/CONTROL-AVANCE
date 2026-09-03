@@ -12461,6 +12461,14 @@
               }
             ],
             "title": "Notas"
+          },
+          "oficios": {
+            "items": {
+              "$ref": "#/components/schemas/OficioDeFrenteRespuesta"
+            },
+            "type": "array",
+            "title": "Oficios",
+            "description": "Desglose por oficio, de mayor a menor pico. Suma el frente."
           }
         },
         "type": "object",
@@ -13868,6 +13876,57 @@
           "es_urba"
         ],
         "title": "ObraRespuesta"
+      },
+      "OficioDeFrenteRespuesta": {
+        "properties": {
+          "especialidad_id": {
+            "type": "string",
+            "title": "Especialidad Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre",
+            "description": "«Sin oficio» en los conceptos a los que todavía no se les capturó especialidad. No se descartan: la suma de los oficios es el frente."
+          },
+          "jornadas": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Jornadas"
+          },
+          "cuadrillas": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Cuadrillas"
+          },
+          "total_jornadas": {
+            "type": "number",
+            "title": "Total Jornadas"
+          },
+          "pico_cuadrillas": {
+            "type": "number",
+            "title": "Pico Cuadrillas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "especialidad_id",
+          "clave",
+          "nombre",
+          "jornadas",
+          "cuadrillas",
+          "total_jornadas",
+          "pico_cuadrillas"
+        ],
+        "title": "OficioDeFrenteRespuesta",
+        "description": "Cómo se reparte por oficio lo que un frente pide (§8.3, migración 0047).\n\nEl frente solo es demasiado grueso para contratar: en la obra real OBRA\nconcentra el 90% de las jornadas, y nadie contrata \"noventa por ciento de la\nobra\". Partido por oficio, cada renglón ya es algo que se le pide a alguien."
       },
       "PaginaBitacora": {
         "properties": {

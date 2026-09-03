@@ -169,3 +169,33 @@ class RepositorioNivelesEtapasSQL:
             ),
             {"frente_id": str(frente_id), "etapas": [str(e) for e in etapa_ids]},
         )
+
+    async def asignar_frente_por_clave(
+        self, *, frente_id: UUID | None, claves: list[str]
+    ) -> int:
+        """Le pone ese frente a las etapas de la lista, buscándolas por clave.
+
+        La variante que usa el cargador. Por clave y no por id porque quien las
+        trae es el archivo (§3.3: la clave manda), y resolver a id fila por fila
+        serían cincuenta idas a la base para el mismo catálogo.
+
+        A diferencia de `asignar_frente`, **no** suelta las etapas que el frente
+        ya tenía: aquí cada etapa llega con su frente escrito al lado, así que
+        lo que manda es la fila y no la lista. Soltar de más borraría el mapeo
+        de una etapa que este archivo ni menciona.
+        """
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    update etapa_constructiva
+                       set frente_id = cast(:frente_id as uuid)
+                     where clave = any(cast(:claves as text[]))
+                    """
+                ),
+                {
+                    "frente_id": str(frente_id) if frente_id else None,
+                    "claves": claves,
+                },
+            )
+        ).rowcount

@@ -67,6 +67,28 @@ class PeriodoRespuesta(BaseModel):
     )
 
 
+class OficioDeFrenteRespuesta(BaseModel):
+    """Cómo se reparte por oficio lo que un frente pide (§8.3, migración 0047).
+
+    El frente solo es demasiado grueso para contratar: en la obra real OBRA
+    concentra el 90% de las jornadas, y nadie contrata "noventa por ciento de la
+    obra". Partido por oficio, cada renglón ya es algo que se le pide a alguien.
+    """
+
+    especialidad_id: str
+    clave: str
+    nombre: str = Field(
+        description=(
+            "«Sin oficio» en los conceptos a los que todavía no se les capturó "
+            "especialidad. No se descartan: la suma de los oficios es el frente."
+        )
+    )
+    jornadas: list[float]
+    cuadrillas: list[float]
+    total_jornadas: float
+    pico_cuadrillas: float
+
+
 class FrenteDeObraRespuesta(BaseModel):
     frente_id: str = Field(
         description="Vacío en el renglón que agrupa lo que no tiene frente."
@@ -100,6 +122,10 @@ class FrenteDeObraRespuesta(BaseModel):
         ),
     )
     notas: str | None = None
+    oficios: list[OficioDeFrenteRespuesta] = Field(
+        default_factory=list,
+        description="Desglose por oficio, de mayor a menor pico. Suma el frente.",
+    )
 
 
 class PlaneacionRespuesta(BaseModel):
@@ -209,6 +235,18 @@ def _respuesta(planeacion: PlaneacionDeObra) -> PlaneacionRespuesta:
                 contratista_nombre=fila.contratista_nombre,
                 cuadrillas_plan=fila.cuadrillas_plan,
                 notas=fila.notas,
+                oficios=[
+                    OficioDeFrenteRespuesta(
+                        especialidad_id=oficio.especialidad_id,
+                        clave=oficio.clave,
+                        nombre=oficio.nombre,
+                        jornadas=[float(j) for j in oficio.demanda.jornadas],
+                        cuadrillas=[float(c) for c in oficio.demanda.cuadrillas],
+                        total_jornadas=float(oficio.demanda.total_jornadas),
+                        pico_cuadrillas=float(oficio.demanda.pico_cuadrillas),
+                    )
+                    for oficio in fila.oficios
+                ],
             )
             for fila in planeacion.frentes
         ],
