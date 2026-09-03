@@ -2249,6 +2249,58 @@
         ]
       }
     },
+    "/api/v1/etapas/{etapa_id}/nivel": {
+      "put": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "A qué nivel pertenece esta etapa",
+        "description": "Cierra a mano lo que el árbol del prototipo no puede derivar.\n\nEl nivel de una etapa se deduce del árbol WBS —ahí cuelga de él— y eso\nresuelve las que algún prototipo usa. Las que ningún prototipo toca todavía\nno tienen de dónde derivarse, y sin nivel no caen en ninguna tarjeta cuando\nel residente mira su obra agrupada.",
+        "operationId": "asignar_nivel_a_la_etapa_api_v1_etapas__etapa_id__nivel_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "etapa_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Etapa Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NivelDeLaEtapaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/cuadrillas": {
       "get": {
         "tags": [
@@ -13790,6 +13842,25 @@
         ],
         "title": "ModoPago",
         "description": "``actividad.modo_pago`` y ``estimacion.modo`` comparten valores (§8.2)."
+      },
+      "NivelDeLaEtapaPeticion": {
+        "properties": {
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          }
+        },
+        "type": "object",
+        "title": "NivelDeLaEtapaPeticion",
+        "description": "A qué nivel pertenece la etapa (§7.4).\n\n`null` lo quita: corregir uno mal puesto es tan válido como ponerlo."
       },
       "NivelEvaluacion": {
         "type": "string",

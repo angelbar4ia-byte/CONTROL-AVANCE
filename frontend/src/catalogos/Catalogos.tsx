@@ -47,6 +47,7 @@ import { useMemo, useState } from 'react';
 
 import {
   useAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut,
+  useAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut,
   useListarConceptosApiV1ConceptosGet,
   useListarContratistasApiV1ContratistasGet,
   useListarCuadrillasApiV1CuadrillasGet,
@@ -202,6 +203,21 @@ export default function Catalogos() {
         onError: (err) => setAviso(err.message),
       },
     });
+
+  // Las etapas que ningún prototipo usa no tienen nivel que derivar del árbol
+  // (§7.4). Sin nivel no caen en ninguna tarjeta cuando el residente mira su
+  // obra agrupada, así que se cierran a mano aquí.
+  const asignarNivel = useAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut<ErrorApi>({
+    mutation: {
+      onSuccess: () => void etapasQ.refetch(),
+      onError: (err) => setAviso(err.message),
+    },
+  });
+
+  function cambiarNivel(etapaId: string, nivelId: string | null): void {
+    setAviso(null);
+    asignarNivel.mutate({ etapaId, data: { nivel_id: nivelId } });
+  }
 
   function cambiarOficio(conceptoId: string, especialidadId: string | null): void {
     setAviso(null);
@@ -718,7 +734,12 @@ export default function Catalogos() {
         )}
 
         {pestania === 'etapas' && (
-          <TablaEtapas resultados={resEtapas} niveles={niveles} cargando={etapasQ.isLoading} />
+          <TablaEtapas
+            resultados={resEtapas}
+            niveles={niveles}
+            cargando={etapasQ.isLoading}
+            onCambiarNivel={administra ? cambiarNivel : undefined}
+          />
         )}
 
         {pestania === 'prototipos' && (

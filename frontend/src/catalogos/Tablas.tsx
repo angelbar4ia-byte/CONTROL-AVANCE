@@ -512,11 +512,14 @@ export function TablaEtapas({
   resultados,
   niveles,
   cargando,
+  onCambiarNivel,
 }: {
   readonly resultados: readonly Resultado<EtapaRespuesta>[];
   /** Para resolver la clave del nivel al que pertenece la etapa (§7.4). */
   readonly niveles: readonly NivelRespuesta[];
   readonly cargando: boolean;
+  /** Ausente cuando el rol no configura catálogos: la celda queda de lectura. */
+  readonly onCambiarNivel?: (etapaId: string, nivelId: string | null) => void;
 }) {
   return (
     <TablaCatalogo
@@ -529,9 +532,27 @@ export function TablaEtapas({
         <tr key={item.id}>
           <Clave valor={item.clave} porDescripcion={soloPorDescripcion(coincidencia)} />
           <td>{item.descripcion}</td>
-          <td className="mono text-xs">
-            {niveles.find((nivel) => nivel.id === item.nivel_id)?.clave ?? '—'}
-          </td>
+          {onCambiarNivel && niveles.length > 0 ? (
+            <td>
+              <select
+                className="select"
+                value={item.nivel_id ?? ''}
+                aria-label={`Nivel de ${item.clave}`}
+                onChange={(e) => onCambiarNivel(item.id, e.target.value || null)}
+              >
+                <option value="">Sin nivel</option>
+                {niveles.map((nivel) => (
+                  <option key={nivel.id} value={nivel.id}>
+                    {nivel.clave} · {nivel.descripcion}
+                  </option>
+                ))}
+              </select>
+            </td>
+          ) : (
+            <td className="mono text-xs">
+              {niveles.find((nivel) => nivel.id === item.nivel_id)?.clave ?? '—'}
+            </td>
+          )}
           <td className="is-num tnum">{item.orden}</td>
           <td className="is-num">{fmtPct(item.ponderacion)}</td>
           <td className="is-num">

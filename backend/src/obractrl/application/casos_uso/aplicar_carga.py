@@ -3385,6 +3385,10 @@ class AplicadorPresupuesto:
             ),
         )
 
+        etapas_con_nivel = (
+            0 if dry_run else await self._niveles_etapas.derivar_nivel_desde_arbol()
+        )
+
         return Aplicacion(
             diff=diff,
             operaciones=tuple(operaciones),
@@ -3402,6 +3406,12 @@ class AplicadorPresupuesto:
                 **contadores,
                 "unidades_creadas": len(nuevas_unidades),
                 "insumos_creados": len(nuevos_insumos),
+                # El árbol que este cargador acaba de construir es lo único que
+                # dice de qué nivel cuelga cada etapa: el catálogo del §10.1 no
+                # lo trae. Se deriva aquí, al terminar, para que agrupar la obra
+                # por nivel —como la mira el residente— funcione sin que nadie
+                # tenga que acordarse de un paso aparte.
+                "etapas_con_nivel_derivado": etapas_con_nivel,
             },
         )
 

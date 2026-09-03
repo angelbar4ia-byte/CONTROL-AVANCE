@@ -646,6 +646,35 @@ async def listar_etapas(sesion: SesionRLS) -> list[EtapaRespuesta]:
     return [EtapaRespuesta.desde_fila(fila) for fila in filas]
 
 
+class NivelDeLaEtapaPeticion(BaseModel):
+    """A qué nivel pertenece la etapa (§7.4).
+
+    `null` lo quita: corregir uno mal puesto es tan válido como ponerlo.
+    """
+
+    nivel_id: UUID | None = None
+
+
+@router.put(
+    "/etapas/{etapa_id}/nivel",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="A qué nivel pertenece esta etapa",
+    dependencies=[CATALOGOS],
+)
+async def asignar_nivel_a_la_etapa(
+    etapa_id: UUID, peticion: NivelDeLaEtapaPeticion, sesion: SesionRLS
+) -> None:
+    """Cierra a mano lo que el árbol del prototipo no puede derivar.
+
+    El nivel de una etapa se deduce del árbol WBS —ahí cuelga de él— y eso
+    resuelve las que algún prototipo usa. Las que ningún prototipo toca todavía
+    no tienen de dónde derivarse, y sin nivel no caen en ninguna tarjeta cuando
+    el residente mira su obra agrupada.
+    """
+    await RepositorioNivelesEtapasSQL(sesion).asignar_nivel(etapa_id, peticion.nivel_id)
+    await sesion.commit()
+
+
 # --- Cuadrillas (§7.6, §10.6) ---------------------------------------------
 #
 # El alta manual de aquí es mínima (clave, nombre, unidad); la composición y

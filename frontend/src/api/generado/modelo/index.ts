@@ -337,6 +337,8 @@ export * from './loteRespuestaResumen';
 export * from './loteRespuestaVersionGenerada';
 export * from './modoCarga';
 export * from './modoPago';
+export * from './nivelDeLaEtapaPeticion';
+export * from './nivelDeLaEtapaPeticionNivelId';
 export * from './nivelEvaluacion';
 export * from './nivelRespuesta';
 export * from './nivelRespuestaImporte';
