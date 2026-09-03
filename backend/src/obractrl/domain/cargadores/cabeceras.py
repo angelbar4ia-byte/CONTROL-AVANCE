@@ -337,13 +337,17 @@ CONCEPTOS_BASE = EspecificacionArchivo(
     obligatorias=("clave", "descripcion"),
     opcionales=("unidad", "clave_unidad", "especialidad"),
     alias={
-        # El archivo real rotula el oficio como "FRENTE", pero sus quince
-        # valores —ESTRUCTURA, ACABADOS, CARPINTERIA, HERRERIA…— no son los
-        # cuatro frentes de la etapa: son las especialidades, y coinciden con
-        # las columnas ESPECIALIDAD del catálogo de contratistas. Se traduce
-        # aquí, en el borde, para que adentro los dos ejes no se confundan.
-        "frente": "especialidad",
+        # `especialidad` va **primero** a propósito: `plantillas.py` rotula la
+        # columna con el primer alias del campo, y la plantilla que alguien
+        # descarga tiene que decir "especialidad". Rotulada "frente", quien la
+        # llene escribiría OBRA o INSTALACIONES —el vocabulario de la etapa— y
+        # el oficio quedaría capturado en el eje equivocado.
         "especialidad": "especialidad",
+        # El archivo real del cliente sí la rotula "FRENTE", y se sigue
+        # aceptando: sus quince valores —ESTRUCTURA, ACABADOS, CARPINTERIA…—
+        # no son los cuatro frentes de la etapa. La traducción vive aquí, en el
+        # borde, para que adentro los dos ejes no se confundan.
+        "frente": "especialidad",
     },
 )
 """Catálogo base de identidad de conceptos (§8.7): clave, descripción,
@@ -364,7 +368,12 @@ CONCEPTOS_AUXILIARES = EspecificacionArchivo(
     archivo="CABECERAS_CONCEPTOS_AUXILIARES.xlsx",
     hoja=None,
     obligatorias=CONCEPTOS_BASE.obligatorias,
-    opcionales=CONCEPTOS_BASE.opcionales,
+    # Las de `CONCEPTOS_BASE` **menos** la especialidad: un auxiliar es un
+    # componente de otro concepto, no algo que se contrate por oficio, y el
+    # aplicador de auxiliares no recibe el catálogo de especialidades. Dejarla
+    # en el contrato haría que la columna se leyera y se tirara en silencio,
+    # que es justo lo que le pasó a RFC y CONTACTO en contratistas.
+    opcionales=tuple(c for c in CONCEPTOS_BASE.opcionales if c != "especialidad"),
 )
 """Mismo contrato que `CONCEPTOS_BASE`: un concepto auxiliar es un
 `concepto` más (`tipo=auxiliar`, §7.3), con su propio archivo y su propio
@@ -395,7 +404,15 @@ ETAPAS_CONSTRUCTIVAS = EspecificacionArchivo(
     hoja=None,
     obligatorias=("clave", "descripcion"),
     opcionales=("frente",),
-    alias={"descripcion corta": "descripcion_corta"},
+    alias={
+        # `DESCRIPCIÓN CORTA` se manda a un campo que la especificación **no**
+        # declara, así que acaba en `ignoradas`. Sin este alias, el mapa global
+        # del §8.6 la canoniza como `descripcion` y choca con la columna
+        # `DESCRIPCIÓN` de al lado: el archivo entero se rechazaría por
+        # ambigüedad. Es una forma de decir "esta columna se ignora a
+        # propósito", no un campo a medio implementar.
+        "descripcion corta": "descripcion_corta",
+    },
     series={
         # El archivo real trae **dos** columnas llamadas "TIPO": la primera es
         # el tipo de renglón de la herramienta que lo exportó (`Nivel 2` en las
@@ -472,10 +489,12 @@ CONTRATISTAS = EspecificacionArchivo(
         "contacto": "contacto",
         "telefono": "telefono",
         "email": "email",
-        # Los frentes que sabe hacer, separados por coma. Singular y plural
-        # porque quien llena el archivo escribe cualquiera de los dos.
-        "frente": "frentes",
+        # Los frentes que sabe hacer, separados por coma. Plural primero
+        # porque es el rótulo que `plantillas.py` pone en la plantilla y la
+        # columna admite varios; el singular se sigue aceptando porque quien
+        # llena el archivo escribe cualquiera de los dos.
         "frentes": "frentes",
+        "frente": "frentes",
     },
     series={
         # El archivo real no trae una lista separada por comas: reparte los
