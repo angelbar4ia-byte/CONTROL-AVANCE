@@ -1,0 +1,3 @@
+-- down · 0053 · Carga de Trabajos (destajos + subcontratos, export nativo de OPUS)
+-- Los valores de enum se quedan (Postgres no tiene drop value), mismo
+-- criterio que 0019/0029/0030/0031/0032/0034/0035/0037/0051/0052.

@@ -105,6 +105,7 @@ __all__ = [
     "AplicadorNiveles",
     "AplicadorPresupuesto",
     "AplicadorPrototipos",
+    "AplicadorTrabajos",
 ]
 
 _ESTATUS_BAJA = "inactivo"
@@ -946,6 +947,270 @@ class AplicadorManoObra:
                 nuevo_id = await self._insumos.crear(
                     {
                         "tipo": str(self._tipo),
+                        "clave": alta.clave,
+                        "descripcion": alta.despues["descripcion"],
+                        "unidad_id": alta.despues["unidad_id"],
+                        "familia_id": alta.despues["familia_id"],
+                        "costo_base": alta.despues["costo_base"],
+                        "cuadrilla_id": alta.despues["cuadrilla_id"],
+                        "rendimiento_teorico": alta.despues["rendimiento_teorico"],
+                    }
+                )
+                operaciones.append(
+                    _operacion("insumo", nuevo_id, "insert", despues=dict(alta.despues))
+                )
+
+            for cambio in diff.cambios:
+                fila = por_clave[cambio.clave]
+                await self._insumos.actualizar(fila["id"], dict(cambio.despues))
+                operaciones.append(
+                    _operacion(
+                        "insumo",
+                        fila["id"],
+                        "update",
+                        antes=_recorte(fila, _CAMPOS_RESTAURABLES_MANO_OBRA),
+                        despues=dict(cambio.despues),
+                    )
+                )
+
+            for baja in diff.bajas:
+                fila = por_clave[baja.clave]
+                await self._insumos.actualizar(fila["id"], {"estatus": _ESTATUS_BAJA})
+                operaciones.append(
+                    _operacion(
+                        "insumo",
+                        fila["id"],
+                        "update",
+                        antes=_recorte(fila, _CAMPOS_RESTAURABLES_MANO_OBRA),
+                        despues={"estatus": _ESTATUS_BAJA},
+                    )
+                )
+
+            for cuadrilla_id, rendimiento in rendimientos_por_cuadrilla.items():
+                await self._cuadrillas.actualizar_rendimiento(cuadrilla_id, rendimiento)
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            pendientes=tuple(pendientes),
+            insertados=len(diff.altas),
+            actualizados=len(diff.cambios) + len(diff.bajas),
+            omitidos=diff.omitidos + lectura.omitidos,
+            detalle={
+                "unidades_creadas": len(nuevas_unidades),
+                "familias_creadas": len(nuevas_familias),
+                "cuadrillas_creadas": len(nuevas_cuadrillas),
+            },
+        )
+
+
+# --- Trabajos: destajos + subcontratos, export nativo de OPUS -----------
+#
+# `CATALOGO_DE_TRABAJOS.csv` (§cabeceras.TRABAJOS_OPUS) mezcla en un solo
+# archivo lo que `AplicadorManoObra` espera repartido en dos: cada fila ya
+# trae su propio `TipoInsumo` (`mano_de_obra.validar_trabajo`), así que no
+# hay un `self._tipo` único que fijar por constructor.
+#
+# Camino nuevo y aislado a propósito, no una generalización de
+# `AplicadorManoObra` (decisión explícita, no reabrir): mismo criterio que
+# ya separó a `AplicadorManoObra` de `AplicadorMateriales` —su propio
+# docstring lo llama "copia estructural", no una generalización—. Tocar
+# `AplicadorManoObra` para que aceptara tipo mixto arriesgaría los dos
+# flujos que hoy sí funcionan de punta a punta
+# (`CargadorManoObra`/`CargadorSubcontratos`); un aplicador propio contiene
+# cualquier equivocación de este archivo nuevo sin tocar esos dos.
+
+_TIPOS_DE_TRABAJO = (TipoInsumo.MANO_OBRA, TipoInsumo.SUBCONTRATO)
+"""Universo de este aplicador dentro del catálogo de insumos.
+
+`RepositorioInsumos.listar` (`application.puertos.repositorios`) solo
+filtra por **un** `tipo: str | None` — con `None` trae todo, materiales
+incluidos. Como este archivo mezcla dos tipos, no hay un solo `tipo` que
+pasarle; se filtra aquí, en memoria, después de listar — más simple y
+seguro que pedirle al puerto un filtro de varios tipos que ningún otro
+aplicador necesita."""
+
+
+class AplicadorTrabajos:
+    """Trabajos: destajos y subcontratos del export nativo de OPUS
+    (`CATALOGO_DE_TRABAJOS.csv`, §cabeceras.TRABAJOS_OPUS).
+
+    Copia estructural de `AplicadorManoObra` (mismo catálogo de insumos,
+    mismo diff/versionado, misma homologación de unidad/familia/cuadrilla)
+    con una sola diferencia real: donde aquel usa `self._tipo` —fijo por
+    constructor, uno por archivo completo—, este usa `destajo.tipo` —el
+    que `mano_de_obra.validar_trabajo` ya decidió para ESE registro—, en
+    los dos lugares donde `AplicadorManoObra` necesitaría un tipo único:
+    el filtro de "vigentes" (`_TIPOS_DE_TRABAJO`, arriba) y el `tipo` que
+    se escribe al dar de alta un insumo.
+
+    El diff mismo no distingue tipos: compara por clave (§3.3), y las
+    259 claves `MOA-*`/similares de destajo nunca traslapan con las 6
+    `SUB-*` de subcontrato en el archivo real (verificado) — dos filas de
+    tipo distinto con la misma clave sería ambigüedad que este aplicador
+    no resuelve (ninguna fila del archivo real lo exige).
+    """
+
+    def __init__(
+        self,
+        *,
+        insumos: RepositorioInsumos,
+        unidades: RepositorioUnidades,
+        familias: RepositorioFamilias,
+        cuadrillas: RepositorioCuadrillas,
+        cargas: RepositorioCargas,
+    ) -> None:
+        self._insumos = insumos
+        self._unidades = unidades
+        self._familias = familias
+        self._cuadrillas = cuadrillas
+        self._cargas = cargas
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        # `tipo=None` trae TODO el catálogo de insumos (§_TIPOS_DE_TRABAJO);
+        # se filtra aquí a destajo+subcontrato para que el diff de
+        # "vigentes" no arrastre materiales/equipo/herramienta —
+        # `versionado.diferenciar` compara por clave, agnóstico al tipo, y
+        # una clave de material que no vuelve a aparecer se vería como una
+        # baja falsa en modo Reemplazar.
+        todos_los_insumos = await self._insumos.listar(tipo=None, solo_activos=False)
+        tipos_de_trabajo = {str(t) for t in _TIPOS_DE_TRABAJO}
+        vigentes_filas = [f for f in todos_los_insumos if f["tipo"] in tipos_de_trabajo]
+        por_clave = {str(fila["clave"]): fila for fila in vigentes_filas}
+
+        unidades_filas = await self._unidades.listar(solo_activos=False)
+        unidades = Homologador.desde(
+            unidades_filas, mapeos=await self._cargas.mapeos("unidad")
+        )
+        id_unidad = {str(f["clave"]): f["id"] for f in unidades_filas}
+        unidades_por_clave = {str(f["clave"]): f for f in unidades_filas}
+
+        # Mismo árbol de familias que materiales/mano de obra (§10.1 no
+        # define un ámbito propio de "trabajo"): un destajo o un
+        # subcontrato son insumos igual que un material.
+        familias_filas = await self._familias.listar(
+            aplica_a="material", solo_activos=False
+        )
+        familias = Homologador.desde(
+            familias_filas, mapeos=await self._cargas.mapeos("familia")
+        )
+        id_familia = {str(f["clave"]): f["id"] for f in familias_filas}
+
+        cuadrillas_filas = await self._cuadrillas.listar(solo_activos=False)
+        cuadrillas = Homologador.desde(
+            cuadrillas_filas, mapeos=await self._cargas.mapeos("cuadrilla")
+        )
+        id_cuadrilla = {str(f["clave"]): f["id"] for f in cuadrillas_filas}
+
+        pendientes: list[PendientePropuesto] = []
+        entrantes: dict[str, dict[str, Any]] = {}
+        tipos_entrantes: dict[str, TipoInsumo] = {}
+        nuevas_unidades: dict[str, UUID | None] = {}
+        nuevas_familias: dict[str, UUID | None] = {}
+        nuevas_cuadrillas: dict[str, UUID | None] = {}
+        rendimientos_por_cuadrilla: dict[UUID, Decimal] = {}
+
+        for registro in lectura.registros:
+            destajo: FilaManoObra = registro  # type: ignore[assignment]
+            actual = por_clave.get(destajo.llave, {})
+
+            unidad_id = actual.get("unidad_id")
+            if destajo.clave_unidad:
+
+                async def _dar_de_alta_unidad(
+                    _datos: dict[str, Any],
+                    *,
+                    _clave: str = destajo.clave_unidad,
+                    _nombre: str | None = destajo.unidad,
+                ) -> UUID:
+                    return await self._unidades.crear_o_existente(
+                        {"clave": _clave, "nombre": _nombre or _clave}
+                    )
+
+                unidad_id = await _resolver_o_dar_de_alta_con_alerta(
+                    destajo.clave_unidad,
+                    destajo.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    filas_por_clave=unidades_por_clave,
+                    creadas=nuevas_unidades,
+                    crear=_dar_de_alta_unidad,
+                    entidad="unidad",
+                    fila=destajo.fila,
+                    pendientes=pendientes,
+                    dry_run=dry_run,
+                    campo_descripcion="nombre",
+                )
+            elif destajo.unidad:
+                unidad_id = await _resolver_o_dar_de_alta(
+                    destajo.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    creadas=nuevas_unidades,
+                    crear=self._unidades.crear_o_existente,
+                    dry_run=dry_run,
+                )
+
+            familia_id = actual.get("familia_id")
+            if destajo.familia:
+                familia_id = await _resolver_o_dar_de_alta(
+                    destajo.familia,
+                    homologador=familias,
+                    id_por_clave=id_familia,
+                    creadas=nuevas_familias,
+                    crear=self._familias.crear_o_existente,
+                    dry_run=dry_run,
+                )
+
+            cuadrilla_id = actual.get("cuadrilla_id")
+            if destajo.cuadrilla:
+                cuadrilla_id = await _resolver_o_dar_de_alta(
+                    destajo.cuadrilla,
+                    homologador=cuadrillas,
+                    id_por_clave=id_cuadrilla,
+                    creadas=nuevas_cuadrillas,
+                    crear=self._cuadrillas.crear_o_existente,
+                    dry_run=dry_run,
+                )
+                if cuadrilla_id is not None and destajo.rendimiento_teorico is not None:
+                    rendimientos_por_cuadrilla[cuadrilla_id] = destajo.rendimiento_teorico
+
+            entrantes[destajo.llave] = {
+                "descripcion": destajo.descripcion,
+                "unidad_id": unidad_id,
+                "familia_id": familia_id,
+                "costo_base": _o_vigente(destajo.costo_base, actual, "costo_base"),
+                "cuadrilla_id": cuadrilla_id,
+                "rendimiento_teorico": _o_vigente(
+                    destajo.rendimiento_teorico, actual, "rendimiento_teorico"
+                ),
+            }
+            # El tipo de ESTE registro (§cabeceras.TRABAJOS_OPUS), no uno
+            # fijo — es lo único que distingue a este aplicador de
+            # `AplicadorManoObra`. `diff.altas` solo trae `despues` (los
+            # campos de `_CAMPOS_MANO_OBRA`, sin tipo), así que el alta lo
+            # busca aquí por clave.
+            tipos_entrantes[destajo.llave] = destajo.tipo
+
+        vigentes = {
+            clave: {campo: fila.get(campo) for campo in _CAMPOS_MANO_OBRA}
+            for clave, fila in por_clave.items()
+        }
+        diff = diferenciar(vigentes=vigentes, entrantes=entrantes, modo=modo)
+
+        operaciones: list[dict[str, Any]] = []
+        if not dry_run:
+            for alta in diff.altas:
+                nuevo_id = await self._insumos.crear(
+                    {
+                        "tipo": str(tipos_entrantes[alta.clave]),
                         "clave": alta.clave,
                         "descripcion": alta.despues["descripcion"],
                         "unidad_id": alta.despues["unidad_id"],

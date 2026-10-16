@@ -71,6 +71,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorNiveles,
     AplicadorPresupuesto,
     AplicadorPrototipos,
+    AplicadorTrabajos,
     AplicadorUnidades,
 )
 from obractrl.application.casos_uso.calcular_cpu import (
@@ -1042,6 +1043,14 @@ class FabricaDeCargas:
                 cuadrillas=RepositorioCuadrillasSQL(sesion),
                 cargas=cargas,
                 tipo=TipoInsumo.SUBCONTRATO,
+            )
+        if tipo is TipoCarga.TRABAJOS:
+            return AplicadorTrabajos(
+                insumos=RepositorioInsumosSQL(sesion),
+                unidades=RepositorioUnidadesSQL(sesion),
+                familias=RepositorioFamiliasSQL(sesion),
+                cuadrillas=RepositorioCuadrillasSQL(sesion),
+                cargas=cargas,
             )
         if tipo is TipoCarga.CUADRILLAS:
             return AplicadorCuadrillas(

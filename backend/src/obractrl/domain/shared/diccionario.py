@@ -385,6 +385,18 @@ class TipoCarga(_Canonico):
     identidad de etapas de construcción — clave, descripción. Mismo
     criterio que `NIVELES`."""
 
+    TRABAJOS = "trabajos"
+    """`CATALOGO_DE_TRABAJOS.csv`, export nativo de OPUS (§cabeceras.
+    TRABAJOS_OPUS): 259 destajos y 6 subcontratos en un solo archivo,
+    distinguidos fila por fila (`mano_de_obra.clase_de_trabajo`), no por
+    archivo como `MANO_DE_OBRA`/`SUBCONTRATOS`. Es el único tipo de carga
+    cuyo archivo real mezcla dos `TipoInsumo` distintos fila por fila, y
+    por eso tiene su propio aplicador (`AplicadorTrabajos`) en vez de
+    reusar `AplicadorManoObra` —que fija su `TipoInsumo` una sola vez por
+    archivo completo (constructor), no por fila—. Espejo en la base:
+    `database/migrations/20260814000053_carga_de_trabajos.sql`.
+    """
+
 
 class EstatusCarga(_Canonico):
     PENDIENTE = "pendiente"

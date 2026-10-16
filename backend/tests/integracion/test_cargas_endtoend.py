@@ -15,12 +15,14 @@ binario de prueba, y así el archivo siempre coincide con el contrato que el
 
 from __future__ import annotations
 
+import csv
 import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
+from pathlib import Path
 
 import pytest
 from openpyxl import Workbook
@@ -57,6 +59,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorNiveles,
     AplicadorPresupuesto,
     AplicadorPrototipos,
+    AplicadorTrabajos,
     AplicadorUnidades,
 )
 from obractrl.application.casos_uso.gestionar_carga import (
@@ -174,6 +177,34 @@ def _archivo_subcontratos(filas: list[list[object]]) -> bytes:
     """`catalogo_de_SUBCONTRATOS.xlsx`: mismas cabeceras que mano de obra,
     hoja propia (`SUBCONTRATOS`, no `DESTAJOS`)."""
     return _libro([_CABECERAS_MANO_OBRA, *filas], hoja="SUBCONTRATOS")
+
+
+_TRABAJOS_OPUS_CSV = Path(
+    "/home/user/cerebro-erp-construccion/1-mundo/opus/CATALOGO_DE_TRABAJOS.csv"
+)
+"""Export nativo de OPUS, repo de referencia de solo lectura. No se
+versiona aquí: la prueba que lo usa se salta si la máquina no lo tiene
+(mismo criterio que `tests/domain/test_trabajos_opus_real.py`)."""
+
+
+def _archivo_trabajos_opus_real() -> bytes:
+    """El `.csv` real, reempacado como `.xlsx` en memoria.
+
+    El pipeline de carga (`adapters.excel.lector.abrir_libro`) solo sabe
+    abrir `.xlsx` —es la entrada no confiable del §12.11, nunca un `.csv`
+    "renombrado"—, así que no hay forma de pasarle los bytes del archivo
+    tal cual. Ningún test de este módulo abre un archivo real desde disco
+    (todos son fixtures de openpyxl hechos a mano, ver `_libro` arriba);
+    esto hace lo mismo pero con las filas REALES del exportador —no una
+    fila de ejemplo— para probar el catálogo combinado completo, 265
+    filas y la trampa de la cabecera "Tipo" duplicada incluida (§cabeceras.
+    TRABAJOS_OPUS), tal como lo lee `csv.reader` (nunca `DictReader`, que
+    pisaría una "Tipo" con la otra en silencio)."""
+    with _TRABAJOS_OPUS_CSV.open(newline="", encoding="utf-8-sig") as f:
+        todas = list(csv.reader(f))
+    encabezados = todas[0]
+    filas = [fila for fila in todas[1:] if any(celda.strip() for celda in fila)]
+    return _libro([encabezados, *filas])
 
 
 _CABECERAS_CUADRILLAS = [
@@ -338,6 +369,14 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
             cuadrillas=RepositorioCuadrillasSQL(sesion),
             cargas=cargas,
             tipo=TipoInsumo.SUBCONTRATO,
+        )
+    if tipo is TipoCarga.TRABAJOS:
+        return AplicadorTrabajos(
+            insumos=RepositorioInsumosSQL(sesion),
+            unidades=RepositorioUnidadesSQL(sesion),
+            familias=RepositorioFamiliasSQL(sesion),
+            cuadrillas=RepositorioCuadrillasSQL(sesion),
+            cargas=cargas,
         )
     if tipo is TipoCarga.CUADRILLAS:
         return AplicadorCuadrillas(
@@ -1374,6 +1413,56 @@ async def test_revertir_mano_de_obra_deja_el_insumo_sin_cuadrilla_ni_rendimiento
     # La cuadrilla es catálogo compartido por organización (§10.6): revertir
     # este lote no se la lleva, igual que `nivel`/`etapa_constructiva`.
     assert "CUAD-01" in await _cuadrillas(contexto_control)
+
+
+# --- Trabajos: destajos + subcontratos, export nativo de OPUS -----------
+
+
+@pytest.mark.skipif(
+    not _TRABAJOS_OPUS_CSV.exists(),
+    reason=(
+        "Archivo real del exportador de OPUS no disponible en este entorno: "
+        f"{_TRABAJOS_OPUS_CSV}"
+    ),
+)
+async def test_carga_de_trabajos_separa_destajo_y_subcontrato_en_una_sola_carga(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """`CATALOGO_DE_TRABAJOS.csv` real: 265 filas, 259 Destajo + 6
+    Subcontrato, mezcladas fila por fila en un solo archivo (§cabeceras.
+    TRABAJOS_OPUS) — a diferencia de `MANO_DE_OBRA`/`SUBCONTRATOS`, que
+    las traen en dos archivos separados con su propio `AplicadorManoObra`
+    de tipo fijo. Confirma que `AplicadorTrabajos` separa los dos tipos
+    dentro de UNA sola carga, sin arrastrar materiales ni otros insumos
+    al diff de "vigentes" (`_TIPOS_DE_TRABAJO`)."""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.TRABAJOS,
+        _archivo_trabajos_opus_real(),
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.insertados == 265
+    assert resultado.resumen.errores == 0
+    assert resultado.pendientes == 0
+
+    # Por `tipo`, no por prefijo de clave: el destajo no es solo "MOA-"
+    # (el archivo real también trae "MOC-", "MOE-", "MOG-", "MOH-",
+    # "MOO-", "MOP-", "MOS-" — ocho prefijos de oficio, verificado) y
+    # adivinar la clase por el prefijo es justo lo que el cerebro prohíbe
+    # (§diccionario.CategoriaExplosion.TRABAJO cita fallos reales de
+    # hacerlo). "SUB-" sí es el único prefijo de subcontrato, pero el
+    # criterio real y único es la columna `tipo` que escribió el aplicador.
+    catalogo = await _insumos(contexto_control)
+    assert len(catalogo) == 265
+    destajos = {c: f for c, f in catalogo.items() if f["tipo"] == "mano_obra"}
+    subcontratos = {c: f for c, f in catalogo.items() if f["tipo"] == "subcontrato"}
+
+    assert len(destajos) == 259
+    assert len(subcontratos) == 6
+    assert set(subcontratos) == {
+        "SUB-00001", "SUB-00002", "SUB-00003", "SUB-00004", "SUB-00005", "SUB-00006",
+    }
 
 
 # --- Cuadrillas (§10.6 `CABECERAS_CUADRILLAS.xlsx`) -----------------------

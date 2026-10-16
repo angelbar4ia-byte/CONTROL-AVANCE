@@ -33,7 +33,7 @@ from obractrl.domain.cargadores.cpu import agrupar_conceptos
 from obractrl.domain.cargadores.cuadrillas import agrupar_cuadrillas
 from obractrl.domain.cargadores.etapas_constructivas import validar_etapa_constructiva
 from obractrl.domain.cargadores.familias import validar_familia
-from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra
+from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra, validar_trabajo
 from obractrl.domain.cargadores.materiales import validar_material
 from obractrl.domain.cargadores.niveles import validar_nivel
 from obractrl.domain.cargadores.presupuesto import construir_arboles
@@ -59,6 +59,7 @@ __all__ = [
     "CargadorPresupuesto",
     "CargadorPrototipos",
     "CargadorSubcontratos",
+    "CargadorTrabajos",
     "CargadorUnidades",
     "TipoDeCargaSinCargador",
     "cargador_para",
@@ -125,6 +126,32 @@ class CargadorSubcontratos:
             contenido,
             self.especificacion,
             partial(validar_mano_obra, tipo=TipoInsumo.SUBCONTRATO),
+            limites=self._limites,
+        )
+
+
+class CargadorTrabajos:
+    """Trabajos: destajos + subcontratos, export nativo de OPUS —
+    `CATALOGO_DE_TRABAJOS.csv` (§cabeceras.TRABAJOS_OPUS).
+
+    A diferencia de `CargadorManoObra`/`CargadorSubcontratos`, no fija el
+    tipo con `functools.partial`: `validar_trabajo` ya decide por fila
+    (Destajo/Subcontrato) con la columna `clase` que el archivo repite,
+    así que no hace falta nada especial aquí — mismo patrón simple que
+    `CargadorMateriales`.
+    """
+
+    tipo = TipoCarga.TRABAJOS
+    especificacion = cabeceras.TRABAJOS_OPUS
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            validar_trabajo,
             limites=self._limites,
         )
 
@@ -477,6 +504,7 @@ CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.MATERIALES: CargadorMateriales,
     TipoCarga.MANO_DE_OBRA: CargadorManoObra,
     TipoCarga.SUBCONTRATOS: CargadorSubcontratos,
+    TipoCarga.TRABAJOS: CargadorTrabajos,
     TipoCarga.CUADRILLAS: CargadorCuadrillas,
     TipoCarga.CATALOGO_CONCEPTOS: CargadorConceptosBase,
     TipoCarga.CONCEPTOS_AUXILIARES: CargadorConceptosAuxiliares,
