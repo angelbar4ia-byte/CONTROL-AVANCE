@@ -2,9 +2,9 @@
 OPUS que comparten contrato: materiales y fletes.
 
 Spec §3.3 (la CLAVE manda) · §10.1 (campos del catálogo de materiales) ·
-§cabeceras.MATERIALES_OPUS / FLETES_OPUS (extensión propia, generación
-2025 de OPUS — distinta de `CABECERAS_MATERIALES.xlsx`/`MATERIALES`, que
-sigue sirviendo al archivo de la generación anterior sin tocarse).
+§cabeceras.MATERIALES (el mismo objeto sirve a las dos generaciones del
+archivo — §cabeceras.MATERIALES, su docstring — así que `CargadorMateriales`
+ya lee el export nativo de OPUS 2025 sin ningún cambio de cableado).
 
 Mismo criterio que `test_presupuesto_opus_real.py` y
 `test_cpu_opus_real.py`: estos dos archivos solo se verifican de verdad
@@ -21,11 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from obractrl.domain.cargadores.cabeceras import (
-    FLETES_OPUS,
-    MATERIALES_OPUS,
-    resolver_encabezados,
-)
+from obractrl.domain.cargadores.cabeceras import MATERIALES, resolver_encabezados
 from obractrl.domain.cargadores.materiales import validar_material
 from obractrl.domain.shared.diccionario import TipoInsumo
 
@@ -58,12 +54,12 @@ def _leer_csv(ruta: Path) -> tuple[list[str], list[tuple[int, Sequence[object]]]
 
 def test_los_386_materiales_cargan_sin_error() -> None:
     """386 filas verificadas (sin huecos, sin duplicados de clave). Las
-    386 traen clave, descripción y "Costo base M. N." —el que
-    `MATERIALES_OPUS.alias` elige como `costo_base`, mismo criterio que
-    `MATERIALES` con "COSTO BASE M.N." en el archivo de la generación
-    anterior—, así que ninguna fila debería fallar ni quedar sin costo."""
+    386 traen clave, descripción y "Costo base M. N." —el alias nuevo que
+    `MATERIALES.alias` agregó para esta generación, junto al "COSTO BASE
+    M.N." (sin espacio) del archivo de la generación anterior—, así que
+    ninguna fila debería fallar ni quedar sin costo."""
     encabezados, filas = _leer_csv(_MATERIALES)
-    mapa = resolver_encabezados(encabezados, MATERIALES_OPUS)
+    mapa = resolver_encabezados(encabezados, MATERIALES)
 
     cargados = [validar_material(fila, mapa, numero) for numero, fila in filas]
 
@@ -92,7 +88,7 @@ def test_los_9_fletes_cargan_como_mas_materiales() -> None:
     (verificado): no hay insumo que migre de un catálogo al otro con la
     misma clave en esta corrida."""
     encabezados, filas = _leer_csv(_FLETES)
-    mapa = resolver_encabezados(encabezados, FLETES_OPUS)
+    mapa = resolver_encabezados(encabezados, MATERIALES)
 
     cargados = [validar_material(fila, mapa, numero) for numero, fila in filas]
 
@@ -104,7 +100,7 @@ def test_los_9_fletes_cargan_como_mas_materiales() -> None:
     claves_fletes = {m.llave for m in cargados}
 
     encabezados_mat, filas_mat = _leer_csv(_MATERIALES)
-    mapa_materiales = resolver_encabezados(encabezados_mat, MATERIALES_OPUS)
+    mapa_materiales = resolver_encabezados(encabezados_mat, MATERIALES)
     claves_materiales = {
         str(validar_material(fila, mapa_materiales, numero).clave)
         for numero, fila in filas_mat
