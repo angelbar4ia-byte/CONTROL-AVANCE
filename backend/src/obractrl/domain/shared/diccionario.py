@@ -22,6 +22,7 @@ __all__ = [
     "PREFIJOS",
     "BucketAlmacen",
     "CategoriaExplosion",
+    "CausaDesviacion",
     "ClaseNodo",
     "EstatusActividad",
     "EstatusCarga",
@@ -39,10 +40,12 @@ __all__ = [
     "SujetoEvaluacion",
     "TipoCarga",
     "TipoConcepto",
+    "TipoDesviacion",
     "TipoExpedienteDoc",
     "TipoHijoExplosion",
     "TipoIncidencia",
     "TipoInsumo",
+    "TipoNodoDesviacion",
     "TipoSemana",
 ]
 
@@ -156,6 +159,99 @@ class CategoriaExplosion(_Canonico):
 class TipoHijoExplosion(_Canonico):
     INSUMO = "insumo"
     CONCEPTO = "concepto"
+
+
+# --- Desviación (cerebro MODELO.md §5g, CONOCIMIENTO.md §13.6) ----------
+
+
+class TipoNodoDesviacion(_Canonico):
+    """El nodo donde se detecta una `Desviacion`: insumo XOR concepto.
+
+    Mismo patrón que `TipoHijoExplosion` (migración 0005, `ck_explosion_hijo`)
+    aplicado a `desviacion` (migración 0054, `ck_desviacion_nodo`): otro
+    enum, porque es otra entidad con otra semántica, aunque el par de
+    columnas se repita.
+    """
+
+    INSUMO = "insumo"
+    CONCEPTO = "concepto"
+
+
+class TipoDesviacion(_Canonico):
+    """Los dos factores de la fórmula de CONOCIMIENTO.md §13.6, nunca
+    sumados en una sola fila::
+
+        desviación = (precio_real - precio_plan) * cantidad_real   # precio
+                   + (cantidad_real - cantidad_plan) * precio_plan  # consumo
+
+    "Separarlos importa porque responden distintas personas. 'Pagamos más'
+    es de compras; 'usamos más' es de obra" (§13.6).
+    """
+
+    PRECIO = "precio"
+    CONSUMO = "consumo"
+
+
+class CausaDesviacion(_Canonico):
+    """Vocabulario controlado de "Causas por categoría" (CONOCIMIENTO.md
+    §13.6, tabla de líneas 8693-8699): "vocabulario controlado, no texto
+    libre — si no, las desviaciones no se pueden agregar ni comparar".
+
+    Cuál de estas aplica a una fila de `Desviacion` depende del tipo del
+    insumo/concepto detectado (material · mano_de_obra · herramienta ·
+    maquinaria · contratos) y de `TipoDesviacion` (precio/consumo) de esa
+    misma fila. La base no restringe esa combinación —el enum es plano,
+    con los ~20 valores de las cinco categorías juntos—: decidir cuál
+    aplica es trabajo del dominio/aplicación, no un CHECK de Postgres
+    (MODELO.md §5g: "cuál aplica ... lo decide el dominio").
+
+    **No confundir con `domain.desviacion.CausaRaiz`** (las nueve causas de
+    §13.6 que deciden SI el hallazgo es una `Desviacion`): confundir esos dos
+    vocabularios fue exactamente el error D-343 que el propio cerebro
+    corrigió en D-347 (MODELO.md §5g).
+    """
+
+    # material · precio
+    MERCADO = "mercado"
+    VOLUMEN = "volumen"
+    PROVEEDOR_DISTINTO = "proveedor_distinto"
+    CAMBIO_DE_PRESENTACION = "cambio_de_presentacion"
+
+    # material · consumo
+    DESPERDICIO_MAYOR_AL_TEORICO = "desperdicio_mayor_al_teorico"
+    MERMA_POR_DANO_CLIMA_O_ROBO = "merma_por_dano_clima_o_robo"
+    SUSTITUCION_POR_EQUIVALENTE = "sustitucion_por_equivalente"
+    """Sustitución por un equivalente del mismo grupo funcional (§13.6,
+    cita el grupo funcional; D-342 del cerebro)."""
+
+    # mano_de_obra · precio
+    RENEGOCIACION = "renegociacion"
+    URGENCIA = "urgencia"
+    ALZA_DE_TABULADOR = "alza_de_tabulador"
+
+    # mano_de_obra · consumo
+    RENDIMIENTO_REAL_DISTINTO = "rendimiento_real_distinto"
+    """Rendimiento real distinto al teórico (§13.6, cita §6.2)."""
+    RETRABAJO = "retrabajo"
+    TRABAJO_FUERA_DE_ALCANCE = "trabajo_fuera_de_alcance"
+
+    # herramienta · precio
+    TARIFA_DISTINTA = "tarifa_distinta"
+
+    # herramienta · consumo
+    DIAS_REALES_DE_RENTA = "dias_reales_de_renta"
+    EQUIPO_PARADO = "equipo_parado"
+    """Costo sin producción (§13.6, literal)."""
+
+    # maquinaria · precio
+    TARIFA = "tarifa"
+    COMBUSTIBLE = "combustible"
+
+    # maquinaria · consumo
+    HORAS_EFECTIVAS_CONTRA_FACTURADAS = "horas_efectivas_contra_facturadas"
+
+    # contratos · consumo
+    VOLUMEN_REALMENTE_EJECUTADO = "volumen_realmente_ejecutado"
 
 
 # --- Ejecución (§7.6) ----------------------------------------------------

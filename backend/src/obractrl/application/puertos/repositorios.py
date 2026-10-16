@@ -33,6 +33,7 @@ __all__ = [
     "RepositorioConfiguracion",
     "RepositorioContratistas",
     "RepositorioCuadrillas",
+    "RepositorioDesviaciones",
     "RepositorioEstimaciones",
     "RepositorioEvaluaciones",
     "RepositorioExpediente",
@@ -1481,4 +1482,57 @@ class RepositorioTorre(Protocol):
         solo_con_pendientes: bool = False,
     ) -> list[dict]:
         """Una fila por obra visible con sus contadores. RLS acota el alcance."""
+        ...
+
+
+@runtime_checkable
+class RepositorioDesviaciones(Protocol):
+    """Acceso a `desviacion` (migración 0054). Scoped por RLS — §12.4, mismo
+    predicado que `control_cambio` (quien ve la obra ve sus desviaciones).
+
+    Spec: cerebro MODELO.md §5g · CONOCIMIENTO.md §13.6. Nada en este
+    encargo conecta este puerto a un caso de uso real todavía (§12.11): es
+    el prerrequisito —dominio puro + persistencia— para un cargador
+    posterior que compara ingeniería del lote contra prototipo, y para el
+    caso ya parcial de presupuesto-vs-ejecutado.
+    """
+
+    async def crear(self, datos: dict) -> UUID:
+        """Alta de una desviación, siempre con `causa = null` (regla de
+        captura 1, MODELO.md §5g: la detección no depende de que nadie
+        declare). `capturar_causa` es la única vía para llenar la causa, y
+        es una escritura aparte — nunca se combinan en un solo método."""
+        ...
+
+    async def capturar_causa(
+        self, desviacion_id: UUID, *, causa: str, usuario_id: UUID
+    ) -> None:
+        """Llena `causa`/`causa_capturada_por`/`causa_capturada_en` sobre una
+        desviación ya detectada (regla de captura 4: puede llegar después de
+        `detectada_en`, sin penalización — el `usuario_id` y el momento de
+        esta llamada son independientes de cuándo se creó la fila)."""
+        ...
+
+    async def patrones_por_insumo_o_concepto(
+        self, *, obra_id: UUID | None = None
+    ) -> list[dict]:
+        """`GROUP BY insumo_id, concepto_id` (MODELO.md §5g: "los patrones
+        no piden tabla — son la misma consulta de siempre... `GROUP BY
+        nodo_id` / `GROUP BY presupuesto_id` sobre `DESVIACION`").
+
+        Cada fila trae cuántas veces se desvió ese nodo (`n`), el monto
+        acumulado, y en cuántas obras distintas aparece (`obras_distintas`):
+        repetido en todas las obras apunta al catálogo, repetido en una
+        sola es condición local (CONOCIMIENTO.md §13.6). Con `obra_id`, la
+        agrupación se acota a esa obra — RLS sigue acotando a lo visible en
+        cualquier caso."""
+        ...
+
+    async def patrones_por_obra(
+        self, *, obra_ids: Sequence[UUID] | None = None
+    ) -> list[dict]:
+        """`GROUP BY obra_id`: cuánto se desvía cada obra, para comparar una
+        obra contra otras (MODELO.md §5g, mismo criterio de patrón agregado
+        que `patrones_por_insumo_o_concepto`, leído por obra en vez de por
+        nodo)."""
         ...
