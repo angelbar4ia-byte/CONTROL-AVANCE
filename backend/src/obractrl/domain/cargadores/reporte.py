@@ -77,8 +77,19 @@ class TipoPendiente(StrEnum):
     """El archivo trae su propia columna WBS y no coincide con la que el
     cargador de presupuesto jerárquico calcula de la secuencia de TIPO
     (extensión propia, §7.4). **No crítico**: no es de la identidad de la
-    fila (eso lo da CLAVE PADRE → CLAVE HIJO, §3.3) — es solo una alerta
-    para que alguien decida si carga la fila o corrige el archivo antes."""
+    fila (eso lo da CLAVE PADRE → CLAVE HIJO, o NIVEL + posición en el
+    árbol nativo de OPUS, §3.3) — es solo una alerta para que alguien
+    decida si carga la fila o corrige el archivo antes."""
+
+    NIVEL_INCONSISTENTE = "nivel_inconsistente"
+    """El árbol nativo de OPUS (`NIVEL` + posición, sin `clave_padre`,
+    extensión propia, §árbol en `domain.cargadores.presupuesto.
+    construir_arboles`) trae una fila cuyo `NIVEL` no es consistente con el
+    de su padre en la pila: salta más de un nivel de profundidad, o no
+    queda ningún padre en la pila a media reconstrucción (ni es la
+    primera fila del archivo ni declara nivel 0). **No crítico**: la fila
+    se sigue procesando igual —colgada del padre más cercano que haya—;
+    esto solo avisa para que alguien revise si el archivo trae un hueco."""
 
 
 @dataclass(frozen=True, slots=True)

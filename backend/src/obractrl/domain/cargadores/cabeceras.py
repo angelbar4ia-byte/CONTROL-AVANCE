@@ -702,11 +702,16 @@ PROTOTIPOS = EspecificacionArchivo(
 
 # --- Presupuesto jerárquico (extensión propia, no está en el §10.6) ------
 #
-# Árbol de un prototipo por CLAVE PADRE → CLAVE HIJO (§7.4): tampoco lo
-# describe el §10.6, así que sus campos propios necesitan alias explícito
-# igual que PROTOTIPOS. `clave`/`descripcion`/`unidad`/`cantidad`/
-# `precio_unitario`/`tipo` ya resuelven por el mapa global (§8.6); solo
-# `clave_padre`/`clave_hijo`/`indice`/`importe` no viven ahí.
+# Árbol de un prototipo: por CLAVE PADRE → CLAVE HIJO cuando el archivo trae
+# esa columna, o por NIVEL + posición cuando no la trae (árbol nativo del
+# exportador de OPUS, §árbol en `domain.cargadores.presupuesto.
+# construir_arboles`). Tampoco lo describe el §10.6, así que sus campos
+# propios necesitan alias explícito igual que PROTOTIPOS. `descripcion`/
+# `unidad`/`cantidad`/`precio_unitario`/`tipo` ya resuelven por el mapa
+# global (§8.6); `clave_padre`/`clave_hijo`/`nivel`/`indice`/`importe` no
+# viven ahí, y `clave` (el nombre que le da el exportador nativo a lo que
+# aquí es `clave_hijo`) sí vive ahí pero apuntando a otro campo canónico
+# —de ahí su alias propio también.
 
 PRESUPUESTO = EspecificacionArchivo(
     tipo="Presupuesto jerárquico",
@@ -716,6 +721,7 @@ PRESUPUESTO = EspecificacionArchivo(
     opcionales=(
         "indice",
         "clave_padre",
+        "nivel",
         "unidad",
         "cantidad",
         "precio_unitario",
@@ -728,15 +734,37 @@ PRESUPUESTO = EspecificacionArchivo(
         "clave_padre": "clave_padre",
         "clave hijo": "clave_hijo",
         "clave_hijo": "clave_hijo",
+        # El archivo de prueba hecho a mano rotula la columna "CLAVE HIJO";
+        # el exportador nativo de OPUS la rotula a secas "Clave" —sin
+        # `clave_padre` no hay hijo que distinguir de un padre—. Sin este
+        # alias, "clave" resolvería al campo global homónimo (§8.6), que
+        # esta especificación no declara, y la columna se ignoraría en
+        # silencio: ninguna fila tendría clave (§3.3).
+        "clave": "clave_hijo",
         "importe": "importe",
         "wbs": "wbs",
+        # El archivo real del exportador de OPUS no trae `clave_padre`: la
+        # cabecera literal es "Nivel " (con espacio al final — `normalizar`
+        # colapsa espacios y la deja en "nivel"). Sin este alias, "nivel" no
+        # resuelve a nada en el mapa global (§8.6) y la columna se
+        # ignoraría en silencio, que es justo lo que le faltaba al árbol
+        # nativo para reconstruirse (`construir_arboles`).
+        "nivel": "nivel",
     },
 )
 """``wbs`` es opcional (§7.4): no todo archivo real la trae. Cuando sí viene,
 `construir_arboles` la usa solo para avisar —§10.3, `TipoPendiente.
 WBS_INCONSISTENTE`, no crítico— si no coincide con la que el propio TIPO de
 cada fila ya implica; nunca decide la identidad de la fila ni bloquea la
-carga (eso lo sigue dando CLAVE PADRE → CLAVE HIJO)."""
+carga.
+
+``clave_padre`` y ``nivel`` son las dos formas de dar la identidad
+padre-hijo (§árbol): el archivo de prueba hecho a mano trae la primera, el
+exportador nativo de OPUS trae la segunda y nunca las dos juntas. Las dos
+son opcionales aquí porque el contrato exige **una u otra**, no las dos —
+una regla de "al menos una" que no se puede expresar con `obligatorias`
+(eso exigiría ambas) y que por tanto valida `construir_arboles`, no este
+módulo (§12.11: aquí solo se resuelven columnas, no se decide el árbol)."""
 
 COLUMNAS_CPU: tuple[ColumnaPorLetra, ...] = (
     ColumnaPorLetra("clave", "A"),

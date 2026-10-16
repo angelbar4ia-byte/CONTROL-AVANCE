@@ -291,7 +291,7 @@ async def crear_prototipo(
 class NodoPrototipoRespuesta(BaseModel):
     id: UUID
     parent_id: UUID | None = None
-    tipo: Literal["nivel", "etapa", "concepto"]
+    tipo: Literal["nivel", "etapa", "agrupador", "concepto"]
     nombre: str
     clave: str | None = None
     concepto_id: UUID | None = None

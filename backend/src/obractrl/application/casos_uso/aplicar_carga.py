@@ -3151,8 +3151,11 @@ async def _precio_vigente_de_concepto(
 
 
 class AplicadorPresupuesto:
-    """Árbol de un prototipo (nivel → etapa → concepto) y su presupuesto
-    (§7.4, §7.3, extensión propia — no está en el §10.6).
+    """Árbol de un prototipo (nivel → etapa → [agrupador] → concepto) y su
+    presupuesto (§7.4, §7.3, extensión propia — no está en el §10.6).
+    `agrupador` (migración 0051) es opcional: un concepto puede colgar
+    directo de la etapa, o de un agrupador intermedio — el árbol nativo de
+    OPUS trae las dos formas (§domain.cargadores.presupuesto).
 
     Puebla tres cosas que hasta hoy nadie escribía: el árbol WBS
     (`prototipo_nodo`), el catálogo compartido de niveles/etapas, y el
@@ -3446,12 +3449,21 @@ class AplicadorPresupuesto:
     ) -> None:
         """Un nodo del árbol leído → `prototipo_nodo` (+ catálogo, si aplica).
 
-        `NIVEL`/`ETAPA` (que no colapsan en concepto, ver
-        `es_etapa_con_componentes_directos`) recursan hacia sus hijos.
-        `CONCEPTO`/`CONCEPTO_AUXILIAR` (o una etapa que colapsa) son hojas
-        del árbol: sus hijos `MATERIAL`/`DESTAJO`/`SUBCONTRATO` no se
-        convierten en `prototipo_nodo` — se consumen como la explosión del
-        concepto.
+        `NIVEL`/`ETAPA`/`AGRUPADOR` (que no colapsan en concepto, ver
+        `es_etapa_con_componentes_directos` — `AGRUPADOR` nunca colapsa)
+        recursan hacia sus hijos. `CONCEPTO`/`CONCEPTO_AUXILIAR` (o una
+        etapa que colapsa) son hojas del árbol: sus hijos `MATERIAL`/
+        `DESTAJO`/`SUBCONTRATO` no se convierten en `prototipo_nodo` — se
+        consumen como la explosión del concepto.
+
+        `AGRUPADOR` (migración 0051, árbol nativo de OPUS) no tiene
+        catálogo compartido propio —a diferencia de `NIVEL`/`ETAPA`, que
+        sí publican en `niveles_etapas`— así que su propio
+        `prototipo_nodo` no toca `nivel_id`/`etapa_id`: ninguno de los dos
+        condicionales de abajo lo alcanza, igual que ya le pasa a `ETAPA`
+        con `nivel_id` (esa columna solo se llena en el nodo `NIVEL`
+        mismo). `nivel_id_heredado` sigue pasando a través suyo sin
+        cambiar hacia sus hijos, tal cual ya cruza por `ETAPA` hoy.
 
         El alta/actualización se decide contra `nodos_existentes` **antes**
         de escribir, sin importar `dry_run`: es lo que hace que la vista
@@ -3515,12 +3527,19 @@ class AplicadorPresupuesto:
                     orden=nodo.indice or 0,
                 )
 
+            if nodo.tipo is TipoNodoPresupuesto.NIVEL:
+                tipo_prototipo_nodo = "nivel"
+            elif nodo.tipo is TipoNodoPresupuesto.AGRUPADOR:
+                tipo_prototipo_nodo = "agrupador"
+            else:
+                tipo_prototipo_nodo = "etapa"
+
             nodo_id, _ = await self._prototipo_nodos.upsert(
                 prototipo_id,
                 clave=nodo.clave,
                 datos={
                     "parent_id": parent_id_db,
-                    "tipo": "nivel" if nodo.tipo is TipoNodoPresupuesto.NIVEL else "etapa",
+                    "tipo": tipo_prototipo_nodo,
                     "nombre": nodo.descripcion,
                     "nivel_id": nivel_id_db if nodo.tipo is TipoNodoPresupuesto.NIVEL else None,
                     "etapa_id": etapa_id_db,
