@@ -91,6 +91,18 @@ class TipoPendiente(StrEnum):
     se sigue procesando igual —colgada del padre más cercano que haya—;
     esto solo avisa para que alguien revise si el archivo trae un hueco."""
 
+    TRABAJO_SIN_CLASE = "trabajo_sin_clase"
+    """Un componente `Tipo=Contrato` de la matriz nativa de OPUS
+    (`ANALISIS_DE_BASICOS_CONCEPTOS.csv`, extensión propia, §domain.
+    cargadores.cpu._agrupar_conceptos_matriz) se cargó como la categoría
+    genérica `CategoriaExplosion.TRABAJO` en vez de `destajo`/
+    `subcontrato`: el archivo que distingue una clase de la otra fila por
+    fila (`CATALOGO_DE_TRABAJOS.xlsx`) no está disponible en ningún repo.
+    **No crítico**: la fila se carga igual con la categoría genérica —esto
+    solo marca la fila para que alguien la reclasifique cuando el catálogo
+    real llegue; no es un heurístico por prefijo de clave, eso el cerebro
+    ya lo prohíbe explícitamente."""
+
 
 @dataclass(frozen=True, slots=True)
 class ErrorDeFila:

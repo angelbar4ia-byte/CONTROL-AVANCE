@@ -29,6 +29,7 @@ __all__ = [
     "CONCEPTOS_AUXILIARES",
     "CONCEPTOS_BASE",
     "CPU",
+    "CPU_MATRIZ",
     "CUADRILLAS",
     "ETAPAS_CONSTRUCTIVAS",
     "FAMILIAS",
@@ -765,6 +766,73 @@ son opcionales aquí porque el contrato exige **una u otra**, no las dos —
 una regla de "al menos una" que no se puede expresar con `obligatorias`
 (eso exigiría ambas) y que por tanto valida `construir_arboles`, no este
 módulo (§12.11: aquí solo se resuelven columnas, no se decide el árbol)."""
+
+# --- CPU / Conceptos: matriz nativa de OPUS (extensión propia) ----------
+#
+# A diferencia de `CPU` (arriba), que resuelve por LETRA porque el §10.6
+# solo fija columnas para el formato plano, este archivo es el export
+# nativo de OPUS del mismo dato (concepto + CPU) y sí nombra sus propias
+# cabeceras — distinto vocabulario del §10.6 (`Clave Hijo` en vez de
+# "clave insumo", `Costo` en vez de "costo unitario") y una columna
+# `Origen` que el §10.6 no tiene en absoluto. Mismo criterio que
+# `PRESUPUESTO` (también extensión propia, más arriba en este archivo):
+# sus columnas propias necesitan alias explícito, no caen en el mapa
+# global de sinónimos del §8.6.
+#
+# Cada fila es un componente con su propio padre explícito (`Clave Padre`
+# → `Clave Hijo`), nunca una fila-encabezado que describa al concepto
+# mismo — por eso `clave_insumo` reusa el campo canónico que ya usa el
+# componente del formato plano (`ComponenteCargado.clave_insumo`) en vez
+# de inventar uno nuevo: es el mismo dato, "la clave del insumo de esta
+# fila", solo que la columna real se llama distinto.
+
+CPU_MATRIZ = EspecificacionArchivo(
+    tipo="CPU / Conceptos (matriz nativa de OPUS)",
+    archivo="ANALISIS_DE_BASICOS_CONCEPTOS.csv",
+    hoja=None,
+    obligatorias=("clave_padre", "clave_insumo", "descripcion", "cantidad", "tipo", "origen"),
+    opcionales=("unidad", "precio_unitario"),
+    alias={
+        "clave padre": "clave_padre",
+        "clave_padre": "clave_padre",
+        # El exportador nombra "Clave Hijo" al insumo del componente —
+        # mismo dato que `clave_insumo` en el formato plano (§10.6), solo
+        # que ahí la columna se llama "clave insumo"/"B" y aquí "Clave
+        # Hijo". Sin este alias, "clave hijo" no resuelve a nada en el
+        # mapa global y la columna se ignoraría en silencio: ninguna fila
+        # tendría el insumo que compone (§3.3).
+        "clave hijo": "clave_insumo",
+        "clave_hijo": "clave_insumo",
+        # "Costo" a secas, no "costo unitario" — el mapa global del §8.6
+        # solo conoce la segunda forma. Sin este alias la columna F se
+        # ignoraría y ningún componente traería PU.
+        "costo": "precio_unitario",
+        # `Origen` (Concepto/Material/ManoDeObra) no vive en ningún otro
+        # archivo ni en el mapa global: sin alias propio se descartaría en
+        # silencio, y es la columna que decide si la fila es de este
+        # alcance (solo `Origen=Concepto`, §domain.cargadores.cpu.
+        # _agrupar_conceptos_matriz) o de una matriz de insumo compuesto
+        # (Material/ManoDeObra) que este cargador no toca.
+        "origen": "origen",
+    },
+)
+"""Catálogo de Conceptos + CPU, export nativo de OPUS
+(`ANALISIS_DE_BASICOS_CONCEPTOS.csv`, 2568 filas verificadas): matriz
+donde cada fila es un componente con su propio `Clave Padre` (el
+concepto) → `Clave Hijo` (el insumo), a diferencia del formato plano de
+`CPU` (fila encabezado `TIPO=Concepto` + sus componentes). Ninguna fila
+describe al concepto mismo —`Descripción`/`Unidad` describen siempre al
+hijo—, así que su identidad (descripción, unidad) no sale de este
+archivo: `domain.cargadores.cpu._agrupar_conceptos_matriz` la recibe de
+afuera, cruzada contra el árbol de `presupuesto.construir_arboles` sobre
+`CATALOGO_DE_PRESUPUESTO.csv` (467/468 claves cruzan; la que no cruza
+queda sin descripción y por tanto sin cargar, mismo criterio que
+`_leer_encabezado` en modo plano).
+
+`importe` no se declara a propósito: la columna existe en el archivo real
+(G) pero ningún campo del dominio la guarda —`ComponenteCargado` no tiene
+`importe`, el §7.3 lo recalcula de cantidad × PU—, así que cae sola en
+`MapaColumnas.ignoradas` sin necesidad de alias ni de un campo nuevo."""
 
 COLUMNAS_CPU: tuple[ColumnaPorLetra, ...] = (
     ColumnaPorLetra("clave", "A"),

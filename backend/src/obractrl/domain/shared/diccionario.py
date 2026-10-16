@@ -129,6 +129,25 @@ class CategoriaExplosion(_Canonico):
     SUBCONTRATO = "subcontrato"
     AUXILIAR = "auxiliar"
     MATRIZ = "matriz"
+    TRABAJO = "trabajo"
+    """Mano de obra contratada (`Tipo=Contrato`, matriz nativa de OPUS,
+    `ANALISIS_DE_BASICOS_CONCEPTOS.csv`, migración 0052) sin distinguir
+    todavía `DESTAJO` de `SUBCONTRATO`: el cerebro define esas dos como
+    clases de esta misma categoría de trabajo, pero el archivo que trae
+    la distinción fila por fila (`CATALOGO_DE_TRABAJOS.xlsx`) no está
+    disponible en ningún repo — ni en cerebro ni en esta máquina— y el
+    propio cerebro prohíbe adivinarla por el prefijo de la clave (cita
+    fallos reales de hacerlo). Decisión del usuario: cargar como este
+    genérico, tan indiferenciado como lo tiene hoy el cerebro, y marcar
+    cada fila con el pendiente no crítico `TipoPendiente.
+    TRABAJO_SIN_CLASE` para reclasificar cuando llegue el catálogo real
+    (`domain.cargadores.cpu._agrupar_conceptos_matriz`)."""
+
+    FLETE = "flete"
+    """Transporte de material (`Tipo=Flete`, misma matriz nativa de OPUS,
+    migración 0052): categoría propia e inequívoca, sin el problema de
+    `TRABAJO` — el cerebro ya la tiene así, sin ambigüedad que resolver,
+    por eso no lleva pendiente."""
 
 
 class TipoHijoExplosion(_Canonico):
