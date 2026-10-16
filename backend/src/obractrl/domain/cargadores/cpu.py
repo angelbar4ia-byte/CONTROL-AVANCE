@@ -32,7 +32,7 @@ Módulo puro (§12.11).
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal
 
 from obractrl.domain.cargadores.cabeceras import MapaColumnas
@@ -102,12 +102,16 @@ exportador la escribe distinto en otra corrida (mismo criterio que
 `presupuesto._ALIAS_TIPO_RENGLON`).
 
 ``Contrato`` → `CategoriaExplosion.TRABAJO`: el genérico, sin distinguir
-destajo de subcontrato. El archivo que trae esa distinción fila por fila
-(`CATALOGO_DE_TRABAJOS.xlsx`) no está disponible en ningún repo —decisión
-confirmada con el usuario, no un heurístico de este módulo, que además el
-cerebro prohíbe explícitamente (adivinar por el prefijo de la clave citó
-fallos reales)—, así que cada fila así categorizada se marca también con
-`TipoPendiente.TRABAJO_SIN_CLASE` (ver `_agrupar_conceptos_matriz`).
+destajo de subcontrato por sí solo —nunca por un heurístico de este
+módulo, como adivinar por el prefijo de la clave, que el cerebro prohíbe
+explícitamente (cita fallos reales)—. `CATALOGO_DE_TRABAJOS.csv` (export
+nativo de OPUS, §cabeceras.TRABAJOS_OPUS) sí trae esa distinción fila por
+fila: quien llama a `agrupar_conceptos` puede pasar ``clase_trabajo``
+(clave → `DESTAJO`/`SUBCONTRATO`, construido a partir de ese archivo) y
+`_agrupar_conceptos_matriz` usa la categoría precisa en vez de ésta. Sin
+``clase_trabajo`` —o para una clave que no está en él—, la fila se queda
+en este genérico y se marca con `TipoPendiente.TRABAJO_SIN_CLASE` (ver
+`_agrupar_conceptos_matriz`).
 """
 
 
@@ -356,6 +360,7 @@ def _agrupar_conceptos_matriz(
     filas: Sequence[tuple[int, Sequence[object]]],
     mapa: MapaColumnas,
     descripciones_concepto: Mapping[str, tuple[str, str | None]],
+    clase_trabajo: Mapping[str, CategoriaExplosion] | None = None,
 ) -> tuple[
     tuple[ConceptoCargado, ...],
     tuple[ErrorDeFila, ...],
@@ -387,8 +392,14 @@ def _agrupar_conceptos_matriz(
       (`CATEGORIA_POR_TIPO_MATRIZ`, no `CATEGORIA_POR_TIPO`): un valor
       fuera de ese vocabulario va a la bandeja como `fila_no_parseada`,
       igual que en modo plano. ``Contrato`` → `CategoriaExplosion.
-      TRABAJO` además marca la fila con el pendiente no crítico
-      `TipoPendiente.TRABAJO_SIN_CLASE` (ver `CATEGORIA_POR_TIPO_MATRIZ`).
+      TRABAJO` es el genérico; si ``clase_trabajo`` (clave del insumo →
+      `DESTAJO`/`SUBCONTRATO`, construido por quien llama a partir de
+      `CATALOGO_DE_TRABAJOS.csv`, §cabeceras.TRABAJOS_OPUS) trae esa
+      clave, se usa esa categoría precisa en su lugar y la fila **no**
+      lleva el pendiente. Si no la trae —archivo no disponible, o una
+      clave que de verdad no cruza—, cae en el comportamiento de siempre:
+      la categoría genérica más `TipoPendiente.TRABAJO_SIN_CLASE` (ver
+      `CATEGORIA_POR_TIPO_MATRIZ`).
     - Por construcción, cada ``clave_padre`` es un solo grupo —no hay
       bloque repetido que deduplicar—: ``omitidos`` siempre sale en 0,
       igual que en `agrupar_cuadrillas`, y se conserva solo para que la
@@ -477,13 +488,23 @@ def _agrupar_conceptos_matriz(
             except ErrorEnFila as exc:
                 errores.append(exc.con_fila(numero))
                 continue
+
+            if categoria is CategoriaExplosion.TRABAJO and clase_trabajo:
+                # La clave del insumo ya es un `Clave` validado (§3.3): se
+                # cruza tal cual, sin volver a leer ni normalizar la celda.
+                categoria_precisa = clase_trabajo.get(str(componente.clave_insumo))
+                if categoria_precisa is not None:
+                    categoria = categoria_precisa
+                    componente = replace(componente, categoria=categoria_precisa)
+
             componentes.append(componente)
 
             if categoria is CategoriaExplosion.TRABAJO:
                 # No crítico (§10.3): la fila se carga igual con la
-                # categoría genérica — esto solo marca para reclasificar
-                # cuando llegue CATALOGO_DE_TRABAJOS.xlsx (ver
-                # CATEGORIA_POR_TIPO_MATRIZ).
+                # categoría genérica — esto marca para reclasificar la
+                # clave que no cruzó contra CATALOGO_DE_TRABAJOS.csv (o,
+                # si ``clase_trabajo`` no se recibió, todas: mismo
+                # comportamiento que antes de que el catálogo existiera).
                 pendientes.append(
                     PendientePropuesto(
                         tipo=TipoPendiente.TRABAJO_SIN_CLASE,
@@ -491,8 +512,8 @@ def _agrupar_conceptos_matriz(
                         valor_origen=str(componente.clave_insumo),
                         propuesta={
                             "motivo": (
-                                "CATALOGO_DE_TRABAJOS.xlsx no disponible: "
-                                "reclasificar a destajo/subcontrato cuando llegue."
+                                "CATALOGO_DE_TRABAJOS.csv no trae esta clave: "
+                                "reclasificar a destajo/subcontrato a mano."
                             ),
                             "opciones": ["destajo", "subcontrato"],
                         },
@@ -510,6 +531,7 @@ def agrupar_conceptos(
     mapa: MapaColumnas,
     *,
     descripciones_concepto: Mapping[str, tuple[str, str | None]] | None = None,
+    clase_trabajo: Mapping[str, CategoriaExplosion] | None = None,
 ) -> tuple[
     tuple[ConceptoCargado, ...],
     tuple[ErrorDeFila, ...],
@@ -523,10 +545,21 @@ def agrupar_conceptos(
     por un flag explícito del llamador—, mismo criterio que
     `presupuesto.construir_arboles`: ``clave_padre`` solo lo trae
     `cabeceras.CPU_MATRIZ` (la matriz nativa de OPUS); el formato plano
-    del §10.6 no tiene esa columna. ``descripciones_concepto`` solo se usa
-    en modo matriz —el plano ya trae su propia fila encabezado— y se
-    ignora si el archivo resulta ser plano.
+    del §10.6 no tiene esa columna. ``descripciones_concepto`` y
+    ``clase_trabajo`` solo se usan en modo matriz —el plano ya trae su
+    propia fila encabezado y nunca produce `CategoriaExplosion.TRABAJO`
+    (ver `CATEGORIA_POR_TIPO`)— y se ignoran si el archivo resulta ser
+    plano.
+
+    ``clase_trabajo`` (clave del insumo → `DESTAJO`/`SUBCONTRATO`) la
+    construye quien llama a partir de `CATALOGO_DE_TRABAJOS.csv`
+    (§cabeceras.TRABAJOS_OPUS, §mano_de_obra.clase_de_trabajo). Sin ella
+    —``None``, el default— el comportamiento es exactamente el de antes:
+    todo `Tipo=Contrato` cae en la categoría genérica `TRABAJO` más el
+    pendiente `TipoPendiente.TRABAJO_SIN_CLASE`.
     """
     if "clave_padre" in mapa.indices:
-        return _agrupar_conceptos_matriz(filas, mapa, descripciones_concepto or {})
+        return _agrupar_conceptos_matriz(
+            filas, mapa, descripciones_concepto or {}, clase_trabajo
+        )
     return _agrupar_conceptos_plano(filas, mapa)

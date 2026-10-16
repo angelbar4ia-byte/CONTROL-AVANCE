@@ -96,12 +96,13 @@ class TipoPendiente(StrEnum):
     (`ANALISIS_DE_BASICOS_CONCEPTOS.csv`, extensión propia, §domain.
     cargadores.cpu._agrupar_conceptos_matriz) se cargó como la categoría
     genérica `CategoriaExplosion.TRABAJO` en vez de `destajo`/
-    `subcontrato`: el archivo que distingue una clase de la otra fila por
-    fila (`CATALOGO_DE_TRABAJOS.xlsx`) no está disponible en ningún repo.
-    **No crítico**: la fila se carga igual con la categoría genérica —esto
-    solo marca la fila para que alguien la reclasifique cuando el catálogo
-    real llegue; no es un heurístico por prefijo de clave, eso el cerebro
-    ya lo prohíbe explícitamente."""
+    `subcontrato` porque su clave de insumo no cruzó contra
+    `CATALOGO_DE_TRABAJOS.csv` (§cabeceras.TRABAJOS_OPUS) —no vino
+    ``clase_trabajo`` en la llamada, o la clave simplemente no está en
+    ese catálogo—. **No crítico**: la fila se carga igual con la
+    categoría genérica —esto solo marca la fila para que alguien la
+    reclasifique a mano; no es un heurístico por prefijo de clave, eso el
+    cerebro ya lo prohíbe explícitamente."""
 
 
 @dataclass(frozen=True, slots=True)

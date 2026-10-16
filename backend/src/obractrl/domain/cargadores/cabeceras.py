@@ -33,13 +33,16 @@ __all__ = [
     "CUADRILLAS",
     "ETAPAS_CONSTRUCTIVAS",
     "FAMILIAS",
+    "FLETES_OPUS",
     "MANO_DE_OBRA",
     "MAPA_CPU",
     "MATERIALES",
+    "MATERIALES_OPUS",
     "NIVELES",
     "PRESUPUESTO",
     "PROTOTIPOS",
     "SUBCONTRATOS",
+    "TRABAJOS_OPUS",
     "UNIDADES",
     "ColumnaPorLetra",
     "ErrorDeCabecera",
@@ -577,6 +580,74 @@ MATERIALES = EspecificacionArchivo(
     },
 )
 
+# --- Catálogo de materiales: export nativo de OPUS (extensión propia) ---
+#
+# A diferencia de `MATERIALES` (arriba), que mapea el archivo de la
+# generación anterior (`CABECERAS_MATERIALES.xlsx`), este es el export
+# nativo de OPUS 2025 del mismo catálogo —otro archivo, otras cabeceras
+# literales, mismo contrato de campos—: "Costo base M. N." trae un espacio
+# entre "M." y "N." que el archivo anterior no tenía ("COSTO BASE M.N."),
+# así que el alias de `MATERIALES` no lo resuelve y reusar ese objeto tal
+# cual dejaría `costo_base` en `None` para las 386 filas, en silencio. Dos
+# archivos, dos especificaciones — mismo criterio que `CPU_MATRIZ` frente
+# a `CPU`, y que `PRESUPUESTO` frente al formato plano que no existe aquí.
+
+MATERIALES_OPUS = EspecificacionArchivo(
+    tipo="Catálogo de materiales (export nativo de OPUS)",
+    archivo="CATALOGO_DE_MATERIALES.csv",
+    hoja=None,
+    obligatorias=("clave", "descripcion"),
+    opcionales=("unidad", "familia", "costo_base"),
+    alias={
+        # Mismo razonamiento que `MATERIALES.alias` arriba, con las
+        # cabeceras reales de este archivo: "Costo base M. N." es el costo
+        # base; "Costo base M. E." (en cero en las 386 filas, verificado) y
+        # "Costo unitario" (duplica M. N. en el archivo real, verificado)
+        # se dejan sin mapear a propósito — mapear los tres sería ambigüedad
+        # real (§8.6) y el archivo se rechazaría entero.
+        "costo base m. n.": "costo_base",
+        # "C" (marca de compuesto, "+"/vacío), "Comentarios" (un
+        # consecutivo interno, no texto) y "Subfamilia" no tienen dónde
+        # vivir en `FilaMaterial` hoy; se ignoran sin romper (§10.6, mismo
+        # criterio que el resto de los cargadores con columnas de más).
+        # "Fecha" tampoco se declara: es la vigencia del precio en OPUS, no
+        # algo que este catálogo (sin versionado por fecha) todavía use.
+    },
+)
+"""Catálogo de materiales, export nativo de OPUS 2025
+(`CATALOGO_DE_MATERIALES.csv`, 386 filas verificadas): clave, descripción,
+unidad, familia y costo base — mismo `FilaMaterial`/`validar_material` que
+la generación anterior, el insumo es `tipo=material` sin importar de qué
+generación de archivo vino (§7.3)."""
+
+# `CATALOGO_DE_FLETES.csv` trae exactamente las mismas cabeceras que
+# `CATALOGO_DE_MATERIALES.csv` (confirmado leyendo los dos archivos) — un
+# flete es un insumo `tipo=material` más (§3.3, migración 0052: la
+# categoría de la explosión que distingue "Flete" vive en
+# `CategoriaExplosion.FLETE`, no en el tipo del insumo). Mismo criterio que
+# `SUBCONTRATOS` frente a `MANO_DE_OBRA`: no reusar el objeto tal cual
+# —tiene su propio nombre de archivo para los mensajes de error—, pero sí
+# su contrato de columnas.
+
+FLETES_OPUS = EspecificacionArchivo(
+    tipo="Catálogo de fletes (export nativo de OPUS)",
+    archivo="CATALOGO_DE_FLETES.csv",
+    hoja=None,
+    obligatorias=MATERIALES_OPUS.obligatorias,
+    opcionales=MATERIALES_OPUS.opcionales,
+    alias=dict(MATERIALES_OPUS.alias),
+)
+"""Catálogo de fletes (`CATALOGO_DE_FLETES.csv`, 9 filas verificadas):
+transporte de material, cargado como más filas de `TipoInsumo.MATERIAL`
+—"Flete" es una categoría de la *explosión* del CPU (`CategoriaExplosion.
+FLETE`), no un tipo de insumo distinto—. Las 9 claves no están en
+`CATALOGO_DE_MATERIALES.csv` (verificado): no hay insumo que migre de un
+catálogo al otro con la misma clave en esta corrida, así que no hace falta
+reconciliar por clave contra el conjunto completo de insumos todavía —solo
+registrar que, si algún día una clave migra entre los dos (como documenta
+`CATALOGOS.md` §6 para una corrida anterior), la carga es por clave contra
+el insumo existente, nunca por catálogo de origen (§3.3)."""
+
 # --- Mano de obra / Destajos (§10.6) --------------------------------------
 #
 # Cita literal del §10.6: "Mano de obra (Destajos) (`CABECERAS_MANO_DE_
@@ -630,6 +701,58 @@ SUBCONTRATOS = EspecificacionArchivo(
     opcionales=MANO_DE_OBRA.opcionales,
     alias=dict(MANO_DE_OBRA.alias),
 )
+
+# --- Trabajos: destajos + subcontratos, export nativo de OPUS -----------
+#
+# `CATALOGO_DE_TRABAJOS.csv` trae en un solo archivo lo que la generación
+# anterior repartía en dos (`CABECERAS_MANO_DE_OBRA.xlsx` hoja `DESTAJOS` +
+# `catalogo_de_SUBCONTRATOS.xlsx`): 259 destajos y 6 subcontratos,
+# distinguidos por columna, no por archivo (265 filas, verificado). No
+# reusa `MANO_DE_OBRA`: sus cabeceras son otras ("Costo base M. N." en vez
+# de "COSTO UNITARIO", sin `cuadrilla`/`rendimiento_teorico`) y, sobre
+# todo, la columna que aquí importa no tiene dónde vivir en ese contrato.
+#
+# El archivo repite la cabecera **"Tipo" dos veces** (verificado con
+# `csv.reader`, nunca `DictReader` — con cabeceras duplicadas una pisa a la
+# otra en silencio): la primera es la *clase* (`Destajo`/`Subcontrato`,
+# la que importa — mano_de_obra.clase_de_trabajo la separa de ahí); la
+# última siempre vale `Trabajo` (verificado, 265/265) y es la *categoría*,
+# como `Material` en `MATERIALES_OPUS` — no aporta nada. Igual que
+# `ETAPAS_CONSTRUCTIVAS` con su propia "TIPO" duplicada, las dos se leen
+# como `series` (nunca por posición: si el exportador las reordena, esto
+# sigue funcionando) y se descartan por contenido, no por posición.
+
+TRABAJOS_OPUS = EspecificacionArchivo(
+    tipo="Trabajos (destajos y subcontratos, export nativo de OPUS)",
+    archivo="CATALOGO_DE_TRABAJOS.csv",
+    hoja=None,
+    obligatorias=("clave", "descripcion", "clase"),
+    opcionales=("unidad", "familia", "costo_base"),
+    alias={
+        # Mismo razonamiento que `MATERIALES_OPUS`: "Costo base M. N." es
+        # el costo base; "Costo base M. E." (siempre cero, verificado) y
+        # "Costo unitario" (duplica M. N., verificado) se dejan sin mapear
+        # a propósito para no chocar con el §8.6 (dos alias al mismo campo
+        # son ambigüedad real).
+        "costo base m. n.": "costo_base",
+        # "C", "Clave usuario" (consecutivo interno de OPUS, igual que
+        # "CLAVE USUARIO" en `MANO_DE_OBRA`), "Comentarios", "Subfamilia" y
+        # "Fecha" no tienen dónde vivir hoy; se ignoran sin romper (§10.6).
+    },
+    series={
+        # Las dos columnas "Tipo" del archivo real: se coleccionan en el
+        # orden en que aparecen (primera, luego última) y
+        # `mano_de_obra.clase_de_trabajo` descarta la que vale "Trabajo"
+        # por vocabulario cerrado, no por posición.
+        "tipo": "clase",
+    },
+)
+"""Catálogo combinado de Trabajos, export nativo de OPUS 2025
+(`CATALOGO_DE_TRABAJOS.csv`, 265 filas verificadas: 259 destajo, 6
+subcontrato). No fija por sí solo si una fila es destajo o subcontrato —
+eso es `mano_de_obra.clase_de_trabajo`, que lee la `clase` resuelta aquí y
+decide el `TipoInsumo` con el que `validar_mano_obra` valida la fila
+(`mano_de_obra.validar_trabajo`)."""
 
 CUADRILLAS = EspecificacionArchivo(
     tipo="Cuadrillas",

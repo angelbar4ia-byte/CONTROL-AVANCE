@@ -131,16 +131,19 @@ class CategoriaExplosion(_Canonico):
     MATRIZ = "matriz"
     TRABAJO = "trabajo"
     """Mano de obra contratada (`Tipo=Contrato`, matriz nativa de OPUS,
-    `ANALISIS_DE_BASICOS_CONCEPTOS.csv`, migración 0052) sin distinguir
-    todavía `DESTAJO` de `SUBCONTRATO`: el cerebro define esas dos como
-    clases de esta misma categoría de trabajo, pero el archivo que trae
-    la distinción fila por fila (`CATALOGO_DE_TRABAJOS.xlsx`) no está
-    disponible en ningún repo — ni en cerebro ni en esta máquina— y el
-    propio cerebro prohíbe adivinarla por el prefijo de la clave (cita
-    fallos reales de hacerlo). Decisión del usuario: cargar como este
-    genérico, tan indiferenciado como lo tiene hoy el cerebro, y marcar
-    cada fila con el pendiente no crítico `TipoPendiente.
-    TRABAJO_SIN_CLASE` para reclasificar cuando llegue el catálogo real
+    `ANALISIS_DE_BASICOS_CONCEPTOS.csv`, migración 0052): el genérico, sin
+    distinguir `DESTAJO` de `SUBCONTRATO` por sí mismo — el cerebro
+    prohíbe adivinar esa clase por el prefijo de la clave (cita fallos
+    reales de hacerlo).
+
+    `CATALOGO_DE_TRABAJOS.csv` (export nativo de OPUS, §cabeceras.
+    TRABAJOS_OPUS) sí trae esa distinción fila por fila: cuando quien
+    carga la matriz lo cruza y pasa el resultado como ``clase_trabajo`` a
+    `domain.cargadores.cpu.agrupar_conceptos`, la fila se carga con la
+    categoría precisa (`DESTAJO`/`SUBCONTRATO`) y no por este genérico.
+    Sin ese cruce —o para una clave que no está en el catálogo—, la fila
+    se queda aquí y se marca con el pendiente no crítico `TipoPendiente.
+    TRABAJO_SIN_CLASE` para reclasificar a mano
     (`domain.cargadores.cpu._agrupar_conceptos_matriz`)."""
 
     FLETE = "flete"
