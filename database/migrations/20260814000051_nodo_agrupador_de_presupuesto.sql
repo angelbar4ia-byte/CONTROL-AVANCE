@@ -1,0 +1,23 @@
+-- ============================================================
+-- ObraCtrl · 0051 · Nodo agrupador en el árbol de presupuesto
+-- Spec §7.4 (árbol WBS) · §10.1 · §10.6 (presupuesto jerárquico).
+--
+-- El export nativo de OPUS trae un nivel intermedio ("Nivel 3" en la
+-- columna TIPO del archivo) entre la etapa (ECO-, "Nivel 2") y el
+-- concepto: agrupa varios conceptos reales bajo un subtotal propio, sin
+-- ser él mismo un concepto de catálogo — sus hijos son `Concepto`, no
+-- `Material`/`Destajo`/`Subcontrato` (verificado contra
+-- `CATALOGO_DE_PRESUPUESTO.csv`: 345 filas, hasta 18 hijos cada una,
+-- ninguna comparte la clave de sus hijos).
+--
+-- Por eso no cuelga como `concepto`/`concepto_auxiliar` —esos son hoja en
+-- el aplicador (`aplicar_carga.py`: sus hijos se consumen como explosión,
+-- no como nodos propios)— ni como `etapa` —la etapa real ya tiene su
+-- propia identidad de catálogo (ECO-) y esto no la tiene—. Mismo
+-- tratamiento que `nivel`/`etapa`: recursa, cada hijo es su propio
+-- `prototipo_nodo`.
+--
+-- Precedente de este mismo patrón: migración 0037 (tipo_carga).
+-- ============================================================
+
+alter type tipo_prototipo_nodo add value if not exists 'agrupador';

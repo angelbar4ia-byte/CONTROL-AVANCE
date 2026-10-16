@@ -97,6 +97,10 @@ class ClaseNodo(_Canonico):
     ETAPA = "etapa"
     NIVEL = "nivel"
     CONCEPTO = "concepto"
+    AGRUPADOR = "agrupador"
+    """Nivel intermedio del export nativo de OPUS entre la etapa y el
+    concepto (§7.4, migración 0051): agrupa varios conceptos reales bajo
+    un subtotal propio sin ser él mismo un concepto de catálogo."""
 
 
 # --- Catálogos y APU (§7.3) ---------------------------------------------
