@@ -163,6 +163,18 @@ cualquier valor fuera de este vocabulario cerrado (§8.7, mismo criterio
 que `cpu.CATEGORIA_POR_TIPO_MATRIZ`), en vez de adivinar."""
 
 
+_CATEGORIA_TRABAJO = "trabajo"
+"""Valor esperado, normalizado, de la *categoría* (la segunda "Tipo" del
+archivo — la constante, nunca la clase). No es una traducción: es el
+único valor que esta columna puede tener (verificado: 265/265 filas del
+archivo real), así que `clase_de_trabajo` la valida contra este literal
+en vez de solo descartarla por exclusión — una segunda confirmación, no
+redundante: si el exportador algún día cambia esa columna por algo
+distinto de "Trabajo" (p.ej. la deja vacía, o la llena con la clase por
+error), esto lo detecta con su propio mensaje en vez de que el error
+genérico de "clase" (abajo) señale al lugar equivocado."""
+
+
 def clase_de_trabajo(fila: Sequence[object], mapa: MapaColumnas) -> TipoInsumo:
     """La *clase* de una fila del catálogo de Trabajos — Destajo o
     Subcontrato —, para decidir con qué ``tipo`` validarla.
@@ -170,18 +182,32 @@ def clase_de_trabajo(fila: Sequence[object], mapa: MapaColumnas) -> TipoInsumo:
     El archivo repite la cabecera "Tipo" dos veces (§cabeceras.
     TRABAJOS_OPUS): la clase y, al final, la categoría genérica
     ("Trabajo", siempre). Las dos llegan juntas en la columna ``clase``
-    (serie, no alias — el §8.6 rechazaría dos alias al mismo campo). Se
-    descarta "Trabajo" por vocabulario cerrado y conocido, igual que
-    `etapas_constructivas.es_tipo_de_renglon` descarta el tipo de renglón
-    de su propia columna "TIPO" duplicada — nunca por posición, para que
-    esto siga funcionando si el exportador reordena las columnas.
+    (serie, no alias — el §8.6 rechazaría dos alias al mismo campo).
+    Nunca por posición, para que esto siga funcionando si el exportador
+    reordena las columnas — se distinguen por contenido, en dos pasos:
+
+    1. Exactamente una debe decir "Trabajo" (`_CATEGORIA_TRABAJO`): es la
+       categoría, y se exige explícita, no solo se asume por ser "la que
+       no es la clase" — segunda confirmación de que la columna no
+       cambió de forma inesperada.
+    2. La que sobra es la clase real, y debe ser Destajo o Subcontrato
+       (`_CLASE_A_TIPO`) — igual que antes.
     """
-    candidatos = [
-        texto_limpio(celda)
-        for celda in mapa.valores(fila, "clase")
-        if normalizar(celda) != "trabajo"
-    ]
-    candidatos = [c for c in candidatos if c]
+    valores = [texto_limpio(celda) for celda in mapa.valores(fila, "clase")]
+    valores = [v for v in valores if v]
+
+    categorias = [v for v in valores if normalizar(v) == _CATEGORIA_TRABAJO]
+    if len(categorias) != 1:
+        raise ErrorEnFila(
+            f"clase: se esperaba que una de las dos columnas 'Tipo' dijera "
+            f"literalmente 'Trabajo' (la categoría, §cabeceras.TRABAJOS_OPUS) "
+            f"y se encontraron {len(categorias)} "
+            f"({', '.join(categorias) or 'ninguna'}).",
+            columna="clase",
+            valor=", ".join(categorias) or None,
+        )
+
+    candidatos = [v for v in valores if normalizar(v) != _CATEGORIA_TRABAJO]
     if len(candidatos) != 1:
         raise ErrorEnFila(
             f"clase: se esperaba una sola clase de trabajo (Destajo o "

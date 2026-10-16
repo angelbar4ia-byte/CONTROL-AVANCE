@@ -122,3 +122,22 @@ def test_clase_de_trabajo_rechaza_un_valor_fuera_del_vocabulario() -> None:
 
     with pytest.raises(ErrorEnFila):
         clase_de_trabajo(fila_con_acarreo, mapa)
+
+
+def test_clase_de_trabajo_exige_la_categoria_trabajo_explicita() -> None:
+    """Segunda confirmación: no basta con que sobre una sola clase —la
+    categoría ("Trabajo") también se exige explícita, no solo por
+    exclusión. Si la columna de categoría cambiara (aquí, a mano, por
+    "Destajo" otra vez) se rechaza con su propio mensaje, en vez de que
+    el error genérico de "clase" (dos candidatos) señale al lugar
+    equivocado."""
+    encabezados, filas = _leer_csv(_TRABAJOS)
+    mapa = resolver_encabezados(encabezados, TRABAJOS_OPUS)
+    _, fila_real = filas[0]
+
+    posiciones_tipo = mapa.series["clase"]
+    fila_sin_categoria = list(fila_real)
+    fila_sin_categoria[posiciones_tipo[1]] = "Destajo"
+
+    with pytest.raises(ErrorEnFila, match="literalmente 'Trabajo'"):
+        clase_de_trabajo(fila_sin_categoria, mapa)
