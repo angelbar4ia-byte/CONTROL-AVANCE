@@ -187,6 +187,30 @@ versiona aquí: la prueba que lo usa se salta si la máquina no lo tiene
 (mismo criterio que `tests/domain/test_trabajos_opus_real.py`)."""
 
 
+_PRESUPUESTO_OPUS_CSV = Path(
+    "/home/user/cerebro-erp-construccion/1-mundo/opus/CATALOGO_DE_PRESUPUESTO.csv"
+)
+_CPU_MATRIZ_OPUS_CSV = Path(
+    "/home/user/cerebro-erp-construccion/1-mundo/opus/ANALISIS_DE_BASICOS_CONCEPTOS.csv"
+)
+"""Export nativo de OPUS, repo de referencia de solo lectura — mismo criterio
+que `_TRABAJOS_OPUS_CSV`: no se versionan aquí, y la prueba que los usa se
+salta si la máquina no los tiene."""
+
+
+def _repaquetar_csv_como_xlsx(ruta: Path) -> bytes:
+    """El `.csv` real, reempacado como `.xlsx` en memoria — mismo criterio
+    que `_archivo_trabajos_opus_real` (abajo), generalizado para los otros
+    dos archivos reales de OPUS que esta prueba necesita (presupuesto y la
+    matriz de CPU): el pipeline de carga solo sabe abrir `.xlsx` (§12.11),
+    nunca un `.csv` "renombrado"."""
+    with ruta.open(newline="", encoding="utf-8-sig") as f:
+        todas = list(csv.reader(f))
+    encabezados = todas[0]
+    filas = [fila for fila in todas[1:] if any(celda.strip() for celda in fila)]
+    return _libro([encabezados, *filas])
+
+
 def _archivo_trabajos_opus_real() -> bytes:
     """El `.csv` real, reempacado como `.xlsx` en memoria.
 
@@ -3091,3 +3115,222 @@ async def test_el_alta_plana_sigue_funcionando_bajo_el_mismo_tipo(
     assert resultado.resumen.insertados == 1
     catalogo = await _prototipos(contexto_control)
     assert catalogo["CAS-81"]["nombre"] == "Casa plana"
+
+
+# --- El rollout real completo: presupuesto + trabajos + CPU matriz -------
+#
+# La prueba que demuestra que `CargadorCPU`/`AplicadorCPU` ya pueden recibir
+# la matriz nativa de OPUS (`ANALISIS_DE_BASICOS_CONCEPTOS.csv`) por el
+# pipeline real, contra Postgres real — no solo contra el dominio puro
+# (`tests/domain/test_cpu_opus_real.py`, que nunca toca `AplicadorCPU`).
+# Orden real del rollout (§2 del encargo): primero los 7 prototipos reales
+# (alta plana), luego su árbol de presupuesto (da de alta `concepto` con
+# descripción/unidad reales), luego `CATALOGO_DE_TRABAJOS.csv` (da de alta
+# `insumo` con `DESTAJO`/`SUBCONTRATO` reales) y solo al final la matriz de
+# CPU — los dos mapas que el modo matriz necesita (`descripciones_concepto`,
+# `clase_trabajo`) salen de la base que estos tres pasos ya poblaron, no de
+# otro archivo subido junto con la matriz.
+
+_CLAVES_PROTOTIPOS_REALES = (
+    "CAS-00001",
+    "CAS-00002",
+    "CAS-00003",
+    "CAS-00004",
+    "CAS-00005",
+    "CAS-00006",
+    "CAS-00007",
+)
+
+
+def _archivo_presupuesto_opus_real() -> bytes:
+    return _repaquetar_csv_como_xlsx(_PRESUPUESTO_OPUS_CSV)
+
+
+def _archivo_cpu_matriz_opus_real() -> bytes:
+    return _repaquetar_csv_como_xlsx(_CPU_MATRIZ_OPUS_CSV)
+
+
+async def _conteo_prototipo_nodo_por_tipo(
+    org_id: uuid.UUID,
+) -> dict[str, int]:
+    """`prototipo_nodo.tipo` por organización, con el engine admin (bypassa
+    RLS a propósito: aquí se verifica el resultado del rollout, no el
+    aislamiento — eso ya lo cubre `database/tests/test_rls.sql`, igual que
+    el resto de fixtures de este módulo)."""
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with engine.begin() as conn:
+            filas = (
+                await conn.execute(
+                    text(
+                        "select tipo, count(*) as n from prototipo_nodo "
+                        "where org_id = :org group by tipo"
+                    ),
+                    {"org": str(org_id)},
+                )
+            ).mappings().all()
+    finally:
+        await engine.dispose()
+    return {str(f["tipo"]): f["n"] for f in filas}
+
+
+async def _conteo_explosion_por_categoria(org_id: uuid.UUID) -> dict[str, int]:
+    """`explosion.categoria` de las versiones vigentes de CPU, por
+    organización — mismo criterio de acceso que `_conteo_prototipo_nodo_
+    por_tipo`."""
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with engine.begin() as conn:
+            filas = (
+                await conn.execute(
+                    text(
+                        "select e.categoria, count(*) as n from explosion e "
+                        "join cpu c on c.id = e.cpu_id "
+                        "where c.org_id = :org and c.vigente "
+                        "group by e.categoria"
+                    ),
+                    {"org": str(org_id)},
+                )
+            ).mappings().all()
+    finally:
+        await engine.dispose()
+    return {str(f["categoria"]): f["n"] for f in filas}
+
+
+@pytest.mark.skipif(
+    not (
+        _PRESUPUESTO_OPUS_CSV.exists()
+        and _CPU_MATRIZ_OPUS_CSV.exists()
+        and _TRABAJOS_OPUS_CSV.exists()
+    ),
+    reason=(
+        "Archivos reales del exportador de OPUS no disponibles en este "
+        f"entorno: {_PRESUPUESTO_OPUS_CSV}, {_CPU_MATRIZ_OPUS_CSV}, "
+        f"{_TRABAJOS_OPUS_CSV}"
+    ),
+)
+async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """De punta a punta, con los tres archivos reales completos (sin
+    recortar): 3231 filas de presupuesto (7 prototipos), 265 de trabajos,
+    2568 de la matriz de CPU — por el pipeline real (`EjecutarCarga` →
+    `cargador_para`/`AplicadorDeCarga` → Postgres), no por el dominio puro.
+
+    Paso 0: los 7 prototipos reales, por su alta plana (§7.2) — sin ellos
+    `AplicadorPresupuesto` rechaza el árbol entero por prototipo
+    desconocido (ver su docstring: "no da de alta prototipos").
+    """
+    await _cargar(
+        contexto_control,
+        TipoCarga.PROTOTIPOS,
+        _archivo_prototipos(
+            [["PROY", clave, f"Prototipo {clave}", "", "", ""] for clave in _CLAVES_PROTOTIPOS_REALES]
+        ),
+    )
+    prototipos = await _prototipos(contexto_control)
+    assert set(_CLAVES_PROTOTIPOS_REALES) <= set(prototipos)
+
+    # Paso 1: el árbol de presupuesto real de los 7 prototipos — mismos
+    # conteos ya verificados en `tests/domain/test_presupuesto_opus_real.py`
+    # (318 ETAPA + 238 AGRUPADOR + 2445 CONCEPTO + 102 NIVEL, 121 huecos
+    # descartados), ahora contra Postgres real en vez de en memoria.
+    resultado_presupuesto = await _cargar(
+        contexto_control, TipoCarga.PRESUPUESTO, _archivo_presupuesto_opus_real()
+    )
+    assert resultado_presupuesto.estatus is EstatusCarga.APLICADO
+    assert resultado_presupuesto.resumen.errores == 0
+    # Los 121 huecos del exportador (§tests/domain/test_presupuesto_opus_
+    # real.py) se verifican abajo por el árbol que de verdad quedó en
+    # `prototipo_nodo` (318/238/2445/102), no por `resumen.omitidos`:
+    # ese campo es `AplicadorPresupuesto.omitidos` —que cuenta otra cosa,
+    # conceptos sin cambio y nodos repetidos entre prototipos, no los
+    # huecos de `construir_arboles`— y no es 1:1 con el conteo del dominio.
+
+    conteo_nodos = await _conteo_prototipo_nodo_por_tipo(escenario.org_id)
+    assert conteo_nodos.get("nivel") == 102
+    assert conteo_nodos.get("etapa") == 318
+    assert conteo_nodos.get("agrupador") == 238
+    # 2439, no 2445: `prototipo_nodo` tiene `UNIQUE (org_id, prototipo_id,
+    # parent_id, clave)` (migración 0038) y el archivo real trae 6 pares
+    # `(padre, clave de concepto)` genuinamente repetidos dentro del MISMO
+    # prototipo (verificado leyendo el árbol con Python: CAS-00002,
+    # CAS-00005, CAS-00006 ×3, CAS-00007) — el segundo hace upsert sobre el
+    # primero en vez de otra fila. `construir_arboles` no deduplica eso (no
+    # es su trabajo, §12.11: el dominio arma el árbol tal cual, la unicidad
+    # de fila es la base) y por eso los 2445 nodos CONCEPTO del árbol caen
+    # en 2439 filas distintas de `prototipo_nodo`.
+    assert conteo_nodos.get("concepto") == 2439
+
+    conceptos_tras_presupuesto = await _conceptos(contexto_control)
+    assert len(conceptos_tras_presupuesto) == 471  # conteo verificado del árbol real
+
+    # Paso 2 (primera mitad): `CATALOGO_DE_TRABAJOS.csv` real — 259 Destajo +
+    # 6 Subcontrato (§cabeceras.TRABAJOS_OPUS, ya probado en
+    # `test_carga_de_trabajos_separa_destajo_y_subcontrato_en_una_sola_carga`),
+    # la fuente real de `clase_trabajo` que la matriz de CPU necesita.
+    resultado_trabajos = await _cargar(
+        contexto_control, TipoCarga.TRABAJOS, _archivo_trabajos_opus_real()
+    )
+    assert resultado_trabajos.estatus is EstatusCarga.APLICADO
+    assert resultado_trabajos.resumen.insertados == 265
+    assert resultado_trabajos.resumen.errores == 0
+
+    insumos = await _insumos(contexto_control)
+    destajos_reales = [
+        f for f in insumos.values() if f["tipo"] == str(TipoInsumo.MANO_OBRA)
+    ]
+    subcontratos_reales = [
+        f for f in insumos.values() if f["tipo"] == str(TipoInsumo.SUBCONTRATO)
+    ]
+    assert len(destajos_reales) == 259
+    assert len(subcontratos_reales) == 6
+
+    # Paso 2 (segunda mitad): la matriz nativa de CPU — la que antes de este
+    # cambio era **inalcanzable** desde `CargadorCPU.leer()` (el modo matriz
+    # vivía solo en pruebas de dominio contra el archivo real). Esta es la
+    # prueba de que ya se puede: `AplicadorCPU.aplicar()` construye
+    # `descripciones_concepto` desde `concepto` (recién poblado en el Paso 1)
+    # y `clase_trabajo` desde `insumo` (recién poblado arriba), y agrupa con
+    # `agrupar_conceptos` él mismo.
+    resultado_cpu = await _cargar(
+        contexto_control, TipoCarga.CPU, _archivo_cpu_matriz_opus_real()
+    )
+    assert resultado_cpu.estatus is EstatusCarga.APLICADO
+
+    # 467 de las 468 claves padre `Origen=Concepto` cruzan contra el árbol
+    # de presupuesto (`ACA-01070` no cruza, §tests/domain/test_cpu_opus_
+    # real.py): sus 2 filas (18 y 19) son error de fila, no concepto
+    # fantasma — ningún otro error debería aparecer en el archivo real.
+    assert len(resultado_cpu.errores) == 2
+    assert {e.columna for e in resultado_cpu.errores} == {"clave_padre"}
+    assert {e.valor for e in resultado_cpu.errores} == {"ACA-01070"}
+    # Los 467 conceptos válidos ya existían (del árbol de presupuesto): la
+    # matriz los actualiza con su composición real, no los da de alta.
+    assert resultado_cpu.resumen.insertados == 0
+    assert resultado_cpu.resumen.actualizados == 467
+
+    # Ningún pendiente `trabajo_sin_clase` sobrevive: las 460 filas
+    # `Tipo=Contrato` bajo un concepto válido cruzan al 100% contra
+    # `CATALOGO_DE_TRABAJOS.csv` recién cargado (mismo resultado que
+    # `tests/domain/test_cpu_opus_real.py::
+    # test_ya_no_sobrevive_ningun_pendiente_de_reclasificar`, ahora desde la
+    # base real en vez del archivo releído).
+    async with sesion_con_rls(contexto_control) as sesion:
+        pendientes_cpu = await RepositorioCargasSQL(sesion).listar_pendientes(
+            carga_id=resultado_cpu.carga_id
+        )
+    pendientes_sin_clase = [p for p in pendientes_cpu if p["tipo"] == "trabajo_sin_clase"]
+    assert pendientes_sin_clase == []
+
+    # Categorías correctas en el catálogo de CPU/conceptos —incluido
+    # destajo/subcontrato ya resueltos, no el genérico `trabajo`—: mismos
+    # conteos que `tests/domain/test_cpu_opus_real.py::
+    # test_los_componentes_cargados_cuadran_con_el_tipo_del_archivo`.
+    conteo_categorias = await _conteo_explosion_por_categoria(escenario.org_id)
+    assert conteo_categorias.get("material") == 1692
+    assert conteo_categorias.get("flete") == 35
+    assert conteo_categorias.get("destajo") == 392
+    assert conteo_categorias.get("subcontrato") == 68
+    assert conteo_categorias.get("trabajo", 0) == 0
+    assert conteo_categorias.get("mano_obra", 0) == 0

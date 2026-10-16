@@ -58,6 +58,7 @@ __all__ = [
     "ComponenteCargado",
     "ConceptoCargado",
     "EncabezadoCargado",
+    "FilasMatrizSinAgrupar",
     "agrupar_conceptos",
 ]
 
@@ -163,6 +164,37 @@ class ConceptoCargado:
     def llave(self) -> str:
         """Identidad para dedup y diff: la CLAVE del concepto (§3.3)."""
         return str(self.encabezado.clave)
+
+
+@dataclass(frozen=True, slots=True)
+class FilasMatrizSinAgrupar:
+    """Filas de la matriz nativa de OPUS (`ANALISIS_DE_BASICOS_CONCEPTOS.csv`,
+    §cabeceras.CPU_MATRIZ) leídas pero **sin agrupar** — el contrato de datos
+    entre `adapters.excel.cargadores.CargadorCPU.leer()` y
+    `application.casos_uso.aplicar_carga.AplicadorCPU.aplicar()`.
+
+    `CargadorCPU.leer()` es un adapter puro (sin acceso a base, §12.11): no
+    puede construir ``descripciones_concepto`` ni ``clase_trabajo`` —los dos
+    mapas que este modo necesita (ver docstring del módulo, arriba)— porque
+    ninguno de los dos sale del archivo que se está leyendo, sino de la base
+    ya poblada por otras cargas (el árbol de presupuesto, `CATALOGO_DE_
+    TRABAJOS.csv`). Por eso, cuando el archivo resulta ser la matriz
+    (``clave_padre`` en sus encabezados), `CargadorCPU.leer()` no llama a
+    `agrupar_conceptos` — devuelve esto en `LecturaCarga.registros` (un único
+    elemento) para que sea `AplicadorCPU.aplicar()`, que sí tiene los
+    repositorios inyectados, quien construya los mapas reales y agrupe.
+
+    El modo plano (§10.6) no usa esto en absoluto: sigue devolviendo
+    `ConceptoCargado` ya agrupados en `LecturaCarga.registros`, exactamente
+    como antes de este cambio. `AplicadorCPU.aplicar()` distingue los dos
+    formatos con ``isinstance(lectura.registros[0], FilasMatrizSinAgrupar)``
+    — mismo criterio que ya usa `AplicadorDePrototipos` para distinguir el
+    árbol del alta plana con `ArbolPrototipoCargado` (`domain.cargadores.
+    presupuesto`), no uno nuevo inventado para esta ocasión.
+    """
+
+    mapa: MapaColumnas
+    filas: tuple[tuple[int, Sequence[object]], ...]
 
 
 def _clave_de(celda: object, *, columna: str) -> Clave:

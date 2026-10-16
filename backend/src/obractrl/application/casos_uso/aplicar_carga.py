@@ -48,7 +48,12 @@ from obractrl.domain.cargadores.almacen import FilaMovimiento, importe_con_iva
 from obractrl.domain.cargadores.claves_automaticas import generar_clave_automatica
 from obractrl.domain.cargadores.conceptos_base import FilaConceptoBase
 from obractrl.domain.cargadores.contratistas import FilaContratista
-from obractrl.domain.cargadores.cpu import ComponenteCargado, ConceptoCargado
+from obractrl.domain.cargadores.cpu import (
+    ComponenteCargado,
+    ConceptoCargado,
+    FilasMatrizSinAgrupar,
+    agrupar_conceptos,
+)
 from obractrl.domain.cargadores.cuadrillas import CuadrillaCargada
 from obractrl.domain.cargadores.etapas_constructivas import FilaEtapaConstructiva
 from obractrl.domain.cargadores.familias import FilaFamilia
@@ -2056,12 +2061,31 @@ _TIPO_INSUMO_POR_CATEGORIA: dict[CategoriaExplosion, TipoInsumo] = {
     CategoriaExplosion.MANO_OBRA: TipoInsumo.MANO_OBRA,
     CategoriaExplosion.DESTAJO: TipoInsumo.MANO_OBRA,
     CategoriaExplosion.SUBCONTRATO: TipoInsumo.SUBCONTRATO,
+    # Las dos de abajo solo las produce el modo matriz (§cabeceras.
+    # CPU_MATRIZ, migración 0052) — `cpu.CATEGORIA_POR_TIPO` (plano) nunca
+    # las genera. `TipoInsumo` no tiene un valor propio para ninguna de las
+    # dos (no se inventa uno nuevo aquí: eso es una migración, fuera de
+    # alcance de este aplicador), así que se dan de alta bajo el tipo más
+    # cercano que sí existe:
+    CategoriaExplosion.FLETE: TipoInsumo.MATERIAL,
+    # "Transporte de material" (`cpu.CATEGORIA_POR_TIPO_MATRIZ`): un flete
+    # nuevo entra al catálogo de insumos como material — no tiene cuadrilla
+    # ni rendimiento de mano de obra, y es lo que ya hace homologación con
+    # alerta un renglón arriba al tratarlo igual que cualquier componente.
+    CategoriaExplosion.TRABAJO: TipoInsumo.MANO_OBRA,
+    # El genérico de `Tipo=Contrato` sin `clase_trabajo` que lo resuelva
+    # (`TipoPendiente.TRABAJO_SIN_CLASE`, no crítico): "mano de obra
+    # contratada" por su propio docstring, mismo tipo que `DESTAJO` arriba
+    # — nunca debería necesitarse en datos reales con `CATALOGO_DE_
+    # TRABAJOS.csv` ya cargado (cruza al 100%, verificado), pero sin esta
+    # entrada un archivo con una clave de verdad sin clase tumbaría la
+    # carga entera con un `KeyError` en vez de dar de alta el insumo y
+    # dejar el pendiente para reclasificar a mano.
 }
 """Tipo del insumo que se da de alta cuando un componente no cruza contra el
-catálogo — de `AplicadorCPU` (`cpu.CATEGORIA_POR_TIPO`, nunca produce
-`DESTAJO`) y de `AplicadorPresupuesto` (`_CATEGORIA_POR_TIPO_NODO`, nunca
-produce `MANO_OBRA`): un componente de otra categoría no llega hasta aquí
-en ninguno de los dos."""
+catálogo — de `AplicadorCPU` (`cpu.CATEGORIA_POR_TIPO`/`CATEGORIA_POR_TIPO_
+MATRIZ`) y de `AplicadorPresupuesto` (`_CATEGORIA_POR_TIPO_NODO`, nunca
+produce nada de la matriz: ese archivo no tiene modo matriz)."""
 
 
 class AplicadorCPU:
@@ -2080,6 +2104,18 @@ class AplicadorCPU:
     alta. `CATEGORIA_POR_TIPO` (`domain.cargadores.cpu`) ya limita esto a
     material, mano de obra y subcontrato — un componente de otra categoría
     ni siquiera llega hasta aquí.
+
+    **Modo matriz** (`CargadorCPU` en su variante de la matriz nativa de
+    OPUS, §cabeceras.CPU_MATRIZ): `lectura.registros` llega sin agrupar —un
+    único `domain.cargadores.cpu.FilasMatrizSinAgrupar`, ver su docstring y
+    el de `CargadorCPU`— porque agruparlo exige dos mapas que ningún
+    archivo subido solo puede dar: ``descripciones_concepto`` (clave de
+    concepto → su descripción/unidad reales) y ``clase_trabajo`` (clave de
+    insumo → `DESTAJO`/`SUBCONTRATO`). Este aplicador sí puede construirlos
+    —ya consulta `self._conceptos`/`self._insumos` al principio— y es quien
+    llama a `agrupar_conceptos` antes de seguir con el resto del método
+    exactamente igual que en modo plano (que llega ya agrupado, como
+    siempre, y no toca este camino nuevo en absoluto).
     """
 
     def __init__(
@@ -2161,8 +2197,69 @@ class AplicadorCPU:
         nuevas_familias_insumo: dict[str, UUID | None] = {}
         nuevos_insumos: dict[str, UUID | None] = {}
 
-        for registro in lectura.registros:
-            bloque: ConceptoCargado = registro  # type: ignore[assignment]
+        omitidos_de_agrupar = 0
+        registros_cpu: tuple[ConceptoCargado, ...]
+        primer_registro = lectura.registros[0] if lectura.registros else None
+        if isinstance(primer_registro, FilasMatrizSinAgrupar):
+            # Modo matriz (§cabeceras.CPU_MATRIZ): `CargadorCPU.leer()` no
+            # pudo agrupar —no tiene acceso a base (§12.11)— y dejó las
+            # filas crudas para que se agrupen aquí, con los dos mapas que
+            # solo la base puede dar (ver docstring de la clase).
+            crudo = primer_registro
+
+            # clave de concepto → (descripción, unidad real): de la tabla
+            # `concepto` ya poblada (normalmente por el árbol de presupuesto
+            # del mismo prototipo, cargado antes — §cabeceras.CPU_MATRIZ), no
+            # de otro archivo subido ahora. Se filtran los que de verdad
+            # traen descripción útil: sin ella el concepto no es
+            # identificable (§10.1), mismo criterio que `_leer_encabezado`
+            # (modo plano) y que `_agrupar_conceptos_matriz` al cruzar contra
+            # el árbol de presupuesto.
+            clave_de_unidad = {f["id"]: str(f["clave"]) for f in unidades_filas}
+            descripciones_concepto: dict[str, tuple[str, str | None]] = {}
+            for fila_concepto in conceptos_filas:
+                descripcion = str(fila_concepto.get("descripcion") or "").strip()
+                if not descripcion:
+                    continue
+                descripciones_concepto[str(fila_concepto["clave"])] = (
+                    descripcion,
+                    clave_de_unidad.get(fila_concepto.get("unidad_id")),
+                )
+
+            # clave de insumo → DESTAJO/SUBCONTRATO: de `insumo` ya poblado
+            # (normalmente por `CATALOGO_DE_TRABAJOS.csv`, §cabeceras.
+            # TRABAJOS_OPUS, cargado antes) — mismo mapeo tipo→categoría que
+            # usa la prueba de dominio (`test_cpu_opus_real._mapa_clase_
+            # trabajo`), aquí contra la tabla `insumo` en vez de releer el
+            # archivo.
+            clase_por_tipo_insumo = {
+                str(TipoInsumo.MANO_OBRA): CategoriaExplosion.DESTAJO,
+                str(TipoInsumo.SUBCONTRATO): CategoriaExplosion.SUBCONTRATO,
+            }
+            clase_trabajo = {
+                str(fila_insumo["clave"]): clase_por_tipo_insumo[fila_insumo["tipo"]]
+                for fila_insumo in insumos_filas
+                if fila_insumo["tipo"] in clase_por_tipo_insumo
+            }
+
+            (
+                registros_cpu,
+                errores_de_agrupar,
+                pendientes_de_agrupar,
+                omitidos_de_agrupar,
+            ) = agrupar_conceptos(
+                crudo.filas,
+                crudo.mapa,
+                descripciones_concepto=descripciones_concepto,
+                clase_trabajo=clase_trabajo,
+            )
+            errores.extend(errores_de_agrupar)
+            pendientes.extend(pendientes_de_agrupar)
+        else:
+            registros_cpu = lectura.registros  # type: ignore[assignment]
+
+        for registro in registros_cpu:
+            bloque: ConceptoCargado = registro
             cabeza = bloque.encabezado
 
             componentes: list[Componente] = []
@@ -2448,7 +2545,7 @@ class AplicadorCPU:
             errores=tuple(errores),
             insertados=len(diff.altas),
             actualizados=len(diff.cambios) + len(diff.bajas),
-            omitidos=diff.omitidos + lectura.omitidos,
+            omitidos=diff.omitidos + lectura.omitidos + omitidos_de_agrupar,
             detalle={
                 "unidades_creadas": len(nuevas_unidades),
                 "familias_creadas": len(nuevas_familias),
