@@ -104,6 +104,55 @@ class TipoPendiente(StrEnum):
     reclasifique a mano; no es un heurístico por prefijo de clave, eso el
     cerebro ya lo prohíbe explícitamente."""
 
+    INSUMO_SIN_COSTEAR = "insumo_sin_costear"
+    """Ingeniería del lote (extensión propia, `domain.cargadores.
+    ingenieria_lote`, CONOCIMIENTO.md §11.8, estructura `SIN_COSTEAR`): una
+    línea de insumo sin clave y sin precio/importe — no identificable ni
+    valuable. **No crítico**: el resto del archivo se sigue procesando
+    igual; esto solo marca la línea para que alguien la complete a mano,
+    nunca se inventa la clave ni el precio que falta."""
+
+    ESTRUCTURA_AJENA_SIN_PARSEAR = "estructura_ajena_sin_parsear"
+    """Ingeniería del lote (extensión propia, `domain.cargadores.
+    ingenieria_lote`, CONOCIMIENTO.md §11.8, estructura `AJENA`): el ancho
+    de columna no es el de las demás ingenierías del lote — título y
+    encabezados propios, clave embebida en la descripción. **Crítico**:
+    esta fase no intenta extraer la clave por regex sobre texto libre
+    (adivinar un contrato que el archivo no da, §3.3); el archivo entero
+    queda pendiente de un trabajo de carga aparte."""
+
+    IDENTIDAD_PROTOTIPO_DUDOSA = "identidad_prototipo_dudosa"
+    """Identificación del prototipo de un lote (extensión propia, `domain.
+    ingenieria.identificacion`, CONOCIMIENTO.md §11.7/§11.5, P-30): la razón
+    `total de la ingeniería ÷ total del prototipo candidato` se desvía más
+    del umbral configurado para TODOS los prototipos del catálogo — ninguno
+    cae dentro de rango. **No crítico, pero nunca se autoasigna**: se
+    sugiere el candidato más cercano como propuesta, y queda en alerta
+    (`MODELO.md` §5a) hasta que alguien la confirme — "comparar por
+    contenido... ya atrapó una descripción que mentía" (§11.7); el sistema
+    detecta, nunca corrige solo."""
+
+    DESTAJO_AMBIGUO = "destajo_ambiguo"
+    """Reversión por destajo de la ingeniería del lote (extensión propia,
+    `domain.ingenieria.reversion`, CONOCIMIENTO.md §11.9/§11.13, D-489): un
+    destajo tiene más de un concepto candidato en su misma etapa, la suma
+    de lo presupuestado no cierra exacto contra la cantidad real, y ningún
+    insumo material de esa etapa usa un solo candidato para desempatar.
+    **No crítico**: se propone la suma real y la lista de candidatos, sin
+    elegir el más probable — "nunca se elige el más probable" (§11.9); el
+    reparto queda pendiente de que alguien lo resuelva."""
+
+    DESTAJO_SIN_CANDIDATO = "destajo_sin_candidato"
+    """Reversión por destajo de la ingeniería del lote (extensión propia,
+    `domain.ingenieria.reversion`, CONOCIMIENTO.md §11.9, D-489): la clave
+    del destajo no aparece en ninguna matriz del prototipo ya identificado,
+    ni directa ni dentro de un compuesto. **No crítico, nunca se autocorrige
+    por proximidad de clave** (§11.9: "un dígito de diferencia cae sobre
+    otro trabajo que sí existe"): si además hay exactamente un destajo que
+    el presupuesto exige y la ingeniería no trae, con la misma descripción/
+    cantidad/precio, la propuesta lleva las dos lecturas —errata de captura
+    o trabajo nuevo no autorizado— y se reporta sin tocar nada."""
+
 
 @dataclass(frozen=True, slots=True)
 class ErrorDeFila:
