@@ -46,6 +46,7 @@ from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra, validar_t
 from obractrl.domain.cargadores.materiales import validar_material
 from obractrl.domain.cargadores.niveles import validar_nivel
 from obractrl.domain.cargadores.presupuesto import construir_arboles
+from obractrl.domain.cargadores.programa_base import leer_programa_base
 from obractrl.domain.cargadores.prototipos import validar_prototipo
 from obractrl.domain.cargadores.reporte import ErrorEnFila, LecturaCarga
 from obractrl.domain.cargadores.unidades import validar_unidad
@@ -67,6 +68,7 @@ __all__ = [
     "CargadorMateriales",
     "CargadorNiveles",
     "CargadorPresupuesto",
+    "CargadorProgramaBase",
     "CargadorPrototipos",
     "CargadorSubcontratos",
     "CargadorTrabajos",
@@ -596,6 +598,29 @@ class CargadorPresupuesto:
         )
 
 
+class CargadorProgramaBase:
+    """Programa base de prototipo — `PROGRAMA_<PROTOTIPO>.xlsx`, hoja
+    `Hoja1` (extensión propia). El archivo real apila varios prototipos uno
+    tras otro (un `Capítulo` por prototipo); `leer_programa_base` los separa
+    en bloques y el aplicador elige el del `prototipo_id` pedido — ver
+    `domain.cargadores.programa_base` y `cabeceras.PROGRAMA_BASE`."""
+
+    tipo = TipoCarga.PROGRAMA_BASE
+    especificacion = cabeceras.PROGRAMA_BASE
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        mapa, filas = leer_filas(contenido, self.especificacion, limites=self._limites)
+        bloques, errores = leer_programa_base(filas, mapa)
+        return LecturaCarga(
+            registros=tuple(bloques),
+            errores=errores,
+            filas_leidas=len(filas),
+        )
+
+
 def _es_fila_de_encabezados(fila: object) -> bool:
     """¿Esta fila es la de títulos y no un dato?
 
@@ -628,6 +653,7 @@ CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.ALMACEN: CargadorAlmacen,
     TipoCarga.PROTOTIPOS: CargadorPrototipos,
     TipoCarga.PRESUPUESTO: CargadorPresupuesto,
+    TipoCarga.PROGRAMA_BASE: CargadorProgramaBase,
     TipoCarga.INGENIERIA_LOTE: CargadorIngenieriaLote,
 }
 """Tipos del §8.2 que hoy tienen cargador. Los demás no se inventan."""

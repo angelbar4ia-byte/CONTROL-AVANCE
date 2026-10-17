@@ -81,6 +81,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorMateriales,
     AplicadorNiveles,
     AplicadorPresupuesto,
+    AplicadorProgramaBase,
     AplicadorPrototipos,
     AplicadorTrabajos,
     AplicadorUnidades,
@@ -1213,6 +1214,15 @@ class FabricaDeCargas:
                     niveles_etapas=RepositorioNivelesEtapasSQL(sesion),
                     presupuestos=RepositorioPresupuestosSQL(sesion),
                     cargas=cargas,
+                ),
+            )
+        if tipo is TipoCarga.PROGRAMA_BASE:
+            return AplicadorProgramaBase(
+                prototipos=RepositorioPrototiposSQL(sesion),
+                prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+                crear_programa_base=CrearProgramaBase(
+                    programas=RepositorioProgramasSQL(sesion),
+                    uow=UnidadDeTrabajoSQL(sesion),
                 ),
             )
         if tipo is TipoCarga.INGENIERIA_LOTE:

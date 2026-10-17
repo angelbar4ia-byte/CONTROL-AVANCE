@@ -39,6 +39,7 @@ __all__ = [
     "MATERIALES",
     "NIVELES",
     "PRESUPUESTO",
+    "PROGRAMA_BASE",
     "PROTOTIPOS",
     "SUBCONTRATOS",
     "TRABAJOS_OPUS",
@@ -923,6 +924,60 @@ queda sin descripción y por tanto sin cargar, mismo criterio que
 (G) pero ningún campo del dominio la guarda —`ComponenteCargado` no tiene
 `importe`, el §7.3 lo recalcula de cantidad × PU—, así que cae sola en
 `MapaColumnas.ignoradas` sin necesidad de alias ni de un campo nuevo."""
+
+# --- Programa base de prototipo (extensión propia, no está en el §10.6) -
+#
+# Export real del cronograma hecho a mano en MS Project/OPUS, el mismo
+# archivo que cerebro documenta en `1-mundo/PROGRAMA-CPM.md` y carga con
+# `backend/core/programa.py`. No lo describe el §10.6 — igual que
+# `PRESUPUESTO` y `PROTOTIPOS` — así que sus columnas propias necesitan
+# alias explícito.
+#
+# El archivo real (`PROGRAMA_<PROTOTIPO>.xlsx`) trae, además de las de
+# abajo, unas ~190 columnas tituladas "Cantidad" repetidas (un histograma de
+# recurso por periodo) y columnas de avance/holgura/rendimiento que esta
+# plantilla no necesita en absoluto. A propósito **no** se declaran aquí:
+# una columna fuera de `obligatorias`/`opcionales` cae sola en `ignoradas`
+# sin pasar por la regla de ambigüedad de `resolver_encabezados` — declarar
+# "cantidad" aquí (como hace `PRESUPUESTO`) haría que las ~190 repeticiones
+# choquen entre sí y el archivo se rechazara entero por un dato que el
+# programa base ni siquiera guarda (`ItemProgramaBase` no tiene cantidad).
+
+PROGRAMA_BASE = EspecificacionArchivo(
+    tipo="Programa base de prototipo (cronograma, extensión propia)",
+    archivo="PROGRAMA_<PROTOTIPO>.xlsx",
+    hoja="Hoja1",
+    # `Hoja2` del archivo real no trae encabezados ni columnas de identidad
+    # —es un histograma de recurso por periodo, puras celdas numéricas o
+    # vacías bajo un renglón de título en blanco—, así que no es la hoja a
+    # leer (verificado contra el archivo real, confirmado con el usuario).
+    obligatorias=("tipo", "nivel", "clave", "descripcion"),
+    opcionales=("fecha_inicio", "fecha_termino", "dias_laborables", "vinculos", "indice"),
+    alias={
+        # "Nivel " (con espacio al final, igual que `PRESUPUESTO`): profundidad
+        # del renglón en el árbol —0 el Capítulo, 4 el Concepto—, la misma
+        # columna con la que `programa_base.leer_programa_base` reconstruye la
+        # jerarquía (ver su docstring: no hay `clave_padre` en este archivo).
+        "nivel": "nivel",
+        "indice": "indice",
+        "fecha de inicio": "fecha_inicio",
+        "fecha de termino": "fecha_termino",
+        "dias laborables": "dias_laborables",
+        # "Vínculos": el texto fuente `<fila><FS|SS|FF|SF>[±horas]` de D-442/
+        # D-443 (`1-mundo/MODELO.md` §5c). No vive en el mapa global del §8.6.
+        "vinculos": "vinculos",
+    },
+)
+"""Mismas cinco filas (`Capítulo · Subcapítulo · Nivel 2 · Nivel 3 ·
+Concepto`) y el mismo árbol que `PRESUPUESTO`/`construir_arboles` —de hecho
+es un export del mismo cronograma— pero por `nivel` + posición, nunca por
+`clave_padre` (el archivo real no la trae en absoluto, a diferencia del
+árbol nativo de OPUS que sí puede traer una u otra). El archivo real trae
+además **siete** `Capítulo` seguidos —los siete prototipos de
+`1-mundo/programas/PROGRAMAS-PROTOTIPOS.csv`, concatenados uno tras otro,
+igual que `CATALOGO_DE_PRESUPUESTO.csv`—: `domain.cargadores.programa_base`
+parte el archivo por cada `Capítulo` y el aplicador elige el bloque del
+`prototipo_id` pedido."""
 
 COLUMNAS_CPU: tuple[ColumnaPorLetra, ...] = (
     ColumnaPorLetra("clave", "A"),

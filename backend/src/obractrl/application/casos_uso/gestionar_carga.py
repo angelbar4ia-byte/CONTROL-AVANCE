@@ -31,6 +31,7 @@ from uuid import UUID
 from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorDeCarga,
     AplicadorIngenieriaLote,
+    AplicadorProgramaBase,
 )
 from obractrl.application.puertos.cargadores import LectorDeCarga, RepositorioCargas
 from obractrl.application.puertos.repositorios import (
@@ -142,6 +143,14 @@ class ComandoEjecutarCarga:
     —se declara explícito antes de subir, nunca se adivina del nombre del
     archivo— y por eso vive aquí, no en `archivo_nombre`."""
 
+    prototipo_id: UUID | None = None
+    """Solo `TipoCarga.PROGRAMA_BASE` (extensión propia, §7.5): a qué
+    prototipo pertenece el cronograma. El archivo real apila varios
+    prototipos uno tras otro (un `Capítulo` por prototipo,
+    `domain.cargadores.programa_base`); igual que `obra_id` en la
+    ingeniería del lote, se declara explícito antes de subir, nunca se
+    adivina del contenido del archivo."""
+
 
 @dataclass(frozen=True, slots=True)
 class ResultadoCarga:
@@ -213,6 +222,17 @@ class EjecutarCarga:
                 prototipo_base_id=cmd.prototipo_base_id,
                 nombre_prototipo_nuevo=cmd.nombre_prototipo_nuevo,
                 etapa_externa=cmd.etapa_externa,
+            )
+        elif isinstance(self._aplicador, AplicadorProgramaBase):
+            # Igual que `AplicadorIngenieriaLote`: necesita contexto fuera
+            # del archivo (`prototipo_id`, §7.5) que el `Protocol` genérico
+            # no declara, así que se angosta el tipo aquí mismo.
+            aplicacion = await self._aplicador.aplicar(
+                lectura,
+                modo=cmd.modo,
+                dry_run=cmd.dry_run,
+                carga_id=carga_id,
+                prototipo_id=cmd.prototipo_id,
             )
         else:
             aplicacion = await self._aplicador.aplicar(

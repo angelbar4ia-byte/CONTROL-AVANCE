@@ -30,6 +30,10 @@ from typing import Any, Protocol, runtime_checkable
 from uuid import UUID, uuid4
 
 from obractrl.application.casos_uso.calcular_cpu import componentes_por_clave
+from obractrl.application.casos_uso.gestionar_programacion import (
+    ComandoCrearProgramaBase,
+    CrearProgramaBase,
+)
 from obractrl.application.puertos.cargadores import RepositorioCargas
 from obractrl.application.puertos.repositorios import (
     RepositorioConceptos,
@@ -77,6 +81,10 @@ from obractrl.domain.cargadores.presupuesto import (
     TipoNodoPresupuesto,
     es_etapa_con_componentes_directos,
 )
+from obractrl.domain.cargadores.programa_base import (
+    BloqueProgramaCargado,
+    resolver_vinculos,
+)
 from obractrl.domain.cargadores.prototipos import FilaPrototipo
 from obractrl.domain.cargadores.reporte import (
     ErrorDeFila,
@@ -110,6 +118,9 @@ from obractrl.domain.ingenieria.reversion import (
     revertir_destajos,
 )
 from obractrl.domain.materiales.reglas import ErrorDeMaterial, validar_signo_salida
+from obractrl.domain.programacion.calendario import CalendarioLaboral
+from obractrl.domain.programacion.cpm import Dependencia
+from obractrl.domain.programacion.reglas import ItemProgramaBase
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto, Prototipo
 from obractrl.domain.shared.diccionario import (
     CategoriaExplosion,
@@ -135,11 +146,14 @@ __all__ = [
     "AplicadorMateriales",
     "AplicadorNiveles",
     "AplicadorPresupuesto",
+    "AplicadorProgramaBase",
     "AplicadorPrototipos",
     "AplicadorTrabajos",
     "CaminoIngenieria",
     "ContextoIngenieriaIncompleto",
+    "ContextoProgramaBaseIncompleto",
     "EstructuraDeIngenieriaNoSoportada",
+    "PrototipoDeProgramaNoEncontrado",
 ]
 
 _ESTATUS_BAJA = "inactivo"
@@ -5467,5 +5481,302 @@ class AplicadorIngenieriaLote:
                 "prototipo_base": str(base["clave"]),
                 "nodos_clonados": len(nodos_destino),
                 "conceptos_reclasificados": actualizados,
+            },
+        )
+
+
+# --- Programa base de prototipo: el cronograma real (§7.5, extensión propia) -
+#
+# No está en el §10.6 — igual que `PRESUPUESTO`/`PROTOTIPOS`. Reusa
+# `gestionar_programacion.CrearProgramaBase.ejecutar`, el caso de uso que ya
+# hace el alta completa de un `ProgramaBase` (§10.8: cada carga es una
+# versión nueva); este aplicador solo lee el archivo real y arma el
+# `ComandoCrearProgramaBase` correspondiente — nunca reimplementa el alta.
+
+
+class ContextoProgramaBaseIncompleto(ValueError):
+    """Falta `prototipo_id` (§7.5, §11.3 G): contra qué prototipo se carga
+    el programa se declara explícito antes de subir el archivo —igual que
+    `obra_id` en la ingeniería del lote—, nunca se adivina de su contenido
+    (el archivo real trae varios prototipos apilados, uno por `Capítulo`)."""
+
+
+class PrototipoDeProgramaNoEncontrado(LookupError):
+    """El `prototipo_id` no existe, o el archivo no trae el bloque de ese
+    prototipo (ningún `Capítulo` con su clave) — RLS hace indistinguible
+    "no existe" de "no está en tu alcance" (§12.4), y el segundo caso es un
+    error del archivo subido contra el prototipo pedido, no de una fila."""
+
+
+_CALENDARIO_PROGRAMA_BASE = CalendarioLaboral.de([1, 2, 3, 4, 5])
+"""Lunes a viernes: el calendario real de estos programas
+(`1-mundo/PROGRAMA-CPM.md`: "Calendario del ejercicio: lunes a viernes..."),
+confirmado también por aritmética sobre las fechas del archivo real de
+Zafiro (11 días hábiles en una ventana de 15 corridos con dos fines de
+semana). No es `domain.programacion.calendario.SEMANA_LABORAL` —esa
+constante es lunes a **sábado**, la semana de obra típica en México, pero
+no la de este archivo en particular—; se construye explícito con
+`CalendarioLaboral.de(...)` en vez de reusar ese nombre para no sugerir que
+son la misma cosa. Los feriados del ejercicio (25-dic, etc.) no se
+modelan: `calendario.py` no tiene todavía un calendario de excepciones
+(ver su docstring, "Días festivos")."""
+
+
+def _rutas_de_prototipo_nodo(nodos: Sequence[Mapping[str, Any]]) -> dict[tuple[str, ...], UUID]:
+    """`prototipo_nodo_id` por `ruta` (cadena de claves ancestro→…→propia,
+    sin la raíz) — la misma identidad, recursiva, que
+    `uq_prototipo_nodo_posicion` (migración 0038) y que
+    `domain.cargadores.programa_base.FilaProgramaBase.ruta` calcula del
+    lado del archivo. Clave sola sería ambigua: la misma clave de concepto
+    puede colgar de dos padres distintos del mismo prototipo (ver el
+    docstring del módulo de dominio)."""
+    por_id: dict[Any, Mapping[str, Any]] = {n["id"]: n for n in nodos}
+    cache: dict[Any, tuple[str, ...]] = {}
+
+    def ruta_de(nodo_id: Any) -> tuple[str, ...]:
+        if nodo_id in cache:
+            return cache[nodo_id]
+        nodo = por_id[nodo_id]
+        clave = str(nodo["clave"]) if nodo.get("clave") else ""
+        padre_id = nodo.get("parent_id")
+        base = ruta_de(padre_id) if padre_id is not None and padre_id in por_id else ()
+        resultado = (*base, clave) if clave else base
+        cache[nodo_id] = resultado
+        return resultado
+
+    return {
+        ruta_de(nodo["id"]): nodo["id"]
+        for nodo in nodos
+        if nodo.get("clave")
+    }
+
+
+class AplicadorProgramaBase:
+    """Programa base de un prototipo: el cronograma real (§7.5, extensión
+    propia). Ver `domain.cargadores.programa_base` para el formato del
+    archivo y las reglas de D-442/D-443 (vínculos, bloques como
+    predecesora, ciclos, vínculos incumplidos).
+
+    **`prototipo_id` se declara explícito, igual que `obra_id` en la
+    ingeniería del lote** (`ContextoProgramaBaseIncompleto`): el archivo
+    real trae varios prototipos apilados —uno por `Capítulo`— y adivinar
+    cuál cargar del nombre del archivo sería exactamente lo que el §3.3
+    prohíbe. El bloque de ese prototipo se busca por su clave (la del
+    `Capítulo`) dentro de los bloques que `domain.cargadores.programa_base.
+    leer_programa_base` separó; los demás bloques del archivo —los otros
+    seis prototipos de Zafiro, en el archivo real— se ignoran sin más: son
+    el programa de otro prototipo, cargable después con su propio
+    `prototipo_id`.
+
+    **Cómo se resuelve cada `Concepto` del archivo a su
+    `prototipo_nodo_id`.** El archivo no trae ninguna referencia a la base
+    —solo claves y la jerarquía `Tipo`/`Nivel` del propio export—, así que
+    cada partida se busca por su `ruta` (ver el docstring del módulo de
+    dominio) contra el árbol YA cargado del prototipo
+    (`RepositorioPrototipoNodo.por_prototipo`, el que subió el cargador de
+    Presupuesto). Una `ruta` sin nodo correspondiente —el archivo del
+    programa y el del presupuesto no describen exactamente el mismo
+    árbol; verificado contra el archivo real de Zafiro: unas pocas
+    partidas de un subárbol (`OBE-01010`/`ACA-00021`) no cruzan— es
+    `TipoPendiente.MAPEO_NO_RECONOCIDO`, **no crítico**: la carga sigue sin
+    esa partida, nunca se adivina por proximidad de clave.
+
+    **Los vínculos** se resuelven con `domain.cargadores.programa_base.
+    resolver_vinculos` —puro, sobre números de fila del archivo— y
+    **después** se traducen aquí a `Dependencia(ref=<prototipo_nodo_id>)`:
+    `gestionar_programacion.reglas.instanciar_programa._resolver` cruza
+    `Dependencia.ref` contra `actividad.prototipo_nodo_id`, así que el
+    `ref` tiene que ser ese id —nunca la clave del renglón, que no es
+    única dentro del árbol (ver el docstring de dominio)— para que la
+    dependencia funcione de verdad una vez instanciado el programa en una
+    obra. Un vínculo cuya predecesora no resuelve a ningún nodo se
+    reporta (`MAPEO_NO_RECONOCIDO`, sobre la predecesora) y se omite de
+    esa partida en particular; el resto de sus vínculos y la partida
+    misma se cargan igual.
+
+    **No hay alta de prototipos ni de árbol aquí** (a diferencia de
+    `AplicadorPresupuesto`, que sí da de alta insumos/unidades que no
+    cruzan): un `prototipo_nodo` que no existe es un hueco para completar
+    con el cargador de Presupuesto, no algo que este cargador deba
+    inventar.
+
+    **Revertir esta carga.** `CrearProgramaBase.ejecutar` abre y confirma
+    su propia unidad de trabajo —es quien versiona `programa_base`
+    (§10.8), y hacerlo así es justo lo que se reusa en vez de
+    reimplementar—; este aplicador no registra `operaciones` (snapshot)
+    porque no hay un "antes" registro por registro que restaurar con el
+    mecanismo genérico de `RevertirCarga` (`adapters.repos.cargas_sql.
+    _RESTAURAR`): el alta completa ya es, en sí misma, una versión nueva
+    de `programa_base` de la que se puede volver a la anterior por el
+    propio versionado del contexto Programación, no por la reversa
+    genérica de cargas. Documentado aquí a propósito, no escondido: una
+    carga de este tipo queda fuera del alcance de `RevertirCarga`/
+    `RevertirCargaEnCadena` por ahora.
+    """
+
+    def __init__(
+        self,
+        *,
+        prototipos: RepositorioPrototipos,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        crear_programa_base: CrearProgramaBase,
+    ) -> None:
+        self._prototipos = prototipos
+        self._prototipo_nodos = prototipo_nodos
+        self._crear_programa_base = crear_programa_base
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+        prototipo_id: UUID | None = None,
+    ) -> Aplicacion:
+        if prototipo_id is None:
+            raise ContextoProgramaBaseIncompleto(
+                "El programa base exige prototipo_id: contra qué prototipo "
+                "se carga el cronograma se declara antes de subir el "
+                "archivo, nunca se adivina de su contenido (§7.5)."
+            )
+
+        prototipo = await self._prototipos.obtener(prototipo_id)
+        if prototipo is None:
+            raise PrototipoDeProgramaNoEncontrado(
+                f"Prototipo {prototipo_id} no encontrado en tu alcance."
+            )
+        clave_prototipo = str(prototipo["clave"])
+
+        bloques: tuple[BloqueProgramaCargado, ...] = lectura.registros  # type: ignore[assignment]
+        bloque = next((b for b in bloques if b.clave_prototipo == clave_prototipo), None)
+        if bloque is None:
+            raise PrototipoDeProgramaNoEncontrado(
+                f"El archivo no trae el programa del prototipo "
+                f"{clave_prototipo!r} (ningún Capítulo con esa clave); trae: "
+                f"{', '.join(sorted(b.clave_prototipo for b in bloques)) or '(ninguno)'}."
+            )
+
+        resuelto = resolver_vinculos(bloque)
+        nodos = await self._prototipo_nodos.por_prototipo(prototipo_id)
+        id_por_ruta = _rutas_de_prototipo_nodo(nodos)
+
+        pendientes: list[PendientePropuesto] = []
+        for rechazo in resuelto.rechazos:
+            pendientes.append(
+                PendientePropuesto(
+                    tipo=TipoPendiente.VINCULO_RECHAZADO,
+                    entidad="programa_base_item",
+                    valor_origen=rechazo.token,
+                    propuesta={"motivo": rechazo.motivo, "fila_sucesora": rechazo.fila_sucesora},
+                    critico=False,
+                    origen_ref=f"fila {rechazo.fila_sucesora}",
+                )
+            )
+        for incumplido in resuelto.incumplidos:
+            pendientes.append(
+                PendientePropuesto(
+                    tipo=TipoPendiente.VINCULO_INCUMPLIDO,
+                    entidad="programa_base_item",
+                    valor_origen=f"{incumplido.fila_predecesora}{incumplido.tipo}",
+                    propuesta={
+                        "fila_sucesora": incumplido.fila_sucesora,
+                        "holgura_dias": incumplido.holgura,
+                    },
+                    critico=False,
+                    origen_ref=f"fila {incumplido.fila_sucesora}",
+                )
+            )
+
+        dependencias_por_sucesora: dict[int, list[Any]] = {}
+        for dep in resuelto.dependencias:
+            dependencias_por_sucesora.setdefault(dep.fila_sucesora, []).append(dep)
+
+        claves_vistas: set[str] = set()
+        items: list[ItemProgramaBase] = []
+        sin_nodo = 0
+        for partida in bloque.partidas:
+            nodo_id = id_por_ruta.get(partida.ruta)
+            if nodo_id is None:
+                sin_nodo += 1
+                pendientes.append(
+                    PendientePropuesto(
+                        tipo=TipoPendiente.MAPEO_NO_RECONOCIDO,
+                        entidad="prototipo_nodo",
+                        valor_origen=partida.clave or "",
+                        propuesta={"ruta": list(partida.ruta)},
+                        critico=False,
+                        origen_ref=f"fila {partida.fila}",
+                    )
+                )
+                continue
+
+            dependencias: list[Dependencia] = []
+            for dep in dependencias_por_sucesora.get(partida.fila, ()):
+                fila_pred = bloque.por_fila[dep.fila_predecesora]
+                nodo_pred_id = id_por_ruta.get(fila_pred.ruta)
+                if nodo_pred_id is None:
+                    pendientes.append(
+                        PendientePropuesto(
+                            tipo=TipoPendiente.MAPEO_NO_RECONOCIDO,
+                            entidad="prototipo_nodo",
+                            valor_origen=fila_pred.clave or "",
+                            propuesta={
+                                "ruta": list(fila_pred.ruta),
+                                "para_sucesora_fila": partida.fila,
+                            },
+                            critico=False,
+                            origen_ref=f"fila {dep.fila_predecesora}",
+                        )
+                    )
+                    continue
+                dependencias.append(
+                    Dependencia(ref=str(nodo_pred_id), tipo=dep.tipo, lag_dias=dep.lag_dias)
+                )
+
+            items.append(
+                ItemProgramaBase(
+                    duracion_dias=partida.dias_laborables,
+                    prototipo_nodo_id=str(nodo_id),
+                    dependencias=tuple(dependencias),
+                    orden=len(items),
+                )
+            )
+            if partida.clave:
+                claves_vistas.add(partida.clave)
+
+        diff = Diff(altas=tuple(Cambio(clave=c, despues={}) for c in sorted(claves_vistas)))
+        operaciones: list[dict[str, Any]] = []
+
+        if not dry_run and items:
+            creado = await self._crear_programa_base.ejecutar(
+                ComandoCrearProgramaBase(
+                    prototipo_id=prototipo_id,
+                    nombre=f"{clave_prototipo} (carga {carga_id})",
+                    items=tuple(items),
+                    calendario=_CALENDARIO_PROGRAMA_BASE,
+                )
+            )
+            operaciones.append(
+                _operacion(
+                    "programa_base",
+                    creado.id,
+                    "insert",
+                    despues={"version": creado.version, "n_items": creado.n_items},
+                )
+            )
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            pendientes=tuple(pendientes),
+            insertados=len(items),
+            actualizados=0,
+            omitidos=lectura.omitidos + sin_nodo,
+            detalle={
+                "prototipo_clave": clave_prototipo,
+                "vinculos_rechazados": len(resuelto.rechazos),
+                "vinculos_incumplidos": len(resuelto.incumplidos),
+                "partidas_sin_nodo": sin_nodo,
             },
         )

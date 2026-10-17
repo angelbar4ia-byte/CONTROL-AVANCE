@@ -171,6 +171,24 @@ class TipoPendiente(StrEnum):
     criterio que `DESTAJO_AMBIGUO`): se reporta la lista de etapas
     candidatas y la cantidad reconstruida se queda sin aplicar."""
 
+    VINCULO_RECHAZADO = "vinculo_rechazado"
+    """Programa base de prototipo (extensión propia, `domain.cargadores.
+    programa_base`, cerebro `1-mundo/MODELO.md` §5c, D-442/D-443): un
+    vínculo de la columna `Vínculos` que se rechaza —autovínculo, formato,
+    predecesora desconocida o sin partidas, o un vínculo que cierra un
+    ciclo real—. **No crítico**: "un vínculo rechazado no detiene la
+    carga" (D-442/D-443); el resto del programa se construye igual, con
+    el vínculo rechazado fuera de sus dependencias."""
+
+    VINCULO_INCUMPLIDO = "vinculo_incumplido"
+    """Programa base de prototipo (extensión propia, `domain.cargadores.
+    programa_base`, cerebro `1-mundo/MODELO.md` §5c, D-442/D-443): un
+    vínculo cuyas fechas —las que el propio archivo ya trae— lo
+    contradicen (holgura negativa) pero que no cierra ningún ciclo.
+    **No crítico y SÍ se carga**: "un vínculo que las fechas contradicen
+    sí se carga, marcado como alerta" — a diferencia de `VINCULO_RECHAZADO`,
+    este vínculo queda entre las dependencias de la partida."""
+
 
 @dataclass(frozen=True, slots=True)
 class ErrorDeFila:

@@ -286,6 +286,17 @@ async def subir_carga(
             )
         ),
     ] = None,
+    prototipo_id: Annotated[
+        UUID | None,
+        Form(
+            description=(
+                "Solo tipo='programa_base' (§7.5): a qué prototipo "
+                "pertenece el cronograma. Obligatorio para ese tipo — el "
+                "archivo real apila varios prototipos, uno por Capítulo, "
+                "y nunca se adivina cuál cargar."
+            )
+        ),
+    ] = None,
 ) -> CargaRespuesta:
     """Workflow G: mapea, valida y —si no es vista previa— aplica (§11.3 G).
 
@@ -309,6 +320,11 @@ async def subir_carga(
                     "camino_ingenieria='diseno_nuevo'."
                 ),
             )
+    if tipo is TipoCarga.PROGRAMA_BASE and prototipo_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="prototipo_id es obligatorio para tipo='programa_base' (§7.5).",
+        )
 
     contenido = await _leer_con_tope(archivo)
     caso_uso = await fabrica.para(tipo)
@@ -325,6 +341,7 @@ async def subir_carga(
             prototipo_base_id=prototipo_base_id,
             nombre_prototipo_nuevo=nombre_prototipo_nuevo,
             etapa_externa=etapa_externa,
+            prototipo_id=prototipo_id,
         )
     )
     return CargaRespuesta.desde(resultado)
