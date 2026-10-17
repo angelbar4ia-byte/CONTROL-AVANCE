@@ -1,0 +1,129 @@
+"""Puertos del cuantificador (`plano`, `trazo`, `enlace_cuantificacion`,
+`nota_plano`, migración 0057).
+
+Spec §12.11 (inversión de dependencias: los puertos se declaran en la
+aplicación y se implementan en el borde) · cerebro MODELO.md §1b.
+
+Separados de `repositorios.py` por el mismo criterio que ya usa
+`cargadores.py`: es un contexto propio (Cuantificación), con sus cuatro
+tablas nuevas, y no una extensión de un puerto ya existente.
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from typing import Any, Protocol, runtime_checkable
+from uuid import UUID
+
+__all__ = [
+    "RepositorioEnlacesCuantificacion",
+    "RepositorioNotasPlano",
+    "RepositorioPlanos",
+    "RepositorioTrazos",
+]
+
+
+@runtime_checkable
+class RepositorioPlanos(Protocol):
+    """Metadatos del plano ejecutivo (`plano`, migración 0057).
+
+    El archivo ya está subido a R2 por `POST /evidencias/presigned`
+    (mismo patrón que `expediente_doc`): `archivo_url` es la clave del
+    objeto, nunca el binario.
+    """
+
+    async def crear(
+        self,
+        *,
+        obra_id: UUID,
+        nombre: str,
+        archivo_url: str,
+        version: int,
+        capas: list[str] | None,
+        subido_por: UUID,
+    ) -> UUID: ...
+
+    async def obtener(self, plano_id: UUID) -> dict[str, Any] | None: ...
+
+
+@runtime_checkable
+class RepositorioTrazos(Protocol):
+    """Geometrías trazadas sobre un plano (`trazo`, migración 0057).
+
+    `crear` recibe la geometría como **WKT** (MODELO.md §1b, Decisión 3 de
+    3: "la secuencia de puntos se arma directo como texto WKT ... y
+    `ST_GeomFromText` la convierte a geometría nativa de un solo golpe") y
+    persiste el tipo nativo de PostGIS — el texto se descarta, nunca es una
+    copia paralela de la fuente de verdad.
+    """
+
+    async def crear(
+        self,
+        *,
+        plano_id: UUID,
+        version_plano: int,
+        capa: str | None,
+        geometria_wkt: str,
+        fuente: str,
+        autor_id: UUID,
+    ) -> UUID: ...
+
+
+@runtime_checkable
+class RepositorioEnlacesCuantificacion(Protocol):
+    """`enlace_cuantificacion` (migración 0057): qué nodo alimenta cada
+    trazo, con qué medida y qué factor, y si sigue vigente.
+    """
+
+    async def crear(
+        self,
+        *,
+        trazo_id: UUID,
+        actividad_id: UUID | None,
+        prototipo_nodo_id: UUID | None,
+        medida: str,
+        factor: Decimal,
+        vigente: bool = True,
+    ) -> UUID: ...
+
+    async def obtener(self, enlace_id: UUID) -> dict[str, Any] | None: ...
+
+    async def marcar_no_vigente(self, enlace_id: UUID) -> None:
+        """`ReemplazarEnlace`: acción explícita y manual (MODELO.md §1b,
+        "depende de que quien traza reemplace el enlace a mano, nunca de
+        un emparejamiento automático por cercanía espacial"). El enlace
+        queda como evidencia, nunca se borra."""
+        ...
+
+    async def enlaces_de_nodo(
+        self,
+        *,
+        tipo_nodo: str,
+        actividad_id: UUID | None,
+        prototipo_nodo_id: UUID | None,
+    ) -> list[dict[str, Any]]:
+        """Todos los enlaces —vigentes y no vigentes— de un mismo nodo, con
+        su `medida_valor` ya calculado (`ST_Area`/`ST_Perimeter`/
+        `ST_Length` sobre `trazo.geometria`, o `1` si `medida == 'conteo'`)
+        y su `factor`, para que
+        `domain.cuantificacion.reglas.cantidad_medida` sume los vigentes
+        (§12.11: el cálculo con PostGIS y el filtro de vigencia están
+        separados a propósito — esta consulta solo calcula, el dominio
+        decide qué sumar)."""
+        ...
+
+
+@runtime_checkable
+class RepositorioNotasPlano(Protocol):
+    """`nota_plano` (migración 0057): anotación sin cantidad."""
+
+    async def crear(
+        self,
+        *,
+        plano_id: UUID,
+        version_plano: int,
+        ubicacion_wkt: str,
+        autor_id: UUID,
+        texto: str,
+        actividad_id: UUID | None,
+    ) -> UUID: ...

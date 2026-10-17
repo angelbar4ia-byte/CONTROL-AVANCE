@@ -32,6 +32,12 @@ from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQ
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.control_cambio_sql import RepositorioControlCambioSQL
 from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
+from obractrl.adapters.repos.cuantificacion_sql import (
+    RepositorioEnlacesCuantificacionSQL,
+    RepositorioNotasPlanoSQL,
+    RepositorioPlanosSQL,
+    RepositorioTrazosSQL,
+)
 from obractrl.adapters.repos.desviaciones_sql import RepositorioDesviacionesSQL
 from obractrl.adapters.repos.especialidades_sql import (
     RepositorioEspecialidadesSQL,
@@ -88,6 +94,12 @@ from obractrl.application.casos_uso.consultar_insumos_programados import (
 from obractrl.application.casos_uso.consultar_planeacion import (
     AsignarFrenteDeObra,
     ConsultarPlaneacion,
+)
+from obractrl.application.casos_uso.cuantificar import (
+    ReemplazarEnlace,
+    RegistrarNotaPlano,
+    RegistrarPlano,
+    RegistrarTrazoConEnlaces,
 )
 from obractrl.application.casos_uso.dar_de_alta_extra import DarDeAltaExtra
 from obractrl.application.casos_uso.exportar_estimacion import (
@@ -254,9 +266,13 @@ __all__ = [
     "RecalcularRutaCriticaDep",
     "RechazarCierreDep",
     "RechazarIncidenciaDep",
+    "ReemplazarEnlaceDep",
     "RegistrarEventoIncidenciaDep",
+    "RegistrarNotaPlanoDep",
+    "RegistrarPlanoDep",
     "RegistrarRevisionFisicaDep",
     "RegistrarSalidaAlmacenDep",
+    "RegistrarTrazoConEnlacesDep",
     "ReiniciarOrganizacionDep",
     "ReplicarProgramaEnObrasDep",
     "ResetearContrasenaDep",
@@ -567,6 +583,54 @@ ConsultarExpedienteDep = Annotated[
     ConsultarExpediente, Depends(obtener_consultar_expediente)
 ]
 ArmarExpedienteDep = Annotated[ArmarExpediente, Depends(obtener_armar_expediente)]
+
+
+# --- Cuantificador (cerebro MODELO.md §1b, migración 0057) --------------
+
+
+def obtener_registrar_plano(sesion: SesionRLS) -> RegistrarPlano:
+    return RegistrarPlano(
+        planos=RepositorioPlanosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_registrar_trazo_con_enlaces(sesion: SesionRLS) -> RegistrarTrazoConEnlaces:
+    return RegistrarTrazoConEnlaces(
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_reemplazar_enlace(sesion: SesionRLS) -> ReemplazarEnlace:
+    return ReemplazarEnlace(
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_registrar_nota_plano(sesion: SesionRLS) -> RegistrarNotaPlano:
+    return RegistrarNotaPlano(
+        notas=RepositorioNotasPlanoSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+RegistrarPlanoDep = Annotated[RegistrarPlano, Depends(obtener_registrar_plano)]
+RegistrarTrazoConEnlacesDep = Annotated[
+    RegistrarTrazoConEnlaces, Depends(obtener_registrar_trazo_con_enlaces)
+]
+ReemplazarEnlaceDep = Annotated[ReemplazarEnlace, Depends(obtener_reemplazar_enlace)]
+RegistrarNotaPlanoDep = Annotated[
+    RegistrarNotaPlano, Depends(obtener_registrar_nota_plano)
+]
 
 
 # --- Cola de trabajos (§12.2, §11.2 "job") -------------------------------

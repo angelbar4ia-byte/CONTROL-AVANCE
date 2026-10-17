@@ -32,7 +32,9 @@ __all__ = [
     "EstatusObra",
     "EstatusProceso",
     "EstatusSolicitudCierre",
+    "FuenteTrazo",
     "ImpactoIncidencia",
+    "MedidaCuantificacion",
     "ModoCarga",
     "ModoPago",
     "NivelEvaluacion",
@@ -45,6 +47,7 @@ __all__ = [
     "TipoHijoExplosion",
     "TipoIncidencia",
     "TipoInsumo",
+    "TipoNodoCuantificacion",
     "TipoNodoDesviacion",
     "TipoSemana",
 ]
@@ -252,6 +255,49 @@ class CausaDesviacion(_Canonico):
 
     # contratos · consumo
     VOLUMEN_REALMENTE_EJECUTADO = "volumen_realmente_ejecutado"
+
+
+# --- Cuantificador (cerebro MODELO.md §1b) ------------------------------
+
+
+class FuenteTrazo(_Canonico):
+    """De qué archivo salió el trazo (TRAZO.fuente, migración 0057).
+
+    Determina la precedencia al reemplazar un enlace (IFC > DWG > PDF) —
+    esa comparación es trabajo de quien llama a `ReemplazarEnlace`, nunca
+    un CHECK de esta tabla ni una regla automática (MODELO.md §1b: "depende
+    de que quien traza reemplace el enlace a mano").
+    """
+
+    PDF = "pdf"
+    DWG = "dwg"
+    IFC = "ifc"
+
+
+class MedidaCuantificacion(_Canonico):
+    """Qué métrica del trazo alimenta la cantidad (ENLACE_CUANTIFICACION.
+    medida, MODELO.md §1b). `AREA`/`PERIMETRO`/`LONGITUD` se calculan en
+    SQL con `ST_Area`/`ST_Perimeter`/`ST_Length` sobre la geometría
+    (§12.11: el dominio nunca toca PostGIS); `CONTEO` no es una función de
+    PostGIS, es "este trazo cuenta como una instancia".
+    """
+
+    AREA = "area"
+    PERIMETRO = "perimetro"
+    LONGITUD = "longitud"
+    CONTEO = "conteo"
+
+
+class TipoNodoCuantificacion(_Canonico):
+    """A qué mitad del NODO de cerebro apunta un `ENLACE_CUANTIFICACION`
+    (migración 0057): `ACTIVIDAD` (instancia por obra, presupuesto ya
+    congelado) o `PROTOTIPO_NODO` (plantilla de un prototipo "diseño_nuevo"
+    de un solo uso). Mismo patrón que `TipoNodoDesviacion` aplicado a otra
+    entidad con otra semántica.
+    """
+
+    ACTIVIDAD = "actividad"
+    PROTOTIPO_NODO = "prototipo_nodo"
 
 
 # --- Ejecución (§7.6) ----------------------------------------------------

@@ -334,3 +334,26 @@ class RepositorioPrototipoNodoSQL:
             )
         ).mappings().first()
         return dict(fila) if fila is not None else None
+
+    async def obtener(self, prototipo_nodo_id: UUID) -> dict[str, Any] | None:
+        """Un solo nodo por su `id` (`application.puertos.repositorios.
+        RepositorioPrototipoNodo.obtener`): resuelve `prototipo_id`,
+        `parent_id` y `clave` para que el cuantificador (camino
+        "diseño_nuevo") pueda llamar a `actualizar_cantidad`, que identifica
+        el nodo por esa terna y no por `id`."""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, prototipo_id, parent_id, tipo, nombre, clave,
+                           concepto_id, nivel_id, etapa_id, orden, cantidad,
+                           ponderacion, modo_cantidad
+                      from prototipo_nodo
+                     where org_id = cast(current_setting('app.org_id') as uuid)
+                       and id = :id
+                    """
+                ),
+                {"id": str(prototipo_nodo_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None

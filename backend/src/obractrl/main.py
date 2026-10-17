@@ -51,6 +51,10 @@ from obractrl.application.casos_uso.consultar_insumos_programados import (
     CalendarioSinGenerar,
     PrototipoSinPrograma,
 )
+from obractrl.application.casos_uso.cuantificar import (
+    EnlaceNoEncontrado,
+    GobiernoDeCuantificacionInvalido,
+)
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     ObraNoEncontrada,
     ObraYaEjecutada,
@@ -92,6 +96,7 @@ from obractrl.domain.catalogos.apu import CicloEnExplosion, ErrorDeAPU
 from obractrl.domain.catalogos.reglas import ErrorDeCatalogo
 from obractrl.domain.cierres.obra import ErrorDeCierreDeObra
 from obractrl.domain.cierres.reglas import ErrorDeCierre
+from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
 from obractrl.domain.evaluaciones.reglas import ErrorDeEvaluacion
 from obractrl.domain.expediente.reglas import ErrorDeExpediente
@@ -1186,6 +1191,50 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=422,
             tipo="regla-de-expediente",
             titulo="Documento de expediente inválido",
+            detalle=str(exc),
+        )
+
+    # --- Cuantificador (cerebro MODELO.md §1b, migración 0057) ----------
+
+    @app.exception_handler(ErrorDeCuantificacion)
+    async def _cuantificacion(
+        request: Request, exc: ErrorDeCuantificacion
+    ) -> JSONResponse:
+        # 422: invariante del dato (factor no positivo, nodo ambiguo,
+        # texto vacío de una nota), no una transición de flujo.
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-cuantificacion",
+            titulo="Dato de cuantificación inválido",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(GobiernoDeCuantificacionInvalido)
+    async def _gobierno_de_cuantificacion(
+        request: Request, exc: GobiernoDeCuantificacionInvalido
+    ) -> JSONResponse:
+        # 403: el rol existe y está autenticado, solo no puede ESTA acción
+        # (enlazar contra un prototipo_nodo) — mismo criterio que
+        # `exigir_rol`, pero decidido en el dominio porque depende del
+        # dato (a qué nodo apunta el enlace), no solo del rol.
+        return _problema(
+            request,
+            status=403,
+            tipo="gobierno-de-cuantificacion",
+            titulo="Rol sin permiso para este enlace",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(EnlaceNoEncontrado)
+    async def _enlace_no_encontrado(
+        request: Request, exc: EnlaceNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="enlace-no-encontrado",
+            titulo="Enlace de cuantificación no encontrado",
             detalle=str(exc),
         )
 

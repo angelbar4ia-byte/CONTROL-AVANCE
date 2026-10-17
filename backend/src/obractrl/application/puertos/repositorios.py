@@ -86,7 +86,12 @@ class VersionVigenteNoEliminable(ValueError):
 class RepositorioActividades(Protocol):
     """Acceso a actividades. Siempre scoped por RLS (`org_id`) — §12.11."""
 
-    async def obtener(self, actividad_id: UUID) -> dict | None: ...
+    async def obtener(self, actividad_id: UUID) -> dict | None:
+        """Incluye `concepto_id` —el cuantificador lo necesita para armar
+        la `Desviacion` candidata (`application.casos_uso.cuantificar`): es
+        un `select` adicional sobre una columna que ya existe en la fila,
+        no un campo nuevo."""
+        ...
 
     async def obtener_para_captura(self, actividad_id: UUID) -> dict | None:
         """Como `obtener`, pero bloqueando la fila hasta el commit.
@@ -334,6 +339,22 @@ class RepositorioPrototipoNodo(Protocol):
         tocar —antes de llamar `upsert`— porque el `id` que conserva un
         upsert no basta para revertir: la reversa necesita los valores
         previos, no solo saber que la fila ya existía (§10.8).
+        """
+        ...
+
+    async def obtener(self, prototipo_nodo_id: UUID) -> dict[str, Any] | None:
+        """Un solo nodo por su `id` (`prototipo_id`, `parent_id`, `clave`,
+        `cantidad`, `modo_cantidad`).
+
+        La usa el cuantificador (`application.casos_uso.cuantificar`,
+        camino "diseño_nuevo"): `ENLACE_CUANTIFICACION.prototipo_nodo_id`
+        llega con el `id` directo del nodo, pero `actualizar_cantidad`
+        identifica el nodo por `(prototipo_id, parent_id, clave)` —la
+        misma identidad natural de `upsert`, migración 0038— así que hace
+        falta resolver esos tres campos primero. Separado de
+        `por_prototipo` porque ese trae el árbol entero y aquí basta un
+        nodo; no duplica la lógica de `actualizar_cantidad`, solo le da
+        con qué llamarlo.
         """
         ...
 
