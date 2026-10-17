@@ -28,7 +28,10 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
-from obractrl.application.casos_uso.aplicar_carga import AplicadorDeCarga
+from obractrl.application.casos_uso.aplicar_carga import (
+    AplicadorDeCarga,
+    AplicadorIngenieriaLote,
+)
 from obractrl.application.puertos.cargadores import LectorDeCarga, RepositorioCargas
 from obractrl.application.puertos.repositorios import (
     RepositorioConceptos,
@@ -105,6 +108,33 @@ class ComandoEjecutarCarga:
     """``True`` = vista previa (§10.2): valida, cuenta y llena la bandeja, sin
     escribir el catálogo."""
 
+    obra_id: UUID | None = None
+    """Solo `TipoCarga.INGENIERIA_LOTE` (extensión propia, Fase B): a qué
+    obra pertenece el lote. Nunca se parsea del nombre del archivo —se
+    declara explícito antes de subir (ver `AplicadorIngenieriaLote`). Vive
+    aquí y no en `archivo_nombre` por el mismo motivo que ese campo no
+    llega al lector: el lector sigue siendo puro y no necesita contexto de
+    obra, pero a diferencia de `archivo_nombre` (que ningún aplicador usa
+    todavía) este SÍ tiene que llegar hasta `AplicadorIngenieriaLote.
+    aplicar()`."""
+
+    camino_ingenieria: str | None = None
+    """Solo `TipoCarga.INGENIERIA_LOTE`: `'conocido'` (default si se omite)
+    o `'diseno_nuevo'` (`aplicar_carga.CaminoIngenieria`). Nombrado distinto
+    de `modo` a propósito: ese es `ModoCarga` (actualizar/acumular/
+    reemplazar, §10.2) — decide CÓMO se escribe un catálogo que ya existe.
+    Este decide CONTRA QUÉ prototipo se compara y se escribe la
+    ingeniería; son dos preguntas distintas que no comparten campo."""
+
+    prototipo_base_id: UUID | None = None
+    """Solo `TipoCarga.INGENIERIA_LOTE`, camino `'diseno_nuevo'`: el
+    prototipo del que se clona la estructura."""
+
+    nombre_prototipo_nuevo: str | None = None
+    """Solo `TipoCarga.INGENIERIA_LOTE`, camino `'diseno_nuevo'`, opcional:
+    nombre del prototipo nuevo; si no se da, se usa la propia clave de la
+    obra (ver `AplicadorIngenieriaLote._aplicar_diseno_nuevo`)."""
+
 
 @dataclass(frozen=True, slots=True)
 class ResultadoCarga:
@@ -160,9 +190,26 @@ class EjecutarCarga:
             usuario_id=cmd.usuario_id,
         )
 
-        aplicacion = await self._aplicador.aplicar(
-            lectura, modo=cmd.modo, dry_run=cmd.dry_run, carga_id=carga_id
-        )
+        if isinstance(self._aplicador, AplicadorIngenieriaLote):
+            # Único aplicador que necesita contexto fuera del archivo
+            # (§11.4): el `Protocol` genérico `AplicadorDeCarga` no lo
+            # declara —agregarlo ahí obligaría a los otros ~15 aplicadores
+            # a aceptar parámetros que nunca usan—, así que se angosta el
+            # tipo aquí mismo, en el único lugar que lo necesita.
+            aplicacion = await self._aplicador.aplicar(
+                lectura,
+                modo=cmd.modo,
+                dry_run=cmd.dry_run,
+                carga_id=carga_id,
+                obra_id=cmd.obra_id,
+                camino=cmd.camino_ingenieria,
+                prototipo_base_id=cmd.prototipo_base_id,
+                nombre_prototipo_nuevo=cmd.nombre_prototipo_nuevo,
+            )
+        else:
+            aplicacion = await self._aplicador.aplicar(
+                lectura, modo=cmd.modo, dry_run=cmd.dry_run, carga_id=carga_id
+            )
 
         errores = (*lectura.errores, *aplicacion.errores)
         pendientes = (*lectura.pendientes, *aplicacion.pendientes)

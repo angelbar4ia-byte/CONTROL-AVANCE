@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
 from obractrl.domain.programacion.cpm import NodoCPM
@@ -358,6 +358,50 @@ class RepositorioPrototipoNodo(Protocol):
         rompería esas referencias en silencio. `clave=None` (si algún nodo
         no trae una) siempre inserta: sin identidad natural no hay con qué
         hacer match. Devuelve `(id, es_alta)`.
+        """
+        ...
+
+    async def clonar_estructura(
+        self, *, origen_prototipo_id: UUID, destino_prototipo_id: UUID
+    ) -> int:
+        """Copia todo el árbol de origen_prototipo_id hacia
+        destino_prototipo_id: misma forma, mismas claves, mismos
+        concepto_id/nivel_id/etapa_id (no se duplica el catálogo, solo la
+        posición en el árbol), con cantidad igual a la del origen y
+        modo_cantidad='heredada' (cerebro MODELO.md paragrafo 1, HALLAZGO
+        12: "el parametrico nace con las cantidades del presupuesto base -
+        no las mide, las hereda").
+
+        La usa AplicadorIngenieriaLote en el camino "diseno_nuevo"
+        (extension propia, carga ingenieria_lote): clona la estructura de
+        un prototipo base antes de reclasificar, nodo por nodo, lo que la
+        reversion por destajo resuelve a modo_cantidad='cargada'. Devuelve
+        cuantos nodos se clonaron.
+        """
+        ...
+
+    async def actualizar_cantidad(
+        self,
+        destino_prototipo_id: UUID,
+        *,
+        parent_id: UUID | None,
+        clave: str,
+        cantidad: Decimal,
+        modo_cantidad: str,
+    ) -> dict[str, Any] | None:
+        """Reclasifica un nodo ya existente del arbol -identificado por
+        (prototipo_id, parent_id, clave), la misma identidad natural que
+        upsert (migracion 0038)- con una cantidad reconstruida y su
+        modo_cantidad.
+
+        La usa AplicadorIngenieriaLote en el camino "diseno_nuevo": donde
+        la reversion por destajo resuelve un concepto (reparto is not
+        None), la cantidad reconstruida se convierte en el presupuesto del
+        prototipo nuevo (modo_cantidad='cargada') - no se audita contra si
+        mismo, asi que no genera Desviacion (ver docstring de
+        AplicadorIngenieriaLote). Devuelve el nodo actualizado, con su
+        antes disponible para el snapshot del lote (parrafo 10.8), o None
+        si esa posicion no existe en el arbol clonado.
         """
         ...
 

@@ -21,6 +21,7 @@ sí.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -40,7 +41,8 @@ class RepositorioPrototipoNodoSQL:
                 text(
                     """
                     select id, parent_id, tipo, nombre, clave, concepto_id,
-                           nivel_id, etapa_id, orden, cantidad, ponderacion
+                           nivel_id, etapa_id, orden, cantidad, ponderacion,
+                           modo_cantidad
                       from prototipo_nodo
                      where org_id = cast(current_setting('app.org_id') as uuid)
                        and prototipo_id = :prototipo_id
@@ -73,7 +75,7 @@ class RepositorioPrototipoNodoSQL:
                     with recursive arbol as (
                         select id, parent_id, tipo, nombre, clave,
                                concepto_id, nivel_id, etapa_id, orden,
-                               cantidad, ponderacion,
+                               cantidad, ponderacion, modo_cantidad,
                                array[orden] as ruta
                         from prototipo_nodo
                         where org_id = cast(current_setting('app.org_id') as uuid)
@@ -84,14 +86,15 @@ class RepositorioPrototipoNodoSQL:
 
                         select h.id, h.parent_id, h.tipo, h.nombre, h.clave,
                                h.concepto_id, h.nivel_id, h.etapa_id, h.orden,
-                               h.cantidad, h.ponderacion,
+                               h.cantidad, h.ponderacion, h.modo_cantidad,
                                a.ruta || h.orden
                         from prototipo_nodo h
                         join arbol a on h.parent_id = a.id
                     )
                     select a.id, a.parent_id, a.tipo, a.nombre, a.clave,
                            a.concepto_id, a.nivel_id, a.etapa_id, a.orden,
-                           a.cantidad, a.ponderacion, c.tipo as concepto_tipo
+                           a.cantidad, a.ponderacion, a.modo_cantidad,
+                           c.tipo as concepto_tipo
                     from arbol a
                     left join concepto c on c.id = a.concepto_id
                     order by a.ruta
@@ -185,3 +188,149 @@ class RepositorioPrototipoNodoSQL:
             )
         ).one()
         return fila.id, bool(fila.es_alta)
+
+    async def clonar_estructura(
+        self, *, origen_prototipo_id: UUID, destino_prototipo_id: UUID
+    ) -> int:
+        """Ver protocolo. El árbol de un prototipo tiene pocos niveles
+        (nivel -> etapa -> [agrupador] -> concepto), así que se clona por
+        pasadas en Python en vez de un `WITH RECURSIVE` de escritura
+        (Postgres no deja insertar recursivamente sobre una tabla que se
+        está llenando en la misma sentencia): cada pasada inserta los
+        nodos cuyo padre ya tiene su `id` nuevo (o no tiene padre), hasta
+        que no quede ninguno pendiente.
+
+        Nada de esto se registra nodo por nodo en el snapshot del lote: el
+        único `carga_snapshot` que `AplicadorIngenieriaLote` guarda para
+        este paso es el alta del `prototipo` nuevo — revertirla borra ese
+        `prototipo` y, por `on delete cascade` (migración 0006), se lleva
+        consigo cada nodo clonado aquí sin que el snapshot necesite saber
+        cuáles son.
+        """
+        origen = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, parent_id, tipo, nombre, clave, concepto_id,
+                           nivel_id, etapa_id, orden, cantidad, ponderacion
+                      from prototipo_nodo
+                     where org_id = cast(current_setting('app.org_id') as uuid)
+                       and prototipo_id = :origen_id
+                    """
+                ),
+                {"origen_id": str(origen_prototipo_id)},
+            )
+        ).mappings().all()
+
+        por_id = {fila["id"]: dict(fila) for fila in origen}
+        mapa_ids: dict[Any, Any] = {}
+        pendientes = set(por_id)
+        clonados = 0
+
+        while pendientes:
+            listos = [
+                nid
+                for nid in pendientes
+                if por_id[nid]["parent_id"] is None
+                or por_id[nid]["parent_id"] in mapa_ids
+            ]
+            if not listos:
+                raise ValueError(
+                    "clonar_estructura: hay nodos cuyo parent_id no "
+                    "aparece en el mismo prototipo de origen (árbol "
+                    "inconsistente)."
+                )
+            for nid in listos:
+                fila_origen = por_id[nid]
+                nuevo_parent = (
+                    mapa_ids.get(fila_origen["parent_id"])
+                    if fila_origen["parent_id"] is not None
+                    else None
+                )
+                nuevo = (
+                    await self._sesion.execute(
+                        text(
+                            """
+                            insert into prototipo_nodo
+                                (org_id, prototipo_id, parent_id, tipo, nombre,
+                                 clave, concepto_id, nivel_id, etapa_id, orden,
+                                 cantidad, ponderacion, modo_cantidad)
+                            values
+                                (cast(current_setting('app.org_id') as uuid),
+                                 :destino_id, cast(:parent_id as uuid),
+                                 cast(:tipo as tipo_prototipo_nodo), :nombre,
+                                 :clave, cast(:concepto_id as uuid),
+                                 cast(:nivel_id as uuid), cast(:etapa_id as uuid),
+                                 :orden, :cantidad, :ponderacion, 'heredada')
+                            returning id
+                            """
+                        ),
+                        {
+                            "destino_id": str(destino_prototipo_id),
+                            "parent_id": str(nuevo_parent) if nuevo_parent else None,
+                            "tipo": fila_origen["tipo"],
+                            "nombre": fila_origen["nombre"],
+                            "clave": fila_origen["clave"],
+                            "concepto_id": (
+                                str(fila_origen["concepto_id"])
+                                if fila_origen["concepto_id"]
+                                else None
+                            ),
+                            "nivel_id": (
+                                str(fila_origen["nivel_id"])
+                                if fila_origen["nivel_id"]
+                                else None
+                            ),
+                            "etapa_id": (
+                                str(fila_origen["etapa_id"])
+                                if fila_origen["etapa_id"]
+                                else None
+                            ),
+                            "orden": fila_origen["orden"],
+                            "cantidad": fila_origen["cantidad"],
+                            "ponderacion": fila_origen["ponderacion"],
+                        },
+                    )
+                ).one()
+                mapa_ids[nid] = nuevo.id
+                clonados += 1
+            pendientes -= set(listos)
+
+        return clonados
+
+    async def actualizar_cantidad(
+        self,
+        destino_prototipo_id: UUID,
+        *,
+        parent_id: UUID | None,
+        clave: str,
+        cantidad: Decimal,
+        modo_cantidad: str,
+    ) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    update prototipo_nodo set
+                        cantidad      = :cantidad,
+                        modo_cantidad = cast(:modo_cantidad as modo_cantidad)
+                     where org_id = cast(current_setting('app.org_id') as uuid)
+                       and prototipo_id = :prototipo_id
+                       and coalesce(parent_id, '00000000-0000-0000-0000-000000000000'::uuid)
+                           = coalesce(cast(:parent_id as uuid), '00000000-0000-0000-0000-000000000000'::uuid)
+                       and clave = :clave
+                    returning id, parent_id, tipo, nombre, clave, concepto_id,
+                              nivel_id, etapa_id, orden, cantidad, ponderacion,
+                              modo_cantidad
+                    """
+                ),
+                {
+                    "prototipo_id": str(destino_prototipo_id),
+                    "parent_id": str(parent_id) if parent_id else None,
+                    "clave": clave,
+                    "cantidad": cantidad,
+                    "modo_cantidad": modo_cantidad,
+                },
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None

@@ -32,6 +32,7 @@ from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQ
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.control_cambio_sql import RepositorioControlCambioSQL
 from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
+from obractrl.adapters.repos.desviaciones_sql import RepositorioDesviacionesSQL
 from obractrl.adapters.repos.especialidades_sql import (
     RepositorioEspecialidadesSQL,
 )
@@ -66,6 +67,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorDePrototipos,
     AplicadorEtapasConstructivas,
     AplicadorFamilias,
+    AplicadorIngenieriaLote,
     AplicadorManoObra,
     AplicadorMateriales,
     AplicadorNiveles,
@@ -1145,6 +1147,15 @@ class FabricaDeCargas:
                     presupuestos=RepositorioPresupuestosSQL(sesion),
                     cargas=cargas,
                 ),
+            )
+        if tipo is TipoCarga.INGENIERIA_LOTE:
+            return AplicadorIngenieriaLote(
+                obras=RepositorioObrasSQL(sesion),
+                prototipos=RepositorioPrototiposSQL(sesion),
+                prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+                conceptos=RepositorioConceptosSQL(sesion),
+                desviaciones=RepositorioDesviacionesSQL(sesion),
+                cargas=cargas,
             )
         # `cargador_para` ya rechazó los tipos sin cargador; llegar aquí
         # significa que se agregó uno y se olvidó su aplicador.

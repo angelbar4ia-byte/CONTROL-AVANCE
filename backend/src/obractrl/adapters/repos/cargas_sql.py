@@ -103,6 +103,7 @@ _ELIMINAR: dict[str, str] = {
         "etapa_constructiva",
         "unidad",
         "familia",
+        "desviacion",
     )
 }
 # `cuadrilla`/`nivel`/`etapa_constructiva`/`unidad`/`familia` están aquí por
@@ -119,6 +120,11 @@ _ELIMINAR: dict[str, str] = {
 # `cuadrilla_version`/`cuadrilla_integrante` cascadean solas al borrar la
 # cuadrilla, pero igual están aquí explícitas: cada versión es dueña
 # exclusiva de sus integrantes, y el orden de reversa las deshace primero.
+# `desviacion` es la que crea `AplicadorIngenieriaLote` (carga
+# `ingenieria_lote`, extensión propia): cada `Desviacion` candidata que
+# persiste es un insert propio de esa carga, igual de "dueña" que un
+# `concepto` lo es de su CPU. Ya estaba prevista en `_REFERENCIAS_EXTERNAS`
+# (apunta a `insumo`/`concepto`) desde la migración 0054; faltaba aquí.
 
 _REFERENCIAS_EXTERNAS: tuple[tuple[str, str, str], ...] = (
     # (tabla que tiene la FK, columna FK, tabla de `_ELIMINAR` a la que apunta)
@@ -285,14 +291,21 @@ _RESTAURAR: dict[str, str] = {
     "prototipo_nodo": """
         with a as (select cast(:antes as jsonb) as j)
         update prototipo_nodo set
-            parent_id   = cast(a.j->>'parent_id' as uuid),
-            tipo        = cast(a.j->>'tipo' as tipo_prototipo_nodo),
-            nombre      = a.j->>'nombre',
-            concepto_id = cast(a.j->>'concepto_id' as uuid),
-            nivel_id    = cast(a.j->>'nivel_id' as uuid),
-            etapa_id    = cast(a.j->>'etapa_id' as uuid),
-            orden       = cast(a.j->>'orden' as integer),
-            cantidad    = cast(a.j->>'cantidad' as numeric)
+            parent_id     = cast(a.j->>'parent_id' as uuid),
+            tipo          = cast(a.j->>'tipo' as tipo_prototipo_nodo),
+            nombre        = a.j->>'nombre',
+            concepto_id   = cast(a.j->>'concepto_id' as uuid),
+            nivel_id      = cast(a.j->>'nivel_id' as uuid),
+            etapa_id      = cast(a.j->>'etapa_id' as uuid),
+            orden         = cast(a.j->>'orden' as integer),
+            cantidad      = cast(a.j->>'cantidad' as numeric),
+            -- `AplicadorIngenieriaLote` (camino "diseño_nuevo") es el único
+            -- aplicador que hoy registraría un "update" sobre esta tabla;
+            -- por ahora no lo hace (el alta en cascada del prototipo nuevo
+            -- ya cubre su reversa, ver `cargas_sql.py` §desviacion), pero
+            -- se restaura igual para que un "update" futuro no deje
+            -- `modo_cantidad` a medias si algo sí llega a registrarse.
+            modo_cantidad = cast(coalesce(a.j->>'modo_cantidad', 'capturada') as modo_cantidad)
         from a
         where prototipo_nodo.id = cast(:id as uuid)
     """,
@@ -303,6 +316,19 @@ _RESTAURAR: dict[str, str] = {
         from a
         where presupuesto.id = cast(:id as uuid)
     """,
+    "obra": """
+        with a as (select cast(:antes as jsonb) as j)
+        update obra set
+            prototipo_id = cast(a.j->>'prototipo_id' as uuid)
+        from a
+        where obra.id = cast(:id as uuid)
+    """,
+    # Solo `prototipo_id`: es el único campo de `obra` que un aplicador de
+    # carga toca hoy (`AplicadorIngenieriaLote`, camino "diseño_nuevo",
+    # asigna el prototipo clonado a la obra, §11.4). Un `PATCH /obras/{id}`
+    # normal no pasa por aquí —no es una carga reversible, es edición
+    # directa (§11.2)— así que el resto de columnas editables de `obra`
+    # nunca necesita su propia reversa de lote.
 }
 
 _REINSERTAR: dict[str, str] = {

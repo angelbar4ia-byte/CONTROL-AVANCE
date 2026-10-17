@@ -493,6 +493,18 @@ class TipoCarga(_Canonico):
     `database/migrations/20260814000053_carga_de_trabajos.sql`.
     """
 
+    INGENIERIA_LOTE = "ingenieria_lote"
+    """Ingeniería del lote, estructura `COMPLETA` (cerebro CONOCIMIENTO.md
+    §11.8): un archivo sin encabezados, por cimentación/etapa, de lo que se
+    planeó comprar/usar en una obra real. Su `AplicadorIngenieriaLote`
+    (extensión propia) es el único que necesita contexto fuera del archivo
+    —`obra_id` y, en el camino "diseño_nuevo", `prototipo_base_id`— porque
+    la identidad del lote nunca se adivina del nombre del archivo
+    (§11.4/§11.5: "el nombre dice la estructura, nunca la identidad").
+    Espejo en la base:
+    `database/migrations/20260814000056_carga_de_ingenieria_lote.sql`.
+    """
+
 
 class EstatusCarga(_Canonico):
     PENDIENTE = "pendiente"

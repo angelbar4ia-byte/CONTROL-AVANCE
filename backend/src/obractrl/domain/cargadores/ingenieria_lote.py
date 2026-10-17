@@ -91,6 +91,7 @@ __all__ = [
     "ES_DESTAJO",
     "BloqueIngenieria",
     "FilaInsumoIngenieria",
+    "LoteIngenieriaLeido",
     "TipoEstructuraIngenieria",
     "detectar_estructura",
     "leer_ingenieria_lote",
@@ -276,6 +277,22 @@ def particionar_bloques(
             )
         )
     return tuple(bloques)
+
+
+@dataclass(frozen=True, slots=True)
+class LoteIngenieriaLeido:
+    """Empaqueta el resultado de :func:`leer_ingenieria_lote` como un único
+    ``registro`` de `LecturaCarga` (mismo patrón que
+    `domain.cargadores.cpu.FilasMatrizSinAgrupar`): el adaptador de Excel
+    (`adapters.excel.cargadores.CargadorIngenieriaLote`) no tiene acceso a
+    la base (§12.11) y por eso no puede resolver nada contra el catálogo —
+    solo envuelve lo que el dominio puro ya decidió. Es
+    `AplicadorIngenieriaLote.aplicar()` quien desempaqueta esto e inyecta
+    los repositorios que hacen falta."""
+
+    estructura: TipoEstructuraIngenieria
+    insumos: tuple[FilaInsumoIngenieria, ...]
+    bloques: tuple[BloqueIngenieria, ...]
 
 
 def _decimal_opcional(celda: str) -> Decimal | None:

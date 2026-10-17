@@ -38,6 +38,10 @@ from obractrl.domain.cargadores.cpu import FilasMatrizSinAgrupar, agrupar_concep
 from obractrl.domain.cargadores.cuadrillas import agrupar_cuadrillas
 from obractrl.domain.cargadores.etapas_constructivas import validar_etapa_constructiva
 from obractrl.domain.cargadores.familias import validar_familia
+from obractrl.domain.cargadores.ingenieria_lote import (
+    LoteIngenieriaLeido,
+    leer_ingenieria_lote,
+)
 from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra, validar_trabajo
 from obractrl.domain.cargadores.materiales import validar_material
 from obractrl.domain.cargadores.niveles import validar_nivel
@@ -58,6 +62,7 @@ __all__ = [
     "CargadorCuadrillas",
     "CargadorEtapasConstructivas",
     "CargadorFamilias",
+    "CargadorIngenieriaLote",
     "CargadorManoObra",
     "CargadorMateriales",
     "CargadorNiveles",
@@ -158,6 +163,42 @@ class CargadorTrabajos:
             self.especificacion,
             validar_trabajo,
             limites=self._limites,
+        )
+
+
+class CargadorIngenieriaLote:
+    """Ingeniería del lote, archivo sin encabezados (extensión propia,
+    `TipoCarga.INGENIERIA_LOTE`, CONOCIMIENTO.md §11.4). Mismo patrón que
+    `CargadorCPU` en su modo matriz: envuelve lo que `leer_ingenieria_lote`
+    (dominio puro) ya decidió en un único `LoteIngenieriaLeido` —este
+    adaptador no tiene acceso a la base (§12.11), así que no puede
+    identificar el prototipo ni revertir destajos; eso es trabajo de
+    `AplicadorIngenieriaLote` (`application.casos_uso.aplicar_carga`), que
+    sí tiene los repositorios inyectados.
+
+    `leer_filas_crudas`, no `leer_filas`/`leer_por_nombre`: no hay fila de
+    encabezado que consumir (`especificacion.obligatorias`/`.opcionales`
+    están vacías a propósito, ver `cabeceras.INGENIERIA_LOTE`)."""
+
+    tipo = TipoCarga.INGENIERIA_LOTE
+    especificacion = cabeceras.INGENIERIA_LOTE
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        crudas = leer_filas_crudas(contenido, None, limites=self._limites)
+        filas = [fila for _, fila in crudas]
+        estructura, insumos, bloques, errores, pendientes = leer_ingenieria_lote(
+            [[str(c) if c is not None else "" for c in fila] for fila in filas]
+        )
+        return LecturaCarga(
+            registros=(
+                LoteIngenieriaLeido(estructura=estructura, insumos=insumos, bloques=bloques),
+            ),
+            errores=errores,
+            pendientes=pendientes,
+            filas_leidas=len(filas),
         )
 
 
@@ -587,6 +628,7 @@ CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.ALMACEN: CargadorAlmacen,
     TipoCarga.PROTOTIPOS: CargadorPrototipos,
     TipoCarga.PRESUPUESTO: CargadorPresupuesto,
+    TipoCarga.INGENIERIA_LOTE: CargadorIngenieriaLote,
 }
 """Tipos del §8.2 que hoy tienen cargador. Los demás no se inventan."""
 

@@ -23,15 +23,19 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from decimal import Decimal
+from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 from uuid import UUID, uuid4
 
+from obractrl.application.casos_uso.calcular_cpu import componentes_por_clave
 from obractrl.application.puertos.cargadores import RepositorioCargas
 from obractrl.application.puertos.repositorios import (
     RepositorioConceptos,
     RepositorioContratistas,
     RepositorioCuadrillas,
+    RepositorioDesviaciones,
     RepositorioFamilias,
     RepositorioFrentes,
     RepositorioInsumos,
@@ -58,6 +62,10 @@ from obractrl.domain.cargadores.cuadrillas import CuadrillaCargada
 from obractrl.domain.cargadores.etapas_constructivas import FilaEtapaConstructiva
 from obractrl.domain.cargadores.familias import FilaFamilia
 from obractrl.domain.cargadores.homologacion import Homologador
+from obractrl.domain.cargadores.ingenieria_lote import (
+    LoteIngenieriaLeido,
+    TipoEstructuraIngenieria,
+)
 from obractrl.domain.cargadores.mano_de_obra import FilaManoObra
 from obractrl.domain.cargadores.materiales import FilaMaterial
 from obractrl.domain.cargadores.niveles import FilaNivel
@@ -81,9 +89,19 @@ from obractrl.domain.catalogos.apu import (
     ErrorDeAPU,
     VersionCPU,
     calcular_cpu,
+    explotar,
     publicar_version,
 )
 from obractrl.domain.catalogos.reglas import resolver_iva
+from obractrl.domain.desviacion.desviacion import Desviacion
+from obractrl.domain.ingenieria.consolidacion import consolidar_lote
+from obractrl.domain.ingenieria.desviacion import generar_desviaciones_candidatas
+from obractrl.domain.ingenieria.identificacion import (
+    ExplosionPrototipo,
+    identificar_prototipo,
+)
+from obractrl.domain.ingenieria.matriz_completa import LineaMatrizCruda
+from obractrl.domain.ingenieria.reversion import ReversionDestajo, revertir_destajos
 from obractrl.domain.materiales.reglas import ErrorDeMaterial, validar_signo_salida
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto, Prototipo
 from obractrl.domain.shared.diccionario import (
@@ -105,12 +123,16 @@ __all__ = [
     "AplicadorDeCarga",
     "AplicadorDePrototipos",
     "AplicadorEtapasConstructivas",
+    "AplicadorIngenieriaLote",
     "AplicadorManoObra",
     "AplicadorMateriales",
     "AplicadorNiveles",
     "AplicadorPresupuesto",
     "AplicadorPrototipos",
     "AplicadorTrabajos",
+    "CaminoIngenieria",
+    "ContextoIngenieriaIncompleto",
+    "EstructuraDeIngenieriaNoSoportada",
 ]
 
 _ESTATUS_BAJA = "inactivo"
@@ -4508,4 +4530,683 @@ class AplicadorDePrototipos:
         aplicador = self._ingenieria if es_arbol else self._plano
         return await aplicador.aplicar(
             lectura, modo=modo, dry_run=dry_run, carga_id=carga_id
+        )
+
+
+# --- Ingeniería del lote (extensión propia, Fase B) -----------------------
+#
+# cerebro CONOCIMIENTO.md §11 (ingeniería del lote completa) · §13.6 (nueve
+# causas) · MODELO.md §1/HALLAZGO 12 (modo_cantidad) · §5g (Desviación).
+# El dominio puro (`domain.cargadores.ingenieria_lote`, `domain.ingenieria.
+# identificacion`/`.reversion`/`.desviacion`) ya está construido y probado
+# contra los 11 archivos reales de `ALAMO 18` (Fase A). Lo que sigue conecta
+# ese dominio a los repos reales con los dos caminos del encargo.
+
+
+class CaminoIngenieria(StrEnum):
+    """Los dos caminos de este encargo — distinto de `ModoCarga`
+    (actualizar/acumular/reemplazar, §10.2, que decide CÓMO se escribe un
+    catálogo que ya existe): este decide CONTRA QUÉ prototipo se compara y
+    se escribe la ingeniería. Nunca se persiste —no es un enum de
+    Postgres—, es un parámetro de esta sola llamada."""
+
+    CONOCIDO = "conocido"
+    """La obra ya tiene `prototipo_id` (invariante de `Obra.crear`,
+    `domain.obras.reglas`): se identifica (detección, nunca autoasignación),
+    se revierte por destajo y se proponen `Desviacion` contra ESE
+    prototipo, siempre — nunca contra el `sugerido` por la identificación."""
+
+    DISENO_NUEVO = "diseno_nuevo"
+    """No hay prototipo que comparar: se clona la estructura de un
+    `prototipo_base_id` hacia uno nuevo y la reversión reclasifica, nodo
+    por nodo, lo que resuelve — eso se convierte en el presupuesto del
+    prototipo nuevo (`modo_cantidad='cargada'`), nunca en una
+    `Desviacion`."""
+
+
+class ContextoIngenieriaIncompleto(ValueError):
+    """Falta `obra_id`, o el camino `diseno_nuevo` sin `prototipo_base_id`
+    (§11.4): la identidad del lote se declara explícita antes de subir el
+    archivo, nunca se adivina de su nombre."""
+
+
+class EstructuraDeIngenieriaNoSoportada(ValueError):
+    """Esta fase solo aplica archivos de estructura `completa`
+    (CONOCIMIENTO.md §11.8); las otras cuatro (suelta, con_concepto,
+    sin_costear, ajena) no tienen aplicador todavía — ver el docstring de
+    `domain.cargadores.ingenieria_lote` para el criterio de detección."""
+
+
+def _presupuesto_y_nodos_por_etapa(
+    nodos: Sequence[Mapping[str, Any]],
+) -> tuple[dict[str, dict[str, Decimal]], dict[tuple[str, str], Mapping[str, Any]]]:
+    """Camina el árbol **ya en la base** de un prototipo exactamente como
+    `domain.ingenieria.arbol_prototipo.renglones_por_etapa` camina un
+    `ArbolPrototipoCargado` recién leído de un CSV: mismo criterio de "la
+    etapa más cercana hacia la raíz", solo que sobre filas de
+    `prototipo_nodo` (cada una con su `parent_id` ya resuelto) en vez de un
+    árbol de `NodoLeido` todavía en memoria.
+
+    Devuelve dos cosas con un solo recorrido: ``presupuesto_por_etapa``
+    (lo que `identificar_prototipo`/`revertir_destajos` esperan) y
+    ``nodo_por_etapa_y_clave`` (qué fila de `prototipo_nodo` corresponde a
+    cada `(etapa, clave)` — lo que el camino "diseño_nuevo" necesita para
+    saber en qué nodo escribir la cantidad reconstruida).
+
+    `prototipo_nodo.tipo` no distingue `CONCEPTO` de `CONCEPTO AUXILIAR`
+    —los dos se guardan como `'concepto'`, ver `RepositorioPrototipoNodoSQL.
+    arbol`—, que es justo lo que `renglones_por_etapa` también junta
+    (`_CONCEPTOS = (CONCEPTO, CONCEPTO_AUXILIAR)`): no hace falta
+    distinguirlos aquí tampoco.
+    """
+    por_id = {n["id"]: n for n in nodos}
+    hijos: dict[Any, list[Any]] = {}
+    raices: list[Any] = []
+    for n in nodos:
+        if n["parent_id"] is None:
+            raices.append(n["id"])
+        else:
+            hijos.setdefault(n["parent_id"], []).append(n["id"])
+
+    presupuesto: dict[str, dict[str, Decimal]] = {}
+    nodo_por_etapa_clave: dict[tuple[str, str], Mapping[str, Any]] = {}
+
+    def recorrer(nodo_id: Any, etapa_actual: str | None) -> None:
+        nodo = por_id[nodo_id]
+        etapa_hijo = (
+            str(nodo["clave"])
+            if str(nodo["tipo"]) == "etapa" and nodo.get("clave")
+            else etapa_actual
+        )
+        if str(nodo["tipo"]) == "concepto" and nodo.get("clave") and etapa_hijo is not None:
+            clave = str(nodo["clave"])
+            cantidad = Decimal(str(nodo.get("cantidad") or 0))
+            etapa_dict = presupuesto.setdefault(etapa_hijo, {})
+            etapa_dict[clave] = etapa_dict.get(clave, Decimal(0)) + cantidad
+            nodo_por_etapa_clave[(etapa_hijo, clave)] = nodo
+        for hijo_id in hijos.get(nodo_id, ()):
+            recorrer(hijo_id, etapa_hijo)
+
+    for raiz in raices:
+        recorrer(raiz, None)
+
+    return presupuesto, nodo_por_etapa_clave
+
+
+def _lineas_matriz_de(
+    crudas: Sequence[Mapping[str, Any]], tipo_por_clave: Mapping[str, str]
+) -> list[LineaMatrizCruda]:
+    """Traduce filas de `Explosion` (`RepositorioConceptos.
+    composicion_recursiva_de`) al mismo lenguaje que
+    `domain.ingenieria.matriz_completa.LineaMatrizCruda` — lo que
+    `domain.ingenieria.reversion._rendimiento_y_citas` necesita para saber
+    qué citas son de un `CONCEPTO`/`CONCEPTO AUXILIAR` real (``origen ==
+    "concepto"``) y cuáles son la receta interna de un compuesto.
+
+    ``origen`` se deriva de `concepto.tipo` del PADRE de la línea
+    (``tipo_por_clave``): `'concepto'`/`'auxiliar'` son los dos tipos que
+    `AplicadorPresupuesto` namespacea como nodo del árbol WBS (ver
+    `_clave_catalogo_concepto`), exactamente lo que la matriz nativa de
+    OPUS marca `Origen=Concepto`.
+
+    **Límite heredado de `AplicadorCPU`, no de este módulo:** el catálogo
+    CPU (`_agrupar_conceptos_matriz`) descarta a propósito las líneas
+    `Origen=Material`/`ManoDeObra` —la receta interna de un compuesto,
+    "fuera de alcance de ese cargador"—, así que hoy ningún `concepto` de
+    tipo `matriz`/`basico` tiene su propia `Explosion` persistida. Esta
+    función solo puede traducir lo que SÍ está en la base: un destajo que
+    solo viviera en la profundidad de un compuesto nunca va a aparecer
+    aquí con ``origen != "concepto"`` citándolo, porque esa cita no se
+    guardó en ningún lado todavía.
+    """
+    lineas: list[LineaMatrizCruda] = []
+    for fila in crudas:
+        es_insumo = str(fila["tipo_hijo"]) == TipoHijoExplosion.INSUMO
+        hijo = fila.get("insumo_clave") if es_insumo else fila.get("concepto_hijo_clave")
+        if not hijo:
+            continue
+        padre = str(fila["concepto_clave"])
+        tipo_padre = tipo_por_clave.get(padre)
+        origen = (
+            "concepto"
+            if tipo_padre in (str(TipoConcepto.CONCEPTO), str(TipoConcepto.AUXILIAR))
+            else "matriz"
+        )
+        cantidad = Decimal(str(fila.get("cantidad") or fila.get("rendimiento") or 0))
+        lineas.append(
+            LineaMatrizCruda(
+                padre=padre,
+                hijo=str(hijo),
+                descripcion="",
+                unidad=None,
+                cantidad=cantidad,
+                costo=Decimal(str(fila.get("costo_unitario") or 0)),
+                categoria=CategoriaExplosion(str(fila["categoria"])),
+                origen=origen,
+                fila=0,
+            )
+        )
+    return lineas
+
+
+def _ids_concepto_de(nodos: Sequence[Mapping[str, Any]]) -> list[Any]:
+    return list(
+        {n["concepto_id"] for n in nodos if str(n["tipo"]) == "concepto" and n.get("concepto_id")}
+    )
+
+
+def _desviacion_a_datos(d: Desviacion) -> dict[str, Any]:
+    return {
+        "insumo_id": d.insumo_id,
+        "concepto_id": d.concepto_id,
+        "obra_id": d.obra_id,
+        "tipo": str(d.tipo),
+        "monto": d.monto,
+        "cantidad_plan": d.cantidad_plan,
+        "cantidad_real": d.cantidad_real,
+        "precio_plan": d.precio_plan,
+        "precio_real": d.precio_real,
+        "detectada_en": d.detectada_en,
+    }
+
+
+class AplicadorIngenieriaLote:
+    """Ingeniería del lote, archivo `completa` (`TipoCarga.INGENIERIA_LOTE`,
+    CONOCIMIENTO.md §11 completo). Dos caminos (`CaminoIngenieria`):
+
+    - **`conocido`**: la obra ya tiene `prototipo_id`. Se corre
+      `identificar_prototipo` contra TODOS los prototipos de la
+      organización (P-30: la etiqueta puede mentir — caso real de `ALAMO
+      18`, "Zafiro Plus" era Diamante con chimenea) pero la reversión y la
+      `Desviacion` corren SIEMPRE contra el prototipo ya asignado, nunca
+      contra el `sugerido`: si el asignado no cae dentro del umbral se abre
+      `TipoPendiente.IDENTIDAD_PROTOTIPO_DUDOSA` (alerta, nunca bloqueo) y
+      la carga se aplica igual. `causa=None` siempre (nunca se decide
+      aquí, MODELO.md §5g).
+    - **`diseno_nuevo`**: no hay prototipo que comparar — se declaró así
+      explícito, junto con la obra, antes de subir el archivo. Se clona la
+      estructura de `prototipo_base_id` hacia un prototipo nuevo
+      (`modo_cantidad='heredada'`) y la reversión por destajo reclasifica,
+      nodo por nodo, lo que resuelve a `modo_cantidad='cargada'` con la
+      cantidad reconstruida — eso ES el presupuesto del prototipo nuevo,
+      no se audita contra sí mismo, así que nunca genera `Desviacion`. No
+      se corre `identificar_prototipo`: no hay candidato contra quién
+      identificar.
+
+    Los dos caminos comparten la reversión por destajo
+    (`domain.ingenieria.reversion.revertir_destajos`) contra la estructura
+    (en `conocido`, la del prototipo asignado; en `diseno_nuevo`, la recién
+    clonada) — lo que cambia es qué se hace con el resultado.
+
+    **Límite real, documentado explícito y no escondido en el código:** la
+    clase `COMPUESTO` de la reversión (un destajo que solo vive en la
+    matriz de un compuesto, CONOCIMIENTO.md §11.9, ej. `MOC-12010` dentro
+    de `ZA1-000001`) necesita `composiciones` con TODAS las líneas de la
+    matriz nativa de OPUS, también `Origen=Material`/`ManoDeObra` — la
+    receta interna del compuesto. `AplicadorCPU` (catálogo "Conceptos
+    CPU") descarta esas líneas a propósito (ver su docstring:
+    `_agrupar_conceptos_matriz`, "fuera de alcance de ese cargador"),
+    así que hoy ningún cargador persiste la receta interna de un compuesto
+    como su propio `concepto`/`Explosion`. Este aplicador reconstruye
+    `composiciones` desde `RepositorioConceptos.composicion_recursiva_de`
+    —la misma fuente que usa cualquier otro caso de uso de este repo,
+    `calcular_cpu.componentes_por_clave`— y por eso hereda ese mismo
+    límite: un destajo que solo existiera en la profundidad de un
+    compuesto cae en `SIN` en vez de `COMPUESTO` mientras ningún cargador
+    persista esa receta. No es un defecto introducido por esta entrega —es
+    una brecha ya existente en el catálogo, fuera del alcance que este
+    encargo pidió cerrar (`AplicadorCPU` no se tocó).
+    """
+
+    def __init__(
+        self,
+        *,
+        obras: RepositorioObras,
+        prototipos: RepositorioPrototipos,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        conceptos: RepositorioConceptos,
+        desviaciones: RepositorioDesviaciones,
+        cargas: RepositorioCargas,
+    ) -> None:
+        self._obras = obras
+        self._prototipos = prototipos
+        self._prototipo_nodos = prototipo_nodos
+        self._conceptos = conceptos
+        self._desviaciones = desviaciones
+        self._cargas = cargas
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+        obra_id: UUID | None = None,
+        camino: str | None = None,
+        prototipo_base_id: UUID | None = None,
+        nombre_prototipo_nuevo: str | None = None,
+    ) -> Aplicacion:
+        if obra_id is None:
+            raise ContextoIngenieriaIncompleto(
+                "La ingeniería del lote exige obra_id: la identidad del "
+                "lote se declara antes de subir el archivo, nunca se "
+                "adivina de su nombre (§11.4/§11.5)."
+            )
+        camino_resuelto = CaminoIngenieria(camino) if camino else CaminoIngenieria.CONOCIDO
+        if camino_resuelto is CaminoIngenieria.DISENO_NUEVO and prototipo_base_id is None:
+            raise ContextoIngenieriaIncompleto(
+                "El camino 'diseno_nuevo' exige prototipo_base_id: el "
+                "prototipo del que se clona la estructura."
+            )
+
+        registro = lectura.registros[0] if lectura.registros else None
+        if not isinstance(registro, LoteIngenieriaLeido):
+            # Archivo sin ningún registro (vacío): el lector ya reportó lo
+            # que haya que reportar en `lectura.pendientes`/`errores`.
+            return Aplicacion(diff=Diff())
+        lote = registro
+
+        if lote.estructura is not TipoEstructuraIngenieria.COMPLETA:
+            # `AJENA` ya trae su propio pendiente crítico desde el lector
+            # (`ESTRUCTURA_AJENA_SIN_PARSEAR`) y `lote.insumos` sale vacío;
+            # para `SUELTA`/`CON_CONCEPTO`/`SIN_COSTEAR` no hay pendiente
+            # todavía porque esta fase explícitamente no las aplica (ver
+            # docstring de la clase y del paquete `domain.cargadores.
+            # ingenieria_lote`).
+            raise EstructuraDeIngenieriaNoSoportada(
+                f"Esta fase solo aplica archivos de estructura 'completa' "
+                f"(CONOCIMIENTO.md §11.8); llegó {lote.estructura!r}."
+            )
+
+        if not lote.insumos:
+            return Aplicacion(diff=Diff())
+
+        if camino_resuelto is CaminoIngenieria.CONOCIDO:
+            return await self._aplicar_conocido(lote, obra_id=obra_id, dry_run=dry_run)
+        return await self._aplicar_diseno_nuevo(
+            lote,
+            obra_id=obra_id,
+            prototipo_base_id=prototipo_base_id,  # type: ignore[arg-type]
+            nombre_prototipo_nuevo=nombre_prototipo_nuevo,
+            dry_run=dry_run,
+        )
+
+    async def _explosion_de_prototipo(
+        self, prototipo_id: UUID, clave_prototipo: str
+    ) -> ExplosionPrototipo:
+        """Mismo cálculo que `domain.ingenieria.identificacion.
+        explotar_prototipo_por_etapa`, pero sobre el árbol que ya está en
+        la base en vez de un `ArbolPrototipoCargado` recién leído de un
+        CSV (ver docstring de `_presupuesto_y_nodos_por_etapa`)."""
+        nodos = await self._prototipo_nodos.por_prototipo(prototipo_id)
+        presupuesto_por_etapa, _ = _presupuesto_y_nodos_por_etapa(nodos)
+        ids_concepto = _ids_concepto_de(nodos)
+        if not ids_concepto:
+            return ExplosionPrototipo(
+                clave_prototipo=clave_prototipo, total_global=Decimal(0), total_por_etapa={}
+            )
+        crudas = await self._conceptos.composicion_recursiva_de(ids_concepto)
+        composiciones, costos_insumo = componentes_por_clave(crudas)
+
+        total_global = Decimal(0)
+        total_por_etapa: dict[str, Decimal] = {}
+        for etapa, conceptos in presupuesto_por_etapa.items():
+            for clave, cantidad in conceptos.items():
+                try:
+                    precio = explotar(
+                        clave, composiciones=composiciones, costos_insumo=costos_insumo
+                    ).precio.total.monto
+                except ErrorDeAPU:
+                    continue
+                importe = precio * cantidad
+                total_global += importe
+                total_por_etapa[etapa] = total_por_etapa.get(etapa, Decimal(0)) + importe
+
+        return ExplosionPrototipo(
+            clave_prototipo=clave_prototipo, total_global=total_global, total_por_etapa=total_por_etapa
+        )
+
+    async def _revertir_contra(
+        self,
+        nodos: Sequence[Mapping[str, Any]],
+        presupuesto_por_etapa: Mapping[str, Mapping[str, Decimal]],
+        lote: LoteIngenieriaLeido,
+    ) -> tuple[tuple[ReversionDestajo, ...], tuple[PendientePropuesto, ...]]:
+        ids_concepto = _ids_concepto_de(nodos)
+        if not ids_concepto:
+            return (), ()
+        crudas = await self._conceptos.composicion_recursiva_de(ids_concepto)
+        composiciones, _ = componentes_por_clave(crudas)
+        conceptos_filas = await self._conceptos.listar(solo_activos=False)
+        tipo_por_clave = {str(f["clave"]): str(f["tipo"]) for f in conceptos_filas}
+        lineas_matriz = _lineas_matriz_de(crudas, tipo_por_clave)
+        return revertir_destajos(lote.insumos, lineas_matriz, presupuesto_por_etapa, composiciones)
+
+    async def _aplicar_conocido(
+        self, lote: LoteIngenieriaLeido, *, obra_id: UUID, dry_run: bool
+    ) -> Aplicacion:
+        obra = await self._obras.obtener(obra_id)
+        if obra is None:
+            raise ErrorDeProyecto(
+                f"La obra {obra_id} no existe o está fuera de tu alcance."
+            )
+        prototipo_id = obra.get("prototipo_id")
+        if prototipo_id is None:
+            raise ErrorDeProyecto(
+                f"La obra {obra_id} no tiene prototipo asignado: el camino "
+                f"'conocido' exige el invariante de `Obra.crear` (toda "
+                f"obra no-urba nace con prototipo, `domain.obras.reglas`)."
+            )
+
+        prototipos_filas = await self._prototipos.listar()
+        por_id = {str(f["id"]): f for f in prototipos_filas}
+        prototipo_asignado = por_id.get(str(prototipo_id))
+        if prototipo_asignado is None:
+            raise ErrorDeProyecto(
+                f"El prototipo {prototipo_id} asignado a la obra no existe."
+            )
+
+        pendientes: list[PendientePropuesto] = []
+        consolidado = consolidar_lote(lote.insumos)
+
+        identificado: str | None = None
+        if consolidado.total_por_etapa:
+            candidatos = [
+                await self._explosion_de_prototipo(f["id"], str(f["clave"]))
+                for f in prototipos_filas
+            ]
+            identificacion = identificar_prototipo(consolidado.total_por_etapa, candidatos)
+            identificado = identificacion.identificado
+            candidato_asignado = next(
+                (
+                    c
+                    for c in identificacion.candidatos
+                    if c.clave_prototipo == str(prototipo_asignado["clave"])
+                ),
+                None,
+            )
+            if candidato_asignado is None or not candidato_asignado.dentro_del_umbral:
+                pendientes.append(
+                    PendientePropuesto(
+                        tipo=TipoPendiente.IDENTIDAD_PROTOTIPO_DUDOSA,
+                        entidad="obra",
+                        valor_origen=str(obra_id),
+                        propuesta={
+                            "prototipo_asignado": str(prototipo_asignado["clave"]),
+                            "sugerido": identificacion.sugerido,
+                            "razon_global_asignado": (
+                                str(candidato_asignado.razon_global)
+                                if candidato_asignado is not None
+                                and candidato_asignado.razon_global is not None
+                                else None
+                            ),
+                            "motivo": (
+                                "La ingeniería del lote no confirma, dentro del "
+                                "umbral, al prototipo ya asignado a la obra "
+                                "(P-30: la etiqueta puede mentir). La carga se "
+                                "aplica igual contra el prototipo asignado — "
+                                "nunca se reasigna sola (§11.7)."
+                            ),
+                        },
+                    )
+                )
+
+        nodos_asignado = await self._prototipo_nodos.por_prototipo(prototipo_id)
+        presupuesto_por_etapa, _ = _presupuesto_y_nodos_por_etapa(nodos_asignado)
+        concepto_id_de_clave = {
+            str(n["clave"]): n["concepto_id"]
+            for n in nodos_asignado
+            if str(n["tipo"]) == "concepto" and n.get("concepto_id") and n.get("clave")
+        }
+
+        resultados, pendientes_reversion = await self._revertir_contra(
+            nodos_asignado, presupuesto_por_etapa, lote
+        )
+        pendientes.extend(pendientes_reversion)
+
+        ids_concepto = _ids_concepto_de(nodos_asignado)
+        composiciones: Mapping[str, Sequence[Componente]] = {}
+        costos_insumo: Mapping[str, Decimal] = {}
+        if ids_concepto:
+            crudas = await self._conceptos.composicion_recursiva_de(ids_concepto)
+            composiciones, costos_insumo = componentes_por_clave(crudas)
+
+        conceptos_en_etapas = {c for etapa in presupuesto_por_etapa.values() for c in etapa}
+        precio_concepto: dict[str, Decimal] = {}
+        for clave in conceptos_en_etapas:
+            try:
+                precio_concepto[clave] = explotar(
+                    clave, composiciones=composiciones, costos_insumo=costos_insumo
+                ).precio.total.monto
+            except ErrorDeAPU:
+                continue
+
+        desviaciones, pendientes_desviacion = generar_desviaciones_candidatas(
+            resultados,
+            presupuesto_por_etapa,
+            precio_concepto,
+            obra_id=str(obra_id),
+            concepto_id_de_clave={k: str(v) for k, v in concepto_id_de_clave.items()},
+            detectada_en=datetime.now(UTC),
+        )
+        pendientes.extend(pendientes_desviacion)
+
+        operaciones: list[dict[str, Any]] = []
+        if not dry_run:
+            for d in desviaciones:
+                datos = _desviacion_a_datos(d)
+                nuevo_id = await self._desviaciones.crear(datos)
+                operaciones.append(_operacion("desviacion", nuevo_id, "insert", despues=datos))
+
+        diff = Diff(
+            altas=tuple(
+                Cambio(
+                    clave=str(d.concepto_id or d.insumo_id),
+                    despues={"monto": str(d.monto), "cantidad_real": str(d.cantidad_real)},
+                )
+                for d in desviaciones
+            )
+        )
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            pendientes=tuple(pendientes),
+            insertados=len(desviaciones),
+            detalle={
+                "camino": str(CaminoIngenieria.CONOCIDO),
+                "prototipo_identificado": identificado,
+                "prototipo_asignado": str(prototipo_asignado["clave"]),
+                "destajos_revertidos": len(resultados),
+                "desviaciones_candidatas": len(desviaciones),
+            },
+        )
+
+    async def _aplicar_diseno_nuevo(
+        self,
+        lote: LoteIngenieriaLeido,
+        *,
+        obra_id: UUID,
+        prototipo_base_id: UUID,
+        nombre_prototipo_nuevo: str | None,
+        dry_run: bool,
+    ) -> Aplicacion:
+        obra = await self._obras.obtener(obra_id)
+        if obra is None:
+            raise ErrorDeProyecto(
+                f"La obra {obra_id} no existe o está fuera de tu alcance."
+            )
+        base = await self._prototipos.obtener(prototipo_base_id)
+        if base is None:
+            raise ErrorDeProyecto(f"El prototipo base {prototipo_base_id} no existe.")
+
+        if dry_run:
+            # La vista previa no clona de verdad (§9.3: nada se escribe),
+            # pero correr la reversión contra la estructura TAL CUAL está
+            # hoy en el prototipo base da los mismos números que clonarla y
+            # revertir después: clonar copia filas, no las cambia.
+            nodos_base = await self._prototipo_nodos.por_prototipo(prototipo_base_id)
+            presupuesto_por_etapa, _ = _presupuesto_y_nodos_por_etapa(nodos_base)
+            resultados, pendientes = await self._revertir_contra(
+                nodos_base, presupuesto_por_etapa, lote
+            )
+            resueltos = sum(1 for r in resultados if r.reparto is not None)
+            clave_nueva = str(obra.get("clave") or obra_id)
+            return Aplicacion(
+                diff=Diff(
+                    altas=(
+                        Cambio(
+                            clave=clave_nueva,
+                            despues={"prototipo_base": str(base["clave"])},
+                        ),
+                    )
+                ),
+                pendientes=tuple(pendientes),
+                insertados=len(nodos_base),
+                detalle={
+                    "camino": str(CaminoIngenieria.DISENO_NUEVO),
+                    "prototipo_base": str(base["clave"]),
+                    "nodos_a_clonar": len(nodos_base),
+                    "destajos_revertidos": len(resultados),
+                    "conceptos_resueltos": resueltos,
+                },
+            )
+
+        clave_nueva = str(obra.get("clave") or obra_id)
+        # Decisión de diseño no dada 100% explícita por el encargo: la
+        # CLAVE del prototipo nuevo (identidad de catálogo, `uq_prototipo_
+        # clave`) también se toma de la clave de la obra, igual que el
+        # NOMBRE cuando no se da uno — un prototipo "diseño nuevo" es, por
+        # definición, de uso exclusivo de esa obra (§11.4), así que no hay
+        # ninguna otra identidad más natural que reusar.
+        nombre_nuevo = nombre_prototipo_nuevo or clave_nueva
+        dominio = Prototipo.crear(
+            proyecto_id=str(base["proyecto_id"]),
+            clave=clave_nueva,
+            nombre=nombre_nuevo,
+            m2=base.get("m2"),
+            niveles=base.get("niveles"),
+            recamaras=base.get("recamaras"),
+        )
+
+        nuevo_prototipo_id = await self._prototipos.crear(
+            {
+                "proyecto_id": dominio.proyecto_id,
+                "clave": str(dominio.clave),
+                "nombre": dominio.nombre,
+                "m2": dominio.m2,
+                "niveles": dominio.niveles,
+                "recamaras": dominio.recamaras,
+            }
+        )
+        operaciones: list[dict[str, Any]] = [
+            _operacion(
+                "prototipo",
+                nuevo_prototipo_id,
+                "insert",
+                despues={
+                    "proyecto_id": str(dominio.proyecto_id),
+                    "clave": str(dominio.clave),
+                    "nombre": dominio.nombre,
+                    "m2": str(dominio.m2) if dominio.m2 is not None else None,
+                    "niveles": dominio.niveles,
+                    "recamaras": dominio.recamaras,
+                },
+            )
+        ]
+        # Ningún nodo clonado ni reclasificado se registra aparte en el
+        # snapshot: revertir el alta del `prototipo` de arriba se lleva
+        # consigo, por `on delete cascade` (migración 0006), cada
+        # `prototipo_nodo` que `clonar_estructura`/`actualizar_cantidad`
+        # toquen — ver el docstring de `RepositorioPrototipoNodoSQL.
+        # clonar_estructura`.
+        await self._prototipo_nodos.clonar_estructura(
+            origen_prototipo_id=prototipo_base_id,
+            destino_prototipo_id=nuevo_prototipo_id,
+        )
+
+        nodos_destino = await self._prototipo_nodos.por_prototipo(nuevo_prototipo_id)
+        presupuesto_por_etapa, nodo_por_etapa_clave = _presupuesto_y_nodos_por_etapa(
+            nodos_destino
+        )
+        resultados, pendientes = await self._revertir_contra(
+            nodos_destino, presupuesto_por_etapa, lote
+        )
+
+        # Mismo desempate que `domain.ingenieria.desviacion.
+        # generar_desviaciones_candidatas` (dos destajos resuelven el mismo
+        # concepto con estimaciones distintas: gana el de mayor costo
+        # observado, CONOCIMIENTO.md §11.13) — replicado aquí porque este
+        # camino no pasa por esa función: no hay presupuesto ajeno contra
+        # el cual comparar, la cantidad reconstruida SE CONVIERTE en el
+        # presupuesto del prototipo nuevo.
+        mejor_costo: dict[str, Decimal] = {}
+        mejor_ubicacion: dict[str, tuple[str, Decimal]] = {}
+        for r in resultados:
+            if r.reparto is None:
+                continue
+            costo_destajo = (r.precio or Decimal(0)) * r.cantidad_real
+            for concepto, cantidad_real in r.reparto.items():
+                actual = mejor_costo.get(concepto)
+                if actual is None or costo_destajo > actual:
+                    mejor_costo[concepto] = costo_destajo
+                    mejor_ubicacion[concepto] = (r.etapa, cantidad_real)
+
+        actualizados = 0
+        for concepto, (etapa, cantidad_real) in mejor_ubicacion.items():
+            nodo = nodo_por_etapa_clave.get((etapa, concepto))
+            if nodo is None:
+                continue
+            resultado = await self._prototipo_nodos.actualizar_cantidad(
+                nuevo_prototipo_id,
+                parent_id=nodo["parent_id"],
+                clave=concepto,
+                cantidad=cantidad_real,
+                # "cargada": vino de revertir una ingeniería importada
+                # (cerebro MODELO.md §1/HALLAZGO 12) — nunca `capturada`
+                # (nadie la tipeó) ni `heredada` (eso describe el resto del
+                # árbol que esta llamada no toca).
+                modo_cantidad="cargada",
+            )
+            if resultado is not None:
+                actualizados += 1
+
+        await self._obras.actualizar(obra_id, {"prototipo_id": nuevo_prototipo_id})
+        operaciones.append(
+            _operacion(
+                "obra",
+                obra_id,
+                "update",
+                antes={
+                    "prototipo_id": (
+                        str(obra["prototipo_id"]) if obra.get("prototipo_id") else None
+                    )
+                },
+                despues={"prototipo_id": str(nuevo_prototipo_id)},
+            )
+        )
+
+        diff = Diff(
+            altas=(
+                Cambio(
+                    clave=clave_nueva,
+                    despues={"prototipo_id": str(nuevo_prototipo_id)},
+                ),
+            )
+        )
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            pendientes=tuple(pendientes),
+            insertados=len(nodos_destino),
+            actualizados=actualizados,
+            detalle={
+                "camino": str(CaminoIngenieria.DISENO_NUEVO),
+                "prototipo_nuevo": clave_nueva,
+                "prototipo_base": str(base["clave"]),
+                "nodos_clonados": len(nodos_destino),
+                "conceptos_reclasificados": actualizados,
+            },
         )

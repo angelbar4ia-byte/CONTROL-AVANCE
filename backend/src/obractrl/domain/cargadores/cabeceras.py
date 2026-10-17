@@ -33,6 +33,7 @@ __all__ = [
     "CUADRILLAS",
     "ETAPAS_CONSTRUCTIVAS",
     "FAMILIAS",
+    "INGENIERIA_LOTE",
     "MANO_DE_OBRA",
     "MAPA_CPU",
     "MATERIALES",
@@ -702,6 +703,23 @@ subcontrato). No fija por sí solo si una fila es destajo o subcontrato —
 eso es `mano_de_obra.clase_de_trabajo`, que lee la `clase` resuelta aquí y
 decide el `TipoInsumo` con el que `validar_mano_obra` valida la fila
 (`mano_de_obra.validar_trabajo`)."""
+
+INGENIERIA_LOTE = EspecificacionArchivo(
+    tipo="Ingeniería del lote (extensión propia, CONOCIMIENTO.md §11)",
+    archivo="INGENIERIA_<OBRA>_<ETAPA>.csv",
+    hoja=None,
+    obligatorias=(),
+    opcionales=(),
+)
+"""Sin encabezados ni columnas por nombre (CONOCIMIENTO.md §11.4): las siete
+columnas se reconocen por posición y por los datos, nunca por un título que
+el archivo no trae (ver el docstring de `domain.cargadores.
+ingenieria_lote`). `obligatorias`/`opcionales` se dejan vacías a propósito
+—no hay cabecera que resolver con `resolver_encabezados`— así que
+`GET /cargas/plantillas/{tipo}` (`adapters.excel.plantillas`) genera un
+`.xlsx` sin ninguna fila de título para este tipo: escribir rótulos ahí
+sería inventar un contrato que el archivo real no tiene, y esa fila de
+título terminaría leyéndose como una fila de dato más."""
 
 CUADRILLAS = EspecificacionArchivo(
     tipo="Cuadrillas",
