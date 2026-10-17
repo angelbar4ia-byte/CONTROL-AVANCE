@@ -135,6 +135,13 @@ class ComandoEjecutarCarga:
     nombre del prototipo nuevo; si no se da, se usa la propia clave de la
     obra (ver `AplicadorIngenieriaLote._aplicar_diseno_nuevo`)."""
 
+    etapa_externa: str | None = None
+    """Solo `TipoCarga.INGENIERIA_LOTE`, estructura `suelta` (§11.8): la
+    etapa `ECO-...` a la que pertenece el archivo, porque su contenido
+    nunca la trae (columna 0 siempre vacía). Mismo criterio que `obra_id`
+    —se declara explícito antes de subir, nunca se adivina del nombre del
+    archivo— y por eso vive aquí, no en `archivo_nombre`."""
+
 
 @dataclass(frozen=True, slots=True)
 class ResultadoCarga:
@@ -205,6 +212,7 @@ class EjecutarCarga:
                 camino=cmd.camino_ingenieria,
                 prototipo_base_id=cmd.prototipo_base_id,
                 nombre_prototipo_nuevo=cmd.nombre_prototipo_nuevo,
+                etapa_externa=cmd.etapa_externa,
             )
         else:
             aplicacion = await self._aplicador.aplicar(

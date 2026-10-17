@@ -48,6 +48,9 @@ from obractrl.adapters.repos.expediente_sql import RepositorioExpedienteSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.frentes_sql import RepositorioFrentesSQL
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
+from obractrl.adapters.repos.ingenieria_lote_insumos_sql import (
+    RepositorioIngenieriaLoteInsumosSQL,
+)
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
@@ -1219,6 +1222,7 @@ class FabricaDeCargas:
                 prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
                 conceptos=RepositorioConceptosSQL(sesion),
                 desviaciones=RepositorioDesviacionesSQL(sesion),
+                ingenieria_insumos=RepositorioIngenieriaLoteInsumosSQL(sesion),
                 cargas=cargas,
             )
         # `cargador_para` ya rechazó los tipos sin cargador; llegar aquí

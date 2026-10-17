@@ -36,10 +36,14 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from obractrl.adapters.api.casos_uso import FabricaDeCargas
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
+from obractrl.adapters.repos.ingenieria_lote_insumos_sql import (
+    RepositorioIngenieriaLoteInsumosSQL,
+)
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
 from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
+from obractrl.application.casos_uso.aplicar_carga import ContextoIngenieriaIncompleto
 from obractrl.application.casos_uso.gestionar_carga import (
     ComandoEjecutarCarga,
     RevertirCarga,
@@ -78,6 +82,16 @@ pytestmark = pytest.mark.skipif(
 
 _INGENIERIA_ALAMO_18 = _PRESUPUESTO_OPUS_CSV.parent / "ingenieria-alamo-18"
 _CIMENTACION_CSV = _INGENIERIA_ALAMO_18 / "INGENIERIA_-_ALAMO_18_-_CIM.csv"
+_AJU_GUALDRA_CSV = _INGENIERIA_ALAMO_18 / "INGENIERIA_-_ALAMO_18__-_AJU._GUALDRA_PB.csv"
+"""Estructura real `sin_costear` (§11.8): trae NIV-/ECO- y una línea de
+insumo sin clave ni precio (GUALDRA 6X12X14)."""
+_AJU_PISOS_CSV = _INGENIERIA_ALAMO_18 / "INGENIERIA_-_ALAMO_18__-_AJU_PISOS.csv"
+"""Estructura real `suelta` (§11.8): columna 0 siempre vacía, un solo
+insumo (`PIS-80475`), sin ninguna etapa en el contenido."""
+_PB_CSV = _INGENIERIA_ALAMO_18 / "INGENIERIA_-_ALAMO_18__-_PB.csv"
+"""Estructura real `completa`, etapas `ECO-00006`..`ECO-00061` — ninguna
+en común con las cinco de `_CIMENTACION_CSV` (`ECO-00001`..`ECO-00005`):
+la sube la prueba de consolidación multi-archivo (§11.11)."""
 
 DIAMANTE_CON_CHIMENEA = "CAS-00007"
 ZAFIRO_PLUS = "CAS-00006"
@@ -147,25 +161,34 @@ async def _cargar_ingenieria(
     prototipo_base_id: uuid.UUID | None = None,
     nombre_prototipo_nuevo: str | None = None,
     dry_run: bool = False,
+    contenido: bytes | None = None,
+    archivo_nombre: str = "INGENIERIA_-_ALAMO_18_-_CIM.csv",
+    etapa_externa: str | None = None,
 ):
     """Sube la ingeniería del lote por el pipeline real —`FabricaDeCargas`,
     la misma fábrica que arma `POST /cargas`—, no por un wiring propio de
     la prueba: es la forma de probar que el router, `ComandoEjecutarCarga`
-    y `AplicadorIngenieriaLote` encajan tal como quedaron cableados."""
+    y `AplicadorIngenieriaLote` encajan tal como quedaron cableados.
+
+    Sin `contenido`, sube la cimentación real (comportamiento histórico de
+    este helper); con él, sube cualquier otro archivo (real o sintético) —
+    las pruebas de `suelta`/`con_concepto`/`sin_costear`/consolidación lo
+    usan para no duplicar este wiring."""
     async with sesion_con_rls(contexto) as sesion:
         fabrica = FabricaDeCargas(sesion)
         caso_uso = await fabrica.para(TipoCarga.INGENIERIA_LOTE)
         return await caso_uso.ejecutar(
             ComandoEjecutarCarga(
                 tipo=TipoCarga.INGENIERIA_LOTE,
-                contenido=_archivo_ingenieria_cimentacion(),
-                archivo_nombre="INGENIERIA_-_ALAMO_18_-_CIM.csv",
+                contenido=contenido if contenido is not None else _archivo_ingenieria_cimentacion(),
+                archivo_nombre=archivo_nombre,
                 usuario_id=contexto.usuario_id,
                 obra_id=obra_id,
                 camino_ingenieria=camino,
                 prototipo_base_id=prototipo_base_id,
                 nombre_prototipo_nuevo=nombre_prototipo_nuevo,
                 dry_run=dry_run,
+                etapa_externa=etapa_externa,
             )
         )
 
@@ -493,3 +516,237 @@ class TestCaminoDisenoNuevo:
         async with sesion_con_rls(contexto_control) as sesion:
             prototipos = await RepositorioPrototiposSQL(sesion).listar()
         assert "CAS-SINT" in {p["clave"] for p in prototipos}  # el base sigue
+
+
+class TestEstructuraSinCostear:
+    """`sin_costear` (§11.8): mismo flujo que `completa` — ya no levanta
+    `EstructuraDeIngenieriaNoSoportada`. El archivo real de `ALAMO 18`
+    que la define (`AJU._GUALDRA_PB.csv`) no trae ningún insumo costeado
+    (solo la línea sin clave/precio), así que esta prueba verifica lo que
+    sí puede verificar con datos reales: la carga se aplica sin error y el
+    pendiente `INSUMO_SIN_COSTEAR` —que ya emite el lector puro— llega
+    hasta la bandeja de la carga real."""
+
+    async def test_aplica_sin_error_y_el_pendiente_llega_a_la_bandeja(
+        self, escenario: Escenario, contexto_control: ContextoSesion
+    ) -> None:
+        await _rollout_real(contexto_control)
+        prototipos = await _prototipos(contexto_control)
+        diamante = prototipos[DIAMANTE_CON_CHIMENEA]
+        await _asignar_prototipo_a_obra(escenario.obra_id, uuid.UUID(str(diamante["id"])))
+
+        resultado = await _cargar_ingenieria(
+            contexto_control,
+            obra_id=escenario.obra_id,
+            contenido=_repaquetar_csv_como_xlsx(_AJU_GUALDRA_CSV),
+            archivo_nombre="INGENIERIA_-_ALAMO_18__-_AJU._GUALDRA_PB.csv",
+        )
+
+        assert resultado.estatus is EstatusCarga.APLICADO
+        assert resultado.resumen.errores == 0
+        assert resultado.pendientes == 1
+
+        async with sesion_con_rls(contexto_control) as sesion:
+            pendientes = await RepositorioCargasSQL(sesion).listar_pendientes(
+                carga_id=resultado.carga_id
+            )
+        sin_costear = [
+            p for p in pendientes if p["tipo"] == str(TipoPendiente.INSUMO_SIN_COSTEAR)
+        ]
+        assert len(sin_costear) == 1
+        assert sin_costear[0]["critico"] is False
+        assert sin_costear[0]["propuesta"]["etapa"] == "ECO-00006"
+
+
+class TestEstructuraSuelta:
+    """`suelta` (§11.8): el contenido nunca trae etapa — se exige
+    `etapa_externa`, mismo criterio que `obra_id`, nunca se adivina del
+    nombre del archivo."""
+
+    async def test_con_etapa_externa_resuelve_igual_que_si_viniera_en_contenido(
+        self, escenario: Escenario, contexto_control: ContextoSesion
+    ) -> None:
+        await _rollout_real(contexto_control)
+        prototipos = await _prototipos(contexto_control)
+        diamante = prototipos[DIAMANTE_CON_CHIMENEA]
+        await _asignar_prototipo_a_obra(escenario.obra_id, uuid.UUID(str(diamante["id"])))
+
+        resultado = await _cargar_ingenieria(
+            contexto_control,
+            obra_id=escenario.obra_id,
+            contenido=_repaquetar_csv_como_xlsx(_AJU_PISOS_CSV),
+            archivo_nombre="INGENIERIA_-_ALAMO_18__-_AJU_PISOS.csv",
+            etapa_externa="ECO-00001",
+        )
+
+        assert resultado.estatus is EstatusCarga.APLICADO
+        assert resultado.resumen.errores == 0
+
+        # La fila se persistió con la etapa_externa ya sustituida, nunca
+        # con la que el contenido no trae (None).
+        async with sesion_con_rls(contexto_control) as sesion:
+            acumulado = await RepositorioIngenieriaLoteInsumosSQL(sesion).acumulado_por_obra(
+                escenario.obra_id
+            )
+        suelta = [f for f in acumulado if f.clave == "PIS-80475"]
+        assert len(suelta) == 1
+        assert suelta[0].etapa == "ECO-00001"
+
+    async def test_sin_etapa_externa_levanta_contexto_incompleto(
+        self, escenario: Escenario, contexto_control: ContextoSesion
+    ) -> None:
+        await _rollout_real(contexto_control)
+        prototipos = await _prototipos(contexto_control)
+        diamante = prototipos[DIAMANTE_CON_CHIMENEA]
+        await _asignar_prototipo_a_obra(escenario.obra_id, uuid.UUID(str(diamante["id"])))
+
+        with pytest.raises(ContextoIngenieriaIncompleto):
+            await _cargar_ingenieria(
+                contexto_control,
+                obra_id=escenario.obra_id,
+                contenido=_repaquetar_csv_como_xlsx(_AJU_PISOS_CSV),
+                archivo_nombre="INGENIERIA_-_ALAMO_18__-_AJU_PISOS.csv",
+            )
+
+
+class TestEstructuraConConcepto:
+    """`con_concepto` (§11.8): el agrupador YA es el concepto — no hay
+    candidatos que buscar, solo dividir la cantidad del insumo entre su
+    rendimiento dentro de ESE concepto. Fixture sintético (no el archivo
+    real `CEMENTO_EXTRA...csv`, que solo resuelve en profundidad contra un
+    compuesto cuya receta interna el catálogo CPU real no persiste —mismo
+    límite ya documentado para `MOC-12010`/`ZA1-000001`—; el dominio puro
+    SÍ se prueba contra ese archivo real,
+    `tests/domain/test_ingenieria_con_concepto_opus_real.py`): un concepto
+    con un material citado DIRECTO, para poder verificar de punta a punta
+    que la reconstrucción alimenta `Desviacion` igual que un destajo."""
+
+    async def _prototipo_con_concepto(
+        self, contexto_control: ContextoSesion, escenario: Escenario
+    ) -> None:
+        resultado = await _cargar(
+            contexto_control,
+            TipoCarga.PROTOTIPOS,
+            _archivo_prototipos([["PROY", "CAS-CC", "Prototipo con concepto", "", "", ""]]),
+        )
+        assert resultado.resumen.errores == 0
+
+        resultado_presupuesto = await _cargar(
+            contexto_control,
+            TipoCarga.PRESUPUESTO,
+            _archivo_presupuesto(
+                [
+                    [1, None, "CAS-CC", "Prototipo", None, None, None, None, "PROTOTIPO"],
+                    [1, "CAS-CC", "NIV-1", "Nivel", None, None, None, None, "NIVEL DE CONSTRUCCION"],
+                    [1, "NIV-1", "ECO-1", "Etapa", None, None, None, None, "ETAPA DE CONSTRUCCION"],
+                    [1, "ECO-1", "ALB-1", "Repellado sintético", None, 1, 0, 0, "CONCEPTO"],
+                    [1, "ALB-1", "MAT-1", "Cemento sintético", "BTS", 10, 500, 5000, "MATERIAL"],
+                ]
+            ),
+        )
+        assert resultado_presupuesto.resumen.errores == 0
+
+        prototipos = await _prototipos(contexto_control)
+        prototipo_id = uuid.UUID(str(prototipos["CAS-CC"]["id"]))
+        await _asignar_prototipo_a_obra(escenario.obra_id, prototipo_id)
+
+    @staticmethod
+    def _archivo_ingenieria_con_concepto() -> bytes:
+        """Un bloque `con_concepto`: agrupador `ALB-1` (no `NIV-`/`ECO-`),
+        un insumo `MAT-1` con cantidad 50.
+
+        El rendimiento de `MAT-1` dentro de `ALB-1` lo calcula el CPU real
+        a partir del presupuesto (`_prototipo_con_concepto`: concepto con
+        cantidad 1, material con cantidad TOTAL 10 para esa cantidad de
+        concepto) — 10 / 1 = 10 por unidad. `UNICO` cierra a
+        `cantidad_insumo / rendimiento` = 50 / 10 = 5, contra
+        `cantidad_plan` = 1 (la cantidad del concepto en el presupuesto):
+        una diferencia grande a propósito, para cruzar el piso de monto
+        mínimo de `domain.presupuesto.rendimiento.MONTO_IRRELEVANTE`
+        ($1,000) y sí generar `Desviacion`."""
+        return _libro(
+            [
+                ["", "", "", "", "", "", ""],
+                ["ALB-1", "", "Repellado sintético", "", "", "", ""],
+                ["", "MAT-1", "Cemento sintético", "BTS", "50", "500", "25000"],
+            ]
+        )
+
+    async def test_reconstruye_por_concepto_y_genera_desviacion(
+        self, escenario: Escenario, contexto_control: ContextoSesion
+    ) -> None:
+        await self._prototipo_con_concepto(contexto_control, escenario)
+
+        resultado = await _cargar_ingenieria(
+            contexto_control,
+            obra_id=escenario.obra_id,
+            contenido=self._archivo_ingenieria_con_concepto(),
+            archivo_nombre="con_concepto_sintetica.xlsx",
+        )
+
+        assert resultado.estatus is EstatusCarga.APLICADO
+        assert resultado.resumen.errores == 0
+
+        desviaciones = await _desviaciones_de_obra(escenario.obra_id)
+        assert len(desviaciones) == 1
+        d = desviaciones[0]
+        assert d["concepto_clave"] == "ALB-1"
+        assert Decimal(str(d["cantidad_real"])) == Decimal("5")
+        assert Decimal(str(d["cantidad_plan"])) == Decimal("1")
+        assert Decimal(str(d["monto"])) > 0
+        assert d["causa"] is None
+        assert d["tipo"] == "consumo"
+
+
+class TestConsolidacionMultiArchivo:
+    """§11.11/P-36: "no se consolida al cargar — cada lector agrupa a su
+    modo". Dos archivos reales de `ALAMO 18`, etapas distintas
+    (cimentación `ECO-00001..5`, planta baja `ECO-00006..61`): el segundo
+    tiene que ver el acumulado (insumos de los dos archivos, nunca solo
+    los suyos) y nunca debe reabrir/duplicar lo que el primero ya cerró."""
+
+    async def test_el_segundo_archivo_acumula_y_no_duplica_lo_del_primero(
+        self, escenario: Escenario, contexto_control: ContextoSesion
+    ) -> None:
+        await _rollout_real(contexto_control)
+        prototipos = await _prototipos(contexto_control)
+        diamante = prototipos[DIAMANTE_CON_CHIMENEA]
+        await _asignar_prototipo_a_obra(escenario.obra_id, uuid.UUID(str(diamante["id"])))
+
+        primero = await _cargar_ingenieria(contexto_control, obra_id=escenario.obra_id)
+        assert primero.estatus is EstatusCarga.APLICADO
+        assert primero.resumen.errores == 0
+
+        desviaciones_tras_cim = await _desviaciones_de_obra(escenario.obra_id)
+        assert desviaciones_tras_cim  # CIM por sí sola ya genera algo (ver TestCaminoConocidoIdentidadConfirmada)
+        ids_tras_cim = {d["id"] for d in desviaciones_tras_cim}
+        claves_tras_cim = {d["concepto_clave"] for d in desviaciones_tras_cim}
+
+        segundo = await _cargar_ingenieria(
+            contexto_control,
+            obra_id=escenario.obra_id,
+            contenido=_repaquetar_csv_como_xlsx(_PB_CSV),
+            archivo_nombre="INGENIERIA_-_ALAMO_18__-_PB.csv",
+        )
+        assert segundo.estatus is EstatusCarga.APLICADO
+        assert segundo.resumen.errores == 0
+
+        # El acumulado de la obra trae las filas de LOS DOS archivos —98
+        # de CIM + 345 de PB, verificado contra el archivo real— nunca
+        # menos (nada se sustituye) ni más (nada se duplica por archivo).
+        async with sesion_con_rls(contexto_control) as sesion:
+            acumulado = await RepositorioIngenieriaLoteInsumosSQL(sesion).acumulado_por_obra(
+                escenario.obra_id
+            )
+        assert len(acumulado) == 98 + 345
+
+        desviaciones_tras_pb = await _desviaciones_de_obra(escenario.obra_id)
+        ids_tras_pb = {d["id"] for d in desviaciones_tras_pb}
+        # Nada de lo que CIM generó se tocó, se borró ni cambió de id.
+        assert ids_tras_cim <= ids_tras_pb
+
+        nuevas = [d for d in desviaciones_tras_pb if d["id"] not in ids_tras_cim]
+        claves_nuevas = {d["concepto_clave"] for d in nuevas}
+        # Ninguna Desviacion nueva (de PB) repite un concepto que CIM ya
+        # había resuelto: PB nunca reabre una etapa que no trae.
+        assert not (claves_nuevas & claves_tras_cim)

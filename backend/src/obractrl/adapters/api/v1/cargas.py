@@ -274,6 +274,18 @@ async def subir_carga(
             )
         ),
     ] = None,
+    etapa_externa: Annotated[
+        str | None,
+        Form(
+            description=(
+                "Solo tipo='ingenieria_lote' con estructura 'suelta' "
+                "(§11.8): la etapa ECO-... del archivo, porque su "
+                "contenido nunca la trae. Obligatorio solo para esa "
+                "estructura — se valida al procesar el archivo, no aquí, "
+                "porque la estructura se detecta de su contenido."
+            )
+        ),
+    ] = None,
 ) -> CargaRespuesta:
     """Workflow G: mapea, valida y —si no es vista previa— aplica (§11.3 G).
 
@@ -312,6 +324,7 @@ async def subir_carga(
             camino_ingenieria=camino_ingenieria,
             prototipo_base_id=prototipo_base_id,
             nombre_prototipo_nuevo=nombre_prototipo_nuevo,
+            etapa_externa=etapa_externa,
         )
     )
     return CargaRespuesta.desde(resultado)

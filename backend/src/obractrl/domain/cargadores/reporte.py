@@ -153,6 +153,24 @@ class TipoPendiente(StrEnum):
     cantidad/precio, la propuesta lleva las dos lecturas —errata de captura
     o trabajo nuevo no autorizado— y se reporta sin tocar nada."""
 
+    RENDIMIENTO_NO_ENCONTRADO = "rendimiento_no_encontrado"
+    """Reconstrucción de un archivo `CON_CONCEPTO` (extensión propia,
+    `domain.ingenieria.con_concepto`, CONOCIMIENTO.md §11.8): un insumo del
+    bloque no aparece en la matriz del concepto que nombra `fila.agrupador`
+    —ni directo ni en profundidad de un compuesto (`apu.explotar`)— así que
+    no hay rendimiento con el que dividir `fila.cantidad`. **No crítico**:
+    nunca se inventa un rendimiento (§3.3); la fila queda pendiente de que
+    alguien la revise contra la matriz real."""
+
+    CONCEPTO_EN_VARIAS_ETAPAS = "concepto_en_varias_etapas"
+    """Reconstrucción de un archivo `CON_CONCEPTO` (extensión propia,
+    `domain.ingenieria.con_concepto`): el concepto que nombra el agrupador
+    aparece en el presupuesto del prototipo en más de una etapa, y no hay
+    forma de saber contra cuál de ellas comparar la cantidad reconstruida
+    sin adivinar. **No crítico, nunca se elige la más probable** (mismo
+    criterio que `DESTAJO_AMBIGUO`): se reporta la lista de etapas
+    candidatas y la cantidad reconstruida se queda sin aplicar."""
+
 
 @dataclass(frozen=True, slots=True)
 class ErrorDeFila:

@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
+from obractrl.domain.cargadores.ingenieria_lote import FilaInsumoIngenieria
 from obractrl.domain.programacion.cpm import NodoCPM
 from obractrl.domain.shared.diccionario import TipoSemana
 
@@ -40,6 +41,7 @@ __all__ = [
     "RepositorioFamilias",
     "RepositorioFrentes",
     "RepositorioIncidencias",
+    "RepositorioIngenieriaLoteInsumos",
     "RepositorioInsumos",
     "RepositorioMateriales",
     "RepositorioNivelesEtapas",
@@ -1600,4 +1602,47 @@ class RepositorioDesviaciones(Protocol):
         obra contra otras (MODELO.md §5g, mismo criterio de patrón agregado
         que `patrones_por_insumo_o_concepto`, leído por obra en vez de por
         nodo)."""
+        ...
+
+
+@runtime_checkable
+class RepositorioIngenieriaLoteInsumos(Protocol):
+    """Filas crudas de `FilaInsumoIngenieria` de cada carga de ingeniería
+    del lote, atomizadas por archivo (migración `ingenieria_lote_insumo`,
+    extensión propia, CONOCIMIENTO.md §11.11/P-36: "no se consolida al
+    cargar — cada lector agrupa a su modo").
+
+    "Lo cargado no se toca" (§12.1): este puerto nunca reemplaza ni suma
+    una fila existente, solo agrega filas nuevas por `carga_id` y lee el
+    acumulado consolidando AL LEER (``SUM(cantidad) GROUP BY (etapa,
+    clave)`` lo hace quien consume `acumulado_por_obra`, nunca esta tabla).
+    Scoped por RLS, mismo predicado que `desviacion`/`plano` — quien no ve
+    la obra no ve sus insumos de ingeniería.
+    """
+
+    async def guardar(
+        self,
+        *,
+        obra_id: UUID,
+        carga_id: UUID,
+        filas: Sequence[FilaInsumoIngenieria],
+    ) -> None:
+        """Persiste las filas de ESTE archivo, tal cual llegaron (ya con la
+        etapa resuelta — sustituida por `etapa_externa` si el archivo era
+        `suelta`). Nunca se llama en `dry_run` (§9.3: nada se escribe)."""
+        ...
+
+    async def acumulado_por_obra(self, obra_id: UUID) -> tuple[FilaInsumoIngenieria, ...]:
+        """Todas las filas de cargas de `ingenieria_lote` **ya aplicadas y
+        no revertidas** de esta obra —de cualquier archivo anterior—, en el
+        mismo tipo que el dominio puro espera para volver a correr
+        `identificar_prototipo`/`revertir_destajos` contra el conjunto
+        completo (CONOCIMIENTO.md §11.11).
+
+        Nunca incluye las filas de la carga que se está aplicando en este
+        mismo momento: esa carga sigue en estatus `pendiente` hasta que
+        `EjecutarCarga.ejecutar` la cierra, después de que el aplicador ya
+        terminó de leer este acumulado — quien llama combina esto con
+        `lote.insumos` del archivo actual en memoria, nunca re-consulta.
+        """
         ...

@@ -22,7 +22,7 @@ idénticos, que es lo que hace útil a la vista previa (§9.3).
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
@@ -38,6 +38,7 @@ from obractrl.application.puertos.repositorios import (
     RepositorioDesviaciones,
     RepositorioFamilias,
     RepositorioFrentes,
+    RepositorioIngenieriaLoteInsumos,
     RepositorioInsumos,
     RepositorioMateriales,
     RepositorioNivelesEtapas,
@@ -63,6 +64,7 @@ from obractrl.domain.cargadores.etapas_constructivas import FilaEtapaConstructiv
 from obractrl.domain.cargadores.familias import FilaFamilia
 from obractrl.domain.cargadores.homologacion import Homologador
 from obractrl.domain.cargadores.ingenieria_lote import (
+    FilaInsumoIngenieria,
     LoteIngenieriaLeido,
     TipoEstructuraIngenieria,
 )
@@ -94,6 +96,7 @@ from obractrl.domain.catalogos.apu import (
 )
 from obractrl.domain.catalogos.reglas import resolver_iva
 from obractrl.domain.desviacion.desviacion import Desviacion
+from obractrl.domain.ingenieria.con_concepto import reconstruir_con_concepto
 from obractrl.domain.ingenieria.consolidacion import consolidar_lote
 from obractrl.domain.ingenieria.desviacion import generar_desviaciones_candidatas
 from obractrl.domain.ingenieria.identificacion import (
@@ -101,7 +104,11 @@ from obractrl.domain.ingenieria.identificacion import (
     identificar_prototipo,
 )
 from obractrl.domain.ingenieria.matriz_completa import LineaMatrizCruda
-from obractrl.domain.ingenieria.reversion import ReversionDestajo, revertir_destajos
+from obractrl.domain.ingenieria.reversion import (
+    ClaseReversionDestajo,
+    ReversionDestajo,
+    revertir_destajos,
+)
 from obractrl.domain.materiales.reglas import ErrorDeMaterial, validar_signo_salida
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto, Prototipo
 from obractrl.domain.shared.diccionario import (
@@ -4571,10 +4578,14 @@ class ContextoIngenieriaIncompleto(ValueError):
 
 
 class EstructuraDeIngenieriaNoSoportada(ValueError):
-    """Esta fase solo aplica archivos de estructura `completa`
-    (CONOCIMIENTO.md §11.8); las otras cuatro (suelta, con_concepto,
-    sin_costear, ajena) no tienen aplicador todavía — ver el docstring de
-    `domain.cargadores.ingenieria_lote` para el criterio de detección."""
+    """Solo `ajena` (CONOCIMIENTO.md §11.8) no tiene aplicador: el lector ya
+    la reporta como pendiente crítico (`TipoPendiente.
+    ESTRUCTURA_AJENA_SIN_PARSEAR`) y nunca produce `FilaInsumoIngenieria`
+    que aplicar —esta fase no extrae la clave embebida en la descripción
+    por regex (§3.3)—. Las otras cuatro (`completa`, `sin_costear`,
+    `suelta`, `con_concepto`) sí tienen aplicador — ver el docstring de
+    `domain.cargadores.ingenieria_lote` para el criterio de detección de
+    cada una."""
 
 
 def _presupuesto_y_nodos_por_etapa(
@@ -4711,8 +4722,12 @@ def _desviacion_a_datos(d: Desviacion) -> dict[str, Any]:
 
 
 class AplicadorIngenieriaLote:
-    """Ingeniería del lote, archivo `completa` (`TipoCarga.INGENIERIA_LOTE`,
-    CONOCIMIENTO.md §11 completo). Dos caminos (`CaminoIngenieria`):
+    """Ingeniería del lote (`TipoCarga.INGENIERIA_LOTE`, CONOCIMIENTO.md §11
+    completo), las cuatro estructuras aplicables (`completa`,
+    `sin_costear`, `suelta`, `con_concepto` — `ajena` no tiene aplicador,
+    ver `EstructuraDeIngenieriaNoSoportada`) y la consolidación
+    multi-archivo de una misma obra (§11.11/P-36). Dos caminos
+    (`CaminoIngenieria`):
 
     - **`conocido`**: la obra ya tiene `prototipo_id`. Se corre
       `identificar_prototipo` contra TODOS los prototipos de la
@@ -4756,6 +4771,42 @@ class AplicadorIngenieriaLote:
     persista esa receta. No es un defecto introducido por esta entrega —es
     una brecha ya existente en el catálogo, fuera del alcance que este
     encargo pidió cerrar (`AplicadorCPU` no se tocó).
+
+    **Las cuatro estructuras, qué cambia en cada una** (ver el docstring de
+    `domain.cargadores.ingenieria_lote` para el criterio de detección):
+
+    - `completa`/`sin_costear`: idénticas en este aplicador — el dominio
+      puro ya les resuelve `etapa`/`agrupador` fila por fila, así que
+      corren exactamente el mismo `revertir_destajos` que antes. Lo único
+      que distingue a `sin_costear` es que `leer_ingenieria_lote` ya marcó
+      sus líneas sin clave/precio como `TipoPendiente.INSUMO_SIN_COSTEAR`
+      —nada que resolver aquí.
+    - `suelta`: el contenido nunca trae etapa (columna 0 siempre vacía,
+      §11.8 "el nombre del archivo lo dice, el contenido no") — se exige
+      `etapa_externa` explícito, igual que `obra_id`, y se sustituye en
+      cada `FilaInsumoIngenieria` ANTES de revertir (nunca se adivina del
+      nombre del archivo).
+    - `con_concepto`: el agrupador YA es el concepto (`domain.ingenieria.
+      con_concepto.reconstruir_con_concepto`) — no hay candidatos que
+      buscar, solo dividir la cantidad del insumo entre su rendimiento
+      dentro de ESE concepto. El resultado se adapta a la misma forma que
+      `ReversionDestajo` (`_resultados_con_concepto`) para alimentar el
+      mismo flujo de `Desviacion`/reclasificación que `completa`, sin un
+      camino paralelo.
+
+    **Consolidación multi-archivo (§11.11/P-36, "no se consolida al cargar
+    — cada lector agrupa a su modo"):** cada archivo se persiste atomizado,
+    tal como llegó (`RepositorioIngenieriaLoteInsumos.guardar`, migración
+    0058); identificación y reversión corren contra el ACUMULADO de la
+    obra (esta carga + todas las anteriores ya aplicadas y no revertidas,
+    `acumulado_por_obra`), nunca contra el archivo aislado — así que una
+    obra con dos archivos de etapas distintas identifica mejor con el
+    segundo que con el primero solo. Para no duplicar `Desviacion` ni
+    reclasificar de nuevo lo que un archivo anterior ya resolvió sin que
+    nada haya cambiado, los resultados de la reversión se filtran a las
+    etapas que ESTE archivo trae (`_etapas_del_archivo`) antes de generar
+    `Desviacion`/reclasificar `prototipo_nodo` — un archivo nuevo nunca
+    reabre lo que uno viejo ya cerró.
     """
 
     def __init__(
@@ -4766,6 +4817,7 @@ class AplicadorIngenieriaLote:
         prototipo_nodos: RepositorioPrototipoNodo,
         conceptos: RepositorioConceptos,
         desviaciones: RepositorioDesviaciones,
+        ingenieria_insumos: RepositorioIngenieriaLoteInsumos,
         cargas: RepositorioCargas,
     ) -> None:
         self._obras = obras
@@ -4773,6 +4825,7 @@ class AplicadorIngenieriaLote:
         self._prototipo_nodos = prototipo_nodos
         self._conceptos = conceptos
         self._desviaciones = desviaciones
+        self._ingenieria_insumos = ingenieria_insumos
         self._cargas = cargas
 
     async def aplicar(
@@ -4786,6 +4839,7 @@ class AplicadorIngenieriaLote:
         camino: str | None = None,
         prototipo_base_id: UUID | None = None,
         nombre_prototipo_nuevo: str | None = None,
+        etapa_externa: str | None = None,
     ) -> Aplicacion:
         if obra_id is None:
             raise ContextoIngenieriaIncompleto(
@@ -4807,29 +4861,47 @@ class AplicadorIngenieriaLote:
             return Aplicacion(diff=Diff())
         lote = registro
 
-        if lote.estructura is not TipoEstructuraIngenieria.COMPLETA:
-            # `AJENA` ya trae su propio pendiente crítico desde el lector
-            # (`ESTRUCTURA_AJENA_SIN_PARSEAR`) y `lote.insumos` sale vacío;
-            # para `SUELTA`/`CON_CONCEPTO`/`SIN_COSTEAR` no hay pendiente
-            # todavía porque esta fase explícitamente no las aplica (ver
-            # docstring de la clase y del paquete `domain.cargadores.
-            # ingenieria_lote`).
+        if lote.estructura is TipoEstructuraIngenieria.AJENA:
+            # El lector ya reportó su propio pendiente crítico
+            # (`ESTRUCTURA_AJENA_SIN_PARSEAR`) y `lote.insumos` sale
+            # siempre vacío: esta fase no extrae la clave embebida en la
+            # descripción por regex (§3.3).
             raise EstructuraDeIngenieriaNoSoportada(
-                f"Esta fase solo aplica archivos de estructura 'completa' "
+                f"Esta fase no aplica archivos de estructura 'ajena' "
                 f"(CONOCIMIENTO.md §11.8); llegó {lote.estructura!r}."
             )
 
         if not lote.insumos:
             return Aplicacion(diff=Diff())
 
+        if lote.estructura is TipoEstructuraIngenieria.SUELTA:
+            # El contenido de un archivo `suelta` nunca dice a qué etapa
+            # pertenece (columna 0 siempre vacía, §11.8): se exige
+            # `etapa_externa` explícito, igual que `obra_id` — nunca se
+            # adivina del nombre del archivo.
+            if not etapa_externa:
+                raise ContextoIngenieriaIncompleto(
+                    "La estructura 'suelta' no trae etapa en su contenido "
+                    "(§11.8): declara etapa_externa antes de subir el "
+                    "archivo, igual que obra_id — nunca se adivina del "
+                    "nombre del archivo."
+                )
+            lote = replace(
+                lote,
+                insumos=tuple(replace(f, etapa=etapa_externa) for f in lote.insumos),
+            )
+
         if camino_resuelto is CaminoIngenieria.CONOCIDO:
-            return await self._aplicar_conocido(lote, obra_id=obra_id, dry_run=dry_run)
+            return await self._aplicar_conocido(
+                lote, obra_id=obra_id, dry_run=dry_run, carga_id=carga_id
+            )
         return await self._aplicar_diseno_nuevo(
             lote,
             obra_id=obra_id,
             prototipo_base_id=prototipo_base_id,  # type: ignore[arg-type]
             nombre_prototipo_nuevo=nombre_prototipo_nuevo,
             dry_run=dry_run,
+            carga_id=carga_id,
         )
 
     async def _explosion_de_prototipo(
@@ -4867,24 +4939,190 @@ class AplicadorIngenieriaLote:
             clave_prototipo=clave_prototipo, total_global=total_global, total_por_etapa=total_por_etapa
         )
 
-    async def _revertir_contra(
+    @staticmethod
+    def _etapas_del_archivo(lote: LoteIngenieriaLeido) -> set[str]:
+        """Las etapas que ESTE archivo trae (ya con `etapa_externa`
+        sustituida si era `suelta`): la consolidación multi-archivo
+        (§11.11/P-36) nunca reabre lo que un archivo anterior ya resolvió
+        para una etapa que este archivo no toca."""
+        return {f.etapa for f in lote.insumos if f.etapa is not None}
+
+    async def _insumos_acumulados(
+        self, obra_id: UUID, lote: LoteIngenieriaLeido
+    ) -> tuple[FilaInsumoIngenieria, ...]:
+        """El acumulado de la obra (cargas anteriores de `ingenieria_lote`
+        ya aplicadas y no revertidas) más este archivo, combinados en
+        memoria (§11.11/P-36: "no se consolida al cargar" — nunca se
+        persiste este acumulado aparte). Mismos números en `dry_run` que
+        en el commit (§9.3): este método nunca escribe, solo lee lo que
+        YA estaba y le suma lo que trae el archivo actual."""
+        anteriores = await self._ingenieria_insumos.acumulado_por_obra(obra_id)
+        return (*anteriores, *lote.insumos)
+
+    async def _persistir_insumos_del_archivo(
+        self,
+        obra_id: UUID,
+        carga_id: UUID,
+        lote: LoteIngenieriaLeido,
+        *,
+        dry_run: bool,
+    ) -> None:
+        """Guarda las filas crudas de ESTE archivo, tal como llegaron
+        (§11.11/P-36: "lo cargado no se toca", el acumulado nunca se
+        persiste aparte de las filas originales). Nunca en `dry_run`
+        (§9.3: nada se escribe)."""
+        if dry_run or not lote.insumos:
+            return
+        await self._ingenieria_insumos.guardar(
+            obra_id=obra_id, carga_id=carga_id, filas=lote.insumos
+        )
+
+    @staticmethod
+    def _filtrar_por_archivo(
+        resultados: Sequence[ReversionDestajo],
+        lote: LoteIngenieriaLeido,
+        etapas_de_este_archivo: set[str],
+    ) -> tuple[ReversionDestajo, ...]:
+        """Consolidación (§11.11/P-36): un archivo `con_concepto` nunca
+        acumula entre archivos de ese mismo tipo (`_reconstruir` ya solo
+        corre contra `lote.insumos`, nunca contra el acumulado), así que
+        sus resultados son siempre "de este archivo" y no hay nada que
+        filtrar. Los demás SÍ corren contra el acumulado completo de la
+        obra (`_insumos_acumulados`) — aquí se filtran a las etapas que
+        ESTE archivo trae, para no reabrir lo que un archivo anterior ya
+        resolvió sin que nada haya cambiado en esta carga."""
+        if lote.estructura is TipoEstructuraIngenieria.CON_CONCEPTO:
+            return tuple(resultados)
+        return tuple(r for r in resultados if r.etapa in etapas_de_este_archivo)
+
+    async def _reconstruir(
         self,
         nodos: Sequence[Mapping[str, Any]],
         presupuesto_por_etapa: Mapping[str, Mapping[str, Decimal]],
         lote: LoteIngenieriaLeido,
+        insumos_para_destajo: Sequence[FilaInsumoIngenieria],
     ) -> tuple[tuple[ReversionDestajo, ...], tuple[PendientePropuesto, ...]]:
+        """Reconstruye cantidades reales contra la estructura ya resuelta
+        de un prototipo (`nodos`/`presupuesto_por_etapa`):
+
+        - `completa`/`sin_costear`/`suelta`: reversión por destajo
+          (`reversion.revertir_destajos`) contra ``insumos_para_destajo``
+          —el ACUMULADO de la obra, nunca solo este archivo (§11.11)—.
+        - `con_concepto`: reconstrucción por concepto nombrado
+          (`con_concepto.reconstruir_con_concepto`), SIEMPRE contra
+          `lote.insumos` de este archivo — no se acumula entre archivos
+          `con_concepto` distintos, decisión explícita de esta entrega
+          (ver el docstring de la clase).
+        """
         ids_concepto = _ids_concepto_de(nodos)
         if not ids_concepto:
             return (), ()
         crudas = await self._conceptos.composicion_recursiva_de(ids_concepto)
         composiciones, _ = componentes_por_clave(crudas)
+
+        if lote.estructura is TipoEstructuraIngenieria.CON_CONCEPTO:
+            return self._resultados_con_concepto(lote.insumos, composiciones, presupuesto_por_etapa)
+
         conceptos_filas = await self._conceptos.listar(solo_activos=False)
         tipo_por_clave = {str(f["clave"]): str(f["tipo"]) for f in conceptos_filas}
         lineas_matriz = _lineas_matriz_de(crudas, tipo_por_clave)
-        return revertir_destajos(lote.insumos, lineas_matriz, presupuesto_por_etapa, composiciones)
+        return revertir_destajos(
+            insumos_para_destajo, lineas_matriz, presupuesto_por_etapa, composiciones
+        )
+
+    @staticmethod
+    def _resultados_con_concepto(
+        insumos: Sequence[FilaInsumoIngenieria],
+        composiciones: Mapping[str, Sequence[Componente]],
+        presupuesto_por_etapa: Mapping[str, Mapping[str, Decimal]],
+    ) -> tuple[tuple[ReversionDestajo, ...], tuple[PendientePropuesto, ...]]:
+        """Adapta `ReconstruccionConcepto` (`domain.ingenieria.con_concepto.
+        reconstruir_con_concepto`) a la misma forma que `ReversionDestajo`
+        —``clase=UNICO``, ``candidatos=(concepto,)``,
+        ``reparto={concepto: cantidad_real}``— para que
+        `generar_desviaciones_candidatas` y la reclasificación de
+        `diseno_nuevo` corran sin un camino paralelo (ver docstring de la
+        clase: "el resultado se adapta... para alimentar el mismo flujo").
+
+        El concepto ya viene nombrado por el agrupador —nunca hay
+        candidatos que elegir—; lo único que SÍ hay que resolver aquí es a
+        qué ETAPA del presupuesto pertenece, porque un archivo
+        `con_concepto` nunca trae una etapa en su contenido (§11.8). Si el
+        concepto no aparece en el presupuesto de ninguna etapa, o aparece
+        en más de una, se reporta pendiente sin elegir (§3.3, mismo
+        criterio de "nunca se elige la más probable" que `DESTAJO_
+        AMBIGUO`)."""
+        reconstruidos, pendientes_reconstruccion = reconstruir_con_concepto(insumos, composiciones)
+
+        etapas_por_concepto: dict[str, list[str]] = {}
+        for etapa, conceptos in presupuesto_por_etapa.items():
+            for concepto in conceptos:
+                etapas_por_concepto.setdefault(concepto, []).append(etapa)
+
+        resultados: list[ReversionDestajo] = []
+        pendientes: list[PendientePropuesto] = list(pendientes_reconstruccion)
+        for rc in reconstruidos:
+            etapas = etapas_por_concepto.get(rc.concepto, [])
+            if not etapas:
+                pendientes.append(
+                    PendientePropuesto(
+                        tipo=TipoPendiente.MAPEO_NO_RECONOCIDO,
+                        entidad="reconstruccion_con_concepto",
+                        valor_origen=rc.concepto,
+                        propuesta={
+                            "clave_insumo": rc.clave_insumo,
+                            "cantidad_real": str(rc.cantidad_real),
+                            "motivo": (
+                                "El concepto del agrupador no aparece en el "
+                                "presupuesto de ninguna etapa del prototipo "
+                                "ya identificado; no hay cantidad_plan contra "
+                                "la que comparar (§3.3)."
+                            ),
+                        },
+                    )
+                )
+                continue
+            if len(etapas) > 1:
+                pendientes.append(
+                    PendientePropuesto(
+                        tipo=TipoPendiente.CONCEPTO_EN_VARIAS_ETAPAS,
+                        entidad="reconstruccion_con_concepto",
+                        valor_origen=rc.concepto,
+                        propuesta={
+                            "etapas_candidatas": sorted(etapas),
+                            "clave_insumo": rc.clave_insumo,
+                            "cantidad_real": str(rc.cantidad_real),
+                            "motivo": (
+                                "El concepto aparece en más de una etapa del "
+                                "presupuesto; no se elige la más probable "
+                                "(§11.9, mismo criterio que DESTAJO_AMBIGUO)."
+                            ),
+                        },
+                    )
+                )
+                continue
+            etapa = etapas[0]
+            cantidad_presupuestada = (
+                presupuesto_por_etapa[etapa].get(rc.concepto, Decimal(0)) * rc.rendimiento
+            )
+            resultados.append(
+                ReversionDestajo(
+                    etapa=etapa,
+                    clave=rc.clave_insumo,
+                    descripcion=rc.descripcion,
+                    precio=rc.precio,
+                    cantidad_real=rc.cantidad_insumo,
+                    clase=ClaseReversionDestajo.UNICO,
+                    candidatos=(rc.concepto,),
+                    cantidad_presupuestada=cantidad_presupuestada,
+                    reparto={rc.concepto: rc.cantidad_real},
+                )
+            )
+
+        return tuple(resultados), tuple(pendientes)
 
     async def _aplicar_conocido(
-        self, lote: LoteIngenieriaLeido, *, obra_id: UUID, dry_run: bool
+        self, lote: LoteIngenieriaLeido, *, obra_id: UUID, dry_run: bool, carga_id: UUID
     ) -> Aplicacion:
         obra = await self._obras.obtener(obra_id)
         if obra is None:
@@ -4907,8 +5145,11 @@ class AplicadorIngenieriaLote:
                 f"El prototipo {prototipo_id} asignado a la obra no existe."
             )
 
+        insumos_acumulados = await self._insumos_acumulados(obra_id, lote)
+        etapas_de_este_archivo = self._etapas_del_archivo(lote)
+
         pendientes: list[PendientePropuesto] = []
-        consolidado = consolidar_lote(lote.insumos)
+        consolidado = consolidar_lote(insumos_acumulados)
 
         identificado: str | None = None
         if consolidado.total_por_etapa:
@@ -4960,10 +5201,11 @@ class AplicadorIngenieriaLote:
             if str(n["tipo"]) == "concepto" and n.get("concepto_id") and n.get("clave")
         }
 
-        resultados, pendientes_reversion = await self._revertir_contra(
-            nodos_asignado, presupuesto_por_etapa, lote
+        resultados_todos, pendientes_reversion = await self._reconstruir(
+            nodos_asignado, presupuesto_por_etapa, lote, insumos_acumulados
         )
         pendientes.extend(pendientes_reversion)
+        resultados = self._filtrar_por_archivo(resultados_todos, lote, etapas_de_este_archivo)
 
         ids_concepto = _ids_concepto_de(nodos_asignado)
         composiciones: Mapping[str, Sequence[Componente]] = {}
@@ -5009,6 +5251,11 @@ class AplicadorIngenieriaLote:
             )
         )
 
+        # Siempre al final, después de haber leído el acumulado (§11.11):
+        # persiste las filas crudas de ESTE archivo para que la PRÓXIMA
+        # carga de esta obra las vea acumuladas. Nunca en dry_run.
+        await self._persistir_insumos_del_archivo(obra_id, carga_id, lote, dry_run=dry_run)
+
         return Aplicacion(
             diff=diff,
             operaciones=tuple(operaciones),
@@ -5031,6 +5278,7 @@ class AplicadorIngenieriaLote:
         prototipo_base_id: UUID,
         nombre_prototipo_nuevo: str | None,
         dry_run: bool,
+        carga_id: UUID,
     ) -> Aplicacion:
         obra = await self._obras.obtener(obra_id)
         if obra is None:
@@ -5041,16 +5289,21 @@ class AplicadorIngenieriaLote:
         if base is None:
             raise ErrorDeProyecto(f"El prototipo base {prototipo_base_id} no existe.")
 
+        insumos_acumulados = await self._insumos_acumulados(obra_id, lote)
+        etapas_de_este_archivo = self._etapas_del_archivo(lote)
+
         if dry_run:
             # La vista previa no clona de verdad (§9.3: nada se escribe),
-            # pero correr la reversión contra la estructura TAL CUAL está
-            # hoy en el prototipo base da los mismos números que clonarla y
-            # revertir después: clonar copia filas, no las cambia.
+            # pero correr la reconstrucción contra la estructura TAL CUAL
+            # está hoy en el prototipo base da los mismos números que
+            # clonarla y revertir después: clonar copia filas, no las
+            # cambia. Tampoco persiste el acumulado (§9.3).
             nodos_base = await self._prototipo_nodos.por_prototipo(prototipo_base_id)
             presupuesto_por_etapa, _ = _presupuesto_y_nodos_por_etapa(nodos_base)
-            resultados, pendientes = await self._revertir_contra(
-                nodos_base, presupuesto_por_etapa, lote
+            resultados_todos, pendientes = await self._reconstruir(
+                nodos_base, presupuesto_por_etapa, lote, insumos_acumulados
             )
+            resultados = self._filtrar_por_archivo(resultados_todos, lote, etapas_de_este_archivo)
             resueltos = sum(1 for r in resultados if r.reparto is not None)
             clave_nueva = str(obra.get("clave") or obra_id)
             return Aplicacion(
@@ -5130,9 +5383,10 @@ class AplicadorIngenieriaLote:
         presupuesto_por_etapa, nodo_por_etapa_clave = _presupuesto_y_nodos_por_etapa(
             nodos_destino
         )
-        resultados, pendientes = await self._revertir_contra(
-            nodos_destino, presupuesto_por_etapa, lote
+        resultados_todos, pendientes = await self._reconstruir(
+            nodos_destino, presupuesto_por_etapa, lote, insumos_acumulados
         )
+        resultados = self._filtrar_por_archivo(resultados_todos, lote, etapas_de_este_archivo)
 
         # Mismo desempate que `domain.ingenieria.desviacion.
         # generar_desviaciones_candidatas` (dos destajos resuelven el mismo
@@ -5195,6 +5449,11 @@ class AplicadorIngenieriaLote:
                 ),
             )
         )
+
+        # Siempre al final, después de haber leído el acumulado (§11.11):
+        # persiste las filas crudas de ESTE archivo para que la PRÓXIMA
+        # carga de esta obra las vea acumuladas.
+        await self._persistir_insumos_del_archivo(obra_id, carga_id, lote, dry_run=False)
 
         return Aplicacion(
             diff=diff,

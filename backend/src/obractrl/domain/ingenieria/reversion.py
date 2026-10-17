@@ -40,6 +40,7 @@ from obractrl.domain.shared.diccionario import TipoHijoExplosion
 __all__ = [
     "ClaseReversionDestajo",
     "ReversionDestajo",
+    "rendimiento_profundo",
     "revertir_destajos",
 ]
 
@@ -162,6 +163,27 @@ def _rendimiento_profundo(
         ),
         Decimal(0),
     )
+
+
+def rendimiento_profundo(
+    concepto: str,
+    clave: str,
+    composiciones: Mapping[str, Sequence[Componente]],
+    cache: dict | None = None,
+) -> Decimal:
+    """Envoltura pública de `_rendimiento_profundo` (arriba): cuánto del
+    insumo ``clave`` lleva UNA unidad de ``concepto``, a cualquier
+    profundidad (`apu.explotar`).
+
+    La reconstrucción de un archivo `CON_CONCEPTO` (`domain.ingenieria.
+    con_concepto.reconstruir_con_concepto`) reusa exactamente esta función
+    con un ancla distinta a la de un destajo (CONOCIMIENTO.md §11.8,
+    decisión explícita del encargo: "el ancla puede ser CUALQUIER insumo
+    de la matriz, no solo uno que matchee ES_DESTAJO") — se expone en vez
+    de duplicar el recorrido en profundidad que ya hace `_rendimiento_
+    profundo` para la clase `COMPUESTO` de la reversión por destajo.
+    """
+    return _rendimiento_profundo(concepto, clave, composiciones, cache if cache is not None else {})
 
 
 def revertir_destajos(
