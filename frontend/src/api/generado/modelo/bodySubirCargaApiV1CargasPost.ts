@@ -5,8 +5,14 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { TipoCarga } from './tipoCarga';
-import type { ModoCarga } from './modoCarga';
+import type { TipoCarga } from "./tipoCarga";
+import type { ModoCarga } from "./modoCarga";
+import type { BodySubirCargaApiV1CargasPostObraId } from "./bodySubirCargaApiV1CargasPostObraId";
+import type { BodySubirCargaApiV1CargasPostCaminoIngenieria } from "./bodySubirCargaApiV1CargasPostCaminoIngenieria";
+import type { BodySubirCargaApiV1CargasPostPrototipoBaseId } from "./bodySubirCargaApiV1CargasPostPrototipoBaseId";
+import type { BodySubirCargaApiV1CargasPostNombrePrototipoNuevo } from "./bodySubirCargaApiV1CargasPostNombrePrototipoNuevo";
+import type { BodySubirCargaApiV1CargasPostEtapaExterna } from "./bodySubirCargaApiV1CargasPostEtapaExterna";
+import type { BodySubirCargaApiV1CargasPostPrototipoId } from "./bodySubirCargaApiV1CargasPostPrototipoId";
 
 export interface BodySubirCargaApiV1CargasPost {
   /** Archivo .xlsx del §10.6. */
@@ -17,4 +23,16 @@ export interface BodySubirCargaApiV1CargasPost {
   modo?: ModoCarga;
   /** Vista previa: valida y cuenta sin escribir (§10.2). */
   dry_run?: boolean;
+  /** Solo tipo='ingenieria_lote': a qué obra pertenece el lote (§11.4). Obligatorio para ese tipo — nunca se adivina del nombre del archivo. */
+  obra_id?: BodySubirCargaApiV1CargasPostObraId;
+  /** Solo tipo='ingenieria_lote': 'conocido' (default) o 'diseno_nuevo'. */
+  camino_ingenieria?: BodySubirCargaApiV1CargasPostCaminoIngenieria;
+  /** Solo tipo='ingenieria_lote' con camino_ingenieria='diseno_nuevo': el prototipo del que se clona la estructura. Obligatorio en ese caso. */
+  prototipo_base_id?: BodySubirCargaApiV1CargasPostPrototipoBaseId;
+  /** Solo tipo='ingenieria_lote' con camino_ingenieria='diseno_nuevo', opcional: nombre del prototipo nuevo; si no se da, se usa la clave de la obra. */
+  nombre_prototipo_nuevo?: BodySubirCargaApiV1CargasPostNombrePrototipoNuevo;
+  /** Solo tipo='ingenieria_lote' con estructura 'suelta' (§11.8): la etapa ECO-... del archivo, porque su contenido nunca la trae. Obligatorio solo para esa estructura — se valida al procesar el archivo, no aquí, porque la estructura se detecta de su contenido. */
+  etapa_externa?: BodySubirCargaApiV1CargasPostEtapaExterna;
+  /** Solo tipo='programa_base' (§7.5): a qué prototipo pertenece el cronograma. Obligatorio para ese tipo — el archivo real apila varios prototipos, uno por Capítulo, y nunca se adivina cuál cargar. */
+  prototipo_id?: BodySubirCargaApiV1CargasPostPrototipoId;
 }

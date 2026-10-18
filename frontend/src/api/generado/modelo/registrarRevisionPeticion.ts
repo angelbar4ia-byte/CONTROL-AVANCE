@@ -5,11 +5,11 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { RegistrarRevisionPeticionFecha } from './registrarRevisionPeticionFecha';
-import type { RegistrarRevisionPeticionComentario } from './registrarRevisionPeticionComentario';
-import type { RegistrarRevisionPeticionCalidad } from './registrarRevisionPeticionCalidad';
-import type { RegistrarRevisionPeticionActividadId } from './registrarRevisionPeticionActividadId';
-import type { RegistrarRevisionPeticionIncidenciaId } from './registrarRevisionPeticionIncidenciaId';
+import type { RegistrarRevisionPeticionFecha } from "./registrarRevisionPeticionFecha";
+import type { RegistrarRevisionPeticionComentario } from "./registrarRevisionPeticionComentario";
+import type { RegistrarRevisionPeticionCalidad } from "./registrarRevisionPeticionCalidad";
+import type { RegistrarRevisionPeticionActividadId } from "./registrarRevisionPeticionActividadId";
+import type { RegistrarRevisionPeticionIncidenciaId } from "./registrarRevisionPeticionIncidenciaId";
 
 /**
  * Captura en campo (§11.2): fotos + comentario + calidad.

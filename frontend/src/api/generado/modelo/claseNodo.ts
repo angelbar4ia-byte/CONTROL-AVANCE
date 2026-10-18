@@ -9,12 +9,12 @@
 /**
  * Rol del nodo en el árbol WBS. Columna ``CLASE`` del archivo (§10.6).
  */
-export type ClaseNodo = typeof ClaseNodo[keyof typeof ClaseNodo];
-
+export type ClaseNodo = (typeof ClaseNodo)[keyof typeof ClaseNodo];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const ClaseNodo = {
-  etapa: 'etapa',
-  nivel: 'nivel',
-  concepto: 'concepto',
+  etapa: "etapa",
+  nivel: "nivel",
+  concepto: "concepto",
+  agrupador: "agrupador",
 } as const;

@@ -6,12 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type NivelEvaluacion = typeof NivelEvaluacion[keyof typeof NivelEvaluacion];
-
+export type NivelEvaluacion =
+  (typeof NivelEvaluacion)[keyof typeof NivelEvaluacion];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const NivelEvaluacion = {
-  auto: 'auto',
-  control: 'control',
-  final: 'final',
+  auto: "auto",
+  control: "control",
+  final: "final",
 } as const;

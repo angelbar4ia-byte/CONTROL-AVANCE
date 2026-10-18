@@ -5,7 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { EvidenciaRespuestaFecha } from './evidenciaRespuestaFecha';
+import type { EvidenciaRespuestaFecha } from "./evidenciaRespuestaFecha";
 
 /**
  * Una clave de R2 referenciada por alguna entidad de la obra (§7.8).

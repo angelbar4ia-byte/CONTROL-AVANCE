@@ -7,8 +7,8 @@
  */
 
 export type ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams = {
-/**
- * Receta alterna del concepto; vacío = receta base (§2.2).
- */
-variante?: string | null;
+  /**
+   * Receta alterna del concepto; vacío = receta base (§2.2).
+   */
+  variante?: string | null;
 };

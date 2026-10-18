@@ -5,13 +5,13 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { TipoInsumo } from './tipoInsumo';
-import type { CrearInsumoPeticionUnidadId } from './crearInsumoPeticionUnidadId';
-import type { CrearInsumoPeticionFamiliaId } from './crearInsumoPeticionFamiliaId';
-import type { CrearInsumoPeticionCostoBase } from './crearInsumoPeticionCostoBase';
-import type { CrearInsumoPeticionIvaAplica } from './crearInsumoPeticionIvaAplica';
-import type { CrearInsumoPeticionFactorConversion } from './crearInsumoPeticionFactorConversion';
-import type { CrearInsumoPeticionDiasEntrega } from './crearInsumoPeticionDiasEntrega';
+import type { TipoInsumo } from "./tipoInsumo";
+import type { CrearInsumoPeticionUnidadId } from "./crearInsumoPeticionUnidadId";
+import type { CrearInsumoPeticionFamiliaId } from "./crearInsumoPeticionFamiliaId";
+import type { CrearInsumoPeticionCostoBase } from "./crearInsumoPeticionCostoBase";
+import type { CrearInsumoPeticionIvaAplica } from "./crearInsumoPeticionIvaAplica";
+import type { CrearInsumoPeticionFactorConversion } from "./crearInsumoPeticionFactorConversion";
+import type { CrearInsumoPeticionDiasEntrega } from "./crearInsumoPeticionDiasEntrega";
 
 export interface CrearInsumoPeticion {
   /** @minLength 1 */

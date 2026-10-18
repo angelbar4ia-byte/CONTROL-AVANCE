@@ -5,17 +5,17 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { LineaDeControlRespuestaActividadId } from './lineaDeControlRespuestaActividadId';
-import type { LineaDeControlRespuestaConceptoId } from './lineaDeControlRespuestaConceptoId';
-import type { LineaDeControlRespuestaDescripcion } from './lineaDeControlRespuestaDescripcion';
-import type { LineaDeControlRespuestaSustituyeA } from './lineaDeControlRespuestaSustituyeA';
-import type { LineaDeControlRespuestaActividadDescripcion } from './lineaDeControlRespuestaActividadDescripcion';
-import type { LineaDeControlRespuestaConceptoClave } from './lineaDeControlRespuestaConceptoClave';
-import type { LineaDeControlRespuestaCantBase } from './lineaDeControlRespuestaCantBase';
-import type { LineaDeControlRespuestaCantProgramada } from './lineaDeControlRespuestaCantProgramada';
-import type { LineaDeControlRespuestaCantEjecutada } from './lineaDeControlRespuestaCantEjecutada';
-import type { LineaDeControlRespuestaToleranciaPct } from './lineaDeControlRespuestaToleranciaPct';
-import type { LineaDeControlRespuestaCantAutorizada } from './lineaDeControlRespuestaCantAutorizada';
+import type { LineaDeControlRespuestaActividadId } from "./lineaDeControlRespuestaActividadId";
+import type { LineaDeControlRespuestaConceptoId } from "./lineaDeControlRespuestaConceptoId";
+import type { LineaDeControlRespuestaDescripcion } from "./lineaDeControlRespuestaDescripcion";
+import type { LineaDeControlRespuestaSustituyeA } from "./lineaDeControlRespuestaSustituyeA";
+import type { LineaDeControlRespuestaActividadDescripcion } from "./lineaDeControlRespuestaActividadDescripcion";
+import type { LineaDeControlRespuestaConceptoClave } from "./lineaDeControlRespuestaConceptoClave";
+import type { LineaDeControlRespuestaCantBase } from "./lineaDeControlRespuestaCantBase";
+import type { LineaDeControlRespuestaCantProgramada } from "./lineaDeControlRespuestaCantProgramada";
+import type { LineaDeControlRespuestaCantEjecutada } from "./lineaDeControlRespuestaCantEjecutada";
+import type { LineaDeControlRespuestaToleranciaPct } from "./lineaDeControlRespuestaToleranciaPct";
+import type { LineaDeControlRespuestaCantAutorizada } from "./lineaDeControlRespuestaCantAutorizada";
 
 /**
  * Un renglón, con la actividad afectada ya resuelta (§11.3).
@@ -29,9 +29,7 @@ export interface LineaDeControlRespuesta {
   actividad_id?: LineaDeControlRespuestaActividadId;
   concepto_id?: LineaDeControlRespuestaConceptoId;
   descripcion?: LineaDeControlRespuestaDescripcion;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   precio_unitario: string;
   sustituye_a?: LineaDeControlRespuestaSustituyeA;
   actividad_descripcion?: LineaDeControlRespuestaActividadDescripcion;

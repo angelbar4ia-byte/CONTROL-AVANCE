@@ -5,11 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -26,23 +22,20 @@ import type {
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
+  UseQueryResult,
+} from "@tanstack/react-query";
 
 import type {
   CambiarEstatusPeticion,
   CrearProcesoPeticion,
   HTTPValidationError,
   ListarProcesosApiV1ProcesosGetParams,
-  ProcesoRespuesta
-} from '.././modelo';
+  ProcesoRespuesta,
+} from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Los procesos de la organización (§7.9).
@@ -53,167 +46,339 @@ consulta el repositorio directo, sin caso de uso: RLS ya acotó el alcance
  * @summary Tablero de mejora de procesos
  */
 export const listarProcesosApiV1ProcesosGet = (
-    params?: ListarProcesosApiV1ProcesosGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: ListarProcesosApiV1ProcesosGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<ProcesoRespuesta[]>(
-      {url: `/api/v1/procesos`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<ProcesoRespuesta[]>(
+    { url: `/api/v1/procesos`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getListarProcesosApiV1ProcesosGetInfiniteQueryKey = (params?: ListarProcesosApiV1ProcesosGetParams,) => {
-    return [
-    'infinite', `/api/v1/procesos`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getListarProcesosApiV1ProcesosGetQueryKey = (params?: ListarProcesosApiV1ProcesosGetParams,) => {
-    return [
-    `/api/v1/procesos`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getListarProcesosApiV1ProcesosGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>>, TError = HTTPValidationError>(params?: ListarProcesosApiV1ProcesosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarProcesosApiV1ProcesosGetInfiniteQueryKey = (
+  params?: ListarProcesosApiV1ProcesosGetParams,
 ) => {
+  return ["infinite", `/api/v1/procesos`, ...(params ? [params] : [])] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getListarProcesosApiV1ProcesosGetQueryKey = (
+  params?: ListarProcesosApiV1ProcesosGetParams,
+) => {
+  return [`/api/v1/procesos`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getListarProcesosApiV1ProcesosGetInfiniteQueryKey(params);
+export const getListarProcesosApiV1ProcesosGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProcesosApiV1ProcesosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarProcesosApiV1ProcesosGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>> = ({ signal }) => listarProcesosApiV1ProcesosGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>
+  > = ({ signal }) =>
+    listarProcesosApiV1ProcesosGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ListarProcesosApiV1ProcesosGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>
+>;
+export type ListarProcesosApiV1ProcesosGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarProcesosApiV1ProcesosGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>>
-export type ListarProcesosApiV1ProcesosGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarProcesosApiV1ProcesosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarProcesosApiV1ProcesosGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError, TData>> & Pick<
+export function useListarProcesosApiV1ProcesosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarProcesosApiV1ProcesosGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
           TError,
           Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarProcesosApiV1ProcesosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>>, TError = HTTPValidationError>(
- params?: ListarProcesosApiV1ProcesosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarProcesosApiV1ProcesosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProcesosApiV1ProcesosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
           TError,
           Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarProcesosApiV1ProcesosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>>, TError = HTTPValidationError>(
- params?: ListarProcesosApiV1ProcesosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarProcesosApiV1ProcesosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProcesosApiV1ProcesosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Tablero de mejora de procesos
  */
 
-export function useListarProcesosApiV1ProcesosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>>, TError = HTTPValidationError>(
- params?: ListarProcesosApiV1ProcesosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarProcesosApiV1ProcesosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProcesosApiV1ProcesosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarProcesosApiV1ProcesosGetInfiniteQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarProcesosApiV1ProcesosGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarProcesosApiV1ProcesosGetQueryOptions = <TData = Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError = HTTPValidationError>(params?: ListarProcesosApiV1ProcesosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarProcesosApiV1ProcesosGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProcesosApiV1ProcesosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ?? getListarProcesosApiV1ProcesosGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarProcesosApiV1ProcesosGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>
+  > = ({ signal }) =>
+    listarProcesosApiV1ProcesosGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>> = ({ signal }) => listarProcesosApiV1ProcesosGet(params, requestOptions, signal);
+export type ListarProcesosApiV1ProcesosGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>
+>;
+export type ListarProcesosApiV1ProcesosGetQueryError = HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarProcesosApiV1ProcesosGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>>
-export type ListarProcesosApiV1ProcesosGetQueryError = HTTPValidationError
-
-
-export function useListarProcesosApiV1ProcesosGet<TData = Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarProcesosApiV1ProcesosGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError, TData>> & Pick<
+export function useListarProcesosApiV1ProcesosGet<
+  TData = Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarProcesosApiV1ProcesosGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
           TError,
           Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarProcesosApiV1ProcesosGet<TData = Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError = HTTPValidationError>(
- params?: ListarProcesosApiV1ProcesosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarProcesosApiV1ProcesosGet<
+  TData = Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProcesosApiV1ProcesosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
           TError,
           Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarProcesosApiV1ProcesosGet<TData = Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError = HTTPValidationError>(
- params?: ListarProcesosApiV1ProcesosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarProcesosApiV1ProcesosGet<
+  TData = Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProcesosApiV1ProcesosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Tablero de mejora de procesos
  */
 
-export function useListarProcesosApiV1ProcesosGet<TData = Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError = HTTPValidationError>(
- params?: ListarProcesosApiV1ProcesosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarProcesosApiV1ProcesosGet<
+  TData = Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProcesosApiV1ProcesosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarProcesosApiV1ProcesosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarProcesosApiV1ProcesosGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarProcesosApiV1ProcesosGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * §11.2 — el alta es del Super intendente.
@@ -228,67 +393,95 @@ sola.
  * @summary Proponer un proceso de mejora
  */
 export const crearProcesoApiV1ProcesosPost = (
-    crearProcesoPeticion: CrearProcesoPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  crearProcesoPeticion: CrearProcesoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<ProcesoRespuesta>(
-      {url: `/api/v1/procesos`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: crearProcesoPeticion, signal
+  return peticion<ProcesoRespuesta>(
+    {
+      url: `/api/v1/procesos`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: crearProcesoPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getCrearProcesoApiV1ProcesosPostMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof crearProcesoApiV1ProcesosPost>>,
+    TError,
+    { data: CrearProcesoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof crearProcesoApiV1ProcesosPost>>,
+  TError,
+  { data: CrearProcesoPeticion },
+  TContext
+> => {
+  const mutationKey = ["crearProcesoApiV1ProcesosPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getCrearProcesoApiV1ProcesosPostMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearProcesoApiV1ProcesosPost>>, TError,{data: CrearProcesoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof crearProcesoApiV1ProcesosPost>>, TError,{data: CrearProcesoPeticion}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof crearProcesoApiV1ProcesosPost>>,
+    { data: CrearProcesoPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
 
-const mutationKey = ['crearProcesoApiV1ProcesosPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return crearProcesoApiV1ProcesosPost(data, requestOptions);
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type CrearProcesoApiV1ProcesosPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof crearProcesoApiV1ProcesosPost>>
+>;
+export type CrearProcesoApiV1ProcesosPostMutationBody = CrearProcesoPeticion;
+export type CrearProcesoApiV1ProcesosPostMutationError = HTTPValidationError;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearProcesoApiV1ProcesosPost>>, {data: CrearProcesoPeticion}> = (props) => {
-          const {data} = props ?? {};
-
-          return  crearProcesoApiV1ProcesosPost(data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CrearProcesoApiV1ProcesosPostMutationResult = NonNullable<Awaited<ReturnType<typeof crearProcesoApiV1ProcesosPost>>>
-    export type CrearProcesoApiV1ProcesosPostMutationBody = CrearProcesoPeticion
-    export type CrearProcesoApiV1ProcesosPostMutationError = HTTPValidationError
-
-    /**
+/**
  * @summary Proponer un proceso de mejora
  */
-export const useCrearProcesoApiV1ProcesosPost = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearProcesoApiV1ProcesosPost>>, TError,{data: CrearProcesoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof crearProcesoApiV1ProcesosPost>>,
-        TError,
-        {data: CrearProcesoPeticion},
-        TContext
-      > => {
+export const useCrearProcesoApiV1ProcesosPost = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof crearProcesoApiV1ProcesosPost>>,
+      TError,
+      { data: CrearProcesoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof crearProcesoApiV1ProcesosPost>>,
+  TError,
+  { data: CrearProcesoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearProcesoApiV1ProcesosPostMutationOptions(options);
 
-      const mutationOptions = getCrearProcesoApiV1ProcesosPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Avanza o descarta un proceso (ver el encabezado del módulo).
 
 **Sin máquina de estados.** Cualquier etapa puede ir a cualquier otra: un
@@ -299,64 +492,103 @@ moverlo— ya la aplica `exigir_rol`.
  * @summary Mover un proceso de etapa
  */
 export const cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch = (
-    procesoId: string,
-    cambiarEstatusPeticion: CambiarEstatusPeticion,
- options?: SecondParameter<typeof peticion>,) => {
-      
-      
-      return peticion<ProcesoRespuesta>(
-      {url: `/api/v1/procesos/${procesoId}`, method: 'PATCH',
-      headers: {'Content-Type': 'application/json', },
-      data: cambiarEstatusPeticion
+  procesoId: string,
+  cambiarEstatusPeticion: CambiarEstatusPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<ProcesoRespuesta>(
+    {
+      url: `/api/v1/procesos/${procesoId}`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: cambiarEstatusPeticion,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getCambiarEstatusProcesoApiV1ProcesosProcesoIdPatchMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch>
+      >,
+      TError,
+      { procesoId: string; data: CambiarEstatusPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch>
+    >,
+    TError,
+    { procesoId: string; data: CambiarEstatusPeticion },
+    TContext
+  > => {
+    const mutationKey = ["cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getCambiarEstatusProcesoApiV1ProcesosProcesoIdPatchMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch>>, TError,{procesoId: string;data: CambiarEstatusPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch>>, TError,{procesoId: string;data: CambiarEstatusPeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch>
+      >,
+      { procesoId: string; data: CambiarEstatusPeticion }
+    > = (props) => {
+      const { procesoId, data } = props ?? {};
 
-const mutationKey = ['cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch(
+        procesoId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type CambiarEstatusProcesoApiV1ProcesosProcesoIdPatchMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch>>
+  >;
+export type CambiarEstatusProcesoApiV1ProcesosProcesoIdPatchMutationBody =
+  CambiarEstatusPeticion;
+export type CambiarEstatusProcesoApiV1ProcesosProcesoIdPatchMutationError =
+  void | HTTPValidationError;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch>>, {procesoId: string;data: CambiarEstatusPeticion}> = (props) => {
-          const {procesoId,data} = props ?? {};
-
-          return  cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch(procesoId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CambiarEstatusProcesoApiV1ProcesosProcesoIdPatchMutationResult = NonNullable<Awaited<ReturnType<typeof cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch>>>
-    export type CambiarEstatusProcesoApiV1ProcesosProcesoIdPatchMutationBody = CambiarEstatusPeticion
-    export type CambiarEstatusProcesoApiV1ProcesosProcesoIdPatchMutationError = void | HTTPValidationError
-
-    /**
+/**
  * @summary Mover un proceso de etapa
  */
-export const useCambiarEstatusProcesoApiV1ProcesosProcesoIdPatch = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch>>, TError,{procesoId: string;data: CambiarEstatusPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch>>,
-        TError,
-        {procesoId: string;data: CambiarEstatusPeticion},
-        TContext
-      > => {
+export const useCambiarEstatusProcesoApiV1ProcesosProcesoIdPatch = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch>
+      >,
+      TError,
+      { procesoId: string; data: CambiarEstatusPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof cambiarEstatusProcesoApiV1ProcesosProcesoIdPatch>>,
+  TError,
+  { procesoId: string; data: CambiarEstatusPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCambiarEstatusProcesoApiV1ProcesosProcesoIdPatchMutationOptions(options);
 
-      const mutationOptions = getCambiarEstatusProcesoApiV1ProcesosProcesoIdPatchMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    
+  return useMutation(mutationOptions, queryClient);
+};

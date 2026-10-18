@@ -6,11 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type TipoSemana = typeof TipoSemana[keyof typeof TipoSemana];
-
+export type TipoSemana = (typeof TipoSemana)[keyof typeof TipoSemana];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const TipoSemana = {
-  ordinaria: 'ordinaria',
-  obra: 'obra',
+  ordinaria: "ordinaria",
+  obra: "obra",
 } as const;

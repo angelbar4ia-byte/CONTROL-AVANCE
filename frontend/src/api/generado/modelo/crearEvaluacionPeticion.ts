@@ -5,9 +5,9 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { NivelEvaluacion } from './nivelEvaluacion';
-import type { SujetoEvaluacion } from './sujetoEvaluacion';
-import type { CrearEvaluacionPeticionObraId } from './crearEvaluacionPeticionObraId';
+import type { NivelEvaluacion } from "./nivelEvaluacion";
+import type { SujetoEvaluacion } from "./sujetoEvaluacion";
+import type { CrearEvaluacionPeticionObraId } from "./crearEvaluacionPeticionObraId";
 
 /**
  * Alta de una evaluación en el nivel indicado (§11.3 H).

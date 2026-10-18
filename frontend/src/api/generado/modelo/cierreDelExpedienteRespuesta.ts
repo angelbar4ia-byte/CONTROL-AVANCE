@@ -5,15 +5,13 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { CierreDelExpedienteRespuestaFechaValida } from './cierreDelExpedienteRespuestaFechaValida';
+import type { CierreDelExpedienteRespuestaFechaValida } from "./cierreDelExpedienteRespuestaFechaValida";
 
 export interface CierreDelExpedienteRespuesta {
   id: string;
   actividad_id: string;
   estatus: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto: string;
   fecha_valida?: CierreDelExpedienteRespuestaFechaValida;
 }

@@ -5,12 +5,12 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { LineaPeticionCantidad } from './lineaPeticionCantidad';
-import type { LineaPeticionActividadId } from './lineaPeticionActividadId';
-import type { LineaPeticionConceptoId } from './lineaPeticionConceptoId';
-import type { LineaPeticionDescripcion } from './lineaPeticionDescripcion';
-import type { LineaPeticionPrecioUnitario } from './lineaPeticionPrecioUnitario';
-import type { LineaPeticionSustituyeA } from './lineaPeticionSustituyeA';
+import type { LineaPeticionCantidad } from "./lineaPeticionCantidad";
+import type { LineaPeticionActividadId } from "./lineaPeticionActividadId";
+import type { LineaPeticionConceptoId } from "./lineaPeticionConceptoId";
+import type { LineaPeticionDescripcion } from "./lineaPeticionDescripcion";
+import type { LineaPeticionPrecioUnitario } from "./lineaPeticionPrecioUnitario";
+import type { LineaPeticionSustituyeA } from "./lineaPeticionSustituyeA";
 
 /**
  * Una actividad dentro de la solicitud.

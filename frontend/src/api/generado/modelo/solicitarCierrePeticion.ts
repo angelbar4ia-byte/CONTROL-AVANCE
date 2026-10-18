@@ -5,8 +5,8 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { SolicitarCierrePeticionCantidad } from './solicitarCierrePeticionCantidad';
-import type { SolicitarCierrePeticionChecklistItem } from './solicitarCierrePeticionChecklistItem';
+import type { SolicitarCierrePeticionCantidad } from "./solicitarCierrePeticionCantidad";
+import type { SolicitarCierrePeticionChecklistItem } from "./solicitarCierrePeticionChecklistItem";
 
 /**
  * Solicitud de cierre de actividad (§6, §11.3 C.1).

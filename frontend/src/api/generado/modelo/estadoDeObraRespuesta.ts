@@ -5,9 +5,9 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { EstadoDeObraRespuestaFechaInicio } from './estadoDeObraRespuestaFechaInicio';
-import type { EstadoDeObraRespuestaFechaFin } from './estadoDeObraRespuestaFechaFin';
-import type { EstadoDeObraRespuestaResidenteNombre } from './estadoDeObraRespuestaResidenteNombre';
+import type { EstadoDeObraRespuestaFechaInicio } from "./estadoDeObraRespuestaFechaInicio";
+import type { EstadoDeObraRespuestaFechaFin } from "./estadoDeObraRespuestaFechaFin";
+import type { EstadoDeObraRespuestaResidenteNombre } from "./estadoDeObraRespuestaResidenteNombre";
 
 /**
  * El renglón de la Torre: una obra y lo que le falta (§5.1).
@@ -16,7 +16,6 @@ export interface EstadoDeObraRespuesta {
   obra_id: string;
   obra_clave: string;
   obra_estatus: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   avance_pct: string;
   fecha_inicio?: EstadoDeObraRespuestaFechaInicio;
   fecha_fin?: EstadoDeObraRespuestaFechaFin;

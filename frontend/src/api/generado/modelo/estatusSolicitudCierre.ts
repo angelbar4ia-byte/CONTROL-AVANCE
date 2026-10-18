@@ -6,13 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type EstatusSolicitudCierre = typeof EstatusSolicitudCierre[keyof typeof EstatusSolicitudCierre];
-
+export type EstatusSolicitudCierre =
+  (typeof EstatusSolicitudCierre)[keyof typeof EstatusSolicitudCierre];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const EstatusSolicitudCierre = {
-  solicitada: 'solicitada',
-  autorizada: 'autorizada',
-  validada: 'validada',
-  rechazada: 'rechazada',
+  solicitada: "solicitada",
+  autorizada: "autorizada",
+  validada: "validada",
+  rechazada: "rechazada",
 } as const;

@@ -5,10 +5,10 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { EstimacionDetalleRespuestaFolio } from './estimacionDetalleRespuestaFolio';
-import type { ConceptoDelReporteRespuesta } from './conceptoDelReporteRespuesta';
-import type { FrenteDelReporteRespuesta } from './frenteDelReporteRespuesta';
-import type { EstimacionDetalleRespuestaPresupuestoBase } from './estimacionDetalleRespuestaPresupuestoBase';
+import type { EstimacionDetalleRespuestaFolio } from "./estimacionDetalleRespuestaFolio";
+import type { ConceptoDelReporteRespuesta } from "./conceptoDelReporteRespuesta";
+import type { FrenteDelReporteRespuesta } from "./frenteDelReporteRespuesta";
+import type { EstimacionDetalleRespuestaPresupuestoBase } from "./estimacionDetalleRespuestaPresupuestoBase";
 
 /**
  * La guía de estimación completa: cabecera, renglones y el resumen por
@@ -28,15 +28,9 @@ export interface EstimacionDetalleRespuesta {
   anio: number;
   modo: string;
   estatus: string;
-  /**
-   * Lo que dice la cabecera guardada.
-   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
-   */
+  /** Lo que dice la cabecera guardada. */
   monto_total: string;
-  /**
-   * Σ de los renglones, recalculada al leer.
-   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
-   */
+  /** Σ de los renglones, recalculada al leer. */
   monto_calculado: string;
   /** ¿Cabecera y renglones coinciden? Falso es una señal de auditoría, no un error de captura. */
   cuadra: boolean;
@@ -44,10 +38,7 @@ export interface EstimacionDetalleRespuesta {
   n_conceptos_catalogo: number;
   n_conceptos_extra: number;
   por_frente: FrenteDelReporteRespuesta[];
-  /**
-   * Suma de lo enviado y validado de esta obra a la fecha. No incluye borradores.
-   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
-   */
+  /** Suma de lo enviado y validado de esta obra a la fecha. No incluye borradores. */
   acumulado_proyecto: string;
   /** El presupuesto vigente del prototipo de la obra. `null` si el prototipo no tiene uno cargado. */
   presupuesto_base?: EstimacionDetalleRespuestaPresupuestoBase;

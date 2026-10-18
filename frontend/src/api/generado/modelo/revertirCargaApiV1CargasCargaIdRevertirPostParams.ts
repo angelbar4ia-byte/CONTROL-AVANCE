@@ -7,8 +7,8 @@
  */
 
 export type RevertirCargaApiV1CargasCargaIdRevertirPostParams = {
-/**
- * Si hay cargas más nuevas que dependen de esta, revertirlas también, de la más nueva a la más vieja, en una sola unidad (§10.8). Sin esto, esas cargas bloquean la reversa (`carga-con-dependientes`).
- */
-en_cadena?: boolean;
+  /**
+   * Si hay cargas más nuevas que dependen de esta, revertirlas también, de la más nueva a la más vieja, en una sola unidad (§10.8). Sin esto, esas cargas bloquean la reversa (`carga-con-dependientes`).
+   */
+  en_cadena?: boolean;
 };

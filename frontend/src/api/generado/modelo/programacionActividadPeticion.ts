@@ -5,13 +5,13 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ProgramacionActividadPeticionDuracionDias } from './programacionActividadPeticionDuracionDias';
-import type { ProgramacionActividadPeticionDependencias } from './programacionActividadPeticionDependencias';
-import type { ProgramacionActividadPeticionTramos } from './programacionActividadPeticionTramos';
-import type { ProgramacionActividadPeticionFrenteId } from './programacionActividadPeticionFrenteId';
-import type { ProgramacionActividadPeticionFechaInicio } from './programacionActividadPeticionFechaInicio';
-import type { ProgramacionActividadPeticionFechaTermino } from './programacionActividadPeticionFechaTermino';
-import type { ProgramacionActividadPeticionInicioDias } from './programacionActividadPeticionInicioDias';
+import type { ProgramacionActividadPeticionDuracionDias } from "./programacionActividadPeticionDuracionDias";
+import type { ProgramacionActividadPeticionDependencias } from "./programacionActividadPeticionDependencias";
+import type { ProgramacionActividadPeticionTramos } from "./programacionActividadPeticionTramos";
+import type { ProgramacionActividadPeticionFrenteId } from "./programacionActividadPeticionFrenteId";
+import type { ProgramacionActividadPeticionFechaInicio } from "./programacionActividadPeticionFechaInicio";
+import type { ProgramacionActividadPeticionFechaTermino } from "./programacionActividadPeticionFechaTermino";
+import type { ProgramacionActividadPeticionInicioDias } from "./programacionActividadPeticionInicioDias";
 
 /**
  * §11.2 `PATCH /actividades/{id}/programacion`.

@@ -5,9 +5,9 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ResumenDeCierreRespuestaFecha } from './resumenDeCierreRespuestaFecha';
-import type { ResumenDeCierreRespuestaActa } from './resumenDeCierreRespuestaActa';
-import type { ResumenDeCierreRespuestaAbiertoPor } from './resumenDeCierreRespuestaAbiertoPor';
+import type { ResumenDeCierreRespuestaFecha } from "./resumenDeCierreRespuestaFecha";
+import type { ResumenDeCierreRespuestaActa } from "./resumenDeCierreRespuestaActa";
+import type { ResumenDeCierreRespuestaAbiertoPor } from "./resumenDeCierreRespuestaAbiertoPor";
 
 /**
  * Renglón de la bandeja de cierres de obra (§5.1).

@@ -5,11 +5,11 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ExpedienteRespuestaObraEstatus } from './expedienteRespuestaObraEstatus';
-import type { DocumentoRespuesta } from './documentoRespuesta';
-import type { EvidenciaRespuesta } from './evidenciaRespuesta';
-import type { CierreDelExpedienteRespuesta } from './cierreDelExpedienteRespuesta';
-import type { EstimacionDelExpedienteRespuesta } from './estimacionDelExpedienteRespuesta';
+import type { ExpedienteRespuestaObraEstatus } from "./expedienteRespuestaObraEstatus";
+import type { DocumentoRespuesta } from "./documentoRespuesta";
+import type { EvidenciaRespuesta } from "./evidenciaRespuesta";
+import type { CierreDelExpedienteRespuesta } from "./cierreDelExpedienteRespuesta";
+import type { EstimacionDelExpedienteRespuesta } from "./estimacionDelExpedienteRespuesta";
 
 /**
  * Vista agregada del expediente (§11.2, §7.9).
@@ -21,16 +21,13 @@ export interface ExpedienteRespuesta {
   obra_id: string;
   obra_clave: string;
   obra_estatus: ExpedienteRespuestaObraEstatus;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   avance_pct: string;
   generado_en: string;
   documentos: DocumentoRespuesta[];
   evidencias: EvidenciaRespuesta[];
   cierres: CierreDelExpedienteRespuesta[];
   estimaciones: EstimacionDelExpedienteRespuesta[];
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto_cerrado: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto_estimado: string;
   n_evidencias: number;
 }

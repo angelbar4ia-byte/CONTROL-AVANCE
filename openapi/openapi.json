@@ -4360,8 +4360,7 @@
                   "type": "number"
                 },
                 {
-                  "type": "string",
-                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                  "type": "string"
                 },
                 {
                   "type": "null"
@@ -4497,8 +4496,7 @@
                   "type": "number"
                 },
                 {
-                  "type": "string",
-                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                  "type": "string"
                 },
                 {
                   "type": "null"
@@ -7280,7 +7278,7 @@
           "cargas"
         ],
         "summary": "Subir un archivo de carga (vista previa o commit)",
-        "description": "Workflow G: mapea, valida y —si no es vista previa— aplica (§11.3 G).",
+        "description": "Workflow G: mapea, valida y —si no es vista previa— aplica (§11.3 G).\n\nLos cuatro campos de `ingenieria_lote` son **condicionales**: ningún\notro tipo de carga los usa (`AplicadorDeCarga` genérico no los conoce,\nver `gestionar_carga.ComandoEjecutarCarga`), así que aquí se validan\nsolo contra ESE tipo — exigirlos siempre rompería los demás formularios\nque no tienen por qué mandarlos.",
         "operationId": "subir_carga_api_v1_cargas_post",
         "security": [
           {
@@ -7986,6 +7984,247 @@
           },
           "503": {
             "description": "La cola de trabajos no está disponible (§12.8)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/planos": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Alta de un plano ejecutivo",
+        "description": "Metadatos del plano; el binario ya está en R2 (§12.2). Subir un\nplano es prerrequisito de trazar, así que comparte el mismo gobierno\n(ver docstring del módulo).",
+        "operationId": "registrar_plano_api_v1_obras__obra_id__planos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanoRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/planos/{plano_id}/trazos": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Registrar un trazo con sus enlaces de cuantificación",
+        "description": "Un trazo, varios enlaces (MODELO.md §1b). Por cada nodo tocado,\nrecalcula la cantidad vigente y aplica su consecuencia: compara contra\n`actividad.cant_base` (candidata de `Desviacion`) o sobreescribe\n`prototipo_nodo.cantidad` (camino 'diseño_nuevo') — nunca las dos.",
+        "operationId": "registrar_trazo_api_v1_planos__plano_id__trazos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrazoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrazoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Un enlace apunta a un prototipo_nodo (camino 'diseño_nuevo') y el rol no es Control de obra ni Super intendente."
+          },
+          "422": {
+            "description": "Factor no positivo, medida/nodo inconsistentes."
+          }
+        }
+      }
+    },
+    "/api/v1/enlaces-cuantificacion/{enlace_id}/reemplazar": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Reemplazar un enlace de cuantificación (acción manual)",
+        "description": "Marca `vigente=false` y, si se manda `nuevo`, crea el reemplazo\nvigente en la misma llamada — siempre una acción explícita (MODELO.md\n§1b: nunca un emparejamiento automático por cercanía espacial).",
+        "operationId": "reemplazar_enlace_api_v1_enlaces_cuantificacion__enlace_id__reemplazar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "enlace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Enlace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReemplazarEnlacePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El enlace apunta a un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El enlace no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/planos/{plano_id}/notas": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Anotar el plano (nunca produce cantidad)",
+        "description": "Residente y Supervisor, solamente (cerebro MODELO.md §1b: distinto\nde los cuatro roles que trazan).",
+        "operationId": "registrar_nota_plano_api_v1_planos__plano_id__notas_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotaPlanoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotaPlanoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Residente y Supervisor anotan el plano (§1b)."
           },
           "422": {
             "description": "Validation Error",
@@ -9009,22 +9248,18 @@
           },
           "cant_base": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Base"
           },
           "cant_programada": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Programada"
           },
           "cant_ejecutada": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Ejecutada"
           },
           "tolerancia_pct": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Tolerancia Pct",
             "description": "Cuánto puede exceder la programada a la base sin control de cambio (§6, migración 0049). Copia del umbral de la obra.",
             "default": "20"
@@ -9032,8 +9267,7 @@
           "cant_autorizada": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -9044,7 +9278,6 @@
           },
           "avance_pct": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Avance Pct"
           },
           "estatus": {
@@ -9067,8 +9300,7 @@
           "holgura": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -9079,8 +9311,7 @@
           "desfase": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -9114,7 +9345,6 @@
           },
           "duracion_dias": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Duracion Dias"
           },
           "modo_pago": {
@@ -9123,12 +9353,10 @@
           },
           "precio_unitario": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Precio Unitario"
           },
           "precio_destajo": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Precio Destajo"
           },
           "obra_clave": {
@@ -9205,7 +9433,6 @@
           },
           "duracion_dias": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Duracion Dias"
           },
           "dependencias": {
@@ -9260,7 +9487,6 @@
           },
           "avance_pct": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Avance Pct"
           }
         },
@@ -9341,7 +9567,6 @@
           },
           "duracion_dias": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Duracion Dias"
           },
           "dependencias": {
@@ -9361,8 +9586,7 @@
           "inicio_dias": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -9396,7 +9620,6 @@
           },
           "avance_pct": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Avance Pct"
           },
           "estatus": {
@@ -9414,8 +9637,7 @@
           "holgura": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -9426,8 +9648,7 @@
           "desfase": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -9692,22 +9913,18 @@
           },
           "cant_base": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Base"
           },
           "cant_programada": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Programada"
           },
           "cant_ejecutada": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Ejecutada"
           },
           "tolerancia_pct": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Tolerancia Pct",
             "description": "Cuánto puede exceder la programada a la base sin control de cambio (§6, migración 0049). Copia del umbral de la obra.",
             "default": "20"
@@ -9715,8 +9932,7 @@
           "cant_autorizada": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -9727,7 +9943,6 @@
           },
           "avance_pct": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Avance Pct"
           },
           "estatus": {
@@ -9750,8 +9965,7 @@
           "holgura": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -9762,8 +9976,7 @@
           "desfase": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -9797,7 +10010,6 @@
           },
           "duracion_dias": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Duracion Dias"
           },
           "modo_pago": {
@@ -9806,12 +10018,10 @@
           },
           "precio_unitario": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Precio Unitario"
           },
           "precio_destajo": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Precio Destajo"
           }
         },
@@ -9892,8 +10102,7 @@
                 "type": "number"
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -10171,8 +10380,7 @@
                 "exclusiveMinimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Cantidad",
@@ -10251,22 +10459,18 @@
           },
           "cant_base": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Base"
           },
           "cant_programada": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Programada"
           },
           "cant_ejecutada": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Ejecutada"
           },
           "avance_pct": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Avance Pct"
           },
           "estatus": {
@@ -10307,6 +10511,81 @@
             "title": "Dry Run",
             "description": "Vista previa: valida y cuenta sin escribir (§10.2).",
             "default": false
+          },
+          "obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Id",
+            "description": "Solo tipo='ingenieria_lote': a qué obra pertenece el lote (§11.4). Obligatorio para ese tipo — nunca se adivina del nombre del archivo."
+          },
+          "camino_ingenieria": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Camino Ingenieria",
+            "description": "Solo tipo='ingenieria_lote': 'conocido' (default) o 'diseno_nuevo'."
+          },
+          "prototipo_base_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Base Id",
+            "description": "Solo tipo='ingenieria_lote' con camino_ingenieria='diseno_nuevo': el prototipo del que se clona la estructura. Obligatorio en ese caso."
+          },
+          "nombre_prototipo_nuevo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre Prototipo Nuevo",
+            "description": "Solo tipo='ingenieria_lote' con camino_ingenieria='diseno_nuevo', opcional: nombre del prototipo nuevo; si no se da, se usa la clave de la obra."
+          },
+          "etapa_externa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Externa",
+            "description": "Solo tipo='ingenieria_lote' con estructura 'suelta' (§11.8): la etapa ECO-... del archivo, porque su contenido nunca la trae. Obligatorio solo para esa estructura — se valida al procesar el archivo, no aquí, porque la estructura se detecta de su contenido."
+          },
+          "prototipo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Id",
+            "description": "Solo tipo='programa_base' (§7.5): a qué prototipo pertenece el cronograma. Obligatorio para ese tipo — el archivo real apila varios prototipos, uno por Capítulo, y nunca se adivina cuál cargar."
           }
         },
         "type": "object",
@@ -10480,8 +10759,7 @@
                 "minimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Cant Ejecutada",
@@ -10494,8 +10772,7 @@
                 "minimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -10618,7 +10895,9 @@
           "destajo",
           "subcontrato",
           "auxiliar",
-          "matriz"
+          "matriz",
+          "trabajo",
+          "flete"
         ],
         "title": "CategoriaExplosion"
       },
@@ -10721,12 +11000,10 @@
           },
           "cantidad": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cantidad"
           },
           "monto": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Monto"
           },
           "fecha_valida": {
@@ -10795,12 +11072,10 @@
           },
           "cantidad": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cantidad"
           },
           "monto": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Monto"
           },
           "checklist": {
@@ -10855,7 +11130,8 @@
         "enum": [
           "etapa",
           "nivel",
-          "concepto"
+          "concepto",
+          "agrupador"
         ],
         "title": "ClaseNodo",
         "description": "Rol del nodo en el árbol WBS. Columna ``CLASE`` del archivo (§10.6)."
@@ -10917,17 +11193,14 @@
           },
           "cantidad": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cantidad"
           },
           "precio_unitario": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Precio Unitario"
           },
           "importe": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Importe"
           },
           "fuera_catalogo": {
@@ -11078,13 +11351,11 @@
           },
           "dias_capturados": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Dias Capturados",
             "description": "Días que el programa base declara para este nodo (§7.5)."
           },
           "dias_derivados": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Dias Derivados",
             "description": "Días que hoy ocupan sus conceptos ya programados (§6)."
           },
@@ -11123,24 +11394,20 @@
           },
           "cant_teorica": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Teorica"
           },
           "cant_real": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Real"
           },
           "desviacion_cant": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Desviacion Cant"
           },
           "desviacion_pct": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -11151,8 +11418,7 @@
           "costo_valuacion": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -11236,8 +11502,7 @@
           "calificacion": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -11370,7 +11635,6 @@
           },
           "importe": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Importe",
             "description": "Lo que esta solicitud le mueve al costo final de la obra.",
             "default": "0"
@@ -11402,8 +11666,7 @@
                 "minimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -11554,8 +11817,7 @@
                 "type": "number"
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -11813,8 +12075,7 @@
                 "type": "number"
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Costo Base",
@@ -11838,8 +12099,7 @@
                 "type": "number"
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Factor Conversion",
@@ -11908,8 +12168,7 @@
                 "type": "number"
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Costo Base",
@@ -11932,8 +12191,7 @@
                 "type": "number"
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Factor Conversion",
@@ -12029,8 +12287,7 @@
                 "type": "number"
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -12173,8 +12430,7 @@
                 "type": "number"
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -12296,8 +12552,7 @@
                 "type": "number"
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Factor",
@@ -12386,7 +12641,6 @@
           },
           "peso": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Peso"
           },
           "estatus": {
@@ -12435,8 +12689,7 @@
           "rendimiento": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -12448,8 +12701,7 @@
           "precio_unitario": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -12461,8 +12713,7 @@
           "costo_jornada": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -12522,8 +12773,7 @@
                 "exclusiveMinimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Cant Base"
@@ -12539,8 +12789,7 @@
                 "minimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Precio Unitario",
@@ -12553,8 +12802,7 @@
                 "minimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Precio Destajo",
@@ -12617,8 +12865,7 @@
                 "exclusiveMinimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Duracion Dias",
@@ -13025,7 +13272,6 @@
           },
           "avance_pct": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Avance Pct"
           },
           "fecha_inicio": {
@@ -13238,7 +13484,7 @@
           "pendiente",
           "iniciada",
           "en_proceso",
-          "casi_lista",
+          "por_entregar",
           "entregada"
         ],
         "title": "EstatusObra"
@@ -13300,7 +13546,6 @@
           },
           "monto": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Monto"
           }
         },
@@ -13361,13 +13606,11 @@
           },
           "monto_total": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Monto Total",
             "description": "Lo que dice la cabecera guardada."
           },
           "monto_calculado": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Monto Calculado",
             "description": "Σ de los renglones, recalculada al leer."
           },
@@ -13400,15 +13643,13 @@
           },
           "acumulado_proyecto": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Acumulado Proyecto",
             "description": "Suma de lo enviado y validado de esta obra a la fecha. No incluye borradores."
           },
           "presupuesto_base": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -13481,7 +13722,6 @@
           },
           "monto_total": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Monto Total"
           },
           "origen_erp": {
@@ -13588,15 +13828,13 @@
           },
           "ponderacion": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Ponderacion",
             "default": "0"
           },
           "importe": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -13672,8 +13910,7 @@
           "puntaje": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -13813,7 +14050,6 @@
           },
           "avance_pct": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Avance Pct"
           },
           "generado_en": {
@@ -13851,12 +14087,10 @@
           },
           "monto_cerrado": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Monto Cerrado"
           },
           "monto_estimado": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Monto Estimado"
           },
           "n_evidencias": {
@@ -13929,7 +14163,6 @@
           },
           "cant_base": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Base"
           },
           "modo_pago": {
@@ -14226,12 +14459,10 @@
           },
           "subtotal": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Subtotal"
           },
           "porcentaje": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Porcentaje",
             "description": "0–100."
           }
@@ -14297,6 +14528,16 @@
           "nombre"
         ],
         "title": "FrenteRespuesta"
+      },
+      "FuenteTrazo": {
+        "type": "string",
+        "enum": [
+          "pdf",
+          "dwg",
+          "ifc"
+        ],
+        "title": "FuenteTrazo",
+        "description": "De qué archivo salió el trazo (TRAZO.fuente, migración 0057).\n\nDetermina la precedencia al reemplazar un enlace (IFC > DWG > PDF) —\nesa comparación es trabajo de quien llama a `ReemplazarEnlace`, nunca\nun CHECK de esta tabla ni una regla automática (MODELO.md §1b: \"depende\nde que quien traza reemplace el enlace a mano\")."
       },
       "FusionRespuesta": {
         "properties": {
@@ -14676,15 +14917,13 @@
           },
           "costo_base": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Costo Base",
             "default": "0"
           },
           "costo_base_actualizado": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -14695,8 +14934,7 @@
           "costo_promedio_almacen": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -14707,8 +14945,7 @@
           "costo_ultimo": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -14734,7 +14971,6 @@
           },
           "factor_conversion": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Factor Conversion",
             "default": "1"
           },
@@ -14753,8 +14989,7 @@
           "rendimiento_teorico": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -14829,6 +15064,56 @@
         "title": "InsumosProgramadosRespuesta",
         "description": "La matriz completa, más lo que quedó fuera y por qué."
       },
+      "IntencionEnlacePeticion": {
+        "properties": {
+          "medida": {
+            "$ref": "#/components/schemas/MedidaCuantificacion"
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Factor"
+          },
+          "actividad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad Id"
+          },
+          "prototipo_nodo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Nodo Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "medida",
+          "factor"
+        ],
+        "title": "IntencionEnlacePeticion",
+        "description": "Un enlace querido, dentro del mismo alta de trazo (MODELO.md §1b,\n\"un trazo, varios enlaces\"). Exactamente uno de `actividad_id`/\n`prototipo_nodo_id` (ver docstring de `ck_enlace_cuantificacion_nodo`,\nmigración 0057)."
+      },
       "ItemProgramaBasePeticion": {
         "properties": {
           "duracion_dias": {
@@ -14838,8 +15123,7 @@
                 "exclusiveMinimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Duracion Dias",
@@ -14906,8 +15190,7 @@
                 "minimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -14979,7 +15262,6 @@
           },
           "duracion_dias": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Duracion Dias"
           },
           "dependencias": {
@@ -14999,8 +15281,7 @@
           "inicio_dias": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -15072,12 +15353,10 @@
           },
           "cantidad": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cantidad"
           },
           "precio_unitario": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Precio Unitario"
           },
           "sustituye_a": {
@@ -15117,8 +15396,7 @@
           "cant_base": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -15129,8 +15407,7 @@
           "cant_programada": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -15141,8 +15418,7 @@
           "cant_ejecutada": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -15153,8 +15429,7 @@
           "tolerancia_pct": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -15165,8 +15440,7 @@
           "cant_autorizada": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -15198,8 +15472,7 @@
                 "exclusiveMinimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Cuadrillas",
@@ -15212,8 +15485,7 @@
                 "exclusiveMinimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Dias",
@@ -15242,8 +15514,7 @@
                 "exclusiveMinimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Cantidad"
@@ -15282,24 +15553,20 @@
           },
           "cantidad_unitaria": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cantidad Unitaria",
             "description": "Por unidad del padre inmediato."
           },
           "cantidad": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cantidad",
             "description": "Acumulada por unidad del concepto raíz."
           },
           "costo_unitario": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Costo Unitario"
           },
           "importe": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Importe"
           },
           "es_destajo": {
@@ -15331,8 +15598,7 @@
                 "exclusiveMinimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Cantidad"
@@ -15382,8 +15648,7 @@
                 "minimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Precio Unitario",
@@ -15496,6 +15761,17 @@
         "title": "LoteRespuesta",
         "description": "Estado de un lote ya registrado (§9.4)."
       },
+      "MedidaCuantificacion": {
+        "type": "string",
+        "enum": [
+          "area",
+          "perimetro",
+          "longitud",
+          "conteo"
+        ],
+        "title": "MedidaCuantificacion",
+        "description": "Qué métrica del trazo alimenta la cantidad (ENLACE_CUANTIFICACION.\nmedida, MODELO.md §1b). `AREA`/`PERIMETRO`/`LONGITUD` se calculan en\nSQL con `ST_Area`/`ST_Perimeter`/`ST_Length` sobre la geometría\n(§12.11: el dominio nunca toca PostGIS); `CONTEO` no es una función de\nPostGIS, es \"este trazo cuenta como una instancia\"."
+      },
       "ModoCarga": {
         "type": "string",
         "enum": [
@@ -15567,8 +15843,7 @@
           "importe": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -15652,25 +15927,21 @@
           },
           "duracion_dias": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Duracion Dias",
             "description": "**Span** de la barra: días de calendario entre el inicio más temprano y el fin más tardío de sus conceptos, en la escala del calendario del cronograma. No es la suma de sus duraciones."
           },
           "duracion_hojas_dias": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Duracion Hojas Dias",
             "description": "Suma de los días de **trabajo** de sus conceptos. Coincide con el span cuando van uno tras otro y es menor cuando se traslapan."
           },
           "avance_pct": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Avance Pct",
             "description": "Avance **ponderado por importe** de sus conceptos (§6), no el promedio simple: el muro de $122k en cero y el castillo de $10k terminado no son 50 %."
           },
           "importe": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Importe"
           },
           "conflicto": {
@@ -15717,7 +15988,6 @@
           },
           "duracion_dias": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Duracion Dias"
           },
           "fecha_inicio": {
@@ -15790,6 +16060,7 @@
             "enum": [
               "nivel",
               "etapa",
+              "agrupador",
               "concepto"
             ],
             "title": "Tipo"
@@ -15853,8 +16124,7 @@
           "cantidad": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -15865,8 +16135,7 @@
           "ponderacion": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -15893,6 +16162,91 @@
           "nombre"
         ],
         "title": "NodoPrototipoRespuesta"
+      },
+      "NotaPlanoPeticion": {
+        "properties": {
+          "version_plano": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Version Plano"
+          },
+          "ubicacion_wkt": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Ubicacion Wkt",
+            "description": "WKT de un punto, SRID 0."
+          },
+          "texto": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Texto"
+          },
+          "actividad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version_plano",
+          "ubicacion_wkt",
+          "texto"
+        ],
+        "title": "NotaPlanoPeticion"
+      },
+      "NotaPlanoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "NotaPlanoRespuesta"
+      },
+      "NuevoEnlacePeticion": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "medida": {
+            "$ref": "#/components/schemas/MedidaCuantificacion"
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Factor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "medida",
+          "factor"
+        ],
+        "title": "NuevoEnlacePeticion",
+        "description": "El reemplazo, cuando se crea en la misma llamada — hereda el nodo\ndel enlace que reemplaza (ver `NuevoEnlace` en el caso de uso)."
       },
       "ObraCandidataRespuesta": {
         "properties": {
@@ -16068,14 +16422,12 @@
           },
           "avance_pct": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Avance Pct"
           },
           "m2": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -16538,17 +16890,14 @@
           },
           "cantidad": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cantidad"
           },
           "precio_unitario": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Precio Unitario"
           },
           "importe": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Importe"
           },
           "orden": {
@@ -16764,31 +17113,120 @@
         ],
         "title": "PlaneacionRespuesta"
       },
+      "PlanoPeticion": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nombre",
+            "description": "Nombre legible del plano."
+          },
+          "archivo_url": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Archivo Url",
+            "description": "Clave del objeto ya subido a R2 con `POST /evidencias/presigned` (§12.2). El archivo no viaja por la API."
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Version",
+            "description": "Versión del plano (default 1).",
+            "default": 1
+          },
+          "capas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capas",
+            "description": "Capas del archivo CAD/BIM de origen, informativo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nombre",
+          "archivo_url"
+        ],
+        "title": "PlanoPeticion",
+        "description": "Alta de metadatos de un plano (§11.2-equivalente, migración 0057).\nEl archivo ya está subido a R2 con `POST /evidencias/presigned`."
+      },
+      "PlanoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "archivo_url": {
+            "type": "string",
+            "title": "Archivo Url"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "capas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "nombre",
+          "archivo_url",
+          "version"
+        ],
+        "title": "PlanoRespuesta"
+      },
       "PrecioArmadoRespuesta": {
         "properties": {
           "mano_obra": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Mano Obra"
           },
           "materiales": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Materiales"
           },
           "total": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Total"
           },
           "precio_unitario": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Precio Unitario"
           },
           "jornadas": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Jornadas"
           },
           "sin_costo": {
@@ -16819,19 +17257,16 @@
         "properties": {
           "total": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Total",
             "description": "Materiales + auxiliares + matrices + MO + equipo."
           },
           "destajo": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Destajo",
             "description": "Lo que cobra la cuadrilla: MO o subcontrato."
           },
           "materiales": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Materiales",
             "description": "Porción que no es destajo."
           }
@@ -16960,7 +17395,6 @@
           },
           "monto_total": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Monto Total"
           },
           "created_at": {
@@ -17273,8 +17707,7 @@
                 "exclusiveMinimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -17354,8 +17787,7 @@
                 "minimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -17393,8 +17825,7 @@
                 "exclusiveMinimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Duracion Dias",
@@ -17450,8 +17881,7 @@
           "m2": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -17575,8 +18005,7 @@
                 "type": "number"
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -17591,8 +18020,7 @@
                 "type": "number"
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -17633,6 +18061,22 @@
           "motivo"
         ],
         "title": "RechazarIncidenciaPeticion"
+      },
+      "ReemplazarEnlacePeticion": {
+        "properties": {
+          "nuevo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NuevoEnlacePeticion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ReemplazarEnlacePeticion"
       },
       "RegistrarDispositivoPeticion": {
         "properties": {
@@ -17769,8 +18213,7 @@
                 "type": "number"
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Cantidad",
@@ -17782,8 +18225,7 @@
                 "type": "number"
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Costo",
@@ -17880,35 +18322,29 @@
           },
           "cantidad_presupuestada": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cantidad Presupuestada"
           },
           "importe_presupuestado": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Importe Presupuestado"
           },
           "cantidad_ejecutada": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cantidad Ejecutada"
           },
           "importe_ejecutado": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Importe Ejecutado"
           },
           "desviacion_importe": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Desviacion Importe",
             "description": "Ejecutado menos presupuestado. Positivo es gastar de más."
           },
           "desviacion_pct": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -17970,8 +18406,7 @@
           "rendimiento_esperado": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -17990,8 +18425,7 @@
           "cantidad_ejecutada": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -18002,8 +18436,7 @@
           "importe_ejecutado": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -18315,8 +18748,7 @@
                 "minimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Valor"
@@ -18349,7 +18781,6 @@
           },
           "valor": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Valor"
           },
           "comentario": {
@@ -18370,6 +18801,43 @@
           "valor"
         ],
         "title": "RespuestaItem"
+      },
+      "ResultadoRecalculoRespuesta": {
+        "properties": {
+          "cantidad_total": {
+            "type": "string",
+            "title": "Cantidad Total"
+          },
+          "desviacion_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desviacion Id"
+          },
+          "prototipo_nodo_actualizado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Nodo Actualizado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad_total"
+        ],
+        "title": "ResultadoRecalculoRespuesta"
       },
       "ResumenDeCierreRespuesta": {
         "properties": {
@@ -18465,7 +18933,6 @@
           },
           "avance_pct": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Avance Pct"
           },
           "es_urba": {
@@ -18499,24 +18966,20 @@
           },
           "monto_presupuestado": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Monto Presupuestado"
           },
           "monto_ejecutado": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Monto Ejecutado"
           },
           "desviacion_importe": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Desviacion Importe"
           },
           "desviacion_pct": {
             "anyOf": [
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -18819,12 +19282,10 @@
           },
           "cantidad": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cantidad"
           },
           "costo": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Costo"
           },
           "fecha": {
@@ -18910,8 +19371,7 @@
                 "minimum": 0.0
               },
               {
-                "type": "string",
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                "type": "string"
               }
             ],
             "title": "Cantidad",
@@ -18974,7 +19434,9 @@
           "cpu",
           "conceptos_auxiliares",
           "niveles",
-          "etapas_constructivas"
+          "etapas_constructivas",
+          "trabajos",
+          "ingenieria_lote"
         ],
         "title": "TipoCarga"
       },
@@ -19146,6 +19608,81 @@
         "title": "TramoDTO",
         "description": "Un segmento de una actividad interrumpida (§7.6).\n\nLista vacía = actividad continua, el caso normal. Con tramos, la\n`duracion_dias` de la actividad es la **suma** de sus tramos —los días de\ntrabajo— y lo que ocupa en el calendario es\n`max(offset_dias + duracion_dias)`, que es lo que el CPM encadena."
       },
+      "TrazoPeticion": {
+        "properties": {
+          "version_plano": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Version Plano"
+          },
+          "capa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capa"
+          },
+          "fuente": {
+            "$ref": "#/components/schemas/FuenteTrazo"
+          },
+          "geometria_wkt": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Geometria Wkt",
+            "description": "WKT del trazo (p. ej. `POLYGON((...))`, `LINESTRING(...)`, `POINT(...)`). Coordenadas de plano, no geográficas (SRID 0)."
+          },
+          "enlaces": {
+            "items": {
+              "$ref": "#/components/schemas/IntencionEnlacePeticion"
+            },
+            "type": "array",
+            "title": "Enlaces"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version_plano",
+          "fuente",
+          "geometria_wkt"
+        ],
+        "title": "TrazoPeticion",
+        "description": "Alta de un trazo con sus enlaces (MODELO.md §1b, Decisión 3 de 3:\nWKT para capturar un trazo nuevo mientras se dibuja)."
+      },
+      "TrazoRespuesta": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "enlace_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Enlace Ids"
+          },
+          "recalculos": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+            },
+            "type": "array",
+            "title": "Recalculos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "enlace_ids",
+          "recalculos"
+        ],
+        "title": "TrazoRespuesta"
+      },
       "UnidadRespuesta": {
         "properties": {
           "id": {
@@ -19170,7 +19707,6 @@
           },
           "factor": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Factor",
             "default": "1"
           },
@@ -19362,7 +19898,6 @@
           },
           "precio_unitario": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Precio Unitario"
           },
           "vigente": {
@@ -19445,7 +19980,6 @@
           },
           "monto_total": {
             "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Monto Total"
           },
           "created_at": {

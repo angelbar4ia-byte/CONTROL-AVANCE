@@ -5,28 +5,23 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useMutation
-} from '@tanstack/react-query';
+import { useMutation } from "@tanstack/react-query";
 import type {
   MutationFunction,
   QueryClient,
   UseMutationOptions,
-  UseMutationResult
-} from '@tanstack/react-query';
+  UseMutationResult,
+} from "@tanstack/react-query";
 
 import type {
   HTTPValidationError,
   PresignedPeticion,
-  PresignedRespuesta
-} from '.././modelo';
+  PresignedRespuesta,
+} from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Emite la URL firmada (§11.2, §12.2). El archivo no viaja por la API.
@@ -36,64 +31,94 @@ el event loop pese a que `boto3` sea síncrono.
  * @summary URL firmada para subir una evidencia directo a R2
  */
 export const firmarEvidenciaApiV1EvidenciasPresignedPost = (
-    presignedPeticion: PresignedPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  presignedPeticion: PresignedPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<PresignedRespuesta>(
-      {url: `/api/v1/evidencias/presigned`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: presignedPeticion, signal
+  return peticion<PresignedRespuesta>(
+    {
+      url: `/api/v1/evidencias/presigned`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: presignedPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getFirmarEvidenciaApiV1EvidenciasPresignedPostMutationOptions = <
+  TError = HTTPValidationError | void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>,
+    TError,
+    { data: PresignedPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>,
+  TError,
+  { data: PresignedPeticion },
+  TContext
+> => {
+  const mutationKey = ["firmarEvidenciaApiV1EvidenciasPresignedPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getFirmarEvidenciaApiV1EvidenciasPresignedPostMutationOptions = <TError = HTTPValidationError | void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>, TError,{data: PresignedPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>, TError,{data: PresignedPeticion}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>,
+    { data: PresignedPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
 
-const mutationKey = ['firmarEvidenciaApiV1EvidenciasPresignedPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return firmarEvidenciaApiV1EvidenciasPresignedPost(data, requestOptions);
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type FirmarEvidenciaApiV1EvidenciasPresignedPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>
+  >;
+export type FirmarEvidenciaApiV1EvidenciasPresignedPostMutationBody =
+  PresignedPeticion;
+export type FirmarEvidenciaApiV1EvidenciasPresignedPostMutationError =
+  HTTPValidationError | void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>, {data: PresignedPeticion}> = (props) => {
-          const {data} = props ?? {};
-
-          return  firmarEvidenciaApiV1EvidenciasPresignedPost(data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type FirmarEvidenciaApiV1EvidenciasPresignedPostMutationResult = NonNullable<Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>>
-    export type FirmarEvidenciaApiV1EvidenciasPresignedPostMutationBody = PresignedPeticion
-    export type FirmarEvidenciaApiV1EvidenciasPresignedPostMutationError = HTTPValidationError | void
-
-    /**
+/**
  * @summary URL firmada para subir una evidencia directo a R2
  */
-export const useFirmarEvidenciaApiV1EvidenciasPresignedPost = <TError = HTTPValidationError | void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>, TError,{data: PresignedPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>,
-        TError,
-        {data: PresignedPeticion},
-        TContext
-      > => {
+export const useFirmarEvidenciaApiV1EvidenciasPresignedPost = <
+  TError = HTTPValidationError | void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>,
+      TError,
+      { data: PresignedPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof firmarEvidenciaApiV1EvidenciasPresignedPost>>,
+  TError,
+  { data: PresignedPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getFirmarEvidenciaApiV1EvidenciasPresignedPostMutationOptions(options);
 
-      const mutationOptions = getFirmarEvidenciaApiV1EvidenciasPresignedPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    
+  return useMutation(mutationOptions, queryClient);
+};

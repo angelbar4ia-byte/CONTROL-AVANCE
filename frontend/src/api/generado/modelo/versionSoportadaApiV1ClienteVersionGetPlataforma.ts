@@ -6,11 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type VersionSoportadaApiV1ClienteVersionGetPlataforma = typeof VersionSoportadaApiV1ClienteVersionGetPlataforma[keyof typeof VersionSoportadaApiV1ClienteVersionGetPlataforma];
-
+export type VersionSoportadaApiV1ClienteVersionGetPlataforma =
+  (typeof VersionSoportadaApiV1ClienteVersionGetPlataforma)[keyof typeof VersionSoportadaApiV1ClienteVersionGetPlataforma];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const VersionSoportadaApiV1ClienteVersionGetPlataforma = {
-  android: 'android',
-  ios: 'ios',
+  android: "android",
+  ios: "ios",
 } as const;

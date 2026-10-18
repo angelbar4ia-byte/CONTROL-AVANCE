@@ -5,16 +5,16 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { TipoInsumo } from './tipoInsumo';
-import type { InsumoRespuestaUnidadId } from './insumoRespuestaUnidadId';
-import type { InsumoRespuestaFamiliaId } from './insumoRespuestaFamiliaId';
-import type { InsumoRespuestaCostoBaseActualizado } from './insumoRespuestaCostoBaseActualizado';
-import type { InsumoRespuestaCostoPromedioAlmacen } from './insumoRespuestaCostoPromedioAlmacen';
-import type { InsumoRespuestaCostoUltimo } from './insumoRespuestaCostoUltimo';
-import type { InsumoRespuestaIvaAplica } from './insumoRespuestaIvaAplica';
-import type { InsumoRespuestaCuadrillaId } from './insumoRespuestaCuadrillaId';
-import type { InsumoRespuestaRendimientoTeorico } from './insumoRespuestaRendimientoTeorico';
-import type { InsumoRespuestaDiasEntrega } from './insumoRespuestaDiasEntrega';
+import type { TipoInsumo } from "./tipoInsumo";
+import type { InsumoRespuestaUnidadId } from "./insumoRespuestaUnidadId";
+import type { InsumoRespuestaFamiliaId } from "./insumoRespuestaFamiliaId";
+import type { InsumoRespuestaCostoBaseActualizado } from "./insumoRespuestaCostoBaseActualizado";
+import type { InsumoRespuestaCostoPromedioAlmacen } from "./insumoRespuestaCostoPromedioAlmacen";
+import type { InsumoRespuestaCostoUltimo } from "./insumoRespuestaCostoUltimo";
+import type { InsumoRespuestaIvaAplica } from "./insumoRespuestaIvaAplica";
+import type { InsumoRespuestaCuadrillaId } from "./insumoRespuestaCuadrillaId";
+import type { InsumoRespuestaRendimientoTeorico } from "./insumoRespuestaRendimientoTeorico";
+import type { InsumoRespuestaDiasEntrega } from "./insumoRespuestaDiasEntrega";
 
 export interface InsumoRespuesta {
   id: string;
@@ -23,14 +23,12 @@ export interface InsumoRespuesta {
   descripcion: string;
   unidad_id?: InsumoRespuestaUnidadId;
   familia_id?: InsumoRespuestaFamiliaId;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   costo_base?: string;
   costo_base_actualizado?: InsumoRespuestaCostoBaseActualizado;
   costo_promedio_almacen?: InsumoRespuestaCostoPromedioAlmacen;
   costo_ultimo?: InsumoRespuestaCostoUltimo;
   origen?: string;
   iva_aplica?: InsumoRespuestaIvaAplica;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   factor_conversion?: string;
   cuadrilla_id?: InsumoRespuestaCuadrillaId;
   rendimiento_teorico?: InsumoRespuestaRendimientoTeorico;

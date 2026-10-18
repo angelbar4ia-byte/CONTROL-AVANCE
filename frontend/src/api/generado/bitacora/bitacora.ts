@@ -5,10 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useInfiniteQuery,
-  useQuery
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -22,21 +19,18 @@ import type {
   UseInfiniteQueryOptions,
   UseInfiniteQueryResult,
   UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
+  UseQueryResult,
+} from "@tanstack/react-query";
 
 import type {
   HTTPValidationError,
   ListarBitacoraApiV1BitacoraGetParams,
-  PaginaBitacora
-} from '.././modelo';
+  PaginaBitacora,
+} from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Lee la bitácora de la organización, lo más reciente primero.
@@ -57,167 +51,339 @@ que miente.
  * @summary Bitácora de cambios de configuración y catálogo
  */
 export const listarBitacoraApiV1BitacoraGet = (
-    params?: ListarBitacoraApiV1BitacoraGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: ListarBitacoraApiV1BitacoraGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<PaginaBitacora>(
-      {url: `/api/v1/bitacora`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<PaginaBitacora>(
+    { url: `/api/v1/bitacora`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getListarBitacoraApiV1BitacoraGetInfiniteQueryKey = (params?: ListarBitacoraApiV1BitacoraGetParams,) => {
-    return [
-    'infinite', `/api/v1/bitacora`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getListarBitacoraApiV1BitacoraGetQueryKey = (params?: ListarBitacoraApiV1BitacoraGetParams,) => {
-    return [
-    `/api/v1/bitacora`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getListarBitacoraApiV1BitacoraGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>>, TError = HTTPValidationError>(params?: ListarBitacoraApiV1BitacoraGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarBitacoraApiV1BitacoraGetInfiniteQueryKey = (
+  params?: ListarBitacoraApiV1BitacoraGetParams,
 ) => {
+  return ["infinite", `/api/v1/bitacora`, ...(params ? [params] : [])] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getListarBitacoraApiV1BitacoraGetQueryKey = (
+  params?: ListarBitacoraApiV1BitacoraGetParams,
+) => {
+  return [`/api/v1/bitacora`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getListarBitacoraApiV1BitacoraGetInfiniteQueryKey(params);
+export const getListarBitacoraApiV1BitacoraGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarBitacoraApiV1BitacoraGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarBitacoraApiV1BitacoraGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>> = ({ signal }) => listarBitacoraApiV1BitacoraGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>
+  > = ({ signal }) =>
+    listarBitacoraApiV1BitacoraGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ListarBitacoraApiV1BitacoraGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>
+>;
+export type ListarBitacoraApiV1BitacoraGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarBitacoraApiV1BitacoraGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>>
-export type ListarBitacoraApiV1BitacoraGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarBitacoraApiV1BitacoraGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarBitacoraApiV1BitacoraGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError, TData>> & Pick<
+export function useListarBitacoraApiV1BitacoraGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarBitacoraApiV1BitacoraGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
           TError,
           Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarBitacoraApiV1BitacoraGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>>, TError = HTTPValidationError>(
- params?: ListarBitacoraApiV1BitacoraGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarBitacoraApiV1BitacoraGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarBitacoraApiV1BitacoraGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
           TError,
           Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarBitacoraApiV1BitacoraGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>>, TError = HTTPValidationError>(
- params?: ListarBitacoraApiV1BitacoraGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarBitacoraApiV1BitacoraGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarBitacoraApiV1BitacoraGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Bitácora de cambios de configuración y catálogo
  */
 
-export function useListarBitacoraApiV1BitacoraGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>>, TError = HTTPValidationError>(
- params?: ListarBitacoraApiV1BitacoraGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarBitacoraApiV1BitacoraGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarBitacoraApiV1BitacoraGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarBitacoraApiV1BitacoraGetInfiniteQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarBitacoraApiV1BitacoraGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarBitacoraApiV1BitacoraGetQueryOptions = <TData = Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError = HTTPValidationError>(params?: ListarBitacoraApiV1BitacoraGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarBitacoraApiV1BitacoraGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarBitacoraApiV1BitacoraGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ?? getListarBitacoraApiV1BitacoraGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarBitacoraApiV1BitacoraGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>
+  > = ({ signal }) =>
+    listarBitacoraApiV1BitacoraGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>> = ({ signal }) => listarBitacoraApiV1BitacoraGet(params, requestOptions, signal);
+export type ListarBitacoraApiV1BitacoraGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>
+>;
+export type ListarBitacoraApiV1BitacoraGetQueryError = HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarBitacoraApiV1BitacoraGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>>
-export type ListarBitacoraApiV1BitacoraGetQueryError = HTTPValidationError
-
-
-export function useListarBitacoraApiV1BitacoraGet<TData = Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarBitacoraApiV1BitacoraGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError, TData>> & Pick<
+export function useListarBitacoraApiV1BitacoraGet<
+  TData = Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarBitacoraApiV1BitacoraGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
           TError,
           Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarBitacoraApiV1BitacoraGet<TData = Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError = HTTPValidationError>(
- params?: ListarBitacoraApiV1BitacoraGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarBitacoraApiV1BitacoraGet<
+  TData = Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarBitacoraApiV1BitacoraGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
           TError,
           Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarBitacoraApiV1BitacoraGet<TData = Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError = HTTPValidationError>(
- params?: ListarBitacoraApiV1BitacoraGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarBitacoraApiV1BitacoraGet<
+  TData = Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarBitacoraApiV1BitacoraGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Bitácora de cambios de configuración y catálogo
  */
 
-export function useListarBitacoraApiV1BitacoraGet<TData = Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError = HTTPValidationError>(
- params?: ListarBitacoraApiV1BitacoraGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarBitacoraApiV1BitacoraGet<
+  TData = Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarBitacoraApiV1BitacoraGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarBitacoraApiV1BitacoraGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarBitacoraApiV1BitacoraGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarBitacoraApiV1BitacoraGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Alimenta el filtro de la pantalla (§5.1).
@@ -229,164 +395,364 @@ que no encuentra nada, o escondiendo cambios que sí se registraron.
  * @summary Tablas que aparecen en la bitácora
  */
 export const entidadesConBitacoraApiV1BitacoraEntidadesGet = (
-    
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<string[]>(
-      {url: `/api/v1/bitacora/entidades`, method: 'GET', signal
-    },
-      options);
-    }
-  
+  return peticion<string[]>(
+    { url: `/api/v1/bitacora/entidades`, method: "GET", signal },
+    options,
+  );
+};
 
-
-
-export const getEntidadesConBitacoraApiV1BitacoraEntidadesGetInfiniteQueryKey = () => {
-    return [
-    'infinite', `/api/v1/bitacora/entidades`
-    ] as const;
-    }
+export const getEntidadesConBitacoraApiV1BitacoraEntidadesGetInfiniteQueryKey =
+  () => {
+    return ["infinite", `/api/v1/bitacora/entidades`] as const;
+  };
 
 export const getEntidadesConBitacoraApiV1BitacoraEntidadesGetQueryKey = () => {
-    return [
-    `/api/v1/bitacora/entidades`
-    ] as const;
-    }
+  return [`/api/v1/bitacora/entidades`] as const;
+};
 
-    
-export const getEntidadesConBitacoraApiV1BitacoraEntidadesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>>, TError = unknown>( options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+export const getEntidadesConBitacoraApiV1BitacoraEntidadesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>
+    >,
+    TError = unknown,
+  >(options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+    const queryKey =
+      queryOptions?.queryKey ??
+      getEntidadesConBitacoraApiV1BitacoraEntidadesGetInfiniteQueryKey();
 
-  const queryKey =  queryOptions?.queryKey ?? getEntidadesConBitacoraApiV1BitacoraEntidadesGetInfiniteQueryKey();
+    const queryFn: QueryFunction<
+      Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>
+    > = ({ signal }) =>
+      entidadesConBitacoraApiV1BitacoraEntidadesGet(requestOptions, signal);
 
-  
+    return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>> = ({ signal }) => entidadesConBitacoraApiV1BitacoraEntidadesGet(requestOptions, signal);
+export type EntidadesConBitacoraApiV1BitacoraEntidadesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>
+  >;
+export type EntidadesConBitacoraApiV1BitacoraEntidadesGetInfiniteQueryError =
+  unknown;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type EntidadesConBitacoraApiV1BitacoraEntidadesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>>
-export type EntidadesConBitacoraApiV1BitacoraEntidadesGetInfiniteQueryError = unknown
-
-
-export function useEntidadesConBitacoraApiV1BitacoraEntidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>>, TError = unknown>(
-  options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError, TData>> & Pick<
+export function useEntidadesConBitacoraApiV1BitacoraEntidadesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>,
+          Awaited<
+            ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useEntidadesConBitacoraApiV1BitacoraEntidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useEntidadesConBitacoraApiV1BitacoraEntidadesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>,
+          Awaited<
+            ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useEntidadesConBitacoraApiV1BitacoraEntidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useEntidadesConBitacoraApiV1BitacoraEntidadesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Tablas que aparecen en la bitácora
  */
 
-export function useEntidadesConBitacoraApiV1BitacoraEntidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useEntidadesConBitacoraApiV1BitacoraEntidadesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getEntidadesConBitacoraApiV1BitacoraEntidadesGetInfiniteQueryOptions(
+      options,
+    );
 
-  const queryOptions = getEntidadesConBitacoraApiV1BitacoraEntidadesGetInfiniteQueryOptions(options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getEntidadesConBitacoraApiV1BitacoraEntidadesGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+  >,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
+  const queryKey =
+    queryOptions?.queryKey ??
+    getEntidadesConBitacoraApiV1BitacoraEntidadesGetQueryKey();
 
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>
+  > = ({ signal }) =>
+    entidadesConBitacoraApiV1BitacoraEntidadesGet(requestOptions, signal);
 
-export const getEntidadesConBitacoraApiV1BitacoraEntidadesGetQueryOptions = <TData = Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type EntidadesConBitacoraApiV1BitacoraEntidadesGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>
+  >;
+export type EntidadesConBitacoraApiV1BitacoraEntidadesGetQueryError = unknown;
 
-  const queryKey =  queryOptions?.queryKey ?? getEntidadesConBitacoraApiV1BitacoraEntidadesGetQueryKey();
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>> = ({ signal }) => entidadesConBitacoraApiV1BitacoraEntidadesGet(requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type EntidadesConBitacoraApiV1BitacoraEntidadesGetQueryResult = NonNullable<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>>
-export type EntidadesConBitacoraApiV1BitacoraEntidadesGetQueryError = unknown
-
-
-export function useEntidadesConBitacoraApiV1BitacoraEntidadesGet<TData = Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError, TData>> & Pick<
+export function useEntidadesConBitacoraApiV1BitacoraEntidadesGet<
+  TData = Awaited<
+    ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>,
+          Awaited<
+            ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useEntidadesConBitacoraApiV1BitacoraEntidadesGet<TData = Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useEntidadesConBitacoraApiV1BitacoraEntidadesGet<
+  TData = Awaited<
+    ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>,
+          Awaited<
+            ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useEntidadesConBitacoraApiV1BitacoraEntidadesGet<TData = Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useEntidadesConBitacoraApiV1BitacoraEntidadesGet<
+  TData = Awaited<
+    ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Tablas que aparecen en la bitácora
  */
 
-export function useEntidadesConBitacoraApiV1BitacoraEntidadesGet<TData = Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useEntidadesConBitacoraApiV1BitacoraEntidadesGet<
+  TData = Awaited<
+    ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof entidadesConBitacoraApiV1BitacoraEntidadesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getEntidadesConBitacoraApiV1BitacoraEntidadesGetQueryOptions(options);
 
-  const queryOptions = getEntidadesConBitacoraApiV1BitacoraEntidadesGetQueryOptions(options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
-

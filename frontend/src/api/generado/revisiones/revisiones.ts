@@ -5,11 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -26,22 +22,19 @@ import type {
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
+  UseQueryResult,
+} from "@tanstack/react-query";
 
 import type {
   HTTPValidationError,
   ListarRevisionesApiV1RevisionesGetParams,
   RegistrarRevisionPeticion,
-  RevisionRespuesta
-} from '.././modelo';
+  RevisionRespuesta,
+} from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Control de obra captura fotos, comentario y calidad (§11.2).
@@ -53,68 +46,106 @@ lee las tablas de otro).
  * @summary Registrar una revisión física en campo
  */
 export const registrarRevisionApiV1ObrasObraIdRevisionesPost = (
-    obraId: string,
-    registrarRevisionPeticion: RegistrarRevisionPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  obraId: string,
+  registrarRevisionPeticion: RegistrarRevisionPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<RevisionRespuesta>(
-      {url: `/api/v1/obras/${obraId}/revisiones`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: registrarRevisionPeticion, signal
+  return peticion<RevisionRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/revisiones`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: registrarRevisionPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getRegistrarRevisionApiV1ObrasObraIdRevisionesPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>
+      >,
+      TError,
+      { obraId: string; data: RegistrarRevisionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>,
+    TError,
+    { obraId: string; data: RegistrarRevisionPeticion },
+    TContext
+  > => {
+    const mutationKey = ["registrarRevisionApiV1ObrasObraIdRevisionesPost"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getRegistrarRevisionApiV1ObrasObraIdRevisionesPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>, TError,{obraId: string;data: RegistrarRevisionPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>, TError,{obraId: string;data: RegistrarRevisionPeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>
+      >,
+      { obraId: string; data: RegistrarRevisionPeticion }
+    > = (props) => {
+      const { obraId, data } = props ?? {};
 
-const mutationKey = ['registrarRevisionApiV1ObrasObraIdRevisionesPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return registrarRevisionApiV1ObrasObraIdRevisionesPost(
+        obraId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type RegistrarRevisionApiV1ObrasObraIdRevisionesPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>
+  >;
+export type RegistrarRevisionApiV1ObrasObraIdRevisionesPostMutationBody =
+  RegistrarRevisionPeticion;
+export type RegistrarRevisionApiV1ObrasObraIdRevisionesPostMutationError = void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>, {obraId: string;data: RegistrarRevisionPeticion}> = (props) => {
-          const {obraId,data} = props ?? {};
-
-          return  registrarRevisionApiV1ObrasObraIdRevisionesPost(obraId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RegistrarRevisionApiV1ObrasObraIdRevisionesPostMutationResult = NonNullable<Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>>
-    export type RegistrarRevisionApiV1ObrasObraIdRevisionesPostMutationBody = RegistrarRevisionPeticion
-    export type RegistrarRevisionApiV1ObrasObraIdRevisionesPostMutationError = void
-
-    /**
+/**
  * @summary Registrar una revisión física en campo
  */
-export const useRegistrarRevisionApiV1ObrasObraIdRevisionesPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>, TError,{obraId: string;data: RegistrarRevisionPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>,
-        TError,
-        {obraId: string;data: RegistrarRevisionPeticion},
-        TContext
-      > => {
+export const useRegistrarRevisionApiV1ObrasObraIdRevisionesPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>
+      >,
+      TError,
+      { obraId: string; data: RegistrarRevisionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof registrarRevisionApiV1ObrasObraIdRevisionesPost>>,
+  TError,
+  { obraId: string; data: RegistrarRevisionPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getRegistrarRevisionApiV1ObrasObraIdRevisionesPostMutationOptions(options);
 
-      const mutationOptions = getRegistrarRevisionApiV1ObrasObraIdRevisionesPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Revisiones visibles para el rol actual (§11.2 `GET /revisiones`).
 
 Lectura simple sin orquestación de dominio —como `GET /cierres`
@@ -124,165 +155,339 @@ porque RLS ya acota el alcance (§12.4). Sin `exigir_rol`: el §11.2 pone la
  * @summary Bandeja de revisiones físicas
  */
 export const listarRevisionesApiV1RevisionesGet = (
-    params?: ListarRevisionesApiV1RevisionesGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: ListarRevisionesApiV1RevisionesGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<RevisionRespuesta[]>(
-      {url: `/api/v1/revisiones`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<RevisionRespuesta[]>(
+    { url: `/api/v1/revisiones`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getListarRevisionesApiV1RevisionesGetInfiniteQueryKey = (params?: ListarRevisionesApiV1RevisionesGetParams,) => {
-    return [
-    'infinite', `/api/v1/revisiones`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getListarRevisionesApiV1RevisionesGetQueryKey = (params?: ListarRevisionesApiV1RevisionesGetParams,) => {
-    return [
-    `/api/v1/revisiones`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getListarRevisionesApiV1RevisionesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>>, TError = HTTPValidationError>(params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarRevisionesApiV1RevisionesGetInfiniteQueryKey = (
+  params?: ListarRevisionesApiV1RevisionesGetParams,
 ) => {
+  return [
+    "infinite",
+    `/api/v1/revisiones`,
+    ...(params ? [params] : []),
+  ] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getListarRevisionesApiV1RevisionesGetQueryKey = (
+  params?: ListarRevisionesApiV1RevisionesGetParams,
+) => {
+  return [`/api/v1/revisiones`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getListarRevisionesApiV1RevisionesGetInfiniteQueryKey(params);
+export const getListarRevisionesApiV1RevisionesGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarRevisionesApiV1RevisionesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarRevisionesApiV1RevisionesGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>> = ({ signal }) => listarRevisionesApiV1RevisionesGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
+  > = ({ signal }) =>
+    listarRevisionesApiV1RevisionesGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ListarRevisionesApiV1RevisionesGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
+>;
+export type ListarRevisionesApiV1RevisionesGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarRevisionesApiV1RevisionesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>>
-export type ListarRevisionesApiV1RevisionesGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarRevisionesApiV1RevisionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarRevisionesApiV1RevisionesGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>> & Pick<
+export function useListarRevisionesApiV1RevisionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarRevisionesApiV1RevisionesGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
           TError,
           Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarRevisionesApiV1RevisionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>>, TError = HTTPValidationError>(
- params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarRevisionesApiV1RevisionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarRevisionesApiV1RevisionesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
           TError,
           Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarRevisionesApiV1RevisionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>>, TError = HTTPValidationError>(
- params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarRevisionesApiV1RevisionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarRevisionesApiV1RevisionesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Bandeja de revisiones físicas
  */
 
-export function useListarRevisionesApiV1RevisionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>>, TError = HTTPValidationError>(
- params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarRevisionesApiV1RevisionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarRevisionesApiV1RevisionesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarRevisionesApiV1RevisionesGetInfiniteQueryOptions(params, options);
 
-  const queryOptions = getListarRevisionesApiV1RevisionesGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarRevisionesApiV1RevisionesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError = HTTPValidationError>(params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarRevisionesApiV1RevisionesGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarRevisionesApiV1RevisionesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarRevisionesApiV1RevisionesGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarRevisionesApiV1RevisionesGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
+  > = ({ signal }) =>
+    listarRevisionesApiV1RevisionesGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>> = ({ signal }) => listarRevisionesApiV1RevisionesGet(params, requestOptions, signal);
+export type ListarRevisionesApiV1RevisionesGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
+>;
+export type ListarRevisionesApiV1RevisionesGetQueryError = HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarRevisionesApiV1RevisionesGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>>
-export type ListarRevisionesApiV1RevisionesGetQueryError = HTTPValidationError
-
-
-export function useListarRevisionesApiV1RevisionesGet<TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarRevisionesApiV1RevisionesGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>> & Pick<
+export function useListarRevisionesApiV1RevisionesGet<
+  TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarRevisionesApiV1RevisionesGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
           TError,
           Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarRevisionesApiV1RevisionesGet<TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError = HTTPValidationError>(
- params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarRevisionesApiV1RevisionesGet<
+  TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarRevisionesApiV1RevisionesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
           TError,
           Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarRevisionesApiV1RevisionesGet<TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError = HTTPValidationError>(
- params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarRevisionesApiV1RevisionesGet<
+  TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarRevisionesApiV1RevisionesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Bandeja de revisiones físicas
  */
 
-export function useListarRevisionesApiV1RevisionesGet<TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError = HTTPValidationError>(
- params?: ListarRevisionesApiV1RevisionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarRevisionesApiV1RevisionesGet<
+  TData = Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarRevisionesApiV1RevisionesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarRevisionesApiV1RevisionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarRevisionesApiV1RevisionesGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarRevisionesApiV1RevisionesGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
-

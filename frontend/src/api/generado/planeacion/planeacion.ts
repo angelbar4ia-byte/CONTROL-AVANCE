@@ -5,11 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -26,22 +22,19 @@ import type {
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
+  UseQueryResult,
+} from "@tanstack/react-query";
 
 import type {
   AsignarFrentePeticion,
   HTTPValidationError,
   PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
-  PlaneacionRespuesta
-} from '.././modelo';
+  PlaneacionRespuesta,
+} from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * La vista con la que se contrata (§8.3).
@@ -53,180 +46,516 @@ catálogo y la decisión la toma quien conoce al contratista.
  * @summary Cuántas cuadrillas pide cada frente, y quién lo lleva
  */
 export const planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet = (
+  obraId: string,
+  params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<PlaneacionRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/planeacion/frentes`,
+      method: "GET",
+      params,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfiniteQueryKey =
+  (
+    obraId?: string,
+    params?: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
+  ) => {
+    return [
+      "infinite",
+      `/api/v1/obras/${obraId}/planeacion/frentes`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetQueryKey =
+  (
+    obraId?: string,
+    params?: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
+  ) => {
+    return [
+      `/api/v1/obras/${obraId}/planeacion/frentes`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
     obraId: string,
     params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
-) => {
-      
-      
-      return peticion<PlaneacionRespuesta>(
-      {url: `/api/v1/obras/${obraId}/planeacion/frentes`, method: 'GET',
-        params, signal
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
     },
-      options);
-    }
-  
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfiniteQueryKey(
+        obraId,
+        params,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+        >
+      >
+    > = ({ signal }) =>
+      planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet(
+        obraId,
+        params,
+        requestOptions,
+        signal,
+      );
 
-export const getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfiniteQueryKey = (obraId?: string,
-    params?: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,) => {
-    return [
-    'infinite', `/api/v1/obras/${obraId}/planeacion/frentes`, ...(params ? [params]: [])
-    ] as const;
-    }
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-export const getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetQueryKey = (obraId?: string,
-    params?: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,) => {
-    return [
-    `/api/v1/obras/${obraId}/planeacion/frentes`, ...(params ? [params]: [])
-    ] as const;
-    }
+export type PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>
+    >
+  >;
+export type PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfiniteQueryError =
+  void | HTTPValidationError;
 
-    
-export const getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>>, TError = void | HTTPValidationError>(obraId: string,
-    params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfiniteQueryKey(obraId,params);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>> = ({ signal }) => planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet(obraId,params, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(obraId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>>
-export type PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfiniteQueryError = void | HTTPValidationError
-
-
-export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>>, TError = void | HTTPValidationError>(
- obraId: string,
-    params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError, TData>> & Pick<
+export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>,
+          Awaited<
+            ReturnType<
+              typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>>, TError = void | HTTPValidationError>(
- obraId: string,
-    params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>,
+          Awaited<
+            ReturnType<
+              typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>>, TError = void | HTTPValidationError>(
- obraId: string,
-    params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Cuántas cuadrillas pide cada frente, y quién lo lleva
  */
 
-export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>>, TError = void | HTTPValidationError>(
- obraId: string,
-    params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfiniteQueryOptions(
+      obraId,
+      params,
+      options,
+    );
 
-  const queryOptions = getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetInfiniteQueryOptions(obraId,params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetQueryKey(
+        obraId,
+        params,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+        >
+      >
+    > = ({ signal }) =>
+      planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet(
+        obraId,
+        params,
+        requestOptions,
+        signal,
+      );
 
-export const getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetQueryOptions = <TData = Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError = void | HTTPValidationError>(obraId: string,
-    params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>
+    >
+  >;
+export type PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetQueryError =
+  void | HTTPValidationError;
 
-  const queryKey =  queryOptions?.queryKey ?? getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetQueryKey(obraId,params);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>> = ({ signal }) => planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet(obraId,params, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(obraId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetQueryResult = NonNullable<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>>
-export type PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetQueryError = void | HTTPValidationError
-
-
-export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet<TData = Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError = void | HTTPValidationError>(
- obraId: string,
-    params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError, TData>> & Pick<
+export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet<
+  TData = Awaited<
+    ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>,
+          Awaited<
+            ReturnType<
+              typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet<TData = Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError = void | HTTPValidationError>(
- obraId: string,
-    params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet<
+  TData = Awaited<
+    ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>,
+          Awaited<
+            ReturnType<
+              typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet<TData = Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError = void | HTTPValidationError>(
- obraId: string,
-    params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet<
+  TData = Awaited<
+    ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Cuántas cuadrillas pide cada frente, y quién lo lleva
  */
 
-export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet<TData = Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError = void | HTTPValidationError>(
- obraId: string,
-    params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function usePlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet<
+  TData = Awaited<
+    ReturnType<typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  params: PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof planeacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetQueryOptions(
+      obraId,
+      params,
+      options,
+    );
 
-  const queryOptions = getPlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetQueryOptions(obraId,params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Idempotente por el par obra-frente: asignarlo dos veces es cambiar de
@@ -234,65 +563,123 @@ contratista, no crear un segundo trato (§8.3).
  * @summary Quién lleva este frente en esta obra
  */
 export const asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut = (
-    obraId: string,
-    frenteId: string,
-    asignarFrentePeticion: AsignarFrentePeticion,
- options?: SecondParameter<typeof peticion>,) => {
-      
-      
-      return peticion<void>(
-      {url: `/api/v1/obras/${obraId}/planeacion/frentes/${frenteId}`, method: 'PUT',
-      headers: {'Content-Type': 'application/json', },
-      data: asignarFrentePeticion
+  obraId: string,
+  frenteId: string,
+  asignarFrentePeticion: AsignarFrentePeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/obras/${obraId}/planeacion/frentes/${frenteId}`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: asignarFrentePeticion,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getAsignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPutMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut
+        >
+      >,
+      TError,
+      { obraId: string; frenteId: string; data: AsignarFrentePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut
+      >
+    >,
+    TError,
+    { obraId: string; frenteId: string; data: AsignarFrentePeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getAsignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPutMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut>>, TError,{obraId: string;frenteId: string;data: AsignarFrentePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut>>, TError,{obraId: string;frenteId: string;data: AsignarFrentePeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut
+        >
+      >,
+      { obraId: string; frenteId: string; data: AsignarFrentePeticion }
+    > = (props) => {
+      const { obraId, frenteId, data } = props ?? {};
 
-const mutationKey = ['asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut(
+        obraId,
+        frenteId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type AsignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut
+      >
+    >
+  >;
+export type AsignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPutMutationBody =
+  AsignarFrentePeticion;
+export type AsignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPutMutationError =
+  void | HTTPValidationError;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut>>, {obraId: string;frenteId: string;data: AsignarFrentePeticion}> = (props) => {
-          const {obraId,frenteId,data} = props ?? {};
-
-          return  asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut(obraId,frenteId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AsignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPutMutationResult = NonNullable<Awaited<ReturnType<typeof asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut>>>
-    export type AsignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPutMutationBody = AsignarFrentePeticion
-    export type AsignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPutMutationError = void | HTTPValidationError
-
-    /**
+/**
  * @summary Quién lleva este frente en esta obra
  */
-export const useAsignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut>>, TError,{obraId: string;frenteId: string;data: AsignarFrentePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut>>,
-        TError,
-        {obraId: string;frenteId: string;data: AsignarFrentePeticion},
-        TContext
-      > => {
+export const useAsignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut
+        >
+      >,
+      TError,
+      { obraId: string; frenteId: string; data: AsignarFrentePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof asignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPut>
+  >,
+  TError,
+  { obraId: string; frenteId: string; data: AsignarFrentePeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getAsignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPutMutationOptions(
+      options,
+    );
 
-      const mutationOptions = getAsignarFrenteApiV1ObrasObraIdPlaneacionFrentesFrenteIdPutMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    
+  return useMutation(mutationOptions, queryClient);
+};

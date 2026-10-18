@@ -7,16 +7,16 @@
  */
 
 export type TorreDeControlApiV1TorreGetParams = {
-/**
- * Acota a un proyecto.
- */
-proyecto_id?: string | null;
-/**
- * Acota a un cluster.
- */
-cluster_id?: string | null;
-/**
- * Solo las obras con algo esperando: incidencia abierta, cierre por resolver o actividad bloqueada.
- */
-solo_pendientes?: boolean;
+  /**
+   * Acota a un proyecto.
+   */
+  proyecto_id?: string | null;
+  /**
+   * Acota a un cluster.
+   */
+  cluster_id?: string | null;
+  /**
+   * Solo las obras con algo esperando: incidencia abierta, cierre por resolver o actividad bloqueada.
+   */
+  solo_pendientes?: boolean;
 };

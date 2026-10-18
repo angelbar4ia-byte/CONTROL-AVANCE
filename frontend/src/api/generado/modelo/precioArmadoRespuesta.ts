@@ -7,15 +7,10 @@
  */
 
 export interface PrecioArmadoRespuesta {
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   mano_obra: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   materiales: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   total: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   precio_unitario: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   jornadas: string;
   /** Lo que se incluyó sin saber cuánto vale. Mientras haya algo aquí el total está **por debajo** del costo real, y autorizar contra esa cifra es autorizar de menos. */
   sin_costo?: string[];

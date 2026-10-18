@@ -5,11 +5,11 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ActualizarObraPeticionClave } from './actualizarObraPeticionClave';
-import type { ActualizarObraPeticionResidenteId } from './actualizarObraPeticionResidenteId';
-import type { ActualizarObraPeticionFechaInicio } from './actualizarObraPeticionFechaInicio';
-import type { ActualizarObraPeticionFechaFin } from './actualizarObraPeticionFechaFin';
-import type { ActualizarObraPeticionM2 } from './actualizarObraPeticionM2';
+import type { ActualizarObraPeticionClave } from "./actualizarObraPeticionClave";
+import type { ActualizarObraPeticionResidenteId } from "./actualizarObraPeticionResidenteId";
+import type { ActualizarObraPeticionFechaInicio } from "./actualizarObraPeticionFechaInicio";
+import type { ActualizarObraPeticionFechaFin } from "./actualizarObraPeticionFechaFin";
+import type { ActualizarObraPeticionM2 } from "./actualizarObraPeticionM2";
 
 /**
  * Edición parcial (§11.2 `PATCH /obras/{id}`).

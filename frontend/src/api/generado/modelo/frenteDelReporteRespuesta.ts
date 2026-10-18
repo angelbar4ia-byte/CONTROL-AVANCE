@@ -14,11 +14,7 @@ export interface FrenteDelReporteRespuesta {
   clave: string;
   nombre: string;
   conceptos: number;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   subtotal: string;
-  /**
-   * 0–100.
-   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
-   */
+  /** 0–100. */
   porcentaje: string;
 }

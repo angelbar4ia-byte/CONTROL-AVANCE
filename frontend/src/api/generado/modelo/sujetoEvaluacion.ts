@@ -6,12 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type SujetoEvaluacion = typeof SujetoEvaluacion[keyof typeof SujetoEvaluacion];
-
+export type SujetoEvaluacion =
+  (typeof SujetoEvaluacion)[keyof typeof SujetoEvaluacion];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const SujetoEvaluacion = {
-  obra: 'obra',
-  residente: 'residente',
-  contratista: 'contratista',
+  obra: "obra",
+  residente: "residente",
+  contratista: "contratista",
 } as const;

@@ -5,10 +5,10 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { RendimientoPorCuadrillaRespuestaContratistaNombre } from './rendimientoPorCuadrillaRespuestaContratistaNombre';
-import type { RendimientoPorCuadrillaRespuestaRendimientoEsperado } from './rendimientoPorCuadrillaRespuestaRendimientoEsperado';
-import type { RendimientoPorCuadrillaRespuestaCantidadEjecutada } from './rendimientoPorCuadrillaRespuestaCantidadEjecutada';
-import type { RendimientoPorCuadrillaRespuestaImporteEjecutado } from './rendimientoPorCuadrillaRespuestaImporteEjecutado';
+import type { RendimientoPorCuadrillaRespuestaContratistaNombre } from "./rendimientoPorCuadrillaRespuestaContratistaNombre";
+import type { RendimientoPorCuadrillaRespuestaRendimientoEsperado } from "./rendimientoPorCuadrillaRespuestaRendimientoEsperado";
+import type { RendimientoPorCuadrillaRespuestaCantidadEjecutada } from "./rendimientoPorCuadrillaRespuestaCantidadEjecutada";
+import type { RendimientoPorCuadrillaRespuestaImporteEjecutado } from "./rendimientoPorCuadrillaRespuestaImporteEjecutado";
 
 /**
  * Lo que produjo cada cuadrilla (§5.1).

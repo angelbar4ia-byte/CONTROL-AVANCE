@@ -5,10 +5,10 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { EstimacionRespuestaFolio } from './estimacionRespuestaFolio';
-import type { EstimacionRespuestaCreadaPor } from './estimacionRespuestaCreadaPor';
-import type { EstimacionRespuestaValidadaPor } from './estimacionRespuestaValidadaPor';
-import type { EstimacionRespuestaNConceptos } from './estimacionRespuestaNConceptos';
+import type { EstimacionRespuestaFolio } from "./estimacionRespuestaFolio";
+import type { EstimacionRespuestaCreadaPor } from "./estimacionRespuestaCreadaPor";
+import type { EstimacionRespuestaValidadaPor } from "./estimacionRespuestaValidadaPor";
+import type { EstimacionRespuestaNConceptos } from "./estimacionRespuestaNConceptos";
 
 export interface EstimacionRespuesta {
   id: string;
@@ -18,7 +18,6 @@ export interface EstimacionRespuesta {
   anio: number;
   modo: string;
   estatus: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto_total: string;
   origen_erp: boolean;
   creada_por: EstimacionRespuestaCreadaPor;

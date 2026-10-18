@@ -5,18 +5,18 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { IncidenciaRespuestaFrenteId } from './incidenciaRespuestaFrenteId';
-import type { IncidenciaRespuestaDescripcion } from './incidenciaRespuestaDescripcion';
-import type { IncidenciaRespuestaCreadaPor } from './incidenciaRespuestaCreadaPor';
-import type { IncidenciaRespuestaAsignadaA } from './incidenciaRespuestaAsignadaA';
-import type { IncidenciaRespuestaFechaLimite } from './incidenciaRespuestaFechaLimite';
-import type { IncidenciaRespuestaNivelId } from './incidenciaRespuestaNivelId';
-import type { IncidenciaRespuestaNivelClave } from './incidenciaRespuestaNivelClave';
-import type { IncidenciaRespuestaNivelDescripcion } from './incidenciaRespuestaNivelDescripcion';
-import type { IncidenciaRespuestaEtapaId } from './incidenciaRespuestaEtapaId';
-import type { IncidenciaRespuestaEtapaClave } from './incidenciaRespuestaEtapaClave';
-import type { IncidenciaRespuestaEtapaDescripcion } from './incidenciaRespuestaEtapaDescripcion';
-import type { IncidenciaRespuestaObraClave } from './incidenciaRespuestaObraClave';
+import type { IncidenciaRespuestaFrenteId } from "./incidenciaRespuestaFrenteId";
+import type { IncidenciaRespuestaDescripcion } from "./incidenciaRespuestaDescripcion";
+import type { IncidenciaRespuestaCreadaPor } from "./incidenciaRespuestaCreadaPor";
+import type { IncidenciaRespuestaAsignadaA } from "./incidenciaRespuestaAsignadaA";
+import type { IncidenciaRespuestaFechaLimite } from "./incidenciaRespuestaFechaLimite";
+import type { IncidenciaRespuestaNivelId } from "./incidenciaRespuestaNivelId";
+import type { IncidenciaRespuestaNivelClave } from "./incidenciaRespuestaNivelClave";
+import type { IncidenciaRespuestaNivelDescripcion } from "./incidenciaRespuestaNivelDescripcion";
+import type { IncidenciaRespuestaEtapaId } from "./incidenciaRespuestaEtapaId";
+import type { IncidenciaRespuestaEtapaClave } from "./incidenciaRespuestaEtapaClave";
+import type { IncidenciaRespuestaEtapaDescripcion } from "./incidenciaRespuestaEtapaDescripcion";
+import type { IncidenciaRespuestaObraClave } from "./incidenciaRespuestaObraClave";
 
 export interface IncidenciaRespuesta {
   id: string;

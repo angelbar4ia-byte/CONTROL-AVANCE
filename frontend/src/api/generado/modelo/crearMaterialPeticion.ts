@@ -5,12 +5,12 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { CrearMaterialPeticionUnidadId } from './crearMaterialPeticionUnidadId';
-import type { CrearMaterialPeticionFamiliaId } from './crearMaterialPeticionFamiliaId';
-import type { CrearMaterialPeticionCostoBase } from './crearMaterialPeticionCostoBase';
-import type { CrearMaterialPeticionIvaAplica } from './crearMaterialPeticionIvaAplica';
-import type { CrearMaterialPeticionFactorConversion } from './crearMaterialPeticionFactorConversion';
-import type { CrearMaterialPeticionDiasEntrega } from './crearMaterialPeticionDiasEntrega';
+import type { CrearMaterialPeticionUnidadId } from "./crearMaterialPeticionUnidadId";
+import type { CrearMaterialPeticionFamiliaId } from "./crearMaterialPeticionFamiliaId";
+import type { CrearMaterialPeticionCostoBase } from "./crearMaterialPeticionCostoBase";
+import type { CrearMaterialPeticionIvaAplica } from "./crearMaterialPeticionIvaAplica";
+import type { CrearMaterialPeticionFactorConversion } from "./crearMaterialPeticionFactorConversion";
+import type { CrearMaterialPeticionDiasEntrega } from "./crearMaterialPeticionDiasEntrega";
 
 /**
  * `POST /materiales` — mismo cuerpo, sin `tipo`: es siempre `material` (§7.3).

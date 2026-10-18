@@ -5,10 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useInfiniteQuery,
-  useQuery
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -22,19 +19,14 @@ import type {
   UseInfiniteQueryOptions,
   UseInfiniteQueryResult,
   UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
+  UseQueryResult,
+} from "@tanstack/react-query";
 
-import type {
-  PerfilRespuesta
-} from '.././modelo';
+import type { PerfilRespuesta } from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Devuelve el perfil del token y su alcance efectivo.
@@ -44,164 +36,297 @@ que el número es el alcance real y no hay que calcularlo en la API (§12.4).
  * @summary Perfil y alcance
  */
 export const obtenerPerfilApiV1MeGet = (
-    
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<PerfilRespuesta>(
-      {url: `/api/v1/me`, method: 'GET', signal
-    },
-      options);
-    }
-  
-
-
+  return peticion<PerfilRespuesta>(
+    { url: `/api/v1/me`, method: "GET", signal },
+    options,
+  );
+};
 
 export const getObtenerPerfilApiV1MeGetInfiniteQueryKey = () => {
-    return [
-    'infinite', `/api/v1/me`
-    ] as const;
-    }
+  return ["infinite", `/api/v1/me`] as const;
+};
 
 export const getObtenerPerfilApiV1MeGetQueryKey = () => {
-    return [
-    `/api/v1/me`
-    ] as const;
-    }
+  return [`/api/v1/me`] as const;
+};
 
-    
-export const getObtenerPerfilApiV1MeGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>>, TError = unknown>( options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+export const getObtenerPerfilApiV1MeGetInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ?? getObtenerPerfilApiV1MeGetInfiniteQueryKey();
 
-  const queryKey =  queryOptions?.queryKey ?? getObtenerPerfilApiV1MeGetInfiniteQueryKey();
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>
+  > = ({ signal }) => obtenerPerfilApiV1MeGet(requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>> = ({ signal }) => obtenerPerfilApiV1MeGet(requestOptions, signal);
+export type ObtenerPerfilApiV1MeGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>
+>;
+export type ObtenerPerfilApiV1MeGetInfiniteQueryError = unknown;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ObtenerPerfilApiV1MeGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>>
-export type ObtenerPerfilApiV1MeGetInfiniteQueryError = unknown
-
-
-export function useObtenerPerfilApiV1MeGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>>, TError = unknown>(
-  options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError, TData>> & Pick<
+export function useObtenerPerfilApiV1MeGetInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
           TError,
           Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerPerfilApiV1MeGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerPerfilApiV1MeGetInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
           TError,
           Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerPerfilApiV1MeGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerPerfilApiV1MeGetInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Perfil y alcance
  */
 
-export function useObtenerPerfilApiV1MeGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useObtenerPerfilApiV1MeGetInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getObtenerPerfilApiV1MeGetInfiniteQueryOptions(options);
 
-  const queryOptions = getObtenerPerfilApiV1MeGetInfiniteQueryOptions(options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getObtenerPerfilApiV1MeGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
+  const queryKey =
+    queryOptions?.queryKey ?? getObtenerPerfilApiV1MeGetQueryKey();
 
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>
+  > = ({ signal }) => obtenerPerfilApiV1MeGet(requestOptions, signal);
 
-export const getObtenerPerfilApiV1MeGetQueryOptions = <TData = Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type ObtenerPerfilApiV1MeGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>
+>;
+export type ObtenerPerfilApiV1MeGetQueryError = unknown;
 
-  const queryKey =  queryOptions?.queryKey ?? getObtenerPerfilApiV1MeGetQueryKey();
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>> = ({ signal }) => obtenerPerfilApiV1MeGet(requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ObtenerPerfilApiV1MeGetQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>>
-export type ObtenerPerfilApiV1MeGetQueryError = unknown
-
-
-export function useObtenerPerfilApiV1MeGet<TData = Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError, TData>> & Pick<
+export function useObtenerPerfilApiV1MeGet<
+  TData = Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
           TError,
           Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerPerfilApiV1MeGet<TData = Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerPerfilApiV1MeGet<
+  TData = Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
           TError,
           Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerPerfilApiV1MeGet<TData = Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerPerfilApiV1MeGet<
+  TData = Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Perfil y alcance
  */
 
-export function useObtenerPerfilApiV1MeGet<TData = Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useObtenerPerfilApiV1MeGet<
+  TData = Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof obtenerPerfilApiV1MeGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getObtenerPerfilApiV1MeGetQueryOptions(options);
 
-  const queryOptions = getObtenerPerfilApiV1MeGetQueryOptions(options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
-

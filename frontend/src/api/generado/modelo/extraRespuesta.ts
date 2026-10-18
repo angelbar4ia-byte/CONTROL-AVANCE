@@ -14,7 +14,6 @@ export interface ExtraRespuesta {
   obra_id: string;
   descripcion: string;
   orden_cambio: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cant_base: string;
   modo_pago: string;
   /** Nace en `extra_catalogo` y avanza sola al capturar (§8.2). */

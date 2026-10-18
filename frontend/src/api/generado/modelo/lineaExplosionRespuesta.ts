@@ -5,8 +5,8 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { TipoHijoExplosion } from './tipoHijoExplosion';
-import type { CategoriaExplosion } from './categoriaExplosion';
+import type { TipoHijoExplosion } from "./tipoHijoExplosion";
+import type { CategoriaExplosion } from "./categoriaExplosion";
 
 export interface LineaExplosionRespuesta {
   ruta: string[];
@@ -15,19 +15,11 @@ export interface LineaExplosionRespuesta {
   /** Clave del insumo o del concepto hijo (§3.3). */
   referencia: string;
   categoria: CategoriaExplosion;
-  /**
-   * Por unidad del padre inmediato.
-   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
-   */
+  /** Por unidad del padre inmediato. */
   cantidad_unitaria: string;
-  /**
-   * Acumulada por unidad del concepto raíz.
-   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
-   */
+  /** Acumulada por unidad del concepto raíz. */
   cantidad: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   costo_unitario: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   importe: string;
   es_destajo: boolean;
 }

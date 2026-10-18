@@ -6,14 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type EstatusObra = typeof EstatusObra[keyof typeof EstatusObra];
-
+export type EstatusObra = (typeof EstatusObra)[keyof typeof EstatusObra];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const EstatusObra = {
-  pendiente: 'pendiente',
-  iniciada: 'iniciada',
-  en_proceso: 'en_proceso',
-  casi_lista: 'casi_lista',
-  entregada: 'entregada',
+  pendiente: "pendiente",
+  iniciada: "iniciada",
+  en_proceso: "en_proceso",
+  por_entregar: "por_entregar",
+  entregada: "entregada",
 } as const;

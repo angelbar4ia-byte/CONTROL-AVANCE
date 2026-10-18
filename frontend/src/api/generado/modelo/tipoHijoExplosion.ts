@@ -6,11 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type TipoHijoExplosion = typeof TipoHijoExplosion[keyof typeof TipoHijoExplosion];
-
+export type TipoHijoExplosion =
+  (typeof TipoHijoExplosion)[keyof typeof TipoHijoExplosion];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const TipoHijoExplosion = {
-  insumo: 'insumo',
-  concepto: 'concepto',
+  insumo: "insumo",
+  concepto: "concepto",
 } as const;

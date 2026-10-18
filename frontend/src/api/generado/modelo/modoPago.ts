@@ -9,12 +9,11 @@
 /**
  * ``actividad.modo_pago`` y ``estimacion.modo`` comparten valores (§8.2).
  */
-export type ModoPago = typeof ModoPago[keyof typeof ModoPago];
-
+export type ModoPago = (typeof ModoPago)[keyof typeof ModoPago];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const ModoPago = {
-  destajo: 'destajo',
-  concepto: 'concepto',
-  subcontrato: 'subcontrato',
+  destajo: "destajo",
+  concepto: "concepto",
+  subcontrato: "subcontrato",
 } as const;

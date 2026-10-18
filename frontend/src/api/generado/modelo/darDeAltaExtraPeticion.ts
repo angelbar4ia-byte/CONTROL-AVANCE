@@ -5,15 +5,15 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { DarDeAltaExtraPeticionCantBase } from './darDeAltaExtraPeticionCantBase';
-import type { ModoPago } from './modoPago';
-import type { DarDeAltaExtraPeticionPrecioUnitario } from './darDeAltaExtraPeticionPrecioUnitario';
-import type { DarDeAltaExtraPeticionPrecioDestajo } from './darDeAltaExtraPeticionPrecioDestajo';
-import type { DarDeAltaExtraPeticionConceptoId } from './darDeAltaExtraPeticionConceptoId';
-import type { DarDeAltaExtraPeticionFrenteId } from './darDeAltaExtraPeticionFrenteId';
-import type { DarDeAltaExtraPeticionNivelId } from './darDeAltaExtraPeticionNivelId';
-import type { DarDeAltaExtraPeticionEtapaId } from './darDeAltaExtraPeticionEtapaId';
-import type { DarDeAltaExtraPeticionDuracionDias } from './darDeAltaExtraPeticionDuracionDias';
+import type { DarDeAltaExtraPeticionCantBase } from "./darDeAltaExtraPeticionCantBase";
+import type { ModoPago } from "./modoPago";
+import type { DarDeAltaExtraPeticionPrecioUnitario } from "./darDeAltaExtraPeticionPrecioUnitario";
+import type { DarDeAltaExtraPeticionPrecioDestajo } from "./darDeAltaExtraPeticionPrecioDestajo";
+import type { DarDeAltaExtraPeticionConceptoId } from "./darDeAltaExtraPeticionConceptoId";
+import type { DarDeAltaExtraPeticionFrenteId } from "./darDeAltaExtraPeticionFrenteId";
+import type { DarDeAltaExtraPeticionNivelId } from "./darDeAltaExtraPeticionNivelId";
+import type { DarDeAltaExtraPeticionEtapaId } from "./darDeAltaExtraPeticionEtapaId";
+import type { DarDeAltaExtraPeticionDuracionDias } from "./darDeAltaExtraPeticionDuracionDias";
 
 /**
  * Trabajo que apareció en obra y no estaba en el prototipo (§11.2).

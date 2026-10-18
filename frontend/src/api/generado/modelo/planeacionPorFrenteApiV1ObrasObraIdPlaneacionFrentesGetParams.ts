@@ -5,21 +5,21 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { TipoSemana } from './tipoSemana';
+import type { TipoSemana } from "./tipoSemana";
 
 export type PlaneacionPorFrenteApiV1ObrasObraIdPlaneacionFrentesGetParams = {
-/**
- * Primer día del rango.
- */
-desde: string;
-/**
- * Último día del rango.
- */
-hasta: string;
-/**
- * Columna por semana o mes.
- * @pattern ^(semana|mes)$
- */
-granularidad?: string;
-tipo_semana?: TipoSemana;
+  /**
+   * Primer día del rango.
+   */
+  desde: string;
+  /**
+   * Último día del rango.
+   */
+  hasta: string;
+  /**
+   * Columna por semana o mes.
+   * @pattern ^(semana|mes)$
+   */
+  granularidad?: string;
+  tipo_semana?: TipoSemana;
 };

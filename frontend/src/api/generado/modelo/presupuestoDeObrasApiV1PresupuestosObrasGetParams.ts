@@ -7,12 +7,12 @@
  */
 
 export type PresupuestoDeObrasApiV1PresupuestosObrasGetParams = {
-/**
- * Acota a un proyecto.
- */
-proyecto_id?: string | null;
-/**
- * Porcentaje a partir del cual una desviación se marca (§3.6). Es configurable por organización; sin él se usa el default.
- */
-umbral?: number | string | null;
+  /**
+   * Acota a un proyecto.
+   */
+  proyecto_id?: string | null;
+  /**
+   * Porcentaje a partir del cual una desviación se marca (§3.6). Es configurable por organización; sin él se usa el default.
+   */
+  umbral?: number | string | null;
 };

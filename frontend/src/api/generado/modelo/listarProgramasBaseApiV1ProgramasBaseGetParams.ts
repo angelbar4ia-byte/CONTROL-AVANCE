@@ -7,12 +7,12 @@
  */
 
 export type ListarProgramasBaseApiV1ProgramasBaseGetParams = {
-/**
- * Acota al prototipo (§7.2).
- */
-prototipo_id?: string | null;
-/**
- * Solo la versión vigente de cada prototipo (§7.5).
- */
-solo_vigentes?: boolean;
+  /**
+   * Acota al prototipo (§7.2).
+   */
+  prototipo_id?: string | null;
+  /**
+   * Solo la versión vigente de cada prototipo (§7.5).
+   */
+  solo_vigentes?: boolean;
 };

@@ -7,35 +7,35 @@
  */
 
 export type ListarBitacoraApiV1BitacoraGetParams = {
-/**
- * Filtra por tabla (`configuracion`, `cpu`, …).
- */
-entidad?: string | null;
-/**
- * Filtra por fila concreta.
- */
-entidad_id?: string | null;
-/**
- * Filtra por autor.
- */
-usuario_id?: string | null;
-/**
- * Fecha mínima, inclusiva.
- */
-desde?: string | null;
-/**
- * Fecha máxima, **inclusiva**: cuenta el día completo.
- */
-hasta?: string | null;
-/**
- * Página, base 1 (§11.2).
- * @minimum 1
- */
-page?: number;
-/**
- * Tamaño de página.
- * @minimum 1
- * @maximum 200
- */
-size?: number;
+  /**
+   * Filtra por tabla (`configuracion`, `cpu`, …).
+   */
+  entidad?: string | null;
+  /**
+   * Filtra por fila concreta.
+   */
+  entidad_id?: string | null;
+  /**
+   * Filtra por autor.
+   */
+  usuario_id?: string | null;
+  /**
+   * Fecha mínima, inclusiva.
+   */
+  desde?: string | null;
+  /**
+   * Fecha máxima, **inclusiva**: cuenta el día completo.
+   */
+  hasta?: string | null;
+  /**
+   * Página, base 1 (§11.2).
+   * @minimum 1
+   */
+  page?: number;
+  /**
+   * Tamaño de página.
+   * @minimum 1
+   * @maximum 200
+   */
+  size?: number;
 };

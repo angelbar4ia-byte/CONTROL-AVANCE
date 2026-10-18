@@ -5,11 +5,11 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { LoteRespuestaArchivoNombre } from './loteRespuestaArchivoNombre';
-import type { LoteRespuestaArchivoHash } from './loteRespuestaArchivoHash';
-import type { LoteRespuestaVersionGenerada } from './loteRespuestaVersionGenerada';
-import type { LoteRespuestaResumen } from './loteRespuestaResumen';
-import type { LoteRespuestaErroresItem } from './loteRespuestaErroresItem';
+import type { LoteRespuestaArchivoNombre } from "./loteRespuestaArchivoNombre";
+import type { LoteRespuestaArchivoHash } from "./loteRespuestaArchivoHash";
+import type { LoteRespuestaVersionGenerada } from "./loteRespuestaVersionGenerada";
+import type { LoteRespuestaResumen } from "./loteRespuestaResumen";
+import type { LoteRespuestaErroresItem } from "./loteRespuestaErroresItem";
 
 /**
  * Estado de un lote ya registrado (§9.4).

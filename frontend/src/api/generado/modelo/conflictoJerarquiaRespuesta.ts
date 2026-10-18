@@ -16,15 +16,9 @@ obligaría a ir a buscar la otra a otra pantalla.
 export interface ConflictoJerarquiaRespuesta {
   nodo_id: string;
   nombre: string;
-  /**
-   * Días que el programa base declara para este nodo (§7.5).
-   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
-   */
+  /** Días que el programa base declara para este nodo (§7.5). */
   dias_capturados: string;
-  /**
-   * Días que hoy ocupan sus conceptos ya programados (§6).
-   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
-   */
+  /** Días que hoy ocupan sus conceptos ya programados (§6). */
   dias_derivados: string;
   /** Los conceptos programados a mano que están en desacuerdo: es lo que se perdería al conservar la cifra del nodo. */
   actividades: string[];

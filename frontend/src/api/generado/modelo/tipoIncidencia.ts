@@ -6,15 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type TipoIncidencia = typeof TipoIncidencia[keyof typeof TipoIncidencia];
-
+export type TipoIncidencia =
+  (typeof TipoIncidencia)[keyof typeof TipoIncidencia];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const TipoIncidencia = {
-  falta_material: 'falta_material',
-  error_ejecucion: 'error_ejecucion',
-  cambio_cliente: 'cambio_cliente',
-  proyecto_indef: 'proyecto_indef',
-  retrabajo: 'retrabajo',
-  detalle: 'detalle',
+  falta_material: "falta_material",
+  error_ejecucion: "error_ejecucion",
+  cambio_cliente: "cambio_cliente",
+  proyecto_indef: "proyecto_indef",
+  retrabajo: "retrabajo",
+  detalle: "detalle",
 } as const;

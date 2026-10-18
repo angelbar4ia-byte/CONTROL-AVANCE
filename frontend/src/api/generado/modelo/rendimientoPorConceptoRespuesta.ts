@@ -5,11 +5,11 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { RendimientoPorConceptoRespuestaConceptoId } from './rendimientoPorConceptoRespuestaConceptoId';
-import type { RendimientoPorConceptoRespuestaConceptoClave } from './rendimientoPorConceptoRespuestaConceptoClave';
-import type { RendimientoPorConceptoRespuestaConceptoDescripcion } from './rendimientoPorConceptoRespuestaConceptoDescripcion';
-import type { RendimientoPorConceptoRespuestaUnidadClave } from './rendimientoPorConceptoRespuestaUnidadClave';
-import type { RendimientoPorConceptoRespuestaDesviacionPct } from './rendimientoPorConceptoRespuestaDesviacionPct';
+import type { RendimientoPorConceptoRespuestaConceptoId } from "./rendimientoPorConceptoRespuestaConceptoId";
+import type { RendimientoPorConceptoRespuestaConceptoClave } from "./rendimientoPorConceptoRespuestaConceptoClave";
+import type { RendimientoPorConceptoRespuestaConceptoDescripcion } from "./rendimientoPorConceptoRespuestaConceptoDescripcion";
+import type { RendimientoPorConceptoRespuestaUnidadClave } from "./rendimientoPorConceptoRespuestaUnidadClave";
+import type { RendimientoPorConceptoRespuestaDesviacionPct } from "./rendimientoPorConceptoRespuestaDesviacionPct";
 
 /**
  * Presupuestado contra ejecutado, concepto por concepto (§5.1).
@@ -19,18 +19,11 @@ export interface RendimientoPorConceptoRespuesta {
   concepto_clave?: RendimientoPorConceptoRespuestaConceptoClave;
   concepto_descripcion?: RendimientoPorConceptoRespuestaConceptoDescripcion;
   unidad_clave?: RendimientoPorConceptoRespuestaUnidadClave;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad_presupuestada: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   importe_presupuestado: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad_ejecutada: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   importe_ejecutado: string;
-  /**
-   * Ejecutado menos presupuestado. Positivo es gastar de más.
-   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
-   */
+  /** Ejecutado menos presupuestado. Positivo es gastar de más. */
   desviacion_importe: string;
   /** `null` cuando no había presupuesto: dividir entre cero no da infinito, da que la pregunta no aplica. */
   desviacion_pct?: RendimientoPorConceptoRespuestaDesviacionPct;

@@ -5,8 +5,8 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ResumenDeObraRespuestaPrototipoClave } from './resumenDeObraRespuestaPrototipoClave';
-import type { ResumenDeObraRespuestaDesviacionPct } from './resumenDeObraRespuestaDesviacionPct';
+import type { ResumenDeObraRespuestaPrototipoClave } from "./resumenDeObraRespuestaPrototipoClave";
+import type { ResumenDeObraRespuestaDesviacionPct } from "./resumenDeObraRespuestaDesviacionPct";
 
 /**
  * Un renglón de «Presupuesto de obras» (§5.1).
@@ -15,7 +15,6 @@ export interface ResumenDeObraRespuesta {
   obra_id: string;
   obra_clave: string;
   obra_estatus: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   avance_pct: string;
   /** Una obra URBA no tiene prototipo y por lo tanto no tiene presupuesto (§7.2). Aparece con cero, no desaparece. */
   es_urba: boolean;
@@ -23,11 +22,8 @@ export interface ResumenDeObraRespuesta {
   cluster_clave: string;
   proyecto_clave: string;
   proyecto_id: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto_presupuestado: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto_ejecutado: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   desviacion_importe: string;
   desviacion_pct?: ResumenDeObraRespuestaDesviacionPct;
   clasificacion: string;

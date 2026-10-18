@@ -5,10 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useInfiniteQuery,
-  useQuery
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -22,21 +19,18 @@ import type {
   UseInfiniteQueryOptions,
   UseInfiniteQueryResult,
   UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
+  UseQueryResult,
+} from "@tanstack/react-query";
 
 import type {
   HTTPValidationError,
   VersionSoportadaApiV1ClienteVersionGetParams,
-  VersionSoportadaRespuesta
-} from '.././modelo';
+  VersionSoportadaRespuesta,
+} from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Devuelve la política de versiones vigente (§12.12).
@@ -49,165 +43,344 @@ endpoint.
  * @summary Versión mínima y recomendada del cliente móvil
  */
 export const versionSoportadaApiV1ClienteVersionGet = (
-    params?: VersionSoportadaApiV1ClienteVersionGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: VersionSoportadaApiV1ClienteVersionGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<VersionSoportadaRespuesta>(
-      {url: `/api/v1/cliente/version`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<VersionSoportadaRespuesta>(
+    { url: `/api/v1/cliente/version`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getVersionSoportadaApiV1ClienteVersionGetInfiniteQueryKey = (params?: VersionSoportadaApiV1ClienteVersionGetParams,) => {
-    return [
-    'infinite', `/api/v1/cliente/version`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getVersionSoportadaApiV1ClienteVersionGetQueryKey = (params?: VersionSoportadaApiV1ClienteVersionGetParams,) => {
-    return [
-    `/api/v1/cliente/version`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getVersionSoportadaApiV1ClienteVersionGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>>, TError = HTTPValidationError>(params?: VersionSoportadaApiV1ClienteVersionGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getVersionSoportadaApiV1ClienteVersionGetInfiniteQueryKey = (
+  params?: VersionSoportadaApiV1ClienteVersionGetParams,
 ) => {
+  return [
+    "infinite",
+    `/api/v1/cliente/version`,
+    ...(params ? [params] : []),
+  ] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getVersionSoportadaApiV1ClienteVersionGetQueryKey = (
+  params?: VersionSoportadaApiV1ClienteVersionGetParams,
+) => {
+  return [`/api/v1/cliente/version`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getVersionSoportadaApiV1ClienteVersionGetInfiniteQueryKey(params);
+export const getVersionSoportadaApiV1ClienteVersionGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: VersionSoportadaApiV1ClienteVersionGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getVersionSoportadaApiV1ClienteVersionGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>> = ({ signal }) => versionSoportadaApiV1ClienteVersionGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>
+  > = ({ signal }) =>
+    versionSoportadaApiV1ClienteVersionGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type VersionSoportadaApiV1ClienteVersionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>
+  >;
+export type VersionSoportadaApiV1ClienteVersionGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type VersionSoportadaApiV1ClienteVersionGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>>
-export type VersionSoportadaApiV1ClienteVersionGetInfiniteQueryError = HTTPValidationError
-
-
-export function useVersionSoportadaApiV1ClienteVersionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>>, TError = HTTPValidationError>(
- params: undefined |  VersionSoportadaApiV1ClienteVersionGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError, TData>> & Pick<
+export function useVersionSoportadaApiV1ClienteVersionGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | VersionSoportadaApiV1ClienteVersionGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
           TError,
           Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useVersionSoportadaApiV1ClienteVersionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>>, TError = HTTPValidationError>(
- params?: VersionSoportadaApiV1ClienteVersionGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVersionSoportadaApiV1ClienteVersionGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: VersionSoportadaApiV1ClienteVersionGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
           TError,
           Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useVersionSoportadaApiV1ClienteVersionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>>, TError = HTTPValidationError>(
- params?: VersionSoportadaApiV1ClienteVersionGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVersionSoportadaApiV1ClienteVersionGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: VersionSoportadaApiV1ClienteVersionGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Versión mínima y recomendada del cliente móvil
  */
 
-export function useVersionSoportadaApiV1ClienteVersionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>>, TError = HTTPValidationError>(
- params?: VersionSoportadaApiV1ClienteVersionGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useVersionSoportadaApiV1ClienteVersionGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: VersionSoportadaApiV1ClienteVersionGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getVersionSoportadaApiV1ClienteVersionGetInfiniteQueryOptions(
+      params,
+      options,
+    );
 
-  const queryOptions = getVersionSoportadaApiV1ClienteVersionGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getVersionSoportadaApiV1ClienteVersionGetQueryOptions = <TData = Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError = HTTPValidationError>(params?: VersionSoportadaApiV1ClienteVersionGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getVersionSoportadaApiV1ClienteVersionGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: VersionSoportadaApiV1ClienteVersionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getVersionSoportadaApiV1ClienteVersionGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getVersionSoportadaApiV1ClienteVersionGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>
+  > = ({ signal }) =>
+    versionSoportadaApiV1ClienteVersionGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>> = ({ signal }) => versionSoportadaApiV1ClienteVersionGet(params, requestOptions, signal);
+export type VersionSoportadaApiV1ClienteVersionGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>
+>;
+export type VersionSoportadaApiV1ClienteVersionGetQueryError =
+  HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type VersionSoportadaApiV1ClienteVersionGetQueryResult = NonNullable<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>>
-export type VersionSoportadaApiV1ClienteVersionGetQueryError = HTTPValidationError
-
-
-export function useVersionSoportadaApiV1ClienteVersionGet<TData = Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError = HTTPValidationError>(
- params: undefined |  VersionSoportadaApiV1ClienteVersionGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError, TData>> & Pick<
+export function useVersionSoportadaApiV1ClienteVersionGet<
+  TData = Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | VersionSoportadaApiV1ClienteVersionGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
           TError,
           Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useVersionSoportadaApiV1ClienteVersionGet<TData = Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError = HTTPValidationError>(
- params?: VersionSoportadaApiV1ClienteVersionGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVersionSoportadaApiV1ClienteVersionGet<
+  TData = Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: VersionSoportadaApiV1ClienteVersionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
           TError,
           Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useVersionSoportadaApiV1ClienteVersionGet<TData = Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError = HTTPValidationError>(
- params?: VersionSoportadaApiV1ClienteVersionGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVersionSoportadaApiV1ClienteVersionGet<
+  TData = Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: VersionSoportadaApiV1ClienteVersionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Versión mínima y recomendada del cliente móvil
  */
 
-export function useVersionSoportadaApiV1ClienteVersionGet<TData = Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError = HTTPValidationError>(
- params?: VersionSoportadaApiV1ClienteVersionGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useVersionSoportadaApiV1ClienteVersionGet<
+  TData = Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: VersionSoportadaApiV1ClienteVersionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof versionSoportadaApiV1ClienteVersionGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getVersionSoportadaApiV1ClienteVersionGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getVersionSoportadaApiV1ClienteVersionGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
-

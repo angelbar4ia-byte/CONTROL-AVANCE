@@ -6,9 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams = {
-/**
- * Receta alterna del concepto; vacío = receta base (§2.2).
- */
-variante?: string | null;
-};
+export type EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams =
+  {
+    /**
+     * Receta alterna del concepto; vacío = receta base (§2.2).
+     */
+    variante?: string | null;
+  };

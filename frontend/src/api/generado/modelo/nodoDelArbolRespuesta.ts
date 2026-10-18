@@ -5,11 +5,11 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ClaseNodo } from './claseNodo';
-import type { NodoDelArbolRespuestaParentId } from './nodoDelArbolRespuestaParentId';
-import type { NodoDelArbolRespuestaFechaInicio } from './nodoDelArbolRespuestaFechaInicio';
-import type { NodoDelArbolRespuestaFechaTermino } from './nodoDelArbolRespuestaFechaTermino';
-import type { NodoDelArbolRespuestaConflicto } from './nodoDelArbolRespuestaConflicto';
+import type { ClaseNodo } from "./claseNodo";
+import type { NodoDelArbolRespuestaParentId } from "./nodoDelArbolRespuestaParentId";
+import type { NodoDelArbolRespuestaFechaInicio } from "./nodoDelArbolRespuestaFechaInicio";
+import type { NodoDelArbolRespuestaFechaTermino } from "./nodoDelArbolRespuestaFechaTermino";
+import type { NodoDelArbolRespuestaConflicto } from "./nodoDelArbolRespuestaConflicto";
 
 /**
  * Un renglón del Gantt jerárquico (§7.4, §6).
@@ -32,22 +32,12 @@ export interface NodoDelArbolRespuesta {
   actividades: string[];
   fecha_inicio: NodoDelArbolRespuestaFechaInicio;
   fecha_termino: NodoDelArbolRespuestaFechaTermino;
-  /**
-   * **Span** de la barra: días de calendario entre el inicio más temprano y el fin más tardío de sus conceptos, en la escala del calendario del cronograma. No es la suma de sus duraciones.
-   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
-   */
+  /** **Span** de la barra: días de calendario entre el inicio más temprano y el fin más tardío de sus conceptos, en la escala del calendario del cronograma. No es la suma de sus duraciones. */
   duracion_dias: string;
-  /**
-   * Suma de los días de **trabajo** de sus conceptos. Coincide con el span cuando van uno tras otro y es menor cuando se traslapan.
-   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
-   */
+  /** Suma de los días de **trabajo** de sus conceptos. Coincide con el span cuando van uno tras otro y es menor cuando se traslapan. */
   duracion_hojas_dias: string;
-  /**
-   * Avance **ponderado por importe** de sus conceptos (§6), no el promedio simple: el muro de $122k en cero y el castillo de $10k terminado no son 50 %.
-   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
-   */
+  /** Avance **ponderado por importe** de sus conceptos (§6), no el promedio simple: el muro de $122k en cero y el castillo de $10k terminado no son 50 %. */
   avance_pct: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   importe: string;
   conflicto: NodoDelArbolRespuestaConflicto;
 }

@@ -5,11 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -26,320 +22,671 @@ import type {
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
+  UseQueryResult,
+} from "@tanstack/react-query";
 
 import type {
   EstimacionDetalleRespuesta,
   EstimacionRespuesta,
   GenerarEstimacionPeticion,
-  HTTPValidationError
-} from '.././modelo';
+  HTTPValidationError,
+} from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Residente o Supervisor generan la estimación (§11.3 E.1-2).
  * @summary Generar la estimación de la semana activa
  */
 export const generarEstimacionApiV1ObrasObraIdEstimacionesPost = (
-    obraId: string,
-    generarEstimacionPeticion: GenerarEstimacionPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  obraId: string,
+  generarEstimacionPeticion: GenerarEstimacionPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<EstimacionRespuesta>(
-      {url: `/api/v1/obras/${obraId}/estimaciones`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: generarEstimacionPeticion, signal
+  return peticion<EstimacionRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/estimaciones`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: generarEstimacionPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getGenerarEstimacionApiV1ObrasObraIdEstimacionesPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>
+      >,
+      TError,
+      { obraId: string; data: GenerarEstimacionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>
+    >,
+    TError,
+    { obraId: string; data: GenerarEstimacionPeticion },
+    TContext
+  > => {
+    const mutationKey = ["generarEstimacionApiV1ObrasObraIdEstimacionesPost"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getGenerarEstimacionApiV1ObrasObraIdEstimacionesPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>, TError,{obraId: string;data: GenerarEstimacionPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>, TError,{obraId: string;data: GenerarEstimacionPeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>
+      >,
+      { obraId: string; data: GenerarEstimacionPeticion }
+    > = (props) => {
+      const { obraId, data } = props ?? {};
 
-const mutationKey = ['generarEstimacionApiV1ObrasObraIdEstimacionesPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return generarEstimacionApiV1ObrasObraIdEstimacionesPost(
+        obraId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type GenerarEstimacionApiV1ObrasObraIdEstimacionesPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>
+    >
+  >;
+export type GenerarEstimacionApiV1ObrasObraIdEstimacionesPostMutationBody =
+  GenerarEstimacionPeticion;
+export type GenerarEstimacionApiV1ObrasObraIdEstimacionesPostMutationError =
+  void | HTTPValidationError;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>, {obraId: string;data: GenerarEstimacionPeticion}> = (props) => {
-          const {obraId,data} = props ?? {};
-
-          return  generarEstimacionApiV1ObrasObraIdEstimacionesPost(obraId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type GenerarEstimacionApiV1ObrasObraIdEstimacionesPostMutationResult = NonNullable<Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>>
-    export type GenerarEstimacionApiV1ObrasObraIdEstimacionesPostMutationBody = GenerarEstimacionPeticion
-    export type GenerarEstimacionApiV1ObrasObraIdEstimacionesPostMutationError = void | HTTPValidationError
-
-    /**
+/**
  * @summary Generar la estimación de la semana activa
  */
-export const useGenerarEstimacionApiV1ObrasObraIdEstimacionesPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>, TError,{obraId: string;data: GenerarEstimacionPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>,
-        TError,
-        {obraId: string;data: GenerarEstimacionPeticion},
-        TContext
-      > => {
+export const useGenerarEstimacionApiV1ObrasObraIdEstimacionesPost = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>
+      >,
+      TError,
+      { obraId: string; data: GenerarEstimacionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof generarEstimacionApiV1ObrasObraIdEstimacionesPost>>,
+  TError,
+  { obraId: string; data: GenerarEstimacionPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getGenerarEstimacionApiV1ObrasObraIdEstimacionesPostMutationOptions(
+      options,
+    );
 
-      const mutationOptions = getGenerarEstimacionApiV1ObrasObraIdEstimacionesPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Lectura simple sin orquestación de dominio —como `GET /cierres`
 (`adapters/api/v1/cierres.py`)— así que consulta el repo directo: RLS ya
 acota el alcance (§12.4).
  * @summary Bandeja de estimaciones de una obra
  */
 export const listarEstimacionesApiV1ObrasObraIdEstimacionesGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<EstimacionRespuesta[]>(
+    { url: `/api/v1/obras/${obraId}/estimaciones`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryKey =
+  (obraId?: string) => {
+    return ["infinite", `/api/v1/obras/${obraId}/estimaciones`] as const;
+  };
+
+export const getListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryKey = (
+  obraId?: string,
+) => {
+  return [`/api/v1/obras/${obraId}/estimaciones`] as const;
+};
+
+export const getListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+      >
+    >,
+    TError = HTTPValidationError,
+  >(
     obraId: string,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
-) => {
-      
-      
-      return peticion<EstimacionRespuesta[]>(
-      {url: `/api/v1/obras/${obraId}/estimaciones`, method: 'GET', signal
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
     },
-      options);
-    }
-  
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryKey(
+        obraId,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+      >
+    > = ({ signal }) =>
+      listarEstimacionesApiV1ObrasObraIdEstimacionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
 
-export const getListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryKey = (obraId?: string,) => {
-    return [
-    'infinite', `/api/v1/obras/${obraId}/estimaciones`
-    ] as const;
-    }
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-export const getListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryKey = (obraId?: string,) => {
-    return [
-    `/api/v1/obras/${obraId}/estimaciones`
-    ] as const;
-    }
+export type ListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+    >
+  >;
+export type ListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryError =
+  HTTPValidationError;
 
-    
-export const getListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>>, TError = HTTPValidationError>(obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryKey(obraId);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>> = ({ signal }) => listarEstimacionesApiV1ObrasObraIdEstimacionesGet(obraId, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(obraId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>>
-export type ListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>>, TError = HTTPValidationError>(
- obraId: string, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>> & Pick<
+export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>,
+          Awaited<
+            ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>,
+          Awaited<
+            ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Bandeja de estimaciones de una obra
  */
 
-export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
 
-  const queryOptions = getListarEstimacionesApiV1ObrasObraIdEstimacionesGetInfiniteQueryOptions(obraId,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+    >,
+    TError = HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryKey(obraId);
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+      >
+    > = ({ signal }) =>
+      listarEstimacionesApiV1ObrasObraIdEstimacionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
 
-export const getListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError = HTTPValidationError>(obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type ListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+    >
+  >;
+export type ListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryError =
+  HTTPValidationError;
 
-  const queryKey =  queryOptions?.queryKey ?? getListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryKey(obraId);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>> = ({ signal }) => listarEstimacionesApiV1ObrasObraIdEstimacionesGet(obraId, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(obraId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>>
-export type ListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryError = HTTPValidationError
-
-
-export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<TData = Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError = HTTPValidationError>(
- obraId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>> & Pick<
+export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<
+  TData = Awaited<
+    ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>,
+          Awaited<
+            ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<TData = Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<
+  TData = Awaited<
+    ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>,
+          Awaited<
+            ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<TData = Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<
+  TData = Awaited<
+    ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Bandeja de estimaciones de una obra
  */
 
-export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<TData = Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarEstimacionesApiV1ObrasObraIdEstimacionesGet<
+  TData = Awaited<
+    ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof listarEstimacionesApiV1ObrasObraIdEstimacionesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryOptions(
+      obraId,
+      options,
+    );
 
-  const queryOptions = getListarEstimacionesApiV1ObrasObraIdEstimacionesGetQueryOptions(obraId,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Residente o Supervisor envían la estimación (§11.3 E.3).
  * @summary Enviar una estimación
  */
 export const enviarEstimacionApiV1EstimacionesEstimacionIdPatch = (
-    estimacionId: string,
- options?: SecondParameter<typeof peticion>,) => {
-      
-      
-      return peticion<EstimacionRespuesta>(
-      {url: `/api/v1/estimaciones/${estimacionId}`, method: 'PATCH'
-    },
-      options);
-    }
-  
+  estimacionId: string,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<EstimacionRespuesta>(
+    { url: `/api/v1/estimaciones/${estimacionId}`, method: "PATCH" },
+    options,
+  );
+};
 
+export const getEnviarEstimacionApiV1EstimacionesEstimacionIdPatchMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>
+      >,
+      TError,
+      { estimacionId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>
+    >,
+    TError,
+    { estimacionId: string },
+    TContext
+  > => {
+    const mutationKey = ["enviarEstimacionApiV1EstimacionesEstimacionIdPatch"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getEnviarEstimacionApiV1EstimacionesEstimacionIdPatchMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>>, TError,{estimacionId: string}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>>, TError,{estimacionId: string}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>
+      >,
+      { estimacionId: string }
+    > = (props) => {
+      const { estimacionId } = props ?? {};
 
-const mutationKey = ['enviarEstimacionApiV1EstimacionesEstimacionIdPatch'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return enviarEstimacionApiV1EstimacionesEstimacionIdPatch(
+        estimacionId,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type EnviarEstimacionApiV1EstimacionesEstimacionIdPatchMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>
+    >
+  >;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>>, {estimacionId: string}> = (props) => {
-          const {estimacionId} = props ?? {};
+export type EnviarEstimacionApiV1EstimacionesEstimacionIdPatchMutationError =
+  void | HTTPValidationError;
 
-          return  enviarEstimacionApiV1EstimacionesEstimacionIdPatch(estimacionId,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type EnviarEstimacionApiV1EstimacionesEstimacionIdPatchMutationResult = NonNullable<Awaited<ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>>>
-    
-    export type EnviarEstimacionApiV1EstimacionesEstimacionIdPatchMutationError = void | HTTPValidationError
-
-    /**
+/**
  * @summary Enviar una estimación
  */
-export const useEnviarEstimacionApiV1EstimacionesEstimacionIdPatch = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>>, TError,{estimacionId: string}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>>,
-        TError,
-        {estimacionId: string},
-        TContext
-      > => {
+export const useEnviarEstimacionApiV1EstimacionesEstimacionIdPatch = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>
+      >,
+      TError,
+      { estimacionId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof enviarEstimacionApiV1EstimacionesEstimacionIdPatch>
+  >,
+  TError,
+  { estimacionId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getEnviarEstimacionApiV1EstimacionesEstimacionIdPatchMutationOptions(
+      options,
+    );
 
-      const mutationOptions = getEnviarEstimacionApiV1EstimacionesEstimacionIdPatchMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * La pantalla que reemplaza abrir el `.xlsx` para ver qué lleva la
 semana: mismo reporte que arma el job de exportación
 (`ArmarReporteDeEstimacion`), con el resumen por frente que en el Excel
@@ -347,228 +694,574 @@ es una hoja aparte y aquí es la vista de entrada.
  * @summary La guía de estimación: renglones y resumen por frente
  */
 export const detalleDeEstimacionApiV1EstimacionesEstimacionIdGet = (
+  estimacionId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<EstimacionDetalleRespuesta>(
+    { url: `/api/v1/estimaciones/${estimacionId}`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfiniteQueryKey =
+  (estimacionId?: string) => {
+    return ["infinite", `/api/v1/estimaciones/${estimacionId}`] as const;
+  };
+
+export const getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetQueryKey = (
+  estimacionId?: string,
+) => {
+  return [`/api/v1/estimaciones/${estimacionId}`] as const;
+};
+
+export const getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
     estimacionId: string,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
-) => {
-      
-      
-      return peticion<EstimacionDetalleRespuesta>(
-      {url: `/api/v1/estimaciones/${estimacionId}`, method: 'GET', signal
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
     },
-      options);
-    }
-  
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfiniteQueryKey(
+        estimacionId,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+      >
+    > = ({ signal }) =>
+      detalleDeEstimacionApiV1EstimacionesEstimacionIdGet(
+        estimacionId,
+        requestOptions,
+        signal,
+      );
 
-export const getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfiniteQueryKey = (estimacionId?: string,) => {
-    return [
-    'infinite', `/api/v1/estimaciones/${estimacionId}`
-    ] as const;
-    }
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!estimacionId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-export const getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetQueryKey = (estimacionId?: string,) => {
-    return [
-    `/api/v1/estimaciones/${estimacionId}`
-    ] as const;
-    }
+export type DetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+    >
+  >;
+export type DetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfiniteQueryError =
+  void | HTTPValidationError;
 
-    
-export const getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>>, TError = void | HTTPValidationError>(estimacionId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfiniteQueryKey(estimacionId);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>> = ({ signal }) => detalleDeEstimacionApiV1EstimacionesEstimacionIdGet(estimacionId, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(estimacionId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type DetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>>
-export type DetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfiniteQueryError = void | HTTPValidationError
-
-
-export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>>, TError = void | HTTPValidationError>(
- estimacionId: string, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError, TData>> & Pick<
+export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  estimacionId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>,
+          Awaited<
+            ReturnType<
+              typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>>, TError = void | HTTPValidationError>(
- estimacionId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  estimacionId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>,
+          Awaited<
+            ReturnType<
+              typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>>, TError = void | HTTPValidationError>(
- estimacionId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  estimacionId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary La guía de estimación: renglones y resumen por frente
  */
 
-export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>>, TError = void | HTTPValidationError>(
- estimacionId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  estimacionId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfiniteQueryOptions(
+      estimacionId,
+      options,
+    );
 
-  const queryOptions = getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetInfiniteQueryOptions(estimacionId,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    estimacionId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetQueryKey(
+        estimacionId,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+      >
+    > = ({ signal }) =>
+      detalleDeEstimacionApiV1EstimacionesEstimacionIdGet(
+        estimacionId,
+        requestOptions,
+        signal,
+      );
 
-export const getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetQueryOptions = <TData = Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError = void | HTTPValidationError>(estimacionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!estimacionId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type DetalleDeEstimacionApiV1EstimacionesEstimacionIdGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+    >
+  >;
+export type DetalleDeEstimacionApiV1EstimacionesEstimacionIdGetQueryError =
+  void | HTTPValidationError;
 
-  const queryKey =  queryOptions?.queryKey ?? getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetQueryKey(estimacionId);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>> = ({ signal }) => detalleDeEstimacionApiV1EstimacionesEstimacionIdGet(estimacionId, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(estimacionId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type DetalleDeEstimacionApiV1EstimacionesEstimacionIdGetQueryResult = NonNullable<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>>
-export type DetalleDeEstimacionApiV1EstimacionesEstimacionIdGetQueryError = void | HTTPValidationError
-
-
-export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGet<TData = Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError = void | HTTPValidationError>(
- estimacionId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError, TData>> & Pick<
+export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGet<
+  TData = Awaited<
+    ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  estimacionId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>,
+          Awaited<
+            ReturnType<
+              typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGet<TData = Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError = void | HTTPValidationError>(
- estimacionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGet<
+  TData = Awaited<
+    ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  estimacionId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>,
+          Awaited<
+            ReturnType<
+              typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGet<TData = Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError = void | HTTPValidationError>(
- estimacionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGet<
+  TData = Awaited<
+    ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  estimacionId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary La guía de estimación: renglones y resumen por frente
  */
 
-export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGet<TData = Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError = void | HTTPValidationError>(
- estimacionId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useDetalleDeEstimacionApiV1EstimacionesEstimacionIdGet<
+  TData = Awaited<
+    ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  estimacionId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof detalleDeEstimacionApiV1EstimacionesEstimacionIdGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetQueryOptions(
+      estimacionId,
+      options,
+    );
 
-  const queryOptions = getDetalleDeEstimacionApiV1EstimacionesEstimacionIdGetQueryOptions(estimacionId,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Control de obra valida la estimación (§11.3 E.4).
  * @summary Validar una estimación (bloquea el periodo)
  */
 export const validarEstimacionApiV1EstimacionesEstimacionIdValidarPost = (
-    estimacionId: string,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  estimacionId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<EstimacionRespuesta>(
-      {url: `/api/v1/estimaciones/${estimacionId}/validar`, method: 'POST', signal
+  return peticion<EstimacionRespuesta>(
+    {
+      url: `/api/v1/estimaciones/${estimacionId}/validar`,
+      method: "POST",
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getValidarEstimacionApiV1EstimacionesEstimacionIdValidarPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost
+        >
+      >,
+      TError,
+      { estimacionId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost
+      >
+    >,
+    TError,
+    { estimacionId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "validarEstimacionApiV1EstimacionesEstimacionIdValidarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getValidarEstimacionApiV1EstimacionesEstimacionIdValidarPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>>, TError,{estimacionId: string}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>>, TError,{estimacionId: string}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost
+        >
+      >,
+      { estimacionId: string }
+    > = (props) => {
+      const { estimacionId } = props ?? {};
 
-const mutationKey = ['validarEstimacionApiV1EstimacionesEstimacionIdValidarPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return validarEstimacionApiV1EstimacionesEstimacionIdValidarPost(
+        estimacionId,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type ValidarEstimacionApiV1EstimacionesEstimacionIdValidarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost
+      >
+    >
+  >;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>>, {estimacionId: string}> = (props) => {
-          const {estimacionId} = props ?? {};
+export type ValidarEstimacionApiV1EstimacionesEstimacionIdValidarPostMutationError =
+  void | HTTPValidationError;
 
-          return  validarEstimacionApiV1EstimacionesEstimacionIdValidarPost(estimacionId,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type ValidarEstimacionApiV1EstimacionesEstimacionIdValidarPostMutationResult = NonNullable<Awaited<ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>>>
-    
-    export type ValidarEstimacionApiV1EstimacionesEstimacionIdValidarPostMutationError = void | HTTPValidationError
-
-    /**
+/**
  * @summary Validar una estimación (bloquea el periodo)
  */
-export const useValidarEstimacionApiV1EstimacionesEstimacionIdValidarPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>>, TError,{estimacionId: string}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>>,
-        TError,
-        {estimacionId: string},
-        TContext
-      > => {
+export const useValidarEstimacionApiV1EstimacionesEstimacionIdValidarPost = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost
+        >
+      >,
+      TError,
+      { estimacionId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof validarEstimacionApiV1EstimacionesEstimacionIdValidarPost>
+  >,
+  TError,
+  { estimacionId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getValidarEstimacionApiV1EstimacionesEstimacionIdValidarPostMutationOptions(
+      options,
+    );
 
-      const mutationOptions = getValidarEstimacionApiV1EstimacionesEstimacionIdValidarPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    
+  return useMutation(mutationOptions, queryClient);
+};

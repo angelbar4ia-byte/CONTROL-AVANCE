@@ -6,15 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type TipoExpedienteDoc = typeof TipoExpedienteDoc[keyof typeof TipoExpedienteDoc];
-
+export type TipoExpedienteDoc =
+  (typeof TipoExpedienteDoc)[keyof typeof TipoExpedienteDoc];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const TipoExpedienteDoc = {
-  plano: 'plano',
-  contrato: 'contrato',
-  acta: 'acta',
-  evidencia: 'evidencia',
-  bitacora: 'bitacora',
-  otro: 'otro',
+  plano: "plano",
+  contrato: "contrato",
+  acta: "acta",
+  evidencia: "evidencia",
+  bitacora: "bitacora",
+  otro: "otro",
 } as const;

@@ -5,30 +5,30 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ActividadRespuestaConceptoId } from './actividadRespuestaConceptoId';
-import type { ActividadRespuestaFrenteId } from './actividadRespuestaFrenteId';
-import type { ActividadRespuestaDescripcion } from './actividadRespuestaDescripcion';
-import type { ActividadRespuestaFrenteNombre } from './actividadRespuestaFrenteNombre';
-import type { ActividadRespuestaConceptoClave } from './actividadRespuestaConceptoClave';
-import type { ActividadRespuestaUnidad } from './actividadRespuestaUnidad';
-import type { ActividadRespuestaNivelId } from './actividadRespuestaNivelId';
-import type { ActividadRespuestaNivelClave } from './actividadRespuestaNivelClave';
-import type { ActividadRespuestaNivelDescripcion } from './actividadRespuestaNivelDescripcion';
-import type { ActividadRespuestaEtapaId } from './actividadRespuestaEtapaId';
-import type { ActividadRespuestaEtapaClave } from './actividadRespuestaEtapaClave';
-import type { ActividadRespuestaEtapaDescripcion } from './actividadRespuestaEtapaDescripcion';
-import type { ActividadRespuestaContratacionClave } from './actividadRespuestaContratacionClave';
-import type { ActividadRespuestaEspecialidadClave } from './actividadRespuestaEspecialidadClave';
-import type { ActividadRespuestaOrdenCambio } from './actividadRespuestaOrdenCambio';
-import type { ActividadRespuestaContratistaId } from './actividadRespuestaContratistaId';
-import type { ActividadRespuestaContratistaNombre } from './actividadRespuestaContratistaNombre';
-import type { ActividadRespuestaCuadrillaId } from './actividadRespuestaCuadrillaId';
-import type { ActividadRespuestaCuadrillaNombre } from './actividadRespuestaCuadrillaNombre';
-import type { ActividadRespuestaCantAutorizada } from './actividadRespuestaCantAutorizada';
-import type { ActividadRespuestaHolgura } from './actividadRespuestaHolgura';
-import type { ActividadRespuestaDesfase } from './actividadRespuestaDesfase';
-import type { ActividadRespuestaFechaInicio } from './actividadRespuestaFechaInicio';
-import type { ActividadRespuestaFechaTermino } from './actividadRespuestaFechaTermino';
+import type { ActividadRespuestaConceptoId } from "./actividadRespuestaConceptoId";
+import type { ActividadRespuestaFrenteId } from "./actividadRespuestaFrenteId";
+import type { ActividadRespuestaDescripcion } from "./actividadRespuestaDescripcion";
+import type { ActividadRespuestaFrenteNombre } from "./actividadRespuestaFrenteNombre";
+import type { ActividadRespuestaConceptoClave } from "./actividadRespuestaConceptoClave";
+import type { ActividadRespuestaUnidad } from "./actividadRespuestaUnidad";
+import type { ActividadRespuestaNivelId } from "./actividadRespuestaNivelId";
+import type { ActividadRespuestaNivelClave } from "./actividadRespuestaNivelClave";
+import type { ActividadRespuestaNivelDescripcion } from "./actividadRespuestaNivelDescripcion";
+import type { ActividadRespuestaEtapaId } from "./actividadRespuestaEtapaId";
+import type { ActividadRespuestaEtapaClave } from "./actividadRespuestaEtapaClave";
+import type { ActividadRespuestaEtapaDescripcion } from "./actividadRespuestaEtapaDescripcion";
+import type { ActividadRespuestaContratacionClave } from "./actividadRespuestaContratacionClave";
+import type { ActividadRespuestaEspecialidadClave } from "./actividadRespuestaEspecialidadClave";
+import type { ActividadRespuestaOrdenCambio } from "./actividadRespuestaOrdenCambio";
+import type { ActividadRespuestaContratistaId } from "./actividadRespuestaContratistaId";
+import type { ActividadRespuestaContratistaNombre } from "./actividadRespuestaContratistaNombre";
+import type { ActividadRespuestaCuadrillaId } from "./actividadRespuestaCuadrillaId";
+import type { ActividadRespuestaCuadrillaNombre } from "./actividadRespuestaCuadrillaNombre";
+import type { ActividadRespuestaCantAutorizada } from "./actividadRespuestaCantAutorizada";
+import type { ActividadRespuestaHolgura } from "./actividadRespuestaHolgura";
+import type { ActividadRespuestaDesfase } from "./actividadRespuestaDesfase";
+import type { ActividadRespuestaFechaInicio } from "./actividadRespuestaFechaInicio";
+import type { ActividadRespuestaFechaTermino } from "./actividadRespuestaFechaTermino";
 
 /**
  * Una actividad de la obra (§11.2 `GET /obras/{id}/actividades`).
@@ -59,20 +59,13 @@ export interface ActividadRespuesta {
   contratista_nombre?: ActividadRespuestaContratistaNombre;
   cuadrilla_id?: ActividadRespuestaCuadrillaId;
   cuadrilla_nombre?: ActividadRespuestaCuadrillaNombre;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cant_base: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cant_programada: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cant_ejecutada: string;
-  /**
-   * Cuánto puede exceder la programada a la base sin control de cambio (§6, migración 0049). Copia del umbral de la obra.
-   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
-   */
+  /** Cuánto puede exceder la programada a la base sin control de cambio (§6, migración 0049). Copia del umbral de la obra. */
   tolerancia_pct?: string;
   /** Techo que un control de cambio ya autorizó. Cuando existe manda sobre la tolerancia: es la cantidad que Control firmó. */
   cant_autorizada?: ActividadRespuestaCantAutorizada;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   avance_pct: string;
   estatus: string;
   bloqueada: boolean;
@@ -83,11 +76,8 @@ export interface ActividadRespuesta {
   desfase?: ActividadRespuestaDesfase;
   fecha_inicio?: ActividadRespuestaFechaInicio;
   fecha_termino?: ActividadRespuestaFechaTermino;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   duracion_dias: string;
   modo_pago: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   precio_unitario: string;
-  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   precio_destajo: string;
 }

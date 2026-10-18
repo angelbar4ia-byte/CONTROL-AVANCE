@@ -7,8 +7,8 @@
  */
 
 export type ListarSalidasApiV1SalidasGetParams = {
-/**
- * Filtra por obra.
- */
-obra_id?: string | null;
+  /**
+   * Filtra por obra.
+   */
+  obra_id?: string | null;
 };
