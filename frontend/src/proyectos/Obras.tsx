@@ -67,7 +67,7 @@ const ESTATUS: readonly EstatusObra[] = [
   EstatusObra.pendiente,
   EstatusObra.iniciada,
   EstatusObra.en_proceso,
-  EstatusObra.casi_lista,
+  EstatusObra.por_entregar,
   EstatusObra.entregada,
 ];
 

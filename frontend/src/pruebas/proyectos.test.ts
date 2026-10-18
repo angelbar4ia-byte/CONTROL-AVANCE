@@ -118,9 +118,9 @@ describe('estatus de obra (§8.2)', () => {
     expect(tonoEstatusObra('pendiente')).toBe('outline');
     expect(tonoEstatusObra('iniciada')).toBe('info');
     expect(tonoEstatusObra('en_proceso')).toBe('accent');
-    expect(tonoEstatusObra('casi_lista')).toBe('warn');
+    expect(tonoEstatusObra('por_entregar')).toBe('warn');
     expect(tonoEstatusObra('entregada')).toBe('ok');
-    expect(etiquetaEstatusObra('casi_lista')).toBe('Casi lista');
+    expect(etiquetaEstatusObra('por_entregar')).toBe('Por entregar');
   });
 
   it('un estatus desconocido no rompe la UI', () => {

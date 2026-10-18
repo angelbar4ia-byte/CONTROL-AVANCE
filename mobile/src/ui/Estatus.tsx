@@ -21,7 +21,7 @@ const CATALOGO: Readonly<Record<string, Definicion>> = {
   // obra
   pendiente: { etiqueta: 'Pendiente', tono: 'neutro' },
   iniciada: { etiqueta: 'Iniciada', tono: 'accent' },
-  casi_lista: { etiqueta: 'Casi lista', tono: 'warn' },
+  por_entregar: { etiqueta: 'Por entregar', tono: 'warn' },
   entregada: { etiqueta: 'Entregada', tono: 'ok' },
 
   // actividad

@@ -22,7 +22,7 @@ const TONO_ESTATUS_OBRA: Record<string, TonoBadge> = {
   pendiente: 'outline',
   iniciada: 'info',
   en_proceso: 'accent',
-  casi_lista: 'warn',
+  por_entregar: 'warn',
   entregada: 'ok',
 };
 
@@ -40,7 +40,7 @@ const ETIQUETA_ESTATUS_OBRA: Record<string, string> = {
   pendiente: 'Pendiente',
   iniciada: 'Iniciada',
   en_proceso: 'En proceso',
-  casi_lista: 'Casi lista',
+  por_entregar: 'Por entregar',
   entregada: 'Entregada',
 };
 
