@@ -5633,7 +5633,19 @@ class AplicadorProgramaBase:
         dry_run: bool,
         carga_id: UUID,
         prototipo_id: UUID | None = None,
+        anclas_dias: Mapping[int, Decimal] | None = None,
     ) -> Aplicacion:
+        """`anclas_dias` (fila del archivo → `ItemProgramaBase.inicio_dias`,
+        offset en días hábiles desde el arranque del bloque): nunca lo usa
+        este cargador con `PROGRAMA_<PROTOTIPO>.xlsx` (el archivo nativo no
+        trae ningún ancla por fila, solo fechas que ya son el resultado
+        observado, no un dato de entrada). Lo usa `backend/scripts/
+        cargar_programas_prototipos.py` al cargar `PROGRAMAS-PROTOTIPOS.csv`
+        (Paso 4 del plan del rollout): ahí cada partida sí trae su fecha
+        real, y anclarla es lo único que reproduce esa fecha de verdad — la
+        red de vínculos por sí sola es deliberadamente mínima y no la
+        reconstruye (ver `tests/domain/test_programa_base_motor_cpm_real.
+        py`). Sin este parámetro, el comportamiento no cambia ni un bit."""
         if prototipo_id is None:
             raise ContextoProgramaBaseIncompleto(
                 "El programa base exige prototipo_id: contra qué prototipo "
@@ -5740,6 +5752,7 @@ class AplicadorProgramaBase:
                     prototipo_nodo_id=str(nodo_id),
                     dependencias=tuple(dependencias),
                     orden=len(items),
+                    inicio_dias=(anclas_dias or {}).get(partida.fila),
                 )
             )
             if partida.clave:

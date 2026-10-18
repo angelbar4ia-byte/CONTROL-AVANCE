@@ -966,17 +966,38 @@ PROGRAMA_BASE = EspecificacionArchivo(
         # "Vínculos": el texto fuente `<fila><FS|SS|FF|SF>[±horas]` de D-442/
         # D-443 (`1-mundo/MODELO.md` §5c). No vive en el mapa global del §8.6.
         "vinculos": "vinculos",
+        # `1-mundo/programas/PROGRAMAS-PROTOTIPOS.csv` (§7.5, Paso 4 del
+        # rollout): mismo contrato, otra ortografía de cabecera —sin acento,
+        # sin "fecha de" y con guion bajo en vez de espacio—. Es el archivo
+        # que de verdad trae la red resuelta para los 7 prototipos (ver el
+        # docstring del módulo): `PROGRAMA_ZAFIRO.xlsx` solo trae `Vínculos`
+        # nativo para Zafiro, vacío en los otros 6 (verificado contra los dos
+        # archivos reales), así que la carga de verdad usa este archivo.
+        "inicio": "fecha_inicio",
+        "termino": "fecha_termino",
+        "dias_laborables": "dias_laborables",
     },
 )
 """Mismas cinco filas (`Capítulo · Subcapítulo · Nivel 2 · Nivel 3 ·
-Concepto`) y el mismo árbol que `PRESUPUESTO`/`construir_arboles` —de hecho
-es un export del mismo cronograma— pero por `nivel` + posición, nunca por
-`clave_padre` (el archivo real no la trae en absoluto, a diferencia del
-árbol nativo de OPUS que sí puede traer una u otra). El archivo real trae
-además **siete** `Capítulo` seguidos —los siete prototipos de
-`1-mundo/programas/PROGRAMAS-PROTOTIPOS.csv`, concatenados uno tras otro,
-igual que `CATALOGO_DE_PRESUPUESTO.csv`—: `domain.cargadores.programa_base`
-parte el archivo por cada `Capítulo` y el aplicador elige el bloque del
+Concepto`) y el mismo árbol que `PRESUPUESTO`/`construir_arboles`, por
+`nivel` + posición, nunca por `clave_padre` (ninguno de los dos archivos
+reales de este contrato la trae). Dos archivos reales comparten este
+contrato, y no son intercambiables:
+
+- `PROGRAMA_<PROTOTIPO>.xlsx` (p. ej. `PROGRAMA_ZAFIRO.xlsx`): el export
+  nativo de OPUS/MS Project, con **siete** `Capítulo` seguidos —los siete
+  prototipos—, pero `Vínculos` solo viene poblado en el bloque de Zafiro;
+  los otros seis no traen ningún vínculo nativo (verificado fila por fila
+  contra el archivo real: 0 de ~2,700 filas).
+- `1-mundo/programas/PROGRAMAS-PROTOTIPOS.csv`: el mismo cronograma de los
+  siete, pero con la red ya resuelta para los seis que no la traían (columna
+  `regla`: "gemelo por clave", "losa por altura", etc. — un vínculo por
+  prototipo igual de real, solo que inferido en vez de tecleado en MS
+  Project). Es la fuente que exige el plan del rollout ("la red mínima") y
+  la que de verdad deja comparar las fechas de ObraCtrl contra las de
+  cerebro (`backend/scripts/cargar_programas_prototipos.py`).
+
+`domain.cargadores.programa_base` parte cualquiera de los dos archivos del
 `prototipo_id` pedido."""
 
 COLUMNAS_CPU: tuple[ColumnaPorLetra, ...] = (
