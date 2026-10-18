@@ -1705,10 +1705,20 @@ class AplicadorContratistas:
         sin_oficio: list[str] = []
         aproximadas: list[str] = []
         oficios_creados: list[str] = []
+        claves_generadas = 0
+        # Mismo criterio que `AplicadorFamilias`: semilla con el catálogo
+        # vigente y crece con cada clave que este archivo genera, para que
+        # dos filas sin clave en el mismo archivo no propongan la misma.
+        claves_conocidas = list(por_clave.keys())
 
         for registro in lectura.registros:
             fila: FilaContratista = registro  # type: ignore[assignment]
-            clave = str(fila.clave)
+            if fila.clave is not None:
+                clave = str(fila.clave)
+            else:
+                clave = generar_clave_automatica("CON", claves_conocidas)
+                claves_conocidas.append(clave)
+                claves_generadas += 1
             entrantes[clave] = {
                 "razon_social": fila.razon_social,
                 "rfc": fila.rfc,
@@ -1801,6 +1811,7 @@ class AplicadorContratistas:
                 # que alguien las pueda revisar: `SUBCONTRATO` contra
                 # `SUBCONTRATOS` es correcto, pero decidirlo en silencio no.
                 "resueltas_por_parecido": sorted(set(aproximadas)),
+                "claves_generadas": claves_generadas,
             },
         )
 

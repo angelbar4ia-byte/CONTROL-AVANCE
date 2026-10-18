@@ -35,6 +35,7 @@ from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
+from obractrl.adapters.repos.frentes_sql import RepositorioFrentesSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
@@ -48,6 +49,7 @@ from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
 from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorAlmacen,
     AplicadorConceptosBase,
+    AplicadorContratistas,
     AplicadorCPU,
     AplicadorCuadrillas,
     AplicadorDeCarga,
@@ -159,6 +161,16 @@ en niveles/etapas."""
 
 def _archivo_familias(filas: list[list[object]]) -> bytes:
     return _libro([_CABECERAS_FAMILIAS, *filas], hoja="Hoja1")
+
+
+_CABECERAS_CONTRATISTAS = ["CLAVE", "CONTRATISTA", "RFC", "CONTACTO", "TEL", "CORREO", "FRENTE"]
+"""Cabeceras reales de `CATALOGO_DE_CONTRATISTAS.xlsx`: "CONTRATISTA" es la
+razón social de ESTA fila (alias propio de `cabeceras.CONTRATISTAS`), no una
+referencia a un tercero como en materiales."""
+
+
+def _archivo_contratistas(filas: list[list[object]]) -> bytes:
+    return _libro([_CABECERAS_CONTRATISTAS, *filas])
 
 
 _CABECERAS_MANO_OBRA = [
@@ -431,6 +443,12 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
         return AplicadorUnidades(unidades=RepositorioUnidadesSQL(sesion), cargas=cargas)
     if tipo is TipoCarga.FAMILIAS:
         return AplicadorFamilias(familias=RepositorioFamiliasSQL(sesion), cargas=cargas)
+    if tipo is TipoCarga.CONTRATISTAS:
+        return AplicadorContratistas(
+            contratistas=RepositorioContratistasSQL(sesion),
+            frentes=RepositorioFrentesSQL(sesion),
+            cargas=cargas,
+        )
     if tipo is TipoCarga.CPU:
         return AplicadorCPU(
             conceptos=RepositorioConceptosSQL(sesion),
@@ -511,6 +529,12 @@ async def _unidades(contexto: ContextoSesion) -> dict[str, dict]:
 async def _familias(contexto: ContextoSesion) -> dict[str, dict]:
     async with sesion_con_rls(contexto) as sesion:
         filas = await RepositorioFamiliasSQL(sesion).listar(solo_activos=False)
+    return {str(f["clave"]): f for f in filas}
+
+
+async def _contratistas(contexto: ContextoSesion) -> dict[str, dict]:
+    async with sesion_con_rls(contexto) as sesion:
+        filas = await RepositorioContratistasSQL(sesion).listar(solo_activos=False)
     return {str(f["clave"]): f for f in filas}
 
 
@@ -1265,6 +1289,46 @@ async def test_familia_sin_clave_se_numera_solo(
     familias = await _familias(contexto_control)
     assert "FAM-00001" in familias
     assert familias["FAM-00001"]["nombre"] == "Jardinería"
+
+
+# --- Contratistas (§8.3, `CATALOGO_DE_CONTRATISTAS.xlsx`) ------------------
+
+
+async def test_carga_de_contratistas_crea_y_actualiza(
+    contexto_control: ContextoSesion,
+) -> None:
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.CONTRATISTAS,
+        _archivo_contratistas([["CON-001", "Constructora Zafiro SA", "", "Luis", "", "", ""]]),
+    )
+    assert resultado.resumen.insertados == 1
+    assert (await _contratistas(contexto_control))["CON-001"]["razon_social"] == "Constructora Zafiro SA"
+
+    resultado2 = await _cargar(
+        contexto_control,
+        TipoCarga.CONTRATISTAS,
+        _archivo_contratistas([["CON-001", "Constructora Zafiro, SA de CV", "", "Luis", "", "", ""]]),
+    )
+    assert resultado2.resumen.actualizados == 1
+    assert (await _contratistas(contexto_control))["CON-001"]["razon_social"] == "Constructora Zafiro, SA de CV"
+
+
+async def test_contratista_sin_clave_se_numera_solo(
+    contexto_control: ContextoSesion,
+) -> None:
+    # ObraCtrl ya trae claves automáticas (familias/niveles/etapas/unidades,
+    # §8.7); un contratista sin clave en el archivo real no es la excepción
+    # (Paso 5 del plan del rollout: "revisar la clave obligatoria del
+    # contratista").
+    await _cargar(
+        contexto_control,
+        TipoCarga.CONTRATISTAS,
+        _archivo_contratistas([["", "Varios Chiquitos", "", "", "", "", ""]]),
+    )
+    contratistas = await _contratistas(contexto_control)
+    assert "CON-00001" in contratistas
+    assert contratistas["CON-00001"]["razon_social"] == "Varios Chiquitos"
 
 
 async def test_revertir_carga_de_familias_deshace_el_alta(
