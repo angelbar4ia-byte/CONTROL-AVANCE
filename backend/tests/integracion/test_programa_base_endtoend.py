@@ -23,14 +23,25 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from obractrl.adapters.api.casos_uso import FabricaDeCargas
+from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
+from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
 from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
+from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.application.casos_uso.aplicar_carga import (
     ContextoProgramaBaseIncompleto,
     PrototipoDeProgramaNoEncontrado,
 )
+from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
+    ComandoGenerarObra,
+    GenerarObraDesdePrototipo,
+)
 from obractrl.application.casos_uso.gestionar_carga import ComandoEjecutarCarga
+from obractrl.application.casos_uso.gestionar_programacion import (
+    ComandoInstanciarPrograma,
+    InstanciarProgramaObra,
+)
 from obractrl.domain.cargadores.reporte import TipoPendiente
 from obractrl.domain.programacion.cpm import TipoDependencia
 from obractrl.domain.shared.diccionario import EstatusCarga, TipoCarga
@@ -327,3 +338,99 @@ class TestProgramaBaseDeZafiro:
         # Al menos dos ocurrencias distintas de EST-02010 llegaron a tener su
         # propio renglón de programa base — no se pisaron entre sí.
         assert len(ids_est02010) >= 2
+
+
+class TestProgramaBaseFluyeHastaUnCronogramaReal:
+    """Lo que `AplicadorProgramaBase` deja en `programa_base_item` no es el
+    final de la cadena: workflow A (`GenerarObraDesdePrototipo`) copia esos
+    renglones hacia una obra real, y workflow C
+    (`InstanciarProgramaObra`) traduce sus `ref` (hoy `prototipo_nodo_id`) a
+    ids de actividad y corre el CPM de verdad. Esta prueba cierra ese
+    círculo con los 314 renglones reales de Zafiro — no solo confirma que
+    `programa_base_item` quedó bien, confirma que de ahí sale un cronograma
+    calculable."""
+
+    async def test_el_programa_real_de_zafiro_instancia_un_cronograma_sin_ciclos(
+        self, escenario: Escenario, contexto_control: ContextoSesion
+    ) -> None:
+        await _rollout_real(contexto_control)
+        prototipos = await _prototipos(contexto_control)
+        prototipo_id = uuid.UUID(str(prototipos[ZAFIRO]["id"]))
+        await _cargar_programa_base(contexto_control, prototipo_id=prototipo_id)
+
+        # Obra nueva sobre el mismo cluster del fixture, SIN actividades
+        # todavía (`escenario.obra_id` ya tiene la suya, de un prototipo
+        # sintético — `exigir_generable` la rechazaría).
+        engine = create_async_engine(DATABASE_URL_ADMIN)
+        obra_id = uuid.uuid4()
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text(
+                        "insert into obra (id, org_id, cluster_id, clave, prototipo_id) "
+                        "values (:id, :org, :cluster, 'ZAFIRO-E2E', :proto)"
+                    ),
+                    {
+                        "id": str(obra_id),
+                        "org": str(escenario.org_id),
+                        "cluster": str(escenario.cluster_id),
+                        "proto": str(prototipo_id),
+                    },
+                )
+        finally:
+            await engine.dispose()
+
+        async with sesion_con_rls(contexto_control) as sesion:
+            generador = GenerarObraDesdePrototipo(
+                obras=RepositorioObrasSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+            )
+            generada = await generador.ejecutar(ComandoGenerarObra(obra_id=obra_id))
+
+        # 471 conceptos distintos del árbol real (ver test_cargas_endtoend.py)
+        # generan más actividades que las 314 partidas con programa — el
+        # resto nace con duración por defecto, sin fecha fija todavía.
+        assert generada.n_actividades > 0
+
+        async with sesion_con_rls(contexto_control) as sesion:
+            instanciador = InstanciarProgramaObra(
+                actividades=RepositorioActividadesSQL(sesion),
+                obras=RepositorioObrasSQL(sesion),
+                programas=RepositorioProgramasSQL(sesion),
+                uow=UnidadDeTrabajoSQL(sesion),
+            )
+            instanciado = await instanciador.ejecutar(
+                ComandoInstanciarPrograma(obra_id=obra_id)
+            )
+
+        # Ningún `CicloEnGrafoError` (si lo hubiera, `ejecutar` ya habría
+        # levantado la excepción antes de llegar aquí): los 4 ciclos reales
+        # del archivo ya se quitaron en el cargador (`VINCULO_RECHAZADO`),
+        # así que lo que llega aquí es un grafo aciclico de verdad.
+        assert instanciado.n_actividades == generada.n_actividades
+        assert len(instanciado.ruta.actividades) == generada.n_actividades
+
+        # `refs_no_resueltas`: cero, porque todo `ref` que
+        # `AplicadorProgramaBase` escribió ya es un `prototipo_nodo_id` que
+        # SÍ está en el árbol (si no, nunca se habría escrito la
+        # `Dependencia` — ver `MAPEO_NO_RECONOCIDO` en el cargador) y
+        # `GenerarObraDesdePrototipo` copió ese mismo árbol completo a
+        # `actividad` — todo `ref` de dependencia tiene, por fuerza, su
+        # actividad correspondiente.
+        assert instanciado.refs_no_resueltas == ()
+
+        # `sin_item`: las actividades SIN renglón de programa base (los
+        # conceptos del árbol real que no tienen las 314 partidas de
+        # Zafiro) nacen con duración por defecto, nunca sin fecha — es
+        # exactamente el complemento de las 314 partidas reales, no un
+        # cruce roto que dejara a todo el árbol sin programa.
+        assert 0 < len(instanciado.sin_item) < generada.n_actividades
+        assert generada.n_actividades - len(instanciado.sin_item) == _PARTIDAS_INSERTADAS_ESPERADAS
+
+        # Todas las fechas del CPM son reales, nunca None — ni siquiera las
+        # `sin_item` (duración por defecto sigue siendo una duración).
+        assert all(a.inicio_temprano is not None for a in instanciado.ruta.actividades)
+        assert all(a.fin_temprano is not None for a in instanciado.ruta.actividades)
+
+        # Alguna actividad quedó en la ruta crítica — un cronograma de 314
+        # partidas reales sin ninguna crítica sería sospechoso, no un éxito.
+        assert any(a.es_critica for a in instanciado.ruta.actividades)
