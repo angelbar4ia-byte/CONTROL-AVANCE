@@ -93,7 +93,7 @@ class EstatusObra(_Canonico):
     PENDIENTE = "pendiente"
     INICIADA = "iniciada"
     EN_PROCESO = "en_proceso"
-    CASI_LISTA = "casi_lista"
+    POR_ENTREGAR = "por_entregar"
     ENTREGADA = "entregada"
 
 
