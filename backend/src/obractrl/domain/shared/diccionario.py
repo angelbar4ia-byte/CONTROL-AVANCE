@@ -35,6 +35,7 @@ __all__ = [
     "FuenteTrazo",
     "ImpactoIncidencia",
     "MedidaCuantificacion",
+    "ModoCantidad",
     "ModoCarga",
     "ModoPago",
     "NivelEvaluacion",
@@ -107,6 +108,32 @@ class ClaseNodo(_Canonico):
     """Nivel intermedio del export nativo de OPUS entre la etapa y el
     concepto (§7.4, migración 0051): agrupa varios conceptos reales bajo
     un subtotal propio sin ser él mismo un concepto de catálogo."""
+
+
+class ModoCantidad(_Canonico):
+    """De dónde sale `prototipo_nodo.cantidad` (cerebro MODELO.md §1/
+    HALLAZGO 12, §7.1; migraciones 0055 y 0060). Nunca lo hereda el padre
+    de sus hijos — es por nodo."""
+
+    CAPTURADA = "capturada"
+    """Alguien la tipeó: presupuesto a mano, sin ingeniería ni trazo."""
+
+    CARGADA = "cargada"
+    """Vino de una ingeniería importada (reversión por destajo, §11.9):
+    la cantidad real de esa obra, ya reconstruida al importar."""
+
+    HEREDADA = "heredada"
+    """Se copió de un presupuesto de referencia sin recalcular nada — el
+    paramétrico nace así, o una obra que clona su prototipo tal cual."""
+
+    MEDIDA = "medida"
+    """La produjo el cuantificador: un trazo sobre el plano de esta obra
+    en particular (migración 0057)."""
+
+    ESTIMADA = "estimada"
+    """El motor paramétrico la calculó para esta obra (tasa aprendida ×
+    el divisor de esta obra, migración 0060) — a diferencia de `heredada`,
+    aquí sí hubo un cálculo nuevo, no una copia."""
 
 
 # --- Catálogos y APU (§7.3) ---------------------------------------------
