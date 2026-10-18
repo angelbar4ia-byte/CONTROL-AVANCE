@@ -39,12 +39,14 @@ __all__ = [
     "ModoCarga",
     "ModoPago",
     "NivelEvaluacion",
+    "OrigenCantidadEnsamble",
     "Rol",
     "SujetoEvaluacion",
     "TipoCarga",
     "TipoConcepto",
     "TipoDesviacion",
     "TipoExpedienteDoc",
+    "TipoHijoEnsamble",
     "TipoHijoExplosion",
     "TipoIncidencia",
     "TipoInsumo",
@@ -189,6 +191,32 @@ class CategoriaExplosion(_Canonico):
 class TipoHijoExplosion(_Canonico):
     INSUMO = "insumo"
     CONCEPTO = "concepto"
+
+
+# --- Ensamble: presupuesto paramétrico (skill erp-parametrico) ---------
+
+
+class TipoHijoEnsamble(_Canonico):
+    """El hijo de un renglón de ensamble: un concepto o un sub-ensamble
+    (skill §0, "un ensamble puede contener sub-ensambles")."""
+
+    CONCEPTO = "concepto"
+    ENSAMBLE = "ensamble"
+
+
+class OrigenCantidadEnsamble(_Canonico):
+    """De dónde sale la cantidad de un renglón de ensamble (skill §2).
+    "Heredar es mejor que capturar": heredada, el ensamble se entera si el
+    volumen de origen cambia; manual se desincroniza en silencio."""
+
+    HEREDADA_CONCEPTO = "heredada_concepto"
+    """La cantidad que el concepto tiene en el presupuesto de origen."""
+
+    HEREDADA_DESTAJO = "heredada_destajo"
+    """Los m² de un destajo dentro del concepto auxiliar."""
+
+    MANUAL = "manual"
+    """Capturada a mano."""
 
 
 # --- Desviación (cerebro MODELO.md §5g, CONOCIMIENTO.md §13.6) ----------
