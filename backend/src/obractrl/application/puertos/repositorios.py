@@ -1318,6 +1318,59 @@ class RepositorioConceptos(Protocol):
 
 
 @runtime_checkable
+class RepositorioEnsambles(Protocol):
+    """Catálogo de ensambles paramétricos (skill `erp-parametrico`, §12.11).
+
+    Un renglón habla de concepto o sub-ensamble por **id** aquí —a
+    diferencia de `domain.catalogos.ensamble`, que explota por clave
+    (§3.3)—; la traducción id↔clave vive en el caso de uso, igual que
+    `calcular_cpu.componentes_por_clave` la hace para APU. Este puerto
+    solo guarda y lee filas.
+    """
+
+    async def crear(self, datos: dict) -> UUID: ...
+
+    async def obtener(self, ensamble_id: UUID) -> dict | None: ...
+
+    async def obtener_por_clave(self, clave: str) -> dict | None: ...
+
+    async def listar(self, *, solo_activos: bool = True) -> list[dict]: ...
+
+    async def renglones(self, ensamble_id: UUID) -> list[dict]:
+        """Los renglones **directos** (no recursivo) de este ensamble, con
+        la clave ya resuelta del concepto o del sub-ensamble al que
+        apuntan."""
+        ...
+
+    async def renglones_recursivos(self, ensamble_id: UUID) -> list[dict]:
+        """Todo renglón alcanzable desde este ensamble, bajando por cada
+        sub-ensamble — lo que `domain.catalogos.ensamble.explotar_ensamble`
+        necesita en ``composiciones``, agrupado por ``ensamble_clave``.
+
+        Misma forma que `RepositorioConceptos.composicion_recursiva` para
+        APU: corta el camino que cierra un ciclo (el dominio lo reporta
+        como `CicloEnExplosion`, nunca el SQL) y trae la arista que cierra
+        el ciclo en el resultado.
+        """
+        ...
+
+    async def agregar_renglones(self, ensamble_id: UUID, renglones: list[dict]) -> None: ...
+
+    async def cohorte(self, ensamble_id: UUID) -> list[dict]:
+        """Los prototipos de la cohorte de este ensamble (id y clave)."""
+        ...
+
+    async def agregar_cohorte(self, ensamble_id: UUID, prototipo_ids: Sequence[UUID]) -> None: ...
+
+    async def publicar_tasa(
+        self, ensamble_id: UUID, *, tasa: Decimal, dispersion: Decimal
+    ) -> None:
+        """Fija `tasa`/`dispersion`/`tasa_calculada_en` (§5.7: las dos
+        cifras siempre juntas, nunca una sin la otra)."""
+        ...
+
+
+@runtime_checkable
 class RepositorioExpediente(Protocol):
     """Acervo documental de la obra (`expediente_doc`, §7.9).
 
