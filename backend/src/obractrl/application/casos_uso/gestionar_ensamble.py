@@ -40,6 +40,7 @@ from obractrl.application.puertos.repositorios import (
 from obractrl.domain.catalogos.apu import ErrorDeAPU, explotar
 from obractrl.domain.catalogos.ensamble import (
     EstadoRenglonGenerado,
+    ExplosionEnsambleCalculada,
     PartidaExistente,
     RenglonEnsamble,
     RenglonGenerado,
@@ -59,6 +60,7 @@ __all__ = [
     "EnsambleCreado",
     "EnsambleNoCoincideConInstancia",
     "EnsambleNoEncontrado",
+    "ExplotarEnsamble",
     "ExtraerEnsamble",
     "GenerarDesdeEnsamble",
     "InstanciaNoEncontrada",
@@ -273,6 +275,93 @@ def _concepto_info_por_clave(filas: Sequence[dict]) -> dict[str, tuple[UUID, str
     return info
 
 
+async def _precios_concepto(
+    conceptos: RepositorioConceptos, filas: Sequence[dict]
+) -> dict[str, PrecioUnitario]:
+    """CPU vigente de cada concepto hoja alcanzable desde un ensamble: el
+    de su propia explosión de APU si la tiene, o su CPU capturado si no
+    (un `SUB-` cotizado a tanto alzado, §10.1 — mismo criterio que
+    `PublicarVersionCPU`). La usan tanto `ExplotarEnsamble` (preview) como
+    `GenerarDesdeEnsamble` (escritura) sobre las mismas filas de
+    `renglones_recursivos`."""
+    ids = sorted({UUID(str(f["concepto_id"])) for f in filas if f.get("concepto_id")})
+    if not ids:
+        return {}
+    claves = sorted({str(f["concepto_clave"]) for f in filas if f.get("concepto_clave")})
+    id_por_clave = {
+        str(f["concepto_clave"]): UUID(str(f["concepto_id"]))
+        for f in filas
+        if f.get("concepto_clave")
+    }
+
+    crudas = await conceptos.composicion_recursiva_de(ids)
+    composiciones, costos_insumo = componentes_por_clave(crudas)
+
+    precios: dict[str, PrecioUnitario] = {}
+    for clave in claves:
+        if clave in composiciones:
+            precios[clave] = explotar(
+                clave, composiciones=composiciones, costos_insumo=costos_insumo
+            ).precio
+            continue
+        capturado = await _precio_capturado(conceptos, id_por_clave[clave])
+        if capturado is not None:
+            precios[clave] = capturado
+    return precios
+
+
+async def _precio_capturado(
+    conceptos: RepositorioConceptos, concepto_id: UUID
+) -> PrecioUnitario | None:
+    versiones = await conceptos.versiones_cpu(concepto_id)
+    vigente = next(
+        (v for v in versiones if bool(v.get("vigente")) and v.get("variante") is None),
+        None,
+    )
+    if vigente is None:
+        return None
+    return PrecioUnitario(
+        total=Dinero(Decimal(str(vigente["precio_unitario"]))),
+        destajo=Dinero(Decimal(str(vigente["precio_destajo"]))),
+    )
+
+
+class ExplotarEnsamble:
+    """`GET /ensambles/{clave}/explosion` (Control de obra y Super
+    intendente, §11.2 — mismo alcance que `/conceptos/{id}/explosion`).
+
+    Solo lectura: previsualiza costo y composición de un ensamble —con el
+    `factor` de una instancia hipotética, si se da— sin crear ni tocar
+    nada. Comparte la resolución de precios con `GenerarDesdeEnsamble`
+    para que "lo que ves antes de generar" y "lo que se escribe al
+    generar" nunca se calculen con dos caminos distintos.
+    """
+
+    def __init__(
+        self, *, ensambles: RepositorioEnsambles, conceptos: RepositorioConceptos
+    ) -> None:
+        self._ensambles = ensambles
+        self._conceptos = conceptos
+
+    async def ejecutar(
+        self, clave: str, *, factor: Decimal = Decimal(1)
+    ) -> ExplosionEnsambleCalculada:
+        ensamble = await self._ensambles.obtener_por_clave(clave)
+        if ensamble is None:
+            raise EnsambleNoEncontrado(clave)
+
+        filas = await self._ensambles.renglones_recursivos(UUID(str(ensamble["id"])))
+        composiciones = _renglones_por_clave(filas)
+        precios_concepto = await _precios_concepto(self._conceptos, filas)
+
+        return explotar_ensamble(
+            clave,
+            composiciones=composiciones,
+            precios_concepto=precios_concepto,
+            factor=factor,
+        )
+
+
 def _existentes_por_clave(
     filas: Sequence[dict],
 ) -> tuple[dict[str, PartidaExistente], dict[str, UUID]]:
@@ -362,7 +451,7 @@ class GenerarDesdeEnsamble:
 
         filas = await self._ensambles.renglones_recursivos(ensamble_id)
         composiciones = _renglones_por_clave(filas)
-        precios_concepto = await self._precios_concepto(filas)
+        precios_concepto = await _precios_concepto(self._conceptos, filas)
 
         calculada = explotar_ensamble(
             cmd.ensamble_clave,
@@ -446,46 +535,3 @@ class GenerarDesdeEnsamble:
         if Decimal(str(instancia["ensamble_factor"])) != cmd.factor:
             await self._generacion.actualizar_factor(instancia_id, cmd.factor)
         return instancia_id
-
-    async def _precios_concepto(self, filas: Sequence[dict]) -> dict[str, PrecioUnitario]:
-        """CPU vigente de cada concepto hoja de la receta: el de su propia
-        explosión de APU si la tiene, o su CPU capturado si no (un `SUB-`
-        cotizado a tanto alzado, §10.1 — mismo criterio que
-        `PublicarVersionCPU`)."""
-        ids = sorted({UUID(str(f["concepto_id"])) for f in filas if f.get("concepto_id")})
-        if not ids:
-            return {}
-        claves = sorted({str(f["concepto_clave"]) for f in filas if f.get("concepto_clave")})
-        id_por_clave = {
-            str(f["concepto_clave"]): UUID(str(f["concepto_id"]))
-            for f in filas
-            if f.get("concepto_clave")
-        }
-
-        crudas = await self._conceptos.composicion_recursiva_de(ids)
-        composiciones, costos_insumo = componentes_por_clave(crudas)
-
-        precios: dict[str, PrecioUnitario] = {}
-        for clave in claves:
-            if clave in composiciones:
-                precios[clave] = explotar(
-                    clave, composiciones=composiciones, costos_insumo=costos_insumo
-                ).precio
-                continue
-            capturado = await self._precio_capturado(id_por_clave[clave])
-            if capturado is not None:
-                precios[clave] = capturado
-        return precios
-
-    async def _precio_capturado(self, concepto_id: UUID) -> PrecioUnitario | None:
-        versiones = await self._conceptos.versiones_cpu(concepto_id)
-        vigente = next(
-            (v for v in versiones if bool(v.get("vigente")) and v.get("variante") is None),
-            None,
-        )
-        if vigente is None:
-            return None
-        return PrecioUnitario(
-            total=Dinero(Decimal(str(vigente["precio_unitario"]))),
-            destajo=Dinero(Decimal(str(vigente["precio_destajo"]))),
-        )
