@@ -39,6 +39,7 @@ from obractrl.adapters.repos.cuantificacion_sql import (
     RepositorioTrazosSQL,
 )
 from obractrl.adapters.repos.desviaciones_sql import RepositorioDesviacionesSQL
+from obractrl.adapters.repos.ensambles_sql import RepositorioEnsamblesSQL
 from obractrl.adapters.repos.especialidades_sql import (
     RepositorioEspecialidadesSQL,
 )
@@ -47,6 +48,9 @@ from obractrl.adapters.repos.evaluaciones_sql import RepositorioEvaluacionesSQL
 from obractrl.adapters.repos.expediente_sql import RepositorioExpedienteSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.frentes_sql import RepositorioFrentesSQL
+from obractrl.adapters.repos.generacion_ensamble_sql import (
+    RepositorioGeneracionDePresupuestoSQL,
+)
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.adapters.repos.ingenieria_lote_insumos_sql import (
     RepositorioIngenieriaLoteInsumosSQL,
@@ -145,6 +149,11 @@ from obractrl.application.casos_uso.gestionar_cierre_de_obra import (
 from obractrl.application.casos_uso.gestionar_control_cambio import (
     ResolverControlDeCambio,
     SolicitarControlDeCambio,
+)
+from obractrl.application.casos_uso.gestionar_ensamble import (
+    ExplotarEnsamble,
+    ExtraerEnsamble,
+    GenerarDesdeEnsamble,
 )
 from obractrl.application.casos_uso.gestionar_estimacion import (
     EnviarEstimacion,
@@ -258,7 +267,10 @@ __all__ = [
     "EliminarVersionDeCuadrillaDep",
     "EnviarEstimacionDep",
     "ExplotarConceptoDep",
+    "ExplotarEnsambleDep",
+    "ExtraerEnsambleDep",
     "FabricaDeCargasDep",
+    "GenerarDesdeEnsambleDep",
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
     "InstanciarProgramaObraDep",
@@ -810,6 +822,40 @@ ExplotarConceptoDep = Annotated[ExplotarConcepto, Depends(obtener_explotar_conce
 ObtenerCPUDep = Annotated[ObtenerCPU, Depends(obtener_cpu)]
 PublicarVersionCPUDep = Annotated[
     PublicarVersionCPU, Depends(obtener_publicar_version_cpu)
+]
+
+
+# --- Ensambles paramétricos (skill erp-parametrico, §11.2) ----------------
+
+
+def obtener_explotar_ensamble(sesion: SesionRLS) -> ExplotarEnsamble:
+    return ExplotarEnsamble(
+        ensambles=RepositorioEnsamblesSQL(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+    )
+
+
+def obtener_extraer_ensamble(sesion: SesionRLS) -> ExtraerEnsamble:
+    return ExtraerEnsamble(
+        ensambles=RepositorioEnsamblesSQL(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_generar_desde_ensamble(sesion: SesionRLS) -> GenerarDesdeEnsamble:
+    return GenerarDesdeEnsamble(
+        ensambles=RepositorioEnsamblesSQL(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        generacion=RepositorioGeneracionDePresupuestoSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+ExplotarEnsambleDep = Annotated[ExplotarEnsamble, Depends(obtener_explotar_ensamble)]
+ExtraerEnsambleDep = Annotated[ExtraerEnsamble, Depends(obtener_extraer_ensamble)]
+GenerarDesdeEnsambleDep = Annotated[
+    GenerarDesdeEnsamble, Depends(obtener_generar_desde_ensamble)
 ]
 
 

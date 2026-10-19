@@ -69,6 +69,13 @@ from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEnc
 from obractrl.application.casos_uso.gestionar_cierre_de_obra import (
     CierreDeObraNoEncontrado,
 )
+from obractrl.application.casos_uso.gestionar_ensamble import (
+    ClaveDeEnsambleEnUso,
+    EnsambleNoCoincideConInstancia,
+    EnsambleNoEncontrado,
+    InstanciaNoEncontrada,
+    SubEnsambleNoEncontrado,
+)
 from obractrl.application.casos_uso.gestionar_estimacion import EstimacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_evaluacion import EvaluacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_incidencia import IncidenciaNoEncontrada
@@ -1018,6 +1025,73 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="concepto-no-encontrado",
             titulo="Concepto no encontrado",
+            detalle=str(exc),
+        )
+
+    # Los tres "no encontrado" del ensamble comparten el criterio de
+    # `ConceptoNoEncontrado`: RLS hace indistinguible "no existe" de "no lo
+    # puedes ver" a propósito (§12.4).
+    @app.exception_handler(EnsambleNoEncontrado)
+    async def _ensamble_no_encontrado(
+        request: Request, exc: EnsambleNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="ensamble-no-encontrado",
+            titulo="Ensamble no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(SubEnsambleNoEncontrado)
+    async def _sub_ensamble_no_encontrado(
+        request: Request, exc: SubEnsambleNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="ensamble-no-encontrado",
+            titulo="Sub-ensamble no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(InstanciaNoEncontrada)
+    async def _instancia_no_encontrada(
+        request: Request, exc: InstanciaNoEncontrada
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="instancia-no-encontrada",
+            titulo="Instancia de ensamble no encontrada",
+            detalle=str(exc),
+        )
+
+    # Subclases de `ErrorDeAPU` que ganan sobre su 422 genérico: no son datos
+    # inválidos sino un choque con el estado actual (ya existe esa clave; la
+    # instancia ya pertenece a otra plantilla) — 409, igual que
+    # `VersionVigenteNoEliminable`.
+    @app.exception_handler(ClaveDeEnsambleEnUso)
+    async def _clave_de_ensamble_en_uso(
+        request: Request, exc: ClaveDeEnsambleEnUso
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="clave-de-ensamble-en-uso",
+            titulo="Ya existe un ensamble con esa clave",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(EnsambleNoCoincideConInstancia)
+    async def _ensamble_no_coincide(
+        request: Request, exc: EnsambleNoCoincideConInstancia
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="ensamble-no-coincide-con-instancia",
+            titulo="La instancia pertenece a otro ensamble",
             detalle=str(exc),
         )
 

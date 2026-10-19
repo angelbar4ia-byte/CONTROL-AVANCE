@@ -1416,6 +1416,15 @@ class RepositorioGeneracionDePresupuesto(Protocol):
         existente (el usuario agrandó el lote, no el tamaño del cuarto)."""
         ...
 
+    async def instancias_de_ensamble(self, ensamble_id: UUID) -> list[dict]:
+        """Las instancias generadas por este ensamble (nodos con su
+        `ensamble_id`), con la clave del prototipo al que pertenecen.
+
+        Es lo que deja **regenerar** desde la pantalla: sin esta lista nadie
+        sabría qué nodo pasarle a `GenerarDesdeEnsamble` como
+        `prototipo_nodo_id`."""
+        ...
+
     async def partidas_de_instancia(
         self, *, presupuesto_id: UUID, instancia_id: UUID
     ) -> list[dict]:

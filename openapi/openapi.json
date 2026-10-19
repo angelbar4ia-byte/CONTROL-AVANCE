@@ -3011,6 +3011,456 @@
         }
       }
     },
+    "/api/v1/ensambles": {
+      "get": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Catálogo de ensambles paramétricos",
+        "operationId": "listar_ensambles_api_v1_ensambles_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incluir_inactivos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluye los ensambles dados de baja (§8.7).",
+              "default": false,
+              "title": "Incluir Inactivos"
+            },
+            "description": "Incluye los ensambles dados de baja (§8.7)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EnsambleRespuesta"
+                  },
+                  "title": "Response Listar Ensambles Api V1 Ensambles Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Extracción: arma un ensamble desde lo ya construido",
+        "description": "El llamador ya decidió, renglón por renglón, qué entra y con qué\norigen (§2) — este endpoint solo resuelve clave→id y persiste.",
+        "operationId": "extraer_ensamble_api_v1_ensambles_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearEnsamblePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnsambleCreadoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Un concepto o sub-ensamble referido no existe."
+          },
+          "409": {
+            "description": "Ya existe un ensamble con esa clave."
+          },
+          "422": {
+            "description": "Un renglón no apunta a concepto XOR sub-ensamble (§0, §2-§3)."
+          }
+        }
+      }
+    },
+    "/api/v1/ensambles/{ensamble_id}": {
+      "get": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Un ensamble por id",
+        "operationId": "obtener_ensamble_api_v1_ensambles__ensamble_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ensamble_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ensamble Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnsambleRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El ensamble no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ensambles/{ensamble_id}/renglones": {
+      "get": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Renglones directos del ensamble (sin bajar por sub-ensamble)",
+        "operationId": "listar_renglones_api_v1_ensambles__ensamble_id__renglones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ensamble_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ensamble Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RenglonEnsambleRespuesta"
+                  },
+                  "title": "Response Listar Renglones Api V1 Ensambles  Ensamble Id  Renglones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El ensamble no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ensambles/{ensamble_id}/cohorte": {
+      "get": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Prototipos de la cohorte declarada del ensamble",
+        "operationId": "listar_cohorte_api_v1_ensambles__ensamble_id__cohorte_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ensamble_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ensamble Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CohorteItemRespuesta"
+                  },
+                  "title": "Response Listar Cohorte Api V1 Ensambles  Ensamble Id  Cohorte Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El ensamble no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ensambles/{ensamble_id}/instancias": {
+      "get": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Instancias que este ensamble ya generó (para regenerarlas)",
+        "operationId": "listar_instancias_api_v1_ensambles__ensamble_id__instancias_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ensamble_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ensamble Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InstanciaEnsambleRespuesta"
+                  },
+                  "title": "Response Listar Instancias Api V1 Ensambles  Ensamble Id  Instancias Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El ensamble no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ensambles/{ensamble_id}/explosion": {
+      "get": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Preview de costo y composición (sin generar nada)",
+        "description": "Árbol completo del ensamble: conceptos y sub-ensambles anidados,\ncon costo y destajo (skill §4) — con el factor de una instancia\nhipotética, sin crear ni tocar nada.",
+        "operationId": "explotar_ensamble_api_v1_ensambles__ensamble_id__explosion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ensamble_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ensamble Id"
+            }
+          },
+          {
+            "name": "factor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "description": "Cuántas veces entra el ensamble (§6); 1 = una instancia.",
+              "default": "1",
+              "title": "Factor"
+            },
+            "description": "Cuántas veces entra el ensamble (§6); 1 = una instancia."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplosionEnsambleRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El ensamble no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ensambles/{ensamble_id}/generar": {
+      "post": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Generación: compone (o regenera) una instancia en un presupuesto",
+        "description": "Un mismo botón para generar (sin `prototipo_nodo_id`) y regenerar\n(con él): solo NUEVO/ACTUALIZADO se escriben, el resto se reporta en\n`pendientes` para que el usuario decida (§6, §8 regla 11).",
+        "operationId": "generar_desde_ensamble_api_v1_ensambles__ensamble_id__generar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ensamble_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ensamble Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerarDesdeEnsamblePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteGeneracionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El ensamble o el presupuesto no existen, o la instancia a regenerar no existe."
+          },
+          "409": {
+            "description": "La instancia ya fue generada por otro ensamble."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/obras": {
       "get": {
         "tags": [
@@ -11166,6 +11616,25 @@
         ],
         "title": "ClusterRespuesta"
       },
+      "CohorteItemRespuesta": {
+        "properties": {
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "prototipo_clave": {
+            "type": "string",
+            "title": "Prototipo Clave"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prototipo_id",
+          "prototipo_clave"
+        ],
+        "title": "CohorteItemRespuesta"
+      },
       "ConceptoDelReporteRespuesta": {
         "properties": {
           "actividad_id": {
@@ -11875,6 +12344,74 @@
           "nombre"
         ],
         "title": "CrearCuadrillaPeticion"
+      },
+      "CrearEnsamblePeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "renglones": {
+            "items": {
+              "$ref": "#/components/schemas/RenglonEnsamblePeticion"
+            },
+            "type": "array",
+            "title": "Renglones"
+          },
+          "divisor_concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Divisor Concepto Clave"
+          },
+          "divisor_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Divisor Nombre"
+          },
+          "presupuesto_origen_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presupuesto Origen Id",
+            "description": "De qué presupuesto se extrajeron estos renglones (§3)."
+          },
+          "cohorte_prototipo_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Cohorte Prototipo Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "CrearEnsamblePeticion"
       },
       "CrearEspecialidadPeticion": {
         "properties": {
@@ -13102,6 +13639,133 @@
         "title": "EfectoRespuesta",
         "description": "Qué cambió en la obra al autorizar."
       },
+      "EnsambleCreadoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "renglones": {
+            "type": "integer",
+            "title": "Renglones"
+          },
+          "cohorte": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Cohorte"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "nombre",
+          "renglones",
+          "cohorte"
+        ],
+        "title": "EnsambleCreadoRespuesta"
+      },
+      "EnsambleRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "divisor_concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Divisor Concepto Id",
+            "description": "El concepto que normaliza la tasa de este ensamble (§5.7)."
+          },
+          "divisor_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Divisor Nombre"
+          },
+          "tasa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tasa",
+            "description": "Publicada sobre la cohorte declarada (§5.7)."
+          },
+          "dispersion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dispersion",
+            "description": "Coeficiente de variación, en por ciento."
+          },
+          "tasa_calculada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tasa Calculada En"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "default": "activo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "nombre"
+        ],
+        "title": "EnsambleRespuesta"
+      },
       "EntradaBitacora": {
         "properties": {
           "id": {
@@ -13380,6 +14044,18 @@
         ],
         "title": "EstadoDeObraRespuesta",
         "description": "El renglón de la Torre: una obra y lo que le falta (§5.1)."
+      },
+      "EstadoRenglonGenerado": {
+        "type": "string",
+        "enum": [
+          "nuevo",
+          "actualizado",
+          "desvinculado",
+          "conflicto",
+          "sobra"
+        ],
+        "title": "EstadoRenglonGenerado",
+        "description": "Qué hacer con un concepto al regenerar (skill §6, §8 regla 11).\n\nSolo `NUEVO` y `ACTUALIZADO` son seguros de escribir sin preguntar:\nel primero no pisa nada, el segundo confirma que nadie lo tocó desde\nla última generación. Los otros tres nunca se escriben solos."
       },
       "EstadoReporteRespuesta": {
         "properties": {
@@ -14116,6 +14792,31 @@
         "title": "ExpedienteRespuesta",
         "description": "Vista agregada del expediente (§11.2, §7.9).\n\nLos montos son los **validados**: un cierre sin validar o una estimación\nen borrador aún pueden cambiar, así que no suman (`ExpedienteTecnico`)."
       },
+      "ExplosionEnsambleRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "lineas": {
+            "items": {
+              "$ref": "#/components/schemas/LineaEnsambleRespuesta"
+            },
+            "type": "array",
+            "title": "Lineas"
+          },
+          "precio": {
+            "$ref": "#/components/schemas/PrecioEnsambleRespuesta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "lineas",
+          "precio"
+        ],
+        "title": "ExplosionEnsambleRespuesta"
+      },
       "ExplosionRespuesta": {
         "properties": {
           "clave": {
@@ -14578,6 +15279,75 @@
         ],
         "title": "FusionarEspecialidadPeticion"
       },
+      "GenerarDesdeEnsamblePeticion": {
+        "properties": {
+          "presupuesto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Presupuesto Id"
+          },
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Factor",
+            "description": "Cuántas veces entra el ensamble en esta instancia."
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "prototipo_nodo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Nodo Id",
+            "description": "La instancia a regenerar. Vacío: se crea una instancia nueva."
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id",
+            "description": "Dónde colgar la instancia nueva en el árbol."
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "presupuesto_id",
+          "prototipo_id",
+          "factor",
+          "nombre"
+        ],
+        "title": "GenerarDesdeEnsamblePeticion"
+      },
       "GenerarEstimacionPeticion": {
         "properties": {
           "modo": {
@@ -14853,6 +15623,60 @@
           "evidencias"
         ],
         "title": "IncidenciaRespuesta"
+      },
+      "InstanciaEnsambleRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "prototipo_clave": {
+            "type": "string",
+            "title": "Prototipo Clave"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "factor": {
+            "type": "string",
+            "title": "Factor",
+            "description": "Cuántas veces entra el ensamble en esta instancia."
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "prototipo_id",
+          "prototipo_clave",
+          "nombre",
+          "factor",
+          "orden"
+        ],
+        "title": "InstanciaEnsambleRespuesta",
+        "description": "Un nodo del árbol de un prototipo que este ensamble generó (skill §6).\n\nEs lo que se le pasa a `POST /ensambles/{id}/generar` como\n`prototipo_nodo_id` para regenerarlo."
       },
       "InstanciarProgramaPeticion": {
         "properties": {
@@ -15526,6 +16350,69 @@
           "cantidad"
         ],
         "title": "LineaDeMaterialPeticion"
+      },
+      "LineaEnsambleRespuesta": {
+        "properties": {
+          "ruta": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ruta"
+          },
+          "nivel": {
+            "type": "integer",
+            "title": "Nivel"
+          },
+          "tipo_hijo": {
+            "$ref": "#/components/schemas/TipoHijoEnsamble"
+          },
+          "referencia": {
+            "type": "string",
+            "title": "Referencia",
+            "description": "Clave del concepto o del sub-ensamble (§3.3)."
+          },
+          "cantidad_unitaria": {
+            "type": "string",
+            "title": "Cantidad Unitaria",
+            "description": "Por unidad del padre inmediato."
+          },
+          "cantidad": {
+            "type": "string",
+            "title": "Cantidad",
+            "description": "Acumulada desde la raíz, con el factor aplicado."
+          },
+          "costo_unitario": {
+            "type": "string",
+            "title": "Costo Unitario"
+          },
+          "destajo_unitario": {
+            "type": "string",
+            "title": "Destajo Unitario"
+          },
+          "importe": {
+            "type": "string",
+            "title": "Importe"
+          },
+          "importe_destajo": {
+            "type": "string",
+            "title": "Importe Destajo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ruta",
+          "nivel",
+          "tipo_hijo",
+          "referencia",
+          "cantidad_unitaria",
+          "cantidad",
+          "costo_unitario",
+          "destajo_unitario",
+          "importe",
+          "importe_destajo"
+        ],
+        "title": "LineaEnsambleRespuesta"
       },
       "LineaExplosionRespuesta": {
         "properties": {
@@ -16526,6 +17413,16 @@
         "title": "OficioDelConceptoPeticion",
         "description": "Con qué oficio se ejecuta este concepto (§8.3, migración 0047).\n\n`null` lo deja sin oficio: quitarlo —\"esto no era carpintería\"— es un cambio\ntan válido como ponerlo, y omitir el campo no podría expresarlo."
       },
+      "OrigenCantidadEnsamble": {
+        "type": "string",
+        "enum": [
+          "heredada_concepto",
+          "heredada_destajo",
+          "manual"
+        ],
+        "title": "OrigenCantidadEnsamble",
+        "description": "De dónde sale la cantidad de un renglón de ensamble (skill §2).\n\"Heredar es mejor que capturar\": heredada, el ensamble se entera si el\nvolumen de origen cambia; manual se desincroniza en silencio."
+      },
       "PaginaBitacora": {
         "properties": {
           "total": {
@@ -16823,6 +17720,29 @@
         },
         "type": "object",
         "title": "ParticiparPeticion"
+      },
+      "PartidaExistenteRespuesta": {
+        "properties": {
+          "actual": {
+            "$ref": "#/components/schemas/ValorPartidaRespuesta"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValorPartidaRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que tenía al generarse. Nulo: partida capturada, nunca generada."
+          }
+        },
+        "type": "object",
+        "required": [
+          "actual"
+        ],
+        "title": "PartidaExistenteRespuesta"
       },
       "PartidaRespuesta": {
         "properties": {
@@ -17252,6 +18172,25 @@
           "completo"
         ],
         "title": "PrecioArmadoRespuesta"
+      },
+      "PrecioEnsambleRespuesta": {
+        "properties": {
+          "total": {
+            "type": "string",
+            "title": "Total"
+          },
+          "destajo": {
+            "type": "string",
+            "title": "Destajo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "destajo"
+        ],
+        "title": "PrecioEnsambleRespuesta",
+        "description": "Costo de un ensamble con su desglose de destajo (§7.3, skill §4).\n\nNo se llama `PrecioUnitarioRespuesta` aunque se parezca al de\n`catalogos.py`: OpenAPI nombra los esquemas por la clase, y con dos\nhomónimos FastAPI **renombra el que ya estaba publicado** (prefijo de\nmódulo), lo que cambia los tipos que Orval genera para el front y el\nmóvil. Un nombre propio deja el contrato existente intacto."
       },
       "PrecioUnitarioRespuesta": {
         "properties": {
@@ -18456,6 +19395,184 @@
         "title": "RendimientoPorCuadrillaRespuesta",
         "description": "Lo que produjo cada cuadrilla (§5.1).\n\nSin contraparte presupuestada: el presupuesto es por concepto y no reparte\nel trabajo entre cuadrillas. Lo comparable es su `rendimiento` de catálogo."
       },
+      "RenglonEnsamblePeticion": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "origen": {
+            "$ref": "#/components/schemas/OrigenCantidadEnsamble"
+          },
+          "clave_concepto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave Concepto",
+            "description": "Exactamente uno de clave_concepto/clave_sub_ensamble."
+          },
+          "clave_sub_ensamble": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave Sub Ensamble"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad",
+          "origen"
+        ],
+        "title": "RenglonEnsamblePeticion"
+      },
+      "RenglonEnsambleRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "cantidad": {
+            "type": "string",
+            "title": "Cantidad"
+          },
+          "origen": {
+            "$ref": "#/components/schemas/OrigenCantidadEnsamble"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "sub_ensamble_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sub Ensamble Id"
+          },
+          "sub_ensamble_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sub Ensamble Clave"
+          },
+          "presupuesto_origen_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presupuesto Origen Id",
+            "description": "Referencia informativa (§3): nunca una liga estructural."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cantidad",
+          "origen",
+          "orden"
+        ],
+        "title": "RenglonEnsambleRespuesta"
+      },
+      "RenglonGeneradoRespuesta": {
+        "properties": {
+          "clave_concepto": {
+            "type": "string",
+            "title": "Clave Concepto"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/EstadoRenglonGenerado"
+          },
+          "receta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValorPartidaRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que el ensamble pide hoy. Nulo solo en SOBRA."
+          },
+          "existente": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PartidaExistenteRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que ya hay en el presupuesto. Nulo solo en NUEVO."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave_concepto",
+          "estado"
+        ],
+        "title": "RenglonGeneradoRespuesta"
+      },
       "RepartoRespuesta": {
         "properties": {
           "obra_id": {
@@ -18651,6 +19768,47 @@
         ],
         "title": "ReplicarProgramaPeticion",
         "description": "§11.2 `POST /programas-base/{id}/replicar`.\n\nLas obras van explícitas y no se asume \"todas las del prototipo\": replicar\nreprograma casas que pueden llevar avance, así que cuáles entran es una\ndecisión del usuario, no un default."
+      },
+      "ReporteGeneracionRespuesta": {
+        "properties": {
+          "prototipo_nodo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Nodo Id"
+          },
+          "nuevos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Nuevos",
+            "description": "Conceptos creados sin preguntar."
+          },
+          "actualizados": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Actualizados",
+            "description": "Conceptos refrescados sin preguntar."
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/RenglonGeneradoRespuesta"
+            },
+            "type": "array",
+            "title": "Pendientes",
+            "description": "DESVINCULADO/CONFLICTO/SOBRA (§6, §8 regla 11): ninguno se escribió solo — hace falta una decisión para cada uno."
+          }
+        },
+        "type": "object",
+        "required": [
+          "prototipo_nodo_id",
+          "nuevos",
+          "actualizados",
+          "pendientes"
+        ],
+        "title": "ReporteGeneracionRespuesta"
       },
       "ResetearContrasenaPeticion": {
         "properties": {
@@ -19513,6 +20671,15 @@
         ],
         "title": "TipoExpedienteDoc"
       },
+      "TipoHijoEnsamble": {
+        "type": "string",
+        "enum": [
+          "concepto",
+          "ensamble"
+        ],
+        "title": "TipoHijoEnsamble",
+        "description": "El hijo de un renglón de ensamble: un concepto o un sub-ensamble\n(skill §0, \"un ensamble puede contener sub-ensambles\")."
+      },
       "TipoHijoExplosion": {
         "type": "string",
         "enum": [
@@ -19851,6 +21018,24 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "ValorPartidaRespuesta": {
+        "properties": {
+          "cantidad": {
+            "type": "string",
+            "title": "Cantidad"
+          },
+          "precio_unitario": {
+            "type": "string",
+            "title": "Precio Unitario"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad",
+          "precio_unitario"
+        ],
+        "title": "ValorPartidaRespuesta"
       },
       "VersionCPURespuesta": {
         "properties": {

@@ -109,6 +109,24 @@ class RepositorioGeneracionDePresupuestoSQL:
             {"id": str(prototipo_nodo_id), "factor": factor},
         )
 
+    async def instancias_de_ensamble(self, ensamble_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select n.id, n.prototipo_id, p.clave as prototipo_clave,
+                           n.parent_id, n.nombre, n.ensamble_factor, n.orden
+                      from prototipo_nodo n
+                      join prototipo p on p.id = n.prototipo_id
+                     where n.ensamble_id = cast(:ensamble_id as uuid)
+                     order by p.clave, n.orden, n.nombre
+                    """
+                ),
+                {"ensamble_id": str(ensamble_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
     async def partidas_de_instancia(
         self, *, presupuesto_id: UUID, instancia_id: UUID
     ) -> list[dict[str, Any]]:
