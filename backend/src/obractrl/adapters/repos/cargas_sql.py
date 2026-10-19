@@ -141,6 +141,8 @@ _REFERENCIAS_EXTERNAS: tuple[tuple[str, str, str], ...] = (
     ("explosion", "concepto_hijo_id", "concepto"),
     ("partida_presupuesto", "concepto_id", "concepto"),
     ("prototipo_nodo", "concepto_id", "concepto"),
+    ("ensamble", "divisor_concepto_id", "concepto"),
+    ("ensamble_renglon", "concepto_id", "concepto"),
     ("salida_almacen", "concepto_id", "concepto"),
     ("control_cambio_linea", "concepto_id", "concepto"),
     ("desviacion", "insumo_id", "insumo"),
