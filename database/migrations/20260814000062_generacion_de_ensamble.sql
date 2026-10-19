@@ -7,14 +7,14 @@
 --
 -- Extracción (migración 0061) arma la plantilla desde lo ya construido.
 -- Generación hace lo contrario: compone un presupuesto nuevo a partir de
--- un ensamble ya existente, multiplicado por un factor concreto ("esta
--- recámara mide 9.2 m² de desplante"). Esta migración agrega lo que esa
--- dirección necesita y la 0061 no: marcar QUÉ nodo del prototipo es una
--- instancia generada (y de qué ensamble, con qué factor), y guardar en
--- cada partida generada el valor que tenía AL GENERARSE, para distinguir
--- después "alguien la editó a mano" de "el ensamble o el catálogo
--- cambiaron desde entonces" (skill §6, regla 11 de §8: "nunca arrasar ni
--- respetar en silencio al regenerar").
+-- un ensamble ya existente, multiplicado por cuántas veces entra esa
+-- plantilla en esta instancia ("2 recámaras tipo A"). Esta migración
+-- agrega lo que esa dirección necesita y la 0061 no: marcar QUÉ nodo del
+-- prototipo es una instancia generada (y de qué ensamble, con qué
+-- multiplicador), y guardar en cada partida generada el valor que tenía
+-- AL GENERARSE, para distinguir después "alguien la editó a mano" de "el
+-- ensamble o el catálogo cambiaron desde entonces" (skill §6, regla 11 de
+-- §8: "nunca arrasar ni respetar en silencio al regenerar").
 --
 -- INSTANCIA = `prototipo_nodo` ETIQUETADO, NO UN TIPO NUEVO
 --
@@ -22,9 +22,23 @@
 -- nodo `nivel` que ya agrupa renglones en el árbol del prototipo (migración
 -- 0006) — no hace falta un tercer valor en `tipo_prototipo_nodo` para
 -- distinguirla. Lo único que la vuelve "instancia de ensamble" es traer
--- `ensamble_id` + `ensamble_factor`: de qué plantilla salió y con qué
--- valor concreto de su divisor. Un nodo sin esas dos columnas es un nivel
--- capturado a mano, exactamente como hoy.
+-- `ensamble_id` + `ensamble_factor`: de qué plantilla salió y cuántas veces
+-- entra. Un nodo sin esas dos columnas es un nivel capturado a mano,
+-- exactamente como hoy.
+--
+-- `ensamble_factor` NO ES EL DIVISOR DE TASA (skill §2 vs §5.7)
+--
+-- "La cantidad es receta, no volumen" (§2): las cantidades de
+-- `ensamble_renglon` son fijas para UNA instancia completa de la
+-- plantilla, nunca "por unidad de divisor" — eso es exactamente lo que
+-- impide que el paramétrico aprenda de sí mismo en lugar de medir. El
+-- divisor (`ensamble.divisor_concepto_id`) es un normalizador aparte, solo
+-- para tasa/dispersión sobre una cohorte de referencia (§5.7); no
+-- participa en componer un presupuesto nuevo. `ensamble_factor` cumple el
+-- mismo papel que `RenglonEnsamble.cantidad` cuando un sub-ensamble cuelga
+-- de un padre (migración 0061) —cuántas veces se repite el ensamble
+-- completo—, solo que aquí no hay un renglón padre que la cargue: el nodo
+-- raíz de la instancia es ese "renglón" para efectos de la explosión.
 --
 -- POR QUÉ UN SNAPSHOT COMPLETO Y NO SOLO UNA FECHA
 --
@@ -61,7 +75,7 @@ alter table prototipo_nodo
 comment on column prototipo_nodo.ensamble_id is
   'El ensamble del que se generó este nodo y su subárbol (skill §6, dirección Generación). Nulo: nodo capturado a mano, como siempre.';
 comment on column prototipo_nodo.ensamble_factor is
-  'El valor concreto del divisor del ensamble para ESTA instancia (ej. 9.2 m² de desplante). Junto con ensamble_id, nunca uno sin el otro (ck_prototipo_nodo_ensamble_factor).';
+  'Cuántas veces entra el ensamble completo en esta instancia (ej. 2 recámaras tipo A) — mismo papel que RenglonEnsamble.cantidad cuando un sub-ensamble cuelga de un padre (migración 0061), NO el divisor de tasa (ensamble.divisor_concepto_id, §5.7, que es un normalizador aparte). Junto con ensamble_id, nunca uno sin el otro (ck_prototipo_nodo_ensamble_factor).';
 
 alter table partida_presupuesto
   add column cantidad_generada         numeric(18,6),
