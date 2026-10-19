@@ -52,11 +52,15 @@ from obractrl.domain.shared.diccionario import OrigenCantidadEnsamble, TipoHijoE
 from obractrl.domain.shared.valores import Dinero, PrecioUnitario
 
 __all__ = [
+    "CohorteInsuficiente",
     "ExplosionEnsambleCalculada",
     "GrupoContratacion",
     "LineaEnsamble",
+    "ObservacionTasa",
     "RenglonEnsamble",
+    "TasaCalculada",
     "agrupar_contratacion",
+    "calcular_tasa",
     "explotar_ensamble",
 ]
 
@@ -310,4 +314,118 @@ def agrupar_contratacion(
             lineas=tuple(de_ruta),
         )
         for ruta, de_ruta in sorted(grupos.items())
+    )
+
+
+# --- Tasa y dispersión (skill §5.7) --------------------------------------
+#
+# "Un paramétrico global no funciona" — probado contra los siete
+# prototipos reales: el costo por m² varía 36% entre ellos. Por eso la
+# tasa nunca se calcula contra `prototipo.m2`: se calcula contra el
+# divisor propio del ensamble (`ensamble.divisor_concepto_id`), sobre una
+# cohorte declarada a mano (`ensamble_cohorte`) — nunca una partición
+# derivada, porque "número de plantas" parecía la cohorte correcta de
+# cimentación y no lo era (B-52/D-312: escala con el desplante).
+#
+# Qué cuenta como dato confiable para aprender —"no construir el corpus
+# paramétrico sobre cantidades capturadas y llamarlo estadística" (regla
+# 12 del skill)— es una decisión de quien llama (el aplicador que resuelve
+# `ObservacionTasa` desde la base), nunca de este módulo: aquí solo entra
+# estadística pura sobre lo que ya se decidió confiable.
+
+
+class CohorteInsuficiente(ErrorDeAPU):
+    """Menos de dos observaciones: no hay con qué medir dispersión.
+
+    Con un solo dato la dispersión no es cero, es indefinida — tratarla
+    como 0% sería exactamente "un número disfrazado de certeza" (regla 9
+    del skill), solo que al revés: certeza fabricada en vez de ausente.
+    """
+
+    def __init__(self, n: int) -> None:
+        super().__init__(
+            f"Se necesitan al menos 2 observaciones para calcular tasa y "
+            f"dispersión; llegaron {n}."
+        )
+        self.n = n
+
+
+@dataclass(frozen=True, slots=True)
+class ObservacionTasa:
+    """Un punto de la cohorte (skill §5.7): cuánto costó el ensamble en un
+    prototipo de referencia, y cuánto valía ahí su divisor.
+
+    Quien arma esta lista ya decidió que el dato es confiable — este
+    módulo no sabe de `modo_cantidad` ni debe saberlo (§12.11): esa
+    política vive en el aplicador que resuelve estas observaciones desde
+    `partida_presupuesto`/`prototipo_nodo`.
+    """
+
+    prototipo_clave: str
+    numerador: Decimal
+    divisor: Decimal
+
+    def __post_init__(self) -> None:
+        if self.divisor <= 0:
+            raise ErrorDeAPU(
+                f"El divisor de {self.prototipo_clave!r} no puede ser cero "
+                f"ni negativo ({self.divisor}): no hay con qué normalizar "
+                f"la tasa de ese prototipo."
+            )
+
+    @property
+    def razon(self) -> Decimal:
+        return self.numerador / self.divisor
+
+
+@dataclass(frozen=True, slots=True)
+class TasaCalculada:
+    """Tasa y dispersión de un ensamble sobre su cohorte (skill §5.7,
+    regla 9: "la dispersión se guarda junto al valor" — las dos cifras
+    nacen y viajan juntas, nunca una sin la otra)."""
+
+    tasa: Decimal
+    dispersion: Decimal
+    """Coeficiente de variación, en por ciento (Acabados a 5% es
+    utilizable; Herrería a 38% es una adivinanza, skill §5.7)."""
+    n: int
+    prototipos: tuple[str, ...]
+
+
+_TASA_DEC = Decimal("0.000001")
+"""Misma precisión que `ensamble.tasa` (numeric(18,6), migración 0061)."""
+
+_DISPERSION_DEC = Decimal("0.0001")
+"""Misma precisión que `ensamble.dispersion` (numeric(7,4), migración 0061)."""
+
+
+def calcular_tasa(observaciones: Sequence[ObservacionTasa]) -> TasaCalculada:
+    """Tasa (media de numerador÷divisor) y dispersión (CV, en %) sobre la
+    cohorte ya filtrada por quien llama.
+
+    Exige al menos dos observaciones (:class:`CohorteInsuficiente`): con
+    una sola no hay variación que medir.
+
+    Desviación estándar **poblacional** (``n``, no ``n - 1``) — verificado
+    reproduciendo el CV real del skill (§5.7, cimentación contra
+    desplante, los siete prototipos): con ``n - 1`` da 6.52%, con ``n``
+    da 6.03%, y el skill reporta "6.0%". La cohorte se trata como el
+    universo bajo análisis en ese momento, no como una muestra de un
+    universo más grande.
+    """
+    n = len(observaciones)
+    if n < 2:
+        raise CohorteInsuficiente(n)
+
+    razones = [o.razon for o in observaciones]
+    media = sum(razones, Decimal(0)) / n
+    varianza = sum(((r - media) ** 2 for r in razones), Decimal(0)) / n
+    desviacion = varianza.sqrt()
+    dispersion = (desviacion / media * 100) if media != 0 else Decimal(0)
+
+    return TasaCalculada(
+        tasa=media.quantize(_TASA_DEC, rounding=ROUND_HALF_UP),
+        dispersion=dispersion.quantize(_DISPERSION_DEC, rounding=ROUND_HALF_UP),
+        n=n,
+        prototipos=tuple(sorted(o.prototipo_clave for o in observaciones)),
     )

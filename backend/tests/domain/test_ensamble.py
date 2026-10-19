@@ -20,8 +20,11 @@ from obractrl.domain.catalogos.apu import (
     ProfundidadExcedida,
 )
 from obractrl.domain.catalogos.ensamble import (
+    CohorteInsuficiente,
+    ObservacionTasa,
     RenglonEnsamble,
     agrupar_contratacion,
+    calcular_tasa,
     explotar_ensamble,
 )
 from obractrl.domain.shared.diccionario import OrigenCantidadEnsamble, TipoHijoEnsamble
@@ -202,3 +205,73 @@ class TestAgruparContratacion:
             "ENS-SOLO-MATERIAL", composiciones=composicion, precios_concepto=_PRECIOS
         )
         assert agrupar_contratacion(calculada.lineas) == ()
+
+
+class TestObservacionTasa:
+    def test_el_divisor_no_puede_ser_cero_ni_negativo(self) -> None:
+        with pytest.raises(ErrorDeAPU, match="no puede ser cero"):
+            ObservacionTasa(prototipo_clave="CAS-1", numerador=Decimal(100), divisor=Decimal(0))
+        with pytest.raises(ErrorDeAPU, match="no puede ser cero"):
+            ObservacionTasa(prototipo_clave="CAS-1", numerador=Decimal(100), divisor=Decimal(-1))
+
+    def test_la_razon_es_numerador_entre_divisor(self) -> None:
+        obs = ObservacionTasa(prototipo_clave="CAS-1", numerador=Decimal(100), divisor=Decimal(4))
+        assert obs.razon == Decimal(25)
+
+
+class TestCalcularTasa:
+    def test_exige_al_menos_dos_observaciones(self) -> None:
+        with pytest.raises(CohorteInsuficiente):
+            calcular_tasa([ObservacionTasa(prototipo_clave="CAS-1", numerador=Decimal(100), divisor=Decimal(1))])
+
+    def test_reproduce_el_cv_real_de_cimentacion_contra_desplante(self) -> None:
+        """cerebro CONOCIMIENTO.md §5.7 / skill erp-parametrico §5: los
+        siete prototipos reales, cimentación medida contra el área de
+        desplante de su propia losa (B-52/D-312) — "los siete caen en el
+        mismo rango, CV 6.0%". Verificado con los $/m² de desplante que el
+        skill reporta ya calculados para cada uno."""
+        valores_reales = {
+            "Zafiro 1.0": "1039",
+            "Rubi": "1048",
+            "Zafiro Plus": "1078",
+            "Jade": "1053",
+            "Diamante -": "1206",
+            "Diamante +": "1201",
+            "Oro": "1082",
+        }
+        observaciones = [
+            ObservacionTasa(prototipo_clave=clave, numerador=Decimal(valor), divisor=Decimal(1))
+            for clave, valor in valores_reales.items()
+        ]
+        resultado = calcular_tasa(observaciones)
+        assert resultado.n == 7
+        assert resultado.tasa == Decimal("1101.000000")
+        # El skill redondea a un decimal ("CV 6.0%"); aquí se compara con
+        # esa misma precisión para no exigir más de lo que la fuente trae.
+        assert round(resultado.dispersion, 1) == Decimal("6.0")
+
+    def test_la_dispersion_es_poblacional_no_de_muestra(self) -> None:
+        """Mismo caso que arriba: con desviación de muestra (n-1) el CV
+        saldría 6.52%, no 6.0% — la diferencia que decidió esta regla."""
+        valores = ["1039", "1048", "1078", "1053", "1206", "1201", "1082"]
+        observaciones = [
+            ObservacionTasa(prototipo_clave=f"P{i}", numerador=Decimal(v), divisor=Decimal(1))
+            for i, v in enumerate(valores)
+        ]
+        resultado = calcular_tasa(observaciones)
+        assert resultado.dispersion != Decimal("6.5151")
+        assert round(resultado.dispersion, 1) == Decimal("6.0")
+
+    def test_dos_tasas_iguales_dan_dispersion_cero(self) -> None:
+        observaciones = [
+            ObservacionTasa(prototipo_clave="A", numerador=Decimal(100), divisor=Decimal(1)),
+            ObservacionTasa(prototipo_clave="B", numerador=Decimal(100), divisor=Decimal(1)),
+        ]
+        resultado = calcular_tasa(observaciones)
+        assert resultado.tasa == Decimal("100.000000")
+        assert resultado.dispersion == Decimal("0.0000")
+
+    def test_los_prototipos_vienen_ordenados_y_sin_depender_del_orden_de_entrada(self) -> None:
+        a = ObservacionTasa(prototipo_clave="ZZZ", numerador=Decimal(10), divisor=Decimal(1))
+        b = ObservacionTasa(prototipo_clave="AAA", numerador=Decimal(20), divisor=Decimal(1))
+        assert calcular_tasa([a, b]).prototipos == ("AAA", "ZZZ")
