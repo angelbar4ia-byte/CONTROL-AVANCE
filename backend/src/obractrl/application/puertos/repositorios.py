@@ -1355,7 +1355,10 @@ class RepositorioEnsambles(Protocol):
         Cada fila con hijo concepto trae también ``concepto_id`` —no solo
         la clave—: Generación necesita los ids para pedir el CPU vigente en
         lote (`RepositorioConceptos.composicion_recursiva_de`), sin volver a
-        resolver clave→id uno por uno.
+        resolver clave→id uno por uno. También trae ``concepto_descripcion``:
+        es el ``nombre`` que Generación le da al nodo hoja que crea, mismo
+        criterio que ya usa cada cargador de presupuesto (`nombre =
+        concepto.descripcion`).
         """
         ...
 
@@ -1372,6 +1375,94 @@ class RepositorioEnsambles(Protocol):
     ) -> None:
         """Fija `tasa`/`dispersion`/`tasa_calculada_en` (§5.7: las dos
         cifras siempre juntas, nunca una sin la otra)."""
+        ...
+
+
+@runtime_checkable
+class RepositorioGeneracionDePresupuesto(Protocol):
+    """Lo que Generación escribe sobre `prototipo_nodo`/`partida_presupuesto`
+    (migración 0062, skill §6, dirección ensamble → presupuesto).
+
+    Ningún otro camino del sistema crea un nodo con `ensamble_id`/
+    `ensamble_factor`, ni una partida con su snapshot
+    (`cantidad_generada`/`precio_unitario_generado`) — por eso este puerto
+    es propio y no una extensión de `RepositorioPrototipoNodo`/
+    `RepositorioPresupuestos`: mezclar esto en `upsert` (que ya usan el
+    cargador de presupuesto y la carga de ingeniería del lote) arriesgaría
+    esos dos caminos por una tercera forma de escribir el mismo árbol.
+    """
+
+    async def crear_instancia(
+        self,
+        *,
+        prototipo_id: UUID,
+        parent_id: UUID | None,
+        nombre: str,
+        ensamble_id: UUID,
+        factor: Decimal,
+        orden: int = 0,
+    ) -> dict:
+        """Crea el nodo `nivel` que representa una instancia nueva del
+        ensamble (§6: "2 recámaras tipo A"). Devuelve la fila completa."""
+        ...
+
+    async def obtener_instancia(self, prototipo_nodo_id: UUID) -> dict | None:
+        """El nodo, solo si tiene `ensamble_id` —si no, no es una instancia
+        de Generación y regenerarlo no tiene sentido."""
+        ...
+
+    async def actualizar_factor(self, prototipo_nodo_id: UUID, factor: Decimal) -> None:
+        """Cambia cuántas veces entra el ensamble en esta instancia ya
+        existente (el usuario agrandó el lote, no el tamaño del cuarto)."""
+        ...
+
+    async def partidas_de_instancia(
+        self, *, presupuesto_id: UUID, instancia_id: UUID
+    ) -> list[dict]:
+        """Todo concepto hoja bajo `instancia_id` (cualquier profundidad,
+        por si hay sub-ensambles) con su partida en `presupuesto_id`, si ya
+        existe —`partida_id` viene `None` si todavía no hay ninguna—.
+
+        Base de `existentes` para `domain.catalogos.ensamble.
+        reconciliar_generacion`: trae `concepto_clave`, `cantidad`,
+        `precio_unitario`, `cantidad_generada`, `precio_unitario_generado`.
+        """
+        ...
+
+    async def crear_partida_generada(
+        self,
+        *,
+        presupuesto_id: UUID,
+        prototipo_id: UUID,
+        instancia_id: UUID,
+        concepto_id: UUID,
+        nombre: str,
+        cantidad: Decimal,
+        precio_unitario: Decimal,
+        importe: Decimal,
+        orden: int = 0,
+    ) -> dict:
+        """Crea el nodo hoja (`tipo='concepto'`) bajo `instancia_id` y su
+        partida en `presupuesto_id`, con `cantidad_generada`/
+        `precio_unitario_generado` iguales al valor que se escribe —el
+        snapshot nace igual al valor actual, por definición (§6,
+        `EstadoRenglonGenerado.NUEVO`). `importe` lo calcula quien llama
+        (cantidad × precio_unitario), mismo contrato que
+        `RepositorioPresupuestos.agregar_partidas`."""
+        ...
+
+    async def actualizar_partida_generada(
+        self,
+        partida_id: UUID,
+        *,
+        cantidad: Decimal,
+        precio_unitario: Decimal,
+        importe: Decimal,
+    ) -> None:
+        """Refresca una partida que nadie tocó desde la última generación
+        (`EstadoRenglonGenerado.ACTUALIZADO`): `cantidad`/`precio_unitario`/
+        `importe` Y su snapshot avanzan juntos al valor de hoy — ese valor
+        es ahora "lo que tenía al generarse" para la próxima regeneración."""
         ...
 
 

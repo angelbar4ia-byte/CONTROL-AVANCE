@@ -146,6 +146,7 @@ class RepositorioEnsamblesSQL:
                         r.orden           as orden,
                         c.id              as concepto_id,
                         c.clave           as concepto_clave,
+                        c.descripcion     as concepto_descripcion,
                         sub.clave         as sub_ensamble_clave
                       from ensamble_renglon r
                       join ensamble padre on padre.id = r.ensamble_id

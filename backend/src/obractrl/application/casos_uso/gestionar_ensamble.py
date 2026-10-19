@@ -27,22 +27,42 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
-from obractrl.application.casos_uso.calcular_cpu import ConceptoNoEncontrado
+from obractrl.application.casos_uso.calcular_cpu import (
+    ConceptoNoEncontrado,
+    componentes_por_clave,
+)
 from obractrl.application.puertos.repositorios import (
     RepositorioConceptos,
     RepositorioEnsambles,
+    RepositorioGeneracionDePresupuesto,
     UnidadDeTrabajo,
 )
-from obractrl.domain.catalogos.apu import ErrorDeAPU
-from obractrl.domain.catalogos.ensamble import RenglonEnsamble
-from obractrl.domain.shared.diccionario import TipoHijoEnsamble
+from obractrl.domain.catalogos.apu import ErrorDeAPU, explotar
+from obractrl.domain.catalogos.ensamble import (
+    EstadoRenglonGenerado,
+    PartidaExistente,
+    RenglonEnsamble,
+    RenglonGenerado,
+    ValorPartida,
+    explotar_ensamble,
+    receta_por_concepto,
+    reconciliar_generacion,
+)
+from obractrl.domain.shared.diccionario import OrigenCantidadEnsamble, TipoHijoEnsamble
+from obractrl.domain.shared.valores import Dinero, PrecioUnitario
 
 __all__ = [
     "ClaveDeEnsambleEnUso",
     "ComandoExtraerEnsamble",
+    "ComandoGenerarDesdeEnsamble",
     "ConceptoNoEncontrado",
     "EnsambleCreado",
+    "EnsambleNoCoincideConInstancia",
+    "EnsambleNoEncontrado",
     "ExtraerEnsamble",
+    "GenerarDesdeEnsamble",
+    "InstanciaNoEncontrada",
+    "ReporteGeneracion",
     "SubEnsambleNoEncontrado",
 ]
 
@@ -61,6 +81,41 @@ class SubEnsambleNoEncontrado(LookupError):
 
     def __init__(self, clave: str) -> None:
         super().__init__(f"No existe el ensamble {clave!r} o está fuera de tu alcance.")
+        self.clave = clave
+
+
+class EnsambleNoEncontrado(LookupError):
+    """El ensamble que se quiere generar no existe (o no es visible)."""
+
+    def __init__(self, clave: str) -> None:
+        super().__init__(f"No existe el ensamble {clave!r} o está fuera de tu alcance.")
+        self.clave = clave
+
+
+class InstanciaNoEncontrada(LookupError):
+    """El nodo que se quiere regenerar no existe, no es visible, o no es
+    una instancia generada por un ensamble (`ensamble_id` nulo, migración
+    0062) — regenerarlo no tiene sentido."""
+
+    def __init__(self, prototipo_nodo_id: UUID) -> None:
+        super().__init__(
+            f"El nodo {prototipo_nodo_id} no existe, no es visible, o no es "
+            "una instancia generada por un ensamble."
+        )
+        self.prototipo_nodo_id = prototipo_nodo_id
+
+
+class EnsambleNoCoincideConInstancia(ErrorDeAPU):
+    """La instancia ya fue generada por OTRO ensamble: regenerarla con uno
+    distinto mezclaría dos recetas en el mismo nodo."""
+
+    def __init__(self, prototipo_nodo_id: UUID, clave: str) -> None:
+        super().__init__(
+            f"El nodo {prototipo_nodo_id} fue generado por otro ensamble, no "
+            f"por {clave!r}: no se puede regenerar con una plantilla distinta "
+            "a la que ya tiene."
+        )
+        self.prototipo_nodo_id = prototipo_nodo_id
         self.clave = clave
 
 
@@ -178,3 +233,259 @@ class ExtraerEnsamble:
             "presupuesto_origen_id": presupuesto_origen_id,
             "orden": renglon.orden,
         }
+
+
+# --- Generación: ensamble → presupuesto (skill §6) -----------------------
+
+
+def _renglones_por_clave(filas: Sequence[dict]) -> dict[str, list[RenglonEnsamble]]:
+    """Traduce filas de `RepositorioEnsambles.renglones_recursivos` al
+    lenguaje del dominio (claves, §3.3) — mismo papel que
+    `calcular_cpu.componentes_por_clave` para APU."""
+    composiciones: dict[str, list[RenglonEnsamble]] = {}
+    for fila in filas:
+        clave_concepto = fila.get("concepto_clave")
+        clave_sub_ensamble = fila.get("sub_ensamble_clave")
+        composiciones.setdefault(str(fila["ensamble_clave"]), []).append(
+            RenglonEnsamble(
+                cantidad=Decimal(str(fila["cantidad"])),
+                origen=OrigenCantidadEnsamble(str(fila["origen"])),
+                clave_concepto=str(clave_concepto) if clave_concepto else None,
+                clave_sub_ensamble=str(clave_sub_ensamble) if clave_sub_ensamble else None,
+                orden=int(fila.get("orden") or 0),
+            )
+        )
+    return composiciones
+
+
+def _concepto_info_por_clave(filas: Sequence[dict]) -> dict[str, tuple[UUID, str]]:
+    """``clave de concepto → (id, descripcion)`` — lo que hace falta para
+    crear el nodo hoja (`nombre = concepto.descripcion`, mismo criterio que
+    cada cargador de presupuesto)."""
+    info: dict[str, tuple[UUID, str]] = {}
+    for fila in filas:
+        clave = fila.get("concepto_clave")
+        if clave:
+            info[str(clave)] = (
+                UUID(str(fila["concepto_id"])),
+                str(fila["concepto_descripcion"]),
+            )
+    return info
+
+
+def _existentes_por_clave(
+    filas: Sequence[dict],
+) -> tuple[dict[str, PartidaExistente], dict[str, UUID]]:
+    """Traduce filas de `RepositorioGeneracionDePresupuesto.
+    partidas_de_instancia` a lo que pide `reconciliar_generacion`.
+
+    Una fila sin `partida_id` es un concepto de la receta que todavía no
+    tiene partida en esta instancia — no es "existente", así que no entra
+    al mapa (`reconciliar_generacion` lo clasifica como NUEVO por su sola
+    ausencia)."""
+    existentes: dict[str, PartidaExistente] = {}
+    partida_id_por_clave: dict[str, UUID] = {}
+    for fila in filas:
+        if fila.get("partida_id") is None:
+            continue
+        clave = str(fila["concepto_clave"])
+        actual = ValorPartida(
+            cantidad=Decimal(str(fila["cantidad"])),
+            precio_unitario=Decimal(str(fila["precio_unitario"])),
+        )
+        snapshot = None
+        if fila.get("cantidad_generada") is not None:
+            snapshot = ValorPartida(
+                cantidad=Decimal(str(fila["cantidad_generada"])),
+                precio_unitario=Decimal(str(fila["precio_unitario_generado"])),
+            )
+        existentes[clave] = PartidaExistente(actual=actual, snapshot=snapshot)
+        partida_id_por_clave[clave] = UUID(str(fila["partida_id"]))
+    return existentes, partida_id_por_clave
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoGenerarDesdeEnsamble:
+    presupuesto_id: UUID
+    prototipo_id: UUID
+    ensamble_clave: str
+    factor: Decimal
+    nombre: str
+    prototipo_nodo_id: UUID | None = None
+    """El nodo de la instancia a regenerar. `None`: se crea una instancia
+    nueva (§6 — Generación y regeneración son el mismo caso de uso; sin
+    nodo previo todo concepto de la receta sale NUEVO)."""
+    parent_id: UUID | None = None
+    """Dónde colgar la instancia nueva en el árbol. Ignorado si
+    `prototipo_nodo_id` ya apunta a una instancia existente."""
+    orden: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class ReporteGeneracion:
+    prototipo_nodo_id: UUID
+    nuevos: tuple[str, ...]
+    actualizados: tuple[str, ...]
+    pendientes: tuple[RenglonGenerado, ...]
+    """DESVINCULADO/CONFLICTO/SOBRA (skill §6, §8 regla 11): ninguno se
+    escribió solo — aquí solo para que quien llama decida."""
+
+
+class GenerarDesdeEnsamble:
+    """Botón explícito "Generar"/"Regenerar" (Control de obra y Super
+    intendente, §11.2 — mismo rol que Extracción).
+
+    Solo NUEVO y ACTUALIZADO se escriben sin preguntar
+    (`domain.catalogos.ensamble.EstadoRenglonGenerado`): lo demás se
+    reporta en `pendientes` y nunca se aplica solo — "nada sale del
+    presupuesto sin que el usuario lo decida".
+    """
+
+    def __init__(
+        self,
+        *,
+        ensambles: RepositorioEnsambles,
+        conceptos: RepositorioConceptos,
+        generacion: RepositorioGeneracionDePresupuesto,
+        uow: UnidadDeTrabajo,
+    ) -> None:
+        self._ensambles = ensambles
+        self._conceptos = conceptos
+        self._generacion = generacion
+        self._uow = uow
+
+    async def ejecutar(self, cmd: ComandoGenerarDesdeEnsamble) -> ReporteGeneracion:
+        ensamble = await self._ensambles.obtener_por_clave(cmd.ensamble_clave)
+        if ensamble is None:
+            raise EnsambleNoEncontrado(cmd.ensamble_clave)
+        ensamble_id = UUID(str(ensamble["id"]))
+
+        filas = await self._ensambles.renglones_recursivos(ensamble_id)
+        composiciones = _renglones_por_clave(filas)
+        precios_concepto = await self._precios_concepto(filas)
+
+        calculada = explotar_ensamble(
+            cmd.ensamble_clave,
+            composiciones=composiciones,
+            precios_concepto=precios_concepto,
+            factor=cmd.factor,
+        )
+        receta = receta_por_concepto(calculada.lineas)
+        concepto_info = _concepto_info_por_clave(filas)
+
+        async with self._uow:
+            instancia_id = await self._resolver_instancia(cmd, ensamble_id)
+
+            filas_existentes = await self._generacion.partidas_de_instancia(
+                presupuesto_id=cmd.presupuesto_id, instancia_id=instancia_id
+            )
+            existentes, partida_id_por_clave = _existentes_por_clave(filas_existentes)
+            clasificados = reconciliar_generacion(receta=receta, existentes=existentes)
+
+            nuevos: list[str] = []
+            actualizados: list[str] = []
+            pendientes: list[RenglonGenerado] = []
+
+            for renglon in clasificados:
+                if renglon.estado is EstadoRenglonGenerado.NUEVO:
+                    assert renglon.receta is not None
+                    concepto_id, nombre_concepto = concepto_info[renglon.clave_concepto]
+                    await self._generacion.crear_partida_generada(
+                        presupuesto_id=cmd.presupuesto_id,
+                        prototipo_id=cmd.prototipo_id,
+                        instancia_id=instancia_id,
+                        concepto_id=concepto_id,
+                        nombre=nombre_concepto,
+                        cantidad=renglon.receta.cantidad,
+                        precio_unitario=renglon.receta.precio_unitario,
+                        importe=renglon.receta.cantidad * renglon.receta.precio_unitario,
+                    )
+                    nuevos.append(renglon.clave_concepto)
+                elif renglon.estado is EstadoRenglonGenerado.ACTUALIZADO:
+                    assert renglon.receta is not None
+                    await self._generacion.actualizar_partida_generada(
+                        partida_id_por_clave[renglon.clave_concepto],
+                        cantidad=renglon.receta.cantidad,
+                        precio_unitario=renglon.receta.precio_unitario,
+                        importe=renglon.receta.cantidad * renglon.receta.precio_unitario,
+                    )
+                    actualizados.append(renglon.clave_concepto)
+                else:
+                    pendientes.append(renglon)
+
+            await self._uow.commit()
+
+        return ReporteGeneracion(
+            prototipo_nodo_id=instancia_id,
+            nuevos=tuple(nuevos),
+            actualizados=tuple(actualizados),
+            pendientes=tuple(pendientes),
+        )
+
+    async def _resolver_instancia(
+        self, cmd: ComandoGenerarDesdeEnsamble, ensamble_id: UUID
+    ) -> UUID:
+        if cmd.prototipo_nodo_id is None:
+            nodo = await self._generacion.crear_instancia(
+                prototipo_id=cmd.prototipo_id,
+                parent_id=cmd.parent_id,
+                nombre=cmd.nombre,
+                ensamble_id=ensamble_id,
+                factor=cmd.factor,
+                orden=cmd.orden,
+            )
+            return UUID(str(nodo["id"]))
+
+        instancia = await self._generacion.obtener_instancia(cmd.prototipo_nodo_id)
+        if instancia is None:
+            raise InstanciaNoEncontrada(cmd.prototipo_nodo_id)
+        if UUID(str(instancia["ensamble_id"])) != ensamble_id:
+            raise EnsambleNoCoincideConInstancia(cmd.prototipo_nodo_id, cmd.ensamble_clave)
+
+        instancia_id = UUID(str(instancia["id"]))
+        if Decimal(str(instancia["ensamble_factor"])) != cmd.factor:
+            await self._generacion.actualizar_factor(instancia_id, cmd.factor)
+        return instancia_id
+
+    async def _precios_concepto(self, filas: Sequence[dict]) -> dict[str, PrecioUnitario]:
+        """CPU vigente de cada concepto hoja de la receta: el de su propia
+        explosión de APU si la tiene, o su CPU capturado si no (un `SUB-`
+        cotizado a tanto alzado, §10.1 — mismo criterio que
+        `PublicarVersionCPU`)."""
+        ids = sorted({UUID(str(f["concepto_id"])) for f in filas if f.get("concepto_id")})
+        if not ids:
+            return {}
+        claves = sorted({str(f["concepto_clave"]) for f in filas if f.get("concepto_clave")})
+        id_por_clave = {
+            str(f["concepto_clave"]): UUID(str(f["concepto_id"]))
+            for f in filas
+            if f.get("concepto_clave")
+        }
+
+        crudas = await self._conceptos.composicion_recursiva_de(ids)
+        composiciones, costos_insumo = componentes_por_clave(crudas)
+
+        precios: dict[str, PrecioUnitario] = {}
+        for clave in claves:
+            if clave in composiciones:
+                precios[clave] = explotar(
+                    clave, composiciones=composiciones, costos_insumo=costos_insumo
+                ).precio
+                continue
+            capturado = await self._precio_capturado(id_por_clave[clave])
+            if capturado is not None:
+                precios[clave] = capturado
+        return precios
+
+    async def _precio_capturado(self, concepto_id: UUID) -> PrecioUnitario | None:
+        versiones = await self._conceptos.versiones_cpu(concepto_id)
+        vigente = next(
+            (v for v in versiones if bool(v.get("vigente")) and v.get("variante") is None),
+            None,
+        )
+        if vigente is None:
+            return None
+        return PrecioUnitario(
+            total=Dinero(Decimal(str(vigente["precio_unitario"]))),
+            destajo=Dinero(Decimal(str(vigente["precio_destajo"]))),
+        )
