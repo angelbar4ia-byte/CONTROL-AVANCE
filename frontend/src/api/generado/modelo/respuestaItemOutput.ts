@@ -9,6 +9,7 @@ import type { RespuestaItemOutputComentario } from "./respuestaItemOutputComenta
 
 export interface RespuestaItemOutput {
   criterio_id: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   valor: string;
   comentario?: RespuestaItemOutputComentario;
 }

@@ -9,6 +9,7 @@ import type { ResultadoRecalculoRespuestaDesviacionId } from "./resultadoRecalcu
 import type { ResultadoRecalculoRespuestaPrototipoNodoActualizado } from "./resultadoRecalculoRespuestaPrototipoNodoActualizado";
 
 export interface ResultadoRecalculoRespuesta {
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad_total: string;
   desviacion_id?: ResultadoRecalculoRespuestaDesviacionId;
   prototipo_nodo_actualizado?: ResultadoRecalculoRespuestaPrototipoNodoActualizado;

@@ -15,7 +15,9 @@ export interface SalidaRespuesta {
   motivo_id: string;
   concepto_id: SalidaRespuestaConceptoId;
   contratista_id: SalidaRespuestaContratistaId;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   costo: string;
   fecha: string;
 }

@@ -18,6 +18,7 @@ export interface ItemProgramaBaseRespuesta {
   prototipo_nodo_id: ItemProgramaBaseRespuestaPrototipoNodoId;
   etapa_id: ItemProgramaBaseRespuestaEtapaId;
   frente_id: ItemProgramaBaseRespuestaFrenteId;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   duracion_dias: string;
   dependencias: DependenciaDTO[];
   tramos: TramoDTO[];

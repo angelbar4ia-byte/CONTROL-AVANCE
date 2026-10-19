@@ -23,12 +23,14 @@ export interface InsumoRespuesta {
   descripcion: string;
   unidad_id?: InsumoRespuestaUnidadId;
   familia_id?: InsumoRespuestaFamiliaId;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   costo_base?: string;
   costo_base_actualizado?: InsumoRespuestaCostoBaseActualizado;
   costo_promedio_almacen?: InsumoRespuestaCostoPromedioAlmacen;
   costo_ultimo?: InsumoRespuestaCostoUltimo;
   origen?: string;
   iva_aplica?: InsumoRespuestaIvaAplica;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   factor_conversion?: string;
   cuadrilla_id?: InsumoRespuestaCuadrillaId;
   rendimiento_teorico?: InsumoRespuestaRendimientoTeorico;

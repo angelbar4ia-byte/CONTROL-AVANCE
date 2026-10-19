@@ -18,6 +18,7 @@ export interface PresupuestoRespuesta {
   prototipo_nombre?: PresupuestoRespuestaPrototipoNombre;
   version: number;
   origen: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto_total: string;
   created_at: string;
   partidas: PartidaRespuesta[];

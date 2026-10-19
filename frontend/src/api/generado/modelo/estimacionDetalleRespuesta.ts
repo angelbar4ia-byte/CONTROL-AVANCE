@@ -28,9 +28,15 @@ export interface EstimacionDetalleRespuesta {
   anio: number;
   modo: string;
   estatus: string;
-  /** Lo que dice la cabecera guardada. */
+  /**
+   * Lo que dice la cabecera guardada.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   monto_total: string;
-  /** Σ de los renglones, recalculada al leer. */
+  /**
+   * Σ de los renglones, recalculada al leer.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   monto_calculado: string;
   /** ¿Cabecera y renglones coinciden? Falso es una señal de auditoría, no un error de captura. */
   cuadra: boolean;
@@ -38,7 +44,10 @@ export interface EstimacionDetalleRespuesta {
   n_conceptos_catalogo: number;
   n_conceptos_extra: number;
   por_frente: FrenteDelReporteRespuesta[];
-  /** Suma de lo enviado y validado de esta obra a la fecha. No incluye borradores. */
+  /**
+   * Suma de lo enviado y validado de esta obra a la fecha. No incluye borradores.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   acumulado_proyecto: string;
   /** El presupuesto vigente del prototipo de la obra. `null` si el prototipo no tiene uno cargado. */
   presupuesto_base?: EstimacionDetalleRespuestaPresupuestoBase;

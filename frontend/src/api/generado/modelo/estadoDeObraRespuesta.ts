@@ -16,6 +16,7 @@ export interface EstadoDeObraRespuesta {
   obra_id: string;
   obra_clave: string;
   obra_estatus: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   avance_pct: string;
   fecha_inicio?: EstadoDeObraRespuestaFechaInicio;
   fecha_fin?: EstadoDeObraRespuestaFechaFin;

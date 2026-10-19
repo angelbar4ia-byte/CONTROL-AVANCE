@@ -29,7 +29,9 @@ export interface LineaDeControlRespuesta {
   actividad_id?: LineaDeControlRespuestaActividadId;
   concepto_id?: LineaDeControlRespuestaConceptoId;
   descripcion?: LineaDeControlRespuestaDescripcion;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   precio_unitario: string;
   sustituye_a?: LineaDeControlRespuestaSustituyeA;
   actividad_descripcion?: LineaDeControlRespuestaActividadDescripcion;

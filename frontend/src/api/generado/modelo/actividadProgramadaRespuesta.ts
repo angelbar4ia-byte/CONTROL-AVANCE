@@ -26,12 +26,14 @@ export interface ActividadProgramadaRespuesta {
   frente_id: ActividadProgramadaRespuestaFrenteId;
   etapa_id: ActividadProgramadaRespuestaEtapaId;
   nivel_id: ActividadProgramadaRespuestaNivelId;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   duracion_dias: string;
   dependencias: DependenciaDTO[];
   tramos: TramoDTO[];
   inicio_dias: ActividadProgramadaRespuestaInicioDias;
   fecha_inicio: ActividadProgramadaRespuestaFechaInicio;
   fecha_termino: ActividadProgramadaRespuestaFechaTermino;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   avance_pct: string;
   estatus: string;
   bloqueada: boolean;

@@ -14,5 +14,6 @@ export interface EstimacionDelExpedienteRespuesta {
   anio: number;
   modo: string;
   estatus: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto: string;
 }

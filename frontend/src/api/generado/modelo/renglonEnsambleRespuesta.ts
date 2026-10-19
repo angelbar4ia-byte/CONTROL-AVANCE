@@ -14,6 +14,7 @@ import type { RenglonEnsambleRespuestaPresupuestoOrigenId } from "./renglonEnsam
 
 export interface RenglonEnsambleRespuesta {
   id: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad: string;
   origen: OrigenCantidadEnsamble;
   orden: number;

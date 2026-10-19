@@ -16,6 +16,8 @@ módulo), lo que cambia los tipos que Orval genera para el front y el
 móvil. Un nombre propio deja el contrato existente intacto.
  */
 export interface PrecioEnsambleRespuesta {
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   total: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   destajo: string;
 }

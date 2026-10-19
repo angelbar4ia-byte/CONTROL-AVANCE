@@ -61,13 +61,20 @@ export interface ActividadDetalleRespuesta {
   contratista_nombre?: ActividadDetalleRespuestaContratistaNombre;
   cuadrilla_id?: ActividadDetalleRespuestaCuadrillaId;
   cuadrilla_nombre?: ActividadDetalleRespuestaCuadrillaNombre;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cant_base: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cant_programada: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cant_ejecutada: string;
-  /** Cuánto puede exceder la programada a la base sin control de cambio (§6, migración 0049). Copia del umbral de la obra. */
+  /**
+   * Cuánto puede exceder la programada a la base sin control de cambio (§6, migración 0049). Copia del umbral de la obra.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   tolerancia_pct?: string;
   /** Techo que un control de cambio ya autorizó. Cuando existe manda sobre la tolerancia: es la cantidad que Control firmó. */
   cant_autorizada?: ActividadDetalleRespuestaCantAutorizada;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   avance_pct: string;
   estatus: string;
   bloqueada: boolean;
@@ -78,9 +85,12 @@ export interface ActividadDetalleRespuesta {
   desfase?: ActividadDetalleRespuestaDesfase;
   fecha_inicio?: ActividadDetalleRespuestaFechaInicio;
   fecha_termino?: ActividadDetalleRespuestaFechaTermino;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   duracion_dias: string;
   modo_pago: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   precio_unitario: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   precio_destajo: string;
   obra_clave: string;
   dependencias?: unknown[];

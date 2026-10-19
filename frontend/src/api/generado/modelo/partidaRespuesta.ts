@@ -18,8 +18,11 @@ export interface PartidaRespuesta {
   concepto_descripcion?: PartidaRespuestaConceptoDescripcion;
   unidad_clave?: PartidaRespuestaUnidadClave;
   prototipo_nodo_id?: PartidaRespuestaPrototipoNodoId;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   precio_unitario: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   importe: string;
   orden: number;
 }

@@ -13,6 +13,7 @@ export interface VersionRespuesta {
   vigente: boolean;
   origen: string;
   carga_id?: VersionRespuestaCargaId;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto_total: string;
   created_at: string;
 }

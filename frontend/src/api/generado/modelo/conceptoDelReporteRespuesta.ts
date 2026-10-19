@@ -15,8 +15,11 @@ export interface ConceptoDelReporteRespuesta {
   clave: string;
   descripcion: string;
   unidad: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   precio_unitario: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   importe: string;
   fuera_catalogo: boolean;
   nivel_id?: ConceptoDelReporteRespuestaNivelId;

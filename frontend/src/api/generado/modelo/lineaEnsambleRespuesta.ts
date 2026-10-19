@@ -13,12 +13,22 @@ export interface LineaEnsambleRespuesta {
   tipo_hijo: TipoHijoEnsamble;
   /** Clave del concepto o del sub-ensamble (§3.3). */
   referencia: string;
-  /** Por unidad del padre inmediato. */
+  /**
+   * Por unidad del padre inmediato.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   cantidad_unitaria: string;
-  /** Acumulada desde la raíz, con el factor aplicado. */
+  /**
+   * Acumulada desde la raíz, con el factor aplicado.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   cantidad: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   costo_unitario: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   destajo_unitario: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   importe: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   importe_destajo: string;
 }

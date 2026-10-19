@@ -18,6 +18,7 @@ export interface EstimacionRespuesta {
   anio: number;
   modo: string;
   estatus: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto_total: string;
   origen_erp: boolean;
   creada_por: EstimacionRespuestaCreadaPor;

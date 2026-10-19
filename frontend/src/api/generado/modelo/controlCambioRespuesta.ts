@@ -27,7 +27,10 @@ export interface ControlCambioRespuesta {
   resuelto_en?: ControlCambioRespuestaResueltoEn;
   nota_resolucion?: ControlCambioRespuestaNotaResolucion;
   descuenta_ejecutado?: boolean;
-  /** Lo que esta solicitud le mueve al costo final de la obra. */
+  /**
+   * Lo que esta solicitud le mueve al costo final de la obra.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   importe?: string;
   renglones?: number;
 }

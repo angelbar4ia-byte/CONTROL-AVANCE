@@ -13,6 +13,7 @@ import type { RutaCriticaRespuesta } from "./rutaCriticaRespuesta";
 export interface NodoProgramadoRespuesta {
   obra_id: string;
   prototipo_nodo_id: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   duracion_dias: string;
   fecha_inicio: string;
   fecha_termino: string;

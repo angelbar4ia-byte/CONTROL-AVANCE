@@ -17,6 +17,7 @@ export interface ActividadEnRutaRespuesta {
   actividad_id: string;
   descripcion: ActividadEnRutaRespuestaDescripcion;
   frente_id: ActividadEnRutaRespuestaFrenteId;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   duracion_dias: string;
   dependencias: DependenciaDTO[];
   tramos: TramoDTO[];
@@ -28,5 +29,6 @@ export interface ActividadEnRutaRespuesta {
   desfase: number;
   es_critica: boolean;
   bloqueada: boolean;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   avance_pct: string;
 }

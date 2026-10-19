@@ -16,7 +16,9 @@ export interface CierreRespuesta {
   solicitada_por: string;
   autorizada_por: CierreRespuestaAutorizadaPor;
   validada_por: CierreRespuestaValidadaPor;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto: string;
   checklist: CierreRespuestaChecklistItem[];
   adjuntos: string[];

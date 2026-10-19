@@ -7,6 +7,8 @@
  */
 
 export interface ValorPartidaRespuesta {
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   precio_unitario: string;
 }

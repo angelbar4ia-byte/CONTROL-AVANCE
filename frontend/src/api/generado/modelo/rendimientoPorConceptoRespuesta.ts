@@ -19,11 +19,18 @@ export interface RendimientoPorConceptoRespuesta {
   concepto_clave?: RendimientoPorConceptoRespuestaConceptoClave;
   concepto_descripcion?: RendimientoPorConceptoRespuestaConceptoDescripcion;
   unidad_clave?: RendimientoPorConceptoRespuestaUnidadClave;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad_presupuestada: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   importe_presupuestado: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad_ejecutada: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   importe_ejecutado: string;
-  /** Ejecutado menos presupuestado. Positivo es gastar de más. */
+  /**
+   * Ejecutado menos presupuestado. Positivo es gastar de más.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   desviacion_importe: string;
   /** `null` cuando no había presupuesto: dividir entre cero no da infinito, da que la pregunta no aplica. */
   desviacion_pct?: RendimientoPorConceptoRespuestaDesviacionPct;

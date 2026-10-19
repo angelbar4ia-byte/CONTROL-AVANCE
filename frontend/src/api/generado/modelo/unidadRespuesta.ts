@@ -11,6 +11,7 @@ export interface UnidadRespuesta {
   clave: string;
   nombre: string;
   sinonimos?: string[];
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   factor?: string;
   estatus?: string;
 }

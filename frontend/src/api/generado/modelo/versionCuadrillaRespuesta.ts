@@ -9,6 +9,7 @@
 export interface VersionCuadrillaRespuesta {
   id: string;
   version: number;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   precio_unitario: string;
   vigente: boolean;
 }

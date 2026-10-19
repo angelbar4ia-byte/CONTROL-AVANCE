@@ -32,12 +32,22 @@ export interface NodoDelArbolRespuesta {
   actividades: string[];
   fecha_inicio: NodoDelArbolRespuestaFechaInicio;
   fecha_termino: NodoDelArbolRespuestaFechaTermino;
-  /** **Span** de la barra: días de calendario entre el inicio más temprano y el fin más tardío de sus conceptos, en la escala del calendario del cronograma. No es la suma de sus duraciones. */
+  /**
+   * **Span** de la barra: días de calendario entre el inicio más temprano y el fin más tardío de sus conceptos, en la escala del calendario del cronograma. No es la suma de sus duraciones.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   duracion_dias: string;
-  /** Suma de los días de **trabajo** de sus conceptos. Coincide con el span cuando van uno tras otro y es menor cuando se traslapan. */
+  /**
+   * Suma de los días de **trabajo** de sus conceptos. Coincide con el span cuando van uno tras otro y es menor cuando se traslapan.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   duracion_hojas_dias: string;
-  /** Avance **ponderado por importe** de sus conceptos (§6), no el promedio simple: el muro de $122k en cero y el castillo de $10k terminado no son 50 %. */
+  /**
+   * Avance **ponderado por importe** de sus conceptos (§6), no el promedio simple: el muro de $122k en cero y el castillo de $10k terminado no son 50 %.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   avance_pct: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   importe: string;
   conflicto: NodoDelArbolRespuestaConflicto;
 }

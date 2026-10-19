@@ -11,6 +11,7 @@ export interface CriterioRespuesta {
   aplica_a: string;
   clave: string;
   nombre: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   peso: string;
   estatus: string;
 }

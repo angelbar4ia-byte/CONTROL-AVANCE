@@ -14,8 +14,11 @@ import type { ConsumoRespuestaCostoValuacion } from "./consumoRespuestaCostoValu
 export interface ConsumoRespuesta {
   obra_id: string;
   insumo_id: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cant_teorica: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cant_real: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   desviacion_cant: string;
   desviacion_pct: ConsumoRespuestaDesviacionPct;
   costo_valuacion: ConsumoRespuestaCostoValuacion;

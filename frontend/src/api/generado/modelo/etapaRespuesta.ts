@@ -17,6 +17,7 @@ export interface EtapaRespuesta {
   clave: string;
   descripcion: string;
   orden?: number;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   ponderacion?: string;
   importe?: EtapaRespuestaImporte;
 }

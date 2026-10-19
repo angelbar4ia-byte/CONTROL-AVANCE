@@ -10,10 +10,19 @@
  * CPU con su desglose de destajo (§7.3, §11.1).
  */
 export interface PrecioUnitarioRespuesta {
-  /** Materiales + auxiliares + matrices + MO + equipo. */
+  /**
+   * Materiales + auxiliares + matrices + MO + equipo.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   total: string;
-  /** Lo que cobra la cuadrilla: MO o subcontrato. */
+  /**
+   * Lo que cobra la cuadrilla: MO o subcontrato.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   destajo: string;
-  /** Porción que no es destajo. */
+  /**
+   * Porción que no es destajo.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   materiales: string;
 }

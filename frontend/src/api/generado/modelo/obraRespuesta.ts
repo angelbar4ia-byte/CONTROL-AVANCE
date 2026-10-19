@@ -20,6 +20,7 @@ export interface ObraRespuesta {
   estatus: string;
   fecha_inicio: ObraRespuestaFechaInicio;
   fecha_fin: ObraRespuestaFechaFin;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   avance_pct: string;
   m2: ObraRespuestaM2;
   es_urba: boolean;

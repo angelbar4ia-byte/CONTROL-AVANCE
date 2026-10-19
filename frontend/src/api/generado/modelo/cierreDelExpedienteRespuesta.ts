@@ -11,7 +11,9 @@ export interface CierreDelExpedienteRespuesta {
   id: string;
   actividad_id: string;
   estatus: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cantidad: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto: string;
   fecha_valida?: CierreDelExpedienteRespuestaFechaValida;
 }

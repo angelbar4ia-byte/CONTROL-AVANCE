@@ -21,13 +21,16 @@ export interface ExpedienteRespuesta {
   obra_id: string;
   obra_clave: string;
   obra_estatus: ExpedienteRespuestaObraEstatus;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   avance_pct: string;
   generado_en: string;
   documentos: DocumentoRespuesta[];
   evidencias: EvidenciaRespuesta[];
   cierres: CierreDelExpedienteRespuesta[];
   estimaciones: EstimacionDelExpedienteRespuesta[];
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto_cerrado: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto_estimado: string;
   n_evidencias: number;
 }

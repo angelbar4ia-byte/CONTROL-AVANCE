@@ -15,6 +15,7 @@ export interface ResumenDeObraRespuesta {
   obra_id: string;
   obra_clave: string;
   obra_estatus: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   avance_pct: string;
   /** Una obra URBA no tiene prototipo y por lo tanto no tiene presupuesto (§7.2). Aparece con cero, no desaparece. */
   es_urba: boolean;
@@ -22,8 +23,11 @@ export interface ResumenDeObraRespuesta {
   cluster_clave: string;
   proyecto_clave: string;
   proyecto_id: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto_presupuestado: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto_ejecutado: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   desviacion_importe: string;
   desviacion_pct?: ResumenDeObraRespuestaDesviacionPct;
   clasificacion: string;

@@ -15,11 +15,19 @@ export interface LineaExplosionRespuesta {
   /** Clave del insumo o del concepto hijo (§3.3). */
   referencia: string;
   categoria: CategoriaExplosion;
-  /** Por unidad del padre inmediato. */
+  /**
+   * Por unidad del padre inmediato.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   cantidad_unitaria: string;
-  /** Acumulada por unidad del concepto raíz. */
+  /**
+   * Acumulada por unidad del concepto raíz.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   cantidad: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   costo_unitario: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   importe: string;
   es_destajo: boolean;
 }

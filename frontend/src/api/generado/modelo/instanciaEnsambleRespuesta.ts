@@ -19,7 +19,10 @@ export interface InstanciaEnsambleRespuesta {
   prototipo_clave: string;
   parent_id?: InstanciaEnsambleRespuestaParentId;
   nombre: string;
-  /** Cuántas veces entra el ensamble en esta instancia. */
+  /**
+   * Cuántas veces entra el ensamble en esta instancia.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
   factor: string;
   orden: number;
 }
