@@ -26,6 +26,7 @@ import Obras from '@/proyectos/Obras';
 import Prototipos from '@/proyectos/Prototipos';
 import Frentes from '@/proyectos/Frentes';
 import Catalogos from '@/catalogos/Catalogos';
+import Ensambles from '@/ensambles/Ensambles';
 import Programacion from '@/programacion/Programacion';
 import ProgramasBase from '@/programacion/ProgramasBase';
 
@@ -139,6 +140,11 @@ function Rutas() {
             intendente puede leer el APU pero no tiene la entrada en su
             sidebar, así que no se monta una ruta que nada apunte. */}
         <Route path="/config/catalogos" element={<Catalogos />} />
+        {/* Ensambles paramétricos (skill erp-parametrico): leer es de C y SI,
+            crear y generar solo de C (§11.2). Como el APU, el sidebar solo lo
+            trae Control de obra, así que no se monta una ruta que nada apunte
+            para el Super intendente. */}
+        <Route path="/config/ensambles" element={<Ensambles />} />
         {/* Programación · CPM: el Gantt con la ruta crítica es pantalla
             compartida (§5.3) y los cuatro sidebars ya traen "Ruta crítica"
             (§5.1). El Super intendente además la alcanza desde Reportes →
