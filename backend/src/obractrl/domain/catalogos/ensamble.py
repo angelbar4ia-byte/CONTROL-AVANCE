@@ -249,6 +249,7 @@ def explotar_ensamble(
     *,
     composiciones: Mapping[str, Sequence[RenglonEnsamble]],
     precios_concepto: Mapping[str, PrecioUnitario] | None = None,
+    factor: Decimal = Decimal(1),
 ) -> ExplosionEnsambleCalculada:
     """Explosión de costo de un ensamble (skill §4): árbol completo —
     materiales, destajos, subcontratos, todo lo que ya resolvió el CPU de
@@ -259,6 +260,13 @@ def explotar_ensamble(
     ``precios_concepto`` da el CPU vigente de cada concepto hoja —
     resuelto por quien llama (el aplicador), este módulo no lo calcula.
 
+    ``factor``: cuántas veces entra ``clave`` en la instancia que se está
+    generando (skill §6; `prototipo_nodo.ensamble_factor`, migración
+    0062) — mismo papel que `RenglonEnsamble.cantidad` cuando un
+    sub-ensamble cuelga de un padre, aplicado aquí porque la raíz no tiene
+    un renglón padre que lo cargue. Por defecto 1: una explosión normal,
+    sin instancia de por medio, sigue dando exactamente lo de antes.
+
     Levanta :class:`CicloEnExplosion` si un ensamble se contiene a sí
     mismo, directa o indirectamente, vía sub-ensambles.
     """
@@ -267,12 +275,17 @@ def explotar_ensamble(
         composiciones=composiciones,
         precios_concepto=precios_concepto or {},
         camino=(),
-        factor=Decimal(1),
+        factor=factor,
     )
+    # `costo`/`destajo` que devuelve `_resolver` son el precio **por una
+    # unidad** de `clave` —no usan `factor` en su propia acumulación, solo
+    # lo propagan a las líneas hijas (igual que el costo de un sub-ensamble
+    # no depende de cuántas veces lo multiplique su padre)— así que aquí sí
+    # hay que escalarlos.
     return ExplosionEnsambleCalculada(
         clave=clave,
         lineas=tuple(lineas),
-        precio=_precio(costo, destajo),
+        precio=_precio(costo * factor, destajo * factor),
     )
 
 

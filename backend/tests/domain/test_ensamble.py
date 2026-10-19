@@ -144,6 +144,26 @@ class TestExplosionDeCosto:
         )
         assert calculada.precio.total == Dinero("0.00")
 
+    def test_el_factor_escala_las_lineas_y_el_precio_por_igual(self) -> None:
+        """`factor` (skill §6, migración 0062 ensamble_factor): 2 instancias
+        de RECAMARA-A cuestan el doble y piden el doble de cada concepto,
+        no solo el doble en las líneas."""
+        sin_factor = explotar_ensamble(
+            "RECAMARA-A", composiciones=self.composicion, precios_concepto=_PRECIOS
+        )
+        con_factor = explotar_ensamble(
+            "RECAMARA-A",
+            composiciones=self.composicion,
+            precios_concepto=_PRECIOS,
+            factor=Decimal(2),
+        )
+        assert con_factor.precio.total == Dinero(sin_factor.precio.total.monto * 2)
+        assert con_factor.precio.destajo == Dinero(sin_factor.precio.destajo.monto * 2)
+
+        muro = next(linea for linea in con_factor.lineas if linea.referencia == "EST-MURO")
+        assert muro.cantidad == Decimal("8.000000")  # 4 por unidad × 2 instancias
+        assert muro.costo_unitario == Decimal("100")  # el precio unitario no escala
+
     def test_un_sub_ensamble_repetido_en_dos_ramas_no_es_ciclo(self) -> None:
         composicion = {
             "CASA-B": [sub_ensamble("BANO-X", "1", orden=1), sub_ensamble("BANO-Y", "1", orden=2)],
