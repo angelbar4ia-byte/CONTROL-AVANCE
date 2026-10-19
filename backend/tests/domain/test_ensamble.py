@@ -21,11 +21,16 @@ from obractrl.domain.catalogos.apu import (
 )
 from obractrl.domain.catalogos.ensamble import (
     CohorteInsuficiente,
+    EstadoRenglonGenerado,
     ObservacionTasa,
+    PartidaExistente,
     RenglonEnsamble,
+    ValorPartida,
     agrupar_contratacion,
     calcular_tasa,
     explotar_ensamble,
+    receta_por_concepto,
+    reconciliar_generacion,
 )
 from obractrl.domain.shared.diccionario import OrigenCantidadEnsamble, TipoHijoEnsamble
 from obractrl.domain.shared.valores import Dinero, PrecioUnitario
@@ -275,3 +280,110 @@ class TestCalcularTasa:
         a = ObservacionTasa(prototipo_clave="ZZZ", numerador=Decimal(10), divisor=Decimal(1))
         b = ObservacionTasa(prototipo_clave="AAA", numerador=Decimal(20), divisor=Decimal(1))
         assert calcular_tasa([a, b]).prototipos == ("AAA", "ZZZ")
+
+
+class TestRecetaPorConcepto:
+    """CASA-A del fixture de arriba: 2 recámaras (MURO×4, PISO×1) + losa suelta."""
+
+    composicion = TestExplosionDeCosto.composicion
+
+    def test_suma_la_cantidad_de_un_concepto_repetido_por_dos_caminos(self) -> None:
+        calculada = explotar_ensamble(
+            "CASA-A", composiciones=self.composicion, precios_concepto=_PRECIOS
+        )
+        receta = receta_por_concepto(calculada.lineas)
+
+        assert receta["EST-MURO"] == ValorPartida(
+            cantidad=Decimal("8"), precio_unitario=Decimal("100")
+        )
+        assert receta["EST-PISO"] == ValorPartida(
+            cantidad=Decimal("2"), precio_unitario=Decimal("50")
+        )
+        assert receta["EST-LOSA"] == ValorPartida(
+            cantidad=Decimal("1"), precio_unitario=Decimal("200")
+        )
+
+    def test_no_incluye_lineas_de_sub_ensamble(self) -> None:
+        calculada = explotar_ensamble(
+            "CASA-A", composiciones=self.composicion, precios_concepto=_PRECIOS
+        )
+        receta = receta_por_concepto(calculada.lineas)
+        assert "RECAMARA-A" not in receta
+
+
+class TestReconciliarGeneracion:
+    def test_concepto_sin_partida_previa_es_nuevo(self) -> None:
+        resultado = reconciliar_generacion(
+            receta={"EST-MURO": ValorPartida(Decimal(8), Decimal(100))},
+            existentes={},
+        )
+        assert [r.estado for r in resultado] == [EstadoRenglonGenerado.NUEVO]
+        assert resultado[0].existente is None
+
+    def test_partida_sin_tocar_desde_que_se_generó_se_actualiza(self) -> None:
+        snapshot = ValorPartida(Decimal(8), Decimal(100))
+        resultado = reconciliar_generacion(
+            receta={"EST-MURO": ValorPartida(Decimal(10), Decimal(105))},
+            existentes={
+                "EST-MURO": PartidaExistente(actual=snapshot, snapshot=snapshot)
+            },
+        )
+        assert [r.estado for r in resultado] == [EstadoRenglonGenerado.ACTUALIZADO]
+
+    def test_partida_editada_a_mano_se_marca_desvinculada(self) -> None:
+        snapshot = ValorPartida(Decimal(8), Decimal(100))
+        editada = ValorPartida(Decimal(9), Decimal(100))  # el usuario cambió la cantidad
+        resultado = reconciliar_generacion(
+            receta={"EST-MURO": ValorPartida(Decimal(8), Decimal(100))},
+            existentes={
+                "EST-MURO": PartidaExistente(actual=editada, snapshot=snapshot)
+            },
+        )
+        assert [r.estado for r in resultado] == [EstadoRenglonGenerado.DESVINCULADO]
+        assert resultado[0].existente is not None
+        assert resultado[0].existente.actual == editada
+
+    def test_partida_capturada_sin_snapshot_es_conflicto_no_desvinculado(self) -> None:
+        """Una partida que coincide en concepto pero nunca la generó ningún
+        ensamble (capturada a mano) no es lo mismo que una editada después
+        de generarse: no se sabe si es "la misma cosa"."""
+        capturada = ValorPartida(Decimal(8), Decimal(100))
+        resultado = reconciliar_generacion(
+            receta={"EST-MURO": ValorPartida(Decimal(8), Decimal(100))},
+            existentes={
+                "EST-MURO": PartidaExistente(actual=capturada, snapshot=None)
+            },
+        )
+        assert [r.estado for r in resultado] == [EstadoRenglonGenerado.CONFLICTO]
+
+    def test_concepto_que_ya_no_esta_en_la_receta_sobra_y_no_se_borra_sola(self) -> None:
+        snapshot = ValorPartida(Decimal(1), Decimal(200))
+        resultado = reconciliar_generacion(
+            receta={},
+            existentes={
+                "EST-LOSA": PartidaExistente(actual=snapshot, snapshot=snapshot)
+            },
+        )
+        assert [r.estado for r in resultado] == [EstadoRenglonGenerado.SOBRA]
+        assert resultado[0].receta is None
+
+    def test_clasifica_varios_conceptos_a_la_vez_y_ordena_por_clave(self) -> None:
+        snapshot_piso = ValorPartida(Decimal(2), Decimal(50))
+        resultado = reconciliar_generacion(
+            receta={
+                "EST-MURO": ValorPartida(Decimal(8), Decimal(100)),  # nuevo
+                "EST-PISO": ValorPartida(Decimal(2), Decimal(50)),  # actualizado
+            },
+            existentes={
+                "EST-PISO": PartidaExistente(actual=snapshot_piso, snapshot=snapshot_piso),
+                "EST-LOSA": PartidaExistente(  # sobra
+                    actual=ValorPartida(Decimal(1), Decimal(200)),
+                    snapshot=ValorPartida(Decimal(1), Decimal(200)),
+                ),
+            },
+        )
+        assert [(r.clave_concepto, r.estado) for r in resultado] == [
+            ("EST-LOSA", EstadoRenglonGenerado.SOBRA),
+            ("EST-MURO", EstadoRenglonGenerado.NUEVO),
+            ("EST-PISO", EstadoRenglonGenerado.ACTUALIZADO),
+        ]

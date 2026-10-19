@@ -1351,6 +1351,11 @@ class RepositorioEnsambles(Protocol):
         APU: corta el camino que cierra un ciclo (el dominio lo reporta
         como `CicloEnExplosion`, nunca el SQL) y trae la arista que cierra
         el ciclo en el resultado.
+
+        Cada fila con hijo concepto trae también ``concepto_id`` —no solo
+        la clave—: Generación necesita los ids para pedir el CPU vigente en
+        lote (`RepositorioConceptos.composicion_recursiva_de`), sin volver a
+        resolver clave→id uno por uno.
         """
         ...
 

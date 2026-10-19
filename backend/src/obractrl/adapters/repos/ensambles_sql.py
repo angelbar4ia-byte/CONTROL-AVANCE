@@ -144,6 +144,7 @@ class RepositorioEnsamblesSQL:
                         r.cantidad        as cantidad,
                         r.origen          as origen,
                         r.orden           as orden,
+                        c.id              as concepto_id,
                         c.clave           as concepto_clave,
                         sub.clave         as sub_ensamble_clave
                       from ensamble_renglon r

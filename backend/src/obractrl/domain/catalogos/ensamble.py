@@ -42,6 +42,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
+from enum import StrEnum
 
 from obractrl.domain.catalogos.apu import (
     CicloEnExplosion,
@@ -53,15 +54,21 @@ from obractrl.domain.shared.valores import Dinero, PrecioUnitario
 
 __all__ = [
     "CohorteInsuficiente",
+    "EstadoRenglonGenerado",
     "ExplosionEnsambleCalculada",
     "GrupoContratacion",
     "LineaEnsamble",
     "ObservacionTasa",
+    "PartidaExistente",
     "RenglonEnsamble",
+    "RenglonGenerado",
     "TasaCalculada",
+    "ValorPartida",
     "agrupar_contratacion",
     "calcular_tasa",
     "explotar_ensamble",
+    "receta_por_concepto",
+    "reconciliar_generacion",
 ]
 
 _SEIS_DEC = Decimal("0.000001")
@@ -429,3 +436,209 @@ def calcular_tasa(observaciones: Sequence[ObservacionTasa]) -> TasaCalculada:
         n=n,
         prototipos=tuple(sorted(o.prototipo_clave for o in observaciones)),
     )
+
+
+# --- Generación: reconciliar contra lo ya construido (skill §6) ---------
+#
+# Extracción (migración 0061) arma la plantilla desde lo ya hecho.
+# Generación va al revés: compone un presupuesto a partir de un ensamble.
+# La pregunta que resuelve esta sección no es "cuánto cuesta" —eso ya lo
+# responde `explotar_ensamble`— sino "qué hago con lo que ya existe": al
+# regenerar, una partida generada antes puede haberse quedado igual, haber
+# sido editada a mano, o haber dejado de aparecer en la receta del
+# ensamble. El skill lo resume en una regla (§8, regla 11): "nunca
+# arrasar ni respetar en silencio" — y la cobertura (§6, "el residuo mide
+# cobertura") exige que nada salga del presupuesto sin que alguien lo vea.
+#
+# Esta sección solo clasifica; no decide qué hacer con cada clase. Quien
+# aplique la clasificación (el caso de uso) sabe que NUEVO/ACTUALIZADO son
+# seguros de escribir sin preguntar, y que DESVINCULADO/CONFLICTO/SOBRA
+# nunca se escriben solos — se reportan para que el usuario decida.
+
+_CUATRO_DEC = Decimal("0.0001")
+"""Misma precisión que `partida_presupuesto.precio_unitario` (numeric(18,4),
+migración 0006)."""
+
+
+@dataclass(frozen=True, slots=True)
+class ValorPartida:
+    """Lo que importa comparar de una partida: cuánto y a qué precio.
+
+    No es `PrecioUnitario`/`Dinero` (`domain.shared.valores`): esas
+    cuantizan a centavo, pero `partida_presupuesto.precio_unitario` guarda
+    cuatro decimales (migración 0006) — redondear a dos aquí haría parecer
+    "editado a mano" a una partida que el catálogo solo ajustó en el
+    tercer o cuarto decimal.
+    """
+
+    cantidad: Decimal
+    precio_unitario: Decimal
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "cantidad", _cantidad(self.cantidad))
+        object.__setattr__(
+            self,
+            "precio_unitario",
+            Decimal(str(self.precio_unitario)).quantize(
+                _CUATRO_DEC, rounding=ROUND_HALF_UP
+            ),
+        )
+
+
+def receta_por_concepto(
+    lineas: Sequence[LineaEnsamble],
+) -> dict[str, ValorPartida]:
+    """La cantidad **total** que el ensamble pide de cada concepto hoja,
+    sumada a través de todos los caminos por los que aparezca.
+
+    Un concepto puede entrar por más de un camino —directo y también
+    dentro de un sub-ensamble— sin que sea doble contabilidad (skill §2,
+    regla 3 de §8): lo que Generación necesita escribir es el total, no
+    una línea por camino. El precio no se suma —es el mismo `PrecioUnitario`
+    para ese concepto en cualquier camino, ya resuelto por
+    `explotar_ensamble` desde `precios_concepto`— así que se toma una vez.
+    """
+    cantidades: dict[str, Decimal] = {}
+    precios: dict[str, Decimal] = {}
+    for linea in lineas:
+        if linea.tipo_hijo is not TipoHijoEnsamble.CONCEPTO:
+            continue
+        cantidades[linea.referencia] = (
+            cantidades.get(linea.referencia, Decimal(0)) + linea.cantidad
+        )
+        precios.setdefault(linea.referencia, linea.costo_unitario)
+
+    return {
+        clave: ValorPartida(cantidad=cantidad, precio_unitario=precios[clave])
+        for clave, cantidad in cantidades.items()
+    }
+
+
+class EstadoRenglonGenerado(StrEnum):
+    """Qué hacer con un concepto al regenerar (skill §6, §8 regla 11).
+
+    Solo `NUEVO` y `ACTUALIZADO` son seguros de escribir sin preguntar:
+    el primero no pisa nada, el segundo confirma que nadie lo tocó desde
+    la última generación. Los otros tres nunca se escriben solos.
+    """
+
+    NUEVO = "nuevo"
+    """En la receta de hoy; no existía ninguna partida para ese concepto
+    en esta instancia. Se puede crear sin preguntar."""
+
+    ACTUALIZADO = "actualizado"
+    """En la receta y ya existía, con snapshot, y la partida sigue igual
+    a su propio snapshot: nadie la tocó desde que se generó. Se refresca
+    con el valor de hoy sin preguntar."""
+
+    DESVINCULADO = "desvinculado"
+    """En la receta y ya existía, con snapshot, pero la partida ya NO
+    coincide con su snapshot: alguien la editó a mano. Nunca se pisa —se
+    expone con las tres cifras (lo que el usuario puso, lo que tenía al
+    generarse, lo que el ensamble pide hoy) para que decida."""
+
+    CONFLICTO = "conflicto"
+    """En la receta y ya existe una partida para ese concepto en esta
+    instancia, pero sin snapshot: es una partida capturada a mano, nunca
+    generada por este ensamble. No se sabe si es "la misma cosa" — se
+    expone para que el usuario decida si la vincula o la deja aparte."""
+
+    SOBRA = "sobra"
+    """Existía una partida (generada antes, con o sin snapshot) para un
+    concepto que la receta de hoy ya no incluye. Nunca se borra sola: el
+    residuo es justamente lo que mide cobertura (skill §6) y nada sale del
+    presupuesto sin que el usuario lo decida."""
+
+
+@dataclass(frozen=True, slots=True)
+class PartidaExistente:
+    """Lo que ya hay en el presupuesto para un concepto, dentro de la
+    instancia que se está regenerando."""
+
+    actual: ValorPartida
+    snapshot: ValorPartida | None
+    """Lo que esta partida tenía al generarse la última vez. `None`: nunca
+    la generó ningún ensamble (es capturada), aunque el concepto coincida
+    con uno de la receta de hoy — ver `EstadoRenglonGenerado.CONFLICTO`."""
+
+
+@dataclass(frozen=True, slots=True)
+class RenglonGenerado:
+    """Un concepto, clasificado para Generación (ver `EstadoRenglonGenerado`
+    para qué hacer con cada estado)."""
+
+    clave_concepto: str
+    estado: EstadoRenglonGenerado
+    receta: ValorPartida | None
+    """Lo que el ensamble pide hoy. `None` solo en `SOBRA`: la receta de
+    hoy ya no incluye este concepto."""
+    existente: PartidaExistente | None
+    """Lo que ya hay en el presupuesto. `None` solo en `NUEVO`: no existía
+    ninguna partida para este concepto en esta instancia."""
+
+
+def reconciliar_generacion(
+    *,
+    receta: Mapping[str, ValorPartida],
+    existentes: Mapping[str, PartidaExistente],
+) -> tuple[RenglonGenerado, ...]:
+    """Clasifica cada concepto de la receta y cada partida ya existente
+    (skill §6, §8 regla 11) — ver `EstadoRenglonGenerado`.
+
+    No escribe nada ni decide qué hacer con cada clase: eso es del
+    aplicador (§12.11), que sabe cuáles estados aplicar solo y cuáles
+    reportar sin tocar.
+    """
+    resultado: list[RenglonGenerado] = []
+
+    for clave, pedido in receta.items():
+        existente = existentes.get(clave)
+        if existente is None:
+            resultado.append(
+                RenglonGenerado(
+                    clave_concepto=clave,
+                    estado=EstadoRenglonGenerado.NUEVO,
+                    receta=pedido,
+                    existente=None,
+                )
+            )
+        elif existente.snapshot is None:
+            resultado.append(
+                RenglonGenerado(
+                    clave_concepto=clave,
+                    estado=EstadoRenglonGenerado.CONFLICTO,
+                    receta=pedido,
+                    existente=existente,
+                )
+            )
+        elif existente.actual == existente.snapshot:
+            resultado.append(
+                RenglonGenerado(
+                    clave_concepto=clave,
+                    estado=EstadoRenglonGenerado.ACTUALIZADO,
+                    receta=pedido,
+                    existente=existente,
+                )
+            )
+        else:
+            resultado.append(
+                RenglonGenerado(
+                    clave_concepto=clave,
+                    estado=EstadoRenglonGenerado.DESVINCULADO,
+                    receta=pedido,
+                    existente=existente,
+                )
+            )
+
+    for clave, existente in existentes.items():
+        if clave not in receta:
+            resultado.append(
+                RenglonGenerado(
+                    clave_concepto=clave,
+                    estado=EstadoRenglonGenerado.SOBRA,
+                    receta=None,
+                    existente=existente,
+                )
+            )
+
+    return tuple(sorted(resultado, key=lambda r: r.clave_concepto))
