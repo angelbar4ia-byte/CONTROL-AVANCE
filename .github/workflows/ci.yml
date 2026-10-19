@@ -34,7 +34,12 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        # PostGIS, no `postgres:16` a secas: la migración 0057 (cuantificador)
+        # guarda trazos y puntos de plano como `geometry` nativo y hace
+        # `create extension postgis`. Con la imagen simple el job se caía en
+        # esa migración y nunca llegaba a los pasos de abajo. Es la misma
+        # versión mayor (16) y trae las mismas variables y el mismo healthcheck.
+        image: postgis/postgis:16-3.4
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: obractrl
