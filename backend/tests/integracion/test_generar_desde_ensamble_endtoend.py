@@ -82,7 +82,7 @@ async def _sembrar_ensamble(
         conceptos=conceptos,
         uow=UnidadDeTrabajoSQL(sesion),
     )
-    await extraer.ejecutar(
+    creado = await extraer.ejecutar(
         ComandoExtraerEnsamble(
             clave="RECAMARA-A",
             nombre="Recámara tipo A",
@@ -95,7 +95,7 @@ async def _sembrar_ensamble(
             ],
         )
     )
-    return {"concepto": muro}
+    return {"concepto": muro, "ensamble": creado.id}
 
 
 def _caso_uso(sesion: AsyncSession) -> GenerarDesdeEnsamble:
@@ -112,7 +112,7 @@ async def test_primera_generacion_crea_instancia_y_partidas_nuevas(
 ) -> None:
     presupuesto_id = await _crear_presupuesto(escenario)
     async with sesion_con_rls(contexto_control) as sesion:
-        await _sembrar_ensamble(sesion)
+        ids = await _sembrar_ensamble(sesion)
         await sesion.commit()
 
     async with sesion_con_rls(contexto_control) as sesion:
@@ -120,7 +120,7 @@ async def test_primera_generacion_crea_instancia_y_partidas_nuevas(
             ComandoGenerarDesdeEnsamble(
                 presupuesto_id=presupuesto_id,
                 prototipo_id=escenario.prototipo_id,
-                ensamble_clave="RECAMARA-A",
+                ensamble_id=ids["ensamble"],
                 factor=Decimal(2),
                 nombre="Recámara 1",
             )
@@ -157,7 +157,7 @@ async def test_regenerar_sin_tocar_nada_refresca_el_precio_del_catalogo(
     cmd = ComandoGenerarDesdeEnsamble(
         presupuesto_id=presupuesto_id,
         prototipo_id=escenario.prototipo_id,
-        ensamble_clave="RECAMARA-A",
+        ensamble_id=ids["ensamble"],
         factor=Decimal(2),
         nombre="Recámara 1",
     )
@@ -181,7 +181,7 @@ async def test_regenerar_sin_tocar_nada_refresca_el_precio_del_catalogo(
             ComandoGenerarDesdeEnsamble(
                 presupuesto_id=presupuesto_id,
                 prototipo_id=escenario.prototipo_id,
-                ensamble_clave="RECAMARA-A",
+                ensamble_id=ids["ensamble"],
                 factor=Decimal(2),
                 nombre="Recámara 1",
                 prototipo_nodo_id=primera.prototipo_nodo_id,
@@ -206,7 +206,7 @@ async def test_regenerar_no_pisa_una_partida_editada_a_mano(
 ) -> None:
     presupuesto_id = await _crear_presupuesto(escenario)
     async with sesion_con_rls(contexto_control) as sesion:
-        await _sembrar_ensamble(sesion)
+        ids = await _sembrar_ensamble(sesion)
         await sesion.commit()
 
     async with sesion_con_rls(contexto_control) as sesion:
@@ -214,7 +214,7 @@ async def test_regenerar_no_pisa_una_partida_editada_a_mano(
             ComandoGenerarDesdeEnsamble(
                 presupuesto_id=presupuesto_id,
                 prototipo_id=escenario.prototipo_id,
-                ensamble_clave="RECAMARA-A",
+                ensamble_id=ids["ensamble"],
                 factor=Decimal(2),
                 nombre="Recámara 1",
             )
@@ -237,7 +237,7 @@ async def test_regenerar_no_pisa_una_partida_editada_a_mano(
             ComandoGenerarDesdeEnsamble(
                 presupuesto_id=presupuesto_id,
                 prototipo_id=escenario.prototipo_id,
-                ensamble_clave="RECAMARA-A",
+                ensamble_id=ids["ensamble"],
                 factor=Decimal(2),
                 nombre="Recámara 1",
                 prototipo_nodo_id=primera.prototipo_nodo_id,
@@ -266,7 +266,7 @@ async def test_concepto_que_ya_no_esta_en_la_receta_es_sobra_y_no_se_borra(
 ) -> None:
     presupuesto_id = await _crear_presupuesto(escenario)
     async with sesion_con_rls(contexto_control) as sesion:
-        await _sembrar_ensamble(sesion)
+        ids = await _sembrar_ensamble(sesion)
         await sesion.commit()
 
     async with sesion_con_rls(contexto_control) as sesion:
@@ -274,7 +274,7 @@ async def test_concepto_que_ya_no_esta_en_la_receta_es_sobra_y_no_se_borra(
             ComandoGenerarDesdeEnsamble(
                 presupuesto_id=presupuesto_id,
                 prototipo_id=escenario.prototipo_id,
-                ensamble_clave="RECAMARA-A",
+                ensamble_id=ids["ensamble"],
                 factor=Decimal(2),
                 nombre="Recámara 1",
             )
@@ -294,7 +294,7 @@ async def test_concepto_que_ya_no_esta_en_la_receta_es_sobra_y_no_se_borra(
             ComandoGenerarDesdeEnsamble(
                 presupuesto_id=presupuesto_id,
                 prototipo_id=escenario.prototipo_id,
-                ensamble_clave="RECAMARA-A",
+                ensamble_id=ids["ensamble"],
                 factor=Decimal(2),
                 nombre="Recámara 1",
                 prototipo_nodo_id=primera.prototipo_nodo_id,
@@ -327,7 +327,7 @@ async def test_partida_capturada_sin_generar_es_conflicto(
             ComandoGenerarDesdeEnsamble(
                 presupuesto_id=presupuesto_id,
                 prototipo_id=escenario.prototipo_id,
-                ensamble_clave="RECAMARA-A",
+                ensamble_id=ids["ensamble"],
                 factor=Decimal(2),
                 nombre="Recámara 1",
             )
@@ -382,7 +382,7 @@ async def test_partida_capturada_sin_generar_es_conflicto(
             ComandoGenerarDesdeEnsamble(
                 presupuesto_id=presupuesto_id,
                 prototipo_id=escenario.prototipo_id,
-                ensamble_clave="RECAMARA-A",
+                ensamble_id=ids["ensamble"],
                 factor=Decimal(2),
                 nombre="Recámara 1",
                 prototipo_nodo_id=primera.prototipo_nodo_id,
@@ -401,12 +401,12 @@ async def test_regenerar_con_otro_ensamble_se_rechaza(
 ) -> None:
     presupuesto_id = await _crear_presupuesto(escenario)
     async with sesion_con_rls(contexto_control) as sesion:
-        await _sembrar_ensamble(sesion)
+        ids = await _sembrar_ensamble(sesion)
 
         otro = await RepositorioConceptosSQL(sesion).crear(
             {"tipo": "concepto", "clave": "EST-OTRO", "descripcion": "Otro concepto"}
         )
-        await ExtraerEnsamble(
+        creado_b = await ExtraerEnsamble(
             ensambles=RepositorioEnsamblesSQL(sesion),
             conceptos=RepositorioConceptosSQL(sesion),
             uow=UnidadDeTrabajoSQL(sesion),
@@ -431,7 +431,7 @@ async def test_regenerar_con_otro_ensamble_se_rechaza(
             ComandoGenerarDesdeEnsamble(
                 presupuesto_id=presupuesto_id,
                 prototipo_id=escenario.prototipo_id,
-                ensamble_clave="RECAMARA-A",
+                ensamble_id=ids["ensamble"],
                 factor=Decimal(1),
                 nombre="Recámara 1",
             )
@@ -443,7 +443,7 @@ async def test_regenerar_con_otro_ensamble_se_rechaza(
                 ComandoGenerarDesdeEnsamble(
                     presupuesto_id=presupuesto_id,
                     prototipo_id=escenario.prototipo_id,
-                    ensamble_clave="RECAMARA-B",
+                    ensamble_id=creado_b.id,
                     factor=Decimal(1),
                     nombre="Recámara 1",
                     prototipo_nodo_id=primera.prototipo_nodo_id,
@@ -461,7 +461,7 @@ async def test_ensamble_inexistente_se_rechaza(
                 ComandoGenerarDesdeEnsamble(
                     presupuesto_id=presupuesto_id,
                     prototipo_id=escenario.prototipo_id,
-                    ensamble_clave="NO-EXISTE",
+                    ensamble_id=uuid.uuid4(),
                     factor=Decimal(1),
                     nombre="Recámara 1",
                 )
@@ -473,7 +473,7 @@ async def test_instancia_inexistente_se_rechaza(
 ) -> None:
     presupuesto_id = await _crear_presupuesto(escenario)
     async with sesion_con_rls(contexto_control) as sesion:
-        await _sembrar_ensamble(sesion)
+        ids = await _sembrar_ensamble(sesion)
         await sesion.commit()
 
     with pytest.raises(InstanciaNoEncontrada):
@@ -482,7 +482,7 @@ async def test_instancia_inexistente_se_rechaza(
                 ComandoGenerarDesdeEnsamble(
                     presupuesto_id=presupuesto_id,
                     prototipo_id=escenario.prototipo_id,
-                    ensamble_clave="RECAMARA-A",
+                    ensamble_id=ids["ensamble"],
                     factor=Decimal(1),
                     nombre="Recámara 1",
                     prototipo_nodo_id=uuid.uuid4(),

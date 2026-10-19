@@ -10,6 +10,7 @@ escribiendo — las dos comparten la misma resolución de precios a propósito.
 
 from __future__ import annotations
 
+import uuid
 from decimal import Decimal
 
 import pytest
@@ -30,7 +31,7 @@ from obractrl.infrastructure.db.sesion import ContextoSesion, sesion_con_rls
 from tests.integracion.conftest import Escenario
 
 
-async def _sembrar_ensamble(sesion: AsyncSession) -> None:
+async def _sembrar_ensamble(sesion: AsyncSession) -> uuid.UUID:
     """RECAMARA-A: 4×EST-MURO, CPU capturado 100.00/40.00 (sin APU)."""
     conceptos = RepositorioConceptosSQL(sesion)
     muro = await conceptos.crear(
@@ -44,7 +45,7 @@ async def _sembrar_ensamble(sesion: AsyncSession) -> None:
         variante=None,
         retirar=[],
     )
-    await ExtraerEnsamble(
+    creado = await ExtraerEnsamble(
         ensambles=RepositorioEnsamblesSQL(sesion),
         conceptos=conceptos,
         uow=UnidadDeTrabajoSQL(sesion),
@@ -61,20 +62,21 @@ async def _sembrar_ensamble(sesion: AsyncSession) -> None:
             ],
         )
     )
+    return creado.id
 
 
 async def test_explotar_sin_factor_da_el_costo_de_una_instancia(
     escenario: Escenario, contexto_control: ContextoSesion
 ) -> None:
     async with sesion_con_rls(contexto_control) as sesion:
-        await _sembrar_ensamble(sesion)
+        ensamble_id = await _sembrar_ensamble(sesion)
         await sesion.commit()
 
     async with sesion_con_rls(contexto_control) as sesion:
         caso_uso = ExplotarEnsamble(
             ensambles=RepositorioEnsamblesSQL(sesion), conceptos=RepositorioConceptosSQL(sesion)
         )
-        calculada = await caso_uso.ejecutar("RECAMARA-A")
+        calculada = await caso_uso.ejecutar(ensamble_id)
 
     assert calculada.precio.total.monto == Decimal("400.00")  # 4 × 100
     assert calculada.precio.destajo.monto == Decimal("160.00")  # 4 × 40
@@ -84,14 +86,14 @@ async def test_el_factor_escala_el_preview_igual_que_generar(
     escenario: Escenario, contexto_control: ContextoSesion
 ) -> None:
     async with sesion_con_rls(contexto_control) as sesion:
-        await _sembrar_ensamble(sesion)
+        ensamble_id = await _sembrar_ensamble(sesion)
         await sesion.commit()
 
     async with sesion_con_rls(contexto_control) as sesion:
         caso_uso = ExplotarEnsamble(
             ensambles=RepositorioEnsamblesSQL(sesion), conceptos=RepositorioConceptosSQL(sesion)
         )
-        calculada = await caso_uso.ejecutar("RECAMARA-A", factor=Decimal(3))
+        calculada = await caso_uso.ejecutar(ensamble_id, factor=Decimal(3))
 
     assert calculada.precio.total.monto == Decimal("1200.00")  # 3 × 400
     muro = next(linea for linea in calculada.lineas if linea.referencia == "EST-MURO")
@@ -107,4 +109,4 @@ async def test_ensamble_inexistente_se_rechaza(
                 ensambles=RepositorioEnsamblesSQL(sesion),
                 conceptos=RepositorioConceptosSQL(sesion),
             )
-            await caso_uso.ejecutar("NO-EXISTE")
+            await caso_uso.ejecutar(uuid.uuid4())

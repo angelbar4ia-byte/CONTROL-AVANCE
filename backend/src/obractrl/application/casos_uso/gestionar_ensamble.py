@@ -87,11 +87,14 @@ class SubEnsambleNoEncontrado(LookupError):
 
 
 class EnsambleNoEncontrado(LookupError):
-    """El ensamble que se quiere generar no existe (o no es visible)."""
+    """El ensamble que se quiere generar o explotar no existe (o no es
+    visible, §12.4 — RLS hace indistinguibles los dos casos a propósito)."""
 
-    def __init__(self, clave: str) -> None:
-        super().__init__(f"No existe el ensamble {clave!r} o está fuera de tu alcance.")
-        self.clave = clave
+    def __init__(self, ensamble_id: UUID) -> None:
+        super().__init__(
+            f"No existe el ensamble {ensamble_id} o está fuera de tu alcance."
+        )
+        self.ensamble_id = ensamble_id
 
 
 class InstanciaNoEncontrada(LookupError):
@@ -111,14 +114,14 @@ class EnsambleNoCoincideConInstancia(ErrorDeAPU):
     """La instancia ya fue generada por OTRO ensamble: regenerarla con uno
     distinto mezclaría dos recetas en el mismo nodo."""
 
-    def __init__(self, prototipo_nodo_id: UUID, clave: str) -> None:
+    def __init__(self, prototipo_nodo_id: UUID, ensamble_id: UUID) -> None:
         super().__init__(
             f"El nodo {prototipo_nodo_id} fue generado por otro ensamble, no "
-            f"por {clave!r}: no se puede regenerar con una plantilla distinta "
-            "a la que ya tiene."
+            f"por {ensamble_id}: no se puede regenerar con una plantilla "
+            "distinta a la que ya tiene."
         )
         self.prototipo_nodo_id = prototipo_nodo_id
-        self.clave = clave
+        self.ensamble_id = ensamble_id
 
 
 @dataclass(frozen=True, slots=True)
@@ -327,7 +330,7 @@ async def _precio_capturado(
 
 
 class ExplotarEnsamble:
-    """`GET /ensambles/{clave}/explosion` (Control de obra y Super
+    """`GET /ensambles/{ensamble_id}/explosion` (Control de obra y Super
     intendente, §11.2 — mismo alcance que `/conceptos/{id}/explosion`).
 
     Solo lectura: previsualiza costo y composición de un ensamble —con el
@@ -344,13 +347,14 @@ class ExplotarEnsamble:
         self._conceptos = conceptos
 
     async def ejecutar(
-        self, clave: str, *, factor: Decimal = Decimal(1)
+        self, ensamble_id: UUID, *, factor: Decimal = Decimal(1)
     ) -> ExplosionEnsambleCalculada:
-        ensamble = await self._ensambles.obtener_por_clave(clave)
+        ensamble = await self._ensambles.obtener(ensamble_id)
         if ensamble is None:
-            raise EnsambleNoEncontrado(clave)
+            raise EnsambleNoEncontrado(ensamble_id)
+        clave = str(ensamble["clave"])
 
-        filas = await self._ensambles.renglones_recursivos(UUID(str(ensamble["id"])))
+        filas = await self._ensambles.renglones_recursivos(ensamble_id)
         composiciones = _renglones_por_clave(filas)
         precios_concepto = await _precios_concepto(self._conceptos, filas)
 
@@ -397,7 +401,7 @@ def _existentes_por_clave(
 class ComandoGenerarDesdeEnsamble:
     presupuesto_id: UUID
     prototipo_id: UUID
-    ensamble_clave: str
+    ensamble_id: UUID
     factor: Decimal
     nombre: str
     prototipo_nodo_id: UUID | None = None
@@ -444,17 +448,17 @@ class GenerarDesdeEnsamble:
         self._uow = uow
 
     async def ejecutar(self, cmd: ComandoGenerarDesdeEnsamble) -> ReporteGeneracion:
-        ensamble = await self._ensambles.obtener_por_clave(cmd.ensamble_clave)
+        ensamble = await self._ensambles.obtener(cmd.ensamble_id)
         if ensamble is None:
-            raise EnsambleNoEncontrado(cmd.ensamble_clave)
-        ensamble_id = UUID(str(ensamble["id"]))
+            raise EnsambleNoEncontrado(cmd.ensamble_id)
+        ensamble_clave = str(ensamble["clave"])
 
-        filas = await self._ensambles.renglones_recursivos(ensamble_id)
+        filas = await self._ensambles.renglones_recursivos(cmd.ensamble_id)
         composiciones = _renglones_por_clave(filas)
         precios_concepto = await _precios_concepto(self._conceptos, filas)
 
         calculada = explotar_ensamble(
-            cmd.ensamble_clave,
+            ensamble_clave,
             composiciones=composiciones,
             precios_concepto=precios_concepto,
             factor=cmd.factor,
@@ -463,7 +467,7 @@ class GenerarDesdeEnsamble:
         concepto_info = _concepto_info_por_clave(filas)
 
         async with self._uow:
-            instancia_id = await self._resolver_instancia(cmd, ensamble_id)
+            instancia_id = await self._resolver_instancia(cmd)
 
             filas_existentes = await self._generacion.partidas_de_instancia(
                 presupuesto_id=cmd.presupuesto_id, instancia_id=instancia_id
@@ -511,15 +515,13 @@ class GenerarDesdeEnsamble:
             pendientes=tuple(pendientes),
         )
 
-    async def _resolver_instancia(
-        self, cmd: ComandoGenerarDesdeEnsamble, ensamble_id: UUID
-    ) -> UUID:
+    async def _resolver_instancia(self, cmd: ComandoGenerarDesdeEnsamble) -> UUID:
         if cmd.prototipo_nodo_id is None:
             nodo = await self._generacion.crear_instancia(
                 prototipo_id=cmd.prototipo_id,
                 parent_id=cmd.parent_id,
                 nombre=cmd.nombre,
-                ensamble_id=ensamble_id,
+                ensamble_id=cmd.ensamble_id,
                 factor=cmd.factor,
                 orden=cmd.orden,
             )
@@ -528,8 +530,8 @@ class GenerarDesdeEnsamble:
         instancia = await self._generacion.obtener_instancia(cmd.prototipo_nodo_id)
         if instancia is None:
             raise InstanciaNoEncontrada(cmd.prototipo_nodo_id)
-        if UUID(str(instancia["ensamble_id"])) != ensamble_id:
-            raise EnsambleNoCoincideConInstancia(cmd.prototipo_nodo_id, cmd.ensamble_clave)
+        if UUID(str(instancia["ensamble_id"])) != cmd.ensamble_id:
+            raise EnsambleNoCoincideConInstancia(cmd.prototipo_nodo_id, cmd.ensamble_id)
 
         instancia_id = UUID(str(instancia["id"]))
         if Decimal(str(instancia["ensamble_factor"])) != cmd.factor:
