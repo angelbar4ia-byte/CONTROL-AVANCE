@@ -5,10 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useInfiniteQuery,
-  useQuery
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -22,15 +19,12 @@ import type {
   UseInfiniteQueryOptions,
   UseInfiniteQueryResult,
   UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
+  UseQueryResult,
+} from "@tanstack/react-query";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Abre el flujo de avisos de la organización del token (§11.2).
@@ -43,164 +37,298 @@ cada veinte segundos para escribir en un socket muerto.
  * @summary Avisos en vivo (SSE)
  */
 export const eventosEnVivoApiV1EventsGet = (
-    
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<unknown>(
-      {url: `/api/v1/events`, method: 'GET', signal
-    },
-      options);
-    }
-  
-
-
+  return peticion<unknown>(
+    { url: `/api/v1/events`, method: "GET", signal },
+    options,
+  );
+};
 
 export const getEventosEnVivoApiV1EventsGetInfiniteQueryKey = () => {
-    return [
-    'infinite', `/api/v1/events`
-    ] as const;
-    }
+  return ["infinite", `/api/v1/events`] as const;
+};
 
 export const getEventosEnVivoApiV1EventsGetQueryKey = () => {
-    return [
-    `/api/v1/events`
-    ] as const;
-    }
+  return [`/api/v1/events`] as const;
+};
 
-    
-export const getEventosEnVivoApiV1EventsGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>>, TError = unknown>( options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+export const getEventosEnVivoApiV1EventsGetInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ?? getEventosEnVivoApiV1EventsGetInfiniteQueryKey();
 
-  const queryKey =  queryOptions?.queryKey ?? getEventosEnVivoApiV1EventsGetInfiniteQueryKey();
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>
+  > = ({ signal }) => eventosEnVivoApiV1EventsGet(requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>> = ({ signal }) => eventosEnVivoApiV1EventsGet(requestOptions, signal);
+export type EventosEnVivoApiV1EventsGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>
+>;
+export type EventosEnVivoApiV1EventsGetInfiniteQueryError = unknown;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type EventosEnVivoApiV1EventsGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>>
-export type EventosEnVivoApiV1EventsGetInfiniteQueryError = unknown
-
-
-export function useEventosEnVivoApiV1EventsGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>>, TError = unknown>(
-  options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError, TData>> & Pick<
+export function useEventosEnVivoApiV1EventsGetInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
           TError,
           Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useEventosEnVivoApiV1EventsGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useEventosEnVivoApiV1EventsGetInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
           TError,
           Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useEventosEnVivoApiV1EventsGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useEventosEnVivoApiV1EventsGetInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Avisos en vivo (SSE)
  */
 
-export function useEventosEnVivoApiV1EventsGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useEventosEnVivoApiV1EventsGetInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getEventosEnVivoApiV1EventsGetInfiniteQueryOptions(options);
 
-  const queryOptions = getEventosEnVivoApiV1EventsGetInfiniteQueryOptions(options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getEventosEnVivoApiV1EventsGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
+  const queryKey =
+    queryOptions?.queryKey ?? getEventosEnVivoApiV1EventsGetQueryKey();
 
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>
+  > = ({ signal }) => eventosEnVivoApiV1EventsGet(requestOptions, signal);
 
-export const getEventosEnVivoApiV1EventsGetQueryOptions = <TData = Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type EventosEnVivoApiV1EventsGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>
+>;
+export type EventosEnVivoApiV1EventsGetQueryError = unknown;
 
-  const queryKey =  queryOptions?.queryKey ?? getEventosEnVivoApiV1EventsGetQueryKey();
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>> = ({ signal }) => eventosEnVivoApiV1EventsGet(requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type EventosEnVivoApiV1EventsGetQueryResult = NonNullable<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>>
-export type EventosEnVivoApiV1EventsGetQueryError = unknown
-
-
-export function useEventosEnVivoApiV1EventsGet<TData = Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError, TData>> & Pick<
+export function useEventosEnVivoApiV1EventsGet<
+  TData = Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
           TError,
           Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useEventosEnVivoApiV1EventsGet<TData = Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useEventosEnVivoApiV1EventsGet<
+  TData = Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
           TError,
           Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useEventosEnVivoApiV1EventsGet<TData = Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useEventosEnVivoApiV1EventsGet<
+  TData = Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Avisos en vivo (SSE)
  */
 
-export function useEventosEnVivoApiV1EventsGet<TData = Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useEventosEnVivoApiV1EventsGet<
+  TData = Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof eventosEnVivoApiV1EventsGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getEventosEnVivoApiV1EventsGetQueryOptions(options);
 
-  const queryOptions = getEventosEnVivoApiV1EventsGetQueryOptions(options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
-

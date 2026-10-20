@@ -15,9 +15,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
+from obractrl.domain.cargadores.ingenieria_lote import FilaInsumoIngenieria
 from obractrl.domain.programacion.cpm import NodoCPM
 from obractrl.domain.shared.diccionario import TipoSemana
 
@@ -33,12 +34,14 @@ __all__ = [
     "RepositorioConfiguracion",
     "RepositorioContratistas",
     "RepositorioCuadrillas",
+    "RepositorioDesviaciones",
     "RepositorioEstimaciones",
     "RepositorioEvaluaciones",
     "RepositorioExpediente",
     "RepositorioFamilias",
     "RepositorioFrentes",
     "RepositorioIncidencias",
+    "RepositorioIngenieriaLoteInsumos",
     "RepositorioInsumos",
     "RepositorioMateriales",
     "RepositorioNivelesEtapas",
@@ -85,7 +88,12 @@ class VersionVigenteNoEliminable(ValueError):
 class RepositorioActividades(Protocol):
     """Acceso a actividades. Siempre scoped por RLS (`org_id`) — §12.11."""
 
-    async def obtener(self, actividad_id: UUID) -> dict | None: ...
+    async def obtener(self, actividad_id: UUID) -> dict | None:
+        """Incluye `concepto_id` —el cuantificador lo necesita para armar
+        la `Desviacion` candidata (`application.casos_uso.cuantificar`): es
+        un `select` adicional sobre una columna que ya existe en la fila,
+        no un campo nuevo."""
+        ...
 
     async def obtener_para_captura(self, actividad_id: UUID) -> dict | None:
         """Como `obtener`, pero bloqueando la fila hasta el commit.
@@ -336,6 +344,22 @@ class RepositorioPrototipoNodo(Protocol):
         """
         ...
 
+    async def obtener(self, prototipo_nodo_id: UUID) -> dict[str, Any] | None:
+        """Un solo nodo por su `id` (`prototipo_id`, `parent_id`, `clave`,
+        `cantidad`, `modo_cantidad`).
+
+        La usa el cuantificador (`application.casos_uso.cuantificar`,
+        camino "diseño_nuevo"): `ENLACE_CUANTIFICACION.prototipo_nodo_id`
+        llega con el `id` directo del nodo, pero `actualizar_cantidad`
+        identifica el nodo por `(prototipo_id, parent_id, clave)` —la
+        misma identidad natural de `upsert`, migración 0038— así que hace
+        falta resolver esos tres campos primero. Separado de
+        `por_prototipo` porque ese trae el árbol entero y aquí basta un
+        nodo; no duplica la lógica de `actualizar_cantidad`, solo le da
+        con qué llamarlo.
+        """
+        ...
+
     async def arbol(self, prototipo_id: UUID) -> list[dict]:
         """Los mismos nodos que `por_prototipo`, en recorrido en profundidad
         padre-antes-que-hijos (mismo criterio que
@@ -357,6 +381,50 @@ class RepositorioPrototipoNodo(Protocol):
         rompería esas referencias en silencio. `clave=None` (si algún nodo
         no trae una) siempre inserta: sin identidad natural no hay con qué
         hacer match. Devuelve `(id, es_alta)`.
+        """
+        ...
+
+    async def clonar_estructura(
+        self, *, origen_prototipo_id: UUID, destino_prototipo_id: UUID
+    ) -> int:
+        """Copia todo el árbol de origen_prototipo_id hacia
+        destino_prototipo_id: misma forma, mismas claves, mismos
+        concepto_id/nivel_id/etapa_id (no se duplica el catálogo, solo la
+        posición en el árbol), con cantidad igual a la del origen y
+        modo_cantidad='heredada' (cerebro MODELO.md paragrafo 1, HALLAZGO
+        12: "el parametrico nace con las cantidades del presupuesto base -
+        no las mide, las hereda").
+
+        La usa AplicadorIngenieriaLote en el camino "diseno_nuevo"
+        (extension propia, carga ingenieria_lote): clona la estructura de
+        un prototipo base antes de reclasificar, nodo por nodo, lo que la
+        reversion por destajo resuelve a modo_cantidad='cargada'. Devuelve
+        cuantos nodos se clonaron.
+        """
+        ...
+
+    async def actualizar_cantidad(
+        self,
+        destino_prototipo_id: UUID,
+        *,
+        parent_id: UUID | None,
+        clave: str,
+        cantidad: Decimal,
+        modo_cantidad: str,
+    ) -> dict[str, Any] | None:
+        """Reclasifica un nodo ya existente del arbol -identificado por
+        (prototipo_id, parent_id, clave), la misma identidad natural que
+        upsert (migracion 0038)- con una cantidad reconstruida y su
+        modo_cantidad.
+
+        La usa AplicadorIngenieriaLote en el camino "diseno_nuevo": donde
+        la reversion por destajo resuelve un concepto (reparto is not
+        None), la cantidad reconstruida se convierte en el presupuesto del
+        prototipo nuevo (modo_cantidad='cargada') - no se audita contra si
+        mismo, asi que no genera Desviacion (ver docstring de
+        AplicadorIngenieriaLote). Devuelve el nodo actualizado, con su
+        antes disponible para el snapshot del lote (parrafo 10.8), o None
+        si esa posicion no existe en el arbol clonado.
         """
         ...
 
@@ -1250,6 +1318,164 @@ class RepositorioConceptos(Protocol):
 
 
 @runtime_checkable
+class RepositorioEnsambles(Protocol):
+    """Catálogo de ensambles paramétricos (skill `erp-parametrico`, §12.11).
+
+    Un renglón habla de concepto o sub-ensamble por **id** aquí —a
+    diferencia de `domain.catalogos.ensamble`, que explota por clave
+    (§3.3)—; la traducción id↔clave vive en el caso de uso, igual que
+    `calcular_cpu.componentes_por_clave` la hace para APU. Este puerto
+    solo guarda y lee filas.
+    """
+
+    async def crear(self, datos: dict) -> UUID: ...
+
+    async def obtener(self, ensamble_id: UUID) -> dict | None: ...
+
+    async def obtener_por_clave(self, clave: str) -> dict | None: ...
+
+    async def listar(self, *, solo_activos: bool = True) -> list[dict]: ...
+
+    async def renglones(self, ensamble_id: UUID) -> list[dict]:
+        """Los renglones **directos** (no recursivo) de este ensamble, con
+        la clave ya resuelta del concepto o del sub-ensamble al que
+        apuntan."""
+        ...
+
+    async def renglones_recursivos(self, ensamble_id: UUID) -> list[dict]:
+        """Todo renglón alcanzable desde este ensamble, bajando por cada
+        sub-ensamble — lo que `domain.catalogos.ensamble.explotar_ensamble`
+        necesita en ``composiciones``, agrupado por ``ensamble_clave``.
+
+        Misma forma que `RepositorioConceptos.composicion_recursiva` para
+        APU: corta el camino que cierra un ciclo (el dominio lo reporta
+        como `CicloEnExplosion`, nunca el SQL) y trae la arista que cierra
+        el ciclo en el resultado.
+
+        Cada fila con hijo concepto trae también ``concepto_id`` —no solo
+        la clave—: Generación necesita los ids para pedir el CPU vigente en
+        lote (`RepositorioConceptos.composicion_recursiva_de`), sin volver a
+        resolver clave→id uno por uno. También trae ``concepto_descripcion``:
+        es el ``nombre`` que Generación le da al nodo hoja que crea, mismo
+        criterio que ya usa cada cargador de presupuesto (`nombre =
+        concepto.descripcion`).
+        """
+        ...
+
+    async def agregar_renglones(self, ensamble_id: UUID, renglones: list[dict]) -> None: ...
+
+    async def cohorte(self, ensamble_id: UUID) -> list[dict]:
+        """Los prototipos de la cohorte de este ensamble (id y clave)."""
+        ...
+
+    async def agregar_cohorte(self, ensamble_id: UUID, prototipo_ids: Sequence[UUID]) -> None: ...
+
+    async def publicar_tasa(
+        self, ensamble_id: UUID, *, tasa: Decimal, dispersion: Decimal
+    ) -> None:
+        """Fija `tasa`/`dispersion`/`tasa_calculada_en` (§5.7: las dos
+        cifras siempre juntas, nunca una sin la otra)."""
+        ...
+
+
+@runtime_checkable
+class RepositorioGeneracionDePresupuesto(Protocol):
+    """Lo que Generación escribe sobre `prototipo_nodo`/`partida_presupuesto`
+    (migración 0062, skill §6, dirección ensamble → presupuesto).
+
+    Ningún otro camino del sistema crea un nodo con `ensamble_id`/
+    `ensamble_factor`, ni una partida con su snapshot
+    (`cantidad_generada`/`precio_unitario_generado`) — por eso este puerto
+    es propio y no una extensión de `RepositorioPrototipoNodo`/
+    `RepositorioPresupuestos`: mezclar esto en `upsert` (que ya usan el
+    cargador de presupuesto y la carga de ingeniería del lote) arriesgaría
+    esos dos caminos por una tercera forma de escribir el mismo árbol.
+    """
+
+    async def crear_instancia(
+        self,
+        *,
+        prototipo_id: UUID,
+        parent_id: UUID | None,
+        nombre: str,
+        ensamble_id: UUID,
+        factor: Decimal,
+        orden: int = 0,
+    ) -> dict:
+        """Crea el nodo `nivel` que representa una instancia nueva del
+        ensamble (§6: "2 recámaras tipo A"). Devuelve la fila completa."""
+        ...
+
+    async def obtener_instancia(self, prototipo_nodo_id: UUID) -> dict | None:
+        """El nodo, solo si tiene `ensamble_id` —si no, no es una instancia
+        de Generación y regenerarlo no tiene sentido."""
+        ...
+
+    async def actualizar_factor(self, prototipo_nodo_id: UUID, factor: Decimal) -> None:
+        """Cambia cuántas veces entra el ensamble en esta instancia ya
+        existente (el usuario agrandó el lote, no el tamaño del cuarto)."""
+        ...
+
+    async def instancias_de_ensamble(self, ensamble_id: UUID) -> list[dict]:
+        """Las instancias generadas por este ensamble (nodos con su
+        `ensamble_id`), con la clave del prototipo al que pertenecen.
+
+        Es lo que deja **regenerar** desde la pantalla: sin esta lista nadie
+        sabría qué nodo pasarle a `GenerarDesdeEnsamble` como
+        `prototipo_nodo_id`."""
+        ...
+
+    async def partidas_de_instancia(
+        self, *, presupuesto_id: UUID, instancia_id: UUID
+    ) -> list[dict]:
+        """Todo concepto hoja bajo `instancia_id` (cualquier profundidad,
+        por si hay sub-ensambles) con su partida en `presupuesto_id`, si ya
+        existe —`partida_id` viene `None` si todavía no hay ninguna—.
+
+        Base de `existentes` para `domain.catalogos.ensamble.
+        reconciliar_generacion`: trae `concepto_clave`, `cantidad`,
+        `precio_unitario`, `cantidad_generada`, `precio_unitario_generado`.
+        """
+        ...
+
+    async def crear_partida_generada(
+        self,
+        *,
+        presupuesto_id: UUID,
+        prototipo_id: UUID,
+        instancia_id: UUID,
+        concepto_id: UUID,
+        nombre: str,
+        cantidad: Decimal,
+        precio_unitario: Decimal,
+        importe: Decimal,
+        orden: int = 0,
+    ) -> dict:
+        """Crea el nodo hoja (`tipo='concepto'`) bajo `instancia_id` y su
+        partida en `presupuesto_id`, con `cantidad_generada`/
+        `precio_unitario_generado` iguales al valor que se escribe —el
+        snapshot nace igual al valor actual, por definición (§6,
+        `EstadoRenglonGenerado.NUEVO`). `importe` lo calcula quien llama
+        (cantidad × precio_unitario), mismo contrato que
+        `RepositorioPresupuestos.agregar_partidas`."""
+        ...
+
+    async def actualizar_partida_generada(
+        self,
+        partida_id: UUID,
+        *,
+        cantidad: Decimal,
+        precio_unitario: Decimal,
+        importe: Decimal,
+    ) -> None:
+        """Refresca una partida que nadie tocó desde la última generación
+        (`EstadoRenglonGenerado.ACTUALIZADO`): `cantidad`/`precio_unitario`/
+        `importe` Y su snapshot avanzan juntos al valor de hoy — ese valor
+        es ahora "lo que tenía al generarse" para la próxima regeneración."""
+        ...
+
+
+@runtime_checkable
 class RepositorioExpediente(Protocol):
     """Acervo documental de la obra (`expediente_doc`, §7.9).
 
@@ -1481,4 +1707,100 @@ class RepositorioTorre(Protocol):
         solo_con_pendientes: bool = False,
     ) -> list[dict]:
         """Una fila por obra visible con sus contadores. RLS acota el alcance."""
+        ...
+
+
+@runtime_checkable
+class RepositorioDesviaciones(Protocol):
+    """Acceso a `desviacion` (migración 0054). Scoped por RLS — §12.4, mismo
+    predicado que `control_cambio` (quien ve la obra ve sus desviaciones).
+
+    Spec: cerebro MODELO.md §5g · CONOCIMIENTO.md §13.6. Nada en este
+    encargo conecta este puerto a un caso de uso real todavía (§12.11): es
+    el prerrequisito —dominio puro + persistencia— para un cargador
+    posterior que compara ingeniería del lote contra prototipo, y para el
+    caso ya parcial de presupuesto-vs-ejecutado.
+    """
+
+    async def crear(self, datos: dict) -> UUID:
+        """Alta de una desviación, siempre con `causa = null` (regla de
+        captura 1, MODELO.md §5g: la detección no depende de que nadie
+        declare). `capturar_causa` es la única vía para llenar la causa, y
+        es una escritura aparte — nunca se combinan en un solo método."""
+        ...
+
+    async def capturar_causa(
+        self, desviacion_id: UUID, *, causa: str, usuario_id: UUID
+    ) -> None:
+        """Llena `causa`/`causa_capturada_por`/`causa_capturada_en` sobre una
+        desviación ya detectada (regla de captura 4: puede llegar después de
+        `detectada_en`, sin penalización — el `usuario_id` y el momento de
+        esta llamada son independientes de cuándo se creó la fila)."""
+        ...
+
+    async def patrones_por_insumo_o_concepto(
+        self, *, obra_id: UUID | None = None
+    ) -> list[dict]:
+        """`GROUP BY insumo_id, concepto_id` (MODELO.md §5g: "los patrones
+        no piden tabla — son la misma consulta de siempre... `GROUP BY
+        nodo_id` / `GROUP BY presupuesto_id` sobre `DESVIACION`").
+
+        Cada fila trae cuántas veces se desvió ese nodo (`n`), el monto
+        acumulado, y en cuántas obras distintas aparece (`obras_distintas`):
+        repetido en todas las obras apunta al catálogo, repetido en una
+        sola es condición local (CONOCIMIENTO.md §13.6). Con `obra_id`, la
+        agrupación se acota a esa obra — RLS sigue acotando a lo visible en
+        cualquier caso."""
+        ...
+
+    async def patrones_por_obra(
+        self, *, obra_ids: Sequence[UUID] | None = None
+    ) -> list[dict]:
+        """`GROUP BY obra_id`: cuánto se desvía cada obra, para comparar una
+        obra contra otras (MODELO.md §5g, mismo criterio de patrón agregado
+        que `patrones_por_insumo_o_concepto`, leído por obra en vez de por
+        nodo)."""
+        ...
+
+
+@runtime_checkable
+class RepositorioIngenieriaLoteInsumos(Protocol):
+    """Filas crudas de `FilaInsumoIngenieria` de cada carga de ingeniería
+    del lote, atomizadas por archivo (migración `ingenieria_lote_insumo`,
+    extensión propia, CONOCIMIENTO.md §11.11/P-36: "no se consolida al
+    cargar — cada lector agrupa a su modo").
+
+    "Lo cargado no se toca" (§12.1): este puerto nunca reemplaza ni suma
+    una fila existente, solo agrega filas nuevas por `carga_id` y lee el
+    acumulado consolidando AL LEER (``SUM(cantidad) GROUP BY (etapa,
+    clave)`` lo hace quien consume `acumulado_por_obra`, nunca esta tabla).
+    Scoped por RLS, mismo predicado que `desviacion`/`plano` — quien no ve
+    la obra no ve sus insumos de ingeniería.
+    """
+
+    async def guardar(
+        self,
+        *,
+        obra_id: UUID,
+        carga_id: UUID,
+        filas: Sequence[FilaInsumoIngenieria],
+    ) -> None:
+        """Persiste las filas de ESTE archivo, tal cual llegaron (ya con la
+        etapa resuelta — sustituida por `etapa_externa` si el archivo era
+        `suelta`). Nunca se llama en `dry_run` (§9.3: nada se escribe)."""
+        ...
+
+    async def acumulado_por_obra(self, obra_id: UUID) -> tuple[FilaInsumoIngenieria, ...]:
+        """Todas las filas de cargas de `ingenieria_lote` **ya aplicadas y
+        no revertidas** de esta obra —de cualquier archivo anterior—, en el
+        mismo tipo que el dominio puro espera para volver a correr
+        `identificar_prototipo`/`revertir_destajos` contra el conjunto
+        completo (CONOCIMIENTO.md §11.11).
+
+        Nunca incluye las filas de la carga que se está aplicando en este
+        mismo momento: esa carga sigue en estatus `pendiente` hasta que
+        `EjecutarCarga.ejecutar` la cierra, después de que el aplicador ya
+        terminó de leer este acumulado — quien llama combina esto con
+        `lote.insumos` del archivo actual en memoria, nunca re-consulta.
+        """
         ...

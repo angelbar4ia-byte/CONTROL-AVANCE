@@ -6,16 +6,16 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type EstatusActividad = typeof EstatusActividad[keyof typeof EstatusActividad];
-
+export type EstatusActividad =
+  (typeof EstatusActividad)[keyof typeof EstatusActividad];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const EstatusActividad = {
-  programada: 'programada',
-  en_proceso: 'en_proceso',
-  casi: 'casi',
-  pendiente_cierre: 'pendiente_cierre',
-  concluida: 'concluida',
-  retrasada: 'retrasada',
-  extra_catalogo: 'extra_catalogo',
+  programada: "programada",
+  en_proceso: "en_proceso",
+  casi: "casi",
+  pendiente_cierre: "pendiente_cierre",
+  concluida: "concluida",
+  retrasada: "retrasada",
+  extra_catalogo: "extra_catalogo",
 } as const;

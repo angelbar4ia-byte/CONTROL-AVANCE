@@ -549,6 +549,16 @@ def test_sin_razon_social_es_error_de_fila() -> None:
         )
 
 
+def test_contratista_sin_clave_no_se_rechaza() -> None:
+    # ObraCtrl ya trae claves automáticas (familias/niveles/etapas/unidades,
+    # §8.7); un contratista sin clave en el archivo no es la excepción.
+    fila = validar_contratista(
+        ["", "Varios Chiquitos", "", "", "", "", ""], _MAPA_CONTRATISTAS, 8
+    )
+    assert fila.clave is None
+    assert fila.llave == "__sin_clave__8"
+
+
 # --- Clave automática (§8.7: catálogo base sin indicador de clave) -------
 
 

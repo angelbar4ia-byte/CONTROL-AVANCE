@@ -12,6 +12,7 @@
 
 import type { LucideIcon } from 'lucide-react';
 import {
+  Blocks,
   Building2,
   ClipboardCheck,
   ClipboardList,
@@ -182,6 +183,7 @@ const CONTROL_OBRA: readonly SeccionNav[] = [
       { a: '/config/creador-obra', etiqueta: 'Creador de obra', icono: Building2 },
       { a: '/config/prototipos', etiqueta: 'Prototipos', icono: Layers },
       { a: '/config/catalogos', etiqueta: 'Catálogos', icono: FolderTree },
+      { a: '/config/ensambles', etiqueta: 'Ensambles', icono: Blocks },
       { a: '/config/cargas', etiqueta: 'Cargas de datos', icono: Upload },
       { a: '/config/pendientes', etiqueta: 'Pendientes por autorizar', icono: ClipboardCheck },
       {

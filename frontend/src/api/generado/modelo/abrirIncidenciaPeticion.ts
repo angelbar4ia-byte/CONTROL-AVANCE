@@ -5,13 +5,13 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { TipoIncidencia } from './tipoIncidencia';
-import type { ImpactoIncidencia } from './impactoIncidencia';
-import type { AbrirIncidenciaPeticionDescripcion } from './abrirIncidenciaPeticionDescripcion';
-import type { AbrirIncidenciaPeticionFrenteId } from './abrirIncidenciaPeticionFrenteId';
-import type { AbrirIncidenciaPeticionNivelId } from './abrirIncidenciaPeticionNivelId';
-import type { AbrirIncidenciaPeticionEtapaId } from './abrirIncidenciaPeticionEtapaId';
-import type { AbrirIncidenciaPeticionFechaLimite } from './abrirIncidenciaPeticionFechaLimite';
+import type { TipoIncidencia } from "./tipoIncidencia";
+import type { ImpactoIncidencia } from "./impactoIncidencia";
+import type { AbrirIncidenciaPeticionDescripcion } from "./abrirIncidenciaPeticionDescripcion";
+import type { AbrirIncidenciaPeticionFrenteId } from "./abrirIncidenciaPeticionFrenteId";
+import type { AbrirIncidenciaPeticionNivelId } from "./abrirIncidenciaPeticionNivelId";
+import type { AbrirIncidenciaPeticionEtapaId } from "./abrirIncidenciaPeticionEtapaId";
+import type { AbrirIncidenciaPeticionFechaLimite } from "./abrirIncidenciaPeticionFechaLimite";
 
 /**
  * Alta de incidencia (§11.3 F.1). Cualquier rol la abre.

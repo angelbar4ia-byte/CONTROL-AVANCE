@@ -6,14 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type TipoInsumo = typeof TipoInsumo[keyof typeof TipoInsumo];
-
+export type TipoInsumo = (typeof TipoInsumo)[keyof typeof TipoInsumo];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const TipoInsumo = {
-  material: 'material',
-  mano_obra: 'mano_obra',
-  equipo: 'equipo',
-  herramienta: 'herramienta',
-  subcontrato: 'subcontrato',
+  material: "material",
+  mano_obra: "mano_obra",
+  equipo: "equipo",
+  herramienta: "herramienta",
+  subcontrato: "subcontrato",
 } as const;

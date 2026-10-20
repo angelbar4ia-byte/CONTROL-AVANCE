@@ -51,6 +51,10 @@ from obractrl.application.casos_uso.consultar_insumos_programados import (
     CalendarioSinGenerar,
     PrototipoSinPrograma,
 )
+from obractrl.application.casos_uso.cuantificar import (
+    EnlaceNoEncontrado,
+    GobiernoDeCuantificacionInvalido,
+)
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     ObraNoEncontrada,
     ObraYaEjecutada,
@@ -64,6 +68,13 @@ from obractrl.application.casos_uso.gestionar_carga import (
 from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEncontrada
 from obractrl.application.casos_uso.gestionar_cierre_de_obra import (
     CierreDeObraNoEncontrado,
+)
+from obractrl.application.casos_uso.gestionar_ensamble import (
+    ClaveDeEnsambleEnUso,
+    EnsambleNoCoincideConInstancia,
+    EnsambleNoEncontrado,
+    InstanciaNoEncontrada,
+    SubEnsambleNoEncontrado,
 )
 from obractrl.application.casos_uso.gestionar_estimacion import EstimacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_evaluacion import EvaluacionNoEncontrada
@@ -92,6 +103,7 @@ from obractrl.domain.catalogos.apu import CicloEnExplosion, ErrorDeAPU
 from obractrl.domain.catalogos.reglas import ErrorDeCatalogo
 from obractrl.domain.cierres.obra import ErrorDeCierreDeObra
 from obractrl.domain.cierres.reglas import ErrorDeCierre
+from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
 from obractrl.domain.evaluaciones.reglas import ErrorDeEvaluacion
 from obractrl.domain.expediente.reglas import ErrorDeExpediente
@@ -1016,6 +1028,73 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             detalle=str(exc),
         )
 
+    # Los tres "no encontrado" del ensamble comparten el criterio de
+    # `ConceptoNoEncontrado`: RLS hace indistinguible "no existe" de "no lo
+    # puedes ver" a propósito (§12.4).
+    @app.exception_handler(EnsambleNoEncontrado)
+    async def _ensamble_no_encontrado(
+        request: Request, exc: EnsambleNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="ensamble-no-encontrado",
+            titulo="Ensamble no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(SubEnsambleNoEncontrado)
+    async def _sub_ensamble_no_encontrado(
+        request: Request, exc: SubEnsambleNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="ensamble-no-encontrado",
+            titulo="Sub-ensamble no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(InstanciaNoEncontrada)
+    async def _instancia_no_encontrada(
+        request: Request, exc: InstanciaNoEncontrada
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="instancia-no-encontrada",
+            titulo="Instancia de ensamble no encontrada",
+            detalle=str(exc),
+        )
+
+    # Subclases de `ErrorDeAPU` que ganan sobre su 422 genérico: no son datos
+    # inválidos sino un choque con el estado actual (ya existe esa clave; la
+    # instancia ya pertenece a otra plantilla) — 409, igual que
+    # `VersionVigenteNoEliminable`.
+    @app.exception_handler(ClaveDeEnsambleEnUso)
+    async def _clave_de_ensamble_en_uso(
+        request: Request, exc: ClaveDeEnsambleEnUso
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="clave-de-ensamble-en-uso",
+            titulo="Ya existe un ensamble con esa clave",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(EnsambleNoCoincideConInstancia)
+    async def _ensamble_no_coincide(
+        request: Request, exc: EnsambleNoCoincideConInstancia
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="ensamble-no-coincide-con-instancia",
+            titulo="La instancia pertenece a otro ensamble",
+            detalle=str(exc),
+        )
+
     @app.exception_handler(ErrorDeEvaluacion)
     async def _evaluacion(request: Request, exc: ErrorDeEvaluacion) -> JSONResponse:
         return _problema(
@@ -1186,6 +1265,50 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=422,
             tipo="regla-de-expediente",
             titulo="Documento de expediente inválido",
+            detalle=str(exc),
+        )
+
+    # --- Cuantificador (cerebro MODELO.md §1b, migración 0057) ----------
+
+    @app.exception_handler(ErrorDeCuantificacion)
+    async def _cuantificacion(
+        request: Request, exc: ErrorDeCuantificacion
+    ) -> JSONResponse:
+        # 422: invariante del dato (factor no positivo, nodo ambiguo,
+        # texto vacío de una nota), no una transición de flujo.
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-cuantificacion",
+            titulo="Dato de cuantificación inválido",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(GobiernoDeCuantificacionInvalido)
+    async def _gobierno_de_cuantificacion(
+        request: Request, exc: GobiernoDeCuantificacionInvalido
+    ) -> JSONResponse:
+        # 403: el rol existe y está autenticado, solo no puede ESTA acción
+        # (enlazar contra un prototipo_nodo) — mismo criterio que
+        # `exigir_rol`, pero decidido en el dominio porque depende del
+        # dato (a qué nodo apunta el enlace), no solo del rol.
+        return _problema(
+            request,
+            status=403,
+            tipo="gobierno-de-cuantificacion",
+            titulo="Rol sin permiso para este enlace",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(EnlaceNoEncontrado)
+    async def _enlace_no_encontrado(
+        request: Request, exc: EnlaceNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="enlace-no-encontrado",
+            titulo="Enlace de cuantificación no encontrado",
             detalle=str(exc),
         )
 

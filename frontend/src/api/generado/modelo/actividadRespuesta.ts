@@ -5,30 +5,30 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ActividadRespuestaConceptoId } from './actividadRespuestaConceptoId';
-import type { ActividadRespuestaFrenteId } from './actividadRespuestaFrenteId';
-import type { ActividadRespuestaDescripcion } from './actividadRespuestaDescripcion';
-import type { ActividadRespuestaFrenteNombre } from './actividadRespuestaFrenteNombre';
-import type { ActividadRespuestaConceptoClave } from './actividadRespuestaConceptoClave';
-import type { ActividadRespuestaUnidad } from './actividadRespuestaUnidad';
-import type { ActividadRespuestaNivelId } from './actividadRespuestaNivelId';
-import type { ActividadRespuestaNivelClave } from './actividadRespuestaNivelClave';
-import type { ActividadRespuestaNivelDescripcion } from './actividadRespuestaNivelDescripcion';
-import type { ActividadRespuestaEtapaId } from './actividadRespuestaEtapaId';
-import type { ActividadRespuestaEtapaClave } from './actividadRespuestaEtapaClave';
-import type { ActividadRespuestaEtapaDescripcion } from './actividadRespuestaEtapaDescripcion';
-import type { ActividadRespuestaContratacionClave } from './actividadRespuestaContratacionClave';
-import type { ActividadRespuestaEspecialidadClave } from './actividadRespuestaEspecialidadClave';
-import type { ActividadRespuestaOrdenCambio } from './actividadRespuestaOrdenCambio';
-import type { ActividadRespuestaContratistaId } from './actividadRespuestaContratistaId';
-import type { ActividadRespuestaContratistaNombre } from './actividadRespuestaContratistaNombre';
-import type { ActividadRespuestaCuadrillaId } from './actividadRespuestaCuadrillaId';
-import type { ActividadRespuestaCuadrillaNombre } from './actividadRespuestaCuadrillaNombre';
-import type { ActividadRespuestaCantAutorizada } from './actividadRespuestaCantAutorizada';
-import type { ActividadRespuestaHolgura } from './actividadRespuestaHolgura';
-import type { ActividadRespuestaDesfase } from './actividadRespuestaDesfase';
-import type { ActividadRespuestaFechaInicio } from './actividadRespuestaFechaInicio';
-import type { ActividadRespuestaFechaTermino } from './actividadRespuestaFechaTermino';
+import type { ActividadRespuestaConceptoId } from "./actividadRespuestaConceptoId";
+import type { ActividadRespuestaFrenteId } from "./actividadRespuestaFrenteId";
+import type { ActividadRespuestaDescripcion } from "./actividadRespuestaDescripcion";
+import type { ActividadRespuestaFrenteNombre } from "./actividadRespuestaFrenteNombre";
+import type { ActividadRespuestaConceptoClave } from "./actividadRespuestaConceptoClave";
+import type { ActividadRespuestaUnidad } from "./actividadRespuestaUnidad";
+import type { ActividadRespuestaNivelId } from "./actividadRespuestaNivelId";
+import type { ActividadRespuestaNivelClave } from "./actividadRespuestaNivelClave";
+import type { ActividadRespuestaNivelDescripcion } from "./actividadRespuestaNivelDescripcion";
+import type { ActividadRespuestaEtapaId } from "./actividadRespuestaEtapaId";
+import type { ActividadRespuestaEtapaClave } from "./actividadRespuestaEtapaClave";
+import type { ActividadRespuestaEtapaDescripcion } from "./actividadRespuestaEtapaDescripcion";
+import type { ActividadRespuestaContratacionClave } from "./actividadRespuestaContratacionClave";
+import type { ActividadRespuestaEspecialidadClave } from "./actividadRespuestaEspecialidadClave";
+import type { ActividadRespuestaOrdenCambio } from "./actividadRespuestaOrdenCambio";
+import type { ActividadRespuestaContratistaId } from "./actividadRespuestaContratistaId";
+import type { ActividadRespuestaContratistaNombre } from "./actividadRespuestaContratistaNombre";
+import type { ActividadRespuestaCuadrillaId } from "./actividadRespuestaCuadrillaId";
+import type { ActividadRespuestaCuadrillaNombre } from "./actividadRespuestaCuadrillaNombre";
+import type { ActividadRespuestaCantAutorizada } from "./actividadRespuestaCantAutorizada";
+import type { ActividadRespuestaHolgura } from "./actividadRespuestaHolgura";
+import type { ActividadRespuestaDesfase } from "./actividadRespuestaDesfase";
+import type { ActividadRespuestaFechaInicio } from "./actividadRespuestaFechaInicio";
+import type { ActividadRespuestaFechaTermino } from "./actividadRespuestaFechaTermino";
 
 /**
  * Una actividad de la obra (§11.2 `GET /obras/{id}/actividades`).

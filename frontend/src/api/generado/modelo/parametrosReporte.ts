@@ -5,18 +5,18 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ParametrosReporteObraId } from './parametrosReporteObraId';
-import type { ParametrosReporteEstimacionId } from './parametrosReporteEstimacionId';
-import type { ParametrosReporteProyectoId } from './parametrosReporteProyectoId';
-import type { ParametrosReporteClusterId } from './parametrosReporteClusterId';
-import type { ParametrosReporteDesde } from './parametrosReporteDesde';
-import type { ParametrosReporteHasta } from './parametrosReporteHasta';
-import type { ParametrosReporteGranularidad } from './parametrosReporteGranularidad';
-import type { ParametrosReporteResidenteId } from './parametrosReporteResidenteId';
-import type { ParametrosReporteSupervisorId } from './parametrosReporteSupervisorId';
-import type { ParametrosReportePrototipoId } from './parametrosReportePrototipoId';
-import type { ParametrosReporteNCasas } from './parametrosReporteNCasas';
-import type { ParametrosReporteDiasAnticipacion } from './parametrosReporteDiasAnticipacion';
+import type { ParametrosReporteObraId } from "./parametrosReporteObraId";
+import type { ParametrosReporteEstimacionId } from "./parametrosReporteEstimacionId";
+import type { ParametrosReporteProyectoId } from "./parametrosReporteProyectoId";
+import type { ParametrosReporteClusterId } from "./parametrosReporteClusterId";
+import type { ParametrosReporteDesde } from "./parametrosReporteDesde";
+import type { ParametrosReporteHasta } from "./parametrosReporteHasta";
+import type { ParametrosReporteGranularidad } from "./parametrosReporteGranularidad";
+import type { ParametrosReporteResidenteId } from "./parametrosReporteResidenteId";
+import type { ParametrosReporteSupervisorId } from "./parametrosReporteSupervisorId";
+import type { ParametrosReportePrototipoId } from "./parametrosReportePrototipoId";
+import type { ParametrosReporteNCasas } from "./parametrosReporteNCasas";
+import type { ParametrosReporteDiasAnticipacion } from "./parametrosReporteDiasAnticipacion";
 
 /**
  * Lo que puede necesitar un reporte del catálogo.

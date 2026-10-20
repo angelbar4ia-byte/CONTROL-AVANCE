@@ -5,12 +5,12 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { PendienteBandejaRespuestaCargaId } from './pendienteBandejaRespuestaCargaId';
-import type { PendienteBandejaRespuestaEntidad } from './pendienteBandejaRespuestaEntidad';
-import type { PendienteBandejaRespuestaValorOrigen } from './pendienteBandejaRespuestaValorOrigen';
-import type { PendienteBandejaRespuestaPropuesta } from './pendienteBandejaRespuestaPropuesta';
-import type { PendienteBandejaRespuestaResolucion } from './pendienteBandejaRespuestaResolucion';
-import type { PendienteBandejaRespuestaOrigenRef } from './pendienteBandejaRespuestaOrigenRef';
+import type { PendienteBandejaRespuestaCargaId } from "./pendienteBandejaRespuestaCargaId";
+import type { PendienteBandejaRespuestaEntidad } from "./pendienteBandejaRespuestaEntidad";
+import type { PendienteBandejaRespuestaValorOrigen } from "./pendienteBandejaRespuestaValorOrigen";
+import type { PendienteBandejaRespuestaPropuesta } from "./pendienteBandejaRespuestaPropuesta";
+import type { PendienteBandejaRespuestaResolucion } from "./pendienteBandejaRespuestaResolucion";
+import type { PendienteBandejaRespuestaOrigenRef } from "./pendienteBandejaRespuestaOrigenRef";
 
 /**
  * Renglón de la bandeja: el sistema propone, el humano confirma (§10.3).

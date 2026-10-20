@@ -6,13 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type TipoControlCambio = typeof TipoControlCambio[keyof typeof TipoControlCambio];
-
+export type TipoControlCambio =
+  (typeof TipoControlCambio)[keyof typeof TipoControlCambio];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const TipoControlCambio = {
-  extra_catalogo: 'extra_catalogo',
-  fuera_catalogo: 'fuera_catalogo',
-  sustitucion: 'sustitucion',
-  alta_catalogo: 'alta_catalogo',
+  extra_catalogo: "extra_catalogo",
+  fuera_catalogo: "fuera_catalogo",
+  sustitucion: "sustitucion",
+  alta_catalogo: "alta_catalogo",
 } as const;

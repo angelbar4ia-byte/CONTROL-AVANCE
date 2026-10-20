@@ -5,10 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useInfiniteQuery,
-  useQuery
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -22,21 +19,18 @@ import type {
   UseInfiniteQueryOptions,
   UseInfiniteQueryResult,
   UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
+  UseQueryResult,
+} from "@tanstack/react-query";
 
 import type {
   HTTPValidationError,
   InsumosProgramadosApiV1InsumosProgramadosGetParams,
-  InsumosProgramadosRespuesta
-} from '.././modelo';
+  InsumosProgramadosRespuesta,
+} from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Insumos que el programa pide, por periodo (§7.3, §7.5).
@@ -46,165 +40,401 @@ y los importes solo viajan a Control de obra y Super intendente.
  * @summary Qué insumos pide el programa, y cuándo
  */
 export const insumosProgramadosApiV1InsumosProgramadosGet = (
+  params: InsumosProgramadosApiV1InsumosProgramadosGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<InsumosProgramadosRespuesta>(
+    { url: `/api/v1/insumos-programados`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getInsumosProgramadosApiV1InsumosProgramadosGetInfiniteQueryKey = (
+  params?: InsumosProgramadosApiV1InsumosProgramadosGetParams,
+) => {
+  return [
+    "infinite",
+    `/api/v1/insumos-programados`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getInsumosProgramadosApiV1InsumosProgramadosGetQueryKey = (
+  params?: InsumosProgramadosApiV1InsumosProgramadosGetParams,
+) => {
+  return [`/api/v1/insumos-programados`, ...(params ? [params] : [])] as const;
+};
+
+export const getInsumosProgramadosApiV1InsumosProgramadosGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>
+    >,
+    TError = void | HTTPValidationError,
+  >(
     params: InsumosProgramadosApiV1InsumosProgramadosGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
-) => {
-      
-      
-      return peticion<InsumosProgramadosRespuesta>(
-      {url: `/api/v1/insumos-programados`, method: 'GET',
-        params, signal
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
     },
-      options);
-    }
-  
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getInsumosProgramadosApiV1InsumosProgramadosGetInfiniteQueryKey(params);
 
+    const queryFn: QueryFunction<
+      Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>
+    > = ({ signal }) =>
+      insumosProgramadosApiV1InsumosProgramadosGet(
+        params,
+        requestOptions,
+        signal,
+      );
 
-export const getInsumosProgramadosApiV1InsumosProgramadosGetInfiniteQueryKey = (params?: InsumosProgramadosApiV1InsumosProgramadosGetParams,) => {
-    return [
-    'infinite', `/api/v1/insumos-programados`, ...(params ? [params]: [])
-    ] as const;
-    }
+    return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-export const getInsumosProgramadosApiV1InsumosProgramadosGetQueryKey = (params?: InsumosProgramadosApiV1InsumosProgramadosGetParams,) => {
-    return [
-    `/api/v1/insumos-programados`, ...(params ? [params]: [])
-    ] as const;
-    }
+export type InsumosProgramadosApiV1InsumosProgramadosGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>
+  >;
+export type InsumosProgramadosApiV1InsumosProgramadosGetInfiniteQueryError =
+  void | HTTPValidationError;
 
-    
-export const getInsumosProgramadosApiV1InsumosProgramadosGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>>, TError = void | HTTPValidationError>(params: InsumosProgramadosApiV1InsumosProgramadosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getInsumosProgramadosApiV1InsumosProgramadosGetInfiniteQueryKey(params);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>> = ({ signal }) => insumosProgramadosApiV1InsumosProgramadosGet(params, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type InsumosProgramadosApiV1InsumosProgramadosGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>>
-export type InsumosProgramadosApiV1InsumosProgramadosGetInfiniteQueryError = void | HTTPValidationError
-
-
-export function useInsumosProgramadosApiV1InsumosProgramadosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>>, TError = void | HTTPValidationError>(
- params: InsumosProgramadosApiV1InsumosProgramadosGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError, TData>> & Pick<
+export function useInsumosProgramadosApiV1InsumosProgramadosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params: InsumosProgramadosApiV1InsumosProgramadosGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>,
+          Awaited<
+            ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useInsumosProgramadosApiV1InsumosProgramadosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>>, TError = void | HTTPValidationError>(
- params: InsumosProgramadosApiV1InsumosProgramadosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useInsumosProgramadosApiV1InsumosProgramadosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params: InsumosProgramadosApiV1InsumosProgramadosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>,
+          Awaited<
+            ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useInsumosProgramadosApiV1InsumosProgramadosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>>, TError = void | HTTPValidationError>(
- params: InsumosProgramadosApiV1InsumosProgramadosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useInsumosProgramadosApiV1InsumosProgramadosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params: InsumosProgramadosApiV1InsumosProgramadosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Qué insumos pide el programa, y cuándo
  */
 
-export function useInsumosProgramadosApiV1InsumosProgramadosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>>, TError = void | HTTPValidationError>(
- params: InsumosProgramadosApiV1InsumosProgramadosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useInsumosProgramadosApiV1InsumosProgramadosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params: InsumosProgramadosApiV1InsumosProgramadosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getInsumosProgramadosApiV1InsumosProgramadosGetInfiniteQueryOptions(
+      params,
+      options,
+    );
 
-  const queryOptions = getInsumosProgramadosApiV1InsumosProgramadosGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getInsumosProgramadosApiV1InsumosProgramadosGetQueryOptions = <TData = Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError = void | HTTPValidationError>(params: InsumosProgramadosApiV1InsumosProgramadosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getInsumosProgramadosApiV1InsumosProgramadosGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params: InsumosProgramadosApiV1InsumosProgramadosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getInsumosProgramadosApiV1InsumosProgramadosGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getInsumosProgramadosApiV1InsumosProgramadosGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>
+  > = ({ signal }) =>
+    insumosProgramadosApiV1InsumosProgramadosGet(
+      params,
+      requestOptions,
+      signal,
+    );
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>> = ({ signal }) => insumosProgramadosApiV1InsumosProgramadosGet(params, requestOptions, signal);
+export type InsumosProgramadosApiV1InsumosProgramadosGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>
+  >;
+export type InsumosProgramadosApiV1InsumosProgramadosGetQueryError =
+  void | HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type InsumosProgramadosApiV1InsumosProgramadosGetQueryResult = NonNullable<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>>
-export type InsumosProgramadosApiV1InsumosProgramadosGetQueryError = void | HTTPValidationError
-
-
-export function useInsumosProgramadosApiV1InsumosProgramadosGet<TData = Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError = void | HTTPValidationError>(
- params: InsumosProgramadosApiV1InsumosProgramadosGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError, TData>> & Pick<
+export function useInsumosProgramadosApiV1InsumosProgramadosGet<
+  TData = Awaited<
+    ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params: InsumosProgramadosApiV1InsumosProgramadosGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>,
+          Awaited<
+            ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useInsumosProgramadosApiV1InsumosProgramadosGet<TData = Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError = void | HTTPValidationError>(
- params: InsumosProgramadosApiV1InsumosProgramadosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useInsumosProgramadosApiV1InsumosProgramadosGet<
+  TData = Awaited<
+    ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params: InsumosProgramadosApiV1InsumosProgramadosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>,
+          Awaited<
+            ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useInsumosProgramadosApiV1InsumosProgramadosGet<TData = Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError = void | HTTPValidationError>(
- params: InsumosProgramadosApiV1InsumosProgramadosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useInsumosProgramadosApiV1InsumosProgramadosGet<
+  TData = Awaited<
+    ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params: InsumosProgramadosApiV1InsumosProgramadosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Qué insumos pide el programa, y cuándo
  */
 
-export function useInsumosProgramadosApiV1InsumosProgramadosGet<TData = Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError = void | HTTPValidationError>(
- params: InsumosProgramadosApiV1InsumosProgramadosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useInsumosProgramadosApiV1InsumosProgramadosGet<
+  TData = Awaited<
+    ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  params: InsumosProgramadosApiV1InsumosProgramadosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof insumosProgramadosApiV1InsumosProgramadosGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getInsumosProgramadosApiV1InsumosProgramadosGetQueryOptions(
+      params,
+      options,
+    );
 
-  const queryOptions = getInsumosProgramadosApiV1InsumosProgramadosGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
-

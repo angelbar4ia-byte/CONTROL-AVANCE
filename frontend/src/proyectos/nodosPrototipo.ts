@@ -1,9 +1,9 @@
 /**
  * Armado del árbol WBS de un prototipo: prototipo → nivel → etapa →
- * concepto/concepto auxiliar (§7.4, §10.1 — los cinco tipos de fila del
- * archivo real, sin bajar a material/mano de obra/subcontrato: esos arman
- * el APU del concepto, que es la explosión del CPU, no un nivel más de
- * este árbol).
+ * agrupador (Nivel 3, migración 0051) → concepto/concepto auxiliar (§7.4,
+ * §10.1 — los cinco tipos de fila del archivo real, sin bajar a material/
+ * mano de obra/subcontrato: esos arman el APU del concepto, que es la
+ * explosión del CPU, no un nivel más de este árbol).
  *
  * `GET /prototipos/{id}/nodos` ya devuelve los nodos en recorrido
  * padre-antes-que-hijos (el backend ordena con un CTE recursivo sobre
@@ -25,7 +25,7 @@ import type { NodoPrototipoRespuesta, PartidaRespuesta } from '@/api/generado/mo
  * dice (§10.1)—; este tipo ensancha esa distinción para la pantalla, más
  * `'prototipo'` para la raíz sintética.
  */
-export type TipoNodoArbol = 'prototipo' | 'nivel' | 'etapa' | 'concepto' | 'concepto_auxiliar';
+export type TipoNodoArbol = 'prototipo' | 'nivel' | 'etapa' | 'agrupador' | 'concepto' | 'concepto_auxiliar';
 
 export interface NodoArbolPrototipo {
   readonly id: string;

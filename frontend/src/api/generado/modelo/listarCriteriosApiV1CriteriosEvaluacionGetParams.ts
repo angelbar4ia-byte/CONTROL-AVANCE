@@ -5,11 +5,11 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { SujetoEvaluacion } from './sujetoEvaluacion';
+import type { SujetoEvaluacion } from "./sujetoEvaluacion";
 
 export type ListarCriteriosApiV1CriteriosEvaluacionGetParams = {
-/**
- * Filtra el catálogo por sujeto al que aplica (§7.8).
- */
-aplica_a?: SujetoEvaluacion | null;
+  /**
+   * Filtra el catálogo por sujeto al que aplica (§7.8).
+   */
+  aplica_a?: SujetoEvaluacion | null;
 };

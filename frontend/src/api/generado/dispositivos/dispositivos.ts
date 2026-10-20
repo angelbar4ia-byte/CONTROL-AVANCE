@@ -5,28 +5,23 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useMutation
-} from '@tanstack/react-query';
+import { useMutation } from "@tanstack/react-query";
 import type {
   MutationFunction,
   QueryClient,
   UseMutationOptions,
-  UseMutationResult
-} from '@tanstack/react-query';
+  UseMutationResult,
+} from "@tanstack/react-query";
 
 import type {
   DispositivoRespuesta,
   HTTPValidationError,
-  RegistrarDispositivoPeticion
-} from '.././modelo';
+  RegistrarDispositivoPeticion,
+} from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Alta idempotente del token (§12.2).
@@ -41,67 +36,98 @@ recibiría las notificaciones de sus obras. La política RLS
  * @summary Registrar el token de Expo Push de este dispositivo
  */
 export const registrarDispositivoApiV1DispositivosPushPost = (
-    registrarDispositivoPeticion: RegistrarDispositivoPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  registrarDispositivoPeticion: RegistrarDispositivoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<DispositivoRespuesta>(
-      {url: `/api/v1/dispositivos/push`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: registrarDispositivoPeticion, signal
+  return peticion<DispositivoRespuesta>(
+    {
+      url: `/api/v1/dispositivos/push`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: registrarDispositivoPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getRegistrarDispositivoApiV1DispositivosPushPostMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registrarDispositivoApiV1DispositivosPushPost>>,
+    TError,
+    { data: RegistrarDispositivoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registrarDispositivoApiV1DispositivosPushPost>>,
+  TError,
+  { data: RegistrarDispositivoPeticion },
+  TContext
+> => {
+  const mutationKey = ["registrarDispositivoApiV1DispositivosPushPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getRegistrarDispositivoApiV1DispositivosPushPostMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarDispositivoApiV1DispositivosPushPost>>, TError,{data: RegistrarDispositivoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof registrarDispositivoApiV1DispositivosPushPost>>, TError,{data: RegistrarDispositivoPeticion}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registrarDispositivoApiV1DispositivosPushPost>>,
+    { data: RegistrarDispositivoPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
 
-const mutationKey = ['registrarDispositivoApiV1DispositivosPushPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return registrarDispositivoApiV1DispositivosPushPost(data, requestOptions);
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type RegistrarDispositivoApiV1DispositivosPushPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof registrarDispositivoApiV1DispositivosPushPost>>
+  >;
+export type RegistrarDispositivoApiV1DispositivosPushPostMutationBody =
+  RegistrarDispositivoPeticion;
+export type RegistrarDispositivoApiV1DispositivosPushPostMutationError =
+  HTTPValidationError;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registrarDispositivoApiV1DispositivosPushPost>>, {data: RegistrarDispositivoPeticion}> = (props) => {
-          const {data} = props ?? {};
-
-          return  registrarDispositivoApiV1DispositivosPushPost(data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RegistrarDispositivoApiV1DispositivosPushPostMutationResult = NonNullable<Awaited<ReturnType<typeof registrarDispositivoApiV1DispositivosPushPost>>>
-    export type RegistrarDispositivoApiV1DispositivosPushPostMutationBody = RegistrarDispositivoPeticion
-    export type RegistrarDispositivoApiV1DispositivosPushPostMutationError = HTTPValidationError
-
-    /**
+/**
  * @summary Registrar el token de Expo Push de este dispositivo
  */
-export const useRegistrarDispositivoApiV1DispositivosPushPost = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registrarDispositivoApiV1DispositivosPushPost>>, TError,{data: RegistrarDispositivoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof registrarDispositivoApiV1DispositivosPushPost>>,
-        TError,
-        {data: RegistrarDispositivoPeticion},
-        TContext
-      > => {
+export const useRegistrarDispositivoApiV1DispositivosPushPost = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof registrarDispositivoApiV1DispositivosPushPost>>,
+      TError,
+      { data: RegistrarDispositivoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof registrarDispositivoApiV1DispositivosPushPost>>,
+  TError,
+  { data: RegistrarDispositivoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getRegistrarDispositivoApiV1DispositivosPushPostMutationOptions(options);
 
-      const mutationOptions = getRegistrarDispositivoApiV1DispositivosPushPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Baja al cerrar sesión.
 
 Desactiva en vez de borrar, igual que hace el envío ante un
@@ -116,61 +142,86 @@ así que nadie da de baja el dispositivo de otro aunque adivine el token.
  * @summary Dar de baja el token de este dispositivo
  */
 export const darDeBajaApiV1DispositivosPushTokenDelete = (
-    token: string,
- options?: SecondParameter<typeof peticion>,) => {
-      
-      
-      return peticion<void>(
-      {url: `/api/v1/dispositivos/push/${token}`, method: 'DELETE'
-    },
-      options);
-    }
-  
+  token: string,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    { url: `/api/v1/dispositivos/push/${token}`, method: "DELETE" },
+    options,
+  );
+};
 
+export const getDarDeBajaApiV1DispositivosPushTokenDeleteMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof darDeBajaApiV1DispositivosPushTokenDelete>>,
+    TError,
+    { token: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof darDeBajaApiV1DispositivosPushTokenDelete>>,
+  TError,
+  { token: string },
+  TContext
+> => {
+  const mutationKey = ["darDeBajaApiV1DispositivosPushTokenDelete"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getDarDeBajaApiV1DispositivosPushTokenDeleteMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof darDeBajaApiV1DispositivosPushTokenDelete>>, TError,{token: string}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof darDeBajaApiV1DispositivosPushTokenDelete>>, TError,{token: string}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof darDeBajaApiV1DispositivosPushTokenDelete>>,
+    { token: string }
+  > = (props) => {
+    const { token } = props ?? {};
 
-const mutationKey = ['darDeBajaApiV1DispositivosPushTokenDelete'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return darDeBajaApiV1DispositivosPushTokenDelete(token, requestOptions);
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type DarDeBajaApiV1DispositivosPushTokenDeleteMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof darDeBajaApiV1DispositivosPushTokenDelete>>
+  >;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof darDeBajaApiV1DispositivosPushTokenDelete>>, {token: string}> = (props) => {
-          const {token} = props ?? {};
+export type DarDeBajaApiV1DispositivosPushTokenDeleteMutationError =
+  HTTPValidationError;
 
-          return  darDeBajaApiV1DispositivosPushTokenDelete(token,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type DarDeBajaApiV1DispositivosPushTokenDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof darDeBajaApiV1DispositivosPushTokenDelete>>>
-    
-    export type DarDeBajaApiV1DispositivosPushTokenDeleteMutationError = HTTPValidationError
-
-    /**
+/**
  * @summary Dar de baja el token de este dispositivo
  */
-export const useDarDeBajaApiV1DispositivosPushTokenDelete = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof darDeBajaApiV1DispositivosPushTokenDelete>>, TError,{token: string}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof darDeBajaApiV1DispositivosPushTokenDelete>>,
-        TError,
-        {token: string},
-        TContext
-      > => {
+export const useDarDeBajaApiV1DispositivosPushTokenDelete = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof darDeBajaApiV1DispositivosPushTokenDelete>>,
+      TError,
+      { token: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof darDeBajaApiV1DispositivosPushTokenDelete>>,
+  TError,
+  { token: string },
+  TContext
+> => {
+  const mutationOptions =
+    getDarDeBajaApiV1DispositivosPushTokenDeleteMutationOptions(options);
 
-      const mutationOptions = getDarDeBajaApiV1DispositivosPushTokenDeleteMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    
+  return useMutation(mutationOptions, queryClient);
+};

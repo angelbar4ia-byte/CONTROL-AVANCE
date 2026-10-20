@@ -32,6 +32,14 @@ from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQ
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.control_cambio_sql import RepositorioControlCambioSQL
 from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
+from obractrl.adapters.repos.cuantificacion_sql import (
+    RepositorioEnlacesCuantificacionSQL,
+    RepositorioNotasPlanoSQL,
+    RepositorioPlanosSQL,
+    RepositorioTrazosSQL,
+)
+from obractrl.adapters.repos.desviaciones_sql import RepositorioDesviacionesSQL
+from obractrl.adapters.repos.ensambles_sql import RepositorioEnsamblesSQL
 from obractrl.adapters.repos.especialidades_sql import (
     RepositorioEspecialidadesSQL,
 )
@@ -40,7 +48,13 @@ from obractrl.adapters.repos.evaluaciones_sql import RepositorioEvaluacionesSQL
 from obractrl.adapters.repos.expediente_sql import RepositorioExpedienteSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.frentes_sql import RepositorioFrentesSQL
+from obractrl.adapters.repos.generacion_ensamble_sql import (
+    RepositorioGeneracionDePresupuestoSQL,
+)
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
+from obractrl.adapters.repos.ingenieria_lote_insumos_sql import (
+    RepositorioIngenieriaLoteInsumosSQL,
+)
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
@@ -66,11 +80,14 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorDePrototipos,
     AplicadorEtapasConstructivas,
     AplicadorFamilias,
+    AplicadorIngenieriaLote,
     AplicadorManoObra,
     AplicadorMateriales,
     AplicadorNiveles,
     AplicadorPresupuesto,
+    AplicadorProgramaBase,
     AplicadorPrototipos,
+    AplicadorTrabajos,
     AplicadorUnidades,
 )
 from obractrl.application.casos_uso.calcular_cpu import (
@@ -85,6 +102,12 @@ from obractrl.application.casos_uso.consultar_insumos_programados import (
 from obractrl.application.casos_uso.consultar_planeacion import (
     AsignarFrenteDeObra,
     ConsultarPlaneacion,
+)
+from obractrl.application.casos_uso.cuantificar import (
+    ReemplazarEnlace,
+    RegistrarNotaPlano,
+    RegistrarPlano,
+    RegistrarTrazoConEnlaces,
 )
 from obractrl.application.casos_uso.dar_de_alta_extra import DarDeAltaExtra
 from obractrl.application.casos_uso.exportar_estimacion import (
@@ -126,6 +149,11 @@ from obractrl.application.casos_uso.gestionar_cierre_de_obra import (
 from obractrl.application.casos_uso.gestionar_control_cambio import (
     ResolverControlDeCambio,
     SolicitarControlDeCambio,
+)
+from obractrl.application.casos_uso.gestionar_ensamble import (
+    ExplotarEnsamble,
+    ExtraerEnsamble,
+    GenerarDesdeEnsamble,
 )
 from obractrl.application.casos_uso.gestionar_estimacion import (
     EnviarEstimacion,
@@ -239,7 +267,10 @@ __all__ = [
     "EliminarVersionDeCuadrillaDep",
     "EnviarEstimacionDep",
     "ExplotarConceptoDep",
+    "ExplotarEnsambleDep",
+    "ExtraerEnsambleDep",
     "FabricaDeCargasDep",
+    "GenerarDesdeEnsambleDep",
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
     "InstanciarProgramaObraDep",
@@ -251,9 +282,13 @@ __all__ = [
     "RecalcularRutaCriticaDep",
     "RechazarCierreDep",
     "RechazarIncidenciaDep",
+    "ReemplazarEnlaceDep",
     "RegistrarEventoIncidenciaDep",
+    "RegistrarNotaPlanoDep",
+    "RegistrarPlanoDep",
     "RegistrarRevisionFisicaDep",
     "RegistrarSalidaAlmacenDep",
+    "RegistrarTrazoConEnlacesDep",
     "ReiniciarOrganizacionDep",
     "ReplicarProgramaEnObrasDep",
     "ResetearContrasenaDep",
@@ -566,6 +601,54 @@ ConsultarExpedienteDep = Annotated[
 ArmarExpedienteDep = Annotated[ArmarExpediente, Depends(obtener_armar_expediente)]
 
 
+# --- Cuantificador (cerebro MODELO.md §1b, migración 0057) --------------
+
+
+def obtener_registrar_plano(sesion: SesionRLS) -> RegistrarPlano:
+    return RegistrarPlano(
+        planos=RepositorioPlanosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_registrar_trazo_con_enlaces(sesion: SesionRLS) -> RegistrarTrazoConEnlaces:
+    return RegistrarTrazoConEnlaces(
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_reemplazar_enlace(sesion: SesionRLS) -> ReemplazarEnlace:
+    return ReemplazarEnlace(
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_registrar_nota_plano(sesion: SesionRLS) -> RegistrarNotaPlano:
+    return RegistrarNotaPlano(
+        notas=RepositorioNotasPlanoSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+RegistrarPlanoDep = Annotated[RegistrarPlano, Depends(obtener_registrar_plano)]
+RegistrarTrazoConEnlacesDep = Annotated[
+    RegistrarTrazoConEnlaces, Depends(obtener_registrar_trazo_con_enlaces)
+]
+ReemplazarEnlaceDep = Annotated[ReemplazarEnlace, Depends(obtener_reemplazar_enlace)]
+RegistrarNotaPlanoDep = Annotated[
+    RegistrarNotaPlano, Depends(obtener_registrar_nota_plano)
+]
+
+
 # --- Cola de trabajos (§12.2, §11.2 "job") -------------------------------
 
 
@@ -739,6 +822,40 @@ ExplotarConceptoDep = Annotated[ExplotarConcepto, Depends(obtener_explotar_conce
 ObtenerCPUDep = Annotated[ObtenerCPU, Depends(obtener_cpu)]
 PublicarVersionCPUDep = Annotated[
     PublicarVersionCPU, Depends(obtener_publicar_version_cpu)
+]
+
+
+# --- Ensambles paramétricos (skill erp-parametrico, §11.2) ----------------
+
+
+def obtener_explotar_ensamble(sesion: SesionRLS) -> ExplotarEnsamble:
+    return ExplotarEnsamble(
+        ensambles=RepositorioEnsamblesSQL(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+    )
+
+
+def obtener_extraer_ensamble(sesion: SesionRLS) -> ExtraerEnsamble:
+    return ExtraerEnsamble(
+        ensambles=RepositorioEnsamblesSQL(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_generar_desde_ensamble(sesion: SesionRLS) -> GenerarDesdeEnsamble:
+    return GenerarDesdeEnsamble(
+        ensambles=RepositorioEnsamblesSQL(sesion),
+        conceptos=RepositorioConceptosSQL(sesion),
+        generacion=RepositorioGeneracionDePresupuestoSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+ExplotarEnsambleDep = Annotated[ExplotarEnsamble, Depends(obtener_explotar_ensamble)]
+ExtraerEnsambleDep = Annotated[ExtraerEnsamble, Depends(obtener_extraer_ensamble)]
+GenerarDesdeEnsambleDep = Annotated[
+    GenerarDesdeEnsamble, Depends(obtener_generar_desde_ensamble)
 ]
 
 
@@ -1043,6 +1160,14 @@ class FabricaDeCargas:
                 cargas=cargas,
                 tipo=TipoInsumo.SUBCONTRATO,
             )
+        if tipo is TipoCarga.TRABAJOS:
+            return AplicadorTrabajos(
+                insumos=RepositorioInsumosSQL(sesion),
+                unidades=RepositorioUnidadesSQL(sesion),
+                familias=RepositorioFamiliasSQL(sesion),
+                cuadrillas=RepositorioCuadrillasSQL(sesion),
+                cargas=cargas,
+            )
         if tipo is TipoCarga.CUADRILLAS:
             return AplicadorCuadrillas(
                 cuadrillas=RepositorioCuadrillasSQL(sesion),
@@ -1136,6 +1261,25 @@ class FabricaDeCargas:
                     presupuestos=RepositorioPresupuestosSQL(sesion),
                     cargas=cargas,
                 ),
+            )
+        if tipo is TipoCarga.PROGRAMA_BASE:
+            return AplicadorProgramaBase(
+                prototipos=RepositorioPrototiposSQL(sesion),
+                prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+                crear_programa_base=CrearProgramaBase(
+                    programas=RepositorioProgramasSQL(sesion),
+                    uow=UnidadDeTrabajoSQL(sesion),
+                ),
+            )
+        if tipo is TipoCarga.INGENIERIA_LOTE:
+            return AplicadorIngenieriaLote(
+                obras=RepositorioObrasSQL(sesion),
+                prototipos=RepositorioPrototiposSQL(sesion),
+                prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+                conceptos=RepositorioConceptosSQL(sesion),
+                desviaciones=RepositorioDesviacionesSQL(sesion),
+                ingenieria_insumos=RepositorioIngenieriaLoteInsumosSQL(sesion),
+                cargas=cargas,
             )
         # `cargador_para` ya rechazó los tipos sin cargador; llegar aquí
         # significa que se agregó uno y se olvidó su aplicador.

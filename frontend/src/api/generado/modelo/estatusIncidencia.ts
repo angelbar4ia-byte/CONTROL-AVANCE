@@ -6,15 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type EstatusIncidencia = typeof EstatusIncidencia[keyof typeof EstatusIncidencia];
-
+export type EstatusIncidencia =
+  (typeof EstatusIncidencia)[keyof typeof EstatusIncidencia];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const EstatusIncidencia = {
-  abierta: 'abierta',
-  programada: 'programada',
-  en_atencion: 'en_atencion',
-  cierre_solicitado: 'cierre_solicitado',
-  cerrada: 'cerrada',
-  rechazada: 'rechazada',
+  abierta: "abierta",
+  programada: "programada",
+  en_atencion: "en_atencion",
+  cierre_solicitado: "cierre_solicitado",
+  cerrada: "cerrada",
+  rechazada: "rechazada",
 } as const;

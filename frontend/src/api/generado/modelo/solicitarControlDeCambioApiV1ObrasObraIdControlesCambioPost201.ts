@@ -6,4 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type SolicitarControlDeCambioApiV1ObrasObraIdControlesCambioPost201 = {[key: string]: string};
+export type SolicitarControlDeCambioApiV1ObrasObraIdControlesCambioPost201 = {
+  [key: string]: string;
+};

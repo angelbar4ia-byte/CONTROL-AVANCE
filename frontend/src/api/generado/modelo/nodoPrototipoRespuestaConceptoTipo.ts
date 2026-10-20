@@ -5,7 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { TipoConcepto } from './tipoConcepto';
+import type { TipoConcepto } from "./tipoConcepto";
 
 /**
  * `tipo` no distingue concepto de concepto auxiliar —los dos se guardan como 'concepto', §10.1—; este campo sí, tomado del catálogo. `null` en nodos sin `concepto_id` (nivel/etapa).

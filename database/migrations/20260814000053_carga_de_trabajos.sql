@@ -1,0 +1,21 @@
+-- ============================================================
+-- ObraCtrl · 0053 · Carga de Trabajos (destajos + subcontratos, export
+-- nativo de OPUS)
+-- Spec §10.6 (contrato de cargadores) · §10.2 (multi-archivo) · §8.7
+-- (agregar un invariante = migración).
+--
+-- `CATALOGO_DE_TRABAJOS.csv` (export nativo de OPUS) trae en un solo
+-- archivo lo que la generación anterior repartía en dos
+-- (`CABECERAS_MANO_DE_OBRA.xlsx` hoja `DESTAJOS` + `catalogo_de_
+-- SUBCONTRATOS.xlsx`, migraciones 0031/0034): 259 destajos y 6
+-- subcontratos, distinguidos por columna, no por archivo. Como mezcla dos
+-- `TipoInsumo` fila por fila, no reusa `tipo_carga.mano_de_obra` ni
+-- `.subcontratos` (cada uno con su propio cargador de un solo tipo fijo):
+-- tiene su propio valor y su propio aplicador (`AplicadorTrabajos`,
+-- `domain/shared/diccionario.py::TipoCarga.TRABAJOS`).
+--
+-- Precedente de añadir un solo valor a `tipo_carga` en su propia
+-- migración: 0029/0031/0032/0034/0035/0037.
+-- ============================================================
+
+alter type tipo_carga add value if not exists 'trabajos';

@@ -1,0 +1,3 @@
+-- down · 0051 · Nodo agrupador en el árbol de presupuesto
+-- Los valores de enum se quedan (Postgres no tiene drop value), mismo
+-- criterio que 0019/0029/0030/0031/0032/0034/0035/0037.

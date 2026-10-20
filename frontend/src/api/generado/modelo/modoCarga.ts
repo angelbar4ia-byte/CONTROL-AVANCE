@@ -9,12 +9,11 @@
 /**
  * Modos de carga (§10.2).
  */
-export type ModoCarga = typeof ModoCarga[keyof typeof ModoCarga];
-
+export type ModoCarga = (typeof ModoCarga)[keyof typeof ModoCarga];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const ModoCarga = {
-  actualizar: 'actualizar',
-  acumular: 'acumular',
-  reemplazar: 'reemplazar',
+  actualizar: "actualizar",
+  acumular: "acumular",
+  reemplazar: "reemplazar",
 } as const;

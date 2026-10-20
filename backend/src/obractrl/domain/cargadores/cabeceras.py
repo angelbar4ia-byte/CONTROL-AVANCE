@@ -29,16 +29,20 @@ __all__ = [
     "CONCEPTOS_AUXILIARES",
     "CONCEPTOS_BASE",
     "CPU",
+    "CPU_MATRIZ",
     "CUADRILLAS",
     "ETAPAS_CONSTRUCTIVAS",
     "FAMILIAS",
+    "INGENIERIA_LOTE",
     "MANO_DE_OBRA",
     "MAPA_CPU",
     "MATERIALES",
     "NIVELES",
     "PRESUPUESTO",
+    "PROGRAMA_BASE",
     "PROTOTIPOS",
     "SUBCONTRATOS",
+    "TRABAJOS_OPUS",
     "UNIDADES",
     "ColumnaPorLetra",
     "ErrorDeCabecera",
@@ -564,6 +568,16 @@ MATERIALES = EspecificacionArchivo(
         # mapear a propósito — dos alias al mismo campo canónico son
         # ambigüedad real (§8.6) y el archivo se rechazaría entero.
         "costo base m.n.": "costo_base",
+        # El export nativo de OPUS 2025 (`CATALOGO_DE_MATERIALES.csv` y,
+        # con el mismo contrato, `CATALOGO_DE_FLETES.csv`) rotula la misma
+        # columna "Costo base M. N." —con un espacio entre "M." y "N." que
+        # `normalizar` no quita (no colapsa puntuación, solo espacios
+        # dobles, §shared.normalizacion.normalizar)—, así que es un
+        # string distinto de "COSTO BASE M.N." y necesita su propio alias;
+        # sin él, las 386+9 filas de ambos archivos cargarían con
+        # `costo_base=None` en silencio. Mismo razonamiento que arriba
+        # para "Costo base M. E."/"Costo unitario": se dejan sin mapear.
+        "costo base m. n.": "costo_base",
         "costo ultimo": "costo_ultimo",
         "costo_ultimo": "costo_ultimo",
         "c/ultimo": "costo_ultimo",
@@ -575,6 +589,15 @@ MATERIALES = EspecificacionArchivo(
         "iva_aplica": "iva",
     },
 )
+"""Catálogo de materiales (§10.1, §10.6): sirve tanto al archivo de la
+generación anterior (`CABECERAS_MATERIALES.xlsx`) como al export nativo
+de OPUS 2025 (`CATALOGO_DE_MATERIALES.csv`, 386 filas verificadas, y
+`CATALOGO_DE_FLETES.csv`, 9 filas — mismo contrato de columnas, un flete
+es `tipo=material` más: `CategoriaExplosion.FLETE`, migración 0052, es
+categoría de la *explosión* del CPU, no un tipo de insumo distinto) —
+mismo criterio que `PRESUPUESTO`: un archivo real nunca trae las dos
+cabeceras de costo a la vez, así que las dos resuelven al mismo
+`costo_base` sin ambigüedad (§8.6)."""
 
 # --- Mano de obra / Destajos (§10.6) --------------------------------------
 #
@@ -629,6 +652,75 @@ SUBCONTRATOS = EspecificacionArchivo(
     opcionales=MANO_DE_OBRA.opcionales,
     alias=dict(MANO_DE_OBRA.alias),
 )
+
+# --- Trabajos: destajos + subcontratos, export nativo de OPUS -----------
+#
+# `CATALOGO_DE_TRABAJOS.csv` trae en un solo archivo lo que la generación
+# anterior repartía en dos (`CABECERAS_MANO_DE_OBRA.xlsx` hoja `DESTAJOS` +
+# `catalogo_de_SUBCONTRATOS.xlsx`): 259 destajos y 6 subcontratos,
+# distinguidos por columna, no por archivo (265 filas, verificado). No
+# reusa `MANO_DE_OBRA`: sus cabeceras son otras ("Costo base M. N." en vez
+# de "COSTO UNITARIO", sin `cuadrilla`/`rendimiento_teorico`) y, sobre
+# todo, la columna que aquí importa no tiene dónde vivir en ese contrato.
+#
+# El archivo repite la cabecera **"Tipo" dos veces** (verificado con
+# `csv.reader`, nunca `DictReader` — con cabeceras duplicadas una pisa a la
+# otra en silencio): la primera es la *clase* (`Destajo`/`Subcontrato`,
+# la que importa — mano_de_obra.clase_de_trabajo la separa de ahí); la
+# última siempre vale `Trabajo` (verificado, 265/265) y es la *categoría*,
+# como `Material` en `MATERIALES_OPUS` — no aporta nada. Igual que
+# `ETAPAS_CONSTRUCTIVAS` con su propia "TIPO" duplicada, las dos se leen
+# como `series` (nunca por posición: si el exportador las reordena, esto
+# sigue funcionando) y se descartan por contenido, no por posición.
+
+TRABAJOS_OPUS = EspecificacionArchivo(
+    tipo="Trabajos (destajos y subcontratos, export nativo de OPUS)",
+    archivo="CATALOGO_DE_TRABAJOS.csv",
+    hoja=None,
+    obligatorias=("clave", "descripcion", "clase"),
+    opcionales=("unidad", "familia", "costo_base"),
+    alias={
+        # Mismo razonamiento que `MATERIALES_OPUS`: "Costo base M. N." es
+        # el costo base; "Costo base M. E." (siempre cero, verificado) y
+        # "Costo unitario" (duplica M. N., verificado) se dejan sin mapear
+        # a propósito para no chocar con el §8.6 (dos alias al mismo campo
+        # son ambigüedad real).
+        "costo base m. n.": "costo_base",
+        # "C", "Clave usuario" (consecutivo interno de OPUS, igual que
+        # "CLAVE USUARIO" en `MANO_DE_OBRA`), "Comentarios", "Subfamilia" y
+        # "Fecha" no tienen dónde vivir hoy; se ignoran sin romper (§10.6).
+    },
+    series={
+        # Las dos columnas "Tipo" del archivo real: se coleccionan en el
+        # orden en que aparecen (primera, luego última) y
+        # `mano_de_obra.clase_de_trabajo` descarta la que vale "Trabajo"
+        # por vocabulario cerrado, no por posición.
+        "tipo": "clase",
+    },
+)
+"""Catálogo combinado de Trabajos, export nativo de OPUS 2025
+(`CATALOGO_DE_TRABAJOS.csv`, 265 filas verificadas: 259 destajo, 6
+subcontrato). No fija por sí solo si una fila es destajo o subcontrato —
+eso es `mano_de_obra.clase_de_trabajo`, que lee la `clase` resuelta aquí y
+decide el `TipoInsumo` con el que `validar_mano_obra` valida la fila
+(`mano_de_obra.validar_trabajo`)."""
+
+INGENIERIA_LOTE = EspecificacionArchivo(
+    tipo="Ingeniería del lote (extensión propia, CONOCIMIENTO.md §11)",
+    archivo="INGENIERIA_<OBRA>_<ETAPA>.csv",
+    hoja=None,
+    obligatorias=(),
+    opcionales=(),
+)
+"""Sin encabezados ni columnas por nombre (CONOCIMIENTO.md §11.4): las siete
+columnas se reconocen por posición y por los datos, nunca por un título que
+el archivo no trae (ver el docstring de `domain.cargadores.
+ingenieria_lote`). `obligatorias`/`opcionales` se dejan vacías a propósito
+—no hay cabecera que resolver con `resolver_encabezados`— así que
+`GET /cargas/plantillas/{tipo}` (`adapters.excel.plantillas`) genera un
+`.xlsx` sin ninguna fila de título para este tipo: escribir rótulos ahí
+sería inventar un contrato que el archivo real no tiene, y esa fila de
+título terminaría leyéndose como una fila de dato más."""
 
 CUADRILLAS = EspecificacionArchivo(
     tipo="Cuadrillas",
@@ -702,11 +794,16 @@ PROTOTIPOS = EspecificacionArchivo(
 
 # --- Presupuesto jerárquico (extensión propia, no está en el §10.6) ------
 #
-# Árbol de un prototipo por CLAVE PADRE → CLAVE HIJO (§7.4): tampoco lo
-# describe el §10.6, así que sus campos propios necesitan alias explícito
-# igual que PROTOTIPOS. `clave`/`descripcion`/`unidad`/`cantidad`/
-# `precio_unitario`/`tipo` ya resuelven por el mapa global (§8.6); solo
-# `clave_padre`/`clave_hijo`/`indice`/`importe` no viven ahí.
+# Árbol de un prototipo: por CLAVE PADRE → CLAVE HIJO cuando el archivo trae
+# esa columna, o por NIVEL + posición cuando no la trae (árbol nativo del
+# exportador de OPUS, §árbol en `domain.cargadores.presupuesto.
+# construir_arboles`). Tampoco lo describe el §10.6, así que sus campos
+# propios necesitan alias explícito igual que PROTOTIPOS. `descripcion`/
+# `unidad`/`cantidad`/`precio_unitario`/`tipo` ya resuelven por el mapa
+# global (§8.6); `clave_padre`/`clave_hijo`/`nivel`/`indice`/`importe` no
+# viven ahí, y `clave` (el nombre que le da el exportador nativo a lo que
+# aquí es `clave_hijo`) sí vive ahí pero apuntando a otro campo canónico
+# —de ahí su alias propio también.
 
 PRESUPUESTO = EspecificacionArchivo(
     tipo="Presupuesto jerárquico",
@@ -716,6 +813,7 @@ PRESUPUESTO = EspecificacionArchivo(
     opcionales=(
         "indice",
         "clave_padre",
+        "nivel",
         "unidad",
         "cantidad",
         "precio_unitario",
@@ -728,15 +826,179 @@ PRESUPUESTO = EspecificacionArchivo(
         "clave_padre": "clave_padre",
         "clave hijo": "clave_hijo",
         "clave_hijo": "clave_hijo",
+        # El archivo de prueba hecho a mano rotula la columna "CLAVE HIJO";
+        # el exportador nativo de OPUS la rotula a secas "Clave" —sin
+        # `clave_padre` no hay hijo que distinguir de un padre—. Sin este
+        # alias, "clave" resolvería al campo global homónimo (§8.6), que
+        # esta especificación no declara, y la columna se ignoraría en
+        # silencio: ninguna fila tendría clave (§3.3).
+        "clave": "clave_hijo",
         "importe": "importe",
         "wbs": "wbs",
+        # El archivo real del exportador de OPUS no trae `clave_padre`: la
+        # cabecera literal es "Nivel " (con espacio al final — `normalizar`
+        # colapsa espacios y la deja en "nivel"). Sin este alias, "nivel" no
+        # resuelve a nada en el mapa global (§8.6) y la columna se
+        # ignoraría en silencio, que es justo lo que le faltaba al árbol
+        # nativo para reconstruirse (`construir_arboles`).
+        "nivel": "nivel",
     },
 )
 """``wbs`` es opcional (§7.4): no todo archivo real la trae. Cuando sí viene,
 `construir_arboles` la usa solo para avisar —§10.3, `TipoPendiente.
 WBS_INCONSISTENTE`, no crítico— si no coincide con la que el propio TIPO de
 cada fila ya implica; nunca decide la identidad de la fila ni bloquea la
-carga (eso lo sigue dando CLAVE PADRE → CLAVE HIJO)."""
+carga.
+
+``clave_padre`` y ``nivel`` son las dos formas de dar la identidad
+padre-hijo (§árbol): el archivo de prueba hecho a mano trae la primera, el
+exportador nativo de OPUS trae la segunda y nunca las dos juntas. Las dos
+son opcionales aquí porque el contrato exige **una u otra**, no las dos —
+una regla de "al menos una" que no se puede expresar con `obligatorias`
+(eso exigiría ambas) y que por tanto valida `construir_arboles`, no este
+módulo (§12.11: aquí solo se resuelven columnas, no se decide el árbol)."""
+
+# --- CPU / Conceptos: matriz nativa de OPUS (extensión propia) ----------
+#
+# A diferencia de `CPU` (arriba), que resuelve por LETRA porque el §10.6
+# solo fija columnas para el formato plano, este archivo es el export
+# nativo de OPUS del mismo dato (concepto + CPU) y sí nombra sus propias
+# cabeceras — distinto vocabulario del §10.6 (`Clave Hijo` en vez de
+# "clave insumo", `Costo` en vez de "costo unitario") y una columna
+# `Origen` que el §10.6 no tiene en absoluto. Mismo criterio que
+# `PRESUPUESTO` (también extensión propia, más arriba en este archivo):
+# sus columnas propias necesitan alias explícito, no caen en el mapa
+# global de sinónimos del §8.6.
+#
+# Cada fila es un componente con su propio padre explícito (`Clave Padre`
+# → `Clave Hijo`), nunca una fila-encabezado que describa al concepto
+# mismo — por eso `clave_insumo` reusa el campo canónico que ya usa el
+# componente del formato plano (`ComponenteCargado.clave_insumo`) en vez
+# de inventar uno nuevo: es el mismo dato, "la clave del insumo de esta
+# fila", solo que la columna real se llama distinto.
+
+CPU_MATRIZ = EspecificacionArchivo(
+    tipo="CPU / Conceptos (matriz nativa de OPUS)",
+    archivo="ANALISIS_DE_BASICOS_CONCEPTOS.csv",
+    hoja=None,
+    obligatorias=("clave_padre", "clave_insumo", "descripcion", "cantidad", "tipo", "origen"),
+    opcionales=("unidad", "precio_unitario"),
+    alias={
+        "clave padre": "clave_padre",
+        "clave_padre": "clave_padre",
+        # El exportador nombra "Clave Hijo" al insumo del componente —
+        # mismo dato que `clave_insumo` en el formato plano (§10.6), solo
+        # que ahí la columna se llama "clave insumo"/"B" y aquí "Clave
+        # Hijo". Sin este alias, "clave hijo" no resuelve a nada en el
+        # mapa global y la columna se ignoraría en silencio: ninguna fila
+        # tendría el insumo que compone (§3.3).
+        "clave hijo": "clave_insumo",
+        "clave_hijo": "clave_insumo",
+        # "Costo" a secas, no "costo unitario" — el mapa global del §8.6
+        # solo conoce la segunda forma. Sin este alias la columna F se
+        # ignoraría y ningún componente traería PU.
+        "costo": "precio_unitario",
+        # `Origen` (Concepto/Material/ManoDeObra) no vive en ningún otro
+        # archivo ni en el mapa global: sin alias propio se descartaría en
+        # silencio, y es la columna que decide si la fila es de este
+        # alcance (solo `Origen=Concepto`, §domain.cargadores.cpu.
+        # _agrupar_conceptos_matriz) o de una matriz de insumo compuesto
+        # (Material/ManoDeObra) que este cargador no toca.
+        "origen": "origen",
+    },
+)
+"""Catálogo de Conceptos + CPU, export nativo de OPUS
+(`ANALISIS_DE_BASICOS_CONCEPTOS.csv`, 2568 filas verificadas): matriz
+donde cada fila es un componente con su propio `Clave Padre` (el
+concepto) → `Clave Hijo` (el insumo), a diferencia del formato plano de
+`CPU` (fila encabezado `TIPO=Concepto` + sus componentes). Ninguna fila
+describe al concepto mismo —`Descripción`/`Unidad` describen siempre al
+hijo—, así que su identidad (descripción, unidad) no sale de este
+archivo: `domain.cargadores.cpu._agrupar_conceptos_matriz` la recibe de
+afuera, cruzada contra el árbol de `presupuesto.construir_arboles` sobre
+`CATALOGO_DE_PRESUPUESTO.csv` (467/468 claves cruzan; la que no cruza
+queda sin descripción y por tanto sin cargar, mismo criterio que
+`_leer_encabezado` en modo plano).
+
+`importe` no se declara a propósito: la columna existe en el archivo real
+(G) pero ningún campo del dominio la guarda —`ComponenteCargado` no tiene
+`importe`, el §7.3 lo recalcula de cantidad × PU—, así que cae sola en
+`MapaColumnas.ignoradas` sin necesidad de alias ni de un campo nuevo."""
+
+# --- Programa base de prototipo (extensión propia, no está en el §10.6) -
+#
+# Export real del cronograma hecho a mano en MS Project/OPUS, el mismo
+# archivo que cerebro documenta en `1-mundo/PROGRAMA-CPM.md` y carga con
+# `backend/core/programa.py`. No lo describe el §10.6 — igual que
+# `PRESUPUESTO` y `PROTOTIPOS` — así que sus columnas propias necesitan
+# alias explícito.
+#
+# El archivo real (`PROGRAMA_<PROTOTIPO>.xlsx`) trae, además de las de
+# abajo, unas ~190 columnas tituladas "Cantidad" repetidas (un histograma de
+# recurso por periodo) y columnas de avance/holgura/rendimiento que esta
+# plantilla no necesita en absoluto. A propósito **no** se declaran aquí:
+# una columna fuera de `obligatorias`/`opcionales` cae sola en `ignoradas`
+# sin pasar por la regla de ambigüedad de `resolver_encabezados` — declarar
+# "cantidad" aquí (como hace `PRESUPUESTO`) haría que las ~190 repeticiones
+# choquen entre sí y el archivo se rechazara entero por un dato que el
+# programa base ni siquiera guarda (`ItemProgramaBase` no tiene cantidad).
+
+PROGRAMA_BASE = EspecificacionArchivo(
+    tipo="Programa base de prototipo (cronograma, extensión propia)",
+    archivo="PROGRAMA_<PROTOTIPO>.xlsx",
+    hoja="Hoja1",
+    # `Hoja2` del archivo real no trae encabezados ni columnas de identidad
+    # —es un histograma de recurso por periodo, puras celdas numéricas o
+    # vacías bajo un renglón de título en blanco—, así que no es la hoja a
+    # leer (verificado contra el archivo real, confirmado con el usuario).
+    obligatorias=("tipo", "nivel", "clave", "descripcion"),
+    opcionales=("fecha_inicio", "fecha_termino", "dias_laborables", "vinculos", "indice"),
+    alias={
+        # "Nivel " (con espacio al final, igual que `PRESUPUESTO`): profundidad
+        # del renglón en el árbol —0 el Capítulo, 4 el Concepto—, la misma
+        # columna con la que `programa_base.leer_programa_base` reconstruye la
+        # jerarquía (ver su docstring: no hay `clave_padre` en este archivo).
+        "nivel": "nivel",
+        "indice": "indice",
+        "fecha de inicio": "fecha_inicio",
+        "fecha de termino": "fecha_termino",
+        "dias laborables": "dias_laborables",
+        # "Vínculos": el texto fuente `<fila><FS|SS|FF|SF>[±horas]` de D-442/
+        # D-443 (`1-mundo/MODELO.md` §5c). No vive en el mapa global del §8.6.
+        "vinculos": "vinculos",
+        # `1-mundo/programas/PROGRAMAS-PROTOTIPOS.csv` (§7.5, Paso 4 del
+        # rollout): mismo contrato, otra ortografía de cabecera —sin acento,
+        # sin "fecha de" y con guion bajo en vez de espacio—. Es el archivo
+        # que de verdad trae la red resuelta para los 7 prototipos (ver el
+        # docstring del módulo): `PROGRAMA_ZAFIRO.xlsx` solo trae `Vínculos`
+        # nativo para Zafiro, vacío en los otros 6 (verificado contra los dos
+        # archivos reales), así que la carga de verdad usa este archivo.
+        "inicio": "fecha_inicio",
+        "termino": "fecha_termino",
+        "dias_laborables": "dias_laborables",
+    },
+)
+"""Mismas cinco filas (`Capítulo · Subcapítulo · Nivel 2 · Nivel 3 ·
+Concepto`) y el mismo árbol que `PRESUPUESTO`/`construir_arboles`, por
+`nivel` + posición, nunca por `clave_padre` (ninguno de los dos archivos
+reales de este contrato la trae). Dos archivos reales comparten este
+contrato, y no son intercambiables:
+
+- `PROGRAMA_<PROTOTIPO>.xlsx` (p. ej. `PROGRAMA_ZAFIRO.xlsx`): el export
+  nativo de OPUS/MS Project, con **siete** `Capítulo` seguidos —los siete
+  prototipos—, pero `Vínculos` solo viene poblado en el bloque de Zafiro;
+  los otros seis no traen ningún vínculo nativo (verificado fila por fila
+  contra el archivo real: 0 de ~2,700 filas).
+- `1-mundo/programas/PROGRAMAS-PROTOTIPOS.csv`: el mismo cronograma de los
+  siete, pero con la red ya resuelta para los seis que no la traían (columna
+  `regla`: "gemelo por clave", "losa por altura", etc. — un vínculo por
+  prototipo igual de real, solo que inferido en vez de tecleado en MS
+  Project). Es la fuente que exige el plan del rollout ("la red mínima") y
+  la que de verdad deja comparar las fechas de ObraCtrl contra las de
+  cerebro (`backend/scripts/cargar_programas_prototipos.py`).
+
+`domain.cargadores.programa_base` parte cualquiera de los dos archivos del
+`prototipo_id` pedido."""
 
 COLUMNAS_CPU: tuple[ColumnaPorLetra, ...] = (
     ColumnaPorLetra("clave", "A"),

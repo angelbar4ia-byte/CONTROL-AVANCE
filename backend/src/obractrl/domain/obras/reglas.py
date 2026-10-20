@@ -53,7 +53,7 @@ ESTATUS_DERIVADOS: frozenset[EstatusObra] = frozenset(
         EstatusObra.PENDIENTE,
         EstatusObra.INICIADA,
         EstatusObra.EN_PROCESO,
-        EstatusObra.CASI_LISTA,
+        EstatusObra.POR_ENTREGAR,
     }
 )
 """Estatus que el avance puede fijar solo.
@@ -189,7 +189,7 @@ class Obra:
         """Refleja el avance de la obra y deriva su estatus (§6, §8.2).
 
         La regla es la misma que la del auto-estatus de la actividad: ``≥ 90%
-        → casi_lista`` · ``> 0 → en_proceso``. Solo pisa los estatus derivados
+        → por_entregar`` · ``> 0 → en_proceso``. Solo pisa los estatus derivados
         (`ESTATUS_DERIVADOS`): una obra entregada está congelada.
         """
         self._exigir_no_congelada("mover el avance")
@@ -199,7 +199,7 @@ class Obra:
             return
 
         if avance.esta_casi_listo:
-            self.estatus = EstatusObra.CASI_LISTA
+            self.estatus = EstatusObra.POR_ENTREGAR
         elif avance.esta_iniciado:
             self.estatus = EstatusObra.EN_PROCESO
         elif self.estatus is not EstatusObra.INICIADA:

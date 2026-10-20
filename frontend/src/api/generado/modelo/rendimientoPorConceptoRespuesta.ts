@@ -5,11 +5,11 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { RendimientoPorConceptoRespuestaConceptoId } from './rendimientoPorConceptoRespuestaConceptoId';
-import type { RendimientoPorConceptoRespuestaConceptoClave } from './rendimientoPorConceptoRespuestaConceptoClave';
-import type { RendimientoPorConceptoRespuestaConceptoDescripcion } from './rendimientoPorConceptoRespuestaConceptoDescripcion';
-import type { RendimientoPorConceptoRespuestaUnidadClave } from './rendimientoPorConceptoRespuestaUnidadClave';
-import type { RendimientoPorConceptoRespuestaDesviacionPct } from './rendimientoPorConceptoRespuestaDesviacionPct';
+import type { RendimientoPorConceptoRespuestaConceptoId } from "./rendimientoPorConceptoRespuestaConceptoId";
+import type { RendimientoPorConceptoRespuestaConceptoClave } from "./rendimientoPorConceptoRespuestaConceptoClave";
+import type { RendimientoPorConceptoRespuestaConceptoDescripcion } from "./rendimientoPorConceptoRespuestaConceptoDescripcion";
+import type { RendimientoPorConceptoRespuestaUnidadClave } from "./rendimientoPorConceptoRespuestaUnidadClave";
+import type { RendimientoPorConceptoRespuestaDesviacionPct } from "./rendimientoPorConceptoRespuestaDesviacionPct";
 
 /**
  * Presupuestado contra ejecutado, concepto por concepto (§5.1).

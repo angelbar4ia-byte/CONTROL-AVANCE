@@ -5,11 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -26,8 +22,8 @@ import type {
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
+  UseQueryResult,
+} from "@tanstack/react-query";
 
 import type {
   AgregarRespuestasPeticion,
@@ -36,15 +32,12 @@ import type {
   EvaluacionRespuesta,
   HTTPValidationError,
   ListarCriteriosApiV1CriteriosEvaluacionGetParams,
-  ListarEvaluacionesApiV1EvaluacionesGetParams
-} from '.././modelo';
+  ListarEvaluacionesApiV1EvaluacionesGetParams,
+} from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Crea una evaluación en el nivel pedido; el dominio valida el permiso
@@ -53,67 +46,96 @@ Residente o su propia obra (§11.3 H).
  * @summary Crear una evaluación (auto R · control C · final SI)
  */
 export const crearEvaluacionApiV1EvaluacionesPost = (
-    crearEvaluacionPeticion: CrearEvaluacionPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  crearEvaluacionPeticion: CrearEvaluacionPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<EvaluacionRespuesta>(
-      {url: `/api/v1/evaluaciones`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: crearEvaluacionPeticion, signal
+  return peticion<EvaluacionRespuesta>(
+    {
+      url: `/api/v1/evaluaciones`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: crearEvaluacionPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getCrearEvaluacionApiV1EvaluacionesPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof crearEvaluacionApiV1EvaluacionesPost>>,
+    TError,
+    { data: CrearEvaluacionPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof crearEvaluacionApiV1EvaluacionesPost>>,
+  TError,
+  { data: CrearEvaluacionPeticion },
+  TContext
+> => {
+  const mutationKey = ["crearEvaluacionApiV1EvaluacionesPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getCrearEvaluacionApiV1EvaluacionesPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearEvaluacionApiV1EvaluacionesPost>>, TError,{data: CrearEvaluacionPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof crearEvaluacionApiV1EvaluacionesPost>>, TError,{data: CrearEvaluacionPeticion}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof crearEvaluacionApiV1EvaluacionesPost>>,
+    { data: CrearEvaluacionPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
 
-const mutationKey = ['crearEvaluacionApiV1EvaluacionesPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return crearEvaluacionApiV1EvaluacionesPost(data, requestOptions);
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type CrearEvaluacionApiV1EvaluacionesPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof crearEvaluacionApiV1EvaluacionesPost>>
+>;
+export type CrearEvaluacionApiV1EvaluacionesPostMutationBody =
+  CrearEvaluacionPeticion;
+export type CrearEvaluacionApiV1EvaluacionesPostMutationError = void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearEvaluacionApiV1EvaluacionesPost>>, {data: CrearEvaluacionPeticion}> = (props) => {
-          const {data} = props ?? {};
-
-          return  crearEvaluacionApiV1EvaluacionesPost(data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CrearEvaluacionApiV1EvaluacionesPostMutationResult = NonNullable<Awaited<ReturnType<typeof crearEvaluacionApiV1EvaluacionesPost>>>
-    export type CrearEvaluacionApiV1EvaluacionesPostMutationBody = CrearEvaluacionPeticion
-    export type CrearEvaluacionApiV1EvaluacionesPostMutationError = void
-
-    /**
+/**
  * @summary Crear una evaluación (auto R · control C · final SI)
  */
-export const useCrearEvaluacionApiV1EvaluacionesPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearEvaluacionApiV1EvaluacionesPost>>, TError,{data: CrearEvaluacionPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof crearEvaluacionApiV1EvaluacionesPost>>,
-        TError,
-        {data: CrearEvaluacionPeticion},
-        TContext
-      > => {
+export const useCrearEvaluacionApiV1EvaluacionesPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof crearEvaluacionApiV1EvaluacionesPost>>,
+      TError,
+      { data: CrearEvaluacionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof crearEvaluacionApiV1EvaluacionesPost>>,
+  TError,
+  { data: CrearEvaluacionPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearEvaluacionApiV1EvaluacionesPostMutationOptions(options);
 
-      const mutationOptions = getCrearEvaluacionApiV1EvaluacionesPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Bandeja de evaluaciones visibles para el rol actual.
 
 Lectura simple sin orquestación de dominio —como `GET /cierres`
@@ -122,167 +144,347 @@ uso, porque RLS ya acota el alcance (§12.4).
  * @summary Bandeja de evaluaciones por rol
  */
 export const listarEvaluacionesApiV1EvaluacionesGet = (
-    params?: ListarEvaluacionesApiV1EvaluacionesGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: ListarEvaluacionesApiV1EvaluacionesGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<EvaluacionRespuesta[]>(
-      {url: `/api/v1/evaluaciones`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<EvaluacionRespuesta[]>(
+    { url: `/api/v1/evaluaciones`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getListarEvaluacionesApiV1EvaluacionesGetInfiniteQueryKey = (params?: ListarEvaluacionesApiV1EvaluacionesGetParams,) => {
-    return [
-    'infinite', `/api/v1/evaluaciones`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getListarEvaluacionesApiV1EvaluacionesGetQueryKey = (params?: ListarEvaluacionesApiV1EvaluacionesGetParams,) => {
-    return [
-    `/api/v1/evaluaciones`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getListarEvaluacionesApiV1EvaluacionesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>>, TError = HTTPValidationError>(params?: ListarEvaluacionesApiV1EvaluacionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarEvaluacionesApiV1EvaluacionesGetInfiniteQueryKey = (
+  params?: ListarEvaluacionesApiV1EvaluacionesGetParams,
 ) => {
+  return [
+    "infinite",
+    `/api/v1/evaluaciones`,
+    ...(params ? [params] : []),
+  ] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getListarEvaluacionesApiV1EvaluacionesGetQueryKey = (
+  params?: ListarEvaluacionesApiV1EvaluacionesGetParams,
+) => {
+  return [`/api/v1/evaluaciones`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getListarEvaluacionesApiV1EvaluacionesGetInfiniteQueryKey(params);
+export const getListarEvaluacionesApiV1EvaluacionesGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarEvaluacionesApiV1EvaluacionesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarEvaluacionesApiV1EvaluacionesGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>> = ({ signal }) => listarEvaluacionesApiV1EvaluacionesGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>
+  > = ({ signal }) =>
+    listarEvaluacionesApiV1EvaluacionesGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ListarEvaluacionesApiV1EvaluacionesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>
+  >;
+export type ListarEvaluacionesApiV1EvaluacionesGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarEvaluacionesApiV1EvaluacionesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>>
-export type ListarEvaluacionesApiV1EvaluacionesGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarEvaluacionesApiV1EvaluacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarEvaluacionesApiV1EvaluacionesGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError, TData>> & Pick<
+export function useListarEvaluacionesApiV1EvaluacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarEvaluacionesApiV1EvaluacionesGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
           TError,
           Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarEvaluacionesApiV1EvaluacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>>, TError = HTTPValidationError>(
- params?: ListarEvaluacionesApiV1EvaluacionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEvaluacionesApiV1EvaluacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarEvaluacionesApiV1EvaluacionesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
           TError,
           Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarEvaluacionesApiV1EvaluacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>>, TError = HTTPValidationError>(
- params?: ListarEvaluacionesApiV1EvaluacionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEvaluacionesApiV1EvaluacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarEvaluacionesApiV1EvaluacionesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Bandeja de evaluaciones por rol
  */
 
-export function useListarEvaluacionesApiV1EvaluacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>>, TError = HTTPValidationError>(
- params?: ListarEvaluacionesApiV1EvaluacionesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarEvaluacionesApiV1EvaluacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarEvaluacionesApiV1EvaluacionesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarEvaluacionesApiV1EvaluacionesGetInfiniteQueryOptions(
+      params,
+      options,
+    );
 
-  const queryOptions = getListarEvaluacionesApiV1EvaluacionesGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarEvaluacionesApiV1EvaluacionesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError = HTTPValidationError>(params?: ListarEvaluacionesApiV1EvaluacionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarEvaluacionesApiV1EvaluacionesGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarEvaluacionesApiV1EvaluacionesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarEvaluacionesApiV1EvaluacionesGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarEvaluacionesApiV1EvaluacionesGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>
+  > = ({ signal }) =>
+    listarEvaluacionesApiV1EvaluacionesGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>> = ({ signal }) => listarEvaluacionesApiV1EvaluacionesGet(params, requestOptions, signal);
+export type ListarEvaluacionesApiV1EvaluacionesGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>
+>;
+export type ListarEvaluacionesApiV1EvaluacionesGetQueryError =
+  HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarEvaluacionesApiV1EvaluacionesGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>>
-export type ListarEvaluacionesApiV1EvaluacionesGetQueryError = HTTPValidationError
-
-
-export function useListarEvaluacionesApiV1EvaluacionesGet<TData = Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarEvaluacionesApiV1EvaluacionesGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError, TData>> & Pick<
+export function useListarEvaluacionesApiV1EvaluacionesGet<
+  TData = Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarEvaluacionesApiV1EvaluacionesGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
           TError,
           Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarEvaluacionesApiV1EvaluacionesGet<TData = Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError = HTTPValidationError>(
- params?: ListarEvaluacionesApiV1EvaluacionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEvaluacionesApiV1EvaluacionesGet<
+  TData = Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarEvaluacionesApiV1EvaluacionesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
           TError,
           Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarEvaluacionesApiV1EvaluacionesGet<TData = Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError = HTTPValidationError>(
- params?: ListarEvaluacionesApiV1EvaluacionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEvaluacionesApiV1EvaluacionesGet<
+  TData = Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarEvaluacionesApiV1EvaluacionesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Bandeja de evaluaciones por rol
  */
 
-export function useListarEvaluacionesApiV1EvaluacionesGet<TData = Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError = HTTPValidationError>(
- params?: ListarEvaluacionesApiV1EvaluacionesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarEvaluacionesApiV1EvaluacionesGet<
+  TData = Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarEvaluacionesApiV1EvaluacionesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarEvaluacionesApiV1EvaluacionesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarEvaluacionesApiV1EvaluacionesGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarEvaluacionesApiV1EvaluacionesGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Adjunta respuestas contra el catálogo de criterios; solo quien creó
@@ -290,231 +492,494 @@ la evaluación puede responderla (§7.8).
  * @summary Registrar respuestas de una evaluación
  */
 export const agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost = (
-    evaluacionId: string,
-    agregarRespuestasPeticion: AgregarRespuestasPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  evaluacionId: string,
+  agregarRespuestasPeticion: AgregarRespuestasPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<EvaluacionRespuesta>(
-      {url: `/api/v1/evaluaciones/${evaluacionId}/respuestas`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: agregarRespuestasPeticion, signal
+  return peticion<EvaluacionRespuesta>(
+    {
+      url: `/api/v1/evaluaciones/${evaluacionId}/respuestas`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: agregarRespuestasPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getAgregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost
+        >
+      >,
+      TError,
+      { evaluacionId: string; data: AgregarRespuestasPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost
+      >
+    >,
+    TError,
+    { evaluacionId: string; data: AgregarRespuestasPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getAgregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost>>, TError,{evaluacionId: string;data: AgregarRespuestasPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost>>, TError,{evaluacionId: string;data: AgregarRespuestasPeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost
+        >
+      >,
+      { evaluacionId: string; data: AgregarRespuestasPeticion }
+    > = (props) => {
+      const { evaluacionId, data } = props ?? {};
 
-const mutationKey = ['agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost(
+        evaluacionId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type AgregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost
+      >
+    >
+  >;
+export type AgregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPostMutationBody =
+  AgregarRespuestasPeticion;
+export type AgregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPostMutationError =
+  void | HTTPValidationError;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost>>, {evaluacionId: string;data: AgregarRespuestasPeticion}> = (props) => {
-          const {evaluacionId,data} = props ?? {};
-
-          return  agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost(evaluacionId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AgregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPostMutationResult = NonNullable<Awaited<ReturnType<typeof agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost>>>
-    export type AgregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPostMutationBody = AgregarRespuestasPeticion
-    export type AgregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPostMutationError = void | HTTPValidationError
-
-    /**
+/**
  * @summary Registrar respuestas de una evaluación
  */
-export const useAgregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost>>, TError,{evaluacionId: string;data: AgregarRespuestasPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost>>,
-        TError,
-        {evaluacionId: string;data: AgregarRespuestasPeticion},
-        TContext
-      > => {
+export const useAgregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost
+        >
+      >,
+      TError,
+      { evaluacionId: string; data: AgregarRespuestasPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<
+      typeof agregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPost
+    >
+  >,
+  TError,
+  { evaluacionId: string; data: AgregarRespuestasPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getAgregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPostMutationOptions(
+      options,
+    );
 
-      const mutationOptions = getAgregarRespuestasApiV1EvaluacionesEvaluacionIdRespuestasPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Catálogo `criterio_evaluacion` vigente (§11.2, §8.7 semilla editable).
  * @summary Catálogo de criterios de evaluación
  */
 export const listarCriteriosApiV1CriteriosEvaluacionGet = (
+  params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CriterioRespuesta[]>(
+    { url: `/api/v1/criterios-evaluacion`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getListarCriteriosApiV1CriteriosEvaluacionGetInfiniteQueryKey = (
+  params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams,
+) => {
+  return [
+    "infinite",
+    `/api/v1/criterios-evaluacion`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListarCriteriosApiV1CriteriosEvaluacionGetQueryKey = (
+  params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams,
+) => {
+  return [`/api/v1/criterios-evaluacion`, ...(params ? [params] : [])] as const;
+};
+
+export const getListarCriteriosApiV1CriteriosEvaluacionGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>
+    >,
+    TError = HTTPValidationError,
+  >(
     params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
-) => {
-      
-      
-      return peticion<CriterioRespuesta[]>(
-      {url: `/api/v1/criterios-evaluacion`, method: 'GET',
-        params, signal
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
     },
-      options);
-    }
-  
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarCriteriosApiV1CriteriosEvaluacionGetInfiniteQueryKey(params);
 
+    const queryFn: QueryFunction<
+      Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>
+    > = ({ signal }) =>
+      listarCriteriosApiV1CriteriosEvaluacionGet(
+        params,
+        requestOptions,
+        signal,
+      );
 
-export const getListarCriteriosApiV1CriteriosEvaluacionGetInfiniteQueryKey = (params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams,) => {
-    return [
-    'infinite', `/api/v1/criterios-evaluacion`, ...(params ? [params]: [])
-    ] as const;
-    }
+    return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-export const getListarCriteriosApiV1CriteriosEvaluacionGetQueryKey = (params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams,) => {
-    return [
-    `/api/v1/criterios-evaluacion`, ...(params ? [params]: [])
-    ] as const;
-    }
+export type ListarCriteriosApiV1CriteriosEvaluacionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>
+  >;
+export type ListarCriteriosApiV1CriteriosEvaluacionGetInfiniteQueryError =
+  HTTPValidationError;
 
-    
-export const getListarCriteriosApiV1CriteriosEvaluacionGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>>, TError = HTTPValidationError>(params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListarCriteriosApiV1CriteriosEvaluacionGetInfiniteQueryKey(params);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>> = ({ signal }) => listarCriteriosApiV1CriteriosEvaluacionGet(params, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarCriteriosApiV1CriteriosEvaluacionGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>>
-export type ListarCriteriosApiV1CriteriosEvaluacionGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarCriteriosApiV1CriteriosEvaluacionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarCriteriosApiV1CriteriosEvaluacionGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError, TData>> & Pick<
+export function useListarCriteriosApiV1CriteriosEvaluacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarCriteriosApiV1CriteriosEvaluacionGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+          Awaited<
+            ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>
+          >,
           TError,
           Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarCriteriosApiV1CriteriosEvaluacionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>>, TError = HTTPValidationError>(
- params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarCriteriosApiV1CriteriosEvaluacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+          Awaited<
+            ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>
+          >,
           TError,
           Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarCriteriosApiV1CriteriosEvaluacionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>>, TError = HTTPValidationError>(
- params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarCriteriosApiV1CriteriosEvaluacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de criterios de evaluación
  */
 
-export function useListarCriteriosApiV1CriteriosEvaluacionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>>, TError = HTTPValidationError>(
- params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarCriteriosApiV1CriteriosEvaluacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarCriteriosApiV1CriteriosEvaluacionGetInfiniteQueryOptions(
+      params,
+      options,
+    );
 
-  const queryOptions = getListarCriteriosApiV1CriteriosEvaluacionGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarCriteriosApiV1CriteriosEvaluacionGetQueryOptions = <TData = Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError = HTTPValidationError>(params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarCriteriosApiV1CriteriosEvaluacionGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarCriteriosApiV1CriteriosEvaluacionGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarCriteriosApiV1CriteriosEvaluacionGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>
+  > = ({ signal }) =>
+    listarCriteriosApiV1CriteriosEvaluacionGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>> = ({ signal }) => listarCriteriosApiV1CriteriosEvaluacionGet(params, requestOptions, signal);
+export type ListarCriteriosApiV1CriteriosEvaluacionGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>
+>;
+export type ListarCriteriosApiV1CriteriosEvaluacionGetQueryError =
+  HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarCriteriosApiV1CriteriosEvaluacionGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>>
-export type ListarCriteriosApiV1CriteriosEvaluacionGetQueryError = HTTPValidationError
-
-
-export function useListarCriteriosApiV1CriteriosEvaluacionGet<TData = Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarCriteriosApiV1CriteriosEvaluacionGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError, TData>> & Pick<
+export function useListarCriteriosApiV1CriteriosEvaluacionGet<
+  TData = Awaited<
+    ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarCriteriosApiV1CriteriosEvaluacionGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+          Awaited<
+            ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>
+          >,
           TError,
           Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarCriteriosApiV1CriteriosEvaluacionGet<TData = Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError = HTTPValidationError>(
- params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarCriteriosApiV1CriteriosEvaluacionGet<
+  TData = Awaited<
+    ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+          Awaited<
+            ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>
+          >,
           TError,
           Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarCriteriosApiV1CriteriosEvaluacionGet<TData = Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError = HTTPValidationError>(
- params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarCriteriosApiV1CriteriosEvaluacionGet<
+  TData = Awaited<
+    ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de criterios de evaluación
  */
 
-export function useListarCriteriosApiV1CriteriosEvaluacionGet<TData = Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError = HTTPValidationError>(
- params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarCriteriosApiV1CriteriosEvaluacionGet<
+  TData = Awaited<
+    ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCriteriosApiV1CriteriosEvaluacionGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCriteriosApiV1CriteriosEvaluacionGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarCriteriosApiV1CriteriosEvaluacionGetQueryOptions(params, options);
 
-  const queryOptions = getListarCriteriosApiV1CriteriosEvaluacionGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
-

@@ -7,8 +7,8 @@
  */
 
 export type ListarFrentesApiV1FrentesGetParams = {
-/**
- * Incluye los frentes dados de baja (§8.7).
- */
-incluir_inactivos?: boolean;
+  /**
+   * Incluye los frentes dados de baja (§8.7).
+   */
+  incluir_inactivos?: boolean;
 };

@@ -6,13 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type Rol = typeof Rol[keyof typeof Rol];
-
+export type Rol = (typeof Rol)[keyof typeof Rol];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const Rol = {
-  residente: 'residente',
-  supervisor: 'supervisor',
-  control_obra: 'control_obra',
-  super_intendente: 'super_intendente',
+  residente: "residente",
+  supervisor: "supervisor",
+  control_obra: "control_obra",
+  super_intendente: "super_intendente",
 } as const;

@@ -22,13 +22,13 @@ organización podría querer distinta —"piloto" en vez de "en_curso"— y el
 fije, el borde valida contra esta lista y la columna sigue siendo `text`:
 ampliarla es cambiar este enum, no migrar la base.
  */
-export type EstatusProceso = typeof EstatusProceso[keyof typeof EstatusProceso];
-
+export type EstatusProceso =
+  (typeof EstatusProceso)[keyof typeof EstatusProceso];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const EstatusProceso = {
-  propuesto: 'propuesto',
-  en_curso: 'en_curso',
-  adoptado: 'adoptado',
-  descartado: 'descartado',
+  propuesto: "propuesto",
+  en_curso: "en_curso",
+  adoptado: "adoptado",
+  descartado: "descartado",
 } as const;

@@ -7,8 +7,8 @@
  */
 
 export type ListarEspecialidadesApiV1EspecialidadesGetParams = {
-/**
- * Incluye los dados de baja (§8.7).
- */
-incluir_inactivos?: boolean;
+  /**
+   * Incluye los dados de baja (§8.7).
+   */
+  incluir_inactivos?: boolean;
 };

@@ -227,7 +227,7 @@ Multi-tenant: toda tabla incluye `org_id` (salvo `Organizacion`). Campos estánd
 - **Proyecto** — `nombre`, `ubicacion`, `inicio`, `fin_estimado`.
 - **Cluster** — `proyecto_id`, `nombre` (manzana).
 - **Prototipo** — `proyecto_id`, `clave`, `nombre`, `m2`, `niveles`, `recamaras`.
-- **Obra** — `cluster_id`, `prototipo_id`, `clave` (lote), `residente_id`, `estatus` (pendiente | iniciada | en_proceso | casi_lista | entregada), `fecha_inicio`, `avance_pct`.
+- **Obra** — `cluster_id`, `prototipo_id`, `clave` (lote), `residente_id`, `estatus` (pendiente | iniciada | en_proceso | por_entregar | entregada), `fecha_inicio`, `avance_pct`.
 - **Frente** — `clave`, `nombre`, `etapa`, `orden`, `color` (catálogo de frentes/etapas).
 
 ### 7.3 Catálogos maestros y APU (análisis de precios unitarios)
@@ -350,7 +350,7 @@ Fuente única de verdad para nomenclatura, tipos, enumeraciones, unidades y tér
 | Campo | Valores |
 |---|---|
 | `usuario.rol` | residente · supervisor · control_obra · super_intendente |
-| `obra.estatus` | pendiente · iniciada · en_proceso · casi_lista · entregada |
+| `obra.estatus` | pendiente · iniciada · en_proceso · por_entregar · entregada |
 | `actividad.estatus` | programada · en_proceso · casi · pendiente_cierre · concluida · retrasada · extra_catalogo |
 | `actividad.modo_pago` · `estimacion.modo` | destajo · concepto · subcontrato |
 | `insumo.tipo` | material · mano_obra · equipo · herramienta |

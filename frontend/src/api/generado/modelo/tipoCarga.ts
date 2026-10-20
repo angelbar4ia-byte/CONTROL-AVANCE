@@ -6,26 +6,27 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type TipoCarga = typeof TipoCarga[keyof typeof TipoCarga];
-
+export type TipoCarga = (typeof TipoCarga)[keyof typeof TipoCarga];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const TipoCarga = {
-  catalogo_conceptos: 'catalogo_conceptos',
-  materiales: 'materiales',
-  contratistas: 'contratistas',
-  unidades: 'unidades',
-  familias: 'familias',
-  presupuesto: 'presupuesto',
-  programa_base: 'programa_base',
-  obras: 'obras',
-  almacen: 'almacen',
-  prototipos: 'prototipos',
-  mano_de_obra: 'mano_de_obra',
-  cuadrillas: 'cuadrillas',
-  subcontratos: 'subcontratos',
-  cpu: 'cpu',
-  conceptos_auxiliares: 'conceptos_auxiliares',
-  niveles: 'niveles',
-  etapas_constructivas: 'etapas_constructivas',
+  catalogo_conceptos: "catalogo_conceptos",
+  materiales: "materiales",
+  contratistas: "contratistas",
+  unidades: "unidades",
+  familias: "familias",
+  presupuesto: "presupuesto",
+  programa_base: "programa_base",
+  obras: "obras",
+  almacen: "almacen",
+  prototipos: "prototipos",
+  mano_de_obra: "mano_de_obra",
+  cuadrillas: "cuadrillas",
+  subcontratos: "subcontratos",
+  cpu: "cpu",
+  conceptos_auxiliares: "conceptos_auxiliares",
+  niveles: "niveles",
+  etapas_constructivas: "etapas_constructivas",
+  trabajos: "trabajos",
+  ingenieria_lote: "ingenieria_lote",
 } as const;

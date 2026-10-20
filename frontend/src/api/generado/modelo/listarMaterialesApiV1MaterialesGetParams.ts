@@ -7,12 +7,12 @@
  */
 
 export type ListarMaterialesApiV1MaterialesGetParams = {
-/**
- * Acota a una familia del árbol (§7.3).
- */
-familia_id?: string | null;
-/**
- * Incluye los registros dados de baja (§8.7).
- */
-incluir_inactivos?: boolean;
+  /**
+   * Acota a una familia del árbol (§7.3).
+   */
+  familia_id?: string | null;
+  /**
+   * Incluye los registros dados de baja (§8.7).
+   */
+  incluir_inactivos?: boolean;
 };

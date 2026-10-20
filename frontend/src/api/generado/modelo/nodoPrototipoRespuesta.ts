@@ -5,15 +5,15 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { NodoPrototipoRespuestaParentId } from './nodoPrototipoRespuestaParentId';
-import type { NodoPrototipoRespuestaTipo } from './nodoPrototipoRespuestaTipo';
-import type { NodoPrototipoRespuestaClave } from './nodoPrototipoRespuestaClave';
-import type { NodoPrototipoRespuestaConceptoId } from './nodoPrototipoRespuestaConceptoId';
-import type { NodoPrototipoRespuestaNivelId } from './nodoPrototipoRespuestaNivelId';
-import type { NodoPrototipoRespuestaEtapaId } from './nodoPrototipoRespuestaEtapaId';
-import type { NodoPrototipoRespuestaCantidad } from './nodoPrototipoRespuestaCantidad';
-import type { NodoPrototipoRespuestaPonderacion } from './nodoPrototipoRespuestaPonderacion';
-import type { NodoPrototipoRespuestaConceptoTipo } from './nodoPrototipoRespuestaConceptoTipo';
+import type { NodoPrototipoRespuestaParentId } from "./nodoPrototipoRespuestaParentId";
+import type { NodoPrototipoRespuestaTipo } from "./nodoPrototipoRespuestaTipo";
+import type { NodoPrototipoRespuestaClave } from "./nodoPrototipoRespuestaClave";
+import type { NodoPrototipoRespuestaConceptoId } from "./nodoPrototipoRespuestaConceptoId";
+import type { NodoPrototipoRespuestaNivelId } from "./nodoPrototipoRespuestaNivelId";
+import type { NodoPrototipoRespuestaEtapaId } from "./nodoPrototipoRespuestaEtapaId";
+import type { NodoPrototipoRespuestaCantidad } from "./nodoPrototipoRespuestaCantidad";
+import type { NodoPrototipoRespuestaPonderacion } from "./nodoPrototipoRespuestaPonderacion";
+import type { NodoPrototipoRespuestaConceptoTipo } from "./nodoPrototipoRespuestaConceptoTipo";
 
 export interface NodoPrototipoRespuesta {
   id: string;

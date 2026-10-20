@@ -7,8 +7,8 @@
  */
 
 export type ListarClustersApiV1ClustersGetParams = {
-/**
- * Acota al proyecto indicado (§7.2).
- */
-proyecto_id?: string | null;
+  /**
+   * Acota al proyecto indicado (§7.2).
+   */
+  proyecto_id?: string | null;
 };

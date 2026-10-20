@@ -5,11 +5,11 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ClaseNodo } from './claseNodo';
-import type { NodoDelArbolRespuestaParentId } from './nodoDelArbolRespuestaParentId';
-import type { NodoDelArbolRespuestaFechaInicio } from './nodoDelArbolRespuestaFechaInicio';
-import type { NodoDelArbolRespuestaFechaTermino } from './nodoDelArbolRespuestaFechaTermino';
-import type { NodoDelArbolRespuestaConflicto } from './nodoDelArbolRespuestaConflicto';
+import type { ClaseNodo } from "./claseNodo";
+import type { NodoDelArbolRespuestaParentId } from "./nodoDelArbolRespuestaParentId";
+import type { NodoDelArbolRespuestaFechaInicio } from "./nodoDelArbolRespuestaFechaInicio";
+import type { NodoDelArbolRespuestaFechaTermino } from "./nodoDelArbolRespuestaFechaTermino";
+import type { NodoDelArbolRespuestaConflicto } from "./nodoDelArbolRespuestaConflicto";
 
 /**
  * Un renglón del Gantt jerárquico (§7.4, §6).

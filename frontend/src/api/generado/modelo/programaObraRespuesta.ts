@@ -5,11 +5,11 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ProgramaObraRespuestaProgramaObraId } from './programaObraRespuestaProgramaObraId';
-import type { ProgramaObraRespuestaVersion } from './programaObraRespuestaVersion';
-import type { ProgramaObraRespuestaFechaCorte } from './programaObraRespuestaFechaCorte';
-import type { ActividadProgramadaRespuesta } from './actividadProgramadaRespuesta';
-import type { CalendarioRespuesta } from './calendarioRespuesta';
+import type { ProgramaObraRespuestaProgramaObraId } from "./programaObraRespuestaProgramaObraId";
+import type { ProgramaObraRespuestaVersion } from "./programaObraRespuestaVersion";
+import type { ProgramaObraRespuestaFechaCorte } from "./programaObraRespuestaFechaCorte";
+import type { ActividadProgramadaRespuesta } from "./actividadProgramadaRespuesta";
+import type { CalendarioRespuesta } from "./calendarioRespuesta";
 
 /**
  * §11.2 `GET /obras/{id}/programa`: el cronograma vigente y su historial.

@@ -31,6 +31,8 @@ const ETIQUETA_TIPO: Record<string, string> = {
   obras: 'Obras',
   almacen: 'Salidas de almacén',
   prototipos: 'Prototipos (alta masiva)',
+  trabajos: 'Catálogo de trabajos (destajo/subcontrato)',
+  ingenieria_lote: 'Ingeniería del lote',
 };
 
 const TIPOS_CUBIERTOS_POR_OTRO: readonly string[] = ['presupuesto'];

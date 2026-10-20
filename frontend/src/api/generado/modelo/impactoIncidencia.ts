@@ -6,12 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ImpactoIncidencia = typeof ImpactoIncidencia[keyof typeof ImpactoIncidencia];
-
+export type ImpactoIncidencia =
+  (typeof ImpactoIncidencia)[keyof typeof ImpactoIncidencia];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const ImpactoIncidencia = {
-  detalle: 'detalle',
-  retraso: 'retraso',
-  detiene: 'detiene',
+  detalle: "detalle",
+  retraso: "retraso",
+  detiene: "detiene",
 } as const;

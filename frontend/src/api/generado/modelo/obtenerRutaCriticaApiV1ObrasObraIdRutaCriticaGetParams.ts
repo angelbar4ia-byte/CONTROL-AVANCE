@@ -7,8 +7,8 @@
  */
 
 export type ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams = {
-/**
- * Fecha contra la que se mide el desfase; por defecto hoy.
- */
-fecha_corte?: string | null;
+  /**
+   * Fecha contra la que se mide el desfase; por defecto hoy.
+   */
+  fecha_corte?: string | null;
 };

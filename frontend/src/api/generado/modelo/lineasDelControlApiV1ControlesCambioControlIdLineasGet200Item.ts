@@ -6,4 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type LineasDelControlApiV1ControlesCambioControlIdLineasGet200Item = { [key: string]: unknown };
+export type LineasDelControlApiV1ControlesCambioControlIdLineasGet200Item = {
+  [key: string]: unknown;
+};

@@ -5,11 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -26,8 +22,8 @@ import type {
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
+  UseQueryResult,
+} from "@tanstack/react-query";
 
 import type {
   CPURespuesta,
@@ -62,15 +58,12 @@ import type {
   PublicarCPUPeticion,
   UnidadRespuesta,
   VersionCuadrillaRespuesta,
-  VersionPublicadaRespuesta
-} from '.././modelo';
+  VersionPublicadaRespuesta,
+} from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Lectura simple sin orquestación de dominio —como `GET /proyectos`— así
@@ -78,1485 +71,2778 @@ que consulta el repo directo: RLS ya acota el alcance (§12.4).
  * @summary Catálogo de unidades
  */
 export const listarUnidadesApiV1UnidadesGet = (
-    params?: ListarUnidadesApiV1UnidadesGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: ListarUnidadesApiV1UnidadesGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<UnidadRespuesta[]>(
-      {url: `/api/v1/unidades`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<UnidadRespuesta[]>(
+    { url: `/api/v1/unidades`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getListarUnidadesApiV1UnidadesGetInfiniteQueryKey = (params?: ListarUnidadesApiV1UnidadesGetParams,) => {
-    return [
-    'infinite', `/api/v1/unidades`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getListarUnidadesApiV1UnidadesGetQueryKey = (params?: ListarUnidadesApiV1UnidadesGetParams,) => {
-    return [
-    `/api/v1/unidades`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getListarUnidadesApiV1UnidadesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>>, TError = HTTPValidationError>(params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarUnidadesApiV1UnidadesGetInfiniteQueryKey = (
+  params?: ListarUnidadesApiV1UnidadesGetParams,
 ) => {
+  return ["infinite", `/api/v1/unidades`, ...(params ? [params] : [])] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getListarUnidadesApiV1UnidadesGetQueryKey = (
+  params?: ListarUnidadesApiV1UnidadesGetParams,
+) => {
+  return [`/api/v1/unidades`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getListarUnidadesApiV1UnidadesGetInfiniteQueryKey(params);
+export const getListarUnidadesApiV1UnidadesGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarUnidadesApiV1UnidadesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarUnidadesApiV1UnidadesGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>> = ({ signal }) => listarUnidadesApiV1UnidadesGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
+  > = ({ signal }) =>
+    listarUnidadesApiV1UnidadesGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ListarUnidadesApiV1UnidadesGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
+>;
+export type ListarUnidadesApiV1UnidadesGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarUnidadesApiV1UnidadesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>>
-export type ListarUnidadesApiV1UnidadesGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarUnidadesApiV1UnidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarUnidadesApiV1UnidadesGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>> & Pick<
+export function useListarUnidadesApiV1UnidadesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarUnidadesApiV1UnidadesGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
           TError,
           Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarUnidadesApiV1UnidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>>, TError = HTTPValidationError>(
- params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarUnidadesApiV1UnidadesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarUnidadesApiV1UnidadesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
           TError,
           Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarUnidadesApiV1UnidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>>, TError = HTTPValidationError>(
- params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarUnidadesApiV1UnidadesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarUnidadesApiV1UnidadesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de unidades
  */
 
-export function useListarUnidadesApiV1UnidadesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>>, TError = HTTPValidationError>(
- params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarUnidadesApiV1UnidadesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarUnidadesApiV1UnidadesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarUnidadesApiV1UnidadesGetInfiniteQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarUnidadesApiV1UnidadesGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarUnidadesApiV1UnidadesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError = HTTPValidationError>(params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarUnidadesApiV1UnidadesGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarUnidadesApiV1UnidadesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ?? getListarUnidadesApiV1UnidadesGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarUnidadesApiV1UnidadesGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
+  > = ({ signal }) =>
+    listarUnidadesApiV1UnidadesGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>> = ({ signal }) => listarUnidadesApiV1UnidadesGet(params, requestOptions, signal);
+export type ListarUnidadesApiV1UnidadesGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
+>;
+export type ListarUnidadesApiV1UnidadesGetQueryError = HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarUnidadesApiV1UnidadesGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>>
-export type ListarUnidadesApiV1UnidadesGetQueryError = HTTPValidationError
-
-
-export function useListarUnidadesApiV1UnidadesGet<TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarUnidadesApiV1UnidadesGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>> & Pick<
+export function useListarUnidadesApiV1UnidadesGet<
+  TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarUnidadesApiV1UnidadesGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
           TError,
           Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarUnidadesApiV1UnidadesGet<TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError = HTTPValidationError>(
- params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarUnidadesApiV1UnidadesGet<
+  TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarUnidadesApiV1UnidadesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
           TError,
           Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarUnidadesApiV1UnidadesGet<TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError = HTTPValidationError>(
- params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarUnidadesApiV1UnidadesGet<
+  TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarUnidadesApiV1UnidadesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de unidades
  */
 
-export function useListarUnidadesApiV1UnidadesGet<TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError = HTTPValidationError>(
- params?: ListarUnidadesApiV1UnidadesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarUnidadesApiV1UnidadesGet<
+  TData = Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarUnidadesApiV1UnidadesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarUnidadesApiV1UnidadesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarUnidadesApiV1UnidadesGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarUnidadesApiV1UnidadesGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * @summary Alta de unidad
  */
 export const crearUnidadApiV1UnidadesPost = (
-    crearUnidadPeticion: CrearUnidadPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  crearUnidadPeticion: CrearUnidadPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<UnidadRespuesta>(
-      {url: `/api/v1/unidades`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: crearUnidadPeticion, signal
+  return peticion<UnidadRespuesta>(
+    {
+      url: `/api/v1/unidades`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: crearUnidadPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getCrearUnidadApiV1UnidadesPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>,
+    TError,
+    { data: CrearUnidadPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>,
+  TError,
+  { data: CrearUnidadPeticion },
+  TContext
+> => {
+  const mutationKey = ["crearUnidadApiV1UnidadesPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getCrearUnidadApiV1UnidadesPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>, TError,{data: CrearUnidadPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>, TError,{data: CrearUnidadPeticion}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>,
+    { data: CrearUnidadPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
 
-const mutationKey = ['crearUnidadApiV1UnidadesPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return crearUnidadApiV1UnidadesPost(data, requestOptions);
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type CrearUnidadApiV1UnidadesPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>
+>;
+export type CrearUnidadApiV1UnidadesPostMutationBody = CrearUnidadPeticion;
+export type CrearUnidadApiV1UnidadesPostMutationError = void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>, {data: CrearUnidadPeticion}> = (props) => {
-          const {data} = props ?? {};
-
-          return  crearUnidadApiV1UnidadesPost(data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CrearUnidadApiV1UnidadesPostMutationResult = NonNullable<Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>>
-    export type CrearUnidadApiV1UnidadesPostMutationBody = CrearUnidadPeticion
-    export type CrearUnidadApiV1UnidadesPostMutationError = void
-
-    /**
+/**
  * @summary Alta de unidad
  */
-export const useCrearUnidadApiV1UnidadesPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>, TError,{data: CrearUnidadPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>,
-        TError,
-        {data: CrearUnidadPeticion},
-        TContext
-      > => {
+export const useCrearUnidadApiV1UnidadesPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>,
+      TError,
+      { data: CrearUnidadPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof crearUnidadApiV1UnidadesPost>>,
+  TError,
+  { data: CrearUnidadPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearUnidadApiV1UnidadesPostMutationOptions(options);
 
-      const mutationOptions = getCrearUnidadApiV1UnidadesPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * @summary Árbol de familias
  */
 export const listarFamiliasApiV1FamiliasGet = (
-    params?: ListarFamiliasApiV1FamiliasGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: ListarFamiliasApiV1FamiliasGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<FamiliaRespuesta[]>(
-      {url: `/api/v1/familias`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<FamiliaRespuesta[]>(
+    { url: `/api/v1/familias`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getListarFamiliasApiV1FamiliasGetInfiniteQueryKey = (params?: ListarFamiliasApiV1FamiliasGetParams,) => {
-    return [
-    'infinite', `/api/v1/familias`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getListarFamiliasApiV1FamiliasGetQueryKey = (params?: ListarFamiliasApiV1FamiliasGetParams,) => {
-    return [
-    `/api/v1/familias`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getListarFamiliasApiV1FamiliasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>>, TError = HTTPValidationError>(params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarFamiliasApiV1FamiliasGetInfiniteQueryKey = (
+  params?: ListarFamiliasApiV1FamiliasGetParams,
 ) => {
+  return ["infinite", `/api/v1/familias`, ...(params ? [params] : [])] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getListarFamiliasApiV1FamiliasGetQueryKey = (
+  params?: ListarFamiliasApiV1FamiliasGetParams,
+) => {
+  return [`/api/v1/familias`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getListarFamiliasApiV1FamiliasGetInfiniteQueryKey(params);
+export const getListarFamiliasApiV1FamiliasGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarFamiliasApiV1FamiliasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarFamiliasApiV1FamiliasGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>> = ({ signal }) => listarFamiliasApiV1FamiliasGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
+  > = ({ signal }) =>
+    listarFamiliasApiV1FamiliasGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ListarFamiliasApiV1FamiliasGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
+>;
+export type ListarFamiliasApiV1FamiliasGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarFamiliasApiV1FamiliasGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>>
-export type ListarFamiliasApiV1FamiliasGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarFamiliasApiV1FamiliasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarFamiliasApiV1FamiliasGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>> & Pick<
+export function useListarFamiliasApiV1FamiliasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarFamiliasApiV1FamiliasGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
           TError,
           Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarFamiliasApiV1FamiliasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>>, TError = HTTPValidationError>(
- params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarFamiliasApiV1FamiliasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarFamiliasApiV1FamiliasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
           TError,
           Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarFamiliasApiV1FamiliasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>>, TError = HTTPValidationError>(
- params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarFamiliasApiV1FamiliasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarFamiliasApiV1FamiliasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Árbol de familias
  */
 
-export function useListarFamiliasApiV1FamiliasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>>, TError = HTTPValidationError>(
- params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarFamiliasApiV1FamiliasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarFamiliasApiV1FamiliasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarFamiliasApiV1FamiliasGetInfiniteQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarFamiliasApiV1FamiliasGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarFamiliasApiV1FamiliasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError = HTTPValidationError>(params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarFamiliasApiV1FamiliasGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarFamiliasApiV1FamiliasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ?? getListarFamiliasApiV1FamiliasGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarFamiliasApiV1FamiliasGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
+  > = ({ signal }) =>
+    listarFamiliasApiV1FamiliasGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>> = ({ signal }) => listarFamiliasApiV1FamiliasGet(params, requestOptions, signal);
+export type ListarFamiliasApiV1FamiliasGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
+>;
+export type ListarFamiliasApiV1FamiliasGetQueryError = HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarFamiliasApiV1FamiliasGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>>
-export type ListarFamiliasApiV1FamiliasGetQueryError = HTTPValidationError
-
-
-export function useListarFamiliasApiV1FamiliasGet<TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarFamiliasApiV1FamiliasGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>> & Pick<
+export function useListarFamiliasApiV1FamiliasGet<
+  TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarFamiliasApiV1FamiliasGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
           TError,
           Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarFamiliasApiV1FamiliasGet<TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError = HTTPValidationError>(
- params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarFamiliasApiV1FamiliasGet<
+  TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarFamiliasApiV1FamiliasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
           TError,
           Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarFamiliasApiV1FamiliasGet<TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError = HTTPValidationError>(
- params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarFamiliasApiV1FamiliasGet<
+  TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarFamiliasApiV1FamiliasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Árbol de familias
  */
 
-export function useListarFamiliasApiV1FamiliasGet<TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError = HTTPValidationError>(
- params?: ListarFamiliasApiV1FamiliasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarFamiliasApiV1FamiliasGet<
+  TData = Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarFamiliasApiV1FamiliasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarFamiliasApiV1FamiliasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarFamiliasApiV1FamiliasGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarFamiliasApiV1FamiliasGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * @summary Alta de familia
  */
 export const crearFamiliaApiV1FamiliasPost = (
-    crearFamiliaPeticion: CrearFamiliaPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  crearFamiliaPeticion: CrearFamiliaPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<FamiliaRespuesta>(
-      {url: `/api/v1/familias`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: crearFamiliaPeticion, signal
+  return peticion<FamiliaRespuesta>(
+    {
+      url: `/api/v1/familias`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: crearFamiliaPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getCrearFamiliaApiV1FamiliasPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>,
+    TError,
+    { data: CrearFamiliaPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>,
+  TError,
+  { data: CrearFamiliaPeticion },
+  TContext
+> => {
+  const mutationKey = ["crearFamiliaApiV1FamiliasPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getCrearFamiliaApiV1FamiliasPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>, TError,{data: CrearFamiliaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>, TError,{data: CrearFamiliaPeticion}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>,
+    { data: CrearFamiliaPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
 
-const mutationKey = ['crearFamiliaApiV1FamiliasPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return crearFamiliaApiV1FamiliasPost(data, requestOptions);
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type CrearFamiliaApiV1FamiliasPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>
+>;
+export type CrearFamiliaApiV1FamiliasPostMutationBody = CrearFamiliaPeticion;
+export type CrearFamiliaApiV1FamiliasPostMutationError = void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>, {data: CrearFamiliaPeticion}> = (props) => {
-          const {data} = props ?? {};
-
-          return  crearFamiliaApiV1FamiliasPost(data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CrearFamiliaApiV1FamiliasPostMutationResult = NonNullable<Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>>
-    export type CrearFamiliaApiV1FamiliasPostMutationBody = CrearFamiliaPeticion
-    export type CrearFamiliaApiV1FamiliasPostMutationError = void
-
-    /**
+/**
  * @summary Alta de familia
  */
-export const useCrearFamiliaApiV1FamiliasPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>, TError,{data: CrearFamiliaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>,
-        TError,
-        {data: CrearFamiliaPeticion},
-        TContext
-      > => {
+export const useCrearFamiliaApiV1FamiliasPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>,
+      TError,
+      { data: CrearFamiliaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof crearFamiliaApiV1FamiliasPost>>,
+  TError,
+  { data: CrearFamiliaPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearFamiliaApiV1FamiliasPostMutationOptions(options);
 
-      const mutationOptions = getCrearFamiliaApiV1FamiliasPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * @summary Catálogo de insumos
  */
 export const listarInsumosApiV1InsumosGet = (
-    params?: ListarInsumosApiV1InsumosGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: ListarInsumosApiV1InsumosGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<InsumoRespuesta[]>(
-      {url: `/api/v1/insumos`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<InsumoRespuesta[]>(
+    { url: `/api/v1/insumos`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getListarInsumosApiV1InsumosGetInfiniteQueryKey = (params?: ListarInsumosApiV1InsumosGetParams,) => {
-    return [
-    'infinite', `/api/v1/insumos`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getListarInsumosApiV1InsumosGetQueryKey = (params?: ListarInsumosApiV1InsumosGetParams,) => {
-    return [
-    `/api/v1/insumos`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getListarInsumosApiV1InsumosGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>>, TError = HTTPValidationError>(params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarInsumosApiV1InsumosGetInfiniteQueryKey = (
+  params?: ListarInsumosApiV1InsumosGetParams,
 ) => {
+  return ["infinite", `/api/v1/insumos`, ...(params ? [params] : [])] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getListarInsumosApiV1InsumosGetQueryKey = (
+  params?: ListarInsumosApiV1InsumosGetParams,
+) => {
+  return [`/api/v1/insumos`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getListarInsumosApiV1InsumosGetInfiniteQueryKey(params);
+export const getListarInsumosApiV1InsumosGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarInsumosApiV1InsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarInsumosApiV1InsumosGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>> = ({ signal }) => listarInsumosApiV1InsumosGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
+  > = ({ signal }) =>
+    listarInsumosApiV1InsumosGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ListarInsumosApiV1InsumosGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
+>;
+export type ListarInsumosApiV1InsumosGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarInsumosApiV1InsumosGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>>
-export type ListarInsumosApiV1InsumosGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarInsumosApiV1InsumosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarInsumosApiV1InsumosGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>> & Pick<
+export function useListarInsumosApiV1InsumosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarInsumosApiV1InsumosGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
           TError,
           Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarInsumosApiV1InsumosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>>, TError = HTTPValidationError>(
- params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarInsumosApiV1InsumosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarInsumosApiV1InsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
           TError,
           Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarInsumosApiV1InsumosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>>, TError = HTTPValidationError>(
- params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarInsumosApiV1InsumosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarInsumosApiV1InsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de insumos
  */
 
-export function useListarInsumosApiV1InsumosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>>, TError = HTTPValidationError>(
- params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarInsumosApiV1InsumosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarInsumosApiV1InsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarInsumosApiV1InsumosGetInfiniteQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarInsumosApiV1InsumosGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarInsumosApiV1InsumosGetQueryOptions = <TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError = HTTPValidationError>(params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarInsumosApiV1InsumosGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarInsumosApiV1InsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ?? getListarInsumosApiV1InsumosGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarInsumosApiV1InsumosGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
+  > = ({ signal }) =>
+    listarInsumosApiV1InsumosGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>> = ({ signal }) => listarInsumosApiV1InsumosGet(params, requestOptions, signal);
+export type ListarInsumosApiV1InsumosGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
+>;
+export type ListarInsumosApiV1InsumosGetQueryError = HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarInsumosApiV1InsumosGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>>
-export type ListarInsumosApiV1InsumosGetQueryError = HTTPValidationError
-
-
-export function useListarInsumosApiV1InsumosGet<TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarInsumosApiV1InsumosGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>> & Pick<
+export function useListarInsumosApiV1InsumosGet<
+  TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarInsumosApiV1InsumosGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
           TError,
           Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarInsumosApiV1InsumosGet<TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError = HTTPValidationError>(
- params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarInsumosApiV1InsumosGet<
+  TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarInsumosApiV1InsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
           TError,
           Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarInsumosApiV1InsumosGet<TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError = HTTPValidationError>(
- params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarInsumosApiV1InsumosGet<
+  TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarInsumosApiV1InsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de insumos
  */
 
-export function useListarInsumosApiV1InsumosGet<TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError = HTTPValidationError>(
- params?: ListarInsumosApiV1InsumosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarInsumosApiV1InsumosGet<
+  TData = Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarInsumosApiV1InsumosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarInsumosApiV1InsumosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarInsumosApiV1InsumosGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarInsumosApiV1InsumosGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * @summary Alta de insumo
  */
 export const crearInsumoApiV1InsumosPost = (
-    crearInsumoPeticion: CrearInsumoPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  crearInsumoPeticion: CrearInsumoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<InsumoRespuesta>(
-      {url: `/api/v1/insumos`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: crearInsumoPeticion, signal
+  return peticion<InsumoRespuesta>(
+    {
+      url: `/api/v1/insumos`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: crearInsumoPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getCrearInsumoApiV1InsumosPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>,
+    TError,
+    { data: CrearInsumoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>,
+  TError,
+  { data: CrearInsumoPeticion },
+  TContext
+> => {
+  const mutationKey = ["crearInsumoApiV1InsumosPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getCrearInsumoApiV1InsumosPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>, TError,{data: CrearInsumoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>, TError,{data: CrearInsumoPeticion}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>,
+    { data: CrearInsumoPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
 
-const mutationKey = ['crearInsumoApiV1InsumosPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return crearInsumoApiV1InsumosPost(data, requestOptions);
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type CrearInsumoApiV1InsumosPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>
+>;
+export type CrearInsumoApiV1InsumosPostMutationBody = CrearInsumoPeticion;
+export type CrearInsumoApiV1InsumosPostMutationError = void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>, {data: CrearInsumoPeticion}> = (props) => {
-          const {data} = props ?? {};
-
-          return  crearInsumoApiV1InsumosPost(data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CrearInsumoApiV1InsumosPostMutationResult = NonNullable<Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>>
-    export type CrearInsumoApiV1InsumosPostMutationBody = CrearInsumoPeticion
-    export type CrearInsumoApiV1InsumosPostMutationError = void
-
-    /**
+/**
  * @summary Alta de insumo
  */
-export const useCrearInsumoApiV1InsumosPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>, TError,{data: CrearInsumoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>,
-        TError,
-        {data: CrearInsumoPeticion},
-        TContext
-      > => {
+export const useCrearInsumoApiV1InsumosPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>,
+      TError,
+      { data: CrearInsumoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof crearInsumoApiV1InsumosPost>>,
+  TError,
+  { data: CrearInsumoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearInsumoApiV1InsumosPostMutationOptions(options);
 
-      const mutationOptions = getCrearInsumoApiV1InsumosPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * `Material` = `Insumo` con `tipo='material'` (§7.3): mismo repositorio,
 filtro fijado aquí. No hay tabla ni catálogo aparte.
  * @summary Catálogo de materiales
  */
 export const listarMaterialesApiV1MaterialesGet = (
-    params?: ListarMaterialesApiV1MaterialesGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: ListarMaterialesApiV1MaterialesGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<InsumoRespuesta[]>(
-      {url: `/api/v1/materiales`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<InsumoRespuesta[]>(
+    { url: `/api/v1/materiales`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getListarMaterialesApiV1MaterialesGetInfiniteQueryKey = (params?: ListarMaterialesApiV1MaterialesGetParams,) => {
-    return [
-    'infinite', `/api/v1/materiales`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getListarMaterialesApiV1MaterialesGetQueryKey = (params?: ListarMaterialesApiV1MaterialesGetParams,) => {
-    return [
-    `/api/v1/materiales`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getListarMaterialesApiV1MaterialesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>>, TError = HTTPValidationError>(params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarMaterialesApiV1MaterialesGetInfiniteQueryKey = (
+  params?: ListarMaterialesApiV1MaterialesGetParams,
 ) => {
+  return [
+    "infinite",
+    `/api/v1/materiales`,
+    ...(params ? [params] : []),
+  ] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getListarMaterialesApiV1MaterialesGetQueryKey = (
+  params?: ListarMaterialesApiV1MaterialesGetParams,
+) => {
+  return [`/api/v1/materiales`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getListarMaterialesApiV1MaterialesGetInfiniteQueryKey(params);
+export const getListarMaterialesApiV1MaterialesGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarMaterialesApiV1MaterialesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarMaterialesApiV1MaterialesGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>> = ({ signal }) => listarMaterialesApiV1MaterialesGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
+  > = ({ signal }) =>
+    listarMaterialesApiV1MaterialesGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ListarMaterialesApiV1MaterialesGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
+>;
+export type ListarMaterialesApiV1MaterialesGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarMaterialesApiV1MaterialesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>>
-export type ListarMaterialesApiV1MaterialesGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarMaterialesApiV1MaterialesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarMaterialesApiV1MaterialesGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>> & Pick<
+export function useListarMaterialesApiV1MaterialesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarMaterialesApiV1MaterialesGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
           TError,
           Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarMaterialesApiV1MaterialesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>>, TError = HTTPValidationError>(
- params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarMaterialesApiV1MaterialesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarMaterialesApiV1MaterialesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
           TError,
           Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarMaterialesApiV1MaterialesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>>, TError = HTTPValidationError>(
- params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarMaterialesApiV1MaterialesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarMaterialesApiV1MaterialesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de materiales
  */
 
-export function useListarMaterialesApiV1MaterialesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>>, TError = HTTPValidationError>(
- params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarMaterialesApiV1MaterialesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarMaterialesApiV1MaterialesGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarMaterialesApiV1MaterialesGetInfiniteQueryOptions(params, options);
 
-  const queryOptions = getListarMaterialesApiV1MaterialesGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarMaterialesApiV1MaterialesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError = HTTPValidationError>(params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarMaterialesApiV1MaterialesGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarMaterialesApiV1MaterialesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarMaterialesApiV1MaterialesGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarMaterialesApiV1MaterialesGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
+  > = ({ signal }) =>
+    listarMaterialesApiV1MaterialesGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>> = ({ signal }) => listarMaterialesApiV1MaterialesGet(params, requestOptions, signal);
+export type ListarMaterialesApiV1MaterialesGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
+>;
+export type ListarMaterialesApiV1MaterialesGetQueryError = HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarMaterialesApiV1MaterialesGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>>
-export type ListarMaterialesApiV1MaterialesGetQueryError = HTTPValidationError
-
-
-export function useListarMaterialesApiV1MaterialesGet<TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarMaterialesApiV1MaterialesGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>> & Pick<
+export function useListarMaterialesApiV1MaterialesGet<
+  TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarMaterialesApiV1MaterialesGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
           TError,
           Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarMaterialesApiV1MaterialesGet<TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError = HTTPValidationError>(
- params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarMaterialesApiV1MaterialesGet<
+  TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarMaterialesApiV1MaterialesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
           TError,
           Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarMaterialesApiV1MaterialesGet<TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError = HTTPValidationError>(
- params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarMaterialesApiV1MaterialesGet<
+  TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarMaterialesApiV1MaterialesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de materiales
  */
 
-export function useListarMaterialesApiV1MaterialesGet<TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError = HTTPValidationError>(
- params?: ListarMaterialesApiV1MaterialesGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarMaterialesApiV1MaterialesGet<
+  TData = Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarMaterialesApiV1MaterialesGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarMaterialesApiV1MaterialesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarMaterialesApiV1MaterialesGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarMaterialesApiV1MaterialesGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * @summary Alta de material
  */
 export const crearMaterialApiV1MaterialesPost = (
-    crearMaterialPeticion: CrearMaterialPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  crearMaterialPeticion: CrearMaterialPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<InsumoRespuesta>(
-      {url: `/api/v1/materiales`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: crearMaterialPeticion, signal
+  return peticion<InsumoRespuesta>(
+    {
+      url: `/api/v1/materiales`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: crearMaterialPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getCrearMaterialApiV1MaterialesPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>,
+    TError,
+    { data: CrearMaterialPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>,
+  TError,
+  { data: CrearMaterialPeticion },
+  TContext
+> => {
+  const mutationKey = ["crearMaterialApiV1MaterialesPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getCrearMaterialApiV1MaterialesPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>, TError,{data: CrearMaterialPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>, TError,{data: CrearMaterialPeticion}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>,
+    { data: CrearMaterialPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
 
-const mutationKey = ['crearMaterialApiV1MaterialesPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return crearMaterialApiV1MaterialesPost(data, requestOptions);
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type CrearMaterialApiV1MaterialesPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>
+>;
+export type CrearMaterialApiV1MaterialesPostMutationBody =
+  CrearMaterialPeticion;
+export type CrearMaterialApiV1MaterialesPostMutationError = void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>, {data: CrearMaterialPeticion}> = (props) => {
-          const {data} = props ?? {};
-
-          return  crearMaterialApiV1MaterialesPost(data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CrearMaterialApiV1MaterialesPostMutationResult = NonNullable<Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>>
-    export type CrearMaterialApiV1MaterialesPostMutationBody = CrearMaterialPeticion
-    export type CrearMaterialApiV1MaterialesPostMutationError = void
-
-    /**
+/**
  * @summary Alta de material
  */
-export const useCrearMaterialApiV1MaterialesPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>, TError,{data: CrearMaterialPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>,
-        TError,
-        {data: CrearMaterialPeticion},
-        TContext
-      > => {
+export const useCrearMaterialApiV1MaterialesPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>,
+      TError,
+      { data: CrearMaterialPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof crearMaterialApiV1MaterialesPost>>,
+  TError,
+  { data: CrearMaterialPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearMaterialApiV1MaterialesPostMutationOptions(options);
 
-      const mutationOptions = getCrearMaterialApiV1MaterialesPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * @summary Catálogo de contratistas
  */
 export const listarContratistasApiV1ContratistasGet = (
-    params?: ListarContratistasApiV1ContratistasGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: ListarContratistasApiV1ContratistasGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<ContratistaRespuesta[]>(
-      {url: `/api/v1/contratistas`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<ContratistaRespuesta[]>(
+    { url: `/api/v1/contratistas`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getListarContratistasApiV1ContratistasGetInfiniteQueryKey = (params?: ListarContratistasApiV1ContratistasGetParams,) => {
-    return [
-    'infinite', `/api/v1/contratistas`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getListarContratistasApiV1ContratistasGetQueryKey = (params?: ListarContratistasApiV1ContratistasGetParams,) => {
-    return [
-    `/api/v1/contratistas`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getListarContratistasApiV1ContratistasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>>, TError = HTTPValidationError>(params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarContratistasApiV1ContratistasGetInfiniteQueryKey = (
+  params?: ListarContratistasApiV1ContratistasGetParams,
 ) => {
+  return [
+    "infinite",
+    `/api/v1/contratistas`,
+    ...(params ? [params] : []),
+  ] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getListarContratistasApiV1ContratistasGetQueryKey = (
+  params?: ListarContratistasApiV1ContratistasGetParams,
+) => {
+  return [`/api/v1/contratistas`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getListarContratistasApiV1ContratistasGetInfiniteQueryKey(params);
+export const getListarContratistasApiV1ContratistasGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarContratistasApiV1ContratistasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarContratistasApiV1ContratistasGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>> = ({ signal }) => listarContratistasApiV1ContratistasGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
+  > = ({ signal }) =>
+    listarContratistasApiV1ContratistasGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ListarContratistasApiV1ContratistasGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
+  >;
+export type ListarContratistasApiV1ContratistasGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarContratistasApiV1ContratistasGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>>
-export type ListarContratistasApiV1ContratistasGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarContratistasApiV1ContratistasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarContratistasApiV1ContratistasGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>> & Pick<
+export function useListarContratistasApiV1ContratistasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarContratistasApiV1ContratistasGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
           TError,
           Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarContratistasApiV1ContratistasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>>, TError = HTTPValidationError>(
- params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarContratistasApiV1ContratistasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarContratistasApiV1ContratistasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
           TError,
           Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarContratistasApiV1ContratistasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>>, TError = HTTPValidationError>(
- params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarContratistasApiV1ContratistasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarContratistasApiV1ContratistasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de contratistas
  */
 
-export function useListarContratistasApiV1ContratistasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>>, TError = HTTPValidationError>(
- params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarContratistasApiV1ContratistasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarContratistasApiV1ContratistasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarContratistasApiV1ContratistasGetInfiniteQueryOptions(
+      params,
+      options,
+    );
 
-  const queryOptions = getListarContratistasApiV1ContratistasGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarContratistasApiV1ContratistasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError = HTTPValidationError>(params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarContratistasApiV1ContratistasGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarContratistasApiV1ContratistasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarContratistasApiV1ContratistasGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarContratistasApiV1ContratistasGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
+  > = ({ signal }) =>
+    listarContratistasApiV1ContratistasGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>> = ({ signal }) => listarContratistasApiV1ContratistasGet(params, requestOptions, signal);
+export type ListarContratistasApiV1ContratistasGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
+>;
+export type ListarContratistasApiV1ContratistasGetQueryError =
+  HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarContratistasApiV1ContratistasGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>>
-export type ListarContratistasApiV1ContratistasGetQueryError = HTTPValidationError
-
-
-export function useListarContratistasApiV1ContratistasGet<TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarContratistasApiV1ContratistasGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>> & Pick<
+export function useListarContratistasApiV1ContratistasGet<
+  TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarContratistasApiV1ContratistasGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
           TError,
           Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarContratistasApiV1ContratistasGet<TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError = HTTPValidationError>(
- params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarContratistasApiV1ContratistasGet<
+  TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarContratistasApiV1ContratistasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
           TError,
           Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarContratistasApiV1ContratistasGet<TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError = HTTPValidationError>(
- params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarContratistasApiV1ContratistasGet<
+  TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarContratistasApiV1ContratistasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de contratistas
  */
 
-export function useListarContratistasApiV1ContratistasGet<TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError = HTTPValidationError>(
- params?: ListarContratistasApiV1ContratistasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarContratistasApiV1ContratistasGet<
+  TData = Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarContratistasApiV1ContratistasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarContratistasApiV1ContratistasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarContratistasApiV1ContratistasGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarContratistasApiV1ContratistasGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * @summary Alta de contratista
  */
 export const crearContratistaApiV1ContratistasPost = (
-    crearContratistaPeticion: CrearContratistaPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  crearContratistaPeticion: CrearContratistaPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<ContratistaRespuesta>(
-      {url: `/api/v1/contratistas`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: crearContratistaPeticion, signal
+  return peticion<ContratistaRespuesta>(
+    {
+      url: `/api/v1/contratistas`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: crearContratistaPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getCrearContratistaApiV1ContratistasPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>,
+    TError,
+    { data: CrearContratistaPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>,
+  TError,
+  { data: CrearContratistaPeticion },
+  TContext
+> => {
+  const mutationKey = ["crearContratistaApiV1ContratistasPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getCrearContratistaApiV1ContratistasPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>, TError,{data: CrearContratistaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>, TError,{data: CrearContratistaPeticion}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>,
+    { data: CrearContratistaPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
 
-const mutationKey = ['crearContratistaApiV1ContratistasPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return crearContratistaApiV1ContratistasPost(data, requestOptions);
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type CrearContratistaApiV1ContratistasPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>
+>;
+export type CrearContratistaApiV1ContratistasPostMutationBody =
+  CrearContratistaPeticion;
+export type CrearContratistaApiV1ContratistasPostMutationError = void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>, {data: CrearContratistaPeticion}> = (props) => {
-          const {data} = props ?? {};
-
-          return  crearContratistaApiV1ContratistasPost(data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CrearContratistaApiV1ContratistasPostMutationResult = NonNullable<Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>>
-    export type CrearContratistaApiV1ContratistasPostMutationBody = CrearContratistaPeticion
-    export type CrearContratistaApiV1ContratistasPostMutationError = void
-
-    /**
+/**
  * @summary Alta de contratista
  */
-export const useCrearContratistaApiV1ContratistasPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>, TError,{data: CrearContratistaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>,
-        TError,
-        {data: CrearContratistaPeticion},
-        TContext
-      > => {
+export const useCrearContratistaApiV1ContratistasPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>,
+      TError,
+      { data: CrearContratistaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof crearContratistaApiV1ContratistasPost>>,
+  TError,
+  { data: CrearContratistaPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearContratistaApiV1ContratistasPostMutationOptions(options);
 
-      const mutationOptions = getCrearContratistaApiV1ContratistasPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Lectura simple sin orquestación de dominio —como `GET /unidades`—
 así que consulta el repo directo: RLS ya acota el alcance (§12.4).
  * @summary Catálogo de niveles de construcción
  */
 export const listarNivelesApiV1NivelesGet = (
-    
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<NivelRespuesta[]>(
-      {url: `/api/v1/niveles`, method: 'GET', signal
-    },
-      options);
-    }
-  
-
-
+  return peticion<NivelRespuesta[]>(
+    { url: `/api/v1/niveles`, method: "GET", signal },
+    options,
+  );
+};
 
 export const getListarNivelesApiV1NivelesGetInfiniteQueryKey = () => {
-    return [
-    'infinite', `/api/v1/niveles`
-    ] as const;
-    }
+  return ["infinite", `/api/v1/niveles`] as const;
+};
 
 export const getListarNivelesApiV1NivelesGetQueryKey = () => {
-    return [
-    `/api/v1/niveles`
-    ] as const;
-    }
+  return [`/api/v1/niveles`] as const;
+};
 
-    
-export const getListarNivelesApiV1NivelesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>, TError = unknown>( options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+export const getListarNivelesApiV1NivelesGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
+  >,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ?? getListarNivelesApiV1NivelesGetInfiniteQueryKey();
 
-  const queryKey =  queryOptions?.queryKey ?? getListarNivelesApiV1NivelesGetInfiniteQueryKey();
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
+  > = ({ signal }) => listarNivelesApiV1NivelesGet(requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>> = ({ signal }) => listarNivelesApiV1NivelesGet(requestOptions, signal);
+export type ListarNivelesApiV1NivelesGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
+>;
+export type ListarNivelesApiV1NivelesGetInfiniteQueryError = unknown;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarNivelesApiV1NivelesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>
-export type ListarNivelesApiV1NivelesGetInfiniteQueryError = unknown
-
-
-export function useListarNivelesApiV1NivelesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>, TError = unknown>(
-  options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>> & Pick<
+export function useListarNivelesApiV1NivelesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
           TError,
           Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarNivelesApiV1NivelesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarNivelesApiV1NivelesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
           TError,
           Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarNivelesApiV1NivelesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarNivelesApiV1NivelesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de niveles de construcción
  */
 
-export function useListarNivelesApiV1NivelesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarNivelesApiV1NivelesGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarNivelesApiV1NivelesGetInfiniteQueryOptions(options);
 
-  const queryOptions = getListarNivelesApiV1NivelesGetInfiniteQueryOptions(options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getListarNivelesApiV1NivelesGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
+  const queryKey =
+    queryOptions?.queryKey ?? getListarNivelesApiV1NivelesGetQueryKey();
 
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
+  > = ({ signal }) => listarNivelesApiV1NivelesGet(requestOptions, signal);
 
-export const getListarNivelesApiV1NivelesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type ListarNivelesApiV1NivelesGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
+>;
+export type ListarNivelesApiV1NivelesGetQueryError = unknown;
 
-  const queryKey =  queryOptions?.queryKey ?? getListarNivelesApiV1NivelesGetQueryKey();
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>> = ({ signal }) => listarNivelesApiV1NivelesGet(requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarNivelesApiV1NivelesGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>>
-export type ListarNivelesApiV1NivelesGetQueryError = unknown
-
-
-export function useListarNivelesApiV1NivelesGet<TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>> & Pick<
+export function useListarNivelesApiV1NivelesGet<
+  TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
           TError,
           Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarNivelesApiV1NivelesGet<TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarNivelesApiV1NivelesGet<
+  TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
           TError,
           Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarNivelesApiV1NivelesGet<TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarNivelesApiV1NivelesGet<
+  TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de niveles de construcción
  */
 
-export function useListarNivelesApiV1NivelesGet<TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarNivelesApiV1NivelesGet<
+  TData = Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarNivelesApiV1NivelesGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarNivelesApiV1NivelesGetQueryOptions(options);
 
-  const queryOptions = getListarNivelesApiV1NivelesGetQueryOptions(options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * @summary Catálogo de etapas de construcción
  */
 export const listarEtapasApiV1EtapasGet = (
-    
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<EtapaRespuesta[]>(
-      {url: `/api/v1/etapas`, method: 'GET', signal
-    },
-      options);
-    }
-  
-
-
+  return peticion<EtapaRespuesta[]>(
+    { url: `/api/v1/etapas`, method: "GET", signal },
+    options,
+  );
+};
 
 export const getListarEtapasApiV1EtapasGetInfiniteQueryKey = () => {
-    return [
-    'infinite', `/api/v1/etapas`
-    ] as const;
-    }
+  return ["infinite", `/api/v1/etapas`] as const;
+};
 
 export const getListarEtapasApiV1EtapasGetQueryKey = () => {
-    return [
-    `/api/v1/etapas`
-    ] as const;
-    }
+  return [`/api/v1/etapas`] as const;
+};
 
-    
-export const getListarEtapasApiV1EtapasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>, TError = unknown>( options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+export const getListarEtapasApiV1EtapasGetInfiniteQueryOptions = <
+  TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ?? getListarEtapasApiV1EtapasGetInfiniteQueryKey();
 
-  const queryKey =  queryOptions?.queryKey ?? getListarEtapasApiV1EtapasGetInfiniteQueryKey();
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>
+  > = ({ signal }) => listarEtapasApiV1EtapasGet(requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>> = ({ signal }) => listarEtapasApiV1EtapasGet(requestOptions, signal);
+export type ListarEtapasApiV1EtapasGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>
+>;
+export type ListarEtapasApiV1EtapasGetInfiniteQueryError = unknown;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarEtapasApiV1EtapasGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>
-export type ListarEtapasApiV1EtapasGetInfiniteQueryError = unknown
-
-
-export function useListarEtapasApiV1EtapasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>, TError = unknown>(
-  options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>> & Pick<
+export function useListarEtapasApiV1EtapasGetInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
           TError,
           Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarEtapasApiV1EtapasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEtapasApiV1EtapasGetInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
           TError,
           Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarEtapasApiV1EtapasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEtapasApiV1EtapasGetInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de etapas de construcción
  */
 
-export function useListarEtapasApiV1EtapasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>, TError = unknown>(
-  options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarEtapasApiV1EtapasGetInfinite<
+  TData = InfiniteData<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarEtapasApiV1EtapasGetInfiniteQueryOptions(options);
 
-  const queryOptions = getListarEtapasApiV1EtapasGetInfiniteQueryOptions(options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getListarEtapasApiV1EtapasGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
+  const queryKey =
+    queryOptions?.queryKey ?? getListarEtapasApiV1EtapasGetQueryKey();
 
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>
+  > = ({ signal }) => listarEtapasApiV1EtapasGet(requestOptions, signal);
 
-export const getListarEtapasApiV1EtapasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError = unknown>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type ListarEtapasApiV1EtapasGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>
+>;
+export type ListarEtapasApiV1EtapasGetQueryError = unknown;
 
-  const queryKey =  queryOptions?.queryKey ?? getListarEtapasApiV1EtapasGetQueryKey();
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>> = ({ signal }) => listarEtapasApiV1EtapasGet(requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarEtapasApiV1EtapasGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>>
-export type ListarEtapasApiV1EtapasGetQueryError = unknown
-
-
-export function useListarEtapasApiV1EtapasGet<TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError = unknown>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>> & Pick<
+export function useListarEtapasApiV1EtapasGet<
+  TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
           TError,
           Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarEtapasApiV1EtapasGet<TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEtapasApiV1EtapasGet<
+  TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
           TError,
           Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarEtapasApiV1EtapasGet<TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEtapasApiV1EtapasGet<
+  TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de etapas de construcción
  */
 
-export function useListarEtapasApiV1EtapasGet<TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError = unknown>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarEtapasApiV1EtapasGet<
+  TData = Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarEtapasApiV1EtapasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarEtapasApiV1EtapasGetQueryOptions(options);
 
-  const queryOptions = getListarEtapasApiV1EtapasGetQueryOptions(options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Cierra a mano lo que el árbol del prototipo no puede derivar.
@@ -1568,299 +2854,541 @@ el residente mira su obra agrupada.
  * @summary A qué nivel pertenece esta etapa
  */
 export const asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut = (
-    etapaId: string,
-    nivelDeLaEtapaPeticion: NivelDeLaEtapaPeticion,
- options?: SecondParameter<typeof peticion>,) => {
-      
-      
-      return peticion<void>(
-      {url: `/api/v1/etapas/${etapaId}/nivel`, method: 'PUT',
-      headers: {'Content-Type': 'application/json', },
-      data: nivelDeLaEtapaPeticion
+  etapaId: string,
+  nivelDeLaEtapaPeticion: NivelDeLaEtapaPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/etapas/${etapaId}/nivel`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: nivelDeLaEtapaPeticion,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationOptions =
+  <TError = HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>
+      >,
+      TError,
+      { etapaId: string; data: NivelDeLaEtapaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>,
+    TError,
+    { etapaId: string; data: NivelDeLaEtapaPeticion },
+    TContext
+  > => {
+    const mutationKey = ["asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>, TError,{etapaId: string;data: NivelDeLaEtapaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>, TError,{etapaId: string;data: NivelDeLaEtapaPeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>
+      >,
+      { etapaId: string; data: NivelDeLaEtapaPeticion }
+    > = (props) => {
+      const { etapaId, data } = props ?? {};
 
-const mutationKey = ['asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut(
+        etapaId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type AsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>
+  >;
+export type AsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationBody =
+  NivelDeLaEtapaPeticion;
+export type AsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationError =
+  HTTPValidationError;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>, {etapaId: string;data: NivelDeLaEtapaPeticion}> = (props) => {
-          const {etapaId,data} = props ?? {};
-
-          return  asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut(etapaId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationResult = NonNullable<Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>>
-    export type AsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationBody = NivelDeLaEtapaPeticion
-    export type AsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationError = HTTPValidationError
-
-    /**
+/**
  * @summary A qué nivel pertenece esta etapa
  */
-export const useAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>, TError,{etapaId: string;data: NivelDeLaEtapaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>,
-        TError,
-        {etapaId: string;data: NivelDeLaEtapaPeticion},
-        TContext
-      > => {
+export const useAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>
+      >,
+      TError,
+      { etapaId: string; data: NivelDeLaEtapaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof asignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut>>,
+  TError,
+  { etapaId: string; data: NivelDeLaEtapaPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationOptions(options);
 
-      const mutationOptions = getAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPutMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Lectura simple sin orquestación de dominio —como `GET /unidades`—, así
 que consulta el repo directo: RLS ya acota el alcance (§12.4).
  * @summary Catálogo de cuadrillas
  */
 export const listarCuadrillasApiV1CuadrillasGet = (
-    params?: ListarCuadrillasApiV1CuadrillasGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: ListarCuadrillasApiV1CuadrillasGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<CuadrillaRespuesta[]>(
-      {url: `/api/v1/cuadrillas`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<CuadrillaRespuesta[]>(
+    { url: `/api/v1/cuadrillas`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getListarCuadrillasApiV1CuadrillasGetInfiniteQueryKey = (params?: ListarCuadrillasApiV1CuadrillasGetParams,) => {
-    return [
-    'infinite', `/api/v1/cuadrillas`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getListarCuadrillasApiV1CuadrillasGetQueryKey = (params?: ListarCuadrillasApiV1CuadrillasGetParams,) => {
-    return [
-    `/api/v1/cuadrillas`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getListarCuadrillasApiV1CuadrillasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>, TError = HTTPValidationError>(params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarCuadrillasApiV1CuadrillasGetInfiniteQueryKey = (
+  params?: ListarCuadrillasApiV1CuadrillasGetParams,
 ) => {
+  return [
+    "infinite",
+    `/api/v1/cuadrillas`,
+    ...(params ? [params] : []),
+  ] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getListarCuadrillasApiV1CuadrillasGetQueryKey = (
+  params?: ListarCuadrillasApiV1CuadrillasGetParams,
+) => {
+  return [`/api/v1/cuadrillas`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getListarCuadrillasApiV1CuadrillasGetInfiniteQueryKey(params);
+export const getListarCuadrillasApiV1CuadrillasGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCuadrillasApiV1CuadrillasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarCuadrillasApiV1CuadrillasGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>> = ({ signal }) => listarCuadrillasApiV1CuadrillasGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
+  > = ({ signal }) =>
+    listarCuadrillasApiV1CuadrillasGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ListarCuadrillasApiV1CuadrillasGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
+>;
+export type ListarCuadrillasApiV1CuadrillasGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarCuadrillasApiV1CuadrillasGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>
-export type ListarCuadrillasApiV1CuadrillasGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarCuadrillasApiV1CuadrillasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarCuadrillasApiV1CuadrillasGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>> & Pick<
+export function useListarCuadrillasApiV1CuadrillasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarCuadrillasApiV1CuadrillasGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
           TError,
           Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarCuadrillasApiV1CuadrillasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>, TError = HTTPValidationError>(
- params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarCuadrillasApiV1CuadrillasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCuadrillasApiV1CuadrillasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
           TError,
           Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarCuadrillasApiV1CuadrillasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>, TError = HTTPValidationError>(
- params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarCuadrillasApiV1CuadrillasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCuadrillasApiV1CuadrillasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de cuadrillas
  */
 
-export function useListarCuadrillasApiV1CuadrillasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>, TError = HTTPValidationError>(
- params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarCuadrillasApiV1CuadrillasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCuadrillasApiV1CuadrillasGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarCuadrillasApiV1CuadrillasGetInfiniteQueryOptions(params, options);
 
-  const queryOptions = getListarCuadrillasApiV1CuadrillasGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarCuadrillasApiV1CuadrillasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError = HTTPValidationError>(params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarCuadrillasApiV1CuadrillasGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCuadrillasApiV1CuadrillasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarCuadrillasApiV1CuadrillasGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarCuadrillasApiV1CuadrillasGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
+  > = ({ signal }) =>
+    listarCuadrillasApiV1CuadrillasGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>> = ({ signal }) => listarCuadrillasApiV1CuadrillasGet(params, requestOptions, signal);
+export type ListarCuadrillasApiV1CuadrillasGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
+>;
+export type ListarCuadrillasApiV1CuadrillasGetQueryError = HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarCuadrillasApiV1CuadrillasGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>>
-export type ListarCuadrillasApiV1CuadrillasGetQueryError = HTTPValidationError
-
-
-export function useListarCuadrillasApiV1CuadrillasGet<TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarCuadrillasApiV1CuadrillasGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>> & Pick<
+export function useListarCuadrillasApiV1CuadrillasGet<
+  TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarCuadrillasApiV1CuadrillasGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
           TError,
           Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarCuadrillasApiV1CuadrillasGet<TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError = HTTPValidationError>(
- params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarCuadrillasApiV1CuadrillasGet<
+  TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCuadrillasApiV1CuadrillasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
           TError,
           Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarCuadrillasApiV1CuadrillasGet<TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError = HTTPValidationError>(
- params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarCuadrillasApiV1CuadrillasGet<
+  TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCuadrillasApiV1CuadrillasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de cuadrillas
  */
 
-export function useListarCuadrillasApiV1CuadrillasGet<TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError = HTTPValidationError>(
- params?: ListarCuadrillasApiV1CuadrillasGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarCuadrillasApiV1CuadrillasGet<
+  TData = Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCuadrillasApiV1CuadrillasGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCuadrillasApiV1CuadrillasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarCuadrillasApiV1CuadrillasGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarCuadrillasApiV1CuadrillasGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * @summary Alta de cuadrilla
  */
 export const crearCuadrillaApiV1CuadrillasPost = (
-    crearCuadrillaPeticion: CrearCuadrillaPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  crearCuadrillaPeticion: CrearCuadrillaPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<CuadrillaRespuesta>(
-      {url: `/api/v1/cuadrillas`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: crearCuadrillaPeticion, signal
+  return peticion<CuadrillaRespuesta>(
+    {
+      url: `/api/v1/cuadrillas`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: crearCuadrillaPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getCrearCuadrillaApiV1CuadrillasPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>,
+    TError,
+    { data: CrearCuadrillaPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>,
+  TError,
+  { data: CrearCuadrillaPeticion },
+  TContext
+> => {
+  const mutationKey = ["crearCuadrillaApiV1CuadrillasPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getCrearCuadrillaApiV1CuadrillasPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>, TError,{data: CrearCuadrillaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>, TError,{data: CrearCuadrillaPeticion}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>,
+    { data: CrearCuadrillaPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
 
-const mutationKey = ['crearCuadrillaApiV1CuadrillasPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return crearCuadrillaApiV1CuadrillasPost(data, requestOptions);
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type CrearCuadrillaApiV1CuadrillasPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>
+>;
+export type CrearCuadrillaApiV1CuadrillasPostMutationBody =
+  CrearCuadrillaPeticion;
+export type CrearCuadrillaApiV1CuadrillasPostMutationError = void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>, {data: CrearCuadrillaPeticion}> = (props) => {
-          const {data} = props ?? {};
-
-          return  crearCuadrillaApiV1CuadrillasPost(data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CrearCuadrillaApiV1CuadrillasPostMutationResult = NonNullable<Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>>
-    export type CrearCuadrillaApiV1CuadrillasPostMutationBody = CrearCuadrillaPeticion
-    export type CrearCuadrillaApiV1CuadrillasPostMutationError = void
-
-    /**
+/**
  * @summary Alta de cuadrilla
  */
-export const useCrearCuadrillaApiV1CuadrillasPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>, TError,{data: CrearCuadrillaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>,
-        TError,
-        {data: CrearCuadrillaPeticion},
-        TContext
-      > => {
+export const useCrearCuadrillaApiV1CuadrillasPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>,
+      TError,
+      { data: CrearCuadrillaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof crearCuadrillaApiV1CuadrillasPost>>,
+  TError,
+  { data: CrearCuadrillaPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearCuadrillaApiV1CuadrillasPostMutationOptions(options);
 
-      const mutationOptions = getCrearCuadrillaApiV1CuadrillasPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * La otra mitad del precio que el residente arma (§11.2).
 
 `rendimiento` dice cuánto hace la cuadrilla en un día y esto cuánto vale ese
@@ -1870,528 +3398,1191 @@ autorizarlo así sería autorizar por debajo del costo.
  * @summary Cuánto cuesta un día de esta cuadrilla
  */
 export const asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut = (
-    cuadrillaId: string,
-    costoDeJornadaPeticion: CostoDeJornadaPeticion,
- options?: SecondParameter<typeof peticion>,) => {
-      
-      
-      return peticion<void>(
-      {url: `/api/v1/cuadrillas/${cuadrillaId}/costo-jornada`, method: 'PUT',
-      headers: {'Content-Type': 'application/json', },
-      data: costoDeJornadaPeticion
+  cuadrillaId: string,
+  costoDeJornadaPeticion: CostoDeJornadaPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/cuadrillas/${cuadrillaId}/costo-jornada`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: costoDeJornadaPeticion,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationOptions =
+  <TError = HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut
+        >
+      >,
+      TError,
+      { cuadrillaId: string; data: CostoDeJornadaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut
+      >
+    >,
+    TError,
+    { cuadrillaId: string; data: CostoDeJornadaPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>, TError,{cuadrillaId: string;data: CostoDeJornadaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>, TError,{cuadrillaId: string;data: CostoDeJornadaPeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut
+        >
+      >,
+      { cuadrillaId: string; data: CostoDeJornadaPeticion }
+    > = (props) => {
+      const { cuadrillaId, data } = props ?? {};
 
-const mutationKey = ['asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut(
+        cuadrillaId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type AsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut
+      >
+    >
+  >;
+export type AsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationBody =
+  CostoDeJornadaPeticion;
+export type AsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationError =
+  HTTPValidationError;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>, {cuadrillaId: string;data: CostoDeJornadaPeticion}> = (props) => {
-          const {cuadrillaId,data} = props ?? {};
-
-          return  asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut(cuadrillaId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationResult = NonNullable<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>>
-    export type AsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationBody = CostoDeJornadaPeticion
-    export type AsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationError = HTTPValidationError
-
-    /**
+/**
  * @summary Cuánto cuesta un día de esta cuadrilla
  */
-export const useAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>, TError,{cuadrillaId: string;data: CostoDeJornadaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut>>,
+export const useAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut =
+  <TError = HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut
+          >
+        >,
         TError,
-        {cuadrillaId: string;data: CostoDeJornadaPeticion},
+        { cuadrillaId: string; data: CostoDeJornadaPeticion },
         TContext
-      > => {
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof asignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut
+      >
+    >,
+    TError,
+    { cuadrillaId: string; data: CostoDeJornadaPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationOptions(
+        options,
+      );
 
-      const mutationOptions = getAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPutMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
  * Todas las versiones (§10.8): la carga de `CABECERAS_CUADRILLAS.xlsx`
 publica una nueva cada vez que la composición cambia.
  * @summary Historial de PU de la cuadrilla
  */
-export const listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet = (
+export const listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet =
+  (
     cuadrillaId: string,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
-) => {
-      
-      
-      return peticion<VersionCuadrillaRespuesta[]>(
-      {url: `/api/v1/cuadrillas/${cuadrillaId}/versiones`, method: 'GET', signal
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<VersionCuadrillaRespuesta[]>(
+      {
+        url: `/api/v1/cuadrillas/${cuadrillaId}/versiones`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryKey =
+  (cuadrillaId?: string) => {
+    return ["infinite", `/api/v1/cuadrillas/${cuadrillaId}/versiones`] as const;
+  };
+
+export const getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryKey =
+  (cuadrillaId?: string) => {
+    return [`/api/v1/cuadrillas/${cuadrillaId}/versiones`] as const;
+  };
+
+export const getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+        >
+      >
+    >,
+    TError = HTTPValidationError,
+  >(
+    cuadrillaId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
     },
-      options);
-    }
-  
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryKey(
+        cuadrillaId,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+        >
+      >
+    > = ({ signal }) =>
+      listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet(
+        cuadrillaId,
+        requestOptions,
+        signal,
+      );
 
-export const getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryKey = (cuadrillaId?: string,) => {
-    return [
-    'infinite', `/api/v1/cuadrillas/${cuadrillaId}/versiones`
-    ] as const;
-    }
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!cuadrillaId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-export const getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryKey = (cuadrillaId?: string,) => {
-    return [
-    `/api/v1/cuadrillas/${cuadrillaId}/versiones`
-    ] as const;
-    }
+export type ListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+      >
+    >
+  >;
+export type ListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryError =
+  HTTPValidationError;
 
-    
-export const getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>, TError = HTTPValidationError>(cuadrillaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryKey(cuadrillaId);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>> = ({ signal }) => listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet(cuadrillaId, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(cuadrillaId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>
-export type ListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>, TError = HTTPValidationError>(
- cuadrillaId: string, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>> & Pick<
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  cuadrillaId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>, TError = HTTPValidationError>(
- cuadrillaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  cuadrillaId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>, TError = HTTPValidationError>(
- cuadrillaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  cuadrillaId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Historial de PU de la cuadrilla
  */
 
-export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>, TError = HTTPValidationError>(
- cuadrillaId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  cuadrillaId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryOptions(
+      cuadrillaId,
+      options,
+    );
 
-  const queryOptions = getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetInfiniteQueryOptions(cuadrillaId,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+      >
+    >,
+    TError = HTTPValidationError,
+  >(
+    cuadrillaId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryKey(
+        cuadrillaId,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+        >
+      >
+    > = ({ signal }) =>
+      listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet(
+        cuadrillaId,
+        requestOptions,
+        signal,
+      );
 
-export const getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError = HTTPValidationError>(cuadrillaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!cuadrillaId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type ListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+      >
+    >
+  >;
+export type ListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryError =
+  HTTPValidationError;
 
-  const queryKey =  queryOptions?.queryKey ?? getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryKey(cuadrillaId);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>> = ({ signal }) => listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet(cuadrillaId, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(cuadrillaId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>>
-export type ListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryError = HTTPValidationError
-
-
-export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet<TData = Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError = HTTPValidationError>(
- cuadrillaId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>> & Pick<
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  cuadrillaId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet<TData = Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError = HTTPValidationError>(
- cuadrillaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  cuadrillaId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet<TData = Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError = HTTPValidationError>(
- cuadrillaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  cuadrillaId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Historial de PU de la cuadrilla
  */
 
-export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet<TData = Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError = HTTPValidationError>(
- cuadrillaId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  cuadrillaId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryOptions(
+      cuadrillaId,
+      options,
+    );
 
-  const queryOptions = getListarVersionesDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesGetQueryOptions(cuadrillaId,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Mantenimiento directo del historial (§10.8): no crea ni revierte
 ninguna carga, solo limpia una versión ya retirada.
  * @summary Eliminar una versión retirada del historial
  */
-export const eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete = (
+export const eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete =
+  (
     cuadrillaId: string,
     versionId: string,
- options?: SecondParameter<typeof peticion>,) => {
-      
-      
-      return peticion<void>(
-      {url: `/api/v1/cuadrillas/${cuadrillaId}/versiones/${versionId}`, method: 'DELETE'
-    },
-      options);
-    }
-  
+    options?: SecondParameter<typeof peticion>,
+  ) => {
+    return peticion<void>(
+      {
+        url: `/api/v1/cuadrillas/${cuadrillaId}/versiones/${versionId}`,
+        method: "DELETE",
+      },
+      options,
+    );
+  };
 
+export const getEliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDeleteMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete
+        >
+      >,
+      TError,
+      { cuadrillaId: string; versionId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete
+      >
+    >,
+    TError,
+    { cuadrillaId: string; versionId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getEliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDeleteMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete>>, TError,{cuadrillaId: string;versionId: string}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete>>, TError,{cuadrillaId: string;versionId: string}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete
+        >
+      >,
+      { cuadrillaId: string; versionId: string }
+    > = (props) => {
+      const { cuadrillaId, versionId } = props ?? {};
 
-const mutationKey = ['eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete(
+        cuadrillaId,
+        versionId,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type EliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDeleteMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete
+      >
+    >
+  >;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete>>, {cuadrillaId: string;versionId: string}> = (props) => {
-          const {cuadrillaId,versionId} = props ?? {};
+export type EliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDeleteMutationError =
+  void | HTTPValidationError;
 
-          return  eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete(cuadrillaId,versionId,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type EliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete>>>
-    
-    export type EliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDeleteMutationError = void | HTTPValidationError
-
-    /**
+/**
  * @summary Eliminar una versión retirada del historial
  */
-export const useEliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete>>, TError,{cuadrillaId: string;versionId: string}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete>>,
+export const useEliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete
+          >
+        >,
         TError,
-        {cuadrillaId: string;versionId: string},
+        { cuadrillaId: string; versionId: string },
         TContext
-      > => {
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof eliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDelete
+      >
+    >,
+    TError,
+    { cuadrillaId: string; versionId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getEliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDeleteMutationOptions(
+        options,
+      );
 
-      const mutationOptions = getEliminarVersionDeCuadrillaApiV1CuadrillasCuadrillaIdVersionesVersionIdDeleteMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
  * @summary Catálogo de conceptos
  */
 export const listarConceptosApiV1ConceptosGet = (
-    params?: ListarConceptosApiV1ConceptosGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: ListarConceptosApiV1ConceptosGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<ConceptoRespuesta[]>(
-      {url: `/api/v1/conceptos`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<ConceptoRespuesta[]>(
+    { url: `/api/v1/conceptos`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getListarConceptosApiV1ConceptosGetInfiniteQueryKey = (params?: ListarConceptosApiV1ConceptosGetParams,) => {
-    return [
-    'infinite', `/api/v1/conceptos`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getListarConceptosApiV1ConceptosGetQueryKey = (params?: ListarConceptosApiV1ConceptosGetParams,) => {
-    return [
-    `/api/v1/conceptos`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getListarConceptosApiV1ConceptosGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>>, TError = HTTPValidationError>(params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarConceptosApiV1ConceptosGetInfiniteQueryKey = (
+  params?: ListarConceptosApiV1ConceptosGetParams,
 ) => {
+  return [
+    "infinite",
+    `/api/v1/conceptos`,
+    ...(params ? [params] : []),
+  ] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getListarConceptosApiV1ConceptosGetQueryKey = (
+  params?: ListarConceptosApiV1ConceptosGetParams,
+) => {
+  return [`/api/v1/conceptos`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getListarConceptosApiV1ConceptosGetInfiniteQueryKey(params);
+export const getListarConceptosApiV1ConceptosGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarConceptosApiV1ConceptosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarConceptosApiV1ConceptosGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>> = ({ signal }) => listarConceptosApiV1ConceptosGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
+  > = ({ signal }) =>
+    listarConceptosApiV1ConceptosGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ListarConceptosApiV1ConceptosGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
+>;
+export type ListarConceptosApiV1ConceptosGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarConceptosApiV1ConceptosGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>>
-export type ListarConceptosApiV1ConceptosGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarConceptosApiV1ConceptosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarConceptosApiV1ConceptosGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>> & Pick<
+export function useListarConceptosApiV1ConceptosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarConceptosApiV1ConceptosGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
           TError,
           Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarConceptosApiV1ConceptosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>>, TError = HTTPValidationError>(
- params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarConceptosApiV1ConceptosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarConceptosApiV1ConceptosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
           TError,
           Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarConceptosApiV1ConceptosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>>, TError = HTTPValidationError>(
- params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarConceptosApiV1ConceptosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarConceptosApiV1ConceptosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de conceptos
  */
 
-export function useListarConceptosApiV1ConceptosGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>>, TError = HTTPValidationError>(
- params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarConceptosApiV1ConceptosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarConceptosApiV1ConceptosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarConceptosApiV1ConceptosGetInfiniteQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarConceptosApiV1ConceptosGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarConceptosApiV1ConceptosGetQueryOptions = <TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError = HTTPValidationError>(params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarConceptosApiV1ConceptosGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarConceptosApiV1ConceptosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarConceptosApiV1ConceptosGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarConceptosApiV1ConceptosGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
+  > = ({ signal }) =>
+    listarConceptosApiV1ConceptosGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>> = ({ signal }) => listarConceptosApiV1ConceptosGet(params, requestOptions, signal);
+export type ListarConceptosApiV1ConceptosGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
+>;
+export type ListarConceptosApiV1ConceptosGetQueryError = HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarConceptosApiV1ConceptosGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>>
-export type ListarConceptosApiV1ConceptosGetQueryError = HTTPValidationError
-
-
-export function useListarConceptosApiV1ConceptosGet<TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarConceptosApiV1ConceptosGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>> & Pick<
+export function useListarConceptosApiV1ConceptosGet<
+  TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarConceptosApiV1ConceptosGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
           TError,
           Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarConceptosApiV1ConceptosGet<TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError = HTTPValidationError>(
- params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarConceptosApiV1ConceptosGet<
+  TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarConceptosApiV1ConceptosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
           TError,
           Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarConceptosApiV1ConceptosGet<TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError = HTTPValidationError>(
- params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarConceptosApiV1ConceptosGet<
+  TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarConceptosApiV1ConceptosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Catálogo de conceptos
  */
 
-export function useListarConceptosApiV1ConceptosGet<TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError = HTTPValidationError>(
- params?: ListarConceptosApiV1ConceptosGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarConceptosApiV1ConceptosGet<
+  TData = Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarConceptosApiV1ConceptosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarConceptosApiV1ConceptosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarConceptosApiV1ConceptosGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarConceptosApiV1ConceptosGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * @summary Alta de concepto
  */
 export const crearConceptoApiV1ConceptosPost = (
-    crearConceptoPeticion: CrearConceptoPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  crearConceptoPeticion: CrearConceptoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<ConceptoRespuesta>(
-      {url: `/api/v1/conceptos`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: crearConceptoPeticion, signal
+  return peticion<ConceptoRespuesta>(
+    {
+      url: `/api/v1/conceptos`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: crearConceptoPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getCrearConceptoApiV1ConceptosPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>,
+    TError,
+    { data: CrearConceptoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>,
+  TError,
+  { data: CrearConceptoPeticion },
+  TContext
+> => {
+  const mutationKey = ["crearConceptoApiV1ConceptosPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getCrearConceptoApiV1ConceptosPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>, TError,{data: CrearConceptoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>, TError,{data: CrearConceptoPeticion}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>,
+    { data: CrearConceptoPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
 
-const mutationKey = ['crearConceptoApiV1ConceptosPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return crearConceptoApiV1ConceptosPost(data, requestOptions);
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type CrearConceptoApiV1ConceptosPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>
+>;
+export type CrearConceptoApiV1ConceptosPostMutationBody = CrearConceptoPeticion;
+export type CrearConceptoApiV1ConceptosPostMutationError = void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>, {data: CrearConceptoPeticion}> = (props) => {
-          const {data} = props ?? {};
-
-          return  crearConceptoApiV1ConceptosPost(data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CrearConceptoApiV1ConceptosPostMutationResult = NonNullable<Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>>
-    export type CrearConceptoApiV1ConceptosPostMutationBody = CrearConceptoPeticion
-    export type CrearConceptoApiV1ConceptosPostMutationError = void
-
-    /**
+/**
  * @summary Alta de concepto
  */
-export const useCrearConceptoApiV1ConceptosPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>, TError,{data: CrearConceptoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>,
-        TError,
-        {data: CrearConceptoPeticion},
-        TContext
-      > => {
+export const useCrearConceptoApiV1ConceptosPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>,
+      TError,
+      { data: CrearConceptoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof crearConceptoApiV1ConceptosPost>>,
+  TError,
+  { data: CrearConceptoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearConceptoApiV1ConceptosPostMutationOptions(options);
 
-      const mutationOptions = getCrearConceptoApiV1ConceptosPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Rellenar a mano lo que el catálogo cargado no clasifica.
 
 El archivo del cliente cubre 461 de 898 conceptos; el resto sale agrupado
@@ -2404,542 +4595,1231 @@ obligar a mandar los otros cuatrocientos, donde cualquiera que se olvide se
 quedaría sin oficio.
  * @summary Con qué oficio se ejecuta este concepto
  */
-export const asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut = (
+export const asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut =
+  (
     conceptoId: string,
     oficioDelConceptoPeticion: OficioDelConceptoPeticion,
- options?: SecondParameter<typeof peticion>,) => {
-      
-      
-      return peticion<void>(
-      {url: `/api/v1/conceptos/${conceptoId}/especialidad`, method: 'PUT',
-      headers: {'Content-Type': 'application/json', },
-      data: oficioDelConceptoPeticion
-    },
-      options);
-    }
-  
+    options?: SecondParameter<typeof peticion>,
+  ) => {
+    return peticion<void>(
+      {
+        url: `/api/v1/conceptos/${conceptoId}/especialidad`,
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        data: oficioDelConceptoPeticion,
+      },
+      options,
+    );
+  };
 
+export const getAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationOptions =
+  <TError = HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut
+        >
+      >,
+      TError,
+      { conceptoId: string; data: OficioDelConceptoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut
+      >
+    >,
+    TError,
+    { conceptoId: string; data: OficioDelConceptoPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationOptions = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut>>, TError,{conceptoId: string;data: OficioDelConceptoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut>>, TError,{conceptoId: string;data: OficioDelConceptoPeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut
+        >
+      >,
+      { conceptoId: string; data: OficioDelConceptoPeticion }
+    > = (props) => {
+      const { conceptoId, data } = props ?? {};
 
-const mutationKey = ['asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut(
+        conceptoId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type AsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut
+      >
+    >
+  >;
+export type AsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationBody =
+  OficioDelConceptoPeticion;
+export type AsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationError =
+  HTTPValidationError;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut>>, {conceptoId: string;data: OficioDelConceptoPeticion}> = (props) => {
-          const {conceptoId,data} = props ?? {};
-
-          return  asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut(conceptoId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationResult = NonNullable<Awaited<ReturnType<typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut>>>
-    export type AsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationBody = OficioDelConceptoPeticion
-    export type AsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationError = HTTPValidationError
-
-    /**
+/**
  * @summary Con qué oficio se ejecuta este concepto
  */
-export const useAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut = <TError = HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut>>, TError,{conceptoId: string;data: OficioDelConceptoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut>>,
+export const useAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut =
+  <TError = HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut
+          >
+        >,
         TError,
-        {conceptoId: string;data: OficioDelConceptoPeticion},
+        { conceptoId: string; data: OficioDelConceptoPeticion },
         TContext
-      > => {
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof asignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPut
+      >
+    >,
+    TError,
+    { conceptoId: string; data: OficioDelConceptoPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationOptions(
+        options,
+      );
 
-      const mutationOptions = getAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
  * Árbol completo del APU: insumos y conceptos anidados (§7.3).
  * @summary Explosión recursiva del concepto
  */
 export const explotarConceptoApiV1ConceptosConceptoIdExplosionGet = (
+  conceptoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ExplosionRespuesta>(
+    { url: `/api/v1/conceptos/${conceptoId}/explosion`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryKey =
+  (conceptoId?: string) => {
+    return ["infinite", `/api/v1/conceptos/${conceptoId}/explosion`] as const;
+  };
+
+export const getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryKey = (
+  conceptoId?: string,
+) => {
+  return [`/api/v1/conceptos/${conceptoId}/explosion`] as const;
+};
+
+export const getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+      >
+    >,
+    TError = void,
+  >(
     conceptoId: string,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
-) => {
-      
-      
-      return peticion<ExplosionRespuesta>(
-      {url: `/api/v1/conceptos/${conceptoId}/explosion`, method: 'GET', signal
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
     },
-      options);
-    }
-  
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryKey(
+        conceptoId,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+      >
+    > = ({ signal }) =>
+      explotarConceptoApiV1ConceptosConceptoIdExplosionGet(
+        conceptoId,
+        requestOptions,
+        signal,
+      );
 
-export const getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryKey = (conceptoId?: string,) => {
-    return [
-    'infinite', `/api/v1/conceptos/${conceptoId}/explosion`
-    ] as const;
-    }
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!conceptoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-export const getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryKey = (conceptoId?: string,) => {
-    return [
-    `/api/v1/conceptos/${conceptoId}/explosion`
-    ] as const;
-    }
+export type ExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+    >
+  >;
+export type ExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryError =
+  void;
 
-    
-export const getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>>, TError = void>(conceptoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryKey(conceptoId);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>> = ({ signal }) => explotarConceptoApiV1ConceptosConceptoIdExplosionGet(conceptoId, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(conceptoId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>>
-export type ExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryError = void
-
-
-export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>>, TError = void>(
- conceptoId: string, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>> & Pick<
+export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+    >
+  >,
+  TError = void,
+>(
+  conceptoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>,
+          Awaited<
+            ReturnType<
+              typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>>, TError = void>(
- conceptoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+    >
+  >,
+  TError = void,
+>(
+  conceptoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>,
+          Awaited<
+            ReturnType<
+              typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>>, TError = void>(
- conceptoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+    >
+  >,
+  TError = void,
+>(
+  conceptoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Explosión recursiva del concepto
  */
 
-export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>>, TError = void>(
- conceptoId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+    >
+  >,
+  TError = void,
+>(
+  conceptoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryOptions(
+      conceptoId,
+      options,
+    );
 
-  const queryOptions = getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetInfiniteQueryOptions(conceptoId,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+    >,
+    TError = void,
+  >(
+    conceptoId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryKey(
+        conceptoId,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+      >
+    > = ({ signal }) =>
+      explotarConceptoApiV1ConceptosConceptoIdExplosionGet(
+        conceptoId,
+        requestOptions,
+        signal,
+      );
 
-export const getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryOptions = <TData = Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError = void>(conceptoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!conceptoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type ExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+    >
+  >;
+export type ExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryError =
+  void;
 
-  const queryKey =  queryOptions?.queryKey ?? getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryKey(conceptoId);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>> = ({ signal }) => explotarConceptoApiV1ConceptosConceptoIdExplosionGet(conceptoId, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(conceptoId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryResult = NonNullable<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>>
-export type ExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryError = void
-
-
-export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<TData = Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError = void>(
- conceptoId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>> & Pick<
+export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<
+  TData = Awaited<
+    ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+  >,
+  TError = void,
+>(
+  conceptoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>,
+          Awaited<
+            ReturnType<
+              typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<TData = Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError = void>(
- conceptoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<
+  TData = Awaited<
+    ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+  >,
+  TError = void,
+>(
+  conceptoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>,
+          Awaited<
+            ReturnType<
+              typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<TData = Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError = void>(
- conceptoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<
+  TData = Awaited<
+    ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+  >,
+  TError = void,
+>(
+  conceptoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Explosión recursiva del concepto
  */
 
-export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<TData = Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError = void>(
- conceptoId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useExplotarConceptoApiV1ConceptosConceptoIdExplosionGet<
+  TData = Awaited<
+    ReturnType<typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet>
+  >,
+  TError = void,
+>(
+  conceptoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof explotarConceptoApiV1ConceptosConceptoIdExplosionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryOptions(
+      conceptoId,
+      options,
+    );
 
-  const queryOptions = getExplotarConceptoApiV1ConceptosConceptoIdExplosionGetQueryOptions(conceptoId,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * @summary CPU del concepto: versión vigente e historial
  */
 export const obtenerCpuApiV1ConceptosConceptoIdCpuGet = (
-    conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  conceptoId: string,
+  params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<CPURespuesta>(
-      {url: `/api/v1/conceptos/${conceptoId}/cpu`, method: 'GET',
-        params, signal
+  return peticion<CPURespuesta>(
+    {
+      url: `/api/v1/conceptos/${conceptoId}/cpu`,
+      method: "GET",
+      params,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
-
-
-export const getObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryKey = (conceptoId?: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,) => {
-    return [
-    'infinite', `/api/v1/conceptos/${conceptoId}/cpu`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryKey = (conceptoId?: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,) => {
-    return [
-    `/api/v1/conceptos/${conceptoId}/cpu`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>>, TError = void>(conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryKey = (
+  conceptoId?: string,
+  params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
 ) => {
+  return [
+    "infinite",
+    `/api/v1/conceptos/${conceptoId}/cpu`,
+    ...(params ? [params] : []),
+  ] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryKey = (
+  conceptoId?: string,
+  params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
+) => {
+  return [
+    `/api/v1/conceptos/${conceptoId}/cpu`,
+    ...(params ? [params] : []),
+  ] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryKey(conceptoId,params);
+export const getObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
+  >,
+  TError = void,
+>(
+  conceptoId: string,
+  params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryKey(
+      conceptoId,
+      params,
+    );
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>> = ({ signal }) => obtenerCpuApiV1ConceptosConceptoIdCpuGet(conceptoId,params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
+  > = ({ signal }) =>
+    obtenerCpuApiV1ConceptosConceptoIdCpuGet(
+      conceptoId,
+      params,
+      requestOptions,
+      signal,
+    );
 
-      
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!conceptoId,
+    ...queryOptions,
+  } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
+  >;
+export type ObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryError = void;
 
-   return  { queryKey, queryFn, enabled: !!(conceptoId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>>
-export type ObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryError = void
-
-
-export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>>, TError = void>(
- conceptoId: string,
-    params: undefined |  ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>> & Pick<
+export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
+  >,
+  TError = void,
+>(
+  conceptoId: string,
+  params: undefined | ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
           TError,
           Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>>, TError = void>(
- conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
+  >,
+  TError = void,
+>(
+  conceptoId: string,
+  params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
           TError,
           Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>>, TError = void>(
- conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
+  >,
+  TError = void,
+>(
+  conceptoId: string,
+  params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary CPU del concepto: versión vigente e historial
  */
 
-export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>>, TError = void>(
- conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useObtenerCpuApiV1ConceptosConceptoIdCpuGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
+  >,
+  TError = void,
+>(
+  conceptoId: string,
+  params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryOptions(
+      conceptoId,
+      params,
+      options,
+    );
 
-  const queryOptions = getObtenerCpuApiV1ConceptosConceptoIdCpuGetInfiniteQueryOptions(conceptoId,params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryOptions = <TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError = void>(conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+  TError = void,
+>(
+  conceptoId: string,
+  params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryKey(conceptoId, params);
 
-  const queryKey =  queryOptions?.queryKey ?? getObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryKey(conceptoId,params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
+  > = ({ signal }) =>
+    obtenerCpuApiV1ConceptosConceptoIdCpuGet(
+      conceptoId,
+      params,
+      requestOptions,
+      signal,
+    );
 
-  
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!conceptoId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>> = ({ signal }) => obtenerCpuApiV1ConceptosConceptoIdCpuGet(conceptoId,params, requestOptions, signal);
+export type ObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
+>;
+export type ObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryError = void;
 
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(conceptoId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>>
-export type ObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryError = void
-
-
-export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError = void>(
- conceptoId: string,
-    params: undefined |  ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>> & Pick<
+export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<
+  TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+  TError = void,
+>(
+  conceptoId: string,
+  params: undefined | ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
           TError,
           Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError = void>(
- conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<
+  TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+  TError = void,
+>(
+  conceptoId: string,
+  params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
           TError,
           Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError = void>(
- conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<
+  TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+  TError = void,
+>(
+  conceptoId: string,
+  params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary CPU del concepto: versión vigente e historial
  */
 
-export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError = void>(
- conceptoId: string,
-    params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useObtenerCpuApiV1ConceptosConceptoIdCpuGet<
+  TData = Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+  TError = void,
+>(
+  conceptoId: string,
+  params?: ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof obtenerCpuApiV1ConceptosConceptoIdCpuGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryOptions(
+    conceptoId,
+    params,
+    options,
+  );
 
-  const queryOptions = getObtenerCpuApiV1ConceptosConceptoIdCpuGetQueryOptions(conceptoId,params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Nueva versión vigente; la anterior pasa al histórico (§10.8).
  * @summary Publica una nueva versión del CPU
  */
 export const publicarCpuApiV1ConceptosConceptoIdCpuPost = (
-    conceptoId: string,
-    publicarCPUPeticion: PublicarCPUPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  conceptoId: string,
+  publicarCPUPeticion: PublicarCPUPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<VersionPublicadaRespuesta>(
-      {url: `/api/v1/conceptos/${conceptoId}/cpu`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: publicarCPUPeticion, signal
+  return peticion<VersionPublicadaRespuesta>(
+    {
+      url: `/api/v1/conceptos/${conceptoId}/cpu`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: publicarCPUPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getPublicarCpuApiV1ConceptosConceptoIdCpuPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>,
+    TError,
+    { conceptoId: string; data: PublicarCPUPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>,
+  TError,
+  { conceptoId: string; data: PublicarCPUPeticion },
+  TContext
+> => {
+  const mutationKey = ["publicarCpuApiV1ConceptosConceptoIdCpuPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getPublicarCpuApiV1ConceptosConceptoIdCpuPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>, TError,{conceptoId: string;data: PublicarCPUPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>, TError,{conceptoId: string;data: PublicarCPUPeticion}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>,
+    { conceptoId: string; data: PublicarCPUPeticion }
+  > = (props) => {
+    const { conceptoId, data } = props ?? {};
 
-const mutationKey = ['publicarCpuApiV1ConceptosConceptoIdCpuPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return publicarCpuApiV1ConceptosConceptoIdCpuPost(
+      conceptoId,
+      data,
+      requestOptions,
+    );
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type PublicarCpuApiV1ConceptosConceptoIdCpuPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>
+  >;
+export type PublicarCpuApiV1ConceptosConceptoIdCpuPostMutationBody =
+  PublicarCPUPeticion;
+export type PublicarCpuApiV1ConceptosConceptoIdCpuPostMutationError = void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>, {conceptoId: string;data: PublicarCPUPeticion}> = (props) => {
-          const {conceptoId,data} = props ?? {};
-
-          return  publicarCpuApiV1ConceptosConceptoIdCpuPost(conceptoId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type PublicarCpuApiV1ConceptosConceptoIdCpuPostMutationResult = NonNullable<Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>>
-    export type PublicarCpuApiV1ConceptosConceptoIdCpuPostMutationBody = PublicarCPUPeticion
-    export type PublicarCpuApiV1ConceptosConceptoIdCpuPostMutationError = void
-
-    /**
+/**
  * @summary Publica una nueva versión del CPU
  */
-export const usePublicarCpuApiV1ConceptosConceptoIdCpuPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>, TError,{conceptoId: string;data: PublicarCPUPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>,
-        TError,
-        {conceptoId: string;data: PublicarCPUPeticion},
-        TContext
-      > => {
+export const usePublicarCpuApiV1ConceptosConceptoIdCpuPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>,
+      TError,
+      { conceptoId: string; data: PublicarCPUPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof publicarCpuApiV1ConceptosConceptoIdCpuPost>>,
+  TError,
+  { conceptoId: string; data: PublicarCPUPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getPublicarCpuApiV1ConceptosConceptoIdCpuPostMutationOptions(options);
 
-      const mutationOptions = getPublicarCpuApiV1ConceptosConceptoIdCpuPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Mantenimiento directo del historial (§10.8): no crea ni revierte
 ninguna carga, solo limpia una versión ya retirada.
  * @summary Eliminar una versión de CPU retirada del historial
  */
 export const eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete = (
-    conceptoId: string,
-    version: number,
-    params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams,
- options?: SecondParameter<typeof peticion>,) => {
-      
-      
-      return peticion<void>(
-      {url: `/api/v1/conceptos/${conceptoId}/cpu/${version}`, method: 'DELETE',
-        params
+  conceptoId: string,
+  version: number,
+  params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/conceptos/${conceptoId}/cpu/${version}`,
+      method: "DELETE",
+      params,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getEliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete
+        >
+      >,
+      TError,
+      {
+        conceptoId: string;
+        version: number;
+        params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams;
+      },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete
+      >
+    >,
+    TError,
+    {
+      conceptoId: string;
+      version: number;
+      params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams;
+    },
+    TContext
+  > => {
+    const mutationKey = [
+      "eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getEliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete>>, TError,{conceptoId: string;version: number;params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete>>, TError,{conceptoId: string;version: number;params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete
+        >
+      >,
+      {
+        conceptoId: string;
+        version: number;
+        params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams;
+      }
+    > = (props) => {
+      const { conceptoId, version, params } = props ?? {};
 
-const mutationKey = ['eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete(
+        conceptoId,
+        version,
+        params,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete
+      >
+    >
+  >;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete>>, {conceptoId: string;version: number;params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams}> = (props) => {
-          const {conceptoId,version,params} = props ?? {};
+export type EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteMutationError =
+  void | HTTPValidationError;
 
-          return  eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete(conceptoId,version,params,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete>>>
-    
-    export type EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteMutationError = void | HTTPValidationError
-
-    /**
+/**
  * @summary Eliminar una versión de CPU retirada del historial
  */
-export const useEliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete>>, TError,{conceptoId: string;version: number;params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete>>,
-        TError,
-        {conceptoId: string;version: number;params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams},
-        TContext
-      > => {
+export const useEliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete
+        >
+      >,
+      TError,
+      {
+        conceptoId: string;
+        version: number;
+        params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams;
+      },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<
+      typeof eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDelete
+    >
+  >,
+  TError,
+  {
+    conceptoId: string;
+    version: number;
+    params?: EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams;
+  },
+  TContext
+> => {
+  const mutationOptions =
+    getEliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteMutationOptions(
+      options,
+    );
 
-      const mutationOptions = getEliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    
+  return useMutation(mutationOptions, queryClient);
+};

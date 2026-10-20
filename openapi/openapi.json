@@ -3011,6 +3011,457 @@
         }
       }
     },
+    "/api/v1/ensambles": {
+      "get": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Catálogo de ensambles paramétricos",
+        "operationId": "listar_ensambles_api_v1_ensambles_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "incluir_inactivos",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Incluye los ensambles dados de baja (§8.7).",
+              "default": false,
+              "title": "Incluir Inactivos"
+            },
+            "description": "Incluye los ensambles dados de baja (§8.7)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EnsambleRespuesta"
+                  },
+                  "title": "Response Listar Ensambles Api V1 Ensambles Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Extracción: arma un ensamble desde lo ya construido",
+        "description": "El llamador ya decidió, renglón por renglón, qué entra y con qué\norigen (§2) — este endpoint solo resuelve clave→id y persiste.",
+        "operationId": "extraer_ensamble_api_v1_ensambles_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearEnsamblePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnsambleCreadoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Un concepto o sub-ensamble referido no existe."
+          },
+          "409": {
+            "description": "Ya existe un ensamble con esa clave."
+          },
+          "422": {
+            "description": "Un renglón no apunta a concepto XOR sub-ensamble (§0, §2-§3)."
+          }
+        }
+      }
+    },
+    "/api/v1/ensambles/{ensamble_id}": {
+      "get": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Un ensamble por id",
+        "operationId": "obtener_ensamble_api_v1_ensambles__ensamble_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ensamble_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ensamble Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnsambleRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El ensamble no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ensambles/{ensamble_id}/renglones": {
+      "get": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Renglones directos del ensamble (sin bajar por sub-ensamble)",
+        "operationId": "listar_renglones_api_v1_ensambles__ensamble_id__renglones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ensamble_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ensamble Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RenglonEnsambleRespuesta"
+                  },
+                  "title": "Response Listar Renglones Api V1 Ensambles  Ensamble Id  Renglones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El ensamble no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ensambles/{ensamble_id}/cohorte": {
+      "get": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Prototipos de la cohorte declarada del ensamble",
+        "operationId": "listar_cohorte_api_v1_ensambles__ensamble_id__cohorte_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ensamble_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ensamble Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CohorteItemRespuesta"
+                  },
+                  "title": "Response Listar Cohorte Api V1 Ensambles  Ensamble Id  Cohorte Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El ensamble no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ensambles/{ensamble_id}/instancias": {
+      "get": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Instancias que este ensamble ya generó (para regenerarlas)",
+        "operationId": "listar_instancias_api_v1_ensambles__ensamble_id__instancias_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ensamble_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ensamble Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InstanciaEnsambleRespuesta"
+                  },
+                  "title": "Response Listar Instancias Api V1 Ensambles  Ensamble Id  Instancias Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El ensamble no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ensambles/{ensamble_id}/explosion": {
+      "get": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Preview de costo y composición (sin generar nada)",
+        "description": "Árbol completo del ensamble: conceptos y sub-ensambles anidados,\ncon costo y destajo (skill §4) — con el factor de una instancia\nhipotética, sin crear ni tocar nada.",
+        "operationId": "explotar_ensamble_api_v1_ensambles__ensamble_id__explosion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ensamble_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ensamble Id"
+            }
+          },
+          {
+            "name": "factor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                }
+              ],
+              "description": "Cuántas veces entra el ensamble (§6); 1 = una instancia.",
+              "default": "1",
+              "title": "Factor"
+            },
+            "description": "Cuántas veces entra el ensamble (§6); 1 = una instancia."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplosionEnsambleRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El ensamble no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ensambles/{ensamble_id}/generar": {
+      "post": {
+        "tags": [
+          "ensambles"
+        ],
+        "summary": "Generación: compone (o regenera) una instancia en un presupuesto",
+        "description": "Un mismo botón para generar (sin `prototipo_nodo_id`) y regenerar\n(con él): solo NUEVO/ACTUALIZADO se escriben, el resto se reporta en\n`pendientes` para que el usuario decida (§6, §8 regla 11).",
+        "operationId": "generar_desde_ensamble_api_v1_ensambles__ensamble_id__generar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ensamble_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ensamble Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerarDesdeEnsamblePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReporteGeneracionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El ensamble o el presupuesto no existen, o la instancia a regenerar no existe."
+          },
+          "409": {
+            "description": "La instancia ya fue generada por otro ensamble."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/obras": {
       "get": {
         "tags": [
@@ -7280,7 +7731,7 @@
           "cargas"
         ],
         "summary": "Subir un archivo de carga (vista previa o commit)",
-        "description": "Workflow G: mapea, valida y —si no es vista previa— aplica (§11.3 G).",
+        "description": "Workflow G: mapea, valida y —si no es vista previa— aplica (§11.3 G).\n\nLos cuatro campos de `ingenieria_lote` son **condicionales**: ningún\notro tipo de carga los usa (`AplicadorDeCarga` genérico no los conoce,\nver `gestionar_carga.ComandoEjecutarCarga`), así que aquí se validan\nsolo contra ESE tipo — exigirlos siempre rompería los demás formularios\nque no tienen por qué mandarlos.",
         "operationId": "subir_carga_api_v1_cargas_post",
         "security": [
           {
@@ -7986,6 +8437,247 @@
           },
           "503": {
             "description": "La cola de trabajos no está disponible (§12.8)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/planos": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Alta de un plano ejecutivo",
+        "description": "Metadatos del plano; el binario ya está en R2 (§12.2). Subir un\nplano es prerrequisito de trazar, así que comparte el mismo gobierno\n(ver docstring del módulo).",
+        "operationId": "registrar_plano_api_v1_obras__obra_id__planos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanoRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/planos/{plano_id}/trazos": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Registrar un trazo con sus enlaces de cuantificación",
+        "description": "Un trazo, varios enlaces (MODELO.md §1b). Por cada nodo tocado,\nrecalcula la cantidad vigente y aplica su consecuencia: compara contra\n`actividad.cant_base` (candidata de `Desviacion`) o sobreescribe\n`prototipo_nodo.cantidad` (camino 'diseño_nuevo') — nunca las dos.",
+        "operationId": "registrar_trazo_api_v1_planos__plano_id__trazos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrazoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrazoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Un enlace apunta a un prototipo_nodo (camino 'diseño_nuevo') y el rol no es Control de obra ni Super intendente."
+          },
+          "422": {
+            "description": "Factor no positivo, medida/nodo inconsistentes."
+          }
+        }
+      }
+    },
+    "/api/v1/enlaces-cuantificacion/{enlace_id}/reemplazar": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Reemplazar un enlace de cuantificación (acción manual)",
+        "description": "Marca `vigente=false` y, si se manda `nuevo`, crea el reemplazo\nvigente en la misma llamada — siempre una acción explícita (MODELO.md\n§1b: nunca un emparejamiento automático por cercanía espacial).",
+        "operationId": "reemplazar_enlace_api_v1_enlaces_cuantificacion__enlace_id__reemplazar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "enlace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Enlace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReemplazarEnlacePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El enlace apunta a un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El enlace no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/planos/{plano_id}/notas": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Anotar el plano (nunca produce cantidad)",
+        "description": "Residente y Supervisor, solamente (cerebro MODELO.md §1b: distinto\nde los cuatro roles que trazan).",
+        "operationId": "registrar_nota_plano_api_v1_planos__plano_id__notas_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotaPlanoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotaPlanoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Residente y Supervisor anotan el plano (§1b)."
           },
           "422": {
             "description": "Validation Error",
@@ -10307,6 +10999,81 @@
             "title": "Dry Run",
             "description": "Vista previa: valida y cuenta sin escribir (§10.2).",
             "default": false
+          },
+          "obra_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obra Id",
+            "description": "Solo tipo='ingenieria_lote': a qué obra pertenece el lote (§11.4). Obligatorio para ese tipo — nunca se adivina del nombre del archivo."
+          },
+          "camino_ingenieria": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Camino Ingenieria",
+            "description": "Solo tipo='ingenieria_lote': 'conocido' (default) o 'diseno_nuevo'."
+          },
+          "prototipo_base_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Base Id",
+            "description": "Solo tipo='ingenieria_lote' con camino_ingenieria='diseno_nuevo': el prototipo del que se clona la estructura. Obligatorio en ese caso."
+          },
+          "nombre_prototipo_nuevo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre Prototipo Nuevo",
+            "description": "Solo tipo='ingenieria_lote' con camino_ingenieria='diseno_nuevo', opcional: nombre del prototipo nuevo; si no se da, se usa la clave de la obra."
+          },
+          "etapa_externa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Externa",
+            "description": "Solo tipo='ingenieria_lote' con estructura 'suelta' (§11.8): la etapa ECO-... del archivo, porque su contenido nunca la trae. Obligatorio solo para esa estructura — se valida al procesar el archivo, no aquí, porque la estructura se detecta de su contenido."
+          },
+          "prototipo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Id",
+            "description": "Solo tipo='programa_base' (§7.5): a qué prototipo pertenece el cronograma. Obligatorio para ese tipo — el archivo real apila varios prototipos, uno por Capítulo, y nunca se adivina cuál cargar."
           }
         },
         "type": "object",
@@ -10618,7 +11385,9 @@
           "destajo",
           "subcontrato",
           "auxiliar",
-          "matriz"
+          "matriz",
+          "trabajo",
+          "flete"
         ],
         "title": "CategoriaExplosion"
       },
@@ -10855,7 +11624,8 @@
         "enum": [
           "etapa",
           "nivel",
-          "concepto"
+          "concepto",
+          "agrupador"
         ],
         "title": "ClaseNodo",
         "description": "Rol del nodo en el árbol WBS. Columna ``CLASE`` del archivo (§10.6)."
@@ -10889,6 +11659,25 @@
           "nombre"
         ],
         "title": "ClusterRespuesta"
+      },
+      "CohorteItemRespuesta": {
+        "properties": {
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "prototipo_clave": {
+            "type": "string",
+            "title": "Prototipo Clave"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prototipo_id",
+          "prototipo_clave"
+        ],
+        "title": "CohorteItemRespuesta"
       },
       "ConceptoDelReporteRespuesta": {
         "properties": {
@@ -11613,6 +12402,74 @@
           "nombre"
         ],
         "title": "CrearCuadrillaPeticion"
+      },
+      "CrearEnsamblePeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "renglones": {
+            "items": {
+              "$ref": "#/components/schemas/RenglonEnsamblePeticion"
+            },
+            "type": "array",
+            "title": "Renglones"
+          },
+          "divisor_concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Divisor Concepto Clave"
+          },
+          "divisor_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Divisor Nombre"
+          },
+          "presupuesto_origen_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presupuesto Origen Id",
+            "description": "De qué presupuesto se extrajeron estos renglones (§3)."
+          },
+          "cohorte_prototipo_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Cohorte Prototipo Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre"
+        ],
+        "title": "CrearEnsamblePeticion"
       },
       "CrearEspecialidadPeticion": {
         "properties": {
@@ -12855,6 +13712,135 @@
         "title": "EfectoRespuesta",
         "description": "Qué cambió en la obra al autorizar."
       },
+      "EnsambleCreadoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "renglones": {
+            "type": "integer",
+            "title": "Renglones"
+          },
+          "cohorte": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Cohorte"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "nombre",
+          "renglones",
+          "cohorte"
+        ],
+        "title": "EnsambleCreadoRespuesta"
+      },
+      "EnsambleRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "divisor_concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Divisor Concepto Id",
+            "description": "El concepto que normaliza la tasa de este ensamble (§5.7)."
+          },
+          "divisor_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Divisor Nombre"
+          },
+          "tasa": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tasa",
+            "description": "Publicada sobre la cohorte declarada (§5.7)."
+          },
+          "dispersion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dispersion",
+            "description": "Coeficiente de variación, en por ciento."
+          },
+          "tasa_calculada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tasa Calculada En"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "default": "activo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "nombre"
+        ],
+        "title": "EnsambleRespuesta"
+      },
       "EntradaBitacora": {
         "properties": {
           "id": {
@@ -13135,6 +14121,18 @@
         "title": "EstadoDeObraRespuesta",
         "description": "El renglón de la Torre: una obra y lo que le falta (§5.1)."
       },
+      "EstadoRenglonGenerado": {
+        "type": "string",
+        "enum": [
+          "nuevo",
+          "actualizado",
+          "desvinculado",
+          "conflicto",
+          "sobra"
+        ],
+        "title": "EstadoRenglonGenerado",
+        "description": "Qué hacer con un concepto al regenerar (skill §6, §8 regla 11).\n\nSolo `NUEVO` y `ACTUALIZADO` son seguros de escribir sin preguntar:\nel primero no pisa nada, el segundo confirma que nadie lo tocó desde\nla última generación. Los otros tres nunca se escriben solos."
+      },
       "EstadoReporteRespuesta": {
         "properties": {
           "id": {
@@ -13238,7 +14236,7 @@
           "pendiente",
           "iniciada",
           "en_proceso",
-          "casi_lista",
+          "por_entregar",
           "entregada"
         ],
         "title": "EstatusObra"
@@ -13882,6 +14880,31 @@
         "title": "ExpedienteRespuesta",
         "description": "Vista agregada del expediente (§11.2, §7.9).\n\nLos montos son los **validados**: un cierre sin validar o una estimación\nen borrador aún pueden cambiar, así que no suman (`ExpedienteTecnico`)."
       },
+      "ExplosionEnsambleRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "lineas": {
+            "items": {
+              "$ref": "#/components/schemas/LineaEnsambleRespuesta"
+            },
+            "type": "array",
+            "title": "Lineas"
+          },
+          "precio": {
+            "$ref": "#/components/schemas/PrecioEnsambleRespuesta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "lineas",
+          "precio"
+        ],
+        "title": "ExplosionEnsambleRespuesta"
+      },
       "ExplosionRespuesta": {
         "properties": {
           "clave": {
@@ -14298,6 +15321,16 @@
         ],
         "title": "FrenteRespuesta"
       },
+      "FuenteTrazo": {
+        "type": "string",
+        "enum": [
+          "pdf",
+          "dwg",
+          "ifc"
+        ],
+        "title": "FuenteTrazo",
+        "description": "De qué archivo salió el trazo (TRAZO.fuente, migración 0057).\n\nDetermina la precedencia al reemplazar un enlace (IFC > DWG > PDF) —\nesa comparación es trabajo de quien llama a `ReemplazarEnlace`, nunca\nun CHECK de esta tabla ni una regla automática (MODELO.md §1b: \"depende\nde que quien traza reemplace el enlace a mano\")."
+      },
       "FusionRespuesta": {
         "properties": {
           "conceptos": {
@@ -14336,6 +15369,76 @@
           "absorbida_id"
         ],
         "title": "FusionarEspecialidadPeticion"
+      },
+      "GenerarDesdeEnsamblePeticion": {
+        "properties": {
+          "presupuesto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Presupuesto Id"
+          },
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Factor",
+            "description": "Cuántas veces entra el ensamble en esta instancia."
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "prototipo_nodo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Nodo Id",
+            "description": "La instancia a regenerar. Vacío: se crea una instancia nueva."
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id",
+            "description": "Dónde colgar la instancia nueva en el árbol."
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "presupuesto_id",
+          "prototipo_id",
+          "factor",
+          "nombre"
+        ],
+        "title": "GenerarDesdeEnsamblePeticion"
       },
       "GenerarEstimacionPeticion": {
         "properties": {
@@ -14613,6 +15716,61 @@
         ],
         "title": "IncidenciaRespuesta"
       },
+      "InstanciaEnsambleRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "prototipo_clave": {
+            "type": "string",
+            "title": "Prototipo Clave"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "factor": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Factor",
+            "description": "Cuántas veces entra el ensamble en esta instancia."
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "prototipo_id",
+          "prototipo_clave",
+          "nombre",
+          "factor",
+          "orden"
+        ],
+        "title": "InstanciaEnsambleRespuesta",
+        "description": "Un nodo del árbol de un prototipo que este ensamble generó (skill §6).\n\nEs lo que se le pasa a `POST /ensambles/{id}/generar` como\n`prototipo_nodo_id` para regenerarlo."
+      },
       "InstanciarProgramaPeticion": {
         "properties": {
           "fecha_corte": {
@@ -14828,6 +15986,57 @@
         ],
         "title": "InsumosProgramadosRespuesta",
         "description": "La matriz completa, más lo que quedó fuera y por qué."
+      },
+      "IntencionEnlacePeticion": {
+        "properties": {
+          "medida": {
+            "$ref": "#/components/schemas/MedidaCuantificacion"
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Factor"
+          },
+          "actividad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad Id"
+          },
+          "prototipo_nodo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Nodo Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "medida",
+          "factor"
+        ],
+        "title": "IntencionEnlacePeticion",
+        "description": "Un enlace querido, dentro del mismo alta de trazo (MODELO.md §1b,\n\"un trazo, varios enlaces\"). Exactamente uno de `actividad_id`/\n`prototipo_nodo_id` (ver docstring de `ck_enlace_cuantificacion_nodo`,\nmigración 0057)."
       },
       "ItemProgramaBasePeticion": {
         "properties": {
@@ -15256,6 +16465,75 @@
         ],
         "title": "LineaDeMaterialPeticion"
       },
+      "LineaEnsambleRespuesta": {
+        "properties": {
+          "ruta": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ruta"
+          },
+          "nivel": {
+            "type": "integer",
+            "title": "Nivel"
+          },
+          "tipo_hijo": {
+            "$ref": "#/components/schemas/TipoHijoEnsamble"
+          },
+          "referencia": {
+            "type": "string",
+            "title": "Referencia",
+            "description": "Clave del concepto o del sub-ensamble (§3.3)."
+          },
+          "cantidad_unitaria": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Unitaria",
+            "description": "Por unidad del padre inmediato."
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "description": "Acumulada desde la raíz, con el factor aplicado."
+          },
+          "costo_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Costo Unitario"
+          },
+          "destajo_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Destajo Unitario"
+          },
+          "importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe"
+          },
+          "importe_destajo": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe Destajo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ruta",
+          "nivel",
+          "tipo_hijo",
+          "referencia",
+          "cantidad_unitaria",
+          "cantidad",
+          "costo_unitario",
+          "destajo_unitario",
+          "importe",
+          "importe_destajo"
+        ],
+        "title": "LineaEnsambleRespuesta"
+      },
       "LineaExplosionRespuesta": {
         "properties": {
           "ruta": {
@@ -15495,6 +16773,17 @@
         ],
         "title": "LoteRespuesta",
         "description": "Estado de un lote ya registrado (§9.4)."
+      },
+      "MedidaCuantificacion": {
+        "type": "string",
+        "enum": [
+          "area",
+          "perimetro",
+          "longitud",
+          "conteo"
+        ],
+        "title": "MedidaCuantificacion",
+        "description": "Qué métrica del trazo alimenta la cantidad (ENLACE_CUANTIFICACION.\nmedida, MODELO.md §1b). `AREA`/`PERIMETRO`/`LONGITUD` se calculan en\nSQL con `ST_Area`/`ST_Perimeter`/`ST_Length` sobre la geometría\n(§12.11: el dominio nunca toca PostGIS); `CONTEO` no es una función de\nPostGIS, es \"este trazo cuenta como una instancia\"."
       },
       "ModoCarga": {
         "type": "string",
@@ -15790,6 +17079,7 @@
             "enum": [
               "nivel",
               "etapa",
+              "agrupador",
               "concepto"
             ],
             "title": "Tipo"
@@ -15893,6 +17183,92 @@
           "nombre"
         ],
         "title": "NodoPrototipoRespuesta"
+      },
+      "NotaPlanoPeticion": {
+        "properties": {
+          "version_plano": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Version Plano"
+          },
+          "ubicacion_wkt": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Ubicacion Wkt",
+            "description": "WKT de un punto, SRID 0."
+          },
+          "texto": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Texto"
+          },
+          "actividad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version_plano",
+          "ubicacion_wkt",
+          "texto"
+        ],
+        "title": "NotaPlanoPeticion"
+      },
+      "NotaPlanoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "NotaPlanoRespuesta"
+      },
+      "NuevoEnlacePeticion": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "medida": {
+            "$ref": "#/components/schemas/MedidaCuantificacion"
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Factor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "medida",
+          "factor"
+        ],
+        "title": "NuevoEnlacePeticion",
+        "description": "El reemplazo, cuando se crea en la misma llamada — hereda el nodo\ndel enlace que reemplaza (ver `NuevoEnlace` en el caso de uso)."
       },
       "ObraCandidataRespuesta": {
         "properties": {
@@ -16173,6 +17549,16 @@
         "type": "object",
         "title": "OficioDelConceptoPeticion",
         "description": "Con qué oficio se ejecuta este concepto (§8.3, migración 0047).\n\n`null` lo deja sin oficio: quitarlo —\"esto no era carpintería\"— es un cambio\ntan válido como ponerlo, y omitir el campo no podría expresarlo."
+      },
+      "OrigenCantidadEnsamble": {
+        "type": "string",
+        "enum": [
+          "heredada_concepto",
+          "heredada_destajo",
+          "manual"
+        ],
+        "title": "OrigenCantidadEnsamble",
+        "description": "De dónde sale la cantidad de un renglón de ensamble (skill §2).\n\"Heredar es mejor que capturar\": heredada, el ensamble se entera si el\nvolumen de origen cambia; manual se desincroniza en silencio."
       },
       "PaginaBitacora": {
         "properties": {
@@ -16472,6 +17858,29 @@
         "type": "object",
         "title": "ParticiparPeticion"
       },
+      "PartidaExistenteRespuesta": {
+        "properties": {
+          "actual": {
+            "$ref": "#/components/schemas/ValorPartidaRespuesta"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValorPartidaRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que tenía al generarse. Nulo: partida capturada, nunca generada."
+          }
+        },
+        "type": "object",
+        "required": [
+          "actual"
+        ],
+        "title": "PartidaExistenteRespuesta"
+      },
       "PartidaRespuesta": {
         "properties": {
           "id": {
@@ -16764,6 +18173,100 @@
         ],
         "title": "PlaneacionRespuesta"
       },
+      "PlanoPeticion": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nombre",
+            "description": "Nombre legible del plano."
+          },
+          "archivo_url": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Archivo Url",
+            "description": "Clave del objeto ya subido a R2 con `POST /evidencias/presigned` (§12.2). El archivo no viaja por la API."
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Version",
+            "description": "Versión del plano (default 1).",
+            "default": 1
+          },
+          "capas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capas",
+            "description": "Capas del archivo CAD/BIM de origen, informativo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nombre",
+          "archivo_url"
+        ],
+        "title": "PlanoPeticion",
+        "description": "Alta de metadatos de un plano (§11.2-equivalente, migración 0057).\nEl archivo ya está subido a R2 con `POST /evidencias/presigned`."
+      },
+      "PlanoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "archivo_url": {
+            "type": "string",
+            "title": "Archivo Url"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "capas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "nombre",
+          "archivo_url",
+          "version"
+        ],
+        "title": "PlanoRespuesta"
+      },
       "PrecioArmadoRespuesta": {
         "properties": {
           "mano_obra": {
@@ -16814,6 +18317,27 @@
           "completo"
         ],
         "title": "PrecioArmadoRespuesta"
+      },
+      "PrecioEnsambleRespuesta": {
+        "properties": {
+          "total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total"
+          },
+          "destajo": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Destajo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "destajo"
+        ],
+        "title": "PrecioEnsambleRespuesta",
+        "description": "Costo de un ensamble con su desglose de destajo (§7.3, skill §4).\n\nNo se llama `PrecioUnitarioRespuesta` aunque se parezca al de\n`catalogos.py`: OpenAPI nombra los esquemas por la clase, y con dos\nhomónimos FastAPI **renombra el que ya estaba publicado** (prefijo de\nmódulo), lo que cambia los tipos que Orval genera para el front y el\nmóvil. Un nombre propio deja el contrato existente intacto."
       },
       "PrecioUnitarioRespuesta": {
         "properties": {
@@ -17634,6 +19158,22 @@
         ],
         "title": "RechazarIncidenciaPeticion"
       },
+      "ReemplazarEnlacePeticion": {
+        "properties": {
+          "nuevo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NuevoEnlacePeticion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ReemplazarEnlacePeticion"
+      },
       "RegistrarDispositivoPeticion": {
         "properties": {
           "token": {
@@ -18023,6 +19563,186 @@
         "title": "RendimientoPorCuadrillaRespuesta",
         "description": "Lo que produjo cada cuadrilla (§5.1).\n\nSin contraparte presupuestada: el presupuesto es por concepto y no reparte\nel trabajo entre cuadrillas. Lo comparable es su `rendimiento` de catálogo."
       },
+      "RenglonEnsamblePeticion": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "origen": {
+            "$ref": "#/components/schemas/OrigenCantidadEnsamble"
+          },
+          "clave_concepto": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave Concepto",
+            "description": "Exactamente uno de clave_concepto/clave_sub_ensamble."
+          },
+          "clave_sub_ensamble": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave Sub Ensamble"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad",
+          "origen"
+        ],
+        "title": "RenglonEnsamblePeticion"
+      },
+      "RenglonEnsambleRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "origen": {
+            "$ref": "#/components/schemas/OrigenCantidadEnsamble"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "sub_ensamble_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sub Ensamble Id"
+          },
+          "sub_ensamble_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sub Ensamble Clave"
+          },
+          "presupuesto_origen_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presupuesto Origen Id",
+            "description": "Referencia informativa (§3): nunca una liga estructural."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cantidad",
+          "origen",
+          "orden"
+        ],
+        "title": "RenglonEnsambleRespuesta"
+      },
+      "RenglonGeneradoRespuesta": {
+        "properties": {
+          "clave_concepto": {
+            "type": "string",
+            "title": "Clave Concepto"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/EstadoRenglonGenerado"
+          },
+          "receta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValorPartidaRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que el ensamble pide hoy. Nulo solo en SOBRA."
+          },
+          "existente": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PartidaExistenteRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que ya hay en el presupuesto. Nulo solo en NUEVO."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave_concepto",
+          "estado"
+        ],
+        "title": "RenglonGeneradoRespuesta"
+      },
       "RepartoRespuesta": {
         "properties": {
           "obra_id": {
@@ -18219,6 +19939,47 @@
         "title": "ReplicarProgramaPeticion",
         "description": "§11.2 `POST /programas-base/{id}/replicar`.\n\nLas obras van explícitas y no se asume \"todas las del prototipo\": replicar\nreprograma casas que pueden llevar avance, así que cuáles entran es una\ndecisión del usuario, no un default."
       },
+      "ReporteGeneracionRespuesta": {
+        "properties": {
+          "prototipo_nodo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Nodo Id"
+          },
+          "nuevos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Nuevos",
+            "description": "Conceptos creados sin preguntar."
+          },
+          "actualizados": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Actualizados",
+            "description": "Conceptos refrescados sin preguntar."
+          },
+          "pendientes": {
+            "items": {
+              "$ref": "#/components/schemas/RenglonGeneradoRespuesta"
+            },
+            "type": "array",
+            "title": "Pendientes",
+            "description": "DESVINCULADO/CONFLICTO/SOBRA (§6, §8 regla 11): ninguno se escribió solo — hace falta una decisión para cada uno."
+          }
+        },
+        "type": "object",
+        "required": [
+          "prototipo_nodo_id",
+          "nuevos",
+          "actualizados",
+          "pendientes"
+        ],
+        "title": "ReporteGeneracionRespuesta"
+      },
       "ResetearContrasenaPeticion": {
         "properties": {
           "contrasena_temporal": {
@@ -18370,6 +20131,44 @@
           "valor"
         ],
         "title": "RespuestaItem"
+      },
+      "ResultadoRecalculoRespuesta": {
+        "properties": {
+          "cantidad_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Total"
+          },
+          "desviacion_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desviacion Id"
+          },
+          "prototipo_nodo_actualizado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Nodo Actualizado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad_total"
+        ],
+        "title": "ResultadoRecalculoRespuesta"
       },
       "ResumenDeCierreRespuesta": {
         "properties": {
@@ -18974,7 +20773,9 @@
           "cpu",
           "conceptos_auxiliares",
           "niveles",
-          "etapas_constructivas"
+          "etapas_constructivas",
+          "trabajos",
+          "ingenieria_lote"
         ],
         "title": "TipoCarga"
       },
@@ -19050,6 +20851,15 @@
           "otro"
         ],
         "title": "TipoExpedienteDoc"
+      },
+      "TipoHijoEnsamble": {
+        "type": "string",
+        "enum": [
+          "concepto",
+          "ensamble"
+        ],
+        "title": "TipoHijoEnsamble",
+        "description": "El hijo de un renglón de ensamble: un concepto o un sub-ensamble\n(skill §0, \"un ensamble puede contener sub-ensambles\")."
       },
       "TipoHijoExplosion": {
         "type": "string",
@@ -19145,6 +20955,81 @@
         ],
         "title": "TramoDTO",
         "description": "Un segmento de una actividad interrumpida (§7.6).\n\nLista vacía = actividad continua, el caso normal. Con tramos, la\n`duracion_dias` de la actividad es la **suma** de sus tramos —los días de\ntrabajo— y lo que ocupa en el calendario es\n`max(offset_dias + duracion_dias)`, que es lo que el CPM encadena."
+      },
+      "TrazoPeticion": {
+        "properties": {
+          "version_plano": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Version Plano"
+          },
+          "capa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capa"
+          },
+          "fuente": {
+            "$ref": "#/components/schemas/FuenteTrazo"
+          },
+          "geometria_wkt": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Geometria Wkt",
+            "description": "WKT del trazo (p. ej. `POLYGON((...))`, `LINESTRING(...)`, `POINT(...)`). Coordenadas de plano, no geográficas (SRID 0)."
+          },
+          "enlaces": {
+            "items": {
+              "$ref": "#/components/schemas/IntencionEnlacePeticion"
+            },
+            "type": "array",
+            "title": "Enlaces"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version_plano",
+          "fuente",
+          "geometria_wkt"
+        ],
+        "title": "TrazoPeticion",
+        "description": "Alta de un trazo con sus enlaces (MODELO.md §1b, Decisión 3 de 3:\nWKT para capturar un trazo nuevo mientras se dibuja)."
+      },
+      "TrazoRespuesta": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "enlace_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Enlace Ids"
+          },
+          "recalculos": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+            },
+            "type": "array",
+            "title": "Recalculos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "enlace_ids",
+          "recalculos"
+        ],
+        "title": "TrazoRespuesta"
       },
       "UnidadRespuesta": {
         "properties": {
@@ -19315,6 +21200,26 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "ValorPartidaRespuesta": {
+        "properties": {
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "precio_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Unitario"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad",
+          "precio_unitario"
+        ],
+        "title": "ValorPartidaRespuesta"
       },
       "VersionCPURespuesta": {
         "properties": {

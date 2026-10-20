@@ -5,8 +5,8 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { RegistrarDispositivoPeticionPlataforma } from './registrarDispositivoPeticionPlataforma';
-import type { RegistrarDispositivoPeticionVersionApp } from './registrarDispositivoPeticionVersionApp';
+import type { RegistrarDispositivoPeticionPlataforma } from "./registrarDispositivoPeticionPlataforma";
+import type { RegistrarDispositivoPeticionVersionApp } from "./registrarDispositivoPeticionVersionApp";
 
 /**
  * Lo que manda la app al entrar (`mobile/src/lib/push.ts`).

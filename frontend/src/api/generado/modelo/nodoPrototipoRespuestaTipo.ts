@@ -6,12 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type NodoPrototipoRespuestaTipo = typeof NodoPrototipoRespuestaTipo[keyof typeof NodoPrototipoRespuestaTipo];
-
+export type NodoPrototipoRespuestaTipo =
+  (typeof NodoPrototipoRespuestaTipo)[keyof typeof NodoPrototipoRespuestaTipo];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const NodoPrototipoRespuestaTipo = {
-  nivel: 'nivel',
-  etapa: 'etapa',
-  concepto: 'concepto',
+  nivel: "nivel",
+  etapa: "etapa",
+  agrupador: "agrupador",
+  concepto: "concepto",
 } as const;

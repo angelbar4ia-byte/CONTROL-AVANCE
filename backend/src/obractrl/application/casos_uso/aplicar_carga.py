@@ -22,18 +22,27 @@ idénticos, que es lo que hace útil a la vista previa (§9.3).
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
 from decimal import Decimal
+from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 from uuid import UUID, uuid4
 
+from obractrl.application.casos_uso.calcular_cpu import componentes_por_clave
+from obractrl.application.casos_uso.gestionar_programacion import (
+    ComandoCrearProgramaBase,
+    CrearProgramaBase,
+)
 from obractrl.application.puertos.cargadores import RepositorioCargas
 from obractrl.application.puertos.repositorios import (
     RepositorioConceptos,
     RepositorioContratistas,
     RepositorioCuadrillas,
+    RepositorioDesviaciones,
     RepositorioFamilias,
     RepositorioFrentes,
+    RepositorioIngenieriaLoteInsumos,
     RepositorioInsumos,
     RepositorioMateriales,
     RepositorioNivelesEtapas,
@@ -48,11 +57,21 @@ from obractrl.domain.cargadores.almacen import FilaMovimiento, importe_con_iva
 from obractrl.domain.cargadores.claves_automaticas import generar_clave_automatica
 from obractrl.domain.cargadores.conceptos_base import FilaConceptoBase
 from obractrl.domain.cargadores.contratistas import FilaContratista
-from obractrl.domain.cargadores.cpu import ComponenteCargado, ConceptoCargado
+from obractrl.domain.cargadores.cpu import (
+    ComponenteCargado,
+    ConceptoCargado,
+    FilasMatrizSinAgrupar,
+    agrupar_conceptos,
+)
 from obractrl.domain.cargadores.cuadrillas import CuadrillaCargada
 from obractrl.domain.cargadores.etapas_constructivas import FilaEtapaConstructiva
 from obractrl.domain.cargadores.familias import FilaFamilia
 from obractrl.domain.cargadores.homologacion import Homologador
+from obractrl.domain.cargadores.ingenieria_lote import (
+    FilaInsumoIngenieria,
+    LoteIngenieriaLeido,
+    TipoEstructuraIngenieria,
+)
 from obractrl.domain.cargadores.mano_de_obra import FilaManoObra
 from obractrl.domain.cargadores.materiales import FilaMaterial
 from obractrl.domain.cargadores.niveles import FilaNivel
@@ -61,6 +80,10 @@ from obractrl.domain.cargadores.presupuesto import (
     NodoLeido,
     TipoNodoPresupuesto,
     es_etapa_con_componentes_directos,
+)
+from obractrl.domain.cargadores.programa_base import (
+    BloqueProgramaCargado,
+    resolver_vinculos,
 )
 from obractrl.domain.cargadores.prototipos import FilaPrototipo
 from obractrl.domain.cargadores.reporte import (
@@ -76,10 +99,28 @@ from obractrl.domain.catalogos.apu import (
     ErrorDeAPU,
     VersionCPU,
     calcular_cpu,
+    explotar,
     publicar_version,
 )
 from obractrl.domain.catalogos.reglas import resolver_iva
+from obractrl.domain.desviacion.desviacion import Desviacion
+from obractrl.domain.ingenieria.con_concepto import reconstruir_con_concepto
+from obractrl.domain.ingenieria.consolidacion import consolidar_lote
+from obractrl.domain.ingenieria.desviacion import generar_desviaciones_candidatas
+from obractrl.domain.ingenieria.identificacion import (
+    ExplosionPrototipo,
+    identificar_prototipo,
+)
+from obractrl.domain.ingenieria.matriz_completa import LineaMatrizCruda
+from obractrl.domain.ingenieria.reversion import (
+    ClaseReversionDestajo,
+    ReversionDestajo,
+    revertir_destajos,
+)
 from obractrl.domain.materiales.reglas import ErrorDeMaterial, validar_signo_salida
+from obractrl.domain.programacion.calendario import CalendarioLaboral
+from obractrl.domain.programacion.cpm import Dependencia
+from obractrl.domain.programacion.reglas import ItemProgramaBase
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto, Prototipo
 from obractrl.domain.shared.diccionario import (
     CategoriaExplosion,
@@ -100,11 +141,19 @@ __all__ = [
     "AplicadorDeCarga",
     "AplicadorDePrototipos",
     "AplicadorEtapasConstructivas",
+    "AplicadorIngenieriaLote",
     "AplicadorManoObra",
     "AplicadorMateriales",
     "AplicadorNiveles",
     "AplicadorPresupuesto",
+    "AplicadorProgramaBase",
     "AplicadorPrototipos",
+    "AplicadorTrabajos",
+    "CaminoIngenieria",
+    "ContextoIngenieriaIncompleto",
+    "ContextoProgramaBaseIncompleto",
+    "EstructuraDeIngenieriaNoSoportada",
+    "PrototipoDeProgramaNoEncontrado",
 ]
 
 _ESTATUS_BAJA = "inactivo"
@@ -1003,6 +1052,270 @@ class AplicadorManoObra:
         )
 
 
+# --- Trabajos: destajos + subcontratos, export nativo de OPUS -----------
+#
+# `CATALOGO_DE_TRABAJOS.csv` (§cabeceras.TRABAJOS_OPUS) mezcla en un solo
+# archivo lo que `AplicadorManoObra` espera repartido en dos: cada fila ya
+# trae su propio `TipoInsumo` (`mano_de_obra.validar_trabajo`), así que no
+# hay un `self._tipo` único que fijar por constructor.
+#
+# Camino nuevo y aislado a propósito, no una generalización de
+# `AplicadorManoObra` (decisión explícita, no reabrir): mismo criterio que
+# ya separó a `AplicadorManoObra` de `AplicadorMateriales` —su propio
+# docstring lo llama "copia estructural", no una generalización—. Tocar
+# `AplicadorManoObra` para que aceptara tipo mixto arriesgaría los dos
+# flujos que hoy sí funcionan de punta a punta
+# (`CargadorManoObra`/`CargadorSubcontratos`); un aplicador propio contiene
+# cualquier equivocación de este archivo nuevo sin tocar esos dos.
+
+_TIPOS_DE_TRABAJO = (TipoInsumo.MANO_OBRA, TipoInsumo.SUBCONTRATO)
+"""Universo de este aplicador dentro del catálogo de insumos.
+
+`RepositorioInsumos.listar` (`application.puertos.repositorios`) solo
+filtra por **un** `tipo: str | None` — con `None` trae todo, materiales
+incluidos. Como este archivo mezcla dos tipos, no hay un solo `tipo` que
+pasarle; se filtra aquí, en memoria, después de listar — más simple y
+seguro que pedirle al puerto un filtro de varios tipos que ningún otro
+aplicador necesita."""
+
+
+class AplicadorTrabajos:
+    """Trabajos: destajos y subcontratos del export nativo de OPUS
+    (`CATALOGO_DE_TRABAJOS.csv`, §cabeceras.TRABAJOS_OPUS).
+
+    Copia estructural de `AplicadorManoObra` (mismo catálogo de insumos,
+    mismo diff/versionado, misma homologación de unidad/familia/cuadrilla)
+    con una sola diferencia real: donde aquel usa `self._tipo` —fijo por
+    constructor, uno por archivo completo—, este usa `destajo.tipo` —el
+    que `mano_de_obra.validar_trabajo` ya decidió para ESE registro—, en
+    los dos lugares donde `AplicadorManoObra` necesitaría un tipo único:
+    el filtro de "vigentes" (`_TIPOS_DE_TRABAJO`, arriba) y el `tipo` que
+    se escribe al dar de alta un insumo.
+
+    El diff mismo no distingue tipos: compara por clave (§3.3), y las
+    259 claves `MOA-*`/similares de destajo nunca traslapan con las 6
+    `SUB-*` de subcontrato en el archivo real (verificado) — dos filas de
+    tipo distinto con la misma clave sería ambigüedad que este aplicador
+    no resuelve (ninguna fila del archivo real lo exige).
+    """
+
+    def __init__(
+        self,
+        *,
+        insumos: RepositorioInsumos,
+        unidades: RepositorioUnidades,
+        familias: RepositorioFamilias,
+        cuadrillas: RepositorioCuadrillas,
+        cargas: RepositorioCargas,
+    ) -> None:
+        self._insumos = insumos
+        self._unidades = unidades
+        self._familias = familias
+        self._cuadrillas = cuadrillas
+        self._cargas = cargas
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        # `tipo=None` trae TODO el catálogo de insumos (§_TIPOS_DE_TRABAJO);
+        # se filtra aquí a destajo+subcontrato para que el diff de
+        # "vigentes" no arrastre materiales/equipo/herramienta —
+        # `versionado.diferenciar` compara por clave, agnóstico al tipo, y
+        # una clave de material que no vuelve a aparecer se vería como una
+        # baja falsa en modo Reemplazar.
+        todos_los_insumos = await self._insumos.listar(tipo=None, solo_activos=False)
+        tipos_de_trabajo = {str(t) for t in _TIPOS_DE_TRABAJO}
+        vigentes_filas = [f for f in todos_los_insumos if f["tipo"] in tipos_de_trabajo]
+        por_clave = {str(fila["clave"]): fila for fila in vigentes_filas}
+
+        unidades_filas = await self._unidades.listar(solo_activos=False)
+        unidades = Homologador.desde(
+            unidades_filas, mapeos=await self._cargas.mapeos("unidad")
+        )
+        id_unidad = {str(f["clave"]): f["id"] for f in unidades_filas}
+        unidades_por_clave = {str(f["clave"]): f for f in unidades_filas}
+
+        # Mismo árbol de familias que materiales/mano de obra (§10.1 no
+        # define un ámbito propio de "trabajo"): un destajo o un
+        # subcontrato son insumos igual que un material.
+        familias_filas = await self._familias.listar(
+            aplica_a="material", solo_activos=False
+        )
+        familias = Homologador.desde(
+            familias_filas, mapeos=await self._cargas.mapeos("familia")
+        )
+        id_familia = {str(f["clave"]): f["id"] for f in familias_filas}
+
+        cuadrillas_filas = await self._cuadrillas.listar(solo_activos=False)
+        cuadrillas = Homologador.desde(
+            cuadrillas_filas, mapeos=await self._cargas.mapeos("cuadrilla")
+        )
+        id_cuadrilla = {str(f["clave"]): f["id"] for f in cuadrillas_filas}
+
+        pendientes: list[PendientePropuesto] = []
+        entrantes: dict[str, dict[str, Any]] = {}
+        tipos_entrantes: dict[str, TipoInsumo] = {}
+        nuevas_unidades: dict[str, UUID | None] = {}
+        nuevas_familias: dict[str, UUID | None] = {}
+        nuevas_cuadrillas: dict[str, UUID | None] = {}
+        rendimientos_por_cuadrilla: dict[UUID, Decimal] = {}
+
+        for registro in lectura.registros:
+            destajo: FilaManoObra = registro  # type: ignore[assignment]
+            actual = por_clave.get(destajo.llave, {})
+
+            unidad_id = actual.get("unidad_id")
+            if destajo.clave_unidad:
+
+                async def _dar_de_alta_unidad(
+                    _datos: dict[str, Any],
+                    *,
+                    _clave: str = destajo.clave_unidad,
+                    _nombre: str | None = destajo.unidad,
+                ) -> UUID:
+                    return await self._unidades.crear_o_existente(
+                        {"clave": _clave, "nombre": _nombre or _clave}
+                    )
+
+                unidad_id = await _resolver_o_dar_de_alta_con_alerta(
+                    destajo.clave_unidad,
+                    destajo.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    filas_por_clave=unidades_por_clave,
+                    creadas=nuevas_unidades,
+                    crear=_dar_de_alta_unidad,
+                    entidad="unidad",
+                    fila=destajo.fila,
+                    pendientes=pendientes,
+                    dry_run=dry_run,
+                    campo_descripcion="nombre",
+                )
+            elif destajo.unidad:
+                unidad_id = await _resolver_o_dar_de_alta(
+                    destajo.unidad,
+                    homologador=unidades,
+                    id_por_clave=id_unidad,
+                    creadas=nuevas_unidades,
+                    crear=self._unidades.crear_o_existente,
+                    dry_run=dry_run,
+                )
+
+            familia_id = actual.get("familia_id")
+            if destajo.familia:
+                familia_id = await _resolver_o_dar_de_alta(
+                    destajo.familia,
+                    homologador=familias,
+                    id_por_clave=id_familia,
+                    creadas=nuevas_familias,
+                    crear=self._familias.crear_o_existente,
+                    dry_run=dry_run,
+                )
+
+            cuadrilla_id = actual.get("cuadrilla_id")
+            if destajo.cuadrilla:
+                cuadrilla_id = await _resolver_o_dar_de_alta(
+                    destajo.cuadrilla,
+                    homologador=cuadrillas,
+                    id_por_clave=id_cuadrilla,
+                    creadas=nuevas_cuadrillas,
+                    crear=self._cuadrillas.crear_o_existente,
+                    dry_run=dry_run,
+                )
+                if cuadrilla_id is not None and destajo.rendimiento_teorico is not None:
+                    rendimientos_por_cuadrilla[cuadrilla_id] = destajo.rendimiento_teorico
+
+            entrantes[destajo.llave] = {
+                "descripcion": destajo.descripcion,
+                "unidad_id": unidad_id,
+                "familia_id": familia_id,
+                "costo_base": _o_vigente(destajo.costo_base, actual, "costo_base"),
+                "cuadrilla_id": cuadrilla_id,
+                "rendimiento_teorico": _o_vigente(
+                    destajo.rendimiento_teorico, actual, "rendimiento_teorico"
+                ),
+            }
+            # El tipo de ESTE registro (§cabeceras.TRABAJOS_OPUS), no uno
+            # fijo — es lo único que distingue a este aplicador de
+            # `AplicadorManoObra`. `diff.altas` solo trae `despues` (los
+            # campos de `_CAMPOS_MANO_OBRA`, sin tipo), así que el alta lo
+            # busca aquí por clave.
+            tipos_entrantes[destajo.llave] = destajo.tipo
+
+        vigentes = {
+            clave: {campo: fila.get(campo) for campo in _CAMPOS_MANO_OBRA}
+            for clave, fila in por_clave.items()
+        }
+        diff = diferenciar(vigentes=vigentes, entrantes=entrantes, modo=modo)
+
+        operaciones: list[dict[str, Any]] = []
+        if not dry_run:
+            for alta in diff.altas:
+                nuevo_id = await self._insumos.crear(
+                    {
+                        "tipo": str(tipos_entrantes[alta.clave]),
+                        "clave": alta.clave,
+                        "descripcion": alta.despues["descripcion"],
+                        "unidad_id": alta.despues["unidad_id"],
+                        "familia_id": alta.despues["familia_id"],
+                        "costo_base": alta.despues["costo_base"],
+                        "cuadrilla_id": alta.despues["cuadrilla_id"],
+                        "rendimiento_teorico": alta.despues["rendimiento_teorico"],
+                    }
+                )
+                operaciones.append(
+                    _operacion("insumo", nuevo_id, "insert", despues=dict(alta.despues))
+                )
+
+            for cambio in diff.cambios:
+                fila = por_clave[cambio.clave]
+                await self._insumos.actualizar(fila["id"], dict(cambio.despues))
+                operaciones.append(
+                    _operacion(
+                        "insumo",
+                        fila["id"],
+                        "update",
+                        antes=_recorte(fila, _CAMPOS_RESTAURABLES_MANO_OBRA),
+                        despues=dict(cambio.despues),
+                    )
+                )
+
+            for baja in diff.bajas:
+                fila = por_clave[baja.clave]
+                await self._insumos.actualizar(fila["id"], {"estatus": _ESTATUS_BAJA})
+                operaciones.append(
+                    _operacion(
+                        "insumo",
+                        fila["id"],
+                        "update",
+                        antes=_recorte(fila, _CAMPOS_RESTAURABLES_MANO_OBRA),
+                        despues={"estatus": _ESTATUS_BAJA},
+                    )
+                )
+
+            for cuadrilla_id, rendimiento in rendimientos_por_cuadrilla.items():
+                await self._cuadrillas.actualizar_rendimiento(cuadrilla_id, rendimiento)
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            pendientes=tuple(pendientes),
+            insertados=len(diff.altas),
+            actualizados=len(diff.cambios) + len(diff.bajas),
+            omitidos=diff.omitidos + lectura.omitidos,
+            detalle={
+                "unidades_creadas": len(nuevas_unidades),
+                "familias_creadas": len(nuevas_familias),
+                "cuadrillas_creadas": len(nuevas_cuadrillas),
+            },
+        )
+
+
 # --- Catálogo base de conceptos (§8.7 `CABECERAS_CONCEPTOS.xlsx`) --------
 
 
@@ -1392,10 +1705,20 @@ class AplicadorContratistas:
         sin_oficio: list[str] = []
         aproximadas: list[str] = []
         oficios_creados: list[str] = []
+        claves_generadas = 0
+        # Mismo criterio que `AplicadorFamilias`: semilla con el catálogo
+        # vigente y crece con cada clave que este archivo genera, para que
+        # dos filas sin clave en el mismo archivo no propongan la misma.
+        claves_conocidas = list(por_clave.keys())
 
         for registro in lectura.registros:
             fila: FilaContratista = registro  # type: ignore[assignment]
-            clave = str(fila.clave)
+            if fila.clave is not None:
+                clave = str(fila.clave)
+            else:
+                clave = generar_clave_automatica("CON", claves_conocidas)
+                claves_conocidas.append(clave)
+                claves_generadas += 1
             entrantes[clave] = {
                 "razon_social": fila.razon_social,
                 "rfc": fila.rfc,
@@ -1488,6 +1811,7 @@ class AplicadorContratistas:
                 # que alguien las pueda revisar: `SUBCONTRATO` contra
                 # `SUBCONTRATOS` es correcto, pero decidirlo en silencio no.
                 "resueltas_por_parecido": sorted(set(aproximadas)),
+                "claves_generadas": claves_generadas,
             },
         )
 
@@ -1791,12 +2115,31 @@ _TIPO_INSUMO_POR_CATEGORIA: dict[CategoriaExplosion, TipoInsumo] = {
     CategoriaExplosion.MANO_OBRA: TipoInsumo.MANO_OBRA,
     CategoriaExplosion.DESTAJO: TipoInsumo.MANO_OBRA,
     CategoriaExplosion.SUBCONTRATO: TipoInsumo.SUBCONTRATO,
+    # Las dos de abajo solo las produce el modo matriz (§cabeceras.
+    # CPU_MATRIZ, migración 0052) — `cpu.CATEGORIA_POR_TIPO` (plano) nunca
+    # las genera. `TipoInsumo` no tiene un valor propio para ninguna de las
+    # dos (no se inventa uno nuevo aquí: eso es una migración, fuera de
+    # alcance de este aplicador), así que se dan de alta bajo el tipo más
+    # cercano que sí existe:
+    CategoriaExplosion.FLETE: TipoInsumo.MATERIAL,
+    # "Transporte de material" (`cpu.CATEGORIA_POR_TIPO_MATRIZ`): un flete
+    # nuevo entra al catálogo de insumos como material — no tiene cuadrilla
+    # ni rendimiento de mano de obra, y es lo que ya hace homologación con
+    # alerta un renglón arriba al tratarlo igual que cualquier componente.
+    CategoriaExplosion.TRABAJO: TipoInsumo.MANO_OBRA,
+    # El genérico de `Tipo=Contrato` sin `clase_trabajo` que lo resuelva
+    # (`TipoPendiente.TRABAJO_SIN_CLASE`, no crítico): "mano de obra
+    # contratada" por su propio docstring, mismo tipo que `DESTAJO` arriba
+    # — nunca debería necesitarse en datos reales con `CATALOGO_DE_
+    # TRABAJOS.csv` ya cargado (cruza al 100%, verificado), pero sin esta
+    # entrada un archivo con una clave de verdad sin clase tumbaría la
+    # carga entera con un `KeyError` en vez de dar de alta el insumo y
+    # dejar el pendiente para reclasificar a mano.
 }
 """Tipo del insumo que se da de alta cuando un componente no cruza contra el
-catálogo — de `AplicadorCPU` (`cpu.CATEGORIA_POR_TIPO`, nunca produce
-`DESTAJO`) y de `AplicadorPresupuesto` (`_CATEGORIA_POR_TIPO_NODO`, nunca
-produce `MANO_OBRA`): un componente de otra categoría no llega hasta aquí
-en ninguno de los dos."""
+catálogo — de `AplicadorCPU` (`cpu.CATEGORIA_POR_TIPO`/`CATEGORIA_POR_TIPO_
+MATRIZ`) y de `AplicadorPresupuesto` (`_CATEGORIA_POR_TIPO_NODO`, nunca
+produce nada de la matriz: ese archivo no tiene modo matriz)."""
 
 
 class AplicadorCPU:
@@ -1815,6 +2158,18 @@ class AplicadorCPU:
     alta. `CATEGORIA_POR_TIPO` (`domain.cargadores.cpu`) ya limita esto a
     material, mano de obra y subcontrato — un componente de otra categoría
     ni siquiera llega hasta aquí.
+
+    **Modo matriz** (`CargadorCPU` en su variante de la matriz nativa de
+    OPUS, §cabeceras.CPU_MATRIZ): `lectura.registros` llega sin agrupar —un
+    único `domain.cargadores.cpu.FilasMatrizSinAgrupar`, ver su docstring y
+    el de `CargadorCPU`— porque agruparlo exige dos mapas que ningún
+    archivo subido solo puede dar: ``descripciones_concepto`` (clave de
+    concepto → su descripción/unidad reales) y ``clase_trabajo`` (clave de
+    insumo → `DESTAJO`/`SUBCONTRATO`). Este aplicador sí puede construirlos
+    —ya consulta `self._conceptos`/`self._insumos` al principio— y es quien
+    llama a `agrupar_conceptos` antes de seguir con el resto del método
+    exactamente igual que en modo plano (que llega ya agrupado, como
+    siempre, y no toca este camino nuevo en absoluto).
     """
 
     def __init__(
@@ -1896,8 +2251,69 @@ class AplicadorCPU:
         nuevas_familias_insumo: dict[str, UUID | None] = {}
         nuevos_insumos: dict[str, UUID | None] = {}
 
-        for registro in lectura.registros:
-            bloque: ConceptoCargado = registro  # type: ignore[assignment]
+        omitidos_de_agrupar = 0
+        registros_cpu: tuple[ConceptoCargado, ...]
+        primer_registro = lectura.registros[0] if lectura.registros else None
+        if isinstance(primer_registro, FilasMatrizSinAgrupar):
+            # Modo matriz (§cabeceras.CPU_MATRIZ): `CargadorCPU.leer()` no
+            # pudo agrupar —no tiene acceso a base (§12.11)— y dejó las
+            # filas crudas para que se agrupen aquí, con los dos mapas que
+            # solo la base puede dar (ver docstring de la clase).
+            crudo = primer_registro
+
+            # clave de concepto → (descripción, unidad real): de la tabla
+            # `concepto` ya poblada (normalmente por el árbol de presupuesto
+            # del mismo prototipo, cargado antes — §cabeceras.CPU_MATRIZ), no
+            # de otro archivo subido ahora. Se filtran los que de verdad
+            # traen descripción útil: sin ella el concepto no es
+            # identificable (§10.1), mismo criterio que `_leer_encabezado`
+            # (modo plano) y que `_agrupar_conceptos_matriz` al cruzar contra
+            # el árbol de presupuesto.
+            clave_de_unidad = {f["id"]: str(f["clave"]) for f in unidades_filas}
+            descripciones_concepto: dict[str, tuple[str, str | None]] = {}
+            for fila_concepto in conceptos_filas:
+                descripcion = str(fila_concepto.get("descripcion") or "").strip()
+                if not descripcion:
+                    continue
+                descripciones_concepto[str(fila_concepto["clave"])] = (
+                    descripcion,
+                    clave_de_unidad.get(fila_concepto.get("unidad_id")),
+                )
+
+            # clave de insumo → DESTAJO/SUBCONTRATO: de `insumo` ya poblado
+            # (normalmente por `CATALOGO_DE_TRABAJOS.csv`, §cabeceras.
+            # TRABAJOS_OPUS, cargado antes) — mismo mapeo tipo→categoría que
+            # usa la prueba de dominio (`test_cpu_opus_real._mapa_clase_
+            # trabajo`), aquí contra la tabla `insumo` en vez de releer el
+            # archivo.
+            clase_por_tipo_insumo = {
+                str(TipoInsumo.MANO_OBRA): CategoriaExplosion.DESTAJO,
+                str(TipoInsumo.SUBCONTRATO): CategoriaExplosion.SUBCONTRATO,
+            }
+            clase_trabajo = {
+                str(fila_insumo["clave"]): clase_por_tipo_insumo[fila_insumo["tipo"]]
+                for fila_insumo in insumos_filas
+                if fila_insumo["tipo"] in clase_por_tipo_insumo
+            }
+
+            (
+                registros_cpu,
+                errores_de_agrupar,
+                pendientes_de_agrupar,
+                omitidos_de_agrupar,
+            ) = agrupar_conceptos(
+                crudo.filas,
+                crudo.mapa,
+                descripciones_concepto=descripciones_concepto,
+                clase_trabajo=clase_trabajo,
+            )
+            errores.extend(errores_de_agrupar)
+            pendientes.extend(pendientes_de_agrupar)
+        else:
+            registros_cpu = lectura.registros  # type: ignore[assignment]
+
+        for registro in registros_cpu:
+            bloque: ConceptoCargado = registro
             cabeza = bloque.encabezado
 
             componentes: list[Componente] = []
@@ -2183,7 +2599,7 @@ class AplicadorCPU:
             errores=tuple(errores),
             insertados=len(diff.altas),
             actualizados=len(diff.cambios) + len(diff.bajas),
-            omitidos=diff.omitidos + lectura.omitidos,
+            omitidos=diff.omitidos + lectura.omitidos + omitidos_de_agrupar,
             detalle={
                 "unidades_creadas": len(nuevas_unidades),
                 "familias_creadas": len(nuevas_familias),
@@ -3151,8 +3567,11 @@ async def _precio_vigente_de_concepto(
 
 
 class AplicadorPresupuesto:
-    """Árbol de un prototipo (nivel → etapa → concepto) y su presupuesto
-    (§7.4, §7.3, extensión propia — no está en el §10.6).
+    """Árbol de un prototipo (nivel → etapa → [agrupador] → concepto) y su
+    presupuesto (§7.4, §7.3, extensión propia — no está en el §10.6).
+    `agrupador` (migración 0051) es opcional: un concepto puede colgar
+    directo de la etapa, o de un agrupador intermedio — el árbol nativo de
+    OPUS trae las dos formas (§domain.cargadores.presupuesto).
 
     Puebla tres cosas que hasta hoy nadie escribía: el árbol WBS
     (`prototipo_nodo`), el catálogo compartido de niveles/etapas, y el
@@ -3446,12 +3865,21 @@ class AplicadorPresupuesto:
     ) -> None:
         """Un nodo del árbol leído → `prototipo_nodo` (+ catálogo, si aplica).
 
-        `NIVEL`/`ETAPA` (que no colapsan en concepto, ver
-        `es_etapa_con_componentes_directos`) recursan hacia sus hijos.
-        `CONCEPTO`/`CONCEPTO_AUXILIAR` (o una etapa que colapsa) son hojas
-        del árbol: sus hijos `MATERIAL`/`DESTAJO`/`SUBCONTRATO` no se
-        convierten en `prototipo_nodo` — se consumen como la explosión del
-        concepto.
+        `NIVEL`/`ETAPA`/`AGRUPADOR` (que no colapsan en concepto, ver
+        `es_etapa_con_componentes_directos` — `AGRUPADOR` nunca colapsa)
+        recursan hacia sus hijos. `CONCEPTO`/`CONCEPTO_AUXILIAR` (o una
+        etapa que colapsa) son hojas del árbol: sus hijos `MATERIAL`/
+        `DESTAJO`/`SUBCONTRATO` no se convierten en `prototipo_nodo` — se
+        consumen como la explosión del concepto.
+
+        `AGRUPADOR` (migración 0051, árbol nativo de OPUS) no tiene
+        catálogo compartido propio —a diferencia de `NIVEL`/`ETAPA`, que
+        sí publican en `niveles_etapas`— así que su propio
+        `prototipo_nodo` no toca `nivel_id`/`etapa_id`: ninguno de los dos
+        condicionales de abajo lo alcanza, igual que ya le pasa a `ETAPA`
+        con `nivel_id` (esa columna solo se llena en el nodo `NIVEL`
+        mismo). `nivel_id_heredado` sigue pasando a través suyo sin
+        cambiar hacia sus hijos, tal cual ya cruza por `ETAPA` hoy.
 
         El alta/actualización se decide contra `nodos_existentes` **antes**
         de escribir, sin importar `dry_run`: es lo que hace que la vista
@@ -3515,12 +3943,19 @@ class AplicadorPresupuesto:
                     orden=nodo.indice or 0,
                 )
 
+            if nodo.tipo is TipoNodoPresupuesto.NIVEL:
+                tipo_prototipo_nodo = "nivel"
+            elif nodo.tipo is TipoNodoPresupuesto.AGRUPADOR:
+                tipo_prototipo_nodo = "agrupador"
+            else:
+                tipo_prototipo_nodo = "etapa"
+
             nodo_id, _ = await self._prototipo_nodos.upsert(
                 prototipo_id,
                 clave=nodo.clave,
                 datos={
                     "parent_id": parent_id_db,
-                    "tipo": "nivel" if nodo.tipo is TipoNodoPresupuesto.NIVEL else "etapa",
+                    "tipo": tipo_prototipo_nodo,
                     "nombre": nodo.descripcion,
                     "nivel_id": nivel_id_db if nodo.tipo is TipoNodoPresupuesto.NIVEL else None,
                     "etapa_id": etapa_id_db,
@@ -4127,4 +4562,1245 @@ class AplicadorDePrototipos:
         aplicador = self._ingenieria if es_arbol else self._plano
         return await aplicador.aplicar(
             lectura, modo=modo, dry_run=dry_run, carga_id=carga_id
+        )
+
+
+# --- Ingeniería del lote (extensión propia, Fase B) -----------------------
+#
+# cerebro CONOCIMIENTO.md §11 (ingeniería del lote completa) · §13.6 (nueve
+# causas) · MODELO.md §1/HALLAZGO 12 (modo_cantidad) · §5g (Desviación).
+# El dominio puro (`domain.cargadores.ingenieria_lote`, `domain.ingenieria.
+# identificacion`/`.reversion`/`.desviacion`) ya está construido y probado
+# contra los 11 archivos reales de `ALAMO 18` (Fase A). Lo que sigue conecta
+# ese dominio a los repos reales con los dos caminos del encargo.
+
+
+class CaminoIngenieria(StrEnum):
+    """Los dos caminos de este encargo — distinto de `ModoCarga`
+    (actualizar/acumular/reemplazar, §10.2, que decide CÓMO se escribe un
+    catálogo que ya existe): este decide CONTRA QUÉ prototipo se compara y
+    se escribe la ingeniería. Nunca se persiste —no es un enum de
+    Postgres—, es un parámetro de esta sola llamada."""
+
+    CONOCIDO = "conocido"
+    """La obra ya tiene `prototipo_id` (invariante de `Obra.crear`,
+    `domain.obras.reglas`): se identifica (detección, nunca autoasignación),
+    se revierte por destajo y se proponen `Desviacion` contra ESE
+    prototipo, siempre — nunca contra el `sugerido` por la identificación."""
+
+    DISENO_NUEVO = "diseno_nuevo"
+    """No hay prototipo que comparar: se clona la estructura de un
+    `prototipo_base_id` hacia uno nuevo y la reversión reclasifica, nodo
+    por nodo, lo que resuelve — eso se convierte en el presupuesto del
+    prototipo nuevo (`modo_cantidad='cargada'`), nunca en una
+    `Desviacion`."""
+
+
+class ContextoIngenieriaIncompleto(ValueError):
+    """Falta `obra_id`, o el camino `diseno_nuevo` sin `prototipo_base_id`
+    (§11.4): la identidad del lote se declara explícita antes de subir el
+    archivo, nunca se adivina de su nombre."""
+
+
+class EstructuraDeIngenieriaNoSoportada(ValueError):
+    """Solo `ajena` (CONOCIMIENTO.md §11.8) no tiene aplicador: el lector ya
+    la reporta como pendiente crítico (`TipoPendiente.
+    ESTRUCTURA_AJENA_SIN_PARSEAR`) y nunca produce `FilaInsumoIngenieria`
+    que aplicar —esta fase no extrae la clave embebida en la descripción
+    por regex (§3.3)—. Las otras cuatro (`completa`, `sin_costear`,
+    `suelta`, `con_concepto`) sí tienen aplicador — ver el docstring de
+    `domain.cargadores.ingenieria_lote` para el criterio de detección de
+    cada una."""
+
+
+def _presupuesto_y_nodos_por_etapa(
+    nodos: Sequence[Mapping[str, Any]],
+) -> tuple[dict[str, dict[str, Decimal]], dict[tuple[str, str], Mapping[str, Any]]]:
+    """Camina el árbol **ya en la base** de un prototipo exactamente como
+    `domain.ingenieria.arbol_prototipo.renglones_por_etapa` camina un
+    `ArbolPrototipoCargado` recién leído de un CSV: mismo criterio de "la
+    etapa más cercana hacia la raíz", solo que sobre filas de
+    `prototipo_nodo` (cada una con su `parent_id` ya resuelto) en vez de un
+    árbol de `NodoLeido` todavía en memoria.
+
+    Devuelve dos cosas con un solo recorrido: ``presupuesto_por_etapa``
+    (lo que `identificar_prototipo`/`revertir_destajos` esperan) y
+    ``nodo_por_etapa_y_clave`` (qué fila de `prototipo_nodo` corresponde a
+    cada `(etapa, clave)` — lo que el camino "diseño_nuevo" necesita para
+    saber en qué nodo escribir la cantidad reconstruida).
+
+    `prototipo_nodo.tipo` no distingue `CONCEPTO` de `CONCEPTO AUXILIAR`
+    —los dos se guardan como `'concepto'`, ver `RepositorioPrototipoNodoSQL.
+    arbol`—, que es justo lo que `renglones_por_etapa` también junta
+    (`_CONCEPTOS = (CONCEPTO, CONCEPTO_AUXILIAR)`): no hace falta
+    distinguirlos aquí tampoco.
+    """
+    por_id = {n["id"]: n for n in nodos}
+    hijos: dict[Any, list[Any]] = {}
+    raices: list[Any] = []
+    for n in nodos:
+        if n["parent_id"] is None:
+            raices.append(n["id"])
+        else:
+            hijos.setdefault(n["parent_id"], []).append(n["id"])
+
+    presupuesto: dict[str, dict[str, Decimal]] = {}
+    nodo_por_etapa_clave: dict[tuple[str, str], Mapping[str, Any]] = {}
+
+    def recorrer(nodo_id: Any, etapa_actual: str | None) -> None:
+        nodo = por_id[nodo_id]
+        etapa_hijo = (
+            str(nodo["clave"])
+            if str(nodo["tipo"]) == "etapa" and nodo.get("clave")
+            else etapa_actual
+        )
+        if str(nodo["tipo"]) == "concepto" and nodo.get("clave") and etapa_hijo is not None:
+            clave = str(nodo["clave"])
+            cantidad = Decimal(str(nodo.get("cantidad") or 0))
+            etapa_dict = presupuesto.setdefault(etapa_hijo, {})
+            etapa_dict[clave] = etapa_dict.get(clave, Decimal(0)) + cantidad
+            nodo_por_etapa_clave[(etapa_hijo, clave)] = nodo
+        for hijo_id in hijos.get(nodo_id, ()):
+            recorrer(hijo_id, etapa_hijo)
+
+    for raiz in raices:
+        recorrer(raiz, None)
+
+    return presupuesto, nodo_por_etapa_clave
+
+
+def _lineas_matriz_de(
+    crudas: Sequence[Mapping[str, Any]], tipo_por_clave: Mapping[str, str]
+) -> list[LineaMatrizCruda]:
+    """Traduce filas de `Explosion` (`RepositorioConceptos.
+    composicion_recursiva_de`) al mismo lenguaje que
+    `domain.ingenieria.matriz_completa.LineaMatrizCruda` — lo que
+    `domain.ingenieria.reversion._rendimiento_y_citas` necesita para saber
+    qué citas son de un `CONCEPTO`/`CONCEPTO AUXILIAR` real (``origen ==
+    "concepto"``) y cuáles son la receta interna de un compuesto.
+
+    ``origen`` se deriva de `concepto.tipo` del PADRE de la línea
+    (``tipo_por_clave``): `'concepto'`/`'auxiliar'` son los dos tipos que
+    `AplicadorPresupuesto` namespacea como nodo del árbol WBS (ver
+    `_clave_catalogo_concepto`), exactamente lo que la matriz nativa de
+    OPUS marca `Origen=Concepto`.
+
+    **Límite heredado de `AplicadorCPU`, no de este módulo:** el catálogo
+    CPU (`_agrupar_conceptos_matriz`) descarta a propósito las líneas
+    `Origen=Material`/`ManoDeObra` —la receta interna de un compuesto,
+    "fuera de alcance de ese cargador"—, así que hoy ningún `concepto` de
+    tipo `matriz`/`basico` tiene su propia `Explosion` persistida. Esta
+    función solo puede traducir lo que SÍ está en la base: un destajo que
+    solo viviera en la profundidad de un compuesto nunca va a aparecer
+    aquí con ``origen != "concepto"`` citándolo, porque esa cita no se
+    guardó en ningún lado todavía.
+    """
+    lineas: list[LineaMatrizCruda] = []
+    for fila in crudas:
+        es_insumo = str(fila["tipo_hijo"]) == TipoHijoExplosion.INSUMO
+        hijo = fila.get("insumo_clave") if es_insumo else fila.get("concepto_hijo_clave")
+        if not hijo:
+            continue
+        padre = str(fila["concepto_clave"])
+        tipo_padre = tipo_por_clave.get(padre)
+        origen = (
+            "concepto"
+            if tipo_padre in (str(TipoConcepto.CONCEPTO), str(TipoConcepto.AUXILIAR))
+            else "matriz"
+        )
+        cantidad = Decimal(str(fila.get("cantidad") or fila.get("rendimiento") or 0))
+        lineas.append(
+            LineaMatrizCruda(
+                padre=padre,
+                hijo=str(hijo),
+                descripcion="",
+                unidad=None,
+                cantidad=cantidad,
+                costo=Decimal(str(fila.get("costo_unitario") or 0)),
+                categoria=CategoriaExplosion(str(fila["categoria"])),
+                origen=origen,
+                fila=0,
+            )
+        )
+    return lineas
+
+
+def _ids_concepto_de(nodos: Sequence[Mapping[str, Any]]) -> list[Any]:
+    return list(
+        {n["concepto_id"] for n in nodos if str(n["tipo"]) == "concepto" and n.get("concepto_id")}
+    )
+
+
+def _desviacion_a_datos(d: Desviacion) -> dict[str, Any]:
+    return {
+        "insumo_id": d.insumo_id,
+        "concepto_id": d.concepto_id,
+        "obra_id": d.obra_id,
+        "tipo": str(d.tipo),
+        "monto": d.monto,
+        "cantidad_plan": d.cantidad_plan,
+        "cantidad_real": d.cantidad_real,
+        "precio_plan": d.precio_plan,
+        "precio_real": d.precio_real,
+        "detectada_en": d.detectada_en,
+    }
+
+
+class AplicadorIngenieriaLote:
+    """Ingeniería del lote (`TipoCarga.INGENIERIA_LOTE`, CONOCIMIENTO.md §11
+    completo), las cuatro estructuras aplicables (`completa`,
+    `sin_costear`, `suelta`, `con_concepto` — `ajena` no tiene aplicador,
+    ver `EstructuraDeIngenieriaNoSoportada`) y la consolidación
+    multi-archivo de una misma obra (§11.11/P-36). Dos caminos
+    (`CaminoIngenieria`):
+
+    - **`conocido`**: la obra ya tiene `prototipo_id`. Se corre
+      `identificar_prototipo` contra TODOS los prototipos de la
+      organización (P-30: la etiqueta puede mentir — caso real de `ALAMO
+      18`, "Zafiro Plus" era Diamante con chimenea) pero la reversión y la
+      `Desviacion` corren SIEMPRE contra el prototipo ya asignado, nunca
+      contra el `sugerido`: si el asignado no cae dentro del umbral se abre
+      `TipoPendiente.IDENTIDAD_PROTOTIPO_DUDOSA` (alerta, nunca bloqueo) y
+      la carga se aplica igual. `causa=None` siempre (nunca se decide
+      aquí, MODELO.md §5g).
+    - **`diseno_nuevo`**: no hay prototipo que comparar — se declaró así
+      explícito, junto con la obra, antes de subir el archivo. Se clona la
+      estructura de `prototipo_base_id` hacia un prototipo nuevo
+      (`modo_cantidad='heredada'`) y la reversión por destajo reclasifica,
+      nodo por nodo, lo que resuelve a `modo_cantidad='cargada'` con la
+      cantidad reconstruida — eso ES el presupuesto del prototipo nuevo,
+      no se audita contra sí mismo, así que nunca genera `Desviacion`. No
+      se corre `identificar_prototipo`: no hay candidato contra quién
+      identificar.
+
+    Los dos caminos comparten la reversión por destajo
+    (`domain.ingenieria.reversion.revertir_destajos`) contra la estructura
+    (en `conocido`, la del prototipo asignado; en `diseno_nuevo`, la recién
+    clonada) — lo que cambia es qué se hace con el resultado.
+
+    **Límite real, documentado explícito y no escondido en el código:** la
+    clase `COMPUESTO` de la reversión (un destajo que solo vive en la
+    matriz de un compuesto, CONOCIMIENTO.md §11.9, ej. `MOC-12010` dentro
+    de `ZA1-000001`) necesita `composiciones` con TODAS las líneas de la
+    matriz nativa de OPUS, también `Origen=Material`/`ManoDeObra` — la
+    receta interna del compuesto. `AplicadorCPU` (catálogo "Conceptos
+    CPU") descarta esas líneas a propósito (ver su docstring:
+    `_agrupar_conceptos_matriz`, "fuera de alcance de ese cargador"),
+    así que hoy ningún cargador persiste la receta interna de un compuesto
+    como su propio `concepto`/`Explosion`. Este aplicador reconstruye
+    `composiciones` desde `RepositorioConceptos.composicion_recursiva_de`
+    —la misma fuente que usa cualquier otro caso de uso de este repo,
+    `calcular_cpu.componentes_por_clave`— y por eso hereda ese mismo
+    límite: un destajo que solo existiera en la profundidad de un
+    compuesto cae en `SIN` en vez de `COMPUESTO` mientras ningún cargador
+    persista esa receta. No es un defecto introducido por esta entrega —es
+    una brecha ya existente en el catálogo, fuera del alcance que este
+    encargo pidió cerrar (`AplicadorCPU` no se tocó).
+
+    **Las cuatro estructuras, qué cambia en cada una** (ver el docstring de
+    `domain.cargadores.ingenieria_lote` para el criterio de detección):
+
+    - `completa`/`sin_costear`: idénticas en este aplicador — el dominio
+      puro ya les resuelve `etapa`/`agrupador` fila por fila, así que
+      corren exactamente el mismo `revertir_destajos` que antes. Lo único
+      que distingue a `sin_costear` es que `leer_ingenieria_lote` ya marcó
+      sus líneas sin clave/precio como `TipoPendiente.INSUMO_SIN_COSTEAR`
+      —nada que resolver aquí.
+    - `suelta`: el contenido nunca trae etapa (columna 0 siempre vacía,
+      §11.8 "el nombre del archivo lo dice, el contenido no") — se exige
+      `etapa_externa` explícito, igual que `obra_id`, y se sustituye en
+      cada `FilaInsumoIngenieria` ANTES de revertir (nunca se adivina del
+      nombre del archivo).
+    - `con_concepto`: el agrupador YA es el concepto (`domain.ingenieria.
+      con_concepto.reconstruir_con_concepto`) — no hay candidatos que
+      buscar, solo dividir la cantidad del insumo entre su rendimiento
+      dentro de ESE concepto. El resultado se adapta a la misma forma que
+      `ReversionDestajo` (`_resultados_con_concepto`) para alimentar el
+      mismo flujo de `Desviacion`/reclasificación que `completa`, sin un
+      camino paralelo.
+
+    **Consolidación multi-archivo (§11.11/P-36, "no se consolida al cargar
+    — cada lector agrupa a su modo"):** cada archivo se persiste atomizado,
+    tal como llegó (`RepositorioIngenieriaLoteInsumos.guardar`, migración
+    0058); identificación y reversión corren contra el ACUMULADO de la
+    obra (esta carga + todas las anteriores ya aplicadas y no revertidas,
+    `acumulado_por_obra`), nunca contra el archivo aislado — así que una
+    obra con dos archivos de etapas distintas identifica mejor con el
+    segundo que con el primero solo. Para no duplicar `Desviacion` ni
+    reclasificar de nuevo lo que un archivo anterior ya resolvió sin que
+    nada haya cambiado, los resultados de la reversión se filtran a las
+    etapas que ESTE archivo trae (`_etapas_del_archivo`) antes de generar
+    `Desviacion`/reclasificar `prototipo_nodo` — un archivo nuevo nunca
+    reabre lo que uno viejo ya cerró.
+    """
+
+    def __init__(
+        self,
+        *,
+        obras: RepositorioObras,
+        prototipos: RepositorioPrototipos,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        conceptos: RepositorioConceptos,
+        desviaciones: RepositorioDesviaciones,
+        ingenieria_insumos: RepositorioIngenieriaLoteInsumos,
+        cargas: RepositorioCargas,
+    ) -> None:
+        self._obras = obras
+        self._prototipos = prototipos
+        self._prototipo_nodos = prototipo_nodos
+        self._conceptos = conceptos
+        self._desviaciones = desviaciones
+        self._ingenieria_insumos = ingenieria_insumos
+        self._cargas = cargas
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+        obra_id: UUID | None = None,
+        camino: str | None = None,
+        prototipo_base_id: UUID | None = None,
+        nombre_prototipo_nuevo: str | None = None,
+        etapa_externa: str | None = None,
+    ) -> Aplicacion:
+        if obra_id is None:
+            raise ContextoIngenieriaIncompleto(
+                "La ingeniería del lote exige obra_id: la identidad del "
+                "lote se declara antes de subir el archivo, nunca se "
+                "adivina de su nombre (§11.4/§11.5)."
+            )
+        camino_resuelto = CaminoIngenieria(camino) if camino else CaminoIngenieria.CONOCIDO
+        if camino_resuelto is CaminoIngenieria.DISENO_NUEVO and prototipo_base_id is None:
+            raise ContextoIngenieriaIncompleto(
+                "El camino 'diseno_nuevo' exige prototipo_base_id: el "
+                "prototipo del que se clona la estructura."
+            )
+
+        registro = lectura.registros[0] if lectura.registros else None
+        if not isinstance(registro, LoteIngenieriaLeido):
+            # Archivo sin ningún registro (vacío): el lector ya reportó lo
+            # que haya que reportar en `lectura.pendientes`/`errores`.
+            return Aplicacion(diff=Diff())
+        lote = registro
+
+        if lote.estructura is TipoEstructuraIngenieria.AJENA:
+            # El lector ya reportó su propio pendiente crítico
+            # (`ESTRUCTURA_AJENA_SIN_PARSEAR`) y `lote.insumos` sale
+            # siempre vacío: esta fase no extrae la clave embebida en la
+            # descripción por regex (§3.3).
+            raise EstructuraDeIngenieriaNoSoportada(
+                f"Esta fase no aplica archivos de estructura 'ajena' "
+                f"(CONOCIMIENTO.md §11.8); llegó {lote.estructura!r}."
+            )
+
+        if not lote.insumos:
+            return Aplicacion(diff=Diff())
+
+        if lote.estructura is TipoEstructuraIngenieria.SUELTA:
+            # El contenido de un archivo `suelta` nunca dice a qué etapa
+            # pertenece (columna 0 siempre vacía, §11.8): se exige
+            # `etapa_externa` explícito, igual que `obra_id` — nunca se
+            # adivina del nombre del archivo.
+            if not etapa_externa:
+                raise ContextoIngenieriaIncompleto(
+                    "La estructura 'suelta' no trae etapa en su contenido "
+                    "(§11.8): declara etapa_externa antes de subir el "
+                    "archivo, igual que obra_id — nunca se adivina del "
+                    "nombre del archivo."
+                )
+            lote = replace(
+                lote,
+                insumos=tuple(replace(f, etapa=etapa_externa) for f in lote.insumos),
+            )
+
+        if camino_resuelto is CaminoIngenieria.CONOCIDO:
+            return await self._aplicar_conocido(
+                lote, obra_id=obra_id, dry_run=dry_run, carga_id=carga_id
+            )
+        return await self._aplicar_diseno_nuevo(
+            lote,
+            obra_id=obra_id,
+            prototipo_base_id=prototipo_base_id,  # type: ignore[arg-type]
+            nombre_prototipo_nuevo=nombre_prototipo_nuevo,
+            dry_run=dry_run,
+            carga_id=carga_id,
+        )
+
+    async def _explosion_de_prototipo(
+        self, prototipo_id: UUID, clave_prototipo: str
+    ) -> ExplosionPrototipo:
+        """Mismo cálculo que `domain.ingenieria.identificacion.
+        explotar_prototipo_por_etapa`, pero sobre el árbol que ya está en
+        la base en vez de un `ArbolPrototipoCargado` recién leído de un
+        CSV (ver docstring de `_presupuesto_y_nodos_por_etapa`)."""
+        nodos = await self._prototipo_nodos.por_prototipo(prototipo_id)
+        presupuesto_por_etapa, _ = _presupuesto_y_nodos_por_etapa(nodos)
+        ids_concepto = _ids_concepto_de(nodos)
+        if not ids_concepto:
+            return ExplosionPrototipo(
+                clave_prototipo=clave_prototipo, total_global=Decimal(0), total_por_etapa={}
+            )
+        crudas = await self._conceptos.composicion_recursiva_de(ids_concepto)
+        composiciones, costos_insumo = componentes_por_clave(crudas)
+
+        total_global = Decimal(0)
+        total_por_etapa: dict[str, Decimal] = {}
+        for etapa, conceptos in presupuesto_por_etapa.items():
+            for clave, cantidad in conceptos.items():
+                try:
+                    precio = explotar(
+                        clave, composiciones=composiciones, costos_insumo=costos_insumo
+                    ).precio.total.monto
+                except ErrorDeAPU:
+                    continue
+                importe = precio * cantidad
+                total_global += importe
+                total_por_etapa[etapa] = total_por_etapa.get(etapa, Decimal(0)) + importe
+
+        return ExplosionPrototipo(
+            clave_prototipo=clave_prototipo, total_global=total_global, total_por_etapa=total_por_etapa
+        )
+
+    @staticmethod
+    def _etapas_del_archivo(lote: LoteIngenieriaLeido) -> set[str]:
+        """Las etapas que ESTE archivo trae (ya con `etapa_externa`
+        sustituida si era `suelta`): la consolidación multi-archivo
+        (§11.11/P-36) nunca reabre lo que un archivo anterior ya resolvió
+        para una etapa que este archivo no toca."""
+        return {f.etapa for f in lote.insumos if f.etapa is not None}
+
+    async def _insumos_acumulados(
+        self, obra_id: UUID, lote: LoteIngenieriaLeido
+    ) -> tuple[FilaInsumoIngenieria, ...]:
+        """El acumulado de la obra (cargas anteriores de `ingenieria_lote`
+        ya aplicadas y no revertidas) más este archivo, combinados en
+        memoria (§11.11/P-36: "no se consolida al cargar" — nunca se
+        persiste este acumulado aparte). Mismos números en `dry_run` que
+        en el commit (§9.3): este método nunca escribe, solo lee lo que
+        YA estaba y le suma lo que trae el archivo actual."""
+        anteriores = await self._ingenieria_insumos.acumulado_por_obra(obra_id)
+        return (*anteriores, *lote.insumos)
+
+    async def _persistir_insumos_del_archivo(
+        self,
+        obra_id: UUID,
+        carga_id: UUID,
+        lote: LoteIngenieriaLeido,
+        *,
+        dry_run: bool,
+    ) -> None:
+        """Guarda las filas crudas de ESTE archivo, tal como llegaron
+        (§11.11/P-36: "lo cargado no se toca", el acumulado nunca se
+        persiste aparte de las filas originales). Nunca en `dry_run`
+        (§9.3: nada se escribe)."""
+        if dry_run or not lote.insumos:
+            return
+        await self._ingenieria_insumos.guardar(
+            obra_id=obra_id, carga_id=carga_id, filas=lote.insumos
+        )
+
+    @staticmethod
+    def _filtrar_por_archivo(
+        resultados: Sequence[ReversionDestajo],
+        lote: LoteIngenieriaLeido,
+        etapas_de_este_archivo: set[str],
+    ) -> tuple[ReversionDestajo, ...]:
+        """Consolidación (§11.11/P-36): un archivo `con_concepto` nunca
+        acumula entre archivos de ese mismo tipo (`_reconstruir` ya solo
+        corre contra `lote.insumos`, nunca contra el acumulado), así que
+        sus resultados son siempre "de este archivo" y no hay nada que
+        filtrar. Los demás SÍ corren contra el acumulado completo de la
+        obra (`_insumos_acumulados`) — aquí se filtran a las etapas que
+        ESTE archivo trae, para no reabrir lo que un archivo anterior ya
+        resolvió sin que nada haya cambiado en esta carga."""
+        if lote.estructura is TipoEstructuraIngenieria.CON_CONCEPTO:
+            return tuple(resultados)
+        return tuple(r for r in resultados if r.etapa in etapas_de_este_archivo)
+
+    async def _reconstruir(
+        self,
+        nodos: Sequence[Mapping[str, Any]],
+        presupuesto_por_etapa: Mapping[str, Mapping[str, Decimal]],
+        lote: LoteIngenieriaLeido,
+        insumos_para_destajo: Sequence[FilaInsumoIngenieria],
+    ) -> tuple[tuple[ReversionDestajo, ...], tuple[PendientePropuesto, ...]]:
+        """Reconstruye cantidades reales contra la estructura ya resuelta
+        de un prototipo (`nodos`/`presupuesto_por_etapa`):
+
+        - `completa`/`sin_costear`/`suelta`: reversión por destajo
+          (`reversion.revertir_destajos`) contra ``insumos_para_destajo``
+          —el ACUMULADO de la obra, nunca solo este archivo (§11.11)—.
+        - `con_concepto`: reconstrucción por concepto nombrado
+          (`con_concepto.reconstruir_con_concepto`), SIEMPRE contra
+          `lote.insumos` de este archivo — no se acumula entre archivos
+          `con_concepto` distintos, decisión explícita de esta entrega
+          (ver el docstring de la clase).
+        """
+        ids_concepto = _ids_concepto_de(nodos)
+        if not ids_concepto:
+            return (), ()
+        crudas = await self._conceptos.composicion_recursiva_de(ids_concepto)
+        composiciones, _ = componentes_por_clave(crudas)
+
+        if lote.estructura is TipoEstructuraIngenieria.CON_CONCEPTO:
+            return self._resultados_con_concepto(lote.insumos, composiciones, presupuesto_por_etapa)
+
+        conceptos_filas = await self._conceptos.listar(solo_activos=False)
+        tipo_por_clave = {str(f["clave"]): str(f["tipo"]) for f in conceptos_filas}
+        lineas_matriz = _lineas_matriz_de(crudas, tipo_por_clave)
+        return revertir_destajos(
+            insumos_para_destajo, lineas_matriz, presupuesto_por_etapa, composiciones
+        )
+
+    @staticmethod
+    def _resultados_con_concepto(
+        insumos: Sequence[FilaInsumoIngenieria],
+        composiciones: Mapping[str, Sequence[Componente]],
+        presupuesto_por_etapa: Mapping[str, Mapping[str, Decimal]],
+    ) -> tuple[tuple[ReversionDestajo, ...], tuple[PendientePropuesto, ...]]:
+        """Adapta `ReconstruccionConcepto` (`domain.ingenieria.con_concepto.
+        reconstruir_con_concepto`) a la misma forma que `ReversionDestajo`
+        —``clase=UNICO``, ``candidatos=(concepto,)``,
+        ``reparto={concepto: cantidad_real}``— para que
+        `generar_desviaciones_candidatas` y la reclasificación de
+        `diseno_nuevo` corran sin un camino paralelo (ver docstring de la
+        clase: "el resultado se adapta... para alimentar el mismo flujo").
+
+        El concepto ya viene nombrado por el agrupador —nunca hay
+        candidatos que elegir—; lo único que SÍ hay que resolver aquí es a
+        qué ETAPA del presupuesto pertenece, porque un archivo
+        `con_concepto` nunca trae una etapa en su contenido (§11.8). Si el
+        concepto no aparece en el presupuesto de ninguna etapa, o aparece
+        en más de una, se reporta pendiente sin elegir (§3.3, mismo
+        criterio de "nunca se elige la más probable" que `DESTAJO_
+        AMBIGUO`)."""
+        reconstruidos, pendientes_reconstruccion = reconstruir_con_concepto(insumos, composiciones)
+
+        etapas_por_concepto: dict[str, list[str]] = {}
+        for etapa, conceptos in presupuesto_por_etapa.items():
+            for concepto in conceptos:
+                etapas_por_concepto.setdefault(concepto, []).append(etapa)
+
+        resultados: list[ReversionDestajo] = []
+        pendientes: list[PendientePropuesto] = list(pendientes_reconstruccion)
+        for rc in reconstruidos:
+            etapas = etapas_por_concepto.get(rc.concepto, [])
+            if not etapas:
+                pendientes.append(
+                    PendientePropuesto(
+                        tipo=TipoPendiente.MAPEO_NO_RECONOCIDO,
+                        entidad="reconstruccion_con_concepto",
+                        valor_origen=rc.concepto,
+                        propuesta={
+                            "clave_insumo": rc.clave_insumo,
+                            "cantidad_real": str(rc.cantidad_real),
+                            "motivo": (
+                                "El concepto del agrupador no aparece en el "
+                                "presupuesto de ninguna etapa del prototipo "
+                                "ya identificado; no hay cantidad_plan contra "
+                                "la que comparar (§3.3)."
+                            ),
+                        },
+                    )
+                )
+                continue
+            if len(etapas) > 1:
+                pendientes.append(
+                    PendientePropuesto(
+                        tipo=TipoPendiente.CONCEPTO_EN_VARIAS_ETAPAS,
+                        entidad="reconstruccion_con_concepto",
+                        valor_origen=rc.concepto,
+                        propuesta={
+                            "etapas_candidatas": sorted(etapas),
+                            "clave_insumo": rc.clave_insumo,
+                            "cantidad_real": str(rc.cantidad_real),
+                            "motivo": (
+                                "El concepto aparece en más de una etapa del "
+                                "presupuesto; no se elige la más probable "
+                                "(§11.9, mismo criterio que DESTAJO_AMBIGUO)."
+                            ),
+                        },
+                    )
+                )
+                continue
+            etapa = etapas[0]
+            cantidad_presupuestada = (
+                presupuesto_por_etapa[etapa].get(rc.concepto, Decimal(0)) * rc.rendimiento
+            )
+            resultados.append(
+                ReversionDestajo(
+                    etapa=etapa,
+                    clave=rc.clave_insumo,
+                    descripcion=rc.descripcion,
+                    precio=rc.precio,
+                    cantidad_real=rc.cantidad_insumo,
+                    clase=ClaseReversionDestajo.UNICO,
+                    candidatos=(rc.concepto,),
+                    cantidad_presupuestada=cantidad_presupuestada,
+                    reparto={rc.concepto: rc.cantidad_real},
+                )
+            )
+
+        return tuple(resultados), tuple(pendientes)
+
+    async def _aplicar_conocido(
+        self, lote: LoteIngenieriaLeido, *, obra_id: UUID, dry_run: bool, carga_id: UUID
+    ) -> Aplicacion:
+        obra = await self._obras.obtener(obra_id)
+        if obra is None:
+            raise ErrorDeProyecto(
+                f"La obra {obra_id} no existe o está fuera de tu alcance."
+            )
+        prototipo_id = obra.get("prototipo_id")
+        if prototipo_id is None:
+            raise ErrorDeProyecto(
+                f"La obra {obra_id} no tiene prototipo asignado: el camino "
+                f"'conocido' exige el invariante de `Obra.crear` (toda "
+                f"obra no-urba nace con prototipo, `domain.obras.reglas`)."
+            )
+
+        prototipos_filas = await self._prototipos.listar()
+        por_id = {str(f["id"]): f for f in prototipos_filas}
+        prototipo_asignado = por_id.get(str(prototipo_id))
+        if prototipo_asignado is None:
+            raise ErrorDeProyecto(
+                f"El prototipo {prototipo_id} asignado a la obra no existe."
+            )
+
+        insumos_acumulados = await self._insumos_acumulados(obra_id, lote)
+        etapas_de_este_archivo = self._etapas_del_archivo(lote)
+
+        pendientes: list[PendientePropuesto] = []
+        consolidado = consolidar_lote(insumos_acumulados)
+
+        identificado: str | None = None
+        if consolidado.total_por_etapa:
+            candidatos = [
+                await self._explosion_de_prototipo(f["id"], str(f["clave"]))
+                for f in prototipos_filas
+            ]
+            identificacion = identificar_prototipo(consolidado.total_por_etapa, candidatos)
+            identificado = identificacion.identificado
+            candidato_asignado = next(
+                (
+                    c
+                    for c in identificacion.candidatos
+                    if c.clave_prototipo == str(prototipo_asignado["clave"])
+                ),
+                None,
+            )
+            if candidato_asignado is None or not candidato_asignado.dentro_del_umbral:
+                pendientes.append(
+                    PendientePropuesto(
+                        tipo=TipoPendiente.IDENTIDAD_PROTOTIPO_DUDOSA,
+                        entidad="obra",
+                        valor_origen=str(obra_id),
+                        propuesta={
+                            "prototipo_asignado": str(prototipo_asignado["clave"]),
+                            "sugerido": identificacion.sugerido,
+                            "razon_global_asignado": (
+                                str(candidato_asignado.razon_global)
+                                if candidato_asignado is not None
+                                and candidato_asignado.razon_global is not None
+                                else None
+                            ),
+                            "motivo": (
+                                "La ingeniería del lote no confirma, dentro del "
+                                "umbral, al prototipo ya asignado a la obra "
+                                "(P-30: la etiqueta puede mentir). La carga se "
+                                "aplica igual contra el prototipo asignado — "
+                                "nunca se reasigna sola (§11.7)."
+                            ),
+                        },
+                    )
+                )
+
+        nodos_asignado = await self._prototipo_nodos.por_prototipo(prototipo_id)
+        presupuesto_por_etapa, _ = _presupuesto_y_nodos_por_etapa(nodos_asignado)
+        concepto_id_de_clave = {
+            str(n["clave"]): n["concepto_id"]
+            for n in nodos_asignado
+            if str(n["tipo"]) == "concepto" and n.get("concepto_id") and n.get("clave")
+        }
+
+        resultados_todos, pendientes_reversion = await self._reconstruir(
+            nodos_asignado, presupuesto_por_etapa, lote, insumos_acumulados
+        )
+        pendientes.extend(pendientes_reversion)
+        resultados = self._filtrar_por_archivo(resultados_todos, lote, etapas_de_este_archivo)
+
+        ids_concepto = _ids_concepto_de(nodos_asignado)
+        composiciones: Mapping[str, Sequence[Componente]] = {}
+        costos_insumo: Mapping[str, Decimal] = {}
+        if ids_concepto:
+            crudas = await self._conceptos.composicion_recursiva_de(ids_concepto)
+            composiciones, costos_insumo = componentes_por_clave(crudas)
+
+        conceptos_en_etapas = {c for etapa in presupuesto_por_etapa.values() for c in etapa}
+        precio_concepto: dict[str, Decimal] = {}
+        for clave in conceptos_en_etapas:
+            try:
+                precio_concepto[clave] = explotar(
+                    clave, composiciones=composiciones, costos_insumo=costos_insumo
+                ).precio.total.monto
+            except ErrorDeAPU:
+                continue
+
+        desviaciones, pendientes_desviacion = generar_desviaciones_candidatas(
+            resultados,
+            presupuesto_por_etapa,
+            precio_concepto,
+            obra_id=str(obra_id),
+            concepto_id_de_clave={k: str(v) for k, v in concepto_id_de_clave.items()},
+            detectada_en=datetime.now(UTC),
+        )
+        pendientes.extend(pendientes_desviacion)
+
+        operaciones: list[dict[str, Any]] = []
+        if not dry_run:
+            for d in desviaciones:
+                datos = _desviacion_a_datos(d)
+                nuevo_id = await self._desviaciones.crear(datos)
+                operaciones.append(_operacion("desviacion", nuevo_id, "insert", despues=datos))
+
+        diff = Diff(
+            altas=tuple(
+                Cambio(
+                    clave=str(d.concepto_id or d.insumo_id),
+                    despues={"monto": str(d.monto), "cantidad_real": str(d.cantidad_real)},
+                )
+                for d in desviaciones
+            )
+        )
+
+        # Siempre al final, después de haber leído el acumulado (§11.11):
+        # persiste las filas crudas de ESTE archivo para que la PRÓXIMA
+        # carga de esta obra las vea acumuladas. Nunca en dry_run.
+        await self._persistir_insumos_del_archivo(obra_id, carga_id, lote, dry_run=dry_run)
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            pendientes=tuple(pendientes),
+            insertados=len(desviaciones),
+            detalle={
+                "camino": str(CaminoIngenieria.CONOCIDO),
+                "prototipo_identificado": identificado,
+                "prototipo_asignado": str(prototipo_asignado["clave"]),
+                "destajos_revertidos": len(resultados),
+                "desviaciones_candidatas": len(desviaciones),
+            },
+        )
+
+    async def _aplicar_diseno_nuevo(
+        self,
+        lote: LoteIngenieriaLeido,
+        *,
+        obra_id: UUID,
+        prototipo_base_id: UUID,
+        nombre_prototipo_nuevo: str | None,
+        dry_run: bool,
+        carga_id: UUID,
+    ) -> Aplicacion:
+        obra = await self._obras.obtener(obra_id)
+        if obra is None:
+            raise ErrorDeProyecto(
+                f"La obra {obra_id} no existe o está fuera de tu alcance."
+            )
+        base = await self._prototipos.obtener(prototipo_base_id)
+        if base is None:
+            raise ErrorDeProyecto(f"El prototipo base {prototipo_base_id} no existe.")
+
+        insumos_acumulados = await self._insumos_acumulados(obra_id, lote)
+        etapas_de_este_archivo = self._etapas_del_archivo(lote)
+
+        if dry_run:
+            # La vista previa no clona de verdad (§9.3: nada se escribe),
+            # pero correr la reconstrucción contra la estructura TAL CUAL
+            # está hoy en el prototipo base da los mismos números que
+            # clonarla y revertir después: clonar copia filas, no las
+            # cambia. Tampoco persiste el acumulado (§9.3).
+            nodos_base = await self._prototipo_nodos.por_prototipo(prototipo_base_id)
+            presupuesto_por_etapa, _ = _presupuesto_y_nodos_por_etapa(nodos_base)
+            resultados_todos, pendientes = await self._reconstruir(
+                nodos_base, presupuesto_por_etapa, lote, insumos_acumulados
+            )
+            resultados = self._filtrar_por_archivo(resultados_todos, lote, etapas_de_este_archivo)
+            resueltos = sum(1 for r in resultados if r.reparto is not None)
+            clave_nueva = str(obra.get("clave") or obra_id)
+            return Aplicacion(
+                diff=Diff(
+                    altas=(
+                        Cambio(
+                            clave=clave_nueva,
+                            despues={"prototipo_base": str(base["clave"])},
+                        ),
+                    )
+                ),
+                pendientes=tuple(pendientes),
+                insertados=len(nodos_base),
+                detalle={
+                    "camino": str(CaminoIngenieria.DISENO_NUEVO),
+                    "prototipo_base": str(base["clave"]),
+                    "nodos_a_clonar": len(nodos_base),
+                    "destajos_revertidos": len(resultados),
+                    "conceptos_resueltos": resueltos,
+                },
+            )
+
+        clave_nueva = str(obra.get("clave") or obra_id)
+        # Decisión de diseño no dada 100% explícita por el encargo: la
+        # CLAVE del prototipo nuevo (identidad de catálogo, `uq_prototipo_
+        # clave`) también se toma de la clave de la obra, igual que el
+        # NOMBRE cuando no se da uno — un prototipo "diseño nuevo" es, por
+        # definición, de uso exclusivo de esa obra (§11.4), así que no hay
+        # ninguna otra identidad más natural que reusar.
+        nombre_nuevo = nombre_prototipo_nuevo or clave_nueva
+        dominio = Prototipo.crear(
+            proyecto_id=str(base["proyecto_id"]),
+            clave=clave_nueva,
+            nombre=nombre_nuevo,
+            m2=base.get("m2"),
+            niveles=base.get("niveles"),
+            recamaras=base.get("recamaras"),
+        )
+
+        nuevo_prototipo_id = await self._prototipos.crear(
+            {
+                "proyecto_id": dominio.proyecto_id,
+                "clave": str(dominio.clave),
+                "nombre": dominio.nombre,
+                "m2": dominio.m2,
+                "niveles": dominio.niveles,
+                "recamaras": dominio.recamaras,
+            }
+        )
+        operaciones: list[dict[str, Any]] = [
+            _operacion(
+                "prototipo",
+                nuevo_prototipo_id,
+                "insert",
+                despues={
+                    "proyecto_id": str(dominio.proyecto_id),
+                    "clave": str(dominio.clave),
+                    "nombre": dominio.nombre,
+                    "m2": str(dominio.m2) if dominio.m2 is not None else None,
+                    "niveles": dominio.niveles,
+                    "recamaras": dominio.recamaras,
+                },
+            )
+        ]
+        # Ningún nodo clonado ni reclasificado se registra aparte en el
+        # snapshot: revertir el alta del `prototipo` de arriba se lleva
+        # consigo, por `on delete cascade` (migración 0006), cada
+        # `prototipo_nodo` que `clonar_estructura`/`actualizar_cantidad`
+        # toquen — ver el docstring de `RepositorioPrototipoNodoSQL.
+        # clonar_estructura`.
+        await self._prototipo_nodos.clonar_estructura(
+            origen_prototipo_id=prototipo_base_id,
+            destino_prototipo_id=nuevo_prototipo_id,
+        )
+
+        nodos_destino = await self._prototipo_nodos.por_prototipo(nuevo_prototipo_id)
+        presupuesto_por_etapa, nodo_por_etapa_clave = _presupuesto_y_nodos_por_etapa(
+            nodos_destino
+        )
+        resultados_todos, pendientes = await self._reconstruir(
+            nodos_destino, presupuesto_por_etapa, lote, insumos_acumulados
+        )
+        resultados = self._filtrar_por_archivo(resultados_todos, lote, etapas_de_este_archivo)
+
+        # Mismo desempate que `domain.ingenieria.desviacion.
+        # generar_desviaciones_candidatas` (dos destajos resuelven el mismo
+        # concepto con estimaciones distintas: gana el de mayor costo
+        # observado, CONOCIMIENTO.md §11.13) — replicado aquí porque este
+        # camino no pasa por esa función: no hay presupuesto ajeno contra
+        # el cual comparar, la cantidad reconstruida SE CONVIERTE en el
+        # presupuesto del prototipo nuevo.
+        mejor_costo: dict[str, Decimal] = {}
+        mejor_ubicacion: dict[str, tuple[str, Decimal]] = {}
+        for r in resultados:
+            if r.reparto is None:
+                continue
+            costo_destajo = (r.precio or Decimal(0)) * r.cantidad_real
+            for concepto, cantidad_real in r.reparto.items():
+                actual = mejor_costo.get(concepto)
+                if actual is None or costo_destajo > actual:
+                    mejor_costo[concepto] = costo_destajo
+                    mejor_ubicacion[concepto] = (r.etapa, cantidad_real)
+
+        actualizados = 0
+        for concepto, (etapa, cantidad_real) in mejor_ubicacion.items():
+            nodo = nodo_por_etapa_clave.get((etapa, concepto))
+            if nodo is None:
+                continue
+            resultado = await self._prototipo_nodos.actualizar_cantidad(
+                nuevo_prototipo_id,
+                parent_id=nodo["parent_id"],
+                clave=concepto,
+                cantidad=cantidad_real,
+                # "cargada": vino de revertir una ingeniería importada
+                # (cerebro MODELO.md §1/HALLAZGO 12) — nunca `capturada`
+                # (nadie la tipeó) ni `heredada` (eso describe el resto del
+                # árbol que esta llamada no toca).
+                modo_cantidad="cargada",
+            )
+            if resultado is not None:
+                actualizados += 1
+
+        await self._obras.actualizar(obra_id, {"prototipo_id": nuevo_prototipo_id})
+        operaciones.append(
+            _operacion(
+                "obra",
+                obra_id,
+                "update",
+                antes={
+                    "prototipo_id": (
+                        str(obra["prototipo_id"]) if obra.get("prototipo_id") else None
+                    )
+                },
+                despues={"prototipo_id": str(nuevo_prototipo_id)},
+            )
+        )
+
+        diff = Diff(
+            altas=(
+                Cambio(
+                    clave=clave_nueva,
+                    despues={"prototipo_id": str(nuevo_prototipo_id)},
+                ),
+            )
+        )
+
+        # Siempre al final, después de haber leído el acumulado (§11.11):
+        # persiste las filas crudas de ESTE archivo para que la PRÓXIMA
+        # carga de esta obra las vea acumuladas.
+        await self._persistir_insumos_del_archivo(obra_id, carga_id, lote, dry_run=False)
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            pendientes=tuple(pendientes),
+            insertados=len(nodos_destino),
+            actualizados=actualizados,
+            detalle={
+                "camino": str(CaminoIngenieria.DISENO_NUEVO),
+                "prototipo_nuevo": clave_nueva,
+                "prototipo_base": str(base["clave"]),
+                "nodos_clonados": len(nodos_destino),
+                "conceptos_reclasificados": actualizados,
+            },
+        )
+
+
+# --- Programa base de prototipo: el cronograma real (§7.5, extensión propia) -
+#
+# No está en el §10.6 — igual que `PRESUPUESTO`/`PROTOTIPOS`. Reusa
+# `gestionar_programacion.CrearProgramaBase.ejecutar`, el caso de uso que ya
+# hace el alta completa de un `ProgramaBase` (§10.8: cada carga es una
+# versión nueva); este aplicador solo lee el archivo real y arma el
+# `ComandoCrearProgramaBase` correspondiente — nunca reimplementa el alta.
+
+
+class ContextoProgramaBaseIncompleto(ValueError):
+    """Falta `prototipo_id` (§7.5, §11.3 G): contra qué prototipo se carga
+    el programa se declara explícito antes de subir el archivo —igual que
+    `obra_id` en la ingeniería del lote—, nunca se adivina de su contenido
+    (el archivo real trae varios prototipos apilados, uno por `Capítulo`)."""
+
+
+class PrototipoDeProgramaNoEncontrado(LookupError):
+    """El `prototipo_id` no existe, o el archivo no trae el bloque de ese
+    prototipo (ningún `Capítulo` con su clave) — RLS hace indistinguible
+    "no existe" de "no está en tu alcance" (§12.4), y el segundo caso es un
+    error del archivo subido contra el prototipo pedido, no de una fila."""
+
+
+_CALENDARIO_PROGRAMA_BASE = CalendarioLaboral.de([1, 2, 3, 4, 5])
+"""Lunes a viernes: el calendario real de estos programas
+(`1-mundo/PROGRAMA-CPM.md`: "Calendario del ejercicio: lunes a viernes..."),
+confirmado también por aritmética sobre las fechas del archivo real de
+Zafiro (11 días hábiles en una ventana de 15 corridos con dos fines de
+semana). No es `domain.programacion.calendario.SEMANA_LABORAL` —esa
+constante es lunes a **sábado**, la semana de obra típica en México, pero
+no la de este archivo en particular—; se construye explícito con
+`CalendarioLaboral.de(...)` en vez de reusar ese nombre para no sugerir que
+son la misma cosa. Los feriados del ejercicio (25-dic, etc.) no se
+modelan: `calendario.py` no tiene todavía un calendario de excepciones
+(ver su docstring, "Días festivos")."""
+
+
+def _rutas_de_prototipo_nodo(nodos: Sequence[Mapping[str, Any]]) -> dict[tuple[str, ...], UUID]:
+    """`prototipo_nodo_id` por `ruta` (cadena de claves ancestro→…→propia,
+    sin la raíz) — la misma identidad, recursiva, que
+    `uq_prototipo_nodo_posicion` (migración 0038) y que
+    `domain.cargadores.programa_base.FilaProgramaBase.ruta` calcula del
+    lado del archivo. Clave sola sería ambigua: la misma clave de concepto
+    puede colgar de dos padres distintos del mismo prototipo (ver el
+    docstring del módulo de dominio)."""
+    por_id: dict[Any, Mapping[str, Any]] = {n["id"]: n for n in nodos}
+    cache: dict[Any, tuple[str, ...]] = {}
+
+    def ruta_de(nodo_id: Any) -> tuple[str, ...]:
+        if nodo_id in cache:
+            return cache[nodo_id]
+        nodo = por_id[nodo_id]
+        clave = str(nodo["clave"]) if nodo.get("clave") else ""
+        padre_id = nodo.get("parent_id")
+        base = ruta_de(padre_id) if padre_id is not None and padre_id in por_id else ()
+        resultado = (*base, clave) if clave else base
+        cache[nodo_id] = resultado
+        return resultado
+
+    return {
+        ruta_de(nodo["id"]): nodo["id"]
+        for nodo in nodos
+        if nodo.get("clave")
+    }
+
+
+class AplicadorProgramaBase:
+    """Programa base de un prototipo: el cronograma real (§7.5, extensión
+    propia). Ver `domain.cargadores.programa_base` para el formato del
+    archivo y las reglas de D-442/D-443 (vínculos, bloques como
+    predecesora, ciclos, vínculos incumplidos).
+
+    **`prototipo_id` se declara explícito, igual que `obra_id` en la
+    ingeniería del lote** (`ContextoProgramaBaseIncompleto`): el archivo
+    real trae varios prototipos apilados —uno por `Capítulo`— y adivinar
+    cuál cargar del nombre del archivo sería exactamente lo que el §3.3
+    prohíbe. El bloque de ese prototipo se busca por su clave (la del
+    `Capítulo`) dentro de los bloques que `domain.cargadores.programa_base.
+    leer_programa_base` separó; los demás bloques del archivo —los otros
+    seis prototipos de Zafiro, en el archivo real— se ignoran sin más: son
+    el programa de otro prototipo, cargable después con su propio
+    `prototipo_id`.
+
+    **Cómo se resuelve cada `Concepto` del archivo a su
+    `prototipo_nodo_id`.** El archivo no trae ninguna referencia a la base
+    —solo claves y la jerarquía `Tipo`/`Nivel` del propio export—, así que
+    cada partida se busca por su `ruta` (ver el docstring del módulo de
+    dominio) contra el árbol YA cargado del prototipo
+    (`RepositorioPrototipoNodo.por_prototipo`, el que subió el cargador de
+    Presupuesto). Una `ruta` sin nodo correspondiente —el archivo del
+    programa y el del presupuesto no describen exactamente el mismo
+    árbol; verificado contra el archivo real de Zafiro: unas pocas
+    partidas de un subárbol (`OBE-01010`/`ACA-00021`) no cruzan— es
+    `TipoPendiente.MAPEO_NO_RECONOCIDO`, **no crítico**: la carga sigue sin
+    esa partida, nunca se adivina por proximidad de clave.
+
+    **Los vínculos** se resuelven con `domain.cargadores.programa_base.
+    resolver_vinculos` —puro, sobre números de fila del archivo— y
+    **después** se traducen aquí a `Dependencia(ref=<prototipo_nodo_id>)`:
+    `gestionar_programacion.reglas.instanciar_programa._resolver` cruza
+    `Dependencia.ref` contra `actividad.prototipo_nodo_id`, así que el
+    `ref` tiene que ser ese id —nunca la clave del renglón, que no es
+    única dentro del árbol (ver el docstring de dominio)— para que la
+    dependencia funcione de verdad una vez instanciado el programa en una
+    obra. Un vínculo cuya predecesora no resuelve a ningún nodo se
+    reporta (`MAPEO_NO_RECONOCIDO`, sobre la predecesora) y se omite de
+    esa partida en particular; el resto de sus vínculos y la partida
+    misma se cargan igual.
+
+    **No hay alta de prototipos ni de árbol aquí** (a diferencia de
+    `AplicadorPresupuesto`, que sí da de alta insumos/unidades que no
+    cruzan): un `prototipo_nodo` que no existe es un hueco para completar
+    con el cargador de Presupuesto, no algo que este cargador deba
+    inventar.
+
+    **Revertir esta carga.** `CrearProgramaBase.ejecutar` abre y confirma
+    su propia unidad de trabajo —es quien versiona `programa_base`
+    (§10.8), y hacerlo así es justo lo que se reusa en vez de
+    reimplementar—; este aplicador no registra `operaciones` (snapshot)
+    porque no hay un "antes" registro por registro que restaurar con el
+    mecanismo genérico de `RevertirCarga` (`adapters.repos.cargas_sql.
+    _RESTAURAR`): el alta completa ya es, en sí misma, una versión nueva
+    de `programa_base` de la que se puede volver a la anterior por el
+    propio versionado del contexto Programación, no por la reversa
+    genérica de cargas. Documentado aquí a propósito, no escondido: una
+    carga de este tipo queda fuera del alcance de `RevertirCarga`/
+    `RevertirCargaEnCadena` por ahora.
+    """
+
+    def __init__(
+        self,
+        *,
+        prototipos: RepositorioPrototipos,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        crear_programa_base: CrearProgramaBase,
+    ) -> None:
+        self._prototipos = prototipos
+        self._prototipo_nodos = prototipo_nodos
+        self._crear_programa_base = crear_programa_base
+
+    async def aplicar(
+        self,
+        lectura: LecturaCarga,
+        *,
+        modo: ModoCarga,
+        dry_run: bool,
+        carga_id: UUID,
+        prototipo_id: UUID | None = None,
+        anclas_dias: Mapping[int, Decimal] | None = None,
+    ) -> Aplicacion:
+        """`anclas_dias` (fila del archivo → `ItemProgramaBase.inicio_dias`,
+        offset en días hábiles desde el arranque del bloque): nunca lo usa
+        este cargador con `PROGRAMA_<PROTOTIPO>.xlsx` (el archivo nativo no
+        trae ningún ancla por fila, solo fechas que ya son el resultado
+        observado, no un dato de entrada). Lo usa `backend/scripts/
+        cargar_programas_prototipos.py` al cargar `PROGRAMAS-PROTOTIPOS.csv`
+        (Paso 4 del plan del rollout): ahí cada partida sí trae su fecha
+        real, y anclarla es lo único que reproduce esa fecha de verdad — la
+        red de vínculos por sí sola es deliberadamente mínima y no la
+        reconstruye (ver `tests/domain/test_programa_base_motor_cpm_real.
+        py`). Sin este parámetro, el comportamiento no cambia ni un bit."""
+        if prototipo_id is None:
+            raise ContextoProgramaBaseIncompleto(
+                "El programa base exige prototipo_id: contra qué prototipo "
+                "se carga el cronograma se declara antes de subir el "
+                "archivo, nunca se adivina de su contenido (§7.5)."
+            )
+
+        prototipo = await self._prototipos.obtener(prototipo_id)
+        if prototipo is None:
+            raise PrototipoDeProgramaNoEncontrado(
+                f"Prototipo {prototipo_id} no encontrado en tu alcance."
+            )
+        clave_prototipo = str(prototipo["clave"])
+
+        bloques: tuple[BloqueProgramaCargado, ...] = lectura.registros  # type: ignore[assignment]
+        bloque = next((b for b in bloques if b.clave_prototipo == clave_prototipo), None)
+        if bloque is None:
+            raise PrototipoDeProgramaNoEncontrado(
+                f"El archivo no trae el programa del prototipo "
+                f"{clave_prototipo!r} (ningún Capítulo con esa clave); trae: "
+                f"{', '.join(sorted(b.clave_prototipo for b in bloques)) or '(ninguno)'}."
+            )
+
+        resuelto = resolver_vinculos(bloque)
+        nodos = await self._prototipo_nodos.por_prototipo(prototipo_id)
+        id_por_ruta = _rutas_de_prototipo_nodo(nodos)
+
+        pendientes: list[PendientePropuesto] = []
+        for rechazo in resuelto.rechazos:
+            pendientes.append(
+                PendientePropuesto(
+                    tipo=TipoPendiente.VINCULO_RECHAZADO,
+                    entidad="programa_base_item",
+                    valor_origen=rechazo.token,
+                    propuesta={"motivo": rechazo.motivo, "fila_sucesora": rechazo.fila_sucesora},
+                    critico=False,
+                    origen_ref=f"fila {rechazo.fila_sucesora}",
+                )
+            )
+        for incumplido in resuelto.incumplidos:
+            pendientes.append(
+                PendientePropuesto(
+                    tipo=TipoPendiente.VINCULO_INCUMPLIDO,
+                    entidad="programa_base_item",
+                    valor_origen=f"{incumplido.fila_predecesora}{incumplido.tipo}",
+                    propuesta={
+                        "fila_sucesora": incumplido.fila_sucesora,
+                        "holgura_dias": incumplido.holgura,
+                    },
+                    critico=False,
+                    origen_ref=f"fila {incumplido.fila_sucesora}",
+                )
+            )
+
+        dependencias_por_sucesora: dict[int, list[Any]] = {}
+        for dep in resuelto.dependencias:
+            dependencias_por_sucesora.setdefault(dep.fila_sucesora, []).append(dep)
+
+        claves_vistas: set[str] = set()
+        items: list[ItemProgramaBase] = []
+        sin_nodo = 0
+        for partida in bloque.partidas:
+            nodo_id = id_por_ruta.get(partida.ruta)
+            if nodo_id is None:
+                sin_nodo += 1
+                pendientes.append(
+                    PendientePropuesto(
+                        tipo=TipoPendiente.MAPEO_NO_RECONOCIDO,
+                        entidad="prototipo_nodo",
+                        valor_origen=partida.clave or "",
+                        propuesta={"ruta": list(partida.ruta)},
+                        critico=False,
+                        origen_ref=f"fila {partida.fila}",
+                    )
+                )
+                continue
+
+            dependencias: list[Dependencia] = []
+            for dep in dependencias_por_sucesora.get(partida.fila, ()):
+                fila_pred = bloque.por_fila[dep.fila_predecesora]
+                nodo_pred_id = id_por_ruta.get(fila_pred.ruta)
+                if nodo_pred_id is None:
+                    pendientes.append(
+                        PendientePropuesto(
+                            tipo=TipoPendiente.MAPEO_NO_RECONOCIDO,
+                            entidad="prototipo_nodo",
+                            valor_origen=fila_pred.clave or "",
+                            propuesta={
+                                "ruta": list(fila_pred.ruta),
+                                "para_sucesora_fila": partida.fila,
+                            },
+                            critico=False,
+                            origen_ref=f"fila {dep.fila_predecesora}",
+                        )
+                    )
+                    continue
+                dependencias.append(
+                    Dependencia(ref=str(nodo_pred_id), tipo=dep.tipo, lag_dias=dep.lag_dias)
+                )
+
+            items.append(
+                ItemProgramaBase(
+                    duracion_dias=partida.dias_laborables,
+                    prototipo_nodo_id=str(nodo_id),
+                    dependencias=tuple(dependencias),
+                    orden=len(items),
+                    inicio_dias=(anclas_dias or {}).get(partida.fila),
+                )
+            )
+            if partida.clave:
+                claves_vistas.add(partida.clave)
+
+        diff = Diff(altas=tuple(Cambio(clave=c, despues={}) for c in sorted(claves_vistas)))
+        operaciones: list[dict[str, Any]] = []
+
+        if not dry_run and items:
+            creado = await self._crear_programa_base.ejecutar(
+                ComandoCrearProgramaBase(
+                    prototipo_id=prototipo_id,
+                    nombre=f"{clave_prototipo} (carga {carga_id})",
+                    items=tuple(items),
+                    calendario=_CALENDARIO_PROGRAMA_BASE,
+                )
+            )
+            operaciones.append(
+                _operacion(
+                    "programa_base",
+                    creado.id,
+                    "insert",
+                    despues={"version": creado.version, "n_items": creado.n_items},
+                )
+            )
+
+        return Aplicacion(
+            diff=diff,
+            operaciones=tuple(operaciones),
+            pendientes=tuple(pendientes),
+            insertados=len(items),
+            actualizados=0,
+            omitidos=lectura.omitidos + sin_nodo,
+            detalle={
+                "prototipo_clave": clave_prototipo,
+                "vinculos_rechazados": len(resuelto.rechazos),
+                "vinculos_incumplidos": len(resuelto.incumplidos),
+                "partidas_sin_nodo": sin_nodo,
+            },
         )

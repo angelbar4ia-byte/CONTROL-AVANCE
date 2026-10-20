@@ -6,13 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type TipoConcepto = typeof TipoConcepto[keyof typeof TipoConcepto];
-
+export type TipoConcepto = (typeof TipoConcepto)[keyof typeof TipoConcepto];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const TipoConcepto = {
-  concepto: 'concepto',
-  auxiliar: 'auxiliar',
-  matriz: 'matriz',
-  basico: 'basico',
+  concepto: "concepto",
+  auxiliar: "auxiliar",
+  matriz: "matriz",
+  basico: "basico",
 } as const;

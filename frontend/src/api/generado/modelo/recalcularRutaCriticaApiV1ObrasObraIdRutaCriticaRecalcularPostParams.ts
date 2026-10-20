@@ -6,9 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams = {
-/**
- * Fecha de corte del desfase (§6).
- */
-fecha_corte?: string | null;
-};
+export type RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams =
+  {
+    /**
+     * Fecha de corte del desfase (§6).
+     */
+    fecha_corte?: string | null;
+  };

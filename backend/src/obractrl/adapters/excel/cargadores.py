@@ -18,7 +18,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from functools import partial
 
-from obractrl.adapters.excel.lector import LIMITES, ErrorDeArchivo, Limites
+from obractrl.adapters.excel.lector import (
+    LIMITES,
+    ErrorDeArchivo,
+    Limites,
+    abrir_libro,
+)
 from obractrl.adapters.excel.pipeline import (
     leer_filas,
     leer_filas_crudas,
@@ -29,14 +34,19 @@ from obractrl.domain.cargadores.almacen import validar_movimiento
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera, resolver_encabezados
 from obractrl.domain.cargadores.conceptos_base import validar_concepto_base
 from obractrl.domain.cargadores.contratistas import validar_contratista
-from obractrl.domain.cargadores.cpu import agrupar_conceptos
+from obractrl.domain.cargadores.cpu import FilasMatrizSinAgrupar, agrupar_conceptos
 from obractrl.domain.cargadores.cuadrillas import agrupar_cuadrillas
 from obractrl.domain.cargadores.etapas_constructivas import validar_etapa_constructiva
 from obractrl.domain.cargadores.familias import validar_familia
-from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra
+from obractrl.domain.cargadores.ingenieria_lote import (
+    LoteIngenieriaLeido,
+    leer_ingenieria_lote,
+)
+from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra, validar_trabajo
 from obractrl.domain.cargadores.materiales import validar_material
 from obractrl.domain.cargadores.niveles import validar_nivel
 from obractrl.domain.cargadores.presupuesto import construir_arboles
+from obractrl.domain.cargadores.programa_base import leer_programa_base
 from obractrl.domain.cargadores.prototipos import validar_prototipo
 from obractrl.domain.cargadores.reporte import ErrorEnFila, LecturaCarga
 from obractrl.domain.cargadores.unidades import validar_unidad
@@ -53,12 +63,15 @@ __all__ = [
     "CargadorCuadrillas",
     "CargadorEtapasConstructivas",
     "CargadorFamilias",
+    "CargadorIngenieriaLote",
     "CargadorManoObra",
     "CargadorMateriales",
     "CargadorNiveles",
     "CargadorPresupuesto",
+    "CargadorProgramaBase",
     "CargadorPrototipos",
     "CargadorSubcontratos",
+    "CargadorTrabajos",
     "CargadorUnidades",
     "TipoDeCargaSinCargador",
     "cargador_para",
@@ -126,6 +139,68 @@ class CargadorSubcontratos:
             self.especificacion,
             partial(validar_mano_obra, tipo=TipoInsumo.SUBCONTRATO),
             limites=self._limites,
+        )
+
+
+class CargadorTrabajos:
+    """Trabajos: destajos + subcontratos, export nativo de OPUS —
+    `CATALOGO_DE_TRABAJOS.csv` (§cabeceras.TRABAJOS_OPUS).
+
+    A diferencia de `CargadorManoObra`/`CargadorSubcontratos`, no fija el
+    tipo con `functools.partial`: `validar_trabajo` ya decide por fila
+    (Destajo/Subcontrato) con la columna `clase` que el archivo repite,
+    así que no hace falta nada especial aquí — mismo patrón simple que
+    `CargadorMateriales`.
+    """
+
+    tipo = TipoCarga.TRABAJOS
+    especificacion = cabeceras.TRABAJOS_OPUS
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            validar_trabajo,
+            limites=self._limites,
+        )
+
+
+class CargadorIngenieriaLote:
+    """Ingeniería del lote, archivo sin encabezados (extensión propia,
+    `TipoCarga.INGENIERIA_LOTE`, CONOCIMIENTO.md §11.4). Mismo patrón que
+    `CargadorCPU` en su modo matriz: envuelve lo que `leer_ingenieria_lote`
+    (dominio puro) ya decidió en un único `LoteIngenieriaLeido` —este
+    adaptador no tiene acceso a la base (§12.11), así que no puede
+    identificar el prototipo ni revertir destajos; eso es trabajo de
+    `AplicadorIngenieriaLote` (`application.casos_uso.aplicar_carga`), que
+    sí tiene los repositorios inyectados.
+
+    `leer_filas_crudas`, no `leer_filas`/`leer_por_nombre`: no hay fila de
+    encabezado que consumir (`especificacion.obligatorias`/`.opcionales`
+    están vacías a propósito, ver `cabeceras.INGENIERIA_LOTE`)."""
+
+    tipo = TipoCarga.INGENIERIA_LOTE
+    especificacion = cabeceras.INGENIERIA_LOTE
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        crudas = leer_filas_crudas(contenido, None, limites=self._limites)
+        filas = [fila for _, fila in crudas]
+        estructura, insumos, bloques, errores, pendientes = leer_ingenieria_lote(
+            [[str(c) if c is not None else "" for c in fila] for fila in filas]
+        )
+        return LecturaCarga(
+            registros=(
+                LoteIngenieriaLeido(estructura=estructura, insumos=insumos, bloques=bloques),
+            ),
+            errores=errores,
+            pendientes=pendientes,
+            filas_leidas=len(filas),
         )
 
 
@@ -314,11 +389,40 @@ class CargadorFamilias:
 
 
 class CargadorCPU:
-    """CPU / Conceptos — `CABECERAS_CPU.xlsx`, hoja `EXPORTADOR` (§10.6).
+    """CPU / Conceptos, en cualquiera de sus **dos formatos** (§10.6 y
+    extensión propia).
 
-    Único cargador **posicional**: el §10.6 fija sus columnas por letra
-    (A, B, C, D, E, F, H, I) y no por nombre, así que mapear por encabezado
-    sería suponer un contrato que el spec no da.
+    - **Plano** (§10.6, `CABECERAS_CPU.xlsx`, hoja `EXPORTADOR`): único
+      formato **posicional** de todo el repo — el §10.6 fija sus columnas
+      por letra (A, B, C, D, E, F, H, I) y no por nombre, así que mapear
+      por encabezado sería suponer un contrato que el spec no da. Se lee
+      exactamente igual que siempre: ``leer_filas_crudas`` + ``MAPA_CPU`` +
+      `agrupar_conceptos` **aquí mismo**, y `LecturaCarga.registros` sale
+      con `ConceptoCargado` ya agrupados — nada de este camino cambió.
+    - **Matriz nativa de OPUS** (`ANALISIS_DE_BASICOS_CONCEPTOS.csv`,
+      extensión propia, §cabeceras.CPU_MATRIZ): a diferencia del plano, sí
+      nombra sus propias cabeceras (``Clave Padre``, ``Origen``…), así que
+      cuál es cuál lo dice el **archivo** — se resuelven sus encabezados
+      contra `cabeceras.CPU_MATRIZ` (mismo patrón que `CargadorPrototipos`
+      para distinguir árbol de alta plana) y si cumple (trae
+      ``clave_padre``) es la matriz. Este modo **no agrupa aquí**: agrupar
+      la matriz exige ``descripciones_concepto``/``clase_trabajo`` (ver
+      docstring de `domain.cargadores.cpu`), dos mapas que salen de la base
+      ya poblada (árbol de presupuesto, `CATALOGO_DE_TRABAJOS.csv`), no de
+      este archivo — y este adapter no tiene acceso a la base (§12.11). Se
+      devuelven las filas crudas sin agrupar, envueltas en
+      `domain.cargadores.cpu.FilasMatrizSinAgrupar` (un único elemento en
+      `LecturaCarga.registros`): es `AplicadorCPU.aplicar()`
+      (`application.casos_uso.aplicar_carga`), que sí tiene los
+      repositorios inyectados, quien construye esos dos mapas y llama a
+      `agrupar_conceptos`.
+
+    **Contrato con `AplicadorCPU.aplicar()`** (`application.casos_uso.
+    aplicar_carga`): ``isinstance(lectura.registros[0],
+    domain.cargadores.cpu.FilasMatrizSinAgrupar)`` decide el modo sin
+    ambigüedad — mismo criterio que `AplicadorDePrototipos` ya usa con
+    `ArbolPrototipoCargado` para distinguir el árbol del alta plana de
+    `CargadorPrototipos`.
     """
 
     tipo = TipoCarga.CPU
@@ -328,26 +432,62 @@ class CargadorCPU:
         self._limites = limites
 
     def leer(self, contenido: bytes) -> LecturaCarga:
-        # Se leen **todas** las filas: aquí no hay encabezado que consumir
-        # —las columnas van por letra—, y descartar la primera a ciegas se
-        # comería un concepto real si el archivo no trae fila de títulos.
-        crudas = leer_filas_crudas(
-            contenido, self.especificacion.hoja, limites=self._limites
-        )
-        filas = [
-            (numero, fila)
-            for numero, fila in crudas
-            if not _es_fila_de_encabezados(fila)
-        ]
-        conceptos, errores, pendientes, omitidos = agrupar_conceptos(
-            filas, cabeceras.MAPA_CPU
-        )
+        # ¿Qué hoja? El plano fija "EXPORTADOR" (§10.6); la matriz nativa
+        # de OPUS no trae esa hoja —es un archivo distinto, no el mismo
+        # con una pestaña renombrada— y su propia especificación ya lo dice
+        # (`cabeceras.CPU_MATRIZ.hoja = None`, la hoja activa). No se puede
+        # decidir el modo todavía (eso exige leer encabezados primero), así
+        # que aquí solo se resuelve cuál hoja abrir: la fija si existe, o
+        # la activa si no.
+        libro = abrir_libro(contenido, limites=self._limites)
+        try:
+            hoja = (
+                self.especificacion.hoja
+                if self.especificacion.hoja in libro.sheetnames
+                else None
+            )
+        finally:
+            libro.close()
+
+        # Se leen **todas** las filas: en modo plano no hay encabezado que
+        # consumir —las columnas van por letra—, y descartar la primera a
+        # ciegas se comería un concepto real si el archivo no trae fila de
+        # títulos. Por eso la decisión de modo se prueba contra la PRIMERA
+        # fila sin quitarla todavía del lote — si no es la matriz, el modo
+        # plano la sigue viendo como una fila más (igual que siempre).
+        crudas = leer_filas_crudas(contenido, hoja, limites=self._limites)
+        if not crudas:
+            raise ErrorDeArchivo(
+                f"{self.especificacion.archivo}: la hoja no trae ninguna fila."
+            )
+
+        _, primera_fila = crudas[0]
+        try:
+            mapa_matriz = resolver_encabezados(primera_fila, cabeceras.CPU_MATRIZ)
+        except ErrorDeCabecera:
+            # No es la matriz: el modo plano de siempre, sin cambiar nada.
+            filas = [
+                (numero, fila)
+                for numero, fila in crudas
+                if not _es_fila_de_encabezados(fila)
+            ]
+            conceptos, errores, pendientes, omitidos = agrupar_conceptos(
+                filas, cabeceras.MAPA_CPU
+            )
+            return LecturaCarga(
+                registros=tuple(conceptos),
+                errores=errores,
+                pendientes=pendientes,
+                filas_leidas=len(filas),
+                omitidos=omitidos,
+            )
+
+        # Es la matriz: la primera fila sí era encabezado (se consume) y el
+        # resto son datos — no agrupar aquí (ver docstring de la clase).
+        filas = crudas[1:]
         return LecturaCarga(
-            registros=tuple(conceptos),
-            errores=errores,
-            pendientes=pendientes,
+            registros=(FilasMatrizSinAgrupar(mapa=mapa_matriz, filas=tuple(filas)),),
             filas_leidas=len(filas),
-            omitidos=omitidos,
         )
 
 
@@ -458,6 +598,29 @@ class CargadorPresupuesto:
         )
 
 
+class CargadorProgramaBase:
+    """Programa base de prototipo — `PROGRAMA_<PROTOTIPO>.xlsx`, hoja
+    `Hoja1` (extensión propia). El archivo real apila varios prototipos uno
+    tras otro (un `Capítulo` por prototipo); `leer_programa_base` los separa
+    en bloques y el aplicador elige el del `prototipo_id` pedido — ver
+    `domain.cargadores.programa_base` y `cabeceras.PROGRAMA_BASE`."""
+
+    tipo = TipoCarga.PROGRAMA_BASE
+    especificacion = cabeceras.PROGRAMA_BASE
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        mapa, filas = leer_filas(contenido, self.especificacion, limites=self._limites)
+        bloques, errores = leer_programa_base(filas, mapa)
+        return LecturaCarga(
+            registros=tuple(bloques),
+            errores=errores,
+            filas_leidas=len(filas),
+        )
+
+
 def _es_fila_de_encabezados(fila: object) -> bool:
     """¿Esta fila es la de títulos y no un dato?
 
@@ -477,6 +640,7 @@ CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.MATERIALES: CargadorMateriales,
     TipoCarga.MANO_DE_OBRA: CargadorManoObra,
     TipoCarga.SUBCONTRATOS: CargadorSubcontratos,
+    TipoCarga.TRABAJOS: CargadorTrabajos,
     TipoCarga.CUADRILLAS: CargadorCuadrillas,
     TipoCarga.CATALOGO_CONCEPTOS: CargadorConceptosBase,
     TipoCarga.CONCEPTOS_AUXILIARES: CargadorConceptosAuxiliares,
@@ -489,6 +653,8 @@ CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.ALMACEN: CargadorAlmacen,
     TipoCarga.PROTOTIPOS: CargadorPrototipos,
     TipoCarga.PRESUPUESTO: CargadorPresupuesto,
+    TipoCarga.PROGRAMA_BASE: CargadorProgramaBase,
+    TipoCarga.INGENIERIA_LOTE: CargadorIngenieriaLote,
 }
 """Tipos del §8.2 que hoy tienen cargador. Los demás no se inventan."""
 

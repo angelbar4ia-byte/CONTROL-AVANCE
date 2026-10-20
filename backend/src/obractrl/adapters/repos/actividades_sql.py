@@ -93,7 +93,7 @@ class RepositorioActividadesSQL:
             await self._sesion.execute(
                 text(
                     """
-                    select id, obra_id, cant_base, cant_programada,
+                    select id, obra_id, concepto_id, cant_base, cant_programada,
                            cant_ejecutada, avance_pct, estatus, bloqueada,
                            precio_unitario, precio_destajo, modo_pago
                     from actividad

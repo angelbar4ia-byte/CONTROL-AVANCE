@@ -142,10 +142,10 @@ class TestAvance:
         assert obra.estatus is EstatusObra.EN_PROCESO
         assert obra.avance.pct == Decimal("42.50")
 
-    def test_noventa_por_ciento_pasa_a_casi_lista(self) -> None:
+    def test_noventa_por_ciento_pasa_a_por_entregar(self) -> None:
         obra = _obra()
         obra.sincronizar_avance(Avance(90))
-        assert obra.estatus is EstatusObra.CASI_LISTA
+        assert obra.estatus is EstatusObra.POR_ENTREGAR
 
     def test_avance_cero_deja_la_obra_iniciada_como_estaba(self) -> None:
         obra = _obra()

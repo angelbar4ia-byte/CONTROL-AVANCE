@@ -5,11 +5,11 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { FrenteDeObraRespuestaContratistaId } from './frenteDeObraRespuestaContratistaId';
-import type { FrenteDeObraRespuestaContratistaNombre } from './frenteDeObraRespuestaContratistaNombre';
-import type { FrenteDeObraRespuestaCuadrillasPlan } from './frenteDeObraRespuestaCuadrillasPlan';
-import type { FrenteDeObraRespuestaNotas } from './frenteDeObraRespuestaNotas';
-import type { OficioDeFrenteRespuesta } from './oficioDeFrenteRespuesta';
+import type { FrenteDeObraRespuestaContratistaId } from "./frenteDeObraRespuestaContratistaId";
+import type { FrenteDeObraRespuestaContratistaNombre } from "./frenteDeObraRespuestaContratistaNombre";
+import type { FrenteDeObraRespuestaCuadrillasPlan } from "./frenteDeObraRespuestaCuadrillasPlan";
+import type { FrenteDeObraRespuestaNotas } from "./frenteDeObraRespuestaNotas";
+import type { OficioDeFrenteRespuesta } from "./oficioDeFrenteRespuesta";
 
 export interface FrenteDeObraRespuesta {
   /** Vacío en el renglón que agrupa lo que no tiene frente. */

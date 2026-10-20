@@ -5,27 +5,27 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { EstatusObra } from './estatusObra';
+import type { EstatusObra } from "./estatusObra";
 
 export type ListarObrasApiV1ObrasGetParams = {
-/**
- * Acota al proyecto.
- */
-proyecto_id?: string | null;
-/**
- * Acota al cluster.
- */
-cluster_id?: string | null;
-/**
- * Obras de un residente (§4).
- */
-residente_id?: string | null;
-/**
- * Obras construidas con el mismo modelo de casa (§7.2).
- */
-prototipo_id?: string | null;
-/**
- * Filtra por estatus de obra (§8.2).
- */
-estatus?: EstatusObra | null;
+  /**
+   * Acota al proyecto.
+   */
+  proyecto_id?: string | null;
+  /**
+   * Acota al cluster.
+   */
+  cluster_id?: string | null;
+  /**
+   * Obras de un residente (§4).
+   */
+  residente_id?: string | null;
+  /**
+   * Obras construidas con el mismo modelo de casa (§7.2).
+   */
+  prototipo_id?: string | null;
+  /**
+   * Filtra por estatus de obra (§8.2).
+   */
+  estatus?: EstatusObra | null;
 };

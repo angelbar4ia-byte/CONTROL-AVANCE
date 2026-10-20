@@ -5,7 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { TramoDTO } from './tramoDTO';
+import type { TramoDTO } from "./tramoDTO";
 
 /**
  * Interrupción de la actividad. Una lista vacía le quita la interrupción; mandarla sin `duracion_dias` **deriva** la duración de la suma de los tramos (§7.6).

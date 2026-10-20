@@ -1,0 +1,28 @@
+-- ============================================================
+-- ObraCtrl · 0060 · modo_cantidad gana 'estimada' (paramétrico)
+-- cerebro CONOCIMIENTO.md §5.10/§7.1 · skill erp-parametrico §7
+--
+-- QUÉ ES Y PARA QUÉ
+--
+-- La migración 0055 ya trajo `modo_cantidad` con los cuatro valores del
+-- HALLAZGO 12 de cerebro (capturada/cargada/heredada/medida) — ese
+-- hallazgo documentó el caso que faltaba (`cargada`, de una ingeniería
+-- importada) y dejó escrito "esto no cambia nada de lo ya aprobado: los
+-- cuatro valores originales seguían firmes". Pero el §7.1 original (la
+-- tabla de la que salió HALLAZGO 12) SÍ declara un quinto valor,
+-- `estimada` ("un paramétrico"), y el §5.10 es tajante sobre por qué hace
+-- falta: "se sabe qué renglones reemplazar cuando lleguen los planos" y
+-- "cuando un trazo sustituye a una estimación, queda registrado cuánto se
+-- movió — que es lo que dice si los paramétricos son buenos". Sin
+-- `estimada`, una cantidad que el motor paramétrico calculó para esta obra
+-- (tasa × el divisor de esta obra) quedaría indistinguible de una que
+-- simplemente se copió del presupuesto de referencia sin tocar nada
+-- (`heredada`) — y medir qué tan bueno es un paramétrico es justo para lo
+-- que existe el campo.
+--
+-- Decidido con el usuario: los dos valores conviven, no se reabre
+-- HALLAZGO 12 (`cargada`/`heredada`/`capturada`/`medida` siguen firmes),
+-- solo se completa el vocabulario que §7.1/§5.10 ya pedían.
+-- ============================================================
+
+alter type modo_cantidad add value 'estimada';

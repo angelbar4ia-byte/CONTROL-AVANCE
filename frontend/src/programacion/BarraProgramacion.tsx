@@ -49,8 +49,10 @@ import {
   etiquetaTipoDependencia,
 } from './reglas';
 
-/** Qué gana el usuario al encender cada clase; va en el `title` del botón. */
-const AYUDA_CLASE: Record<TipoCaja, string> = {
+/** Qué gana el usuario al encender cada clase; va en el `title` del botón.
+ * `Partial` porque `agrupador` (Nivel 3) no es una caja seleccionable del
+ * canvas (`CLASES_CAJA` no la trae) y no tiene ayuda que mostrar. */
+const AYUDA_CLASE: Partial<Record<TipoCaja, string>> = {
   nivel: 'Niveles de construcción: la planta entera como una actividad.',
   etapa: 'Etapas constructivas: la vista legible del programa.',
   concepto: 'Los conceptos del prototipo, de todas las etapas.',
@@ -196,7 +198,7 @@ export function BarraProgramacion({
               title={
                 ultima
                   ? 'Es la única clase encendida: el canvas se quedaría vacío.'
-                  : AYUDA_CLASE[clase]
+                  : AYUDA_CLASE[clase] ?? ''
               }
             >
               {etiquetaClaseNodo(clase, true)}

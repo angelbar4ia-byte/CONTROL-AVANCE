@@ -7,9 +7,12 @@ asigna quién lleva `INSTALACIONES` en una obra.
 
 ## Qué se valida y qué no
 
-`clave` y `razon_social` son la identidad: sin una de las dos el registro no se
-puede referir ni presentar, y una fila así va a la bandeja (§10.3) en vez de
-entrar a medias.
+`razon_social` es la identidad obligatoria: sin ella el registro no se puede
+referir ni presentar, y una fila así va a la bandeja (§10.3) en vez de entrar
+a medias. `clave`, si el archivo no la trae, no tumba la fila —
+`AplicadorContratistas` le genera una (§8.7) — mismo criterio que
+familias/niveles/etapas/unidades: ObraCtrl ya sabe numerar un catálogo base
+que llega sin ella, y el contratista no es la excepción.
 
 `rfc`, `contacto`, `telefono` y `email` viajan como texto tal cual. **No se
 valida el formato del RFC ni del correo**: un contratista real llega con el
@@ -44,7 +47,7 @@ from dataclasses import dataclass, field
 
 from obractrl.domain.cargadores.cabeceras import MapaColumnas
 from obractrl.domain.cargadores.reporte import ErrorEnFila
-from obractrl.domain.shared.normalizacion import texto_limpio
+from obractrl.domain.shared.normalizacion import esta_vacio, texto_limpio
 from obractrl.domain.shared.valores import Clave
 
 __all__ = ["FilaContratista", "validar_contratista"]
@@ -58,7 +61,7 @@ archivo lo escribe una persona y ninguna de las cuatro formas es un error."""
 class FilaContratista:
     """Una fila válida del catálogo de contratistas (§8.3)."""
 
-    clave: Clave
+    clave: Clave | None
     razon_social: str
     rfc: str | None = None
     contacto: str | None = None
@@ -81,19 +84,34 @@ class FilaContratista:
 
     @property
     def llave(self) -> str:
-        """Identidad para dedup y diff dentro del archivo (§3.3, §10.2)."""
-        return str(self.clave)
+        """Identidad para dedup y diff dentro del archivo (§3.3, §10.2).
+
+        Mismo criterio que `FilaFamilia.llave`: sin clave, el número de
+        renglón evita que el pipeline confunda dos filas distintas con "la
+        misma fila repetida" — `AplicadorContratistas` la reemplaza por la
+        clave real (dada o generada) antes de tocar el catálogo.
+        """
+        return str(self.clave) if self.clave is not None else f"__sin_clave__{self.fila}"
 
 
 def validar_contratista(
     fila: Sequence[object], mapa: MapaColumnas, numero: int = 0
 ) -> FilaContratista:
-    """Fila del archivo → `FilaContratista`, o :class:`ErrorEnFila`."""
+    """Fila del archivo → `FilaContratista`, o :class:`ErrorEnFila`.
+
+    La clave, si viene, se normaliza con `Clave` (§3.3); si no viene, la
+    fila igual se acepta y `AplicadorContratistas` le genera una (§8.7,
+    `CON-00001` en adelante) — ObraCtrl ya tiene este mecanismo para
+    familias/niveles/etapas/unidades, y un contratista sin clave propia en
+    el archivo no es menos real que uno de esos catálogos sin la suya.
+    """
     celda_clave = mapa.valor(fila, "clave")
-    try:
-        clave = Clave(str(celda_clave if celda_clave is not None else ""))
-    except ValueError as exc:
-        raise ErrorEnFila(str(exc), columna="clave", valor=celda_clave) from exc
+    clave: Clave | None = None
+    if not esta_vacio(celda_clave):
+        try:
+            clave = Clave(str(celda_clave))
+        except ValueError as exc:
+            raise ErrorEnFila(str(exc), columna="clave", valor=celda_clave) from exc
 
     razon_social = texto_limpio(mapa.valor(fila, "razon_social"))
     if not razon_social:

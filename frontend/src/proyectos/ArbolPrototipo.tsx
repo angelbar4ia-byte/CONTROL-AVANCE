@@ -1,7 +1,7 @@
 /**
- * Árbol WBS de un prototipo: prototipo → nivel → etapa → concepto/concepto
- * auxiliar (§7.4, §10.1), con los estilos `.tree*` del sistema de diseño —
- * mismo patrón que `ArbolProyecto` y `ArbolExplosion`.
+ * Árbol WBS de un prototipo: prototipo → nivel → etapa → agrupador (Nivel 3)
+ * → concepto/concepto auxiliar (§7.4, §10.1), con los estilos `.tree*` del
+ * sistema de diseño — mismo patrón que `ArbolProyecto` y `ArbolExplosion`.
  *
  * Se detiene en concepto: sus componentes (material/mano de obra/
  * subcontrato) arman su APU, pero eso es la explosión del CPU (§7.3,
@@ -16,6 +16,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import {
+  Boxes,
   Building2,
   ChevronDown,
   ChevronRight,
@@ -56,6 +57,7 @@ const ICONO_POR_TIPO: Record<TipoNodoArbol, LucideIcon> = {
   prototipo: Home,
   nivel: Building2,
   etapa: Milestone,
+  agrupador: Boxes,
   concepto: Layers,
   concepto_auxiliar: Puzzle,
 };

@@ -5,7 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { InstanciarProgramaPeticionFechaCorte } from './instanciarProgramaPeticionFechaCorte';
+import type { InstanciarProgramaPeticionFechaCorte } from "./instanciarProgramaPeticionFechaCorte";
 
 export interface InstanciarProgramaPeticion {
   /** Fecha contra la que se mide el desfase; por defecto hoy (§6). */

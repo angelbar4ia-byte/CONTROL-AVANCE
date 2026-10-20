@@ -5,27 +5,19 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useMutation
-} from '@tanstack/react-query';
+import { useMutation } from "@tanstack/react-query";
 import type {
   MutationFunction,
   QueryClient,
   UseMutationOptions,
-  UseMutationResult
-} from '@tanstack/react-query';
+  UseMutationResult,
+} from "@tanstack/react-query";
 
-import type {
-  AvanceRespuesta,
-  CapturaAvancePeticion
-} from '.././modelo';
+import type { AvanceRespuesta, CapturaAvancePeticion } from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Captura el avance ejecutado de una actividad (§11.3 B) — **ruta web**.
@@ -39,64 +31,111 @@ también la BD (CHECKs de la migración 0007).
  * @summary Capturar avance de una actividad
  */
 export const capturarAvanceApiV1ActividadesActividadIdAvancePatch = (
-    actividadId: string,
-    capturaAvancePeticion: CapturaAvancePeticion,
- options?: SecondParameter<typeof peticion>,) => {
-      
-      
-      return peticion<AvanceRespuesta>(
-      {url: `/api/v1/actividades/${actividadId}/avance`, method: 'PATCH',
-      headers: {'Content-Type': 'application/json', },
-      data: capturaAvancePeticion
+  actividadId: string,
+  capturaAvancePeticion: CapturaAvancePeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<AvanceRespuesta>(
+    {
+      url: `/api/v1/actividades/${actividadId}/avance`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: capturaAvancePeticion,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getCapturarAvanceApiV1ActividadesActividadIdAvancePatchMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>
+      >,
+      TError,
+      { actividadId: string; data: CapturaAvancePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>
+    >,
+    TError,
+    { actividadId: string; data: CapturaAvancePeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "capturarAvanceApiV1ActividadesActividadIdAvancePatch",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getCapturarAvanceApiV1ActividadesActividadIdAvancePatchMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>>, TError,{actividadId: string;data: CapturaAvancePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>>, TError,{actividadId: string;data: CapturaAvancePeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>
+      >,
+      { actividadId: string; data: CapturaAvancePeticion }
+    > = (props) => {
+      const { actividadId, data } = props ?? {};
 
-const mutationKey = ['capturarAvanceApiV1ActividadesActividadIdAvancePatch'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return capturarAvanceApiV1ActividadesActividadIdAvancePatch(
+        actividadId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type CapturarAvanceApiV1ActividadesActividadIdAvancePatchMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>
+    >
+  >;
+export type CapturarAvanceApiV1ActividadesActividadIdAvancePatchMutationBody =
+  CapturaAvancePeticion;
+export type CapturarAvanceApiV1ActividadesActividadIdAvancePatchMutationError =
+  void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>>, {actividadId: string;data: CapturaAvancePeticion}> = (props) => {
-          const {actividadId,data} = props ?? {};
-
-          return  capturarAvanceApiV1ActividadesActividadIdAvancePatch(actividadId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CapturarAvanceApiV1ActividadesActividadIdAvancePatchMutationResult = NonNullable<Awaited<ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>>>
-    export type CapturarAvanceApiV1ActividadesActividadIdAvancePatchMutationBody = CapturaAvancePeticion
-    export type CapturarAvanceApiV1ActividadesActividadIdAvancePatchMutationError = void
-
-    /**
+/**
  * @summary Capturar avance de una actividad
  */
-export const useCapturarAvanceApiV1ActividadesActividadIdAvancePatch = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>>, TError,{actividadId: string;data: CapturaAvancePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>>,
-        TError,
-        {actividadId: string;data: CapturaAvancePeticion},
-        TContext
-      > => {
+export const useCapturarAvanceApiV1ActividadesActividadIdAvancePatch = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>
+      >,
+      TError,
+      { actividadId: string; data: CapturaAvancePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof capturarAvanceApiV1ActividadesActividadIdAvancePatch>
+  >,
+  TError,
+  { actividadId: string; data: CapturaAvancePeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCapturarAvanceApiV1ActividadesActividadIdAvancePatchMutationOptions(
+      options,
+    );
 
-      const mutationOptions = getCapturarAvanceApiV1ActividadesActividadIdAvancePatchMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    
+  return useMutation(mutationOptions, queryClient);
+};

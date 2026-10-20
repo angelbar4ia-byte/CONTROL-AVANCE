@@ -7,8 +7,8 @@
  */
 
 export type BandejaDeCargaApiV1CargasCargaIdPendientesGetParams = {
-/**
- * Solo lo que falta confirmar.
- */
-solo_abiertos?: boolean;
+  /**
+   * Solo lo que falta confirmar.
+   */
+  solo_abiertos?: boolean;
 };

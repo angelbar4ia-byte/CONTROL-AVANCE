@@ -5,17 +5,17 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ActividadProgramadaRespuestaDescripcion } from './actividadProgramadaRespuestaDescripcion';
-import type { ActividadProgramadaRespuestaFrenteId } from './actividadProgramadaRespuestaFrenteId';
-import type { ActividadProgramadaRespuestaEtapaId } from './actividadProgramadaRespuestaEtapaId';
-import type { ActividadProgramadaRespuestaNivelId } from './actividadProgramadaRespuestaNivelId';
-import type { DependenciaDTO } from './dependenciaDTO';
-import type { TramoDTO } from './tramoDTO';
-import type { ActividadProgramadaRespuestaInicioDias } from './actividadProgramadaRespuestaInicioDias';
-import type { ActividadProgramadaRespuestaFechaInicio } from './actividadProgramadaRespuestaFechaInicio';
-import type { ActividadProgramadaRespuestaFechaTermino } from './actividadProgramadaRespuestaFechaTermino';
-import type { ActividadProgramadaRespuestaHolgura } from './actividadProgramadaRespuestaHolgura';
-import type { ActividadProgramadaRespuestaDesfase } from './actividadProgramadaRespuestaDesfase';
+import type { ActividadProgramadaRespuestaDescripcion } from "./actividadProgramadaRespuestaDescripcion";
+import type { ActividadProgramadaRespuestaFrenteId } from "./actividadProgramadaRespuestaFrenteId";
+import type { ActividadProgramadaRespuestaEtapaId } from "./actividadProgramadaRespuestaEtapaId";
+import type { ActividadProgramadaRespuestaNivelId } from "./actividadProgramadaRespuestaNivelId";
+import type { DependenciaDTO } from "./dependenciaDTO";
+import type { TramoDTO } from "./tramoDTO";
+import type { ActividadProgramadaRespuestaInicioDias } from "./actividadProgramadaRespuestaInicioDias";
+import type { ActividadProgramadaRespuestaFechaInicio } from "./actividadProgramadaRespuestaFechaInicio";
+import type { ActividadProgramadaRespuestaFechaTermino } from "./actividadProgramadaRespuestaFechaTermino";
+import type { ActividadProgramadaRespuestaHolgura } from "./actividadProgramadaRespuestaHolgura";
+import type { ActividadProgramadaRespuestaDesfase } from "./actividadProgramadaRespuestaDesfase";
 
 /**
  * Fila del Gantt: lo capturado más lo que derivó el motor (§7.6, §6).

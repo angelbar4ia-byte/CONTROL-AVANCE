@@ -7,9 +7,9 @@
  */
 
 export type ListarControlesDeCambioApiV1ControlesCambioGetParams = {
-/**
- * Filtra a una obra.
- */
-obra_id?: string | null;
-estatus?: string | null;
+  /**
+   * Filtra a una obra.
+   */
+  obra_id?: string | null;
+  estatus?: string | null;
 };

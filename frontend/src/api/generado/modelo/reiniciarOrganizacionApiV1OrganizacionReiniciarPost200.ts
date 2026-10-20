@@ -6,4 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ReiniciarOrganizacionApiV1OrganizacionReiniciarPost200 = {[key: string]: number};
+export type ReiniciarOrganizacionApiV1OrganizacionReiniciarPost200 = {
+  [key: string]: number;
+};

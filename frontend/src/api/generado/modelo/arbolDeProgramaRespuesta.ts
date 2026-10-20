@@ -5,9 +5,9 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ClaseNodo } from './claseNodo';
-import type { CalendarioRespuesta } from './calendarioRespuesta';
-import type { NodoDelArbolRespuesta } from './nodoDelArbolRespuesta';
+import type { ClaseNodo } from "./claseNodo";
+import type { CalendarioRespuesta } from "./calendarioRespuesta";
+import type { NodoDelArbolRespuesta } from "./nodoDelArbolRespuesta";
 
 /**
  * §11.2 `GET /obras/{id}/programa/arbol`: el cronograma como árbol WBS.

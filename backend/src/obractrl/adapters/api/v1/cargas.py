@@ -235,8 +235,97 @@ async def subir_carga(
     dry_run: Annotated[
         bool, Form(description="Vista previa: valida y cuenta sin escribir (§10.2).")
     ] = False,
+    obra_id: Annotated[
+        UUID | None,
+        Form(
+            description=(
+                "Solo tipo='ingenieria_lote': a qué obra pertenece el lote "
+                "(§11.4). Obligatorio para ese tipo — nunca se adivina del "
+                "nombre del archivo."
+            )
+        ),
+    ] = None,
+    camino_ingenieria: Annotated[
+        str | None,
+        Form(
+            description=(
+                "Solo tipo='ingenieria_lote': 'conocido' (default) o "
+                "'diseno_nuevo'."
+            )
+        ),
+    ] = None,
+    prototipo_base_id: Annotated[
+        UUID | None,
+        Form(
+            description=(
+                "Solo tipo='ingenieria_lote' con camino_ingenieria="
+                "'diseno_nuevo': el prototipo del que se clona la "
+                "estructura. Obligatorio en ese caso."
+            )
+        ),
+    ] = None,
+    nombre_prototipo_nuevo: Annotated[
+        str | None,
+        Form(
+            description=(
+                "Solo tipo='ingenieria_lote' con camino_ingenieria="
+                "'diseno_nuevo', opcional: nombre del prototipo nuevo; si "
+                "no se da, se usa la clave de la obra."
+            )
+        ),
+    ] = None,
+    etapa_externa: Annotated[
+        str | None,
+        Form(
+            description=(
+                "Solo tipo='ingenieria_lote' con estructura 'suelta' "
+                "(§11.8): la etapa ECO-... del archivo, porque su "
+                "contenido nunca la trae. Obligatorio solo para esa "
+                "estructura — se valida al procesar el archivo, no aquí, "
+                "porque la estructura se detecta de su contenido."
+            )
+        ),
+    ] = None,
+    prototipo_id: Annotated[
+        UUID | None,
+        Form(
+            description=(
+                "Solo tipo='programa_base' (§7.5): a qué prototipo "
+                "pertenece el cronograma. Obligatorio para ese tipo — el "
+                "archivo real apila varios prototipos, uno por Capítulo, "
+                "y nunca se adivina cuál cargar."
+            )
+        ),
+    ] = None,
 ) -> CargaRespuesta:
-    """Workflow G: mapea, valida y —si no es vista previa— aplica (§11.3 G)."""
+    """Workflow G: mapea, valida y —si no es vista previa— aplica (§11.3 G).
+
+    Los cuatro campos de `ingenieria_lote` son **condicionales**: ningún
+    otro tipo de carga los usa (`AplicadorDeCarga` genérico no los conoce,
+    ver `gestionar_carga.ComandoEjecutarCarga`), así que aquí se validan
+    solo contra ESE tipo — exigirlos siempre rompería los demás formularios
+    que no tienen por qué mandarlos.
+    """
+    if tipo is TipoCarga.INGENIERIA_LOTE:
+        if obra_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="obra_id es obligatorio para tipo='ingenieria_lote' (§11.4).",
+            )
+        if camino_ingenieria == "diseno_nuevo" and prototipo_base_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "prototipo_base_id es obligatorio cuando "
+                    "camino_ingenieria='diseno_nuevo'."
+                ),
+            )
+    if tipo is TipoCarga.PROGRAMA_BASE and prototipo_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="prototipo_id es obligatorio para tipo='programa_base' (§7.5).",
+        )
+
     contenido = await _leer_con_tope(archivo)
     caso_uso = await fabrica.para(tipo)
     resultado = await caso_uso.ejecutar(
@@ -247,6 +336,12 @@ async def subir_carga(
             usuario_id=ctx.usuario_id,
             modo=modo,
             dry_run=dry_run,
+            obra_id=obra_id,
+            camino_ingenieria=camino_ingenieria,
+            prototipo_base_id=prototipo_base_id,
+            nombre_prototipo_nuevo=nombre_prototipo_nuevo,
+            etapa_externa=etapa_externa,
+            prototipo_id=prototipo_id,
         )
     )
     return CargaRespuesta.desde(resultado)

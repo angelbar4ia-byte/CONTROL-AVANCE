@@ -5,11 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -26,8 +22,8 @@ import type {
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
+  UseQueryResult,
+} from "@tanstack/react-query";
 
 import type {
   ActividadEnRutaRespuesta,
@@ -50,411 +46,961 @@ import type {
   RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams,
   ReplicaDeProgramaRespuesta,
   ReplicarProgramaPeticion,
-  RutaCriticaRespuesta
-} from '.././modelo';
+  RutaCriticaRespuesta,
+} from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * @summary Programas base de duraciones
  */
 export const listarProgramasBaseApiV1ProgramasBaseGet = (
-    params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<ProgramaBaseRespuesta[]>(
-      {url: `/api/v1/programas-base`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<ProgramaBaseRespuesta[]>(
+    { url: `/api/v1/programas-base`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getListarProgramasBaseApiV1ProgramasBaseGetInfiniteQueryKey = (params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,) => {
-    return [
-    'infinite', `/api/v1/programas-base`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getListarProgramasBaseApiV1ProgramasBaseGetQueryKey = (params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,) => {
-    return [
-    `/api/v1/programas-base`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getListarProgramasBaseApiV1ProgramasBaseGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>>, TError = HTTPValidationError>(params?: ListarProgramasBaseApiV1ProgramasBaseGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarProgramasBaseApiV1ProgramasBaseGetInfiniteQueryKey = (
+  params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,
 ) => {
+  return [
+    "infinite",
+    `/api/v1/programas-base`,
+    ...(params ? [params] : []),
+  ] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getListarProgramasBaseApiV1ProgramasBaseGetQueryKey = (
+  params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,
+) => {
+  return [`/api/v1/programas-base`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getListarProgramasBaseApiV1ProgramasBaseGetInfiniteQueryKey(params);
+export const getListarProgramasBaseApiV1ProgramasBaseGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarProgramasBaseApiV1ProgramasBaseGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>> = ({ signal }) => listarProgramasBaseApiV1ProgramasBaseGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>
+  > = ({ signal }) =>
+    listarProgramasBaseApiV1ProgramasBaseGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ListarProgramasBaseApiV1ProgramasBaseGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>
+  >;
+export type ListarProgramasBaseApiV1ProgramasBaseGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarProgramasBaseApiV1ProgramasBaseGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>>
-export type ListarProgramasBaseApiV1ProgramasBaseGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarProgramasBaseApiV1ProgramasBaseGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarProgramasBaseApiV1ProgramasBaseGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError, TData>> & Pick<
+export function useListarProgramasBaseApiV1ProgramasBaseGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarProgramasBaseApiV1ProgramasBaseGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
           TError,
           Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarProgramasBaseApiV1ProgramasBaseGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>>, TError = HTTPValidationError>(
- params?: ListarProgramasBaseApiV1ProgramasBaseGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarProgramasBaseApiV1ProgramasBaseGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
           TError,
           Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarProgramasBaseApiV1ProgramasBaseGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>>, TError = HTTPValidationError>(
- params?: ListarProgramasBaseApiV1ProgramasBaseGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarProgramasBaseApiV1ProgramasBaseGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Programas base de duraciones
  */
 
-export function useListarProgramasBaseApiV1ProgramasBaseGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>>, TError = HTTPValidationError>(
- params?: ListarProgramasBaseApiV1ProgramasBaseGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarProgramasBaseApiV1ProgramasBaseGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarProgramasBaseApiV1ProgramasBaseGetInfiniteQueryOptions(
+      params,
+      options,
+    );
 
-  const queryOptions = getListarProgramasBaseApiV1ProgramasBaseGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarProgramasBaseApiV1ProgramasBaseGetQueryOptions = <TData = Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError = HTTPValidationError>(params?: ListarProgramasBaseApiV1ProgramasBaseGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarProgramasBaseApiV1ProgramasBaseGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarProgramasBaseApiV1ProgramasBaseGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarProgramasBaseApiV1ProgramasBaseGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>
+  > = ({ signal }) =>
+    listarProgramasBaseApiV1ProgramasBaseGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>> = ({ signal }) => listarProgramasBaseApiV1ProgramasBaseGet(params, requestOptions, signal);
+export type ListarProgramasBaseApiV1ProgramasBaseGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>
+>;
+export type ListarProgramasBaseApiV1ProgramasBaseGetQueryError =
+  HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarProgramasBaseApiV1ProgramasBaseGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>>
-export type ListarProgramasBaseApiV1ProgramasBaseGetQueryError = HTTPValidationError
-
-
-export function useListarProgramasBaseApiV1ProgramasBaseGet<TData = Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarProgramasBaseApiV1ProgramasBaseGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError, TData>> & Pick<
+export function useListarProgramasBaseApiV1ProgramasBaseGet<
+  TData = Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarProgramasBaseApiV1ProgramasBaseGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
           TError,
           Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarProgramasBaseApiV1ProgramasBaseGet<TData = Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError = HTTPValidationError>(
- params?: ListarProgramasBaseApiV1ProgramasBaseGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarProgramasBaseApiV1ProgramasBaseGet<
+  TData = Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
           TError,
           Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarProgramasBaseApiV1ProgramasBaseGet<TData = Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError = HTTPValidationError>(
- params?: ListarProgramasBaseApiV1ProgramasBaseGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarProgramasBaseApiV1ProgramasBaseGet<
+  TData = Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Programas base de duraciones
  */
 
-export function useListarProgramasBaseApiV1ProgramasBaseGet<TData = Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError = HTTPValidationError>(
- params?: ListarProgramasBaseApiV1ProgramasBaseGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarProgramasBaseApiV1ProgramasBaseGet<
+  TData = Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarProgramasBaseApiV1ProgramasBaseGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarProgramasBaseApiV1ProgramasBaseGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarProgramasBaseApiV1ProgramasBaseGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarProgramasBaseApiV1ProgramasBaseGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Cada alta versiona y retira la vigente anterior (§7.5, §10.8).
  * @summary Alta de un programa base (nueva versión)
  */
 export const crearProgramaBaseApiV1ProgramasBasePost = (
-    crearProgramaBasePeticion: CrearProgramaBasePeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  crearProgramaBasePeticion: CrearProgramaBasePeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<ProgramaBaseCreadoRespuesta>(
-      {url: `/api/v1/programas-base`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: crearProgramaBasePeticion, signal
+  return peticion<ProgramaBaseCreadoRespuesta>(
+    {
+      url: `/api/v1/programas-base`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: crearProgramaBasePeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getCrearProgramaBaseApiV1ProgramasBasePostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof crearProgramaBaseApiV1ProgramasBasePost>>,
+    TError,
+    { data: CrearProgramaBasePeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof crearProgramaBaseApiV1ProgramasBasePost>>,
+  TError,
+  { data: CrearProgramaBasePeticion },
+  TContext
+> => {
+  const mutationKey = ["crearProgramaBaseApiV1ProgramasBasePost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
 
-export const getCrearProgramaBaseApiV1ProgramasBasePostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearProgramaBaseApiV1ProgramasBasePost>>, TError,{data: CrearProgramaBasePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof crearProgramaBaseApiV1ProgramasBasePost>>, TError,{data: CrearProgramaBasePeticion}, TContext> => {
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof crearProgramaBaseApiV1ProgramasBasePost>>,
+    { data: CrearProgramaBasePeticion }
+  > = (props) => {
+    const { data } = props ?? {};
 
-const mutationKey = ['crearProgramaBaseApiV1ProgramasBasePost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+    return crearProgramaBaseApiV1ProgramasBasePost(data, requestOptions);
+  };
 
-      
+  return { mutationFn, ...mutationOptions };
+};
 
+export type CrearProgramaBaseApiV1ProgramasBasePostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof crearProgramaBaseApiV1ProgramasBasePost>>
+>;
+export type CrearProgramaBaseApiV1ProgramasBasePostMutationBody =
+  CrearProgramaBasePeticion;
+export type CrearProgramaBaseApiV1ProgramasBasePostMutationError = void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof crearProgramaBaseApiV1ProgramasBasePost>>, {data: CrearProgramaBasePeticion}> = (props) => {
-          const {data} = props ?? {};
-
-          return  crearProgramaBaseApiV1ProgramasBasePost(data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CrearProgramaBaseApiV1ProgramasBasePostMutationResult = NonNullable<Awaited<ReturnType<typeof crearProgramaBaseApiV1ProgramasBasePost>>>
-    export type CrearProgramaBaseApiV1ProgramasBasePostMutationBody = CrearProgramaBasePeticion
-    export type CrearProgramaBaseApiV1ProgramasBasePostMutationError = void
-
-    /**
+/**
  * @summary Alta de un programa base (nueva versión)
  */
-export const useCrearProgramaBaseApiV1ProgramasBasePost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof crearProgramaBaseApiV1ProgramasBasePost>>, TError,{data: CrearProgramaBasePeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof crearProgramaBaseApiV1ProgramasBasePost>>,
-        TError,
-        {data: CrearProgramaBasePeticion},
-        TContext
-      > => {
+export const useCrearProgramaBaseApiV1ProgramasBasePost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof crearProgramaBaseApiV1ProgramasBasePost>>,
+      TError,
+      { data: CrearProgramaBasePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof crearProgramaBaseApiV1ProgramasBasePost>>,
+  TError,
+  { data: CrearProgramaBasePeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearProgramaBaseApiV1ProgramasBasePostMutationOptions(options);
 
-      const mutationOptions = getCrearProgramaBaseApiV1ProgramasBasePostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * @summary Renglones de un programa base
  */
 export const listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet = (
-    programaBaseId: string,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  programaBaseId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<ItemProgramaBaseRespuesta[]>(
-      {url: `/api/v1/programas-base/${programaBaseId}/items`, method: 'GET', signal
+  return peticion<ItemProgramaBaseRespuesta[]>(
+    {
+      url: `/api/v1/programas-base/${programaBaseId}/items`,
+      method: "GET",
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
-
-
-export const getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfiniteQueryKey = (programaBaseId?: string,) => {
+export const getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfiniteQueryKey =
+  (programaBaseId?: string) => {
     return [
-    'infinite', `/api/v1/programas-base/${programaBaseId}/items`
+      "infinite",
+      `/api/v1/programas-base/${programaBaseId}/items`,
     ] as const;
-    }
+  };
 
-export const getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetQueryKey = (programaBaseId?: string,) => {
-    return [
-    `/api/v1/programas-base/${programaBaseId}/items`
-    ] as const;
-    }
+export const getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetQueryKey =
+  (programaBaseId?: string) => {
+    return [`/api/v1/programas-base/${programaBaseId}/items`] as const;
+  };
 
-    
-export const getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>>, TError = void | HTTPValidationError>(programaBaseId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+export const getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    programaBaseId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfiniteQueryKey(
+        programaBaseId,
+      );
 
-  const queryKey =  queryOptions?.queryKey ?? getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfiniteQueryKey(programaBaseId);
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+        >
+      >
+    > = ({ signal }) =>
+      listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet(
+        programaBaseId,
+        requestOptions,
+        signal,
+      );
 
-  
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!programaBaseId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>> = ({ signal }) => listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet(programaBaseId, requestOptions, signal);
+export type ListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+      >
+    >
+  >;
+export type ListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfiniteQueryError =
+  void | HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(programaBaseId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>>
-export type ListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfiniteQueryError = void | HTTPValidationError
-
-
-export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError, TData>> & Pick<
+export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Renglones de un programa base
  */
 
-export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfiniteQueryOptions(
+      programaBaseId,
+      options,
+    );
 
-  const queryOptions = getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetInfiniteQueryOptions(programaBaseId,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    programaBaseId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetQueryKey(
+        programaBaseId,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+        >
+      >
+    > = ({ signal }) =>
+      listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet(
+        programaBaseId,
+        requestOptions,
+        signal,
+      );
 
-export const getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetQueryOptions = <TData = Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError = void | HTTPValidationError>(programaBaseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!programaBaseId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type ListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+      >
+    >
+  >;
+export type ListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetQueryError =
+  void | HTTPValidationError;
 
-  const queryKey =  queryOptions?.queryKey ?? getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetQueryKey(programaBaseId);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>> = ({ signal }) => listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet(programaBaseId, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(programaBaseId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>>
-export type ListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetQueryError = void | HTTPValidationError
-
-
-export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet<TData = Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError, TData>> & Pick<
+export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet<TData = Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet<TData = Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Renglones de un programa base
  */
 
-export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet<TData = Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetQueryOptions(
+      programaBaseId,
+      options,
+    );
 
-  const queryOptions = getListarItemsProgramaBaseApiV1ProgramasBaseProgramaBaseIdItemsGetQueryOptions(programaBaseId,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Las obras del prototipo del programa, con el estado de su cronograma.
@@ -468,166 +1014,510 @@ repositorio que no es dueño de las dos tablas.
  * @summary Obras a las que este programa base se puede replicar
  */
 export const listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet = (
-    programaBaseId: string,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  programaBaseId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<ObraCandidataRespuesta[]>(
-      {url: `/api/v1/programas-base/${programaBaseId}/obras`, method: 'GET', signal
+  return peticion<ObraCandidataRespuesta[]>(
+    {
+      url: `/api/v1/programas-base/${programaBaseId}/obras`,
+      method: "GET",
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
-
-
-export const getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryKey = (programaBaseId?: string,) => {
+export const getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryKey =
+  (programaBaseId?: string) => {
     return [
-    'infinite', `/api/v1/programas-base/${programaBaseId}/obras`
+      "infinite",
+      `/api/v1/programas-base/${programaBaseId}/obras`,
     ] as const;
-    }
+  };
 
-export const getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryKey = (programaBaseId?: string,) => {
-    return [
-    `/api/v1/programas-base/${programaBaseId}/obras`
-    ] as const;
-    }
+export const getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryKey =
+  (programaBaseId?: string) => {
+    return [`/api/v1/programas-base/${programaBaseId}/obras`] as const;
+  };
 
-    
-export const getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>, TError = void | HTTPValidationError>(programaBaseId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+export const getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    programaBaseId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryKey(
+        programaBaseId,
+      );
 
-  const queryKey =  queryOptions?.queryKey ?? getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryKey(programaBaseId);
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+        >
+      >
+    > = ({ signal }) =>
+      listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet(
+        programaBaseId,
+        requestOptions,
+        signal,
+      );
 
-  
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!programaBaseId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>> = ({ signal }) => listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet(programaBaseId, requestOptions, signal);
+export type ListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+      >
+    >
+  >;
+export type ListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryError =
+  void | HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(programaBaseId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>
-export type ListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryError = void | HTTPValidationError
-
-
-export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>> & Pick<
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Obras a las que este programa base se puede replicar
  */
 
-export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryOptions(
+      programaBaseId,
+      options,
+    );
 
-  const queryOptions = getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetInfiniteQueryOptions(programaBaseId,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    programaBaseId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryKey(
+        programaBaseId,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+        >
+      >
+    > = ({ signal }) =>
+      listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet(
+        programaBaseId,
+        requestOptions,
+        signal,
+      );
 
-export const getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryOptions = <TData = Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError = void | HTTPValidationError>(programaBaseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!programaBaseId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type ListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+      >
+    >
+  >;
+export type ListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryError =
+  void | HTTPValidationError;
 
-  const queryKey =  queryOptions?.queryKey ?? getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryKey(programaBaseId);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>> = ({ signal }) => listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet(programaBaseId, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(programaBaseId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>>
-export type ListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryError = void | HTTPValidationError
-
-
-export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet<TData = Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>> & Pick<
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet<TData = Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet<TData = Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Obras a las que este programa base se puede replicar
  */
 
-export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet<TData = Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError = void | HTTPValidationError>(
- programaBaseId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  programaBaseId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryOptions(
+      programaBaseId,
+      options,
+    );
 
-  const queryOptions = getListarObrasCandidatasApiV1ProgramasBaseProgramaBaseIdObrasGetQueryOptions(programaBaseId,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Instancia el cronograma de varias obras en una sola llamada (§7.5).
@@ -642,235 +1532,548 @@ versión retirada—, no cuando lo es una obra. Lo que pase con cada casa va
 en `obras[].motivo`.
  * @summary Replicar el programa base a varias obras del prototipo
  */
-export const replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost = (
+export const replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost =
+  (
     programaBaseId: string,
     replicarProgramaPeticion: ReplicarProgramaPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
-) => {
-      
-      
-      return peticion<ReplicaDeProgramaRespuesta>(
-      {url: `/api/v1/programas-base/${programaBaseId}/replicar`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: replicarProgramaPeticion, signal
-    },
-      options);
-    }
-  
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ReplicaDeProgramaRespuesta>(
+      {
+        url: `/api/v1/programas-base/${programaBaseId}/replicar`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: replicarProgramaPeticion,
+        signal,
+      },
+      options,
+    );
+  };
 
+export const getReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost
+        >
+      >,
+      TError,
+      { programaBaseId: string; data: ReplicarProgramaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost
+      >
+    >,
+    TError,
+    { programaBaseId: string; data: ReplicarProgramaPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost>>, TError,{programaBaseId: string;data: ReplicarProgramaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost>>, TError,{programaBaseId: string;data: ReplicarProgramaPeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost
+        >
+      >,
+      { programaBaseId: string; data: ReplicarProgramaPeticion }
+    > = (props) => {
+      const { programaBaseId, data } = props ?? {};
 
-const mutationKey = ['replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost(
+        programaBaseId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type ReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost
+      >
+    >
+  >;
+export type ReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationBody =
+  ReplicarProgramaPeticion;
+export type ReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationError =
+  void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost>>, {programaBaseId: string;data: ReplicarProgramaPeticion}> = (props) => {
-          const {programaBaseId,data} = props ?? {};
-
-          return  replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost(programaBaseId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type ReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationResult = NonNullable<Awaited<ReturnType<typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost>>>
-    export type ReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationBody = ReplicarProgramaPeticion
-    export type ReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationError = void
-
-    /**
+/**
  * @summary Replicar el programa base a varias obras del prototipo
  */
-export const useReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost>>, TError,{programaBaseId: string;data: ReplicarProgramaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost>>,
+export const useReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost
+          >
+        >,
         TError,
-        {programaBaseId: string;data: ReplicarProgramaPeticion},
+        { programaBaseId: string; data: ReplicarProgramaPeticion },
         TContext
-      > => {
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof replicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPost
+      >
+    >,
+    TError,
+    { programaBaseId: string; data: ReplicarProgramaPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationOptions(
+        options,
+      );
 
-      const mutationOptions = getReplicarProgramaBaseApiV1ProgramasBaseProgramaBaseIdReplicarPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
  * El `ProgramaObra` vigente, su historial de versiones y las actividades
 con su programación (§7.5, §7.6). Sin programa instanciado devuelve las
 actividades igual: es lo que alimenta el Gantt desde el día uno.
  * @summary Cronograma vigente de la obra
  */
 export const obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ProgramaObraRespuesta>(
+    { url: `/api/v1/obras/${obraId}/programa`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfiniteQueryKey =
+  (obraId?: string) => {
+    return ["infinite", `/api/v1/obras/${obraId}/programa`] as const;
+  };
+
+export const getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetQueryKey = (
+  obraId?: string,
+) => {
+  return [`/api/v1/obras/${obraId}/programa`] as const;
+};
+
+export const getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+      >
+    >,
+    TError = HTTPValidationError,
+  >(
     obraId: string,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
-) => {
-      
-      
-      return peticion<ProgramaObraRespuesta>(
-      {url: `/api/v1/obras/${obraId}/programa`, method: 'GET', signal
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
     },
-      options);
-    }
-  
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfiniteQueryKey(
+        obraId,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+      >
+    > = ({ signal }) =>
+      obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
 
-export const getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfiniteQueryKey = (obraId?: string,) => {
-    return [
-    'infinite', `/api/v1/obras/${obraId}/programa`
-    ] as const;
-    }
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-export const getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetQueryKey = (obraId?: string,) => {
-    return [
-    `/api/v1/obras/${obraId}/programa`
-    ] as const;
-    }
+export type ObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>
+  >;
+export type ObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfiniteQueryError =
+  HTTPValidationError;
 
-    
-export const getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>>, TError = HTTPValidationError>(obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfiniteQueryKey(obraId);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>> = ({ signal }) => obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet(obraId, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(obraId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>>
-export type ObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfiniteQueryError = HTTPValidationError
-
-
-export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>>, TError = HTTPValidationError>(
- obraId: string, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError, TData>> & Pick<
+export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>,
+          Awaited<
+            ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>,
+          Awaited<
+            ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Cronograma vigente de la obra
  */
 
-export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
 
-  const queryOptions = getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetInfiniteQueryOptions(obraId,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetQueryOptions = <TData = Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError = HTTPValidationError>(obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetQueryKey(obraId);
 
-  const queryKey =  queryOptions?.queryKey ?? getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetQueryKey(obraId);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>
+  > = ({ signal }) =>
+    obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet(
+      obraId,
+      requestOptions,
+      signal,
+    );
 
-  
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!obraId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<
+      ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+    >,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>> = ({ signal }) => obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet(obraId, requestOptions, signal);
+export type ObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>
+  >;
+export type ObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetQueryError =
+  HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(obraId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>>
-export type ObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetQueryError = HTTPValidationError
-
-
-export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGet<TData = Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError = HTTPValidationError>(
- obraId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError, TData>> & Pick<
+export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>,
+          Awaited<
+            ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGet<TData = Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>,
+          Awaited<
+            ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGet<TData = Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Cronograma vigente de la obra
  */
 
-export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGet<TData = Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError = HTTPValidationError>(
- obraId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerProgramaDeObraApiV1ObrasObraIdProgramaGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetQueryOptions(
+      obraId,
+      options,
+    );
 
-  const queryOptions = getObtenerProgramaDeObraApiV1ObrasObraIdProgramaGetQueryOptions(obraId,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Baja la plantilla del prototipo a las actividades, resuelve las
@@ -878,68 +2081,117 @@ dependencias a ids de actividad y recalcula la ruta (§7.5, §11.2).
  * @summary Instanciar / versionar el cronograma desde el programa base
  */
 export const instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost = (
-    obraId: string,
-    instanciarProgramaPeticion: InstanciarProgramaPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  obraId: string,
+  instanciarProgramaPeticion: InstanciarProgramaPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<ProgramaInstanciadoRespuesta>(
-      {url: `/api/v1/obras/${obraId}/programa`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: instanciarProgramaPeticion, signal
+  return peticion<ProgramaInstanciadoRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/programa`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: instanciarProgramaPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getInstanciarProgramaDeObraApiV1ObrasObraIdProgramaPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost>
+      >,
+      TError,
+      { obraId: string; data: InstanciarProgramaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost>
+    >,
+    TError,
+    { obraId: string; data: InstanciarProgramaPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getInstanciarProgramaDeObraApiV1ObrasObraIdProgramaPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost>>, TError,{obraId: string;data: InstanciarProgramaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost>>, TError,{obraId: string;data: InstanciarProgramaPeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost>
+      >,
+      { obraId: string; data: InstanciarProgramaPeticion }
+    > = (props) => {
+      const { obraId, data } = props ?? {};
 
-const mutationKey = ['instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost(
+        obraId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type InstanciarProgramaDeObraApiV1ObrasObraIdProgramaPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost>
+    >
+  >;
+export type InstanciarProgramaDeObraApiV1ObrasObraIdProgramaPostMutationBody =
+  InstanciarProgramaPeticion;
+export type InstanciarProgramaDeObraApiV1ObrasObraIdProgramaPostMutationError =
+  void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost>>, {obraId: string;data: InstanciarProgramaPeticion}> = (props) => {
-          const {obraId,data} = props ?? {};
-
-          return  instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost(obraId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type InstanciarProgramaDeObraApiV1ObrasObraIdProgramaPostMutationResult = NonNullable<Awaited<ReturnType<typeof instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost>>>
-    export type InstanciarProgramaDeObraApiV1ObrasObraIdProgramaPostMutationBody = InstanciarProgramaPeticion
-    export type InstanciarProgramaDeObraApiV1ObrasObraIdProgramaPostMutationError = void
-
-    /**
+/**
  * @summary Instanciar / versionar el cronograma desde el programa base
  */
-export const useInstanciarProgramaDeObraApiV1ObrasObraIdProgramaPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost>>, TError,{obraId: string;data: InstanciarProgramaPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost>>,
-        TError,
-        {obraId: string;data: InstanciarProgramaPeticion},
-        TContext
-      > => {
+export const useInstanciarProgramaDeObraApiV1ObrasObraIdProgramaPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost>
+      >,
+      TError,
+      { obraId: string; data: InstanciarProgramaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof instanciarProgramaDeObraApiV1ObrasObraIdProgramaPost>
+  >,
+  TError,
+  { obraId: string; data: InstanciarProgramaPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getInstanciarProgramaDeObraApiV1ObrasObraIdProgramaPostMutationOptions(
+      options,
+    );
 
-      const mutationOptions = getInstanciarProgramaDeObraApiV1ObrasObraIdProgramaPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * El Gantt jerárquico: nivel y etapa con su barra derivada y su avance
 ponderado (§7.4, §6).
 
@@ -952,180 +2204,520 @@ Persistirlo sería un segundo lugar donde vive la misma cifra.
  * @summary Cronograma de la obra como árbol WBS, con barras resumen
  */
 export const obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet = (
+  obraId: string,
+  params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ArbolDeProgramaRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/programa/arbol`,
+      method: "GET",
+      params,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryKey =
+  (
+    obraId?: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
+  ) => {
+    return [
+      "infinite",
+      `/api/v1/obras/${obraId}/programa/arbol`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryKey =
+  (
+    obraId?: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
+  ) => {
+    return [
+      `/api/v1/obras/${obraId}/programa/arbol`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+        >
+      >
+    >,
+    TError = void,
+  >(
     obraId: string,
     params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
-) => {
-      
-      
-      return peticion<ArbolDeProgramaRespuesta>(
-      {url: `/api/v1/obras/${obraId}/programa/arbol`, method: 'GET',
-        params, signal
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
     },
-      options);
-    }
-  
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryKey(
+        obraId,
+        params,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+        >
+      >
+    > = ({ signal }) =>
+      obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet(
+        obraId,
+        params,
+        requestOptions,
+        signal,
+      );
 
-export const getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryKey = (obraId?: string,
-    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,) => {
-    return [
-    'infinite', `/api/v1/obras/${obraId}/programa/arbol`, ...(params ? [params]: [])
-    ] as const;
-    }
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-export const getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryKey = (obraId?: string,
-    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,) => {
-    return [
-    `/api/v1/obras/${obraId}/programa/arbol`, ...(params ? [params]: [])
-    ] as const;
-    }
+export type ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>
+    >
+  >;
+export type ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryError =
+  void;
 
-    
-export const getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>, TError = void>(obraId: string,
-    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryKey(obraId,params);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>> = ({ signal }) => obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet(obraId,params, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(obraId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>
-export type ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryError = void
-
-
-export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>, TError = void>(
- obraId: string,
-    params: undefined |  ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>> & Pick<
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>
+    >
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params:
+    | undefined
+    | ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>,
+          Awaited<
+            ReturnType<
+              typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>, TError = void>(
- obraId: string,
-    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>
+    >
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>,
+          Awaited<
+            ReturnType<
+              typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>, TError = void>(
- obraId: string,
-    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>
+    >
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Cronograma de la obra como árbol WBS, con barras resumen
  */
 
-export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>, TError = void>(
- obraId: string,
-    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>
+    >
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryOptions(
+      obraId,
+      params,
+      options,
+    );
 
-  const queryOptions = getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetInfiniteQueryOptions(obraId,params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>
+    >,
+    TError = void,
+  >(
+    obraId: string,
+    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryKey(
+        obraId,
+        params,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+        >
+      >
+    > = ({ signal }) =>
+      obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet(
+        obraId,
+        params,
+        requestOptions,
+        signal,
+      );
 
-export const getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryOptions = <TData = Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError = void>(obraId: string,
-    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>
+    >
+  >;
+export type ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryError =
+  void;
 
-  const queryKey =  queryOptions?.queryKey ?? getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryKey(obraId,params);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>> = ({ signal }) => obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet(obraId,params, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(obraId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>>
-export type ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryError = void
-
-
-export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet<TData = Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError = void>(
- obraId: string,
-    params: undefined |  ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>> & Pick<
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params:
+    | undefined
+    | ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>,
+          Awaited<
+            ReturnType<
+              typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet<TData = Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError = void>(
- obraId: string,
-    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>,
+          Awaited<
+            ReturnType<
+              typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet<TData = Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError = void>(
- obraId: string,
-    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Cronograma de la obra como árbol WBS, con barras resumen
  */
 
-export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet<TData = Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError = void>(
- obraId: string,
-    params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet>
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params?: ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryOptions(
+      obraId,
+      params,
+      options,
+    );
 
-  const queryOptions = getObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetQueryOptions(obraId,params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Captura gruesa: 20 días en una etapa acomodan a sus conceptos uno tras
@@ -1136,249 +2728,584 @@ los conceptos que ya existen. Una fila de resumen duplicaría cantidad,
 avance y costo sobre los de sus hijos (§6, §7.6).
  * @summary Programar un nodo del árbol y repartir sus días a los conceptos
  */
-export const programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost = (
+export const programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost =
+  (
     obraId: string,
     prototipoNodoId: string,
     programarNodoPeticion: ProgramarNodoPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
-) => {
-      
-      
-      return peticion<NodoProgramadoRespuesta>(
-      {url: `/api/v1/obras/${obraId}/programa/nodos/${prototipoNodoId}`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: programarNodoPeticion, signal
-    },
-      options);
-    }
-  
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<NodoProgramadoRespuesta>(
+      {
+        url: `/api/v1/obras/${obraId}/programa/nodos/${prototipoNodoId}`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: programarNodoPeticion,
+        signal,
+      },
+      options,
+    );
+  };
 
+export const getProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost
+        >
+      >,
+      TError,
+      { obraId: string; prototipoNodoId: string; data: ProgramarNodoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost
+      >
+    >,
+    TError,
+    { obraId: string; prototipoNodoId: string; data: ProgramarNodoPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost>>, TError,{obraId: string;prototipoNodoId: string;data: ProgramarNodoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost>>, TError,{obraId: string;prototipoNodoId: string;data: ProgramarNodoPeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost
+        >
+      >,
+      { obraId: string; prototipoNodoId: string; data: ProgramarNodoPeticion }
+    > = (props) => {
+      const { obraId, prototipoNodoId, data } = props ?? {};
 
-const mutationKey = ['programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost(
+        obraId,
+        prototipoNodoId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type ProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost
+      >
+    >
+  >;
+export type ProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationBody =
+  ProgramarNodoPeticion;
+export type ProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationError =
+  void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost>>, {obraId: string;prototipoNodoId: string;data: ProgramarNodoPeticion}> = (props) => {
-          const {obraId,prototipoNodoId,data} = props ?? {};
-
-          return  programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost(obraId,prototipoNodoId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type ProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationResult = NonNullable<Awaited<ReturnType<typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost>>>
-    export type ProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationBody = ProgramarNodoPeticion
-    export type ProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationError = void
-
-    /**
+/**
  * @summary Programar un nodo del árbol y repartir sus días a los conceptos
  */
-export const useProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost>>, TError,{obraId: string;prototipoNodoId: string;data: ProgramarNodoPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost>>,
+export const useProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost
+          >
+        >,
         TError,
-        {obraId: string;prototipoNodoId: string;data: ProgramarNodoPeticion},
+        {
+          obraId: string;
+          prototipoNodoId: string;
+          data: ProgramarNodoPeticion;
+        },
         TContext
-      > => {
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof programarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPost
+      >
+    >,
+    TError,
+    { obraId: string; prototipoNodoId: string; data: ProgramarNodoPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationOptions(
+        options,
+      );
 
-      const mutationOptions = getProgramarNodoDelArbolApiV1ObrasObraIdProgramaNodosPrototipoNodoIdPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
  * Todos los roles, cada uno con su alcance (§4, §11.2): el Residente ve
 la de su obra porque RLS no le deja ver otra.
  * @summary Ruta crítica, holgura y desfase de la obra
  */
 export const obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet = (
+  obraId: string,
+  params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<RutaCriticaRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/ruta-critica`,
+      method: "GET",
+      params,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfiniteQueryKey =
+  (
+    obraId?: string,
+    params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
+  ) => {
+    return [
+      "infinite",
+      `/api/v1/obras/${obraId}/ruta-critica`,
+      ...(params ? [params] : []),
+    ] as const;
+  };
+
+export const getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetQueryKey = (
+  obraId?: string,
+  params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
+) => {
+  return [
+    `/api/v1/obras/${obraId}/ruta-critica`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+      >
+    >,
+    TError = void,
+  >(
     obraId: string,
     params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
-) => {
-      
-      
-      return peticion<RutaCriticaRespuesta>(
-      {url: `/api/v1/obras/${obraId}/ruta-critica`, method: 'GET',
-        params, signal
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
     },
-      options);
-    }
-  
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfiniteQueryKey(
+        obraId,
+        params,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+      >
+    > = ({ signal }) =>
+      obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet(
+        obraId,
+        params,
+        requestOptions,
+        signal,
+      );
 
-export const getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfiniteQueryKey = (obraId?: string,
-    params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,) => {
-    return [
-    'infinite', `/api/v1/obras/${obraId}/ruta-critica`, ...(params ? [params]: [])
-    ] as const;
-    }
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-export const getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetQueryKey = (obraId?: string,
-    params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,) => {
-    return [
-    `/api/v1/obras/${obraId}/ruta-critica`, ...(params ? [params]: [])
-    ] as const;
-    }
+export type ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>
+  >;
+export type ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfiniteQueryError =
+  void;
 
-    
-export const getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>>, TError = void>(obraId: string,
-    params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfiniteQueryKey(obraId,params);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>> = ({ signal }) => obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet(obraId,params, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(obraId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>>
-export type ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfiniteQueryError = void
-
-
-export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>>, TError = void>(
- obraId: string,
-    params: undefined |  ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError, TData>> & Pick<
+export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params: undefined | ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>,
+          Awaited<
+            ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>>, TError = void>(
- obraId: string,
-    params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>,
+          Awaited<
+            ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>>, TError = void>(
- obraId: string,
-    params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Ruta crítica, holgura y desfase de la obra
  */
 
-export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>>, TError = void>(
- obraId: string,
-    params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfiniteQueryOptions(
+      obraId,
+      params,
+      options,
+    );
 
-  const queryOptions = getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetInfiniteQueryOptions(obraId,params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetQueryOptions = <TData = Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError = void>(obraId: string,
-    params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetQueryKey(obraId, params);
 
-  const queryKey =  queryOptions?.queryKey ?? getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetQueryKey(obraId,params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>
+  > = ({ signal }) =>
+    obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet(
+      obraId,
+      params,
+      requestOptions,
+      signal,
+    );
 
-  
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!obraId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<
+      ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+    >,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>> = ({ signal }) => obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet(obraId,params, requestOptions, signal);
+export type ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>
+  >;
+export type ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetQueryError = void;
 
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(obraId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>>
-export type ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetQueryError = void
-
-
-export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet<TData = Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError = void>(
- obraId: string,
-    params: undefined |  ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError, TData>> & Pick<
+export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params: undefined | ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>,
+          Awaited<
+            ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet<TData = Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError = void>(
- obraId: string,
-    params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>,
+          Awaited<
+            ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet<TData = Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError = void>(
- obraId: string,
-    params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Ruta crítica, holgura y desfase de la obra
  */
 
-export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet<TData = Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError = void>(
- obraId: string,
-    params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+  >,
+  TError = void,
+>(
+  obraId: string,
+  params?: ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetQueryOptions(
+      obraId,
+      params,
+      options,
+    );
 
-  const queryOptions = getObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetQueryOptions(obraId,params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Recálculo on-demand (§6). Es idempotente: con el mismo cronograma y la
@@ -1386,130 +3313,261 @@ misma fecha de corte deja exactamente los mismos valores.
  * @summary Recalcular y persistir la ruta crítica
  */
 export const recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost = (
-    obraId: string,
-    params?: RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  obraId: string,
+  params?: RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<RutaCriticaRespuesta>(
-      {url: `/api/v1/obras/${obraId}/ruta-critica/recalcular`, method: 'POST',
-        params, signal
+  return peticion<RutaCriticaRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/ruta-critica/recalcular`,
+      method: "POST",
+      params,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getRecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost
+        >
+      >,
+      TError,
+      {
+        obraId: string;
+        params?: RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams;
+      },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost
+      >
+    >,
+    TError,
+    {
+      obraId: string;
+      params?: RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams;
+    },
+    TContext
+  > => {
+    const mutationKey = [
+      "recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getRecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost>>, TError,{obraId: string;params?: RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost>>, TError,{obraId: string;params?: RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost
+        >
+      >,
+      {
+        obraId: string;
+        params?: RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams;
+      }
+    > = (props) => {
+      const { obraId, params } = props ?? {};
 
-const mutationKey = ['recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost(
+        obraId,
+        params,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost
+      >
+    >
+  >;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost>>, {obraId: string;params?: RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams}> = (props) => {
-          const {obraId,params} = props ?? {};
+export type RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostMutationError =
+  void;
 
-          return  recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost(obraId,params,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostMutationResult = NonNullable<Awaited<ReturnType<typeof recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost>>>
-    
-    export type RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostMutationError = void
-
-    /**
+/**
  * @summary Recalcular y persistir la ruta crítica
  */
-export const useRecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost>>, TError,{obraId: string;params?: RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost>>,
+export const useRecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost
+          >
+        >,
         TError,
-        {obraId: string;params?: RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams},
+        {
+          obraId: string;
+          params?: RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams;
+        },
         TContext
-      > => {
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof recalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost
+      >
+    >,
+    TError,
+    {
+      obraId: string;
+      params?: RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams;
+    },
+    TContext
+  > => {
+    const mutationOptions =
+      getRecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostMutationOptions(
+        options,
+      );
 
-      const mutationOptions = getRecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
  * Supervisor y Control de obra ajustan el cronograma (§11.2). El recálculo
 de la ruta va en la misma transacción.
  * @summary Ajustar fechas, duración y dependencias de una actividad
  */
-export const editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch = (
+export const editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch =
+  (
     actividadId: string,
     programacionActividadPeticion: ProgramacionActividadPeticion,
- options?: SecondParameter<typeof peticion>,) => {
-      
-      
-      return peticion<ActividadEnRutaRespuesta>(
-      {url: `/api/v1/actividades/${actividadId}/programacion`, method: 'PATCH',
-      headers: {'Content-Type': 'application/json', },
-      data: programacionActividadPeticion
-    },
-      options);
-    }
-  
+    options?: SecondParameter<typeof peticion>,
+  ) => {
+    return peticion<ActividadEnRutaRespuesta>(
+      {
+        url: `/api/v1/actividades/${actividadId}/programacion`,
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        data: programacionActividadPeticion,
+      },
+      options,
+    );
+  };
 
+export const getEditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatchMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch
+        >
+      >,
+      TError,
+      { actividadId: string; data: ProgramacionActividadPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch
+      >
+    >,
+    TError,
+    { actividadId: string; data: ProgramacionActividadPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getEditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatchMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch>>, TError,{actividadId: string;data: ProgramacionActividadPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch>>, TError,{actividadId: string;data: ProgramacionActividadPeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch
+        >
+      >,
+      { actividadId: string; data: ProgramacionActividadPeticion }
+    > = (props) => {
+      const { actividadId, data } = props ?? {};
 
-const mutationKey = ['editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch(
+        actividadId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type EditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatchMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch
+      >
+    >
+  >;
+export type EditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatchMutationBody =
+  ProgramacionActividadPeticion;
+export type EditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatchMutationError =
+  void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch>>, {actividadId: string;data: ProgramacionActividadPeticion}> = (props) => {
-          const {actividadId,data} = props ?? {};
-
-          return  editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch(actividadId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type EditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatchMutationResult = NonNullable<Awaited<ReturnType<typeof editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch>>>
-    export type EditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatchMutationBody = ProgramacionActividadPeticion
-    export type EditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatchMutationError = void
-
-    /**
+/**
  * @summary Ajustar fechas, duración y dependencias de una actividad
  */
-export const useEditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch>>, TError,{actividadId: string;data: ProgramacionActividadPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch>>,
+export const useEditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch
+          >
+        >,
         TError,
-        {actividadId: string;data: ProgramacionActividadPeticion},
+        { actividadId: string; data: ProgramacionActividadPeticion },
         TContext
-      > => {
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof editarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch
+      >
+    >,
+    TError,
+    { actividadId: string; data: ProgramacionActividadPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getEditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatchMutationOptions(
+        options,
+      );
 
-      const mutationOptions = getEditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatchMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    
+    return useMutation(mutationOptions, queryClient);
+  };

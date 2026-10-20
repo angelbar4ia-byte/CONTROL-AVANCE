@@ -7,8 +7,8 @@
  */
 
 export type ListarCierresDeObraApiV1CierresObraGetParams = {
-/**
- * en_proceso | cerrada
- */
-estatus?: string | null;
+  /**
+   * en_proceso | cerrada
+   */
+  estatus?: string | null;
 };

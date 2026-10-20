@@ -5,11 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -26,8 +22,8 @@ import type {
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
-  UseQueryResult
-} from '@tanstack/react-query';
+  UseQueryResult,
+} from "@tanstack/react-query";
 
 import type {
   CierreDeObraRespuesta,
@@ -35,15 +31,12 @@ import type {
   ListarCierresDeObraApiV1CierresObraGetParams,
   ParticipacionRespuesta,
   ParticiparPeticion,
-  ResumenDeCierreRespuesta
-} from '.././modelo';
+  ResumenDeCierreRespuesta,
+} from ".././modelo";
 
-import { peticion } from '../../cliente';
-
+import { peticion } from "../../cliente";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
-
-
 
 /**
  * Crea el acta y **reúne los pendientes** (§11.3 D.1).
@@ -57,65 +50,98 @@ devuelve el que ya estaba.
  * @summary Abrir el cierre de obra final
  */
 export const abrirCierreDeObraApiV1ObrasObraIdCierreObraPost = (
-    obraId: string,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<CierreDeObraRespuesta>(
-      {url: `/api/v1/obras/${obraId}/cierre-obra`, method: 'POST', signal
-    },
-      options);
-    }
-  
+  return peticion<CierreDeObraRespuesta>(
+    { url: `/api/v1/obras/${obraId}/cierre-obra`, method: "POST", signal },
+    options,
+  );
+};
 
+export const getAbrirCierreDeObraApiV1ObrasObraIdCierreObraPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof abrirCierreDeObraApiV1ObrasObraIdCierreObraPost>
+      >,
+      TError,
+      { obraId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<ReturnType<typeof abrirCierreDeObraApiV1ObrasObraIdCierreObraPost>>,
+    TError,
+    { obraId: string },
+    TContext
+  > => {
+    const mutationKey = ["abrirCierreDeObraApiV1ObrasObraIdCierreObraPost"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getAbrirCierreDeObraApiV1ObrasObraIdCierreObraPostMutationOptions = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof abrirCierreDeObraApiV1ObrasObraIdCierreObraPost>>, TError,{obraId: string}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof abrirCierreDeObraApiV1ObrasObraIdCierreObraPost>>, TError,{obraId: string}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof abrirCierreDeObraApiV1ObrasObraIdCierreObraPost>
+      >,
+      { obraId: string }
+    > = (props) => {
+      const { obraId } = props ?? {};
 
-const mutationKey = ['abrirCierreDeObraApiV1ObrasObraIdCierreObraPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return abrirCierreDeObraApiV1ObrasObraIdCierreObraPost(
+        obraId,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type AbrirCierreDeObraApiV1ObrasObraIdCierreObraPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof abrirCierreDeObraApiV1ObrasObraIdCierreObraPost>>
+  >;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof abrirCierreDeObraApiV1ObrasObraIdCierreObraPost>>, {obraId: string}> = (props) => {
-          const {obraId} = props ?? {};
+export type AbrirCierreDeObraApiV1ObrasObraIdCierreObraPostMutationError =
+  void | HTTPValidationError;
 
-          return  abrirCierreDeObraApiV1ObrasObraIdCierreObraPost(obraId,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AbrirCierreDeObraApiV1ObrasObraIdCierreObraPostMutationResult = NonNullable<Awaited<ReturnType<typeof abrirCierreDeObraApiV1ObrasObraIdCierreObraPost>>>
-    
-    export type AbrirCierreDeObraApiV1ObrasObraIdCierreObraPostMutationError = void | HTTPValidationError
-
-    /**
+/**
  * @summary Abrir el cierre de obra final
  */
-export const useAbrirCierreDeObraApiV1ObrasObraIdCierreObraPost = <TError = void | HTTPValidationError,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof abrirCierreDeObraApiV1ObrasObraIdCierreObraPost>>, TError,{obraId: string}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof abrirCierreDeObraApiV1ObrasObraIdCierreObraPost>>,
-        TError,
-        {obraId: string},
-        TContext
-      > => {
+export const useAbrirCierreDeObraApiV1ObrasObraIdCierreObraPost = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof abrirCierreDeObraApiV1ObrasObraIdCierreObraPost>
+      >,
+      TError,
+      { obraId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof abrirCierreDeObraApiV1ObrasObraIdCierreObraPost>>,
+  TError,
+  { obraId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getAbrirCierreDeObraApiV1ObrasObraIdCierreObraPostMutationOptions(options);
 
-      const mutationOptions = getAbrirCierreDeObraApiV1ObrasObraIdCierreObraPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Cada rol registra lo suyo (§11.3 D.2).
 
 El rol sale del token, nunca del cuerpo: es lo que decide qué parte del acta
@@ -128,68 +154,109 @@ evento: el razonamiento está en el caso de uso.
  * @summary Registrar la parte de tu rol en el acta
  */
 export const participarApiV1CierresObraCierreIdParticiparPost = (
-    cierreId: string,
-    participarPeticion: ParticiparPeticion,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  cierreId: string,
+  participarPeticion: ParticiparPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<CierreDeObraRespuesta>(
-      {url: `/api/v1/cierres-obra/${cierreId}/participar`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: participarPeticion, signal
+  return peticion<CierreDeObraRespuesta>(
+    {
+      url: `/api/v1/cierres-obra/${cierreId}/participar`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: participarPeticion,
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
+export const getParticiparApiV1CierresObraCierreIdParticiparPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof participarApiV1CierresObraCierreIdParticiparPost>
+      >,
+      TError,
+      { cierreId: string; data: ParticiparPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof participarApiV1CierresObraCierreIdParticiparPost>
+    >,
+    TError,
+    { cierreId: string; data: ParticiparPeticion },
+    TContext
+  > => {
+    const mutationKey = ["participarApiV1CierresObraCierreIdParticiparPost"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
 
-export const getParticiparApiV1CierresObraCierreIdParticiparPostMutationOptions = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof participarApiV1CierresObraCierreIdParticiparPost>>, TError,{cierreId: string;data: ParticiparPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
-): UseMutationOptions<Awaited<ReturnType<typeof participarApiV1CierresObraCierreIdParticiparPost>>, TError,{cierreId: string;data: ParticiparPeticion}, TContext> => {
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof participarApiV1CierresObraCierreIdParticiparPost>
+      >,
+      { cierreId: string; data: ParticiparPeticion }
+    > = (props) => {
+      const { cierreId, data } = props ?? {};
 
-const mutationKey = ['participarApiV1CierresObraCierreIdParticiparPost'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
+      return participarApiV1CierresObraCierreIdParticiparPost(
+        cierreId,
+        data,
+        requestOptions,
+      );
+    };
 
-      
+    return { mutationFn, ...mutationOptions };
+  };
 
+export type ParticiparApiV1CierresObraCierreIdParticiparPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof participarApiV1CierresObraCierreIdParticiparPost>>
+  >;
+export type ParticiparApiV1CierresObraCierreIdParticiparPostMutationBody =
+  ParticiparPeticion;
+export type ParticiparApiV1CierresObraCierreIdParticiparPostMutationError =
+  void;
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof participarApiV1CierresObraCierreIdParticiparPost>>, {cierreId: string;data: ParticiparPeticion}> = (props) => {
-          const {cierreId,data} = props ?? {};
-
-          return  participarApiV1CierresObraCierreIdParticiparPost(cierreId,data,requestOptions)
-        }
-
-        
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type ParticiparApiV1CierresObraCierreIdParticiparPostMutationResult = NonNullable<Awaited<ReturnType<typeof participarApiV1CierresObraCierreIdParticiparPost>>>
-    export type ParticiparApiV1CierresObraCierreIdParticiparPostMutationBody = ParticiparPeticion
-    export type ParticiparApiV1CierresObraCierreIdParticiparPostMutationError = void
-
-    /**
+/**
  * @summary Registrar la parte de tu rol en el acta
  */
-export const useParticiparApiV1CierresObraCierreIdParticiparPost = <TError = void,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof participarApiV1CierresObraCierreIdParticiparPost>>, TError,{cierreId: string;data: ParticiparPeticion}, TContext>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof participarApiV1CierresObraCierreIdParticiparPost>>,
-        TError,
-        {cierreId: string;data: ParticiparPeticion},
-        TContext
-      > => {
+export const useParticiparApiV1CierresObraCierreIdParticiparPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof participarApiV1CierresObraCierreIdParticiparPost>
+      >,
+      TError,
+      { cierreId: string; data: ParticiparPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof participarApiV1CierresObraCierreIdParticiparPost>>,
+  TError,
+  { cierreId: string; data: ParticiparPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getParticiparApiV1CierresObraCierreIdParticiparPostMutationOptions(options);
 
-      const mutationOptions = getParticiparApiV1CierresObraCierreIdParticiparPostMutationOptions(options);
-
-      return useMutation(mutationOptions, queryClient);
-    }
-    /**
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Los cierres visibles (§5.1).
 
 Sin `exigir_rol`: el §11.2 pone la `(SI)` sobre el alta, y el acta la miran
@@ -198,332 +265,759 @@ las obras que cada quien ve.
  * @summary Bandeja de cierres de obra
  */
 export const listarCierresDeObraApiV1CierresObraGet = (
-    params?: ListarCierresDeObraApiV1CierresObraGetParams,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  params?: ListarCierresDeObraApiV1CierresObraGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<ResumenDeCierreRespuesta[]>(
-      {url: `/api/v1/cierres-obra`, method: 'GET',
-        params, signal
-    },
-      options);
-    }
-  
+  return peticion<ResumenDeCierreRespuesta[]>(
+    { url: `/api/v1/cierres-obra`, method: "GET", params, signal },
+    options,
+  );
+};
 
-
-
-export const getListarCierresDeObraApiV1CierresObraGetInfiniteQueryKey = (params?: ListarCierresDeObraApiV1CierresObraGetParams,) => {
-    return [
-    'infinite', `/api/v1/cierres-obra`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-export const getListarCierresDeObraApiV1CierresObraGetQueryKey = (params?: ListarCierresDeObraApiV1CierresObraGetParams,) => {
-    return [
-    `/api/v1/cierres-obra`, ...(params ? [params]: [])
-    ] as const;
-    }
-
-    
-export const getListarCierresDeObraApiV1CierresObraGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>>, TError = HTTPValidationError>(params?: ListarCierresDeObraApiV1CierresObraGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarCierresDeObraApiV1CierresObraGetInfiniteQueryKey = (
+  params?: ListarCierresDeObraApiV1CierresObraGetParams,
 ) => {
+  return [
+    "infinite",
+    `/api/v1/cierres-obra`,
+    ...(params ? [params] : []),
+  ] as const;
+};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export const getListarCierresDeObraApiV1CierresObraGetQueryKey = (
+  params?: ListarCierresDeObraApiV1CierresObraGetParams,
+) => {
+  return [`/api/v1/cierres-obra`, ...(params ? [params] : [])] as const;
+};
 
-  const queryKey =  queryOptions?.queryKey ?? getListarCierresDeObraApiV1CierresObraGetInfiniteQueryKey(params);
+export const getListarCierresDeObraApiV1CierresObraGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCierresDeObraApiV1CierresObraGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarCierresDeObraApiV1CierresObraGetInfiniteQueryKey(params);
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>> = ({ signal }) => listarCierresDeObraApiV1CierresObraGet(params, requestOptions, signal);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>
+  > = ({ signal }) =>
+    listarCierresDeObraApiV1CierresObraGet(params, requestOptions, signal);
 
-      
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-      
+export type ListarCierresDeObraApiV1CierresObraGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>
+  >;
+export type ListarCierresDeObraApiV1CierresObraGetInfiniteQueryError =
+  HTTPValidationError;
 
-   return  { queryKey, queryFn, ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarCierresDeObraApiV1CierresObraGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>>
-export type ListarCierresDeObraApiV1CierresObraGetInfiniteQueryError = HTTPValidationError
-
-
-export function useListarCierresDeObraApiV1CierresObraGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>>, TError = HTTPValidationError>(
- params: undefined |  ListarCierresDeObraApiV1CierresObraGetParams, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError, TData>> & Pick<
+export function useListarCierresDeObraApiV1CierresObraGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarCierresDeObraApiV1CierresObraGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
           TError,
           Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarCierresDeObraApiV1CierresObraGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>>, TError = HTTPValidationError>(
- params?: ListarCierresDeObraApiV1CierresObraGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarCierresDeObraApiV1CierresObraGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCierresDeObraApiV1CierresObraGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
           TError,
           Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarCierresDeObraApiV1CierresObraGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>>, TError = HTTPValidationError>(
- params?: ListarCierresDeObraApiV1CierresObraGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarCierresDeObraApiV1CierresObraGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCierresDeObraApiV1CierresObraGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Bandeja de cierres de obra
  */
 
-export function useListarCierresDeObraApiV1CierresObraGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>>, TError = HTTPValidationError>(
- params?: ListarCierresDeObraApiV1CierresObraGetParams, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarCierresDeObraApiV1CierresObraGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCierresDeObraApiV1CierresObraGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarCierresDeObraApiV1CierresObraGetInfiniteQueryOptions(
+      params,
+      options,
+    );
 
-  const queryOptions = getListarCierresDeObraApiV1CierresObraGetInfiniteQueryOptions(params,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getListarCierresDeObraApiV1CierresObraGetQueryOptions = <TData = Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError = HTTPValidationError>(params?: ListarCierresDeObraApiV1CierresObraGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getListarCierresDeObraApiV1CierresObraGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCierresDeObraApiV1CierresObraGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarCierresDeObraApiV1CierresObraGetQueryKey(params);
 
-  const queryKey =  queryOptions?.queryKey ?? getListarCierresDeObraApiV1CierresObraGetQueryKey(params);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>
+  > = ({ signal }) =>
+    listarCierresDeObraApiV1CierresObraGet(params, requestOptions, signal);
 
-  
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>> = ({ signal }) => listarCierresDeObraApiV1CierresObraGet(params, requestOptions, signal);
+export type ListarCierresDeObraApiV1CierresObraGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>
+>;
+export type ListarCierresDeObraApiV1CierresObraGetQueryError =
+  HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarCierresDeObraApiV1CierresObraGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>>
-export type ListarCierresDeObraApiV1CierresObraGetQueryError = HTTPValidationError
-
-
-export function useListarCierresDeObraApiV1CierresObraGet<TData = Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError = HTTPValidationError>(
- params: undefined |  ListarCierresDeObraApiV1CierresObraGetParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError, TData>> & Pick<
+export function useListarCierresDeObraApiV1CierresObraGet<
+  TData = Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarCierresDeObraApiV1CierresObraGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
           TError,
           Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarCierresDeObraApiV1CierresObraGet<TData = Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError = HTTPValidationError>(
- params?: ListarCierresDeObraApiV1CierresObraGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError, TData>> & Pick<
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarCierresDeObraApiV1CierresObraGet<
+  TData = Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCierresDeObraApiV1CierresObraGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
           TError,
           Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarCierresDeObraApiV1CierresObraGet<TData = Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError = HTTPValidationError>(
- params?: ListarCierresDeObraApiV1CierresObraGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarCierresDeObraApiV1CierresObraGet<
+  TData = Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCierresDeObraApiV1CierresObraGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Bandeja de cierres de obra
  */
 
-export function useListarCierresDeObraApiV1CierresObraGet<TData = Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError = HTTPValidationError>(
- params?: ListarCierresDeObraApiV1CierresObraGetParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarCierresDeObraApiV1CierresObraGet<
+  TData = Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarCierresDeObraApiV1CierresObraGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarCierresDeObraApiV1CierresObraGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarCierresDeObraApiV1CierresObraGetQueryOptions(
+    params,
+    options,
+  );
 
-  const queryOptions = getListarCierresDeObraApiV1CierresObraGetQueryOptions(params,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * @summary Estado del acta y lo que falta
  */
 export const obtenerCierreDeObraApiV1CierresObraCierreIdGet = (
+  cierreId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CierreDeObraRespuesta>(
+    { url: `/api/v1/cierres-obra/${cierreId}`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getObtenerCierreDeObraApiV1CierresObraCierreIdGetInfiniteQueryKey =
+  (cierreId?: string) => {
+    return ["infinite", `/api/v1/cierres-obra/${cierreId}`] as const;
+  };
+
+export const getObtenerCierreDeObraApiV1CierresObraCierreIdGetQueryKey = (
+  cierreId?: string,
+) => {
+  return [`/api/v1/cierres-obra/${cierreId}`] as const;
+};
+
+export const getObtenerCierreDeObraApiV1CierresObraCierreIdGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>
+    >,
+    TError = void | HTTPValidationError,
+  >(
     cierreId: string,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
-) => {
-      
-      
-      return peticion<CierreDeObraRespuesta>(
-      {url: `/api/v1/cierres-obra/${cierreId}`, method: 'GET', signal
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
     },
-      options);
-    }
-  
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getObtenerCierreDeObraApiV1CierresObraCierreIdGetInfiniteQueryKey(
+        cierreId,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>
+    > = ({ signal }) =>
+      obtenerCierreDeObraApiV1CierresObraCierreIdGet(
+        cierreId,
+        requestOptions,
+        signal,
+      );
 
-export const getObtenerCierreDeObraApiV1CierresObraCierreIdGetInfiniteQueryKey = (cierreId?: string,) => {
-    return [
-    'infinite', `/api/v1/cierres-obra/${cierreId}`
-    ] as const;
-    }
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!cierreId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-export const getObtenerCierreDeObraApiV1CierresObraCierreIdGetQueryKey = (cierreId?: string,) => {
-    return [
-    `/api/v1/cierres-obra/${cierreId}`
-    ] as const;
-    }
+export type ObtenerCierreDeObraApiV1CierresObraCierreIdGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>
+  >;
+export type ObtenerCierreDeObraApiV1CierresObraCierreIdGetInfiniteQueryError =
+  void | HTTPValidationError;
 
-    
-export const getObtenerCierreDeObraApiV1CierresObraCierreIdGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>>, TError = void | HTTPValidationError>(cierreId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getObtenerCierreDeObraApiV1CierresObraCierreIdGetInfiniteQueryKey(cierreId);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>> = ({ signal }) => obtenerCierreDeObraApiV1CierresObraCierreIdGet(cierreId, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(cierreId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ObtenerCierreDeObraApiV1CierresObraCierreIdGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>>
-export type ObtenerCierreDeObraApiV1CierresObraCierreIdGetInfiniteQueryError = void | HTTPValidationError
-
-
-export function useObtenerCierreDeObraApiV1CierresObraCierreIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>>, TError = void | HTTPValidationError>(
- cierreId: string, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError, TData>> & Pick<
+export function useObtenerCierreDeObraApiV1CierresObraCierreIdGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>,
+          Awaited<
+            ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerCierreDeObraApiV1CierresObraCierreIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>>, TError = void | HTTPValidationError>(
- cierreId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerCierreDeObraApiV1CierresObraCierreIdGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>,
+          Awaited<
+            ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerCierreDeObraApiV1CierresObraCierreIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>>, TError = void | HTTPValidationError>(
- cierreId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerCierreDeObraApiV1CierresObraCierreIdGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Estado del acta y lo que falta
  */
 
-export function useObtenerCierreDeObraApiV1CierresObraCierreIdGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>>, TError = void | HTTPValidationError>(
- cierreId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useObtenerCierreDeObraApiV1CierresObraCierreIdGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getObtenerCierreDeObraApiV1CierresObraCierreIdGetInfiniteQueryOptions(
+      cierreId,
+      options,
+    );
 
-  const queryOptions = getObtenerCierreDeObraApiV1CierresObraCierreIdGetInfiniteQueryOptions(cierreId,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
-
-
-
-export const getObtenerCierreDeObraApiV1CierresObraCierreIdGetQueryOptions = <TData = Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError = void | HTTPValidationError>(cierreId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
+export const getObtenerCierreDeObraApiV1CierresObraCierreIdGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
 ) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+  const queryKey =
+    queryOptions?.queryKey ??
+    getObtenerCierreDeObraApiV1CierresObraCierreIdGetQueryKey(cierreId);
 
-  const queryKey =  queryOptions?.queryKey ?? getObtenerCierreDeObraApiV1CierresObraCierreIdGetQueryKey(cierreId);
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>
+  > = ({ signal }) =>
+    obtenerCierreDeObraApiV1CierresObraCierreIdGet(
+      cierreId,
+      requestOptions,
+      signal,
+    );
 
-  
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!cierreId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>> = ({ signal }) => obtenerCierreDeObraApiV1CierresObraCierreIdGet(cierreId, requestOptions, signal);
+export type ObtenerCierreDeObraApiV1CierresObraCierreIdGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>
+  >;
+export type ObtenerCierreDeObraApiV1CierresObraCierreIdGetQueryError =
+  void | HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(cierreId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ObtenerCierreDeObraApiV1CierresObraCierreIdGetQueryResult = NonNullable<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>>
-export type ObtenerCierreDeObraApiV1CierresObraCierreIdGetQueryError = void | HTTPValidationError
-
-
-export function useObtenerCierreDeObraApiV1CierresObraCierreIdGet<TData = Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError = void | HTTPValidationError>(
- cierreId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError, TData>> & Pick<
+export function useObtenerCierreDeObraApiV1CierresObraCierreIdGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>,
+          Awaited<
+            ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerCierreDeObraApiV1CierresObraCierreIdGet<TData = Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError = void | HTTPValidationError>(
- cierreId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerCierreDeObraApiV1CierresObraCierreIdGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>,
+          Awaited<
+            ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+          >,
           TError,
-          Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useObtenerCierreDeObraApiV1CierresObraCierreIdGet<TData = Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError = void | HTTPValidationError>(
- cierreId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useObtenerCierreDeObraApiV1CierresObraCierreIdGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Estado del acta y lo que falta
  */
 
-export function useObtenerCierreDeObraApiV1CierresObraCierreIdGet<TData = Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError = void | HTTPValidationError>(
- cierreId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useObtenerCierreDeObraApiV1CierresObraCierreIdGet<
+  TData = Awaited<
+    ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof obtenerCierreDeObraApiV1CierresObraCierreIdGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getObtenerCierreDeObraApiV1CierresObraCierreIdGetQueryOptions(
+      cierreId,
+      options,
+    );
 
-  const queryOptions = getObtenerCierreDeObraApiV1CierresObraCierreIdGetQueryOptions(cierreId,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
 
 /**
  * Las partes ya registradas (§11.3 D.2).
@@ -534,164 +1028,507 @@ solo cuando alguien quiere leer lo que escribieron los demás.
  * @summary Quién ha firmado y qué dijo
  */
 export const listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet = (
-    cierreId: string,
- options?: SecondParameter<typeof peticion>,signal?: AbortSignal
+  cierreId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
 ) => {
-      
-      
-      return peticion<ParticipacionRespuesta[]>(
-      {url: `/api/v1/cierres-obra/${cierreId}/participaciones`, method: 'GET', signal
+  return peticion<ParticipacionRespuesta[]>(
+    {
+      url: `/api/v1/cierres-obra/${cierreId}/participaciones`,
+      method: "GET",
+      signal,
     },
-      options);
-    }
-  
+    options,
+  );
+};
 
-
-
-export const getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfiniteQueryKey = (cierreId?: string,) => {
+export const getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfiniteQueryKey =
+  (cierreId?: string) => {
     return [
-    'infinite', `/api/v1/cierres-obra/${cierreId}/participaciones`
+      "infinite",
+      `/api/v1/cierres-obra/${cierreId}/participaciones`,
     ] as const;
-    }
+  };
 
-export const getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetQueryKey = (cierreId?: string,) => {
-    return [
-    `/api/v1/cierres-obra/${cierreId}/participaciones`
-    ] as const;
-    }
+export const getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetQueryKey =
+  (cierreId?: string) => {
+    return [`/api/v1/cierres-obra/${cierreId}/participaciones`] as const;
+  };
 
-    
-export const getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfiniteQueryOptions = <TData = InfiniteData<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>>, TError = void | HTTPValidationError>(cierreId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+export const getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    cierreId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfiniteQueryKey(
+        cierreId,
+      );
 
-  const queryKey =  queryOptions?.queryKey ?? getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfiniteQueryKey(cierreId);
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+        >
+      >
+    > = ({ signal }) =>
+      listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet(
+        cierreId,
+        requestOptions,
+        signal,
+      );
 
-  
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!cierreId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>> = ({ signal }) => listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet(cierreId, requestOptions, signal);
+export type ListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+      >
+    >
+  >;
+export type ListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfiniteQueryError =
+  void | HTTPValidationError;
 
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(cierreId), ...queryOptions} as UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfiniteQueryResult = NonNullable<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>>
-export type ListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfiniteQueryError = void | HTTPValidationError
-
-
-export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>>, TError = void | HTTPValidationError>(
- cierreId: string, options: { query:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError, TData>> & Pick<
+export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>>, TError = void | HTTPValidationError>(
- cierreId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>>, TError = void | HTTPValidationError>(
- cierreId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Quién ha firmado y qué dijo
  */
 
-export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfinite<TData = InfiniteData<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>>, TError = void | HTTPValidationError>(
- cierreId: string, options?: { query?:Partial<UseInfiniteQueryOptions<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfiniteQueryOptions(
+      cierreId,
+      options,
+    );
 
-  const queryOptions = getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetInfiniteQueryOptions(cierreId,options)
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 
-  const query = useInfiniteQuery(queryOptions, queryClient) as  UseInfiniteQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
 
+export const getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    cierreId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
 
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetQueryKey(
+        cierreId,
+      );
 
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+        >
+      >
+    > = ({ signal }) =>
+      listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet(
+        cierreId,
+        requestOptions,
+        signal,
+      );
 
-export const getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetQueryOptions = <TData = Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError = void | HTTPValidationError>(cierreId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
-) => {
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!cierreId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
 
-const {query: queryOptions, request: requestOptions} = options ?? {};
+export type ListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+      >
+    >
+  >;
+export type ListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetQueryError =
+  void | HTTPValidationError;
 
-  const queryKey =  queryOptions?.queryKey ?? getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetQueryKey(cierreId);
-
-  
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>> = ({ signal }) => listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet(cierreId, requestOptions, signal);
-
-      
-
-      
-
-   return  { queryKey, queryFn, enabled: !!(cierreId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetQueryResult = NonNullable<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>>
-export type ListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetQueryError = void | HTTPValidationError
-
-
-export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGet<TData = Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError = void | HTTPValidationError>(
- cierreId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError, TData>> & Pick<
+export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGet<TData = Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError = void | HTTPValidationError>(
- cierreId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError, TData>> & Pick<
+          Awaited<
+            ReturnType<
+              typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>,
+          Awaited<
+            ReturnType<
+              typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+            >
+          >,
           TError,
-          Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>
-        > , 'initialData'
-      >, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGet<TData = Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError = void | HTTPValidationError>(
- cierreId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient
-  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+          Awaited<
+            ReturnType<
+              typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
 /**
  * @summary Quién ha firmado y qué dijo
  */
 
-export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGet<TData = Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError = void | HTTPValidationError>(
- cierreId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet>>, TError, TData>>, request?: SecondParameter<typeof peticion>}
- , queryClient?: QueryClient 
- ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+export function useListarParticipacionesApiV1CierresObraCierreIdParticipacionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  cierreId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarParticipacionesApiV1CierresObraCierreIdParticipacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetQueryOptions(
+      cierreId,
+      options,
+    );
 
-  const queryOptions = getListarParticipacionesApiV1CierresObraCierreIdParticipacionesGetQueryOptions(cierreId,options)
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
 
-  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey ;
+  query.queryKey = queryOptions.queryKey;
 
   return query;
 }
-
-
-
-

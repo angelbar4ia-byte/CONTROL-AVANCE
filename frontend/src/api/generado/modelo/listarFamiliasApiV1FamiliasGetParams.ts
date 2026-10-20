@@ -7,12 +7,12 @@
  */
 
 export type ListarFamiliasApiV1FamiliasGetParams = {
-/**
- * `material` o `concepto` (§10.1).
- */
-aplica_a?: string | null;
-/**
- * Incluye los registros dados de baja (§8.7).
- */
-incluir_inactivos?: boolean;
+  /**
+   * `material` o `concepto` (§10.1).
+   */
+  aplica_a?: string | null;
+  /**
+   * Incluye los registros dados de baja (§8.7).
+   */
+  incluir_inactivos?: boolean;
 };

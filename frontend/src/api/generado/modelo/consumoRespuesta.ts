@@ -5,8 +5,8 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ConsumoRespuestaDesviacionPct } from './consumoRespuestaDesviacionPct';
-import type { ConsumoRespuestaCostoValuacion } from './consumoRespuestaCostoValuacion';
+import type { ConsumoRespuestaDesviacionPct } from "./consumoRespuestaDesviacionPct";
+import type { ConsumoRespuestaCostoValuacion } from "./consumoRespuestaCostoValuacion";
 
 /**
  * Fila de `v_consumo_vs_presupuesto`: consumo real vs teórico (§7.7, §10.5).

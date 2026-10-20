@@ -7,8 +7,8 @@
  */
 
 export type ListarRevisionesApiV1RevisionesGetParams = {
-/**
- * Filtra por obra.
- */
-obra_id?: string | null;
+  /**
+   * Filtra por obra.
+   */
+  obra_id?: string | null;
 };

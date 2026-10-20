@@ -5,31 +5,31 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { ActividadDetalleRespuestaConceptoId } from './actividadDetalleRespuestaConceptoId';
-import type { ActividadDetalleRespuestaFrenteId } from './actividadDetalleRespuestaFrenteId';
-import type { ActividadDetalleRespuestaDescripcion } from './actividadDetalleRespuestaDescripcion';
-import type { ActividadDetalleRespuestaFrenteNombre } from './actividadDetalleRespuestaFrenteNombre';
-import type { ActividadDetalleRespuestaConceptoClave } from './actividadDetalleRespuestaConceptoClave';
-import type { ActividadDetalleRespuestaUnidad } from './actividadDetalleRespuestaUnidad';
-import type { ActividadDetalleRespuestaNivelId } from './actividadDetalleRespuestaNivelId';
-import type { ActividadDetalleRespuestaNivelClave } from './actividadDetalleRespuestaNivelClave';
-import type { ActividadDetalleRespuestaNivelDescripcion } from './actividadDetalleRespuestaNivelDescripcion';
-import type { ActividadDetalleRespuestaEtapaId } from './actividadDetalleRespuestaEtapaId';
-import type { ActividadDetalleRespuestaEtapaClave } from './actividadDetalleRespuestaEtapaClave';
-import type { ActividadDetalleRespuestaEtapaDescripcion } from './actividadDetalleRespuestaEtapaDescripcion';
-import type { ActividadDetalleRespuestaContratacionClave } from './actividadDetalleRespuestaContratacionClave';
-import type { ActividadDetalleRespuestaEspecialidadClave } from './actividadDetalleRespuestaEspecialidadClave';
-import type { ActividadDetalleRespuestaOrdenCambio } from './actividadDetalleRespuestaOrdenCambio';
-import type { ActividadDetalleRespuestaContratistaId } from './actividadDetalleRespuestaContratistaId';
-import type { ActividadDetalleRespuestaContratistaNombre } from './actividadDetalleRespuestaContratistaNombre';
-import type { ActividadDetalleRespuestaCuadrillaId } from './actividadDetalleRespuestaCuadrillaId';
-import type { ActividadDetalleRespuestaCuadrillaNombre } from './actividadDetalleRespuestaCuadrillaNombre';
-import type { ActividadDetalleRespuestaCantAutorizada } from './actividadDetalleRespuestaCantAutorizada';
-import type { ActividadDetalleRespuestaHolgura } from './actividadDetalleRespuestaHolgura';
-import type { ActividadDetalleRespuestaDesfase } from './actividadDetalleRespuestaDesfase';
-import type { ActividadDetalleRespuestaFechaInicio } from './actividadDetalleRespuestaFechaInicio';
-import type { ActividadDetalleRespuestaFechaTermino } from './actividadDetalleRespuestaFechaTermino';
-import type { ActividadDetalleRespuestaNotas } from './actividadDetalleRespuestaNotas';
+import type { ActividadDetalleRespuestaConceptoId } from "./actividadDetalleRespuestaConceptoId";
+import type { ActividadDetalleRespuestaFrenteId } from "./actividadDetalleRespuestaFrenteId";
+import type { ActividadDetalleRespuestaDescripcion } from "./actividadDetalleRespuestaDescripcion";
+import type { ActividadDetalleRespuestaFrenteNombre } from "./actividadDetalleRespuestaFrenteNombre";
+import type { ActividadDetalleRespuestaConceptoClave } from "./actividadDetalleRespuestaConceptoClave";
+import type { ActividadDetalleRespuestaUnidad } from "./actividadDetalleRespuestaUnidad";
+import type { ActividadDetalleRespuestaNivelId } from "./actividadDetalleRespuestaNivelId";
+import type { ActividadDetalleRespuestaNivelClave } from "./actividadDetalleRespuestaNivelClave";
+import type { ActividadDetalleRespuestaNivelDescripcion } from "./actividadDetalleRespuestaNivelDescripcion";
+import type { ActividadDetalleRespuestaEtapaId } from "./actividadDetalleRespuestaEtapaId";
+import type { ActividadDetalleRespuestaEtapaClave } from "./actividadDetalleRespuestaEtapaClave";
+import type { ActividadDetalleRespuestaEtapaDescripcion } from "./actividadDetalleRespuestaEtapaDescripcion";
+import type { ActividadDetalleRespuestaContratacionClave } from "./actividadDetalleRespuestaContratacionClave";
+import type { ActividadDetalleRespuestaEspecialidadClave } from "./actividadDetalleRespuestaEspecialidadClave";
+import type { ActividadDetalleRespuestaOrdenCambio } from "./actividadDetalleRespuestaOrdenCambio";
+import type { ActividadDetalleRespuestaContratistaId } from "./actividadDetalleRespuestaContratistaId";
+import type { ActividadDetalleRespuestaContratistaNombre } from "./actividadDetalleRespuestaContratistaNombre";
+import type { ActividadDetalleRespuestaCuadrillaId } from "./actividadDetalleRespuestaCuadrillaId";
+import type { ActividadDetalleRespuestaCuadrillaNombre } from "./actividadDetalleRespuestaCuadrillaNombre";
+import type { ActividadDetalleRespuestaCantAutorizada } from "./actividadDetalleRespuestaCantAutorizada";
+import type { ActividadDetalleRespuestaHolgura } from "./actividadDetalleRespuestaHolgura";
+import type { ActividadDetalleRespuestaDesfase } from "./actividadDetalleRespuestaDesfase";
+import type { ActividadDetalleRespuestaFechaInicio } from "./actividadDetalleRespuestaFechaInicio";
+import type { ActividadDetalleRespuestaFechaTermino } from "./actividadDetalleRespuestaFechaTermino";
+import type { ActividadDetalleRespuestaNotas } from "./actividadDetalleRespuestaNotas";
 
 /**
  * Lo mismo, más lo que solo interesa al abrirla (§11.2 `GET /actividades/{id}`).

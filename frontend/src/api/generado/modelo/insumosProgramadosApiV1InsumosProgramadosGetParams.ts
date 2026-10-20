@@ -5,52 +5,52 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import type { TipoInsumo } from './tipoInsumo';
-import type { TipoSemana } from './tipoSemana';
+import type { TipoInsumo } from "./tipoInsumo";
+import type { TipoSemana } from "./tipoSemana";
 
 export type InsumosProgramadosApiV1InsumosProgramadosGetParams = {
-/**
- * Primer día del rango.
- */
-desde: string;
-/**
- * Último día del rango.
- */
-hasta: string;
-/**
- * Una columna por semana o por mes (§3.1).
- * @pattern ^(semana|mes)$
- */
-granularidad?: string;
-/**
- * Acota a una obra.
- */
-obra_id?: string | null;
-/**
- * Obras de un residente (§4).
- */
-residente_id?: string | null;
-/**
- * Obras de los residentes de un supervisor (§4).
- */
-supervisor_id?: string | null;
-/**
- * Simulación: en vez del cronograma real, el programa base y el presupuesto vigentes de este prototipo (§7.5).
- */
-prototipo_id?: string | null;
-/**
- * Cuántas casas simular. Solo con `prototipo_id`.
- * @minimum 1
- */
-n_casas?: number;
-/**
- * Filtra por tipo de insumo; vacío los trae los cuatro.
- */
-tipo?: TipoInsumo[] | null;
-/**
- * Con cuántos días de anticipación se necesita el material. Lo pisa el `dias_entrega` del insumo cuando está capturado.
- * @minimum 0
- */
-dias_anticipacion?: number;
-tipo_semana?: TipoSemana;
+  /**
+   * Primer día del rango.
+   */
+  desde: string;
+  /**
+   * Último día del rango.
+   */
+  hasta: string;
+  /**
+   * Una columna por semana o por mes (§3.1).
+   * @pattern ^(semana|mes)$
+   */
+  granularidad?: string;
+  /**
+   * Acota a una obra.
+   */
+  obra_id?: string | null;
+  /**
+   * Obras de un residente (§4).
+   */
+  residente_id?: string | null;
+  /**
+   * Obras de los residentes de un supervisor (§4).
+   */
+  supervisor_id?: string | null;
+  /**
+   * Simulación: en vez del cronograma real, el programa base y el presupuesto vigentes de este prototipo (§7.5).
+   */
+  prototipo_id?: string | null;
+  /**
+   * Cuántas casas simular. Solo con `prototipo_id`.
+   * @minimum 1
+   */
+  n_casas?: number;
+  /**
+   * Filtra por tipo de insumo; vacío los trae los cuatro.
+   */
+  tipo?: TipoInsumo[] | null;
+  /**
+   * Con cuántos días de anticipación se necesita el material. Lo pisa el `dias_entrega` del insumo cuando está capturado.
+   * @minimum 0
+   */
+  dias_anticipacion?: number;
+  tipo_semana?: TipoSemana;
 };

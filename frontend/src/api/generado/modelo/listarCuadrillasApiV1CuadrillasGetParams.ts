@@ -7,8 +7,8 @@
  */
 
 export type ListarCuadrillasApiV1CuadrillasGetParams = {
-/**
- * Incluye los registros dados de baja (§8.7).
- */
-incluir_inactivos?: boolean;
+  /**
+   * Incluye los registros dados de baja (§8.7).
+   */
+  incluir_inactivos?: boolean;
 };

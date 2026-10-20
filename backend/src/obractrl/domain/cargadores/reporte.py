@@ -77,8 +77,117 @@ class TipoPendiente(StrEnum):
     """El archivo trae su propia columna WBS y no coincide con la que el
     cargador de presupuesto jerárquico calcula de la secuencia de TIPO
     (extensión propia, §7.4). **No crítico**: no es de la identidad de la
-    fila (eso lo da CLAVE PADRE → CLAVE HIJO, §3.3) — es solo una alerta
-    para que alguien decida si carga la fila o corrige el archivo antes."""
+    fila (eso lo da CLAVE PADRE → CLAVE HIJO, o NIVEL + posición en el
+    árbol nativo de OPUS, §3.3) — es solo una alerta para que alguien
+    decida si carga la fila o corrige el archivo antes."""
+
+    NIVEL_INCONSISTENTE = "nivel_inconsistente"
+    """El árbol nativo de OPUS (`NIVEL` + posición, sin `clave_padre`,
+    extensión propia, §árbol en `domain.cargadores.presupuesto.
+    construir_arboles`) trae una fila cuyo `NIVEL` no es consistente con el
+    de su padre en la pila: salta más de un nivel de profundidad, o no
+    queda ningún padre en la pila a media reconstrucción (ni es la
+    primera fila del archivo ni declara nivel 0). **No crítico**: la fila
+    se sigue procesando igual —colgada del padre más cercano que haya—;
+    esto solo avisa para que alguien revise si el archivo trae un hueco."""
+
+    TRABAJO_SIN_CLASE = "trabajo_sin_clase"
+    """Un componente `Tipo=Contrato` de la matriz nativa de OPUS
+    (`ANALISIS_DE_BASICOS_CONCEPTOS.csv`, extensión propia, §domain.
+    cargadores.cpu._agrupar_conceptos_matriz) se cargó como la categoría
+    genérica `CategoriaExplosion.TRABAJO` en vez de `destajo`/
+    `subcontrato` porque su clave de insumo no cruzó contra
+    `CATALOGO_DE_TRABAJOS.csv` (§cabeceras.TRABAJOS_OPUS) —no vino
+    ``clase_trabajo`` en la llamada, o la clave simplemente no está en
+    ese catálogo—. **No crítico**: la fila se carga igual con la
+    categoría genérica —esto solo marca la fila para que alguien la
+    reclasifique a mano; no es un heurístico por prefijo de clave, eso el
+    cerebro ya lo prohíbe explícitamente."""
+
+    INSUMO_SIN_COSTEAR = "insumo_sin_costear"
+    """Ingeniería del lote (extensión propia, `domain.cargadores.
+    ingenieria_lote`, CONOCIMIENTO.md §11.8, estructura `SIN_COSTEAR`): una
+    línea de insumo sin clave y sin precio/importe — no identificable ni
+    valuable. **No crítico**: el resto del archivo se sigue procesando
+    igual; esto solo marca la línea para que alguien la complete a mano,
+    nunca se inventa la clave ni el precio que falta."""
+
+    ESTRUCTURA_AJENA_SIN_PARSEAR = "estructura_ajena_sin_parsear"
+    """Ingeniería del lote (extensión propia, `domain.cargadores.
+    ingenieria_lote`, CONOCIMIENTO.md §11.8, estructura `AJENA`): el ancho
+    de columna no es el de las demás ingenierías del lote — título y
+    encabezados propios, clave embebida en la descripción. **Crítico**:
+    esta fase no intenta extraer la clave por regex sobre texto libre
+    (adivinar un contrato que el archivo no da, §3.3); el archivo entero
+    queda pendiente de un trabajo de carga aparte."""
+
+    IDENTIDAD_PROTOTIPO_DUDOSA = "identidad_prototipo_dudosa"
+    """Identificación del prototipo de un lote (extensión propia, `domain.
+    ingenieria.identificacion`, CONOCIMIENTO.md §11.7/§11.5, P-30): la razón
+    `total de la ingeniería ÷ total del prototipo candidato` se desvía más
+    del umbral configurado para TODOS los prototipos del catálogo — ninguno
+    cae dentro de rango. **No crítico, pero nunca se autoasigna**: se
+    sugiere el candidato más cercano como propuesta, y queda en alerta
+    (`MODELO.md` §5a) hasta que alguien la confirme — "comparar por
+    contenido... ya atrapó una descripción que mentía" (§11.7); el sistema
+    detecta, nunca corrige solo."""
+
+    DESTAJO_AMBIGUO = "destajo_ambiguo"
+    """Reversión por destajo de la ingeniería del lote (extensión propia,
+    `domain.ingenieria.reversion`, CONOCIMIENTO.md §11.9/§11.13, D-489): un
+    destajo tiene más de un concepto candidato en su misma etapa, la suma
+    de lo presupuestado no cierra exacto contra la cantidad real, y ningún
+    insumo material de esa etapa usa un solo candidato para desempatar.
+    **No crítico**: se propone la suma real y la lista de candidatos, sin
+    elegir el más probable — "nunca se elige el más probable" (§11.9); el
+    reparto queda pendiente de que alguien lo resuelva."""
+
+    DESTAJO_SIN_CANDIDATO = "destajo_sin_candidato"
+    """Reversión por destajo de la ingeniería del lote (extensión propia,
+    `domain.ingenieria.reversion`, CONOCIMIENTO.md §11.9, D-489): la clave
+    del destajo no aparece en ninguna matriz del prototipo ya identificado,
+    ni directa ni dentro de un compuesto. **No crítico, nunca se autocorrige
+    por proximidad de clave** (§11.9: "un dígito de diferencia cae sobre
+    otro trabajo que sí existe"): si además hay exactamente un destajo que
+    el presupuesto exige y la ingeniería no trae, con la misma descripción/
+    cantidad/precio, la propuesta lleva las dos lecturas —errata de captura
+    o trabajo nuevo no autorizado— y se reporta sin tocar nada."""
+
+    RENDIMIENTO_NO_ENCONTRADO = "rendimiento_no_encontrado"
+    """Reconstrucción de un archivo `CON_CONCEPTO` (extensión propia,
+    `domain.ingenieria.con_concepto`, CONOCIMIENTO.md §11.8): un insumo del
+    bloque no aparece en la matriz del concepto que nombra `fila.agrupador`
+    —ni directo ni en profundidad de un compuesto (`apu.explotar`)— así que
+    no hay rendimiento con el que dividir `fila.cantidad`. **No crítico**:
+    nunca se inventa un rendimiento (§3.3); la fila queda pendiente de que
+    alguien la revise contra la matriz real."""
+
+    CONCEPTO_EN_VARIAS_ETAPAS = "concepto_en_varias_etapas"
+    """Reconstrucción de un archivo `CON_CONCEPTO` (extensión propia,
+    `domain.ingenieria.con_concepto`): el concepto que nombra el agrupador
+    aparece en el presupuesto del prototipo en más de una etapa, y no hay
+    forma de saber contra cuál de ellas comparar la cantidad reconstruida
+    sin adivinar. **No crítico, nunca se elige la más probable** (mismo
+    criterio que `DESTAJO_AMBIGUO`): se reporta la lista de etapas
+    candidatas y la cantidad reconstruida se queda sin aplicar."""
+
+    VINCULO_RECHAZADO = "vinculo_rechazado"
+    """Programa base de prototipo (extensión propia, `domain.cargadores.
+    programa_base`, cerebro `1-mundo/MODELO.md` §5c, D-442/D-443): un
+    vínculo de la columna `Vínculos` que se rechaza —autovínculo, formato,
+    predecesora desconocida o sin partidas, o un vínculo que cierra un
+    ciclo real—. **No crítico**: "un vínculo rechazado no detiene la
+    carga" (D-442/D-443); el resto del programa se construye igual, con
+    el vínculo rechazado fuera de sus dependencias."""
+
+    VINCULO_INCUMPLIDO = "vinculo_incumplido"
+    """Programa base de prototipo (extensión propia, `domain.cargadores.
+    programa_base`, cerebro `1-mundo/MODELO.md` §5c, D-442/D-443): un
+    vínculo cuyas fechas —las que el propio archivo ya trae— lo
+    contradicen (holgura negativa) pero que no cierra ningún ciclo.
+    **No crítico y SÍ se carga**: "un vínculo que las fechas contradicen
+    sí se carga, marcado como alerta" — a diferencia de `VINCULO_RECHAZADO`,
+    este vínculo queda entre las dependencias de la partida."""
 
 
 @dataclass(frozen=True, slots=True)

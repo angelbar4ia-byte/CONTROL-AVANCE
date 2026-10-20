@@ -6,11 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type RegistrarDispositivoPeticionPlataforma = typeof RegistrarDispositivoPeticionPlataforma[keyof typeof RegistrarDispositivoPeticionPlataforma];
-
+export type RegistrarDispositivoPeticionPlataforma =
+  (typeof RegistrarDispositivoPeticionPlataforma)[keyof typeof RegistrarDispositivoPeticionPlataforma];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const RegistrarDispositivoPeticionPlataforma = {
-  android: 'android',
-  ios: 'ios',
+  android: "android",
+  ios: "ios",
 } as const;
