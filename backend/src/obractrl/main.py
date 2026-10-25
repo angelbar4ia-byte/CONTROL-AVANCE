@@ -54,6 +54,7 @@ from obractrl.application.casos_uso.consultar_insumos_programados import (
 from obractrl.application.casos_uso.cuantificar import (
     EnlaceNoEncontrado,
     GobiernoDeCuantificacionInvalido,
+    PlanoNoEncontrado,
 )
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     ObraNoEncontrada,
@@ -1309,6 +1310,18 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="enlace-no-encontrado",
             titulo="Enlace de cuantificación no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(PlanoNoEncontrado)
+    async def _plano_no_encontrado(
+        request: Request, exc: PlanoNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="plano-no-encontrado",
+            titulo="Plano no encontrado",
             detalle=str(exc),
         )
 

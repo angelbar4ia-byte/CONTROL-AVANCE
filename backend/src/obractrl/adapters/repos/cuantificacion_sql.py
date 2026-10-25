@@ -19,6 +19,7 @@ escribir; `ST_Area`/`ST_Perimeter`/`ST_Length` —o el literal `1` para
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -105,6 +106,42 @@ class RepositorioPlanosSQL:
         ).mappings().first()
         return dict(fila) if fila is not None else None
 
+    async def obra_visible(self, obra_id: UUID) -> bool:
+        return bool(
+            (
+                await self._sesion.execute(
+                    text("select exists (select 1 from obra where id = :id)"),
+                    {"id": str(obra_id)},
+                )
+            ).scalar_one()
+        )
+
+    async def listar_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select p.id, p.obra_id, p.nombre, p.archivo_url, p.version,
+                           p.capas, p.subido_por, p.created_at,
+                           count(t.id) as n_trazos,
+                           -- Trazados sobre una versión anterior del plano:
+                           -- quedan marcados para revisión, no se recalculan
+                           -- solos (MODELO.md §1b, "Si el plano cambia").
+                           count(t.id) filter (
+                               where t.version_plano < p.version
+                           ) as n_trazos_por_revisar
+                      from plano p
+                      left join trazo t on t.plano_id = p.id
+                     where p.obra_id = :obra_id
+                     group by p.id
+                     order by p.nombre, p.version desc, p.created_at
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
 
 class RepositorioTrazosSQL:
     def __init__(self, sesion: AsyncSession) -> None:
@@ -149,6 +186,62 @@ class RepositorioTrazosSQL:
             )
         ).scalar_one()
         return fila
+
+    async def de_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
+        """Los trazos de un plano con sus enlaces, en dos consultas.
+
+        `ST_AsGeoJSON(geometria, 9, 0)`: sin la propiedad `crs` (opción 0) —
+        las coordenadas son **de plano**, SRID 0, no lon/lat (MODELO.md §1b,
+        "Coordenadas de plano, no geográficas"); un `crs` inventado haría
+        creer a un visor que son geográficas.
+        """
+        trazos = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select t.id, t.version_plano, t.capa, t.fuente, t.autor_id,
+                           t.created_at,
+                           (t.version_plano < p.version) as por_revisar,
+                           ST_AsGeoJSON(t.geometria, 9, 0) as geojson
+                      from trazo t
+                      join plano p on p.id = t.plano_id
+                     where t.plano_id = :plano_id
+                     order by t.created_at, t.id
+                    """
+                ),
+                {"plano_id": str(plano_id)},
+            )
+        ).mappings().all()
+
+        enlaces = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    select e.id, e.trazo_id, e.tipo_nodo, e.actividad_id,
+                           e.prototipo_nodo_id, e.medida, e.factor, e.vigente,
+                           {_MEDIDA_VALOR_SQL} as medida_valor
+                      from enlace_cuantificacion e
+                      join trazo t on t.id = e.trazo_id
+                     where t.plano_id = :plano_id
+                     order by e.created_at, e.id
+                    """
+                ),
+                {"plano_id": str(plano_id)},
+            )
+        ).mappings().all()
+
+        por_trazo: dict[Any, list[dict[str, Any]]] = {}
+        for enlace in enlaces:
+            por_trazo.setdefault(enlace["trazo_id"], []).append(dict(enlace))
+
+        return [
+            {
+                **{k: v for k, v in trazo.items() if k != "geojson"},
+                "geometria": json.loads(trazo["geojson"]),
+                "enlaces": por_trazo.get(trazo["id"], []),
+            }
+            for trazo in trazos
+        ]
 
 
 class RepositorioEnlacesCuantificacionSQL:
@@ -257,6 +350,31 @@ class RepositorioEnlacesCuantificacionSQL:
                         str(prototipo_nodo_id) if prototipo_nodo_id else None
                     ),
                 },
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
+    async def de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    select e.id, e.tipo_nodo, e.actividad_id,
+                           e.prototipo_nodo_id, e.medida, e.factor, e.vigente,
+                           {_MEDIDA_VALOR_SQL} as medida_valor,
+                           (t.version_plano < p.version) as por_revisar,
+                           coalesce(a.descripcion, pn.nombre) as descripcion,
+                           coalesce(a.cant_base, pn.cantidad) as cant_base
+                      from enlace_cuantificacion e
+                      join trazo t on t.id = e.trazo_id
+                      join plano p on p.id = t.plano_id
+                      left join actividad a on a.id = e.actividad_id
+                      left join prototipo_nodo pn on pn.id = e.prototipo_nodo_id
+                     where p.obra_id = :obra_id
+                     order by e.created_at, e.id
+                    """
+                ),
+                {"obra_id": str(obra_id)},
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]

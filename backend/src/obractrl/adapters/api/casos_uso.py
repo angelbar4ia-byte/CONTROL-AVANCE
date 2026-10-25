@@ -104,6 +104,7 @@ from obractrl.application.casos_uso.consultar_planeacion import (
     ConsultarPlaneacion,
 )
 from obractrl.application.casos_uso.cuantificar import (
+    ConsultarCuantificacion,
     ReemplazarEnlace,
     RegistrarNotaPlano,
     RegistrarPlano,
@@ -242,6 +243,7 @@ __all__ = [
     "ConsultarArbolProgramaDep",
     "ConsultarCargaDep",
     "ConsultarCierreDeObraDep",
+    "ConsultarCuantificacionDep",
     "ConsultarExpedienteDep",
     "ConsultarInsumosProgramadosDep",
     "ConsultarPlaneacionDep",
@@ -604,6 +606,14 @@ ArmarExpedienteDep = Annotated[ArmarExpediente, Depends(obtener_armar_expediente
 # --- Cuantificador (cerebro MODELO.md §1b, migración 0057) --------------
 
 
+def obtener_consultar_cuantificacion(sesion: SesionRLS) -> ConsultarCuantificacion:
+    return ConsultarCuantificacion(
+        planos=RepositorioPlanosSQL(sesion),
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+    )
+
+
 def obtener_registrar_plano(sesion: SesionRLS) -> RegistrarPlano:
     return RegistrarPlano(
         planos=RepositorioPlanosSQL(sesion),
@@ -639,6 +649,9 @@ def obtener_registrar_nota_plano(sesion: SesionRLS) -> RegistrarNotaPlano:
     )
 
 
+ConsultarCuantificacionDep = Annotated[
+    ConsultarCuantificacion, Depends(obtener_consultar_cuantificacion)
+]
 RegistrarPlanoDep = Annotated[RegistrarPlano, Depends(obtener_registrar_plano)]
 RegistrarTrazoConEnlacesDep = Annotated[
     RegistrarTrazoConEnlaces, Depends(obtener_registrar_trazo_con_enlaces)

@@ -5,24 +5,39 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import { useMutation } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  DataTag,
+  DefinedInitialDataOptions,
+  DefinedUseInfiniteQueryResult,
+  DefinedUseQueryResult,
+  InfiniteData,
   MutationFunction,
   QueryClient,
+  QueryFunction,
+  QueryKey,
+  UndefinedInitialDataOptions,
+  UseInfiniteQueryOptions,
+  UseInfiniteQueryResult,
   UseMutationOptions,
   UseMutationResult,
+  UseQueryOptions,
+  UseQueryResult,
 } from "@tanstack/react-query";
 
 import type {
   HTTPValidationError,
+  NodoCuantificadoRespuesta,
   NotaPlanoPeticion,
   NotaPlanoRespuesta,
+  PlanoDetalleRespuesta,
   PlanoPeticion,
   PlanoRespuesta,
   ReemplazarEnlacePeticion,
   ResultadoRecalculoRespuesta,
   TrazoPeticion,
   TrazoRespuesta,
+  TrazosDePlanoRespuesta,
 } from ".././modelo";
 
 import { peticion } from "../../cliente";
@@ -133,6 +148,358 @@ export const useRegistrarPlanoApiV1ObrasObraIdPlanosPost = <
   return useMutation(mutationOptions, queryClient);
 };
 /**
+ * @summary Planos de una obra
+ */
+export const listarPlanosApiV1ObrasObraIdPlanosGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<PlanoDetalleRespuesta[]>(
+    { url: `/api/v1/obras/${obraId}/planos`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getListarPlanosApiV1ObrasObraIdPlanosGetInfiniteQueryKey = (
+  obraId?: string,
+) => {
+  return ["infinite", `/api/v1/obras/${obraId}/planos`] as const;
+};
+
+export const getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey = (
+  obraId?: string,
+) => {
+  return [`/api/v1/obras/${obraId}/planos`] as const;
+};
+
+export const getListarPlanosApiV1ObrasObraIdPlanosGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarPlanosApiV1ObrasObraIdPlanosGetInfiniteQueryKey(obraId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>
+  > = ({ signal }) =>
+    listarPlanosApiV1ObrasObraIdPlanosGet(obraId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!obraId,
+    ...queryOptions,
+  } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListarPlanosApiV1ObrasObraIdPlanosGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>
+  >;
+export type ListarPlanosApiV1ObrasObraIdPlanosGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useListarPlanosApiV1ObrasObraIdPlanosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarPlanosApiV1ObrasObraIdPlanosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarPlanosApiV1ObrasObraIdPlanosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Planos de una obra
+ */
+
+export function useListarPlanosApiV1ObrasObraIdPlanosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarPlanosApiV1ObrasObraIdPlanosGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getListarPlanosApiV1ObrasObraIdPlanosGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>
+  > = ({ signal }) =>
+    listarPlanosApiV1ObrasObraIdPlanosGet(obraId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!obraId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListarPlanosApiV1ObrasObraIdPlanosGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>
+>;
+export type ListarPlanosApiV1ObrasObraIdPlanosGetQueryError =
+  void | HTTPValidationError;
+
+export function useListarPlanosApiV1ObrasObraIdPlanosGet<
+  TData = Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarPlanosApiV1ObrasObraIdPlanosGet<
+  TData = Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarPlanosApiV1ObrasObraIdPlanosGet<
+  TData = Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Planos de una obra
+ */
+
+export function useListarPlanosApiV1ObrasObraIdPlanosGet<
+  TData = Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarPlanosApiV1ObrasObraIdPlanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarPlanosApiV1ObrasObraIdPlanosGetQueryOptions(
+    obraId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
  * Un trazo, varios enlaces (MODELO.md §1b). Por cada nodo tocado,
 recalcula la cantidad vigente y aplica su consecuencia: compara contra
 `actividad.cant_base` (candidata de `Desviacion`) o sobreescribe
@@ -235,6 +602,361 @@ export const useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * `FeatureCollection` con un `Feature` por trazo (MODELO.md §1b, "Cómo viaja
+la geometría hacia el frontend"). Los enlaces reemplazados vienen también,
+con `vigente = false`: quedan como evidencia y no cuentan en `nodo_ids`.
+ * @summary Trazos de un plano, como GeoJSON
+ */
+export const trazosDePlanoApiV1PlanosPlanoIdTrazosGet = (
+  planoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<TrazosDePlanoRespuesta>(
+    { url: `/api/v1/planos/${planoId}/trazos`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetInfiniteQueryKey = (
+  planoId?: string,
+) => {
+  return ["infinite", `/api/v1/planos/${planoId}/trazos`] as const;
+};
+
+export const getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey = (
+  planoId?: string,
+) => {
+  return [`/api/v1/planos/${planoId}/trazos`] as const;
+};
+
+export const getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetInfiniteQueryKey(planoId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>
+  > = ({ signal }) =>
+    trazosDePlanoApiV1PlanosPlanoIdTrazosGet(planoId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!planoId,
+    ...queryOptions,
+  } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type TrazosDePlanoApiV1PlanosPlanoIdTrazosGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>
+  >;
+export type TrazosDePlanoApiV1PlanosPlanoIdTrazosGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useTrazosDePlanoApiV1PlanosPlanoIdTrazosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+          TError,
+          Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useTrazosDePlanoApiV1PlanosPlanoIdTrazosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+          TError,
+          Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useTrazosDePlanoApiV1PlanosPlanoIdTrazosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Trazos de un plano, como GeoJSON
+ */
+
+export function useTrazosDePlanoApiV1PlanosPlanoIdTrazosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetInfiniteQueryOptions(
+      planoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey(planoId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>
+  > = ({ signal }) =>
+    trazosDePlanoApiV1PlanosPlanoIdTrazosGet(planoId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!planoId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type TrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>
+>;
+export type TrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryError =
+  void | HTTPValidationError;
+
+export function useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet<
+  TData = Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+          TError,
+          Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet<
+  TData = Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+          TError,
+          Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet<
+  TData = Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Trazos de un plano, como GeoJSON
+ */
+
+export function useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet<
+  TData = Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof trazosDePlanoApiV1PlanosPlanoIdTrazosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryOptions(
+    planoId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
 /**
  * Marca `vigente=false` y, si se manda `nuevo`, crea el reemplazo
 vigente en la misma llamada — siempre una acción explícita (MODELO.md
@@ -465,3 +1187,482 @@ export const useRegistrarNotaPlanoApiV1PlanosPlanoIdNotasPost = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * @summary Cómo va la cuantificación de la obra, nodo por nodo
+ */
+export const estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<NodoCuantificadoRespuesta[]>(
+    { url: `/api/v1/obras/${obraId}/cuantificacion`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetInfiniteQueryKey =
+  (obraId?: string) => {
+    return ["infinite", `/api/v1/obras/${obraId}/cuantificacion`] as const;
+  };
+
+export const getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey =
+  (obraId?: string) => {
+    return [`/api/v1/obras/${obraId}/cuantificacion`] as const;
+  };
+
+export const getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetInfiniteQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+        >
+      >
+    > = ({ signal }) =>
+      estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type EstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet>
+    >
+  >;
+export type EstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Cómo va la cuantificación de la obra, nodo por nodo
+ */
+
+export function useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet>
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+        >
+      >
+    > = ({ signal }) =>
+      estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type EstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet>
+    >
+  >;
+export type EstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryError =
+  void | HTTPValidationError;
+
+export function useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet<
+  TData = Awaited<
+    ReturnType<typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet<
+  TData = Awaited<
+    ReturnType<typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet<
+  TData = Awaited<
+    ReturnType<typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Cómo va la cuantificación de la obra, nodo por nodo
+ */
+
+export function useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet<
+  TData = Awaited<
+    ReturnType<typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof estadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}

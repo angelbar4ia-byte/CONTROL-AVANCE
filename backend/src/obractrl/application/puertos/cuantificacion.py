@@ -45,6 +45,18 @@ class RepositorioPlanos(Protocol):
 
     async def obtener(self, plano_id: UUID) -> dict[str, Any] | None: ...
 
+    async def obra_visible(self, obra_id: UUID) -> bool:
+        """¿La obra existe y entra en el alcance de quien consulta (RLS)?
+        Para responder 404 en vez de una lista vacía que se confunde con "esta
+        obra no tiene planos"."""
+        ...
+
+    async def listar_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Planos de una obra con `n_trazos` y `n_trazos_por_revisar` (los
+        trazados sobre una versión anterior del plano, MODELO.md §1b "Si el
+        plano cambia")."""
+        ...
+
 
 @runtime_checkable
 class RepositorioTrazos(Protocol):
@@ -67,6 +79,13 @@ class RepositorioTrazos(Protocol):
         fuente: str,
         autor_id: UUID,
     ) -> UUID: ...
+
+    async def de_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
+        """Trazos de un plano con su geometría ya en **GeoJSON** (dict) y
+        todos sus enlaces —vigentes y reemplazados— con `medida_valor`
+        calculado (MODELO.md §1b, "Cómo viaja la geometría hacia el
+        frontend"). GeoJSON se genera al leer; nunca se guarda."""
+        ...
 
 
 @runtime_checkable
@@ -110,6 +129,13 @@ class RepositorioEnlacesCuantificacion(Protocol):
         (§12.11: el cálculo con PostGIS y el filtro de vigencia están
         separados a propósito — esta consulta solo calcula, el dominio
         decide qué sumar)."""
+        ...
+
+    async def de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Todos los enlaces de los planos de una obra, con la descripción y la
+        cantidad base de su nodo (`actividad` o `prototipo_nodo`) y si el
+        trazo quedó sobre una versión anterior del plano. Misma separación que
+        `enlaces_de_nodo`: aquí solo se calcula, el dominio decide qué sumar."""
         ...
 
 

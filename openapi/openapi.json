@@ -8508,6 +8508,59 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Planos de una obra",
+        "operationId": "listar_planos_api_v1_obras__obra_id__planos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlanoDetalleRespuesta"
+                  },
+                  "title": "Response Listar Planos Api V1 Obras  Obra Id  Planos Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/planos/{plano_id}/trazos": {
@@ -8561,6 +8614,56 @@
           },
           "422": {
             "description": "Factor no positivo, medida/nodo inconsistentes."
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Trazos de un plano, como GeoJSON",
+        "description": "`FeatureCollection` con un `Feature` por trazo (MODELO.md §1b, \"Cómo viaja\nla geometría hacia el frontend\"). Los enlaces reemplazados vienen también,\ncon `vigente = false`: quedan como evidencia y no cuentan en `nodo_ids`.",
+        "operationId": "trazos_de_plano_api_v1_planos__plano_id__trazos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrazosDePlanoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El plano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -8678,6 +8781,61 @@
           },
           "403": {
             "description": "Solo Residente y Supervisor anotan el plano (§1b)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/cuantificacion": {
+      "get": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Cómo va la cuantificación de la obra, nodo por nodo",
+        "operationId": "estado_de_cuantificacion_api_v1_obras__obra_id__cuantificacion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NodoCuantificadoRespuesta"
+                  },
+                  "title": "Response Estado De Cuantificacion Api V1 Obras  Obra Id  Cuantificacion Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
           },
           "422": {
             "description": "Validation Error",
@@ -13712,6 +13870,62 @@
         "title": "EfectoRespuesta",
         "description": "Qué cambió en la obra al autorizar."
       },
+      "EnlaceDeTrazoRespuesta": {
+        "properties": {
+          "enlace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Enlace Id"
+          },
+          "tipo_nodo": {
+            "type": "string",
+            "title": "Tipo Nodo"
+          },
+          "nodo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Nodo Id",
+            "description": "`actividad_id` o `prototipo_nodo_id`, según `tipo_nodo`."
+          },
+          "medida": {
+            "type": "string",
+            "title": "Medida"
+          },
+          "factor": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Factor"
+          },
+          "vigente": {
+            "type": "boolean",
+            "title": "Vigente"
+          },
+          "medida_valor": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Medida Valor",
+            "description": "`ST_Area`/`ST_Perimeter`/`ST_Length`, o 1 si es conteo."
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "description": "`medida_valor × factor`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "enlace_id",
+          "tipo_nodo",
+          "nodo_id",
+          "medida",
+          "factor",
+          "vigente",
+          "medida_valor",
+          "cantidad"
+        ],
+        "title": "EnlaceDeTrazoRespuesta"
+      },
       "EnsambleCreadoRespuesta": {
         "properties": {
           "id": {
@@ -16874,6 +17088,86 @@
         ],
         "title": "NivelRespuesta"
       },
+      "NodoCuantificadoRespuesta": {
+        "properties": {
+          "tipo_nodo": {
+            "type": "string",
+            "title": "Tipo Nodo"
+          },
+          "nodo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Nodo Id"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "cant_base": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cant Base"
+          },
+          "cantidad_medida": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Medida",
+            "description": "Suma de `medida × factor` de los enlaces **vigentes**."
+          },
+          "diferencia": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia",
+            "description": "`cantidad_medida − cant_base`. Informa, no corrige: sobre una actividad la medida se compara y nunca reemplaza a `cant_base`."
+          },
+          "enlaces_vigentes": {
+            "type": "integer",
+            "title": "Enlaces Vigentes"
+          },
+          "enlaces_reemplazados": {
+            "type": "integer",
+            "title": "Enlaces Reemplazados"
+          },
+          "trazos_por_revisar": {
+            "type": "integer",
+            "title": "Trazos Por Revisar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo_nodo",
+          "nodo_id",
+          "descripcion",
+          "cant_base",
+          "cantidad_medida",
+          "diferencia",
+          "enlaces_vigentes",
+          "enlaces_reemplazados",
+          "trazos_por_revisar"
+        ],
+        "title": "NodoCuantificadoRespuesta"
+      },
       "NodoDelArbolRespuesta": {
         "properties": {
           "nodo_id": {
@@ -18172,6 +18466,86 @@
           "frentes"
         ],
         "title": "PlaneacionRespuesta"
+      },
+      "PlanoDetalleRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "archivo_url": {
+            "type": "string",
+            "title": "Archivo Url"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "capas": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capas"
+          },
+          "subido_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subido Por"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "n_trazos": {
+            "type": "integer",
+            "title": "N Trazos"
+          },
+          "n_trazos_por_revisar": {
+            "type": "integer",
+            "title": "N Trazos Por Revisar",
+            "description": "Trazos hechos sobre una versión anterior del plano: quedan marcados para revisión y no se recalculan solos (MODELO.md §1b)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "nombre",
+          "archivo_url",
+          "version",
+          "capas",
+          "subido_por",
+          "created_at",
+          "n_trazos",
+          "n_trazos_por_revisar"
+        ],
+        "title": "PlanoDetalleRespuesta"
       },
       "PlanoPeticion": {
         "properties": {
@@ -20956,6 +21330,37 @@
         "title": "TramoDTO",
         "description": "Un segmento de una actividad interrumpida (§7.6).\n\nLista vacía = actividad continua, el caso normal. Con tramos, la\n`duracion_dias` de la actividad es la **suma** de sus tramos —los días de\ntrabajo— y lo que ocupa en el calendario es\n`max(offset_dias + duracion_dias)`, que es lo que el CPM encadena."
       },
+      "TrazoFeature": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "Feature",
+            "title": "Type",
+            "default": "Feature"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "geometry": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Geometry",
+            "description": "Geometría GeoJSON en **coordenadas de plano** (SRID 0), no lon/lat: es una desviación deliberada de RFC 7946 (MODELO.md §1b)."
+          },
+          "properties": {
+            "$ref": "#/components/schemas/TrazoPropiedades"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "geometry",
+          "properties"
+        ],
+        "title": "TrazoFeature"
+      },
       "TrazoPeticion": {
         "properties": {
           "version_plano": {
@@ -21000,6 +21405,78 @@
         "title": "TrazoPeticion",
         "description": "Alta de un trazo con sus enlaces (MODELO.md §1b, Decisión 3 de 3:\nWKT para capturar un trazo nuevo mientras se dibuja)."
       },
+      "TrazoPropiedades": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "version_plano": {
+            "type": "integer",
+            "title": "Version Plano"
+          },
+          "capa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capa"
+          },
+          "fuente": {
+            "type": "string",
+            "title": "Fuente"
+          },
+          "autor_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autor Id"
+          },
+          "por_revisar": {
+            "type": "boolean",
+            "title": "Por Revisar"
+          },
+          "nodo_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Nodo Ids",
+            "description": "Nodos a los que el trazo alimenta con un enlace **vigente**: lo que el visor necesita para resolver el clic (MODELO.md §1b). Un trazo puede alimentar varios (el área da el piso, el perímetro el zoclo)."
+          },
+          "enlaces": {
+            "items": {
+              "$ref": "#/components/schemas/EnlaceDeTrazoRespuesta"
+            },
+            "type": "array",
+            "title": "Enlaces"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "version_plano",
+          "capa",
+          "fuente",
+          "autor_id",
+          "por_revisar",
+          "nodo_ids",
+          "enlaces"
+        ],
+        "title": "TrazoPropiedades"
+      },
       "TrazoRespuesta": {
         "properties": {
           "trazo_id": {
@@ -21030,6 +21507,40 @@
           "recalculos"
         ],
         "title": "TrazoRespuesta"
+      },
+      "TrazosDePlanoRespuesta": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "FeatureCollection",
+            "title": "Type",
+            "default": "FeatureCollection"
+          },
+          "plano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plano Id"
+          },
+          "version_plano": {
+            "type": "integer",
+            "title": "Version Plano"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/TrazoFeature"
+            },
+            "type": "array",
+            "title": "Features"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plano_id",
+          "version_plano",
+          "features"
+        ],
+        "title": "TrazosDePlanoRespuesta",
+        "description": "`FeatureCollection` de GeoJSON con los trazos de un plano."
       },
       "UnidadRespuesta": {
         "properties": {

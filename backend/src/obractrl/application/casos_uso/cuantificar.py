@@ -54,6 +54,9 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
+from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
+    ObraNoEncontrada,
+)
 from obractrl.application.puertos.cuantificacion import (
     RepositorioEnlacesCuantificacion,
     RepositorioNotasPlano,
@@ -85,12 +88,15 @@ __all__ = [
     "ComandoReemplazarEnlace",
     "ComandoRegistrarNotaPlano",
     "ComandoRegistrarTrazo",
+    "ConsultarCuantificacion",
     "EnlaceNoEncontrado",
     "ErrorDeCuantificacion",
     "GobiernoDeCuantificacionInvalido",
     "IntencionEnlace",
+    "NodoCuantificado",
     "NotaPlanoRegistrada",
     "NuevoEnlace",
+    "PlanoNoEncontrado",
     "ReemplazarEnlace",
     "RegistrarNotaPlano",
     "RegistrarPlano",
@@ -115,6 +121,11 @@ class GobiernoDeCuantificacionInvalido(ValueError):
 
 class EnlaceNoEncontrado(LookupError):
     """El enlace a reemplazar no existe o salió del alcance (RLS)."""
+
+
+class PlanoNoEncontrado(LookupError):
+    """El plano no existe o salió del alcance (RLS): indistinguibles a
+    propósito (§12.4)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -563,3 +574,113 @@ class RegistrarPlano:
             await self._uow.commit()
 
         return plano_id
+
+
+@dataclass(frozen=True, slots=True)
+class NodoCuantificado:
+    """Cómo va la cuantificación de un nodo (`actividad` o `prototipo_nodo`).
+
+    `cant_base` es lo que el presupuesto trae para ese nodo y `cantidad_medida`
+    lo que suman sus enlaces vigentes; la diferencia **informa**, no corrige:
+    sobre una actividad la medida se compara y nunca reemplaza a `cant_base`
+    (migración 0057, hueco 2).
+    """
+
+    tipo_nodo: str
+    nodo_id: UUID
+    descripcion: str | None
+    cant_base: Decimal | None
+    cantidad_medida: Decimal
+    enlaces_vigentes: int
+    enlaces_reemplazados: int
+    trazos_por_revisar: int
+    """Enlaces vigentes cuyo trazo se hizo sobre una versión anterior del
+    plano: su cantidad **no** se recalculó sola (MODELO.md §1b)."""
+
+    @property
+    def diferencia(self) -> Decimal | None:
+        if self.cant_base is None:
+            return None
+        return self.cantidad_medida - self.cant_base
+
+
+class ConsultarCuantificacion:
+    """Lecturas del cuantificador: planos de una obra, los trazos de un plano
+    como GeoJSON y cómo va la cuantificación nodo por nodo.
+
+    **Lectura abierta a quien tiene acceso a la obra** (MODELO.md §1b: "ver
+    cómo está cuantificada la obra ... es lectura, no un permiso aparte"): no
+    hay guarda de rol; el alcance lo impone RLS (§12.4).
+    """
+
+    def __init__(
+        self,
+        *,
+        planos: RepositorioPlanos,
+        trazos: RepositorioTrazos,
+        enlaces: RepositorioEnlacesCuantificacion,
+    ) -> None:
+        self._planos = planos
+        self._trazos = trazos
+        self._enlaces = enlaces
+
+    async def planos_de_obra(self, obra_id: UUID) -> list[dict]:
+        await self._exigir_obra(obra_id)
+        return await self._planos.listar_de_obra(obra_id)
+
+    async def trazos_de_plano(self, plano_id: UUID) -> tuple[dict, list[dict]]:
+        """`(plano, trazos)`; cada trazo trae su geometría GeoJSON y sus
+        enlaces con `medida_valor`."""
+        plano = await self._planos.obtener(plano_id)
+        if plano is None:
+            raise PlanoNoEncontrado(
+                f"El plano {plano_id} no existe o no está en tu alcance."
+            )
+        return plano, await self._trazos.de_plano(plano_id)
+
+    async def estado_de_obra(self, obra_id: UUID) -> list[NodoCuantificado]:
+        await self._exigir_obra(obra_id)
+        filas = await self._enlaces.de_obra(obra_id)
+
+        por_nodo: dict[tuple[str, UUID], list[dict]] = {}
+        for fila in filas:
+            nodo_id = fila["actividad_id"] or fila["prototipo_nodo_id"]
+            por_nodo.setdefault((str(fila["tipo_nodo"]), nodo_id), []).append(fila)
+
+        nodos: list[NodoCuantificado] = []
+        for (tipo_nodo, nodo_id), enlaces in por_nodo.items():
+            vigentes = [e for e in enlaces if e["vigente"]]
+            primero = enlaces[0]
+            nodos.append(
+                NodoCuantificado(
+                    tipo_nodo=tipo_nodo,
+                    nodo_id=nodo_id,
+                    descripcion=primero["descripcion"],
+                    cant_base=(
+                        Decimal(str(primero["cant_base"]))
+                        if primero["cant_base"] is not None
+                        else None
+                    ),
+                    # El dominio suma; el SQL solo midió (§12.11).
+                    cantidad_medida=cantidad_medida(
+                        [
+                            MedidaDeEnlace(
+                                medida_valor=Decimal(str(e["medida_valor"])),
+                                factor=Decimal(str(e["factor"])),
+                                vigente=bool(e["vigente"]),
+                            )
+                            for e in enlaces
+                        ]
+                    ),
+                    enlaces_vigentes=len(vigentes),
+                    enlaces_reemplazados=len(enlaces) - len(vigentes),
+                    trazos_por_revisar=sum(1 for e in vigentes if e["por_revisar"]),
+                )
+            )
+        return nodos
+
+    async def _exigir_obra(self, obra_id: UUID) -> None:
+        if not await self._planos.obra_visible(obra_id):
+            raise ObraNoEncontrada(
+                f"La obra {obra_id} no existe o no está en tu alcance."
+            )
