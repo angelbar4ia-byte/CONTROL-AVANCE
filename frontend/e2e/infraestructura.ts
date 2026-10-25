@@ -1,4 +1,6 @@
-import { test as base, expect, type Page } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+
+import { test as base, expect, type APIRequestContext, type Page } from '@playwright/test';
 
 /**
  * Arnés de los E2E que sí necesitan backend (§11.3).
@@ -17,6 +19,16 @@ import { test as base, expect, type Page } from '@playwright/test';
  *   E2E_PASSWORD   contraseña, y una fila en `usuario` con org y rol (§12.4:
  *                  el JWT trae `org_id` y `rol`; sin la fila no hay contexto).
  *
+ * Los workflows que cruzan roles (§11.3 C: residente → supervisor → control)
+ * necesitan además un usuario por rol, todos con la misma `E2E_PASSWORD`:
+ *
+ *   E2E_USUARIO_RESIDENTE · E2E_USUARIO_SUPERVISOR · E2E_USUARIO_CONTROL ·
+ *   E2E_USUARIO_SUPER_INTENDENTE
+ *
+ * Con la semilla de `e2e/soporte/semilla.sql` y la auth falsa de
+ * `e2e/soporte/auth-falsa.mjs` (ver `e2e/soporte/README.md`) salen de una sola
+ * corrida, sin un proyecto de Supabase.
+ *
  * Las credenciales **no se versionan** ni traen default, ni siquiera de
  * prueba: aquí aplica lo mismo que en `backend/.env.example`.
  */
@@ -26,6 +38,24 @@ export const USUARIO = process.env.E2E_USUARIO ?? '';
 export const PASSWORD = process.env.E2E_PASSWORD ?? '';
 
 export const hayInfraestructura = Boolean(API_URL && USUARIO && PASSWORD);
+
+/** Un usuario por rol, para los workflows que cambian de actor entre pasos. */
+export const ROLES = {
+  residente: process.env.E2E_USUARIO_RESIDENTE ?? '',
+  supervisor: process.env.E2E_USUARIO_SUPERVISOR ?? '',
+  control: process.env.E2E_USUARIO_CONTROL ?? '',
+  superIntendente: process.env.E2E_USUARIO_SUPER_INTENDENTE ?? '',
+} as const;
+
+export type Rol = keyof typeof ROLES;
+
+export const hayRoles = (...roles: Rol[]): boolean =>
+  hayInfraestructura && roles.every((rol) => Boolean(ROLES[rol]));
+
+export const motivoSinRoles = (...roles: Rol[]): string =>
+  `Requiere un usuario por rol (${roles
+    .map((rol) => `E2E_USUARIO_${rol.replace(/[A-Z]/g, (c) => `_${c}`).toUpperCase()}`)
+    .join(', ')}) además de la infraestructura base (ver e2e/soporte/README.md).`;
 
 export const MOTIVO_SALTO =
   'Requiere E2E_API_URL, E2E_USUARIO y E2E_PASSWORD apuntando a una API con ' +
@@ -38,9 +68,9 @@ export const MOTIVO_SALTO =
  * guarda supabase-js su sesión hoy. Pasar por el formulario ejercita el camino
  * que usa la persona y sobrevive a un cambio de almacenamiento.
  */
-export async function entrar(page: Page): Promise<void> {
+export async function entrar(page: Page, correo: string = USUARIO): Promise<void> {
   await page.goto('/');
-  await page.getByLabel('Correo').fill(USUARIO);
+  await page.getByLabel('Correo').fill(correo);
   await page.getByLabel('Contraseña').fill(PASSWORD);
   await page.getByRole('button', { name: 'Entrar' }).click();
 
@@ -50,6 +80,124 @@ export async function entrar(page: Page): Promise<void> {
   await expect(
     page.getByRole('navigation').or(page.getByText(/sesión no está vinculada/i)),
   ).toBeVisible({ timeout: 15_000 });
+}
+
+/** Entra con el usuario de un rol (§11.3: cada paso lo hace un actor distinto). */
+export async function entrarComo(page: Page, rol: Rol): Promise<void> {
+  await entrar(page, ROLES[rol]);
+}
+
+/**
+ * Para los pasos que la web no ofrece (p. ej. el residente solicita un cierre:
+ * eso es de la app móvil, §5.2) se llama a la API con el token **real** del
+ * rol, que es exactamente la llamada que haría el teléfono.
+ *
+ * El token sale del endpoint de contraseña de GoTrue —el mismo del login—, sin
+ * leer el almacenamiento de supabase-js: así sobrevive a un cambio de dónde
+ * guarda su sesión, que es el mismo motivo por el que `entrar()` pasa por el
+ * formulario.
+ */
+const SUPABASE_URL = process.env.E2E_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY =
+  process.env.E2E_SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY ?? '';
+
+export async function tokenDe(request: APIRequestContext, rol: Rol): Promise<string> {
+  const respuesta = await request.post(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    headers: { apikey: SUPABASE_ANON_KEY },
+    data: { email: ROLES[rol], password: PASSWORD },
+  });
+  expect(respuesta.ok(), `login de ${rol} en el proveedor de auth`).toBeTruthy();
+  return (await respuesta.json()).access_token as string;
+}
+
+/** Llama a la API como un rol y devuelve la respuesta cruda, sea cual sea su estatus. */
+export async function solicitarApi(
+  request: APIRequestContext,
+  rol: Rol,
+  metodo: 'GET' | 'POST' | 'PATCH',
+  ruta: string,
+  cuerpo?: unknown,
+) {
+  const token = await tokenDe(request, rol);
+  return request.fetch(`${API_URL}/api/v1${ruta}`, {
+    method: metodo,
+    headers: { Authorization: `Bearer ${token}`, 'Idempotency-Key': randomUUID() },
+    data: cuerpo,
+  });
+}
+
+/** Llama a la API como un rol y devuelve el JSON. Falla con el cuerpo si no es 2xx. */
+export async function llamarApi<T = unknown>(
+  request: APIRequestContext,
+  rol: Rol,
+  metodo: 'GET' | 'POST' | 'PATCH',
+  ruta: string,
+  cuerpo?: unknown,
+): Promise<T> {
+  const respuesta = await solicitarApi(request, rol, metodo, ruta, cuerpo);
+  expect(
+    respuesta.ok(),
+    `${metodo} ${ruta} como ${rol}: ${respuesta.status()} ${await respuesta.text()}`,
+  ).toBeTruthy();
+  return (await respuesta.json()) as T;
+}
+
+/** Id de la actividad de un concepto en una obra, por sus claves (las de la semilla). */
+export async function actividadDe(
+  request: APIRequestContext,
+  rol: Rol,
+  claveObra: string,
+  claveConcepto: string,
+): Promise<string> {
+  const obras = await llamarApi<{ id: string; clave: string }[]>(request, rol, 'GET', '/obras');
+  const obra = obras.find((o) => o.clave === claveObra);
+  expect(obra, `la obra ${claveObra} existe y ${rol} la ve (¿se sembró?)`).toBeDefined();
+
+  const actividades = await llamarApi<{ id: string; concepto_clave: string }[]>(
+    request,
+    rol,
+    'GET',
+    `/obras/${obra!.id}/actividades`,
+  );
+  const actividad = actividades.find((a) => a.concepto_clave === claveConcepto);
+  expect(actividad, `${claveObra} tiene una actividad de ${claveConcepto}`).toBeDefined();
+  return actividad!.id;
+}
+
+/**
+ * Lleva una actividad de la semilla por el cierre completo de punta a punta:
+ * captura el avance, solicita (residente), autoriza (supervisor) y valida
+ * (control). Es el **preparativo** de los workflows que parten de trabajo ya
+ * validado —estimación (E), cierre de obra (D)—; el cierre en sí se prueba en
+ * `c-cierre-de-actividad.spec.ts`, con la web.
+ */
+export async function cerrarPorApi(
+  request: APIRequestContext,
+  claveObra: string,
+  claveConcepto: string,
+  cantidad: number,
+): Promise<string> {
+  const actividadId = await actividadDe(request, 'residente', claveObra, claveConcepto);
+
+  await llamarApi(request, 'residente', 'PATCH', `/actividades/${actividadId}/avance`, {
+    cant_ejecutada: cantidad,
+  });
+  const cierre = await llamarApi<{ id: string }>(
+    request,
+    'residente',
+    'POST',
+    `/actividades/${actividadId}/cierre`,
+    {
+      cantidad,
+      checklist: [{ item: 'Preparativo del E2E', ok: true }],
+      adjuntos: ['r2://evidencias/e2e-preparativo.jpg'],
+    },
+  );
+  await llamarApi(request, 'supervisor', 'POST', `/cierres/${cierre.id}/autorizar`);
+  await llamarApi(request, 'control', 'POST', `/cierres/${cierre.id}/validar`, {
+    comentario: 'Preparativo del E2E',
+  });
+  return actividadId;
 }
 
 /** `test` que se salta solo cuando falta la infraestructura. */

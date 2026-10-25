@@ -22,7 +22,7 @@
 |---|---|---|
 | `database/` | 28 migraciones **con su `down` y bitácora de versión aplicada** · RLS por rol en toda tabla · semillas · generador de calendario · auth hook · agregación de `registro_avance` · lote de carga reversible · `periodo_bloqueado` · `idempotencia` · **bitácora de negocio por trigger** · registro de respaldos · guardia de privilegios de `usuario` · orden de cambio del extra-catálogo · **dispositivos de push con su puerta `security definer`** · 7 archivos de pruebas de aislamiento · restauración de respaldo probada en CI | Publicar las sync rules auditadas en el PowerSync de producción · sellar la base de producción |
 | `backend/` | Dominio completo (15 contextos) · 62 rutas del §11.2 · `adapters/excel` y `adapters/export` · jobs Arq + Redis con worker propio · notificaciones Resend · `problem+json` uniforme · id de petición + Sentry + sonda de dependencias · `Idempotency-Key` en 19 mutaciones · `/health` completo (base, cola, jobs, disco, respaldo) · `/usuarios` y alcance con proveedor de auth como puerto · `/torre` y actividades por obra · `POST /actividades` extra-catálogo · **cierre de obra (workflow D)** · presupuesto y rendimientos · **versión mínima del cliente (426) y Expo Push** · **procesos (§7.9), bitácora, `POST /reportes/{tipo}` por alcance y tiempo real por SSE** · **730 pruebas sin Postgres** (`pytest` en local) más las 246 de integración que corren en CI · 6 datasets golden | Nada del §11.2: la superficie de la API queda cubierta |
-| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada), `extras`, `revisiones`, `cierresObra`, `presupuesto` · virtualización compartida (`lib/tablaVirtual`) · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **`bitacora`, `procesos` y `avance-total`: las tres entradas de sidebar que faltaban** · avisos en vivo por SSE con indicador propio · **365 pruebas** + 4 E2E de humo + 3 del alta | Los 6 E2E de workflow |
+| `frontend/` | Shell 3 columnas · navegación por rol · tokens/densidad · Login · cliente Supabase + HTTP · features `proyectos`, `catalogos`, `programacion`, `avance`, `cierres`, `estimacion`, `materiales`, `incidencias`, `evaluaciones` · `equipo`, `cargas`, `expediente`, `reportes`, `torre` (virtualizada), `extras`, `revisiones`, `cierresObra`, `presupuesto` · virtualización compartida (`lib/tablaVirtual`) · `Idempotency-Key` cableada en las 12 mutaciones protegidas · **`bitacora`, `procesos` y `avance-total`: las tres entradas de sidebar que faltaban** · avisos en vivo por SSE con indicador propio · **365 pruebas** + 4 E2E de humo + 3 del alta + 5 E2E de workflow | Correr los E2E de workflow en CI |
 | `mobile/` | **Las 14 pantallas del §5.2, ninguna placeholder** · captura offline con las reglas del §6 · **cola de evidencias a R2** y **bandeja de salida a la API** · force/soft update y cabeceras de versión · registro de Expo Push · `sync/` (PowerSync + SQLite) con dos tablas local-only · sync-rules auditadas · **38 pruebas** + 3 flujos de Maestro | Assets de tienda · `projectId` real de EAS · correr Maestro contra un emulador · publicar en Play Console |
 | CI | `.github/workflows/ci.yml`: backend con Postgres real (integración + RLS), mypy informativo, ida y vuelta de las 27 migraciones, restauración de respaldo, web, humo en navegador, **tipos y pruebas de móvil**, contrato al día **y compatible hacia atrás (§12.12)** · dependencias fijas en `constraints.txt` | Blueprint de staging aplicado en Render · E2E de móvil (necesitan emulador y API sembrada) |
 
@@ -649,10 +649,11 @@ crece.
   sí hacían esos 198 era enterrar los otros 96. Con eso mypy entra a CI como
   paso informativo: no bloquea, pero la cuenta se ve, y si sube alguien agregó
   deuda.
-- ⏳ **Los seis E2E de workflow.** El arnés está listo desde la Fase 6 y el del
-  alta de usuario se escribió en la Fase 7. Los seis siguen en `fixme` por la
-  misma razón de entonces: escribirlos contra una UI que no se ha podido
-  ejecutar produce selectores inventados.
+- ✅ **Los E2E de workflow de web** (A, C, D, E, F) están escritos y **corridos de
+  verdad** contra la web, la API y Postgres reales, con una auth falsa y una
+  semilla (`frontend/e2e/soporte/`, ver su README). El B es móvil y va con
+  Maestro (`mobile/e2e/`). **Falta** correrlos en CI: necesitan levantar
+  Postgres con PostGIS, la API y la auth falsa en el job `e2e`.
 - ⏳ **Reprocesos acotados (§11.7)** — tope de iteraciones y detector «sin
   progreso». No se hizo: hoy ningún reproceso itera. El CPM es una pasada sobre
   un grafo acíclico —`CicloEnGrafoError` corta antes— y las cargas recorren un
