@@ -40,12 +40,14 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field, model_validator
 
 from obractrl.adapters.api.casos_uso import (
+    ConsultarCuantificacionDep,
     ReemplazarEnlaceDep,
     RegistrarNotaPlanoDep,
     RegistrarPlanoDep,
@@ -57,6 +59,7 @@ from obractrl.application.casos_uso.cuantificar import (
     ComandoRegistrarNotaPlano,
     ComandoRegistrarTrazo,
     IntencionEnlace,
+    NodoCuantificado,
     NuevoEnlace,
     ResultadoDeRecalculo,
 )
@@ -348,3 +351,190 @@ async def registrar_nota_plano(
         )
     )
     return NotaPlanoRespuesta(id=resultado.nota_id)
+
+
+# --- Lectura -------------------------------------------------------------
+#
+# Abierta a quien tiene acceso a la obra (MODELO.md §1b: "visualizar el estado
+# de cuantificación no es una función atómica ... es lectura"): ninguna de
+# estas rutas lleva `exigir_rol`; el alcance lo impone RLS.
+
+
+class PlanoDetalleRespuesta(BaseModel):
+    id: UUID
+    obra_id: UUID
+    nombre: str
+    archivo_url: str
+    version: int
+    capas: list[str] | None
+    subido_por: UUID | None
+    created_at: datetime
+    n_trazos: int
+    n_trazos_por_revisar: int = Field(
+        description=(
+            "Trazos hechos sobre una versión anterior del plano: quedan marcados "
+            "para revisión y no se recalculan solos (MODELO.md §1b)."
+        )
+    )
+
+
+class EnlaceDeTrazoRespuesta(BaseModel):
+    enlace_id: UUID
+    tipo_nodo: str
+    nodo_id: UUID = Field(
+        description="`actividad_id` o `prototipo_nodo_id`, según `tipo_nodo`."
+    )
+    medida: str
+    factor: Decimal
+    vigente: bool
+    medida_valor: Decimal = Field(
+        description="`ST_Area`/`ST_Perimeter`/`ST_Length`, o 1 si es conteo."
+    )
+    cantidad: Decimal = Field(description="`medida_valor × factor`.")
+
+
+class TrazoPropiedades(BaseModel):
+    trazo_id: UUID
+    version_plano: int
+    capa: str | None
+    fuente: str
+    autor_id: UUID | None
+    por_revisar: bool
+    nodo_ids: list[UUID] = Field(
+        description=(
+            "Nodos a los que el trazo alimenta con un enlace **vigente**: lo que "
+            "el visor necesita para resolver el clic (MODELO.md §1b). Un trazo "
+            "puede alimentar varios (el área da el piso, el perímetro el zoclo)."
+        )
+    )
+    enlaces: list[EnlaceDeTrazoRespuesta]
+
+
+class TrazoFeature(BaseModel):
+    type: Literal["Feature"] = "Feature"
+    id: UUID
+    geometry: dict[str, Any] = Field(
+        description=(
+            "Geometría GeoJSON en **coordenadas de plano** (SRID 0), no lon/lat: "
+            "es una desviación deliberada de RFC 7946 (MODELO.md §1b)."
+        )
+    )
+    properties: TrazoPropiedades
+
+
+class TrazosDePlanoRespuesta(BaseModel):
+    """`FeatureCollection` de GeoJSON con los trazos de un plano."""
+
+    type: Literal["FeatureCollection"] = "FeatureCollection"
+    plano_id: UUID
+    version_plano: int
+    features: list[TrazoFeature]
+
+
+class NodoCuantificadoRespuesta(BaseModel):
+    tipo_nodo: str
+    nodo_id: UUID
+    descripcion: str | None
+    cant_base: Decimal | None
+    cantidad_medida: Decimal = Field(
+        description="Suma de `medida × factor` de los enlaces **vigentes**."
+    )
+    diferencia: Decimal | None = Field(
+        description=(
+            "`cantidad_medida − cant_base`. Informa, no corrige: sobre una "
+            "actividad la medida se compara y nunca reemplaza a `cant_base`."
+        )
+    )
+    enlaces_vigentes: int
+    enlaces_reemplazados: int
+    trazos_por_revisar: int
+
+    @classmethod
+    def desde_dominio(cls, nodo: NodoCuantificado) -> NodoCuantificadoRespuesta:
+        return cls(
+            tipo_nodo=nodo.tipo_nodo,
+            nodo_id=nodo.nodo_id,
+            descripcion=nodo.descripcion,
+            cant_base=nodo.cant_base,
+            cantidad_medida=nodo.cantidad_medida,
+            diferencia=nodo.diferencia,
+            enlaces_vigentes=nodo.enlaces_vigentes,
+            enlaces_reemplazados=nodo.enlaces_reemplazados,
+            trazos_por_revisar=nodo.trazos_por_revisar,
+        )
+
+
+@router.get(
+    "/obras/{obra_id}/planos",
+    response_model=list[PlanoDetalleRespuesta],
+    summary="Planos de una obra",
+    responses={404: {"description": "La obra no existe o está fuera de tu alcance."}},
+)
+async def listar_planos(
+    obra_id: UUID, caso_uso: ConsultarCuantificacionDep
+) -> list[PlanoDetalleRespuesta]:
+    filas = await caso_uso.planos_de_obra(obra_id)
+    return [PlanoDetalleRespuesta(**fila) for fila in filas]
+
+
+@router.get(
+    "/planos/{plano_id}/trazos",
+    response_model=TrazosDePlanoRespuesta,
+    summary="Trazos de un plano, como GeoJSON",
+    responses={404: {"description": "El plano no existe o está fuera de tu alcance."}},
+)
+async def trazos_de_plano(
+    plano_id: UUID, caso_uso: ConsultarCuantificacionDep
+) -> TrazosDePlanoRespuesta:
+    """`FeatureCollection` con un `Feature` por trazo (MODELO.md §1b, "Cómo viaja
+    la geometría hacia el frontend"). Los enlaces reemplazados vienen también,
+    con `vigente = false`: quedan como evidencia y no cuentan en `nodo_ids`."""
+    plano, trazos = await caso_uso.trazos_de_plano(plano_id)
+
+    features = []
+    for trazo in trazos:
+        enlaces = [
+            EnlaceDeTrazoRespuesta(
+                enlace_id=e["id"],
+                tipo_nodo=str(e["tipo_nodo"]),
+                nodo_id=e["actividad_id"] or e["prototipo_nodo_id"],
+                medida=str(e["medida"]),
+                factor=e["factor"],
+                vigente=e["vigente"],
+                medida_valor=Decimal(str(e["medida_valor"])),
+                cantidad=Decimal(str(e["medida_valor"])) * Decimal(str(e["factor"])),
+            )
+            for e in trazo["enlaces"]
+        ]
+        features.append(
+            TrazoFeature(
+                id=trazo["id"],
+                geometry=trazo["geometria"],
+                properties=TrazoPropiedades(
+                    trazo_id=trazo["id"],
+                    version_plano=trazo["version_plano"],
+                    capa=trazo["capa"],
+                    fuente=str(trazo["fuente"]),
+                    autor_id=trazo["autor_id"],
+                    por_revisar=trazo["por_revisar"],
+                    nodo_ids=list(dict.fromkeys(e.nodo_id for e in enlaces if e.vigente)),
+                    enlaces=enlaces,
+                ),
+            )
+        )
+    return TrazosDePlanoRespuesta(
+        plano_id=plano["id"], version_plano=plano["version"], features=features
+    )
+
+
+@router.get(
+    "/obras/{obra_id}/cuantificacion",
+    response_model=list[NodoCuantificadoRespuesta],
+    summary="Cómo va la cuantificación de la obra, nodo por nodo",
+    responses={404: {"description": "La obra no existe o está fuera de tu alcance."}},
+)
+async def estado_de_cuantificacion(
+    obra_id: UUID, caso_uso: ConsultarCuantificacionDep
+) -> list[NodoCuantificadoRespuesta]:
+    nodos = await caso_uso.estado_de_obra(obra_id)
+    return [NodoCuantificadoRespuesta.desde_dominio(n) for n in nodos]
