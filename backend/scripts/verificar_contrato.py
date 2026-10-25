@@ -24,15 +24,64 @@ from __future__ import annotations
 import argparse
 import difflib
 import json
+import re
 import sys
+from importlib import metadata
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 CONTRATO = RAIZ / "openapi" / "openapi.json"
+CONSTRAINTS = RAIZ / "backend" / "constraints.txt"
+
+PAQUETES_DEL_CONTRATO = ("fastapi", "starlette", "pydantic", "pydantic-settings")
+"""Lo de `constraints.txt` que cambia la forma de `openapi.json`. `ruff` también
+está fijado ahí, pero no entra: no toca el contrato."""
 
 MAX_LINEAS_DIFF = 200
 """Un diff completo de un contrato de 59 rutas ahoga el log de CI. Con las
 primeras líneas basta para saber qué cambió y decidir."""
+
+
+def _normalizar(nombre: str) -> str:
+    return re.sub(r"[-_.]+", "-", nombre).lower()
+
+
+def versiones_fijadas(texto: str) -> dict[str, str]:
+    """`{paquete: versión}` de las líneas `paquete==versión` de constraints.txt."""
+    fijadas: dict[str, str] = {}
+    for linea in texto.splitlines():
+        linea = linea.split("#", 1)[0].strip()
+        nombre, igual, version = linea.partition("==")
+        if igual:
+            fijadas[_normalizar(nombre)] = version.strip()
+    return fijadas
+
+
+def desvios_del_entorno(
+    fijadas: dict[str, str], instaladas: dict[str, str | None]
+) -> list[str]:
+    """Una línea por paquete del contrato cuya versión instalada no es la fijada."""
+    desvios = []
+    for paquete in PAQUETES_DEL_CONTRATO:
+        fijada = fijadas.get(paquete)
+        if fijada is None:
+            continue
+        instalada = instaladas.get(paquete)
+        if instalada != fijada:
+            desvios.append(
+                f"{paquete}: instalado {instalada or 'ninguno'}, fijado {fijada}"
+            )
+    return desvios
+
+
+def _instaladas() -> dict[str, str | None]:
+    resultado: dict[str, str | None] = {}
+    for paquete in PAQUETES_DEL_CONTRATO:
+        try:
+            resultado[paquete] = metadata.version(paquete)
+        except metadata.PackageNotFoundError:
+            resultado[paquete] = None
+    return resultado
 
 
 def generar() -> str:
@@ -52,14 +101,29 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    generado = generar()
-
     if args.escribir:
+        # Regenerar con otras versiones deja un contrato que CI rechaza (o peor,
+        # uno al que le faltan líneas, como los `pattern` de pydantic). Se
+        # compara contra constraints.txt antes de escribir nada.
+        desvios = desvios_del_entorno(
+            versiones_fijadas(CONSTRAINTS.read_text(encoding="utf-8")), _instaladas()
+        )
+        if desvios:
+            print(
+                "No se regenera: este entorno se aparta de backend/constraints.txt.\n  "
+                + "\n  ".join(desvios)
+                + "\n\nInstala las versiones fijadas y vuelve a correr:\n"
+                '  cd backend && pip install -e ".[dev]" -c constraints.txt',
+                file=sys.stderr,
+            )
+            return 2
+        generado = generar()
         CONTRATO.write_text(generado, encoding="utf-8", newline="\n")
         print(f"Contrato regenerado: {CONTRATO.relative_to(RAIZ)}")
         print("Falta regenerar el cliente: cd frontend && npm run api:generar")
         return 0
 
+    generado = generar()
     versionado = CONTRATO.read_text(encoding="utf-8")
     if generado.strip() == versionado.strip():
         print("Contrato al día.")
