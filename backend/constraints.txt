@@ -18,7 +18,8 @@
 #
 # QUÉ SE FIJA Y QUÉ NO
 #
-# Solo lo que determina la forma del contrato o el comportamiento del borde.
+# Lo que determina la forma del contrato o el comportamiento del borde, y el
+# linter (`ruff`), que no toca el contrato pero decide si CI pasa o falla.
 # El resto —pandas, boto3, weasyprint— sigue flotando dentro de los rangos de
 # `pyproject.toml`: no aparece en el esquema y fijarlo obligaría a revisar este
 # archivo por cambios que no cambian nada observable.
