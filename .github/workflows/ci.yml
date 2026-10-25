@@ -30,7 +30,11 @@ concurrency:
 jobs:
   backend:
     name: Backend · dominio, integración y RLS
-    runs-on: ubuntu-latest
+    # Fijo, no `ubuntu-latest`: el `pg_dump` del runner tiene que ser de la misma
+    # versión mayor que el Postgres 16 del servicio. Con una imagen más nueva,
+    # `pg_restore` falla con `unrecognized configuration parameter
+    # "transaction_timeout"` (lo escribe un pg_dump 17+, 16 no lo conoce).
+    runs-on: ubuntu-24.04
 
     services:
       postgres:

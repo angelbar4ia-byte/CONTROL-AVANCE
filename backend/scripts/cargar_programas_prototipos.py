@@ -53,15 +53,22 @@ RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ / "src"))
 
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL  # noqa: E402
-from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL  # noqa: E402
+from obractrl.adapters.repos.prototipo_nodo_sql import (  # noqa: E402
+    RepositorioPrototipoNodoSQL,
+)
 from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL  # noqa: E402
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL  # noqa: E402
 from obractrl.application.casos_uso.aplicar_carga import (  # noqa: E402
     AplicadorProgramaBase,
     PrototipoDeProgramaNoEncontrado,
 )
-from obractrl.application.casos_uso.gestionar_programacion import CrearProgramaBase  # noqa: E402
-from obractrl.domain.cargadores.cabeceras import PROGRAMA_BASE, resolver_encabezados  # noqa: E402
+from obractrl.application.casos_uso.gestionar_programacion import (  # noqa: E402
+    CrearProgramaBase,
+)
+from obractrl.domain.cargadores.cabeceras import (  # noqa: E402
+    PROGRAMA_BASE,
+    resolver_encabezados,
+)
 from obractrl.domain.cargadores.programa_base import (  # noqa: E402
     BloqueProgramaCargado,
     leer_programa_base,
