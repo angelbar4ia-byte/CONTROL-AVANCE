@@ -42,3 +42,8 @@ fastapi==0.141.1
 starlette==1.6.0
 pydantic==2.13.4
 pydantic-settings==2.7.0
+
+# Linter: no define el contrato, pero sí si CI pasa o falla. `pyproject.toml`
+# pide `ruff>=0.8`, así que cada entorno resolvía una versión distinta y un
+# mismo archivo podía dar `I001` en uno y pasar en otro.
+ruff==0.17.2
