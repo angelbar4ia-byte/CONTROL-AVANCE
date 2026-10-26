@@ -274,6 +274,13 @@ async def _recalcular_nodo(
 
     if tipo_nodo is TipoNodoCuantificacion.ACTIVIDAD:
         actividad = await actividades.obtener(actividad_id)  # type: ignore[arg-type]
+        # En una obra «Nueva» lo que se mide es el presupuesto: sustituye a la cantidad base
+        # (0081). En las demás solo se compara.
+        if actividad is not None and await actividades.fijar_cantidad_medida(
+            actividad_id,  # type: ignore[arg-type]
+            cantidad_total,
+        ):
+            return ResultadoDeRecalculo(cantidad_total=cantidad_total)
         # Sin fila o sin concepto de catálogo (actividad extra-catálogo,
         # §5.1) no hay con qué construir una `Desviacion` válida —exige
         # `concepto_id`, §3.3 lo resuelve el borde— así que no se levanta

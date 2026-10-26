@@ -195,6 +195,25 @@ class RepositorioPartesSQL:
         ).mappings().all()
         return [dict(f) for f in filas]
 
+    async def catalogos_base(self) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select distinct on (p.plantas)
+                           p.plantas, p.id, p.proyecto_id, p.clave, p.nombre, p.m2, p.niveles,
+                           p.recamaras, count(n.id) as n_nodos
+                      from prototipo p
+                      left join prototipo_nodo n on n.prototipo_id = p.id
+                     where p.plantas in (1, 2) and not p.de_una_obra
+                     group by p.id
+                     order by p.plantas, count(n.id) desc, p.created_at, p.clave
+                    """
+                )
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
     async def plantas_de_obra(self, obra_id: UUID) -> dict[str, Any] | None:
         fila = (
             await self._sesion.execute(

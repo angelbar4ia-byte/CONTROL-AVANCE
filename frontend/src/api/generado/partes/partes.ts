@@ -33,11 +33,14 @@ import type {
   CambiarEstadoPeticion,
   CandadoPeticion,
   CargaDePartesRespuesta,
+  CatalogoBaseRespuesta,
   DesfaseDePartesPeticion,
   DesfaseDePartesRespuesta,
   HTTPValidationError,
   ModificacionPeticion,
   ModificacionRespuesta,
+  ObraNuevaPeticion,
+  ObraNuevaRespuesta,
   ParteIndependientePeticion,
   PartesDeObraRespuesta,
   PasoDeParteRespuesta,
@@ -2844,6 +2847,445 @@ export function useModificacionesDeLaObraApiV1ObrasObraIdModificacionesGet<
   return query;
 }
 
+/**
+ * @summary Los catálogos base de cuantificación: de 1 planta y de 2
+ */
+export const catalogosBaseApiV1CatalogosBaseGet = (
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CatalogoBaseRespuesta[]>(
+    { url: `/api/v1/catalogos-base`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getCatalogosBaseApiV1CatalogosBaseGetInfiniteQueryKey = () => {
+  return ["infinite", `/api/v1/catalogos-base`] as const;
+};
+
+export const getCatalogosBaseApiV1CatalogosBaseGetQueryKey = () => {
+  return [`/api/v1/catalogos-base`] as const;
+};
+
+export const getCatalogosBaseApiV1CatalogosBaseGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>
+  >,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getCatalogosBaseApiV1CatalogosBaseGetInfiniteQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>
+  > = ({ signal }) =>
+    catalogosBaseApiV1CatalogosBaseGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type CatalogosBaseApiV1CatalogosBaseGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>
+>;
+export type CatalogosBaseApiV1CatalogosBaseGetInfiniteQueryError = unknown;
+
+export function useCatalogosBaseApiV1CatalogosBaseGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+          TError,
+          Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCatalogosBaseApiV1CatalogosBaseGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+          TError,
+          Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCatalogosBaseApiV1CatalogosBaseGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los catálogos base de cuantificación: de 1 planta y de 2
+ */
+
+export function useCatalogosBaseApiV1CatalogosBaseGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getCatalogosBaseApiV1CatalogosBaseGetInfiniteQueryOptions(options);
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getCatalogosBaseApiV1CatalogosBaseGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getCatalogosBaseApiV1CatalogosBaseGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>
+  > = ({ signal }) =>
+    catalogosBaseApiV1CatalogosBaseGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type CatalogosBaseApiV1CatalogosBaseGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>
+>;
+export type CatalogosBaseApiV1CatalogosBaseGetQueryError = unknown;
+
+export function useCatalogosBaseApiV1CatalogosBaseGet<
+  TData = Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+          TError,
+          Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCatalogosBaseApiV1CatalogosBaseGet<
+  TData = Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+          TError,
+          Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCatalogosBaseApiV1CatalogosBaseGet<
+  TData = Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los catálogos base de cuantificación: de 1 planta y de 2
+ */
+
+export function useCatalogosBaseApiV1CatalogosBaseGet<
+  TData = Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof catalogosBaseApiV1CatalogosBaseGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getCatalogosBaseApiV1CatalogosBaseGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Escenario «Nuevo» (D-571): una obra cuyo proyecto es diferente de todos los prototipos.
+Se crea la obra y se forma su catálogo con la estructura y los conceptos del prototipo de 1 o
+de 2 plantas, **sin cantidades**: llegan midiendo, y lo medido es el presupuesto.
+ * @summary Crear una obra «Nueva» desde el cuantificador, con su catálogo base
+ */
+export const crearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePost = (
+  obraNuevaPeticion: ObraNuevaPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ObraNuevaRespuesta>(
+    {
+      url: `/api/v1/obras/desde-catalogo-base`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: obraNuevaPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCrearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof crearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePost
+        >
+      >,
+      TError,
+      { data: ObraNuevaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof crearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePost
+      >
+    >,
+    TError,
+    { data: ObraNuevaPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "crearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof crearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePost
+        >
+      >,
+      { data: ObraNuevaPeticion }
+    > = (props) => {
+      const { data } = props ?? {};
+
+      return crearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePost(
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CrearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof crearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePost
+      >
+    >
+  >;
+export type CrearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePostMutationBody =
+  ObraNuevaPeticion;
+export type CrearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePostMutationError =
+  void;
+
+/**
+ * @summary Crear una obra «Nueva» desde el cuantificador, con su catálogo base
+ */
+export const useCrearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof crearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePost
+        >
+      >,
+      TError,
+      { data: ObraNuevaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof crearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePost>
+  >,
+  TError,
+  { data: ObraNuevaPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * El requisito «todo validado» de la junta (D-574): qué partes aún no están autorizadas.
 Avisa; lo que impide es asignar, con el candado (por obra).

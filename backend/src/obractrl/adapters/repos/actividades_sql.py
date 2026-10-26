@@ -105,6 +105,90 @@ class RepositorioActividadesSQL:
         ).mappings().first()
         return dict(fila) if fila is not None else None
 
+    async def fijar_cantidad_medida(self, actividad_id: UUID, cantidad: Decimal) -> bool:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select a.obra_id, a.cant_base,
+                           coalesce(a.descripcion, c.descripcion, '') as descripcion,
+                           case when a.parte_independiente then 'concepto:' || a.id::text
+                                when a.etapa_id is not null then 'etapa:' || a.etapa_id::text
+                                else 'sin_etapa:-' end as clave,
+                           p.de_una_obra
+                      from actividad a
+                      join obra o on o.id = a.obra_id
+                      left join prototipo p on p.id = o.prototipo_id
+                      left join concepto c on c.id = a.concepto_id
+                     where a.id = :id
+                       for update of a
+                    """
+                ),
+                {"id": str(actividad_id)},
+            )
+        ).mappings().first()
+        if fila is None or not fila["de_una_obra"]:
+            return False
+        estado = (
+            await self._sesion.execute(
+                text("select estado::text from parte_estado where obra_id = :o and clave = :c"),
+                {"o": str(fila["obra_id"]), "c": fila["clave"]},
+            )
+        ).scalar_one_or_none()
+        if estado == "asignada":
+            return False
+        if Decimal(str(fila["cant_base"])) == cantidad:
+            return True
+        await self._sesion.execute(
+            text(
+                """
+                update actividad
+                   set cant_base = :c, cant_programada = least(cant_programada, :c)
+                 where id = :id
+                """
+            ),
+            {"c": cantidad, "id": str(actividad_id)},
+        )
+        # Una cantidad que cambia ya no es la que se validó: la parte vuelve a cuantificarse
+        # (volver es libre hasta asignar, D-571) y su programa, si lo tenía, queda por revisar.
+        if estado in ("por_validar", "autorizada", "enviada_programa", "programada"):
+            await self._sesion.execute(
+                text(
+                    """
+                    update parte_estado
+                       set estado = 'cuantificando', actualizada_en = now(),
+                           programa_por_revisar = programa_por_revisar
+                               or :tenia_programa
+                     where obra_id = :o and clave = :c
+                    """
+                ),
+                {
+                    "o": str(fila["obra_id"]),
+                    "c": fila["clave"],
+                    "tenia_programa": estado in ("enviada_programa", "programada"),
+                },
+            )
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into parte_transicion
+                        (org_id, obra_id, clave, accion, de, a, usuario_id, rol, nota)
+                    values
+                        (cast(current_setting('app.org_id') as uuid), :o, :c, 'devolver',
+                         cast(:de as estado_parte), 'cuantificando',
+                         cast(current_setting('app.usuario_id') as uuid),
+                         current_setting('app.rol'), :nota)
+                    """
+                ),
+                {
+                    "o": str(fila["obra_id"]),
+                    "c": fila["clave"],
+                    "de": estado,
+                    "nota": f"Medición: cambió la cantidad de {fila['descripcion']}",
+                },
+            )
+        return True
+
     async def obtener_para_captura(self, actividad_id: UUID) -> dict[str, Any] | None:
         """Como `obtener`, pero **bloqueando la fila** hasta el commit.
 

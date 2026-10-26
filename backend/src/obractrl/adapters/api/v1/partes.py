@@ -22,9 +22,11 @@ from obractrl.adapters.api.casos_uso import (
     ConsultarArranqueDep,
     ConsultarBitacoraDePartesDep,
     ConsultarCargaDePartesDep,
+    ConsultarCatalogosBaseDep,
     ConsultarDesfaseDePartesDep,
     ConsultarModificacionesDep,
     ConsultarPartesDep,
+    CrearObraDesdeCatalogoBaseDep,
     FijarCandadoDeAsignarDep,
     FijarDesfaseDePartesDep,
     FijarPlantasDeObraDep,
@@ -34,6 +36,9 @@ from obractrl.adapters.api.casos_uso import (
 )
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.adapters.api.idempotencia import Idempotencia
+from obractrl.application.casos_uso.crear_obra_desde_catalogo_base import (
+    ComandoCrearObraDesdeCatalogoBase,
+)
 from obractrl.application.casos_uso.gestionar_partes import (
     ComandoAgregarActividadNueva,
     ComandoCambiarEstadoDePartes,
@@ -205,6 +210,33 @@ class RegistroDeModificacionRespuesta(BaseModel):
     usuario_nombre: str | None = None
     rol: str
     creada_en: datetime
+
+
+class CatalogoBaseRespuesta(BaseModel):
+    plantas: int
+    plazo_base_semanas: int = Field(description="El número de plantas fija el plazo base (D-419).")
+    prototipo_clave: str | None = Field(
+        default=None, description="El prototipo de cuya estructura se forma el catálogo."
+    )
+    prototipo_nombre: str | None = None
+    n_nodos: int
+    disponible: bool
+
+
+class ObraNuevaPeticion(BaseModel):
+    cluster_id: UUID
+    clave: str = Field(min_length=1)
+    plantas: Literal[1, 2] = Field(description="El catálogo base: de 1 planta o de 2.")
+    residente_id: UUID | None = None
+
+
+class ObraNuevaRespuesta(BaseModel):
+    obra_id: UUID
+    prototipo_id: UUID
+    plantas: int
+    plazo_base_semanas: int
+    base_clave: str = Field(description="El prototipo de cuya estructura se formó el catálogo.")
+    nodos: int = Field(description="Nodos del catálogo, sin cantidades.")
 
 
 class ParteSinAutorizarRespuesta(BaseModel):
@@ -453,6 +485,44 @@ async def modificaciones_de_la_obra(
 ) -> list[RegistroDeModificacionRespuesta]:
     """Todos los roles, cada uno con su alcance. Solo se agrega."""
     return [RegistroDeModificacionRespuesta(**f) for f in await caso_uso.ejecutar(obra_id)]
+
+
+@router.get(
+    "/catalogos-base",
+    response_model=list[CatalogoBaseRespuesta],
+    summary="Los catálogos base de cuantificación: de 1 planta y de 2",
+)
+async def catalogos_base(caso_uso: ConsultarCatalogosBaseDep) -> list[CatalogoBaseRespuesta]:
+    return [CatalogoBaseRespuesta(**f) for f in await caso_uso.ejecutar()]
+
+
+@router.post(
+    "/obras/desde-catalogo-base",
+    response_model=ObraNuevaRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear una obra «Nueva» desde el cuantificador, con su catálogo base",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA)), Idempotencia],
+    responses={
+        **_NO_ENCONTRADO,
+        422: {"description": "Plantas inválidas, clave inválida o sin prototipo de dónde formar el catálogo."},
+    },
+)
+async def crear_obra_desde_catalogo_base(
+    peticion: ObraNuevaPeticion, caso_uso: CrearObraDesdeCatalogoBaseDep
+) -> ObraNuevaRespuesta:
+    """Escenario «Nuevo» (D-571): una obra cuyo proyecto es diferente de todos los prototipos.
+    Se crea la obra y se forma su catálogo con la estructura y los conceptos del prototipo de 1 o
+    de 2 plantas, **sin cantidades**: llegan midiendo, y lo medido es el presupuesto."""
+    return ObraNuevaRespuesta(
+        **await caso_uso.ejecutar(
+            ComandoCrearObraDesdeCatalogoBase(
+                cluster_id=peticion.cluster_id,
+                clave=peticion.clave,
+                plantas=peticion.plantas,
+                residente_id=peticion.residente_id,
+            )
+        )
+    )
 
 
 @router.get(

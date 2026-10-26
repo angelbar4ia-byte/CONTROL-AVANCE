@@ -57,6 +57,9 @@ from obractrl.application.casos_uso.consultar_insumos_programados import (
     CalendarioSinGenerar,
     PrototipoSinPrograma,
 )
+from obractrl.application.casos_uso.crear_obra_desde_catalogo_base import (
+    ErrorDeCatalogoBase,
+)
 from obractrl.application.casos_uso.cuantificar import (
     EnlaceNoEncontrado,
     GobiernoDeCuantificacionInvalido,
@@ -646,6 +649,16 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="parte-no-encontrada",
             titulo="Parte no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeCatalogoBase)
+    async def _catalogo_base(request: Request, exc: ErrorDeCatalogoBase) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="catalogo-base-no-disponible",
+            titulo="No hay catálogo base para eso",
             detalle=str(exc),
         )
 

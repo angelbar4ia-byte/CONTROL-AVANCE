@@ -190,7 +190,11 @@ class RepositorioPrototipoNodoSQL:
         return fila.id, bool(fila.es_alta)
 
     async def clonar_estructura(
-        self, *, origen_prototipo_id: UUID, destino_prototipo_id: UUID
+        self,
+        *,
+        origen_prototipo_id: UUID,
+        destino_prototipo_id: UUID,
+        sin_cantidades: bool = False,
     ) -> int:
         """Ver protocolo. El árbol de un prototipo tiene pocos niveles
         (nivel -> etapa -> [agrupador] -> concepto), así que se clona por
@@ -287,7 +291,9 @@ class RepositorioPrototipoNodoSQL:
                                 else None
                             ),
                             "orden": fila_origen["orden"],
-                            "cantidad": fila_origen["cantidad"],
+                            # El catálogo base de una obra «Nueva» (0081) es la estructura y
+                            # los conceptos, sin cantidades: esas llegan midiendo.
+                            "cantidad": 0 if sin_cantidades else fila_origen["cantidad"],
                             "ponderacion": fila_origen["ponderacion"],
                         },
                     )

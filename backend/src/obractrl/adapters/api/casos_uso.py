@@ -120,6 +120,10 @@ from obractrl.application.casos_uso.consultar_planeacion import (
     AsignarFrenteDeObra,
     ConsultarPlaneacion,
 )
+from obractrl.application.casos_uso.crear_obra_desde_catalogo_base import (
+    ConsultarCatalogosBase,
+    CrearObraDesdeCatalogoBase,
+)
 from obractrl.application.casos_uso.cuantificar import (
     AprobarTrazo,
     CalibrarEscalaDePlano,
@@ -319,6 +323,7 @@ __all__ = [
     "ConsultarBitacoraDePartesDep",
     "ConsultarCargaDePartesDep",
     "ConsultarCargaDep",
+    "ConsultarCatalogosBaseDep",
     "ConsultarCierreDeObraDep",
     "ConsultarComprobacionesDep",
     "ConsultarConfirmacionesDep",
@@ -342,6 +347,7 @@ __all__ = [
     "CrearFamiliaDep",
     "CrearInsumoDep",
     "CrearObraDep",
+    "CrearObraDesdeCatalogoBaseDep",
     "CrearObrasEnLoteDep",
     "CrearProgramaBaseDep",
     "CrearPrototipoDep",
@@ -1352,6 +1358,21 @@ def obtener_consultar_carga_de_partes(sesion: SesionRLS) -> ConsultarCargaDePart
     )
 
 
+def obtener_crear_obra_desde_catalogo_base(sesion: SesionRLS) -> CrearObraDesdeCatalogoBase:
+    return CrearObraDesdeCatalogoBase(
+        obras=RepositorioObrasSQL(sesion),
+        clusters=RepositorioClustersSQL(sesion),
+        prototipos=RepositorioPrototiposSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        partes=RepositorioPartesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_consultar_catalogos_base(sesion: SesionRLS) -> ConsultarCatalogosBase:
+    return ConsultarCatalogosBase(partes=RepositorioPartesSQL(sesion))
+
+
 def obtener_modificar_actividad(sesion: SesionRLS, ctx: ContextoActual) -> ModificarActividad:
     return ModificarActividad(
         partes=RepositorioPartesSQL(sesion),
@@ -1473,6 +1494,12 @@ ConsultarBitacoraDePartesDep = Annotated[
     ConsultarBitacoraDePartes, Depends(obtener_consultar_bitacora_de_partes)
 ]
 ConsultarPartesDep = Annotated[ConsultarPartes, Depends(obtener_consultar_partes)]
+CrearObraDesdeCatalogoBaseDep = Annotated[
+    CrearObraDesdeCatalogoBase, Depends(obtener_crear_obra_desde_catalogo_base)
+]
+ConsultarCatalogosBaseDep = Annotated[
+    ConsultarCatalogosBase, Depends(obtener_consultar_catalogos_base)
+]
 ModificarActividadDep = Annotated[ModificarActividad, Depends(obtener_modificar_actividad)]
 AgregarActividadNuevaDep = Annotated[
     AgregarActividadNueva, Depends(obtener_agregar_actividad_nueva)

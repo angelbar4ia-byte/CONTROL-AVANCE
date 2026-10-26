@@ -225,6 +225,9 @@ class TestContrato:
             "POST /api/v1/obras/{obra_id}/partes/transicion",
             "POST /api/v1/actividades/{actividad_id}/modificacion",
             "POST /api/v1/obras/{obra_id}/modificaciones/nueva",
+            # Crear la obra «Nueva» y su catálogo base escribe obra, prototipo y árbol: un
+            # reintento no debe dejar dos obras.
+            "POST /api/v1/obras/desde-catalogo-base",
         }
 
     def test_es_opcional(self) -> None:

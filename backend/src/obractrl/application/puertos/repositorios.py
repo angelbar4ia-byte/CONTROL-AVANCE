@@ -95,6 +95,14 @@ class RepositorioActividades(Protocol):
         no un campo nuevo."""
         ...
 
+    async def fijar_cantidad_medida(self, actividad_id: UUID, cantidad: Decimal) -> bool:
+        """En una obra «Nueva» (prototipo de un solo uso, 0081) **la cantidad medida es el
+        presupuesto**: sustituye a `cant_base` mientras la parte no esté asignada, y si la parte
+        ya iba validada o más allá la devuelve a cuantificarse. `False` si no aplica (la obra
+        tiene el presupuesto de un prototipo compartido, o la parte ya está asignada): entonces
+        el cuantificador solo compara."""
+        ...
+
     async def obtener_para_captura(self, actividad_id: UUID) -> dict | None:
         """Como `obtener`, pero bloqueando la fila hasta el commit.
 
@@ -385,7 +393,11 @@ class RepositorioPrototipoNodo(Protocol):
         ...
 
     async def clonar_estructura(
-        self, *, origen_prototipo_id: UUID, destino_prototipo_id: UUID
+        self,
+        *,
+        origen_prototipo_id: UUID,
+        destino_prototipo_id: UUID,
+        sin_cantidades: bool = False,
     ) -> int:
         """Copia todo el árbol de origen_prototipo_id hacia
         destino_prototipo_id: misma forma, mismas claves, mismos

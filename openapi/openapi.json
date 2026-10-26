@@ -11816,6 +11816,99 @@
         }
       }
     },
+    "/api/v1/catalogos-base": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Los catálogos base de cuantificación: de 1 planta y de 2",
+        "operationId": "catalogos_base_api_v1_catalogos_base_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogoBaseRespuesta"
+                  },
+                  "type": "array",
+                  "title": "Response Catalogos Base Api V1 Catalogos Base Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/obras/desde-catalogo-base": {
+      "post": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Crear una obra «Nueva» desde el cuantificador, con su catálogo base",
+        "description": "Escenario «Nuevo» (D-571): una obra cuyo proyecto es diferente de todos los prototipos.\nSe crea la obra y se forma su catálogo con la estructura y los conceptos del prototipo de 1 o\nde 2 plantas, **sin cantidades**: llegan midiendo, y lo medido es el presupuesto.",
+        "operationId": "crear_obra_desde_catalogo_base_api_v1_obras_desde_catalogo_base_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObraNuevaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObraNuevaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Plantas inválidas, clave inválida o sin prototipo de dónde formar el catálogo."
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/arranque": {
       "get": {
         "tags": [
@@ -14547,6 +14640,58 @@
         ],
         "title": "CargaRespuesta",
         "description": "Resultado de una carga (§9.4 `CargaDatos.resumen`)."
+      },
+      "CatalogoBaseRespuesta": {
+        "properties": {
+          "plantas": {
+            "type": "integer",
+            "title": "Plantas"
+          },
+          "plazo_base_semanas": {
+            "type": "integer",
+            "title": "Plazo Base Semanas",
+            "description": "El número de plantas fija el plazo base (D-419)."
+          },
+          "prototipo_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Clave",
+            "description": "El prototipo de cuya estructura se forma el catálogo."
+          },
+          "prototipo_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Nombre"
+          },
+          "n_nodos": {
+            "type": "integer",
+            "title": "N Nodos"
+          },
+          "disponible": {
+            "type": "boolean",
+            "title": "Disponible"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plantas",
+          "plazo_base_semanas",
+          "n_nodos",
+          "disponible"
+        ],
+        "title": "CatalogoBaseRespuesta"
       },
       "CategoriaExplosion": {
         "type": "string",
@@ -21969,6 +22114,90 @@
         ],
         "title": "ObraGeneradaRespuesta",
         "description": "Resultado del workflow A: qué se creó y sobre qué programa (§11.3 A)."
+      },
+      "ObraNuevaPeticion": {
+        "properties": {
+          "cluster_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cluster Id"
+          },
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave"
+          },
+          "plantas": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Plantas",
+            "description": "El catálogo base: de 1 planta o de 2."
+          },
+          "residente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residente Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cluster_id",
+          "clave",
+          "plantas"
+        ],
+        "title": "ObraNuevaPeticion"
+      },
+      "ObraNuevaRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "plantas": {
+            "type": "integer",
+            "title": "Plantas"
+          },
+          "plazo_base_semanas": {
+            "type": "integer",
+            "title": "Plazo Base Semanas"
+          },
+          "base_clave": {
+            "type": "string",
+            "title": "Base Clave",
+            "description": "El prototipo de cuya estructura se formó el catálogo."
+          },
+          "nodos": {
+            "type": "integer",
+            "title": "Nodos",
+            "description": "Nodos del catálogo, sin cantidades."
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "prototipo_id",
+          "plantas",
+          "plazo_base_semanas",
+          "base_clave",
+          "nodos"
+        ],
+        "title": "ObraNuevaRespuesta"
       },
       "ObraRespuesta": {
         "properties": {

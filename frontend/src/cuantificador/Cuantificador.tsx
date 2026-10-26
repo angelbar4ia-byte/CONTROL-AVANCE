@@ -20,7 +20,7 @@
  * escribir «0.5» en un factor no debe borrar vértices.
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import {
@@ -59,6 +59,8 @@ import { AltaNota } from './AltaNota';
 import { AltaPlano } from './AltaPlano';
 import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
 import { CalibrarEscala } from './CalibrarEscala';
+import { arbolDeCuantificacion } from './arbol';
+import { NuevaObra } from './NuevaObra';
 import { ReemplazarEnlace } from './ReemplazarEnlace';
 import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Visor';
 import {
@@ -377,7 +379,91 @@ export function EspacioDeTrazo({
     tipo === 'prototipo_nodo'
       ? (porNodoDePrototipo.get(id) ?? `Nodo de prototipo ${id.slice(0, 8)}`)
       : etiquetaActividad(porActividad.get(id), id);
-  const nodos = estado.data ?? [];
+  const arbol = useMemo(
+    () => arbolDeCuantificacion(actividades, estado.data ?? []),
+    [actividades, estado.data],
+  );
+
+  const tarjetaDelArbol = (
+      <div className="card">
+        <div className="card__header">
+          <div className="card__title">Cuantificación de la obra</div>
+          <div className="card__sub">Medido contra el presupuesto</div>
+        </div>
+        <div className="card__body card__body--flush">
+          {estado.error ? (
+            <div className="card__body">
+              <ErrorBanner mensaje={estado.error.message} />
+            </div>
+          ) : arbol.length === 0 ? (
+            <div className="card__body text-mute text-sm">
+              La obra todavía no tiene actividades: genérala para empezar a medir.
+            </div>
+          ) : (
+            <div className="table-scroll">
+              <table className="table" aria-label="Árbol de la cuantificación">
+                <thead>
+                  <tr>
+                    <th>Nivel · etapa · concepto</th>
+                    <th className="is-num">Base</th>
+                    <th className="is-num">Medido</th>
+                    <th className="is-num">Dif.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {arbol.map((nivel) => (
+                    <Fragment key={nivel.clave}>
+                      <tr>
+                        <th colSpan={4} scope="colgroup">
+                          {nivel.etiqueta}
+                          <span className="text-xs text-mute">
+                            {' '}
+                            · {nivel.medidas} de {nivel.total} medidos
+                          </span>
+                        </th>
+                      </tr>
+                      {nivel.etapas.map((etapa) => (
+                        <Fragment key={`${nivel.clave}/${etapa.clave}`}>
+                          <tr>
+                            <td colSpan={4} className="text-sm" style={{ paddingLeft: 20, fontWeight: 600 }}>
+                              {etapa.etiqueta}
+                              <span className="text-xs text-mute">
+                                {' '}
+                                · {etapa.medidas} de {etapa.hojas.length}
+                              </span>
+                            </td>
+                          </tr>
+                          {etapa.hojas.map((hoja) => (
+                            <tr key={hoja.id} className={hoja.id === actividadFocoId ? 'is-selected' : undefined}>
+                              <td style={{ paddingLeft: 40 }}>
+                                {hoja.etiqueta}
+                                {!hoja.medido && (
+                                  <span className="badge badge--outline" style={{ marginLeft: 6 }}>
+                                    Sin medir
+                                  </span>
+                                )}
+                                {hoja.porRevisar > 0 && (
+                                  <span className="badge badge--warn" style={{ marginLeft: 6 }}>
+                                    {hoja.porRevisar} por revisar
+                                  </span>
+                                )}
+                              </td>
+                              <td className="is-num">{fmtNum(hoja.base)}</td>
+                              <td className="is-num">{hoja.medido ? fmtNum(hoja.medida) : '—'}</td>
+                              <td className="is-num">{hoja.medido ? fmtNum(hoja.diferencia) : '—'}</td>
+                            </tr>
+                          ))}
+                        </Fragment>
+                      ))}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+  );
 
   const filaDeFoco = actividadFocoId
     ? (estado.data ?? []).find((n) => n.nodo_id === actividadFocoId)
@@ -448,6 +534,8 @@ export function EspacioDeTrazo({
           {!planos.isLoading && (
             <div className="empty-sub">Sube una imagen del plano para empezar a trazar.</div>
           )}
+          {/* Sin plano también se ve qué hay que medir: el árbol es el del presupuesto. */}
+          {!planos.isLoading && <div style={{ textAlign: 'left', marginTop: 16 }}>{tarjetaDelArbol}</div>}
         </div>
       ) : (
         <div className="cuant">
@@ -691,53 +779,7 @@ export function EspacioDeTrazo({
               </div>
             </div>
 
-            <div className="card">
-              <div className="card__header">
-                <div className="card__title">Cuantificación de la obra</div>
-                <div className="card__sub">Medido contra el presupuesto</div>
-              </div>
-              <div className="card__body card__body--flush">
-                {estado.error ? (
-                  <div className="card__body">
-                    <ErrorBanner mensaje={estado.error.message} />
-                  </div>
-                ) : nodos.length === 0 ? (
-                  <div className="card__body text-mute text-sm">
-                    Ningún trazo está enlazado todavía.
-                  </div>
-                ) : (
-                  <div className="table-scroll">
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Nodo</th>
-                          <th className="is-num">Base</th>
-                          <th className="is-num">Medido</th>
-                          <th className="is-num">Dif.</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {nodos.map((n) => (
-                          <tr key={`${n.tipo_nodo}-${n.nodo_id}`} className={n.nodo_id === actividadFocoId ? 'is-selected' : undefined}>
-                            <td>
-                              {n.descripcion ?? nombreDeNodo(n.tipo_nodo, n.nodo_id)}
-                              {n.trazos_por_revisar > 0 && (
-                                <span className="badge badge--warn" style={{ marginLeft: 6 }}>
-                                  {n.trazos_por_revisar} por revisar
-                                </span>
-                              )}
-                            </td>
-                            <td className="is-num">{fmtNum(n.cant_base)}</td>
-                            <td className="is-num">{fmtNum(n.cantidad_medida)}</td>
-                            <td className="is-num">{fmtNum(n.diferencia)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
+            {tarjetaDelArbol}
           </aside>
         </div>
       )}
@@ -856,6 +898,8 @@ export function EspacioDeTrazo({
  */
 export default function Cuantificador() {
   const [busqueda, setBusqueda] = useSearchParams();
+  const { sesion } = useSesion();
+  const [creandoObra, setCreandoObra] = useState(false);
   const obraId = busqueda.get('obra') ?? '';
   const selectorDeObra = (
     <div style={{ minWidth: 220 }}>
@@ -867,6 +911,13 @@ export default function Cuantificador() {
       />
     </div>
   );
+  // La entrada del escenario «Nuevo»: la obra se crea desde aquí (Control de obra, §11.2).
+  const nuevaObra =
+    sesion?.rol === 'control_obra' ? (
+      <button type="button" className="btn btn--sm" onClick={() => setCreandoObra(true)}>
+        Nueva obra
+      </button>
+    ) : null;
 
   return (
     <div className="page">
@@ -885,6 +936,7 @@ export default function Cuantificador() {
         <>
           <div className="filterbar filterbar--suelta">
             {selectorDeObra}
+            {nuevaObra}
           </div>
           <div className="empty">
             <div className="empty-title">Elige una obra</div>
@@ -895,9 +947,23 @@ export default function Cuantificador() {
         <EspacioDeTrazo
           key={obraId}
           obraId={obraId}
-          cabecera={selectorDeObra}
+          cabecera={
+            <>
+              {selectorDeObra}
+              {nuevaObra}
+            </>
+          }
           planoInicial={busqueda.get('plano') ?? undefined}
           actividadFocoId={busqueda.get('actividad') ?? undefined}
+        />
+      )}
+      {creandoObra && (
+        <NuevaObra
+          onCerrar={() => setCreandoObra(false)}
+          onCreada={(id) => {
+            setCreandoObra(false);
+            setBusqueda({ obra: id });
+          }}
         />
       )}
     </div>

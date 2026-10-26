@@ -59,8 +59,8 @@ insert into superintendente_usuario (org_id, superintendente_id, usuario_id)
 values (:org_id, :'si_id', :'sup_id');
 
 -- Árbol del prototipo: etapa -> nivel -> 3 conceptos, cada uno con CPU vigente.
-insert into prototipo (org_id, proyecto_id, clave, nombre)
-values (:org_id, :'proyecto_id', 'CAS-E2E', 'Casa E2E')
+insert into prototipo (org_id, proyecto_id, clave, nombre, plantas)
+values (:org_id, :'proyecto_id', 'CAS-E2E', 'Casa E2E', 1)
 returning id as proto_id \gset
 
 insert into etapa_constructiva (org_id, clave, descripcion, orden)

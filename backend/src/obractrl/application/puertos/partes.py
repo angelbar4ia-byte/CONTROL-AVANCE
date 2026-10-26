@@ -41,6 +41,12 @@ class RepositorioPartes(Protocol):
         """Bitácora de modificaciones de la obra, lo más reciente primero."""
         ...
 
+    async def catalogos_base(self) -> list[dict[str, Any]]:
+        """Por cada número de plantas (1 y 2) el prototipo de cuya estructura se forma el catálogo
+        base: el más completo (más nodos; a igualdad, el más antiguo) de los que no son de un solo
+        uso. `{plantas, id, proyecto_id, clave, nombre, m2, niveles, recamaras, n_nodos}`."""
+        ...
+
     async def plantas_de_obra(self, obra_id: UUID) -> dict[str, Any] | None:
         """`{plantas, plantas_del_prototipo}` de la obra, o `None` si no se ve."""
         ...
