@@ -149,3 +149,25 @@ export function motivoDeModificacion(
   if (cantidadActual + delta < 0) return 'Eso dejaría la cantidad en negativo; eliminar es dejarla en cero.';
   return null;
 }
+
+export const ETIQUETA_FORMA: Readonly<Record<string, string>> = {
+  pu: 'Por PU',
+  parametrico: 'Paramétrico',
+  mixto: 'Mixto',
+};
+
+/** Quién rediseña una parte a paramétrico o mixto (el servidor lo impone). */
+export function puedeRedisenar(rol: Rol | null): boolean {
+  return rol === 'control_obra' || rol === 'costos';
+}
+
+/**
+ * «Mixto no se guarda, se reporta en porcentaje» (§8.1): la etiqueta de una parte según su
+ * valuación. Por PU y paramétrico puros se dicen solos; el mixto trae su porcentaje.
+ */
+export function etiquetaDeValuacion(forma: string, porcentajeParametrico: number | string): string {
+  const base = ETIQUETA_FORMA[forma] ?? forma;
+  if (forma !== 'mixto') return base;
+  const pct = Number(porcentajeParametrico);
+  return `${base} · ${Number.isFinite(pct) ? pct.toFixed(0) : '—'} % paramétrico`;
+}

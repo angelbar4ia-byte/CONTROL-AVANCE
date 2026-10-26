@@ -149,3 +149,82 @@ class CrearObraDesdeCatalogoBase:
             "base_clave": str(base["clave"]),
             "nodos": nodos,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoCrearObraDesdeCero:
+    cluster_id: UUID
+    clave: str
+    plantas: int | None = None
+    residente_id: UUID | None = None
+
+
+class CrearObraDesdeCero:
+    """`POST /obras/desde-cero` (Control de obra): la obra del escenario 4 (D-578).
+
+    *«El paramétrico primero y luego se mide.»* Es el único caso en que no hay obra anterior de
+    dónde copiar: nace con un prototipo de un solo uso **vacío** y su presupuesto, donde los
+    ensambles —uno por tipo de espacio, D-579— componen la estructura con cantidades estimadas.
+    Después se mide por partes y lo medido sustituye a lo estimado.
+    """
+
+    def __init__(
+        self,
+        *,
+        obras: RepositorioObras,
+        clusters: RepositorioClusters,
+        prototipos: RepositorioPrototipos,
+        partes: RepositorioPartes,
+        uow: UnidadDeTrabajo,
+    ) -> None:
+        self._obras = obras
+        self._clusters = clusters
+        self._prototipos = prototipos
+        self._partes = partes
+        self._uow = uow
+
+    async def ejecutar(self, cmd: ComandoCrearObraDesdeCero) -> dict[str, Any]:
+        if cmd.plantas is not None and cmd.plantas not in PLAZO_BASE_SEMANAS:
+            raise ErrorDeCatalogoBase("Una casa tiene 1 o 2 plantas.")
+        cluster = await self._clusters.obtener(cmd.cluster_id)
+        if cluster is None:
+            raise ObraNoEncontrada(f"Cluster {cmd.cluster_id} no encontrado en tu alcance.")
+        prototipo = Prototipo.crear(
+            proyecto_id=str(cluster["proyecto_id"]), clave=cmd.clave, nombre=cmd.clave
+        )
+        async with self._uow:
+            prototipo_id = await self._prototipos.crear(
+                {
+                    "proyecto_id": prototipo.proyecto_id,
+                    "clave": str(prototipo.clave),
+                    "nombre": prototipo.nombre,
+                    "plantas": cmd.plantas,
+                    "de_una_obra": True,
+                }
+            )
+            presupuesto_id = await self._partes.crear_presupuesto_parametrico(prototipo_id)
+            obra = Obra.crear(
+                cluster_id=str(cmd.cluster_id),
+                clave=cmd.clave,
+                prototipo_id=str(prototipo_id),
+                residente_id=str(cmd.residente_id) if cmd.residente_id else None,
+            )
+            obra_id = await self._obras.crear(
+                {
+                    "cluster_id": obra.cluster_id,
+                    "clave": str(obra.clave),
+                    "prototipo_id": obra.prototipo_id,
+                    "residente_id": obra.residente_id,
+                    "fecha_inicio": obra.fecha_inicio,
+                    "fecha_fin": obra.fecha_fin,
+                    "m2": obra.m2,
+                    "es_urba": obra.es_urba,
+                }
+            )
+            await self._uow.commit()
+        return {
+            "obra_id": obra_id,
+            "prototipo_id": prototipo_id,
+            "presupuesto_id": presupuesto_id,
+            "plantas": cmd.plantas,
+        }

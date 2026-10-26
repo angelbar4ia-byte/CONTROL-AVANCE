@@ -630,7 +630,31 @@ class CambiarEstadoDePartes:
                 ),
             )
         )
-        return [{"clave": c, "de": de.value, "a": a.value} for c, de, a in pasos]
+        # Programar y asignar con cantidad solo estimada se puede, **avisando** (D-579): lo
+        # peligroso es contratar a precio alzado sobre lo estimado.
+        estimadas: dict[str, int] = {}
+        if cmd.accion in _AVISA_SI_ESTIMADA:
+            for f in await self._partes.lineas_de_valuacion(cmd.obra_id):
+                if f["modo_cantidad"] == "estimada":
+                    estimadas[f["clave"]] = estimadas.get(f["clave"], 0) + 1
+        return [
+            {
+                "clave": c,
+                "de": de.value,
+                "a": a.value,
+                "aviso": (
+                    f"{estimadas[c]} {'renglón tiene' if estimadas[c] == 1 else 'renglones tienen'} "
+                    "cantidad solo estimada: se puede seguir, pero no contrates a precio alzado "
+                    "sobre lo estimado."
+                    if c in estimadas
+                    else None
+                ),
+            }
+            for c, de, a in pasos
+        ]
+
+
+_AVISA_SI_ESTIMADA = frozenset({Accion.ENVIAR_A_PROGRAMA, Accion.PROGRAMAR, Accion.ASIGNAR})
 
 
 class ConsultarBitacoraDePartes:

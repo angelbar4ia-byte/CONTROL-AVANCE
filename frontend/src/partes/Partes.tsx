@@ -21,6 +21,8 @@ import {
   getPartesDeLaObraApiV1ObrasObraIdPartesGetQueryKey,
   useBitacoraDePartesApiV1ObrasObraIdPartesBitacoraGet,
   useCargaDePartesApiV1ObrasObraIdPartesCargaGet,
+  getValuacionDePartesApiV1ObrasObraIdPartesValuacionGetQueryKey,
+  useValuacionDePartesApiV1ObrasObraIdPartesValuacionGet,
   useCambiarEstadoDePartesApiV1ObrasObraIdPartesTransicionPost,
   usePartesDeLaObraApiV1ObrasObraIdPartesGet,
 } from '@/api/generado/partes/partes';
@@ -37,6 +39,8 @@ import {
   estadosAnteriores,
   etiquetaDeEstado,
   etiquetaDeTipoDeParte,
+  etiquetaDeValuacion,
+  puedeRedisenar,
   puedeAccion,
   tonoDeEstado,
   type AccionDeParte,
@@ -44,6 +48,7 @@ import {
 } from './reglas';
 import ArranqueYAlertas from './ArranqueYAlertas';
 import Modificaciones from './Modificaciones';
+import Rediseno from './Rediseno';
 
 export default function Partes() {
   const { sesion } = useSesion();
@@ -69,6 +74,11 @@ export default function Partes() {
   const carga = useCargaDePartesApiV1ObrasObraIdPartesCargaGet(obraId, {
     query: { enabled: obraId !== '' },
   });
+  const valuacion = useValuacionDePartesApiV1ObrasObraIdPartesValuacionGet(obraId, {
+    query: { enabled: obraId !== '' },
+  });
+  const valuacionDe = new Map((valuacion.data?.partes ?? []).map((v) => [v.clave, v]));
+  const [redisenando, setRedisenando] = useState(false);
   const cargaDe = new Map((carga.data?.partes ?? []).map((c) => [c.clave, c]));
 
   const mutacion = useCambiarEstadoDePartesApiV1ObrasObraIdPartesTransicionPost<ErrorApi>({
@@ -78,7 +88,14 @@ export default function Partes() {
         setElegidas(new Set());
         setDevolviendo(false);
         setNota('');
-        setAviso(`${pasos.length} ${pasos.length === 1 ? 'parte cambió' : 'partes cambiaron'} de paso.`);
+        const avisos = [...new Set(pasos.map((p) => p.aviso).filter((a): a is string => !!a))];
+        setAviso(
+          `${pasos.length} ${pasos.length === 1 ? 'parte cambió' : 'partes cambiaron'} de paso.` +
+            (avisos.length > 0 ? ` Ojo: ${avisos.join(' ')}` : ''),
+        );
+        void queryClient.invalidateQueries({
+          queryKey: getValuacionDePartesApiV1ObrasObraIdPartesValuacionGetQueryKey(obraId),
+        });
         void queryClient.invalidateQueries({
           queryKey: getPartesDeLaObraApiV1ObrasObraIdPartesGetQueryKey(obraId),
         });
@@ -214,6 +231,11 @@ export default function Partes() {
                 {ETIQUETA_ACCION[accionComun]} ({marcadas.length})
               </button>
             )}
+            {puedeRedisenar(rol) && marcadas.length === 1 && comun !== 'asignada' && (
+              <button type="button" className="btn btn--sm" onClick={() => setRedisenando(true)}>
+                Rediseñar a paramétrico
+              </button>
+            )}
             {sePuedeDevolver && (
               <button type="button" className="btn btn--sm" onClick={() => setDevolviendo(true)}>
                 Devolver ({marcadas.length})
@@ -244,6 +266,7 @@ export default function Partes() {
                     <th style={{ minWidth: 160 }}>Tipo</th>
                     <th style={{ minWidth: 150 }}>Avance</th>
                     <th className="is-num">Importe</th>
+                    <th style={{ minWidth: 150 }}>Valuación</th>
                     <th style={{ minWidth: 150 }}>Ingeniería cargada</th>
                     <th style={{ minWidth: 160 }}>Estado</th>
                   </tr>
@@ -280,6 +303,21 @@ export default function Partes() {
                           </div>
                         </td>
                         <td className="is-num tnum">{fmtNum(p.importe)}</td>
+                        <td className="text-xs">
+                          {valuacionDe.get(p.clave) ? (
+                            <span
+                              className={`badge badge--${valuacionDe.get(p.clave)!.forma === 'pu' ? 'outline' : 'info'}`}
+                              title="Mixto no se guarda: se reporta en porcentaje"
+                            >
+                              {etiquetaDeValuacion(
+                                valuacionDe.get(p.clave)!.forma,
+                                valuacionDe.get(p.clave)!.porcentaje_parametrico,
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-mute">—</span>
+                          )}
+                        </td>
                         <td className="text-xs">
                           {cargaDe.get(p.clave) ? (
                             <span
@@ -334,6 +372,15 @@ export default function Partes() {
             )}
           </section>
         </>
+      )}
+
+      {redisenando && marcadas.length === 1 && (
+        <Rediseno
+          obraId={obraId}
+          clave={marcadas[0]!.clave}
+          nombre={marcadas[0]!.nombre}
+          onCerrar={() => setRedisenando(false)}
+        />
       )}
 
       {devolviendo && comun && (

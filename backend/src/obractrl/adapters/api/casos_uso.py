@@ -123,6 +123,7 @@ from obractrl.application.casos_uso.consultar_planeacion import (
 from obractrl.application.casos_uso.crear_obra_desde_catalogo_base import (
     ConsultarCatalogosBase,
     CrearObraDesdeCatalogoBase,
+    CrearObraDesdeCero,
 )
 from obractrl.application.casos_uso.cuantificar import (
     AprobarTrazo,
@@ -278,6 +279,10 @@ from obractrl.application.casos_uso.registrar_revision_fisica import (
     RegistrarRevisionFisica,
 )
 from obractrl.application.casos_uso.registrar_salida_almacen import RegistrarSalidaAlmacen
+from obractrl.application.casos_uso.valuacion_de_partes import (
+    ConsultarValuacion,
+    RedisenarParte,
+)
 from obractrl.application.eventos import (
     ActividadCerrada,
     BusEnProceso,
@@ -339,6 +344,7 @@ __all__ = [
     "ConsultarPlaneacionDep",
     "ConsultarReprogramacionesDep",
     "ConsultarRutaCriticaDep",
+    "ConsultarValuacionDep",
     "CrearClusterDep",
     "CrearConceptoDep",
     "CrearContratistaDep",
@@ -348,6 +354,7 @@ __all__ = [
     "CrearInsumoDep",
     "CrearObraDep",
     "CrearObraDesdeCatalogoBaseDep",
+    "CrearObraDesdeCeroDep",
     "CrearObrasEnLoteDep",
     "CrearProgramaBaseDep",
     "CrearPrototipoDep",
@@ -388,6 +395,7 @@ __all__ = [
     "RechazarCierreDep",
     "RechazarIncidenciaDep",
     "RechazarReprogramacionDep",
+    "RedisenarParteDep",
     "ReemplazarEnlaceDep",
     "RegistrarEventoIncidenciaDep",
     "RegistrarNotaPlanoDep",
@@ -1369,6 +1377,34 @@ def obtener_crear_obra_desde_catalogo_base(sesion: SesionRLS) -> CrearObraDesdeC
     )
 
 
+def obtener_crear_obra_desde_cero(sesion: SesionRLS) -> CrearObraDesdeCero:
+    return CrearObraDesdeCero(
+        obras=RepositorioObrasSQL(sesion),
+        clusters=RepositorioClustersSQL(sesion),
+        prototipos=RepositorioPrototiposSQL(sesion),
+        partes=RepositorioPartesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_consultar_valuacion(sesion: SesionRLS) -> ConsultarValuacion:
+    return ConsultarValuacion(
+        partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion)
+    )
+
+
+def obtener_redisenar_parte(sesion: SesionRLS, ctx: ContextoActual) -> RedisenarParte:
+    return RedisenarParte(
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        explotar=ExplotarEnsamble(
+            ensambles=RepositorioEnsamblesSQL(sesion), conceptos=RepositorioConceptosSQL(sesion)
+        ),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+    )
+
+
 def obtener_consultar_catalogos_base(sesion: SesionRLS) -> ConsultarCatalogosBase:
     return ConsultarCatalogosBase(partes=RepositorioPartesSQL(sesion))
 
@@ -1497,6 +1533,9 @@ ConsultarPartesDep = Annotated[ConsultarPartes, Depends(obtener_consultar_partes
 CrearObraDesdeCatalogoBaseDep = Annotated[
     CrearObraDesdeCatalogoBase, Depends(obtener_crear_obra_desde_catalogo_base)
 ]
+CrearObraDesdeCeroDep = Annotated[CrearObraDesdeCero, Depends(obtener_crear_obra_desde_cero)]
+ConsultarValuacionDep = Annotated[ConsultarValuacion, Depends(obtener_consultar_valuacion)]
+RedisenarParteDep = Annotated[RedisenarParte, Depends(obtener_redisenar_parte)]
 ConsultarCatalogosBaseDep = Annotated[
     ConsultarCatalogosBase, Depends(obtener_consultar_catalogos_base)
 ]

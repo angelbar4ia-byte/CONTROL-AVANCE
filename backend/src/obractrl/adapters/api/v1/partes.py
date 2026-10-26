@@ -26,24 +26,29 @@ from obractrl.adapters.api.casos_uso import (
     ConsultarDesfaseDePartesDep,
     ConsultarModificacionesDep,
     ConsultarPartesDep,
+    ConsultarValuacionDep,
     CrearObraDesdeCatalogoBaseDep,
+    CrearObraDesdeCeroDep,
     FijarCandadoDeAsignarDep,
     FijarDesfaseDePartesDep,
     FijarPlantasDeObraDep,
     FijarPlantasDePrototipoDep,
     MarcarParteIndependienteDep,
     ModificarActividadDep,
+    RedisenarParteDep,
 )
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.adapters.api.idempotencia import Idempotencia
 from obractrl.application.casos_uso.crear_obra_desde_catalogo_base import (
     ComandoCrearObraDesdeCatalogoBase,
+    ComandoCrearObraDesdeCero,
 )
 from obractrl.application.casos_uso.gestionar_partes import (
     ComandoAgregarActividadNueva,
     ComandoCambiarEstadoDePartes,
     ComandoModificarActividad,
 )
+from obractrl.application.casos_uso.valuacion_de_partes import ComandoRedisenarParte
 from obractrl.domain.partes.estado import Accion, EstadoDeParte
 from obractrl.domain.partes.modificacion import TipoDeModificacion
 from obractrl.domain.shared.diccionario import Rol
@@ -109,6 +114,10 @@ class PasoDeParteRespuesta(BaseModel):
     clave: str
     de: str
     a: str
+    aviso: str | None = Field(
+        default=None,
+        description="Se puede seguir, pero hay algo que ver: cantidad solo estimada (D-579).",
+    )
 
 
 class TransicionDeParteRespuesta(BaseModel):
@@ -237,6 +246,77 @@ class ObraNuevaRespuesta(BaseModel):
     plazo_base_semanas: int
     base_clave: str = Field(description="El prototipo de cuya estructura se formó el catálogo.")
     nodos: int = Field(description="Nodos del catálogo, sin cantidades.")
+
+
+class ObraDesdeCeroPeticion(BaseModel):
+    cluster_id: UUID
+    clave: str = Field(min_length=1)
+    plantas: Literal[1, 2] | None = None
+    residente_id: UUID | None = None
+
+
+class ObraDesdeCeroRespuesta(BaseModel):
+    obra_id: UUID
+    prototipo_id: UUID
+    presupuesto_id: UUID = Field(description="Donde los ensambles componen sus instancias.")
+    plantas: int | None = None
+
+
+class ValuacionRespuesta(BaseModel):
+    forma: str = Field(description="`pu` · `parametrico` · `mixto` (se reporta, no se guarda).")
+    importe: Decimal
+    importe_parametrico: Decimal
+    porcentaje_parametrico: Decimal = Field(description="Del importe, 0 a 100.")
+    n_estimadas: int
+    n_renglones: int
+    estimado_original: Decimal = Field(description="Lo que valía, al precio de hoy, lo que ya se midió.")
+    medido: Decimal
+    desviacion_pct: Decimal | None = Field(
+        default=None, description="Cuánto se alejó lo medido de lo estimado; vuelve al paramétrico."
+    )
+
+
+class ValuacionDeParteRespuesta(ValuacionRespuesta):
+    clave: str
+    nombre: str
+
+
+class ValuacionDeObraRespuesta(BaseModel):
+    obra_id: UUID
+    obra: ValuacionRespuesta
+    partes: list[ValuacionDeParteRespuesta]
+
+
+class RedisenoPeticion(BaseModel):
+    clave: str = Field(description="La parte (`etapa:<id>`, `concepto:<id>` o `sin_etapa:-`).")
+    ensamble_id: UUID
+    factor: Decimal = Field(gt=0, description="Cuántas veces entra el ensamble en esta parte.")
+    aplicar: bool = Field(default=False, description="Sin esto solo propone.")
+
+
+class PropuestaDeRedisenoRespuesta(BaseModel):
+    actividad_id: UUID
+    concepto_clave: str
+    descripcion: str
+    cantidad_actual: Decimal
+    cantidad_estimada: Decimal
+    importe_actual: Decimal
+    importe_estimado: Decimal
+    ya_estimada: bool
+
+
+class RedisenoRespuesta(BaseModel):
+    clave: str
+    ensamble_clave: str
+    factor: Decimal
+    aplicado: bool
+    propuestas: list[PropuestaDeRedisenoRespuesta]
+    sin_renglon_en_la_parte: list[str] = Field(
+        description="Conceptos del ensamble que la parte no tiene: no se agregan."
+    )
+    conservan_pu: int = Field(description="Renglones de la parte que el ensamble no cubre.")
+    forma_despues: str
+    porcentaje_parametrico_despues: Decimal
 
 
 class ParteSinAutorizarRespuesta(BaseModel):
@@ -520,6 +600,81 @@ async def crear_obra_desde_catalogo_base(
                 clave=peticion.clave,
                 plantas=peticion.plantas,
                 residente_id=peticion.residente_id,
+            )
+        )
+    )
+
+
+@router.post(
+    "/obras/desde-cero",
+    response_model=ObraDesdeCeroRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear una obra «desde cero»: el paramétrico primero y luego se mide",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA)), Idempotencia],
+    responses={**_NO_ENCONTRADO, 422: {"description": "Plantas o clave inválidas."}},
+)
+async def crear_obra_desde_cero(
+    peticion: ObraDesdeCeroPeticion, caso_uso: CrearObraDesdeCeroDep
+) -> ObraDesdeCeroRespuesta:
+    """Escenario 4 (D-578): sin obra anterior de dónde copiar. Nace con un prototipo de un solo
+    uso vacío y su presupuesto; los ensambles (uno por tipo de espacio, D-579) componen la
+    estructura con cantidades estimadas, y después se mide por partes."""
+    return ObraDesdeCeroRespuesta(
+        **await caso_uso.ejecutar(
+            ComandoCrearObraDesdeCero(
+                cluster_id=peticion.cluster_id,
+                clave=peticion.clave,
+                plantas=peticion.plantas,
+                residente_id=peticion.residente_id,
+            )
+        )
+    )
+
+
+@router.get(
+    "/obras/{obra_id}/partes/valuacion",
+    response_model=ValuacionDeObraRespuesta,
+    summary="Cómo se valúa cada parte: por PU, por ensamble o mixto (en porcentaje)",
+    responses=_NO_ENCONTRADO,
+)
+async def valuacion_de_partes(
+    obra_id: UUID, caso_uso: ConsultarValuacionDep
+) -> ValuacionDeObraRespuesta:
+    """*Mixto no se guarda, se reporta en porcentaje* (§8.1). Y lo medido vuelve al paramétrico:
+    cuánto se alejó de lo estimado lo que una medición ya sustituyó (propone, no aplica)."""
+    return ValuacionDeObraRespuesta(**await caso_uso.ejecutar(obra_id))
+
+
+@router.post(
+    "/obras/{obra_id}/partes/rediseno",
+    response_model=RedisenoRespuesta,
+    summary="Rediseñar una parte a paramétrico o mixto: se valúa por ensamble",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS)), Idempotencia],
+    responses={
+        **_NO_ENCONTRADO,
+        409: {"description": "La parte ya está asignada: cambiarla es control de cambio."},
+        422: {"description": "Factor inválido."},
+    },
+)
+async def redisenar_parte(
+    obra_id: UUID,
+    peticion: RedisenoPeticion,
+    ctx: ContextoActual,
+    caso_uso: RedisenarParteDep,
+) -> RedisenoRespuesta:
+    """En presupuesto se autoriza, o se rediseña (D-571). Los renglones de la parte cuyo concepto
+    está en el ensamble pasan a la cantidad estimada; el resto se queda por PU: queda mixto y se
+    reporta en porcentaje. Sin `aplicar` solo propone."""
+    return RedisenoRespuesta(
+        **await caso_uso.ejecutar(
+            ComandoRedisenarParte(
+                obra_id=obra_id,
+                clave=peticion.clave,
+                ensamble_id=peticion.ensamble_id,
+                factor=peticion.factor,
+                usuario_id=ctx.usuario_id,
+                rol=Rol(ctx.rol),
+                aplicar=peticion.aplicar,
             )
         )
     )

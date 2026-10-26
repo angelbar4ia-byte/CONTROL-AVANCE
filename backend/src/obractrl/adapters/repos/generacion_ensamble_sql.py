@@ -181,10 +181,11 @@ class RepositorioGeneracionDePresupuestoSQL:
                     """
                     insert into prototipo_nodo
                         (org_id, prototipo_id, parent_id, tipo, nombre,
-                         concepto_id, orden)
+                         concepto_id, orden, cantidad, modo_cantidad)
                     values (cast(current_setting('app.org_id') as uuid),
                             cast(:prototipo_id as uuid), cast(:instancia_id as uuid),
-                            'concepto', :nombre, cast(:concepto_id as uuid), :orden)
+                            'concepto', :nombre, cast(:concepto_id as uuid), :orden,
+                            cast(:cantidad as numeric), 'estimada')
                     returning id
                     """
                 ),
@@ -194,6 +195,10 @@ class RepositorioGeneracionDePresupuestoSQL:
                     "nombre": nombre,
                     "concepto_id": str(concepto_id),
                     "orden": orden,
+                    # La cantidad que compone el ensamble es una estimación (0060): llega al
+                    # nodo para que la obra que se genere de este prototipo la herede, y se
+                    # sustituye al medirla (0082).
+                    "cantidad": cantidad,
                 },
             )
         ).one()
@@ -256,4 +261,16 @@ class RepositorioGeneracionDePresupuestoSQL:
                 "precio_unitario": precio_unitario,
                 "importe": importe,
             },
+        )
+        # El nodo de la partida lleva la misma cantidad estimada (ver `crear_partida_generada`).
+        await self._sesion.execute(
+            text(
+                """
+                update prototipo_nodo n
+                   set cantidad = cast(:cantidad as numeric), modo_cantidad = 'estimada'
+                  from partida_presupuesto p
+                 where p.id = cast(:id as uuid) and n.id = p.prototipo_nodo_id
+                """
+            ),
+            {"id": str(partida_id), "cantidad": cantidad},
         )

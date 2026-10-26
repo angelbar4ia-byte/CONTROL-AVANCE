@@ -115,7 +115,7 @@ class RepositorioActividadesSQL:
                            case when a.parte_independiente then 'concepto:' || a.id::text
                                 when a.etapa_id is not null then 'etapa:' || a.etapa_id::text
                                 else 'sin_etapa:-' end as clave,
-                           p.de_una_obra
+                           p.de_una_obra, a.modo_cantidad::text as modo
                       from actividad a
                       join obra o on o.id = a.obra_id
                       left join prototipo p on p.id = o.prototipo_id
@@ -137,13 +137,18 @@ class RepositorioActividadesSQL:
         ).scalar_one_or_none()
         if estado == "asignada":
             return False
-        if Decimal(str(fila["cant_base"])) == cantidad:
+        if Decimal(str(fila["cant_base"])) == cantidad and fila["modo"] == "medida":
             return True
+        # Medir sustituye a lo estimado, pero lo estimado no se pierde: el paramétrico aprende de
+        # esa diferencia (propone, no aplica, §8.1).
         await self._sesion.execute(
             text(
                 """
                 update actividad
-                   set cant_base = :c, cant_programada = least(cant_programada, :c)
+                   set cant_estimada = case when modo_cantidad = 'estimada' then cant_base
+                                            else cant_estimada end,
+                       cant_base = :c, cant_programada = least(cant_programada, :c),
+                       modo_cantidad = 'medida'
                  where id = :id
                 """
             ),
@@ -151,7 +156,8 @@ class RepositorioActividadesSQL:
         )
         # Una cantidad que cambia ya no es la que se validó: la parte vuelve a cuantificarse
         # (volver es libre hasta asignar, D-571) y su programa, si lo tenía, queda por revisar.
-        if estado in ("por_validar", "autorizada", "enviada_programa", "programada"):
+        cambio = Decimal(str(fila["cant_base"])) != cantidad
+        if cambio and estado in ("por_validar", "autorizada", "enviada_programa", "programada"):
             await self._sesion.execute(
                 text(
                     """

@@ -105,7 +105,13 @@ class RepositorioPartesSQL:
         return dict(fila) if fila is not None else None
 
     async def aplicar_modificacion(
-        self, actividad_id: UUID, *, tipo: str, cantidad: Any, cant_prototipo: Any
+        self,
+        actividad_id: UUID,
+        *,
+        tipo: str,
+        cantidad: Any,
+        cant_prototipo: Any,
+        modo: str = "capturada",
     ) -> None:
         await self._sesion.execute(
             text(
@@ -113,6 +119,7 @@ class RepositorioPartesSQL:
                 update actividad
                    set cant_base = :cantidad,
                        cant_programada = least(cant_programada, :cantidad),
+                       modo_cantidad = cast(:modo as modo_cantidad),
                        modificacion = cast(:tipo as tipo_modificacion),
                        cant_prototipo = coalesce(cant_prototipo, :prototipo)
                  where id = :id
@@ -123,6 +130,7 @@ class RepositorioPartesSQL:
                 "cantidad": cantidad,
                 "tipo": tipo,
                 "prototipo": cant_prototipo,
+                "modo": modo,
             },
         )
 
@@ -134,12 +142,12 @@ class RepositorioPartesSQL:
                 insert into actividad
                     (id, org_id, obra_id, concepto_id, nivel_id, etapa_id, descripcion,
                      cant_base, cant_programada, cant_ejecutada, precio_unitario,
-                     duracion_dias, modificacion, cant_prototipo)
+                     duracion_dias, modificacion, cant_prototipo, modo_cantidad)
                 values
                     (:id, cast(current_setting('app.org_id') as uuid), :obra_id,
                      cast(:concepto_id as uuid), cast(:nivel_id as uuid), cast(:etapa_id as uuid),
                      :descripcion, :cantidad, :cantidad, 0, :precio_unitario, 1,
-                     cast(:tipo as tipo_modificacion), 0)
+                     cast(:tipo as tipo_modificacion), 0, 'capturada')
                 """
             ),
             {
@@ -194,6 +202,40 @@ class RepositorioPartesSQL:
             )
         ).mappings().all()
         return [dict(f) for f in filas]
+
+    async def lineas_de_valuacion(self, obra_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select a.id, a.cant_base, a.precio_unitario, a.cant_estimada,
+                           a.modo_cantidad::text as modo_cantidad, c.clave as concepto_clave,
+                           coalesce(a.descripcion, c.descripcion, '') as descripcion,
+                           case when a.parte_independiente then 'concepto:' || a.id::text
+                                when a.etapa_id is not null then 'etapa:' || a.etapa_id::text
+                                else 'sin_etapa:-' end as clave
+                      from actividad a left join concepto c on c.id = a.concepto_id
+                     where a.obra_id = :obra_id
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def crear_presupuesto_parametrico(self, prototipo_id: UUID) -> UUID:
+        presupuesto_id = uuid4()
+        await self._sesion.execute(
+            text(
+                """
+                insert into presupuesto (id, org_id, prototipo_id, version, vigente, origen, monto_total)
+                values (:id, cast(current_setting('app.org_id') as uuid), :prototipo, 1, true,
+                        'parametrico', 0)
+                """
+            ),
+            {"id": str(presupuesto_id), "prototipo": str(prototipo_id)},
+        )
+        return presupuesto_id
 
     async def catalogos_base(self) -> list[dict[str, Any]]:
         filas = (

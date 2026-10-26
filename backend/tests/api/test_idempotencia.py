@@ -228,6 +228,10 @@ class TestContrato:
             # Crear la obra «Nueva» y su catálogo base escribe obra, prototipo y árbol: un
             # reintento no debe dejar dos obras.
             "POST /api/v1/obras/desde-catalogo-base",
+            # Rediseñar una parte a paramétrico reescribe cantidades y deja bitácora, y la obra
+            # «desde cero» crea obra, prototipo y presupuesto: un reintento no debe repetirlos.
+            "POST /api/v1/obras/desde-cero",
+            "POST /api/v1/obras/{obra_id}/partes/rediseno",
         }
 
     def test_es_opcional(self) -> None:

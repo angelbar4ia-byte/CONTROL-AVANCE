@@ -25,7 +25,13 @@ class RepositorioPartes(Protocol):
         ...
 
     async def aplicar_modificacion(
-        self, actividad_id: UUID, *, tipo: str, cantidad: Any, cant_prototipo: Any
+        self,
+        actividad_id: UUID,
+        *,
+        tipo: str,
+        cantidad: Any,
+        cant_prototipo: Any,
+        modo: str = "capturada",
     ) -> None:
         """Escribe la cantidad base nueva, la marca del tipo y —solo la primera vez— lo que
         decía el prototipo; la cantidad programada no puede pasar de la nueva base."""
@@ -39,6 +45,16 @@ class RepositorioPartes(Protocol):
 
     async def modificaciones_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
         """Bitácora de modificaciones de la obra, lo más reciente primero."""
+        ...
+
+    async def lineas_de_valuacion(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Por actividad: `{id, clave (de su parte), concepto_clave, descripcion, cant_base,
+        precio_unitario, modo_cantidad, cant_estimada}`."""
+        ...
+
+    async def crear_presupuesto_parametrico(self, prototipo_id: UUID) -> UUID:
+        """El presupuesto (vigente, vacío, de origen paramétrico) de un prototipo de un solo uso:
+        donde los ensambles componen sus instancias."""
         ...
 
     async def catalogos_base(self) -> list[dict[str, Any]]:

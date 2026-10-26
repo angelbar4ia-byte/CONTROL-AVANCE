@@ -39,14 +39,19 @@ import type {
   HTTPValidationError,
   ModificacionPeticion,
   ModificacionRespuesta,
+  ObraDesdeCeroPeticion,
+  ObraDesdeCeroRespuesta,
   ObraNuevaPeticion,
   ObraNuevaRespuesta,
   ParteIndependientePeticion,
   PartesDeObraRespuesta,
   PasoDeParteRespuesta,
   PlantasPeticion,
+  RedisenoPeticion,
+  RedisenoRespuesta,
   RegistroDeModificacionRespuesta,
   TransicionDeParteRespuesta,
+  ValuacionDeObraRespuesta,
 } from ".././modelo";
 
 import { peticion } from "../../cliente";
@@ -3283,6 +3288,667 @@ export const useCrearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePost = <
     getCrearObraDesdeCatalogoBaseApiV1ObrasDesdeCatalogoBasePostMutationOptions(
       options,
     );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Escenario 4 (D-578): sin obra anterior de dónde copiar. Nace con un prototipo de un solo
+uso vacío y su presupuesto; los ensambles (uno por tipo de espacio, D-579) componen la
+estructura con cantidades estimadas, y después se mide por partes.
+ * @summary Crear una obra «desde cero»: el paramétrico primero y luego se mide
+ */
+export const crearObraDesdeCeroApiV1ObrasDesdeCeroPost = (
+  obraDesdeCeroPeticion: ObraDesdeCeroPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ObraDesdeCeroRespuesta>(
+    {
+      url: `/api/v1/obras/desde-cero`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: obraDesdeCeroPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCrearObraDesdeCeroApiV1ObrasDesdeCeroPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof crearObraDesdeCeroApiV1ObrasDesdeCeroPost>>,
+    TError,
+    { data: ObraDesdeCeroPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof crearObraDesdeCeroApiV1ObrasDesdeCeroPost>>,
+  TError,
+  { data: ObraDesdeCeroPeticion },
+  TContext
+> => {
+  const mutationKey = ["crearObraDesdeCeroApiV1ObrasDesdeCeroPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof crearObraDesdeCeroApiV1ObrasDesdeCeroPost>>,
+    { data: ObraDesdeCeroPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return crearObraDesdeCeroApiV1ObrasDesdeCeroPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CrearObraDesdeCeroApiV1ObrasDesdeCeroPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof crearObraDesdeCeroApiV1ObrasDesdeCeroPost>>
+  >;
+export type CrearObraDesdeCeroApiV1ObrasDesdeCeroPostMutationBody =
+  ObraDesdeCeroPeticion;
+export type CrearObraDesdeCeroApiV1ObrasDesdeCeroPostMutationError = void;
+
+/**
+ * @summary Crear una obra «desde cero»: el paramétrico primero y luego se mide
+ */
+export const useCrearObraDesdeCeroApiV1ObrasDesdeCeroPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof crearObraDesdeCeroApiV1ObrasDesdeCeroPost>>,
+      TError,
+      { data: ObraDesdeCeroPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof crearObraDesdeCeroApiV1ObrasDesdeCeroPost>>,
+  TError,
+  { data: ObraDesdeCeroPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearObraDesdeCeroApiV1ObrasDesdeCeroPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * *Mixto no se guarda, se reporta en porcentaje* (§8.1). Y lo medido vuelve al paramétrico:
+cuánto se alejó de lo estimado lo que una medición ya sustituyó (propone, no aplica).
+ * @summary Cómo se valúa cada parte: por PU, por ensamble o mixto (en porcentaje)
+ */
+export const valuacionDePartesApiV1ObrasObraIdPartesValuacionGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ValuacionDeObraRespuesta>(
+    { url: `/api/v1/obras/${obraId}/partes/valuacion`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getValuacionDePartesApiV1ObrasObraIdPartesValuacionGetInfiniteQueryKey =
+  (obraId?: string) => {
+    return ["infinite", `/api/v1/obras/${obraId}/partes/valuacion`] as const;
+  };
+
+export const getValuacionDePartesApiV1ObrasObraIdPartesValuacionGetQueryKey = (
+  obraId?: string,
+) => {
+  return [`/api/v1/obras/${obraId}/partes/valuacion`] as const;
+};
+
+export const getValuacionDePartesApiV1ObrasObraIdPartesValuacionGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getValuacionDePartesApiV1ObrasObraIdPartesValuacionGetInfiniteQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+      >
+    > = ({ signal }) =>
+      valuacionDePartesApiV1ObrasObraIdPartesValuacionGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ValuacionDePartesApiV1ObrasObraIdPartesValuacionGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+    >
+  >;
+export type ValuacionDePartesApiV1ObrasObraIdPartesValuacionGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useValuacionDePartesApiV1ObrasObraIdPartesValuacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useValuacionDePartesApiV1ObrasObraIdPartesValuacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useValuacionDePartesApiV1ObrasObraIdPartesValuacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Cómo se valúa cada parte: por PU, por ensamble o mixto (en porcentaje)
+ */
+
+export function useValuacionDePartesApiV1ObrasObraIdPartesValuacionGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getValuacionDePartesApiV1ObrasObraIdPartesValuacionGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getValuacionDePartesApiV1ObrasObraIdPartesValuacionGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getValuacionDePartesApiV1ObrasObraIdPartesValuacionGetQueryKey(obraId);
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+      >
+    > = ({ signal }) =>
+      valuacionDePartesApiV1ObrasObraIdPartesValuacionGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ValuacionDePartesApiV1ObrasObraIdPartesValuacionGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+    >
+  >;
+export type ValuacionDePartesApiV1ObrasObraIdPartesValuacionGetQueryError =
+  void | HTTPValidationError;
+
+export function useValuacionDePartesApiV1ObrasObraIdPartesValuacionGet<
+  TData = Awaited<
+    ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useValuacionDePartesApiV1ObrasObraIdPartesValuacionGet<
+  TData = Awaited<
+    ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useValuacionDePartesApiV1ObrasObraIdPartesValuacionGet<
+  TData = Awaited<
+    ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Cómo se valúa cada parte: por PU, por ensamble o mixto (en porcentaje)
+ */
+
+export function useValuacionDePartesApiV1ObrasObraIdPartesValuacionGet<
+  TData = Awaited<
+    ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof valuacionDePartesApiV1ObrasObraIdPartesValuacionGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getValuacionDePartesApiV1ObrasObraIdPartesValuacionGetQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * En presupuesto se autoriza, o se rediseña (D-571). Los renglones de la parte cuyo concepto
+está en el ensamble pasan a la cantidad estimada; el resto se queda por PU: queda mixto y se
+reporta en porcentaje. Sin `aplicar` solo propone.
+ * @summary Rediseñar una parte a paramétrico o mixto: se valúa por ensamble
+ */
+export const redisenarParteApiV1ObrasObraIdPartesRedisenoPost = (
+  obraId: string,
+  redisenoPeticion: RedisenoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<RedisenoRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/partes/rediseno`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: redisenoPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getRedisenarParteApiV1ObrasObraIdPartesRedisenoPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof redisenarParteApiV1ObrasObraIdPartesRedisenoPost>
+      >,
+      TError,
+      { obraId: string; data: RedisenoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof redisenarParteApiV1ObrasObraIdPartesRedisenoPost>
+    >,
+    TError,
+    { obraId: string; data: RedisenoPeticion },
+    TContext
+  > => {
+    const mutationKey = ["redisenarParteApiV1ObrasObraIdPartesRedisenoPost"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof redisenarParteApiV1ObrasObraIdPartesRedisenoPost>
+      >,
+      { obraId: string; data: RedisenoPeticion }
+    > = (props) => {
+      const { obraId, data } = props ?? {};
+
+      return redisenarParteApiV1ObrasObraIdPartesRedisenoPost(
+        obraId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type RedisenarParteApiV1ObrasObraIdPartesRedisenoPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof redisenarParteApiV1ObrasObraIdPartesRedisenoPost>>
+  >;
+export type RedisenarParteApiV1ObrasObraIdPartesRedisenoPostMutationBody =
+  RedisenoPeticion;
+export type RedisenarParteApiV1ObrasObraIdPartesRedisenoPostMutationError =
+  void;
+
+/**
+ * @summary Rediseñar una parte a paramétrico o mixto: se valúa por ensamble
+ */
+export const useRedisenarParteApiV1ObrasObraIdPartesRedisenoPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof redisenarParteApiV1ObrasObraIdPartesRedisenoPost>
+      >,
+      TError,
+      { obraId: string; data: RedisenoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof redisenarParteApiV1ObrasObraIdPartesRedisenoPost>>,
+  TError,
+  { obraId: string; data: RedisenoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getRedisenarParteApiV1ObrasObraIdPartesRedisenoPostMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
