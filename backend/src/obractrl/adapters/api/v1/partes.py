@@ -7,7 +7,7 @@ fijan el catálogo base de cuantificación y el plazo base del programa.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -16,8 +16,13 @@ from pydantic import BaseModel, Field
 
 from obractrl.adapters.api.casos_uso import (
     CambiarEstadoDePartesDep,
+    ConsultarAlertasDePartesDep,
+    ConsultarArranqueDep,
     ConsultarBitacoraDePartesDep,
+    ConsultarDesfaseDePartesDep,
     ConsultarPartesDep,
+    FijarCandadoDeAsignarDep,
+    FijarDesfaseDePartesDep,
     FijarPlantasDeObraDep,
     FijarPlantasDePrototipoDep,
     MarcarParteIndependienteDep,
@@ -41,6 +46,13 @@ class ParteRespuesta(BaseModel):
             "`cuantificando` · `enviada_presupuesto` · `por_validar` · `autorizada` · "
             "`enviada_programa` · `programada` · `asignada`. Sin renglón: `cuantificando`."
         )
+    )
+    programa_por_revisar: bool = Field(
+        default=False,
+        description=(
+            "La parte se devolvió teniendo programa: ese programa puede estar desactualizado. "
+            "Se quita al volver a programarla."
+        ),
     )
     n_actividades: int
     actividad_ids: list[UUID]
@@ -95,6 +107,59 @@ class TransicionDeParteRespuesta(BaseModel):
     rol: str
     nota: str | None = None
     creada_en: datetime
+
+
+class AlertaDeParteRespuesta(BaseModel):
+    clave: str
+    nombre: str
+    estado: str
+    inicio: date = Field(description="Cuándo necesita el programa la parte.")
+    dias: int = Field(description="Días para necesitarla; negativo si ya la necesitaba.")
+    severidad: str = Field(description="`aviso` (a las 2 semanas) · `importante` (a la semana).")
+
+
+class AlertasDePartesRespuesta(BaseModel):
+    obra_id: UUID
+    aviso_dias: int
+    importante_dias: int
+    alertas: list[AlertaDeParteRespuesta]
+
+
+class ParteSinAutorizarRespuesta(BaseModel):
+    clave: str
+    nombre: str
+    estado: str
+
+
+class ArranqueRespuesta(BaseModel):
+    obra_id: UUID
+    candado_asignar: bool
+    total: int
+    por_estado: dict[str, int]
+    sin_autorizar: list[ParteSinAutorizarRespuesta]
+    todo_validado: bool = Field(
+        description="Todas las partes están autorizadas o más. Requisito de la junta; avisa."
+    )
+    programas_por_revisar: int
+
+
+class CandadoPeticion(BaseModel):
+    activo: bool = Field(
+        description=(
+            "Con el candado, validar una parte exige una anotación y asignarla exige que quien "
+            "la validó la haya dejado."
+        )
+    )
+
+
+class DesfaseDePartesPeticion(BaseModel):
+    aviso_dias: int = Field(ge=0, description="Días antes de que el programa la necesite: aviso.")
+    importante_dias: int = Field(ge=0, description="Días antes: alerta importante.")
+
+
+class DesfaseDePartesRespuesta(BaseModel):
+    aviso_dias: int
+    importante_dias: int
 
 
 _NO_ENCONTRADO = {404: {"description": "No existe o está fuera de tu alcance (§12.4)."}}
@@ -195,3 +260,69 @@ async def bitacora_de_partes(
 ) -> list[TransicionDeParteRespuesta]:
     """Todos los roles, cada uno con su alcance. Lo más reciente, primero. No se edita."""
     return [TransicionDeParteRespuesta(**f) for f in await caso_uso.ejecutar(obra_id)]
+
+
+@router.get(
+    "/obras/{obra_id}/partes/alertas",
+    response_model=AlertasDePartesRespuesta,
+    summary="Partes sin autorizar que el programa necesita pronto",
+    responses=_NO_ENCONTRADO,
+)
+async def alertas_de_partes(
+    obra_id: UUID, caso_uso: ConsultarAlertasDePartesDep
+) -> AlertasDePartesRespuesta:
+    """El presupuesto debe ir por delante del programa (D-575): a 2 semanas de que lo necesite y
+    sin autorizar, aviso; a 1 semana o vencida, importante. Avisa; no bloquea."""
+    return AlertasDePartesRespuesta(**await caso_uso.ejecutar(obra_id))
+
+
+@router.get(
+    "/obras/{obra_id}/arranque",
+    response_model=ArranqueRespuesta,
+    summary="Lo que la junta de arranque tiene a la vista: ¿todo validado?",
+    responses=_NO_ENCONTRADO,
+)
+async def arranque_de_la_obra(obra_id: UUID, caso_uso: ConsultarArranqueDep) -> ArranqueRespuesta:
+    """El requisito «todo validado» de la junta (D-574): qué partes aún no están autorizadas.
+    Avisa; lo que impide es asignar, con el candado (por obra)."""
+    return ArranqueRespuesta(**await caso_uso.ejecutar(obra_id))
+
+
+@router.put(
+    "/obras/{obra_id}/candado-asignar",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="El candado de asignar de la obra",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
+    responses=_NO_ENCONTRADO,
+)
+async def fijar_candado_de_asignar(
+    obra_id: UUID, peticion: CandadoPeticion, caso_uso: FijarCandadoDeAsignarDep
+) -> None:
+    """Lo edita Control de obra, por obra (D-574)."""
+    await caso_uso.ejecutar(obra_id, peticion.activo)
+
+
+@router.get(
+    "/configuracion/desfase-de-partes",
+    response_model=DesfaseDePartesRespuesta,
+    summary="Los umbrales de la alerta de desfase del presupuesto (globales)",
+)
+async def desfase_de_partes(caso_uso: ConsultarDesfaseDePartesDep) -> DesfaseDePartesRespuesta:
+    return DesfaseDePartesRespuesta(**await caso_uso.ejecutar())
+
+
+@router.put(
+    "/configuracion/desfase-de-partes",
+    response_model=DesfaseDePartesRespuesta,
+    summary="Editar los umbrales de la alerta de desfase (afectan a cada obra)",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE))],
+    responses={422: {"description": "El aviso va antes que la alerta importante."}},
+)
+async def fijar_desfase_de_partes(
+    peticion: DesfaseDePartesPeticion, caso_uso: FijarDesfaseDePartesDep
+) -> DesfaseDePartesRespuesta:
+    """Son globales y afectan a cada obra (D-577): 2 semanas de aviso y 1 de alerta importante
+    por defecto."""
+    return DesfaseDePartesRespuesta(
+        **await caso_uso.ejecutar(peticion.aviso_dias, peticion.importante_dias)
+    )

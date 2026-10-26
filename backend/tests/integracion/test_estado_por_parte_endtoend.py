@@ -363,3 +363,182 @@ async def test_se_avisa_a_quien_da_el_siguiente_paso_sin_quien_acaba_de_darlo(
     despues = len(buzon)
     assert (await control.get(f"/api/v1/obras/{escenario.obra_id}/partes")).status_code == 200
     assert despues == len(buzon)
+
+
+async def test_devolver_una_parte_con_programa_lo_deja_por_revisar_y_avisa_sin_borrar_nada(
+    escenario: Escenario,
+    partes: dict,
+    control: httpx.AsyncClient,
+    buzon: list[Correo],
+) -> None:
+    for accion in ("enviar_a_presupuesto", "autorizar", "validar", "enviar_a_programa", "programar"):
+        await _paso(control, escenario, accion, claves=[partes["a"]])
+    por_revisar = lambda cuerpo: {  # noqa: E731
+        p["clave"]: p["programa_por_revisar"] for p in cuerpo["partes"]
+    }
+    ver = await control.get(f"/api/v1/obras/{escenario.obra_id}/partes")
+    assert por_revisar(ver.json())[partes["a"]] is False
+
+    buzon.clear()
+    r = await _paso(control, escenario, "devolver", claves=[partes["a"]], a="autorizada")
+    assert r.status_code == 200, r.text
+    ver = await control.get(f"/api/v1/obras/{escenario.obra_id}/partes")
+    assert por_revisar(ver.json())[partes["a"]] is True
+    # Se avisó a quienes llevan el programa: el residente y el supervisor de la obra (no a quien
+    # devolvió), con una etiqueta propia.
+    [revisar] = [c for c in buzon if c.etiquetas == {"tipo": "programa_por_revisar"}]
+    assert _prefijos(revisar) == ["res", "sup"]
+    # Nada se borró: la parte conserva su actividad y solo cambió de paso.
+    assert [p["n_actividades"] for p in ver.json()["partes"] if p["clave"] == partes["a"]] == [1]
+
+    # Al volver a programarla la marca se quita.
+    for accion in ("enviar_a_programa", "programar"):
+        assert (await _paso(control, escenario, accion, claves=[partes["a"]])).status_code == 200
+    ver = await control.get(f"/api/v1/obras/{escenario.obra_id}/partes")
+    assert por_revisar(ver.json())[partes["a"]] is False
+
+
+async def test_devolver_una_parte_sin_programa_no_la_marca(
+    escenario: Escenario, partes: dict, control: httpx.AsyncClient, buzon: list[Correo]
+) -> None:
+    for accion in ("enviar_a_presupuesto", "autorizar", "validar"):
+        await _paso(control, escenario, accion, claves=[partes["a"]])
+    buzon.clear()
+    assert (await _paso(control, escenario, "devolver", claves=[partes["a"]], a="cuantificando")).status_code == 200
+    ver = await control.get(f"/api/v1/obras/{escenario.obra_id}/partes")
+    assert not any(p["programa_por_revisar"] for p in ver.json()["partes"])
+    assert not [c for c in buzon if c.etiquetas == {"tipo": "programa_por_revisar"}]
+
+
+async def _fechar(escenario: Escenario, partes: dict, dias_a: int, dias_b: int) -> None:
+    """El programa base necesita la etapa 1 en `dias_a` días y la etapa 2 en `dias_b`."""
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    async with engine.begin() as conn:
+        for actividad, dias in ((str(escenario.actividad_id), dias_a), (partes["actividad_b"], dias_b)):
+            await conn.execute(
+                text("update actividad set fecha_inicio = current_date + cast(:d as integer) where id = :a"),
+                {"d": dias, "a": actividad},
+            )
+    await engine.dispose()
+
+
+async def test_el_presupuesto_debe_ir_por_delante_del_programa_y_avisa_sin_bloquear(
+    escenario: Escenario, partes: dict, control: httpx.AsyncClient
+) -> None:
+    # Etapa 1 la necesita el programa en 10 días (aviso: dentro de 2 semanas); la 2, en 5
+    # (importante: dentro de 1 semana).
+    await _fechar(escenario, partes, 10, 5)
+    r = await control.get(f"/api/v1/obras/{escenario.obra_id}/partes/alertas")
+    assert r.status_code == 200, r.text
+    cuerpo = r.json()
+    assert (cuerpo["aviso_dias"], cuerpo["importante_dias"]) == (14, 7)
+    assert {a["clave"]: a["severidad"] for a in cuerpo["alertas"]} == {
+        partes["a"]: "aviso",
+        partes["b"]: "importante",
+    }
+    assert cuerpo["alertas"][0]["clave"] == partes["b"]  # lo más urgente, primero
+
+    # Autorizada deja de alertar; avisa pero no bloquea: sin autorizar se sigue pudiendo operar.
+    for accion in ("enviar_a_presupuesto", "autorizar", "validar"):
+        assert (await _paso(control, escenario, accion, claves=[partes["b"]])).status_code == 200
+    r = await control.get(f"/api/v1/obras/{escenario.obra_id}/partes/alertas")
+    assert [a["clave"] for a in r.json()["alertas"]] == [partes["a"]]
+
+    # Lejos en el tiempo no alerta.
+    await _fechar(escenario, partes, 60, 60)
+    r = await control.get(f"/api/v1/obras/{escenario.obra_id}/partes/alertas")
+    assert r.json()["alertas"] == []
+
+
+async def test_los_umbrales_son_globales_y_los_edita_control(
+    escenario: Escenario,
+    partes: dict,
+    control: httpx.AsyncClient,
+    residente: httpx.AsyncClient,
+    costos: httpx.AsyncClient,
+) -> None:
+    await _fechar(escenario, partes, 20, 60)
+    assert (await control.get("/api/v1/configuracion/desfase-de-partes")).json() == {
+        "aviso_dias": 14,
+        "importante_dias": 7,
+    }
+    ya = await control.get(f"/api/v1/obras/{escenario.obra_id}/partes/alertas")
+    assert ya.json()["alertas"] == []
+
+    # Solo Control (o la superintendencia) los edita; Costos y el residente los leen.
+    for otro in (residente, costos):
+        r = await otro.put("/api/v1/configuracion/desfase-de-partes", json={"aviso_dias": 30, "importante_dias": 7})
+        assert r.status_code == 403
+        assert (await otro.get("/api/v1/configuracion/desfase-de-partes")).status_code == 200
+
+    # El aviso va antes que la alerta importante.
+    malo = await control.put("/api/v1/configuracion/desfase-de-partes", json={"aviso_dias": 3, "importante_dias": 7})
+    assert malo.status_code == 422
+
+    r = await control.put("/api/v1/configuracion/desfase-de-partes", json={"aviso_dias": 30, "importante_dias": 7})
+    assert r.status_code == 200, r.text
+    assert r.json() == {"aviso_dias": 30, "importante_dias": 7}
+    despues = await control.get(f"/api/v1/obras/{escenario.obra_id}/partes/alertas")
+    assert [a["clave"] for a in despues.json()["alertas"]] == [partes["a"]]
+
+
+async def test_el_arranque_dice_si_todo_esta_validado_sin_impedir_nada(
+    escenario: Escenario, partes: dict, control: httpx.AsyncClient
+) -> None:
+    r = await control.get(f"/api/v1/obras/{escenario.obra_id}/arranque")
+    assert r.status_code == 200, r.text
+    cuerpo = r.json()
+    assert cuerpo["todo_validado"] is False
+    assert cuerpo["candado_asignar"] is False
+    assert {p["clave"] for p in cuerpo["sin_autorizar"]} == {partes["a"], partes["b"]}
+
+    for clave in (partes["a"], partes["b"]):
+        for accion in ("enviar_a_presupuesto", "autorizar", "validar"):
+            await _paso(control, escenario, accion, claves=[clave])
+    cuerpo = (await control.get(f"/api/v1/obras/{escenario.obra_id}/arranque")).json()
+    assert cuerpo["todo_validado"] is True
+    assert cuerpo["sin_autorizar"] == []
+
+
+async def test_el_candado_de_asignar_exige_anotacion_al_validar_y_para_asignar(
+    escenario: Escenario,
+    partes: dict,
+    control: httpx.AsyncClient,
+    supervisor: httpx.AsyncClient,
+) -> None:
+    clave = partes["a"]
+    # Lo pone solo Control, por obra.
+    assert (
+        await supervisor.put(f"/api/v1/obras/{escenario.obra_id}/candado-asignar", json={"activo": True})
+    ).status_code == 403
+    r = await control.put(f"/api/v1/obras/{escenario.obra_id}/candado-asignar", json={"activo": True})
+    assert r.status_code == 204, r.text
+    assert (await control.get(f"/api/v1/obras/{escenario.obra_id}/arranque")).json()["candado_asignar"] is True
+
+    for accion in ("enviar_a_presupuesto", "autorizar"):
+        await _paso(control, escenario, accion, claves=[clave])
+    # Validar sin anotación no pasa; con ella, sí.
+    sin = await _paso(control, escenario, "validar", claves=[clave])
+    assert sin.status_code == 409 and "anotación" in sin.text
+    assert (await _paso(control, escenario, "validar", claves=[clave], nota="Revisado contra el catálogo")).status_code == 200
+    for accion in ("enviar_a_programa", "programar"):
+        assert (await _paso(control, escenario, accion, claves=[clave])).status_code == 200
+    assert (await _paso(control, escenario, "asignar", claves=[clave])).status_code == 200
+
+    # Sin candado, la otra parte se valida y asigna sin anotación.
+    await control.put(f"/api/v1/obras/{escenario.obra_id}/candado-asignar", json={"activo": False})
+    for accion in ("enviar_a_presupuesto", "autorizar", "validar", "enviar_a_programa", "programar", "asignar"):
+        assert (await _paso(control, escenario, accion, claves=[partes["b"]])).status_code == 200
+
+
+async def test_con_candado_no_se_asigna_lo_validado_sin_anotacion(
+    escenario: Escenario, partes: dict, control: httpx.AsyncClient
+) -> None:
+    clave = partes["a"]
+    # Se valida cuando aún no hay candado: sin anotación.
+    for accion in ("enviar_a_presupuesto", "autorizar", "validar", "enviar_a_programa", "programar"):
+        assert (await _paso(control, escenario, accion, claves=[clave])).status_code == 200
+    await control.put(f"/api/v1/obras/{escenario.obra_id}/candado-asignar", json={"activo": True})
+    r = await _paso(control, escenario, "asignar", claves=[clave])
+    assert r.status_code == 409 and "anotación" in r.text
+    assert (await _estados(control, escenario))[clave] == "programada"

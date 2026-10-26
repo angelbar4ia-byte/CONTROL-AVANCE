@@ -32,6 +32,7 @@ __all__ = [
     "EstadoDeParte",
     "ParteNoPermitida",
     "aplicar",
+    "deja_programa_por_revisar",
     "roles_del_siguiente_paso",
 ]
 
@@ -103,6 +104,12 @@ _SIGUIENTE: dict[EstadoDeParte, Accion] = {
     EstadoDeParte.ENVIADA_PROGRAMA: Accion.PROGRAMAR,
     EstadoDeParte.PROGRAMADA: Accion.ASIGNAR,
 }
+
+
+def deja_programa_por_revisar(de: EstadoDeParte) -> bool:
+    """Devolver una parte que ya tenía programa (enviada a programa o programada) deja ese
+    programa **por revisar** (D-571): puede estar desactualizado. No se borra ni se bloquea."""
+    return ORDEN.index(de) >= ORDEN.index(EstadoDeParte.ENVIADA_PROGRAMA)
 
 
 def roles_del_siguiente_paso(estado: EstadoDeParte) -> frozenset[Rol]:

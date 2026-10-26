@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 
@@ -49,6 +50,7 @@ class ActividadParaParte:
     etapa_nombre: str | None = None
     nivel_clave: str | None = None
     independiente: bool = False
+    fecha_inicio: date | None = None
 
 
 @dataclass(slots=True)
@@ -61,6 +63,8 @@ class Parte:
     actividad_ids: list[str] = field(default_factory=list)
     importe: Decimal = Decimal("0")
     avance_pct: Decimal = Decimal("0")
+    inicio: date | None = None
+    """Cuándo necesita el programa la parte: el inicio más temprano de sus actividades."""
 
     @property
     def clave(self) -> str:
@@ -102,5 +106,7 @@ def agrupar_en_partes(actividades: Sequence[ActividadParaParte]) -> list[Parte]:
         parte.actividad_ids = [m.id for m in miembros]
         parte.importe = sum((m.importe for m in miembros), Decimal("0"))
         parte.avance_pct = _avance(miembros)
+        inicios = [m.fecha_inicio for m in miembros if m.fecha_inicio is not None]
+        parte.inicio = min(inicios) if inicios else None
         partes.append(parte)
     return partes

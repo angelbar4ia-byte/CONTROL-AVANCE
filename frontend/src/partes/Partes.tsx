@@ -15,6 +15,8 @@ import { useRef, useState } from 'react';
 
 import { claveDeIdempotencia, type ErrorApi } from '@/api/cliente';
 import {
+  getAlertasDePartesApiV1ObrasObraIdPartesAlertasGetQueryKey,
+  getArranqueDeLaObraApiV1ObrasObraIdArranqueGetQueryKey,
   getBitacoraDePartesApiV1ObrasObraIdPartesBitacoraGetQueryKey,
   getPartesDeLaObraApiV1ObrasObraIdPartesGetQueryKey,
   useBitacoraDePartesApiV1ObrasObraIdPartesBitacoraGet,
@@ -39,6 +41,7 @@ import {
   type AccionDeParte,
   type EstadoDeParte,
 } from './reglas';
+import ArranqueYAlertas from './ArranqueYAlertas';
 
 export default function Partes() {
   const { sesion } = useSesion();
@@ -74,6 +77,13 @@ export default function Partes() {
         });
         void queryClient.invalidateQueries({
           queryKey: getBitacoraDePartesApiV1ObrasObraIdPartesBitacoraGetQueryKey(obraId),
+        });
+        // Autorizar o devolver cambia lo que alerta y lo que la junta ve.
+        void queryClient.invalidateQueries({
+          queryKey: getAlertasDePartesApiV1ObrasObraIdPartesAlertasGetQueryKey(obraId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: getArranqueDeLaObraApiV1ObrasObraIdArranqueGetQueryKey(obraId),
         });
       },
       onError: (e) => setError(e.message),
@@ -167,7 +177,19 @@ export default function Partes() {
         </div>
       ) : (
         <>
-          <div className="row gap-8 mb-8" style={{ flexWrap: 'wrap' }} role="toolbar" aria-label="Pasos">
+          <ArranqueYAlertas obraId={obraId} rol={rol} />
+          <div className="row gap-8 mb-8" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }} role="toolbar" aria-label="Pasos">
+            <div className="field" style={{ minWidth: 220 }}>
+              <label className="field__label" htmlFor="partes-anotacion">
+                Anotación (al validar o devolver)
+              </label>
+              <input
+                id="partes-anotacion"
+                className="input"
+                value={nota}
+                onChange={(e) => setNota(e.target.value)}
+              />
+            </div>
             {accionComun && puedeAccion(rol, accionComun) && (
               <button
                 type="button"
@@ -245,6 +267,11 @@ export default function Partes() {
                         <td className="is-num tnum">{fmtNum(p.importe)}</td>
                         <td>
                           <span className={`badge badge--${tonoDeEstado(p.estado)}`}>{etiquetaDeEstado(p.estado)}</span>
+                          {p.programa_por_revisar && (
+                            <span className="badge badge--warn" style={{ marginLeft: 4 }}>
+                              Programa por revisar
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );

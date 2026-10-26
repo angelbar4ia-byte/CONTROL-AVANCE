@@ -38,6 +38,7 @@ import { hoyISO } from '@/materiales/formulario';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Sheet } from '@/lib/Sheet';
 import type { Rol } from '@/shell/navegacion';
+import { useArranqueDeLaObraApiV1ObrasObraIdArranqueGet } from '@/api/generado/partes/partes';
 import { InstanciarPrograma } from '@/programacion/InstanciarPrograma';
 import { CampoSelect, CampoTexto } from './Campos';
 import { cambiosDeObra, formularioDeObra, hayCambios } from './formulario';
@@ -66,6 +67,8 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
   const [generada, setGenerada] = useState<ObraGeneradaRespuesta | null>(null);
   const [instanciando, setInstanciando] = useState(false);
   const [fechaJunta, setFechaJunta] = useState(() => hoyISO());
+  // Requisito de la junta: ¿todo validado? Avisa; lo que impide es asignar (el candado).
+  const arranque = useArranqueDeLaObraApiV1ObrasObraIdArranqueGet(obra.id);
   const [error, setError] = useState<{ mensaje: string; campo?: string } | null>(null);
 
   // Una clave por (método, ruta): generar la obra A y la obra B son
@@ -292,6 +295,20 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
               </div>
             </div>
             <div className="card__body col gap-12">
+              {arranque.data && (
+                <div className="row gap-8" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span className={`badge badge--${arranque.data.todo_validado ? 'ok' : 'warn'}`}>
+                    {arranque.data.todo_validado
+                      ? 'Todo validado'
+                      : `Falta validar ${arranque.data.sin_autorizar.length} de ${arranque.data.total} partes`}
+                  </span>
+                  <span className="text-xs text-mute">
+                    Requisito de la junta. {arranque.data.candado_asignar
+                      ? 'El candado impide asignar lo no validado.'
+                      : 'Sin candado: avisa, no impide asignar.'}
+                  </span>
+                </div>
+              )}
               <CampoTexto
                 id="junta-fecha"
                 etiqueta="Fecha de la junta"

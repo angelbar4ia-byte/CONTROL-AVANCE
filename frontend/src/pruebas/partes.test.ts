@@ -9,7 +9,9 @@ import {
   ESTADOS,
   accionSiguiente,
   estadosAnteriores,
+  etiquetaDeDias,
   etiquetaDeEstado,
+  puedeConfigurar,
   puedeAccion,
   tonoDeEstado,
 } from '@/partes/reglas';
@@ -77,6 +79,24 @@ describe('navegación', () => {
     for (const rol of ROLES) {
       expect(rutaPermitida(rol, '/partes')).toBe(true);
       expect(navegacionDe(rol).flatMap((s) => s.items.map((i) => i.a))).toContain('/partes');
+    }
+  });
+});
+
+describe('alertas y configuración', () => {
+  it('dice cuándo necesita el programa la parte', () => {
+    expect(etiquetaDeDias(0)).toBe('hoy');
+    expect(etiquetaDeDias(1)).toBe('mañana');
+    expect(etiquetaDeDias(10)).toBe('en 10 días');
+    expect(etiquetaDeDias(-1)).toBe('desde ayer');
+    expect(etiquetaDeDias(-3)).toBe('hace 3 días');
+  });
+
+  it('el candado y los umbrales los edita Control (o la superintendencia)', () => {
+    expect(puedeConfigurar('control_obra')).toBe(true);
+    expect(puedeConfigurar('super_intendente')).toBe(true);
+    for (const rol of ['residente', 'supervisor', 'costos', null] as const) {
+      expect(puedeConfigurar(rol)).toBe(false);
     }
   });
 });

@@ -25,7 +25,7 @@ class RepositorioPartesSQL:
                     """
                     select a.id, coalesce(a.descripcion, c.descripcion, '') as descripcion,
                            a.avance_pct, a.cant_base * a.precio_unitario as importe,
-                           a.parte_independiente as independiente,
+                           a.parte_independiente as independiente, a.fecha_inicio,
                            a.etapa_id, e.descripcion as etapa_nombre,
                            n.clave as nivel_clave
                       from actividad a
@@ -105,17 +105,27 @@ class RepositorioPartesSQL:
         return {f["clave"]: f["estado"] for f in filas}
 
     async def fijar_estado(
-        self, obra_id: UUID, clave: str, estado: str, usuario_id: UUID | None
+        self,
+        obra_id: UUID,
+        clave: str,
+        estado: str,
+        usuario_id: UUID | None,
+        *,
+        programa_por_revisar: bool | None = None,
     ) -> None:
         await self._sesion.execute(
             text(
                 """
-                insert into parte_estado (org_id, obra_id, clave, estado, actualizada_por)
+                insert into parte_estado
+                    (org_id, obra_id, clave, estado, actualizada_por, programa_por_revisar)
                 values (current_setting('app.org_id')::uuid, :obra_id, :clave,
-                        cast(:estado as estado_parte), cast(:usuario as uuid))
+                        cast(:estado as estado_parte), cast(:usuario as uuid),
+                        coalesce(:revisar, false))
                 on conflict (obra_id, clave) do update
                    set estado = excluded.estado, actualizada_por = excluded.actualizada_por,
-                       actualizada_en = now()
+                       actualizada_en = now(),
+                       programa_por_revisar =
+                           coalesce(:revisar, parte_estado.programa_por_revisar)
                 """
             ),
             {
@@ -123,8 +133,21 @@ class RepositorioPartesSQL:
                 "clave": clave,
                 "estado": estado,
                 "usuario": str(usuario_id) if usuario_id else None,
+                "revisar": programa_por_revisar,
             },
         )
+
+    async def programas_por_revisar(self, obra_id: UUID) -> set[str]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    "select clave from parte_estado "
+                    "where obra_id = :id and programa_por_revisar"
+                ),
+                {"id": str(obra_id)},
+            )
+        ).mappings().all()
+        return {f["clave"] for f in filas}
 
     async def registrar_transicion(
         self,
@@ -176,3 +199,34 @@ class RepositorioPartesSQL:
             )
         ).mappings().all()
         return [dict(f) for f in filas]
+
+    async def candado_de_obra(self, obra_id: UUID) -> bool | None:
+        fila = (
+            await self._sesion.execute(
+                text("select candado_asignar from obra where id = :id"), {"id": str(obra_id)}
+            )
+        ).first()
+        return bool(fila[0]) if fila is not None else None
+
+    async def fijar_candado(self, obra_id: UUID, activo: bool) -> bool:
+        r = await self._sesion.execute(
+            text("update obra set candado_asignar = :v where id = :id"),
+            {"v": activo, "id": str(obra_id)},
+        )
+        return r.rowcount > 0
+
+    async def validaciones_con_anotacion(self, obra_id: UUID) -> set[str]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select distinct on (clave) clave, nota
+                      from parte_transicion
+                     where obra_id = :id and accion = 'validar'
+                     order by clave, creada_en desc, id
+                    """
+                ),
+                {"id": str(obra_id)},
+            )
+        ).mappings().all()
+        return {f["clave"] for f in filas if (f["nota"] or "").strip()}

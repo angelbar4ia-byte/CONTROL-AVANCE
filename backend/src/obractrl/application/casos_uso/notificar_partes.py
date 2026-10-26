@@ -70,6 +70,50 @@ class NotificarPartes:
     async def ejecutar(self, evento: PartesCambiaronDeEstado) -> bool:
         if not evento.claves or len(evento.estados) != len(evento.claves):
             return False
+        # Dos avisos independientes: el del siguiente paso y, si se devolvió algo con programa,
+        # el del programa por revisar. Que falle uno no impide el otro.
+        paso = await self._avisar_siguiente_paso(evento)
+        revisar = await self._avisar_programa_por_revisar(evento)
+        return paso or revisar
+
+    async def _avisar_programa_por_revisar(self, evento: PartesCambiaronDeEstado) -> bool:
+        """Se devolvieron partes que ya tenían programa: avisa a quienes lo llevan (control de
+        obra, supervisor y el residente de la obra) que puede estar desactualizado (D-571)."""
+        if not evento.programa_por_revisar:
+            return False
+        nombres = {p.clave: p.nombre for p in await _partes_de(self._partes, evento.obra_id)}
+        destinatarios = [
+            u
+            for u in await self._usuarios.de_la_obra(evento.obra_id)
+            if str(u["rol"]) in {"control_obra", "supervisor", "residente"}
+            and str(u["id"]) != str(evento.usuario_id)
+        ]
+        correos = tuple(
+            str(u["email"]).strip() for u in destinatarios if str(u.get("email") or "").strip()
+        )
+        if not correos:
+            return False
+        obra = await self._obras.obtener(evento.obra_id) or {}
+        clave_obra = obra.get("clave") or "(obra sin clave)"
+        lista = ", ".join(nombres.get(c, c) for c in evento.programa_por_revisar)
+        return await self._correo.enviar(
+            Correo(
+                para=correos,
+                asunto=f"Programa por revisar · {clave_obra}",
+                texto=(
+                    f"En la obra {clave_obra} se devolvieron partes que ya tenían programa: {lista}.\n"
+                    "Su programa puede estar desactualizado; no se borró. Revísalo."
+                ),
+                html=(
+                    f"<h2>Programa por revisar · {clave_obra}</h2>"
+                    f"<p>Se devolvieron partes que ya tenían programa: <strong>{lista}</strong>.</p>"
+                    "<p>Su programa puede estar desactualizado; no se borró. Revísalo.</p>"
+                ),
+                etiquetas={"tipo": "programa_por_revisar"},
+            )
+        )
+
+    async def _avisar_siguiente_paso(self, evento: PartesCambiaronDeEstado) -> bool:
 
         nombres = {p.clave: p.nombre for p in await _partes_de(self._partes, evento.obra_id)}
         por_estado: dict[str, list[str]] = defaultdict(list)

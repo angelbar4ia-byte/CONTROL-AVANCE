@@ -102,3 +102,22 @@ export function estadosAnteriores(estado: string): readonly EstadoDeParte[] {
 export function etiquetaDeTipoDeParte(tipo: string): string {
   return tipo === 'concepto' ? 'Concepto independiente' : tipo === 'etapa' ? 'Etapa' : 'Sin etapa';
 }
+
+/** Quién edita el candado de asignar y los umbrales del desfase (el servidor lo impone). */
+export function puedeConfigurar(rol: Rol | null): boolean {
+  return rol === 'control_obra' || rol === 'super_intendente';
+}
+
+export const ETIQUETA_SEVERIDAD: Readonly<Record<string, string>> = {
+  aviso: 'Aviso',
+  importante: 'Importante',
+};
+
+/** «en 10 días», «mañana», «hoy», «hace 3 días»: cuándo necesita el programa la parte. */
+export function etiquetaDeDias(dias: number): string {
+  if (dias === 0) return 'hoy';
+  if (dias === 1) return 'mañana';
+  if (dias > 1) return `en ${dias} días`;
+  if (dias === -1) return 'desde ayer';
+  return `hace ${-dias} días`;
+}

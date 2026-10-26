@@ -154,6 +154,8 @@ class PartesCambiaronDeEstado:
     estados: tuple[str, ...] = ()
     """El estado al que pasó cada parte, en el mismo orden que `claves`."""
     usuario_id: UUID | None = None
+    programa_por_revisar: tuple[str, ...] = ()
+    """Las partes devueltas que tenían programa: su programa quedó por revisar (D-571)."""
 
 
 @runtime_checkable

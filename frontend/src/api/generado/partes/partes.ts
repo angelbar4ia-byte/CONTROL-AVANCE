@@ -26,7 +26,12 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AlertasDePartesRespuesta,
+  ArranqueRespuesta,
   CambiarEstadoPeticion,
+  CandadoPeticion,
+  DesfaseDePartesPeticion,
+  DesfaseDePartesRespuesta,
   HTTPValidationError,
   ParteIndependientePeticion,
   PartesDeObraRespuesta,
@@ -1295,3 +1300,1464 @@ export function useBitacoraDePartesApiV1ObrasObraIdPartesBitacoraGet<
 
   return query;
 }
+
+/**
+ * El presupuesto debe ir por delante del programa (D-575): a 2 semanas de que lo necesite y
+sin autorizar, aviso; a 1 semana o vencida, importante. Avisa; no bloquea.
+ * @summary Partes sin autorizar que el programa necesita pronto
+ */
+export const alertasDePartesApiV1ObrasObraIdPartesAlertasGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<AlertasDePartesRespuesta>(
+    { url: `/api/v1/obras/${obraId}/partes/alertas`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getAlertasDePartesApiV1ObrasObraIdPartesAlertasGetInfiniteQueryKey =
+  (obraId?: string) => {
+    return ["infinite", `/api/v1/obras/${obraId}/partes/alertas`] as const;
+  };
+
+export const getAlertasDePartesApiV1ObrasObraIdPartesAlertasGetQueryKey = (
+  obraId?: string,
+) => {
+  return [`/api/v1/obras/${obraId}/partes/alertas`] as const;
+};
+
+export const getAlertasDePartesApiV1ObrasObraIdPartesAlertasGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getAlertasDePartesApiV1ObrasObraIdPartesAlertasGetInfiniteQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+      >
+    > = ({ signal }) =>
+      alertasDePartesApiV1ObrasObraIdPartesAlertasGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type AlertasDePartesApiV1ObrasObraIdPartesAlertasGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>>
+  >;
+export type AlertasDePartesApiV1ObrasObraIdPartesAlertasGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useAlertasDePartesApiV1ObrasObraIdPartesAlertasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useAlertasDePartesApiV1ObrasObraIdPartesAlertasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useAlertasDePartesApiV1ObrasObraIdPartesAlertasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Partes sin autorizar que el programa necesita pronto
+ */
+
+export function useAlertasDePartesApiV1ObrasObraIdPartesAlertasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getAlertasDePartesApiV1ObrasObraIdPartesAlertasGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getAlertasDePartesApiV1ObrasObraIdPartesAlertasGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getAlertasDePartesApiV1ObrasObraIdPartesAlertasGetQueryKey(obraId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>>
+  > = ({ signal }) =>
+    alertasDePartesApiV1ObrasObraIdPartesAlertasGet(
+      obraId,
+      requestOptions,
+      signal,
+    );
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!obraId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type AlertasDePartesApiV1ObrasObraIdPartesAlertasGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>>
+  >;
+export type AlertasDePartesApiV1ObrasObraIdPartesAlertasGetQueryError =
+  void | HTTPValidationError;
+
+export function useAlertasDePartesApiV1ObrasObraIdPartesAlertasGet<
+  TData = Awaited<
+    ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useAlertasDePartesApiV1ObrasObraIdPartesAlertasGet<
+  TData = Awaited<
+    ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useAlertasDePartesApiV1ObrasObraIdPartesAlertasGet<
+  TData = Awaited<
+    ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Partes sin autorizar que el programa necesita pronto
+ */
+
+export function useAlertasDePartesApiV1ObrasObraIdPartesAlertasGet<
+  TData = Awaited<
+    ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof alertasDePartesApiV1ObrasObraIdPartesAlertasGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getAlertasDePartesApiV1ObrasObraIdPartesAlertasGetQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * El requisito «todo validado» de la junta (D-574): qué partes aún no están autorizadas.
+Avisa; lo que impide es asignar, con el candado (por obra).
+ * @summary Lo que la junta de arranque tiene a la vista: ¿todo validado?
+ */
+export const arranqueDeLaObraApiV1ObrasObraIdArranqueGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ArranqueRespuesta>(
+    { url: `/api/v1/obras/${obraId}/arranque`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getArranqueDeLaObraApiV1ObrasObraIdArranqueGetInfiniteQueryKey = (
+  obraId?: string,
+) => {
+  return ["infinite", `/api/v1/obras/${obraId}/arranque`] as const;
+};
+
+export const getArranqueDeLaObraApiV1ObrasObraIdArranqueGetQueryKey = (
+  obraId?: string,
+) => {
+  return [`/api/v1/obras/${obraId}/arranque`] as const;
+};
+
+export const getArranqueDeLaObraApiV1ObrasObraIdArranqueGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getArranqueDeLaObraApiV1ObrasObraIdArranqueGetInfiniteQueryKey(obraId);
+
+    const queryFn: QueryFunction<
+      Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>
+    > = ({ signal }) =>
+      arranqueDeLaObraApiV1ObrasObraIdArranqueGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ArranqueDeLaObraApiV1ObrasObraIdArranqueGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>
+  >;
+export type ArranqueDeLaObraApiV1ObrasObraIdArranqueGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useArranqueDeLaObraApiV1ObrasObraIdArranqueGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useArranqueDeLaObraApiV1ObrasObraIdArranqueGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useArranqueDeLaObraApiV1ObrasObraIdArranqueGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Lo que la junta de arranque tiene a la vista: ¿todo validado?
+ */
+
+export function useArranqueDeLaObraApiV1ObrasObraIdArranqueGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getArranqueDeLaObraApiV1ObrasObraIdArranqueGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getArranqueDeLaObraApiV1ObrasObraIdArranqueGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getArranqueDeLaObraApiV1ObrasObraIdArranqueGetQueryKey(obraId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>
+  > = ({ signal }) =>
+    arranqueDeLaObraApiV1ObrasObraIdArranqueGet(obraId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!obraId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ArranqueDeLaObraApiV1ObrasObraIdArranqueGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>
+  >;
+export type ArranqueDeLaObraApiV1ObrasObraIdArranqueGetQueryError =
+  void | HTTPValidationError;
+
+export function useArranqueDeLaObraApiV1ObrasObraIdArranqueGet<
+  TData = Awaited<
+    ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useArranqueDeLaObraApiV1ObrasObraIdArranqueGet<
+  TData = Awaited<
+    ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useArranqueDeLaObraApiV1ObrasObraIdArranqueGet<
+  TData = Awaited<
+    ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Lo que la junta de arranque tiene a la vista: ¿todo validado?
+ */
+
+export function useArranqueDeLaObraApiV1ObrasObraIdArranqueGet<
+  TData = Awaited<
+    ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof arranqueDeLaObraApiV1ObrasObraIdArranqueGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getArranqueDeLaObraApiV1ObrasObraIdArranqueGetQueryOptions(obraId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Lo edita Control de obra, por obra (D-574).
+ * @summary El candado de asignar de la obra
+ */
+export const fijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPut = (
+  obraId: string,
+  candadoPeticion: CandadoPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/obras/${obraId}/candado-asignar`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: candadoPeticion,
+    },
+    options,
+  );
+};
+
+export const getFijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPutMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof fijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPut
+        >
+      >,
+      TError,
+      { obraId: string; data: CandadoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof fijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPut>
+    >,
+    TError,
+    { obraId: string; data: CandadoPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "fijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof fijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPut
+        >
+      >,
+      { obraId: string; data: CandadoPeticion }
+    > = (props) => {
+      const { obraId, data } = props ?? {};
+
+      return fijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPut(
+        obraId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type FijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof fijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPut>
+    >
+  >;
+export type FijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPutMutationBody =
+  CandadoPeticion;
+export type FijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPutMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary El candado de asignar de la obra
+ */
+export const useFijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPut = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof fijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPut
+        >
+      >,
+      TError,
+      { obraId: string; data: CandadoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof fijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPut>
+  >,
+  TError,
+  { obraId: string; data: CandadoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getFijarCandadoDeAsignarApiV1ObrasObraIdCandadoAsignarPutMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Los umbrales de la alerta de desfase del presupuesto (globales)
+ */
+export const desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet = (
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<DesfaseDePartesRespuesta>(
+    { url: `/api/v1/configuracion/desfase-de-partes`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetInfiniteQueryKey =
+  () => {
+    return ["infinite", `/api/v1/configuracion/desfase-de-partes`] as const;
+  };
+
+export const getDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetQueryKey =
+  () => {
+    return [`/api/v1/configuracion/desfase-de-partes`] as const;
+  };
+
+export const getDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+      >
+    >,
+    TError = unknown,
+  >(options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetInfiniteQueryKey();
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+      >
+    > = ({ signal }) =>
+      desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet(
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type DesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+    >
+  >;
+export type DesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetInfiniteQueryError =
+  unknown;
+
+export function useDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+    >
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los umbrales de la alerta de desfase del presupuesto (globales)
+ */
+
+export function useDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+    >
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetInfiniteQueryOptions(
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+    >,
+    TError = unknown,
+  >(options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetQueryKey();
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+      >
+    > = ({ signal }) =>
+      desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet(
+        requestOptions,
+        signal,
+      );
+
+    return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+      Awaited<
+        ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type DesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+    >
+  >;
+export type DesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetQueryError =
+  unknown;
+
+export function useDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGet<
+  TData = Awaited<
+    ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGet<
+  TData = Awaited<
+    ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGet<
+  TData = Awaited<
+    ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los umbrales de la alerta de desfase del presupuesto (globales)
+ */
+
+export function useDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGet<
+  TData = Awaited<
+    ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof desfaseDePartesApiV1ConfiguracionDesfaseDePartesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getDesfaseDePartesApiV1ConfiguracionDesfaseDePartesGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Son globales y afectan a cada obra (D-577): 2 semanas de aviso y 1 de alerta importante
+por defecto.
+ * @summary Editar los umbrales de la alerta de desfase (afectan a cada obra)
+ */
+export const fijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPut = (
+  desfaseDePartesPeticion: DesfaseDePartesPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<DesfaseDePartesRespuesta>(
+    {
+      url: `/api/v1/configuracion/desfase-de-partes`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: desfaseDePartesPeticion,
+    },
+    options,
+  );
+};
+
+export const getFijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPutMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof fijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPut
+        >
+      >,
+      TError,
+      { data: DesfaseDePartesPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof fijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPut
+      >
+    >,
+    TError,
+    { data: DesfaseDePartesPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "fijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof fijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPut
+        >
+      >,
+      { data: DesfaseDePartesPeticion }
+    > = (props) => {
+      const { data } = props ?? {};
+
+      return fijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPut(
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type FijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof fijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPut
+      >
+    >
+  >;
+export type FijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPutMutationBody =
+  DesfaseDePartesPeticion;
+export type FijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPutMutationError =
+  void;
+
+/**
+ * @summary Editar los umbrales de la alerta de desfase (afectan a cada obra)
+ */
+export const useFijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPut = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof fijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPut
+        >
+      >,
+      TError,
+      { data: DesfaseDePartesPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof fijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPut>
+  >,
+  TError,
+  { data: DesfaseDePartesPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getFijarDesfaseDePartesApiV1ConfiguracionDesfaseDePartesPutMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};

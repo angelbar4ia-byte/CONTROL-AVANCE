@@ -215,8 +215,13 @@ from obractrl.application.casos_uso.gestionar_obra import (
 from obractrl.application.casos_uso.gestionar_organizacion import ReiniciarOrganizacion
 from obractrl.application.casos_uso.gestionar_partes import (
     CambiarEstadoDePartes,
+    ConsultarAlertasDePartes,
+    ConsultarArranque,
     ConsultarBitacoraDePartes,
+    ConsultarDesfaseDePartes,
     ConsultarPartes,
+    FijarCandadoDeAsignar,
+    FijarDesfaseDePartes,
     FijarPlantasDeObra,
     FijarPlantasDePrototipo,
     MarcarParteIndependiente,
@@ -303,13 +308,16 @@ __all__ = [
     "CerrarIncidenciaDep",
     "ColaDeTrabajosDep",
     "ConfirmarAvanceDep",
+    "ConsultarAlertasDePartesDep",
     "ConsultarArbolProgramaDep",
+    "ConsultarArranqueDep",
     "ConsultarBitacoraDePartesDep",
     "ConsultarCargaDep",
     "ConsultarCierreDeObraDep",
     "ConsultarComprobacionesDep",
     "ConsultarConfirmacionesDep",
     "ConsultarCuantificacionDep",
+    "ConsultarDesfaseDePartesDep",
     "ConsultarDesviacionesDep",
     "ConsultarEdicionesDeProgramaDep",
     "ConsultarExpedienteDep",
@@ -344,6 +352,8 @@ __all__ = [
     "ExplotarEnsambleDep",
     "ExtraerEnsambleDep",
     "FabricaDeCargasDep",
+    "FijarCandadoDeAsignarDep",
+    "FijarDesfaseDePartesDep",
     "FijarPlantasDeObraDep",
     "FijarPlantasDePrototipoDep",
     "GenerarDesdeEnsambleDep",
@@ -1380,6 +1390,45 @@ def obtener_consultar_bitacora_de_partes(sesion: SesionRLS) -> ConsultarBitacora
     )
 
 
+def obtener_consultar_alertas_de_partes(sesion: SesionRLS) -> ConsultarAlertasDePartes:
+    return ConsultarAlertasDePartes(
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        configuracion=RepositorioConfiguracionSQL(sesion),
+    )
+
+
+def obtener_consultar_arranque(sesion: SesionRLS) -> ConsultarArranque:
+    return ConsultarArranque(partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion))
+
+
+def obtener_fijar_candado_de_asignar(sesion: SesionRLS) -> FijarCandadoDeAsignar:
+    return FijarCandadoDeAsignar(partes=RepositorioPartesSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
+
+
+def obtener_consultar_desfase_de_partes(sesion: SesionRLS) -> ConsultarDesfaseDePartes:
+    return ConsultarDesfaseDePartes(configuracion=RepositorioConfiguracionSQL(sesion))
+
+
+def obtener_fijar_desfase_de_partes(sesion: SesionRLS) -> FijarDesfaseDePartes:
+    return FijarDesfaseDePartes(
+        configuracion=RepositorioConfiguracionSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+ConsultarAlertasDePartesDep = Annotated[
+    ConsultarAlertasDePartes, Depends(obtener_consultar_alertas_de_partes)
+]
+ConsultarArranqueDep = Annotated[ConsultarArranque, Depends(obtener_consultar_arranque)]
+FijarCandadoDeAsignarDep = Annotated[
+    FijarCandadoDeAsignar, Depends(obtener_fijar_candado_de_asignar)
+]
+ConsultarDesfaseDePartesDep = Annotated[
+    ConsultarDesfaseDePartes, Depends(obtener_consultar_desfase_de_partes)
+]
+FijarDesfaseDePartesDep = Annotated[
+    FijarDesfaseDePartes, Depends(obtener_fijar_desfase_de_partes)
+]
 CambiarEstadoDePartesDep = Annotated[
     CambiarEstadoDePartes, Depends(obtener_cambiar_estado_de_partes)
 ]

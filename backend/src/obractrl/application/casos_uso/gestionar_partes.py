@@ -9,6 +9,7 @@ independiente y fijar el número de plantas (1 o 2) de una obra o de un prototip
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -17,14 +18,27 @@ from obractrl.application.casos_uso.generar_obra_desde_prototipo import ObraNoEn
 from obractrl.application.casos_uso.gestionar_programacion import ActividadNoProgramable
 from obractrl.application.eventos import PartesCambiaronDeEstado, PublicadorEventos
 from obractrl.application.puertos.partes import RepositorioPartes
-from obractrl.application.puertos.repositorios import RepositorioObras, UnidadDeTrabajo
+from obractrl.application.puertos.repositorios import (
+    RepositorioConfiguracion,
+    RepositorioObras,
+    UnidadDeTrabajo,
+)
+from obractrl.domain.partes.alertas import (
+    AVISO_DIAS,
+    IMPORTANTE_DIAS,
+    dias_para_necesitarla,
+    severidad_del_desfase,
+    validar_umbrales,
+)
 from obractrl.domain.partes.estado import (
+    ORDEN,
     PERMISOS,
     Accion,
     ErrorDeParte,
     EstadoDeParte,
     ParteNoPermitida,
     aplicar,
+    deja_programa_por_revisar,
 )
 from obractrl.domain.partes.parte import ActividadParaParte, Parte, agrupar_en_partes
 from obractrl.domain.shared.diccionario import Rol
@@ -32,10 +46,15 @@ from obractrl.domain.shared.diccionario import Rol
 __all__ = [
     "CambiarEstadoDePartes",
     "ComandoCambiarEstadoDePartes",
+    "ConsultarAlertasDePartes",
+    "ConsultarArranque",
     "ConsultarBitacoraDePartes",
+    "ConsultarDesfaseDePartes",
     "ConsultarPartes",
     "ErrorDeParte",
     "ErrorDePlantas",
+    "FijarCandadoDeAsignar",
+    "FijarDesfaseDePartes",
     "FijarPlantasDeObra",
     "FijarPlantasDePrototipo",
     "MarcarParteIndependiente",
@@ -74,6 +93,7 @@ async def _partes_de(partes: RepositorioPartes, obra_id: UUID) -> list[Parte]:
             etapa_nombre=f["etapa_nombre"],
             nivel_clave=f["nivel_clave"],
             independiente=bool(f["independiente"]),
+            fecha_inicio=f["fecha_inicio"],
         )
         for f in await partes.actividades_de_obra(obra_id)
     ]
@@ -92,6 +112,7 @@ class ConsultarPartes:
             raise ObraNoEncontrada(f"Obra {obra_id} no encontrada en tu alcance.")
         plantas = await self._partes.plantas_de_obra(obra_id) or {}
         estados = await self._partes.estados_de_obra(obra_id)
+        por_revisar = await self._partes.programas_por_revisar(obra_id)
         return {
             "obra_id": obra_id,
             "plantas": plantas.get("plantas"),
@@ -103,6 +124,7 @@ class ConsultarPartes:
                     "id": UUID(p.id) if p.id else None,
                     "nombre": p.nombre,
                     "estado": estados.get(p.clave, EstadoDeParte.CUANTIFICANDO.value),
+                    "programa_por_revisar": p.clave in por_revisar,
                     "n_actividades": len(p.actividad_ids),
                     "actividad_ids": [UUID(i) for i in p.actividad_ids],
                     "importe": p.importe,
@@ -240,6 +262,24 @@ class CambiarEstadoDePartes:
             if desconocidas:
                 raise ParteNoEncontrada(f"La obra no tiene las partes: {', '.join(desconocidas)}.")
 
+        # El candado de asignar (D-574), por obra: con él puesto, validar exige una anotación y
+        # asignar exige que quien validó la haya dejado.
+        if cmd.accion in (Accion.VALIDAR, Accion.ASIGNAR) and await self._partes.candado_de_obra(
+            cmd.obra_id
+        ):
+            if cmd.accion is Accion.VALIDAR and not (cmd.nota or "").strip():
+                raise ErrorDeParte(
+                    "Esta obra tiene puesto el candado de asignar: quien valida deja una anotación."
+                )
+            if cmd.accion is Accion.ASIGNAR:
+                con_nota = await self._partes.validaciones_con_anotacion(cmd.obra_id)
+                sin = [c for c in claves if c not in con_nota]
+                if sin:
+                    raise ErrorDeParte(
+                        "Esta obra tiene puesto el candado de asignar: falta la anotación de quien "
+                        f"validó {', '.join(sin)}. Devuelve la parte y vuelve a validarla."
+                    )
+
         # Se calcula todo antes de escribir: o pasan todas, o ninguna.
         pasos = [
             (clave, estado_de(clave), aplicar(cmd.accion, estado=estado_de(clave), rol=cmd.rol, a=cmd.a))
@@ -248,7 +288,18 @@ class CambiarEstadoDePartes:
 
         async with self._uow:
             for clave, de, a in pasos:
-                await self._partes.fijar_estado(cmd.obra_id, clave, a.value, cmd.usuario_id)
+                # Devolver una parte que ya tenía programa lo deja «por revisar»; volver a
+                # programarla (programar) lo quita.
+                revisar = (
+                    True
+                    if cmd.accion is Accion.DEVOLVER and deja_programa_por_revisar(de)
+                    else False
+                    if cmd.accion is Accion.PROGRAMAR
+                    else None
+                )
+                await self._partes.fijar_estado(
+                    cmd.obra_id, clave, a.value, cmd.usuario_id, programa_por_revisar=revisar
+                )
                 await self._partes.registrar_transicion(
                     obra_id=cmd.obra_id,
                     clave=clave,
@@ -268,6 +319,11 @@ class CambiarEstadoDePartes:
                 claves=tuple(c for c, _, _ in pasos),
                 estados=tuple(a.value for _, _, a in pasos),
                 usuario_id=cmd.usuario_id,
+                programa_por_revisar=tuple(
+                    c
+                    for c, de, _ in pasos
+                    if cmd.accion is Accion.DEVOLVER and deja_programa_por_revisar(de)
+                ),
             )
         )
         return [{"clave": c, "de": de.value, "a": a.value} for c, de, a in pasos]
@@ -284,3 +340,141 @@ class ConsultarBitacoraDePartes:
         if await self._obras.obtener(obra_id) is None:
             raise ObraNoEncontrada(f"Obra {obra_id} no encontrada en tu alcance.")
         return await self._partes.bitacora_de_obra(obra_id)
+
+
+_CLAVE_AVISO = "desfase_presupuesto_aviso_dias"
+_CLAVE_IMPORTANTE = "desfase_presupuesto_importante_dias"
+
+
+async def _umbrales(config: RepositorioConfiguracion) -> tuple[int, int]:
+    aviso = int(await config.decimal(_CLAVE_AVISO, Decimal(AVISO_DIAS)))
+    importante = int(await config.decimal(_CLAVE_IMPORTANTE, Decimal(IMPORTANTE_DIAS)))
+    return aviso, importante
+
+
+class ConsultarAlertasDePartes:
+    """`GET /obras/{id}/partes/alertas`: el presupuesto debe ir por delante del programa.
+
+    Una parte sin autorizar cuyo programa la necesita pronto avisa (a las 2 semanas) o es
+    importante (a la semana o vencida). Los umbrales son globales (D-577). Avisa; no bloquea.
+    """
+
+    def __init__(
+        self,
+        *,
+        partes: RepositorioPartes,
+        obras: RepositorioObras,
+        configuracion: RepositorioConfiguracion,
+    ) -> None:
+        self._partes = partes
+        self._obras = obras
+        self._config = configuracion
+
+    async def ejecutar(self, obra_id: UUID, *, hoy: date | None = None) -> dict[str, Any]:
+        if await self._obras.obtener(obra_id) is None:
+            raise ObraNoEncontrada(f"Obra {obra_id} no encontrada en tu alcance.")
+        hoy = hoy or date.today()
+        aviso, importante = await _umbrales(self._config)
+        estados = await self._partes.estados_de_obra(obra_id)
+        alertas = []
+        for p in await _partes_de(self._partes, obra_id):
+            estado = EstadoDeParte(estados.get(p.clave, EstadoDeParte.CUANTIFICANDO.value))
+            if p.inicio is None or ORDEN.index(estado) >= ORDEN.index(EstadoDeParte.AUTORIZADA):
+                continue  # ya autorizada, o el programa aún no la necesita en una fecha
+            dias = dias_para_necesitarla(p.inicio, hoy)
+            severidad = severidad_del_desfase(dias, aviso_dias=aviso, importante_dias=importante)
+            if severidad is not None:
+                alertas.append(
+                    {
+                        "clave": p.clave,
+                        "nombre": p.nombre,
+                        "estado": estado.value,
+                        "inicio": p.inicio,
+                        "dias": dias,
+                        "severidad": severidad.value,
+                    }
+                )
+        alertas.sort(key=lambda a: (a["dias"], a["nombre"]))
+        return {
+            "obra_id": obra_id,
+            "aviso_dias": aviso,
+            "importante_dias": importante,
+            "alertas": alertas,
+        }
+
+
+class ConsultarArranque:
+    """`GET /obras/{id}/arranque`: lo que la junta de arranque tiene a la vista (D-574).
+
+    «Todo validado» es un requisito de la junta: aquí se lista qué partes aún no están
+    autorizadas. **Avisa; lo que impide es asignar (el candado, por obra).**
+    """
+
+    def __init__(self, *, partes: RepositorioPartes, obras: RepositorioObras) -> None:
+        self._partes = partes
+        self._obras = obras
+
+    async def ejecutar(self, obra_id: UUID) -> dict[str, Any]:
+        obra = await self._obras.obtener(obra_id)
+        if obra is None:
+            raise ObraNoEncontrada(f"Obra {obra_id} no encontrada en tu alcance.")
+        estados = await self._partes.estados_de_obra(obra_id)
+        por_revisar = await self._partes.programas_por_revisar(obra_id)
+        partes = await _partes_de(self._partes, obra_id)
+        conteo: dict[str, int] = {e.value: 0 for e in EstadoDeParte}
+        sin_autorizar = []
+        for p in partes:
+            estado = EstadoDeParte(estados.get(p.clave, EstadoDeParte.CUANTIFICANDO.value))
+            conteo[estado.value] += 1
+            if ORDEN.index(estado) < ORDEN.index(EstadoDeParte.AUTORIZADA):
+                sin_autorizar.append(
+                    {"clave": p.clave, "nombre": p.nombre, "estado": estado.value}
+                )
+        return {
+            "obra_id": obra_id,
+            "candado_asignar": bool(await self._partes.candado_de_obra(obra_id)),
+            "total": len(partes),
+            "por_estado": conteo,
+            "sin_autorizar": sin_autorizar,
+            "todo_validado": bool(partes) and not sin_autorizar,
+            "programas_por_revisar": len(por_revisar),
+        }
+
+
+class FijarCandadoDeAsignar:
+    def __init__(self, *, partes: RepositorioPartes, uow: UnidadDeTrabajo) -> None:
+        self._partes = partes
+        self._uow = uow
+
+    async def ejecutar(self, obra_id: UUID, activo: bool) -> None:
+        async with self._uow:
+            if not await self._partes.fijar_candado(obra_id, activo):
+                raise ObraNoEncontrada(f"Obra {obra_id} no encontrada en tu alcance.")
+            await self._uow.commit()
+
+
+class ConsultarDesfaseDePartes:
+    """`GET /configuracion/desfase-de-partes`: los umbrales globales de la alerta (D-577)."""
+
+    def __init__(self, *, configuracion: RepositorioConfiguracion) -> None:
+        self._config = configuracion
+
+    async def ejecutar(self) -> dict[str, int]:
+        aviso, importante = await _umbrales(self._config)
+        return {"aviso_dias": aviso, "importante_dias": importante}
+
+
+class FijarDesfaseDePartes:
+    """`PUT /configuracion/desfase-de-partes`: Control de obra edita los umbrales (D-577)."""
+
+    def __init__(self, *, configuracion: Any, uow: UnidadDeTrabajo) -> None:
+        self._config = configuracion
+        self._uow = uow
+
+    async def ejecutar(self, aviso_dias: int, importante_dias: int) -> dict[str, int]:
+        aviso, importante = validar_umbrales(aviso_dias, importante_dias)
+        async with self._uow:
+            await self._config.fijar(_CLAVE_AVISO, aviso)
+            await self._config.fijar(_CLAVE_IMPORTANTE, importante)
+            await self._uow.commit()
+        return {"aviso_dias": aviso, "importante_dias": importante}

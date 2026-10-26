@@ -139,6 +139,7 @@ from obractrl.domain.materiales.reglas import ErrorDeMaterial
 from obractrl.domain.obras.generacion import ErrorDeGeneracion
 from obractrl.domain.obras.precio_armado import ErrorDePrecioArmado
 from obractrl.domain.obras.reglas import ErrorDeObra, TransicionDeObraInvalida
+from obractrl.domain.partes.alertas import ErrorDeUmbrales
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
 from obractrl.domain.programacion.reglas import (
     EdicionDeProgramaNoPermitida,
@@ -644,6 +645,16 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="parte-no-encontrada",
             titulo="Parte no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeUmbrales)
+    async def _umbrales(request: Request, exc: ErrorDeUmbrales) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="umbrales-invalidos",
+            titulo="Umbrales inválidos",
             detalle=str(exc),
         )
 

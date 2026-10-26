@@ -111,3 +111,12 @@ def test_se_avisa_a_quien_da_el_siguiente_paso() -> None:
     assert roles_del_siguiente_paso(E.ENVIADA_PROGRAMA) == {Rol.CONTROL_OBRA, Rol.SUPERVISOR}
     assert roles_del_siguiente_paso(E.CUANTIFICANDO) == {Rol.COSTOS, Rol.CONTROL_OBRA}
     assert roles_del_siguiente_paso(E.ASIGNADA) == frozenset()
+
+
+def test_devolver_con_programa_lo_deja_por_revisar() -> None:
+    from obractrl.domain.partes.estado import deja_programa_por_revisar
+
+    assert deja_programa_por_revisar(E.ENVIADA_PROGRAMA)
+    assert deja_programa_por_revisar(E.PROGRAMADA)
+    for sin_programa in (E.CUANTIFICANDO, E.ENVIADA_PRESUPUESTO, E.POR_VALIDAR, E.AUTORIZADA):
+        assert not deja_programa_por_revisar(sin_programa)

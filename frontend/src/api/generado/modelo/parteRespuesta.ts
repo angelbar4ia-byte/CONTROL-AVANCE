@@ -17,6 +17,8 @@ export interface ParteRespuesta {
   nombre: string;
   /** `cuantificando` · `enviada_presupuesto` · `por_validar` · `autorizada` · `enviada_programa` · `programada` · `asignada`. Sin renglón: `cuantificando`. */
   estado: string;
+  /** La parte se devolvió teniendo programa: ese programa puede estar desactualizado. Se quita al volver a programarla. */
+  programa_por_revisar?: boolean;
   n_actividades: number;
   actividad_ids: string[];
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */

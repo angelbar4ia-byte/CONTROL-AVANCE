@@ -1,4 +1,4 @@
-import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
+import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, solicitarApi, test } from '../infraestructura';
 
 /**
  * El estado por parte (migración 0075; cerebro D-571 a D-579).
@@ -114,5 +114,98 @@ test.describe('Partes · cada una a su paso', () => {
     await expect(residente.getByRole('row').filter({ has: residente.getByRole('checkbox') })).toHaveCount(partes.length);
     await expect(residente.getByRole('toolbar', { name: 'Pasos' }).getByRole('button')).toHaveCount(0);
     await expect(residente.getByRole('region', { name: 'Bitácora de las partes' })).toContainText('Devolver');
+  });
+
+  test('el candado exige anotación y el presupuesto avisa cuando va atrás del programa', async ({
+    browser,
+    request,
+  }) => {
+    const clave = `CAN-${Date.now().toString(36).toUpperCase()}`;
+    const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
+    const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
+    const usuarios = await llamarApi<{ id: string; nombre: string }[]>(request, 'control', 'GET', '/usuarios');
+    const obra = await llamarApi<{ id: string }>(request, 'control', 'POST', '/obras', {
+      cluster_id: clusters.find((c) => c.clave === 'CLU-E2E')!.id,
+      prototipo_id: prototipos.find((p) => p.clave === 'CAS-E2E')!.id,
+      residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
+      clave,
+    });
+    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
+    const { partes } = await llamarApi<{ partes: { clave: string; nombre: string }[] }>(
+      request,
+      'control',
+      'GET',
+      `/obras/${obra.id}/partes`,
+    );
+    const primera = partes[0]!;
+
+    // El programa necesita las partes dentro de tres días: sin autorizar, es importante.
+    const actividades = await llamarApi<{ id: string }[]>(request, 'control', 'GET', `/obras/${obra.id}/actividades`);
+    const pronto = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
+    for (const a of actividades) {
+      const r = await solicitarApi(request, 'control', 'PATCH', `/actividades/${a.id}/programacion`, {
+        fecha_inicio: pronto,
+      });
+      expect(r.status()).toBe(200);
+    }
+
+    const control = await (await browser.newContext()).newPage();
+    await entrarComo(control, 'control');
+    await control.goto('/partes');
+    await control.getByLabel('Obra', { exact: true }).selectOption({ label: clave });
+
+    // --- Alertas: avisan, no bloquean -----------------------------------------------------
+    const alertas = control.getByRole('list', { name: 'Alertas de desfase' });
+    await expect(alertas).toContainText('Importante');
+    await expect(alertas).toContainText(primera.nombre);
+    await expect(control.getByText(/Falta validar \d+ de \d+/)).toBeVisible();
+
+    // --- Candado por obra: validar pide anotación -----------------------------------------
+    await control.getByLabel('Candado de asignar').click(); // lo confirma el servidor
+    await expect(control.getByLabel('Candado de asignar')).toBeChecked();
+    await expect(control.getByText(/quien valida una parte deja una anotación/)).toBeVisible();
+    for (const accion of ['enviar_a_presupuesto', 'autorizar']) {
+      await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/partes/transicion`, {
+        accion,
+        claves: [primera.clave],
+      });
+    }
+    await control.reload();
+    await control.getByLabel('Obra', { exact: true }).selectOption({ label: clave });
+    await expect(control.getByLabel('Candado de asignar')).toBeChecked();
+    await control.getByRole('checkbox', { name: `Elegir ${primera.nombre}` }).check();
+    await control.getByRole('button', { name: 'Validar (1)' }).click();
+    await expect(control.getByRole('alert').filter({ hasText: 'anotación' })).toBeVisible();
+
+    await control.getByLabel(/Anotación/).fill('Revisado contra el catálogo');
+    await control.getByRole('checkbox', { name: `Elegir ${primera.nombre}` }).check();
+    await control.getByRole('button', { name: 'Validar (1)' }).click();
+    const fila = control.getByRole('row').filter({ has: control.getByRole('checkbox', { name: `Elegir ${primera.nombre}` }) });
+    await expect(fila).toContainText('Autorizada');
+    // Autorizada deja de alertar.
+    await expect(alertas.filter({ hasText: primera.nombre })).toHaveCount(0);
+
+    // --- Los umbrales son globales: Control los ve y los edita ----------------------------
+    await control.getByText('Umbrales de la alerta').click();
+    await expect(control.getByLabel('Aviso (días antes)')).toHaveValue('14');
+    await expect(control.getByLabel('Importante (días antes)')).toHaveValue('7');
+
+    // --- La junta de arranque muestra el requisito en la obra -----------------------------
+    await control.goto('/obras');
+    await control.getByRole('button', { name: /CLU-E2E Cluster E2E/ }).click();
+    await control.getByRole('button', { name: new RegExp(`^${clave} Pendiente`) }).click();
+    const panel = control.getByRole('dialog', { name: clave });
+    await expect(panel.getByRole('heading', { name: 'Junta de arranque' })).toBeVisible();
+    await expect(panel.getByText(/Todo validado|Falta validar \d+ de \d+ partes/)).toBeVisible();
+    await expect(panel.getByText(/El candado impide asignar lo no validado/)).toBeVisible();
+
+    // El residente ve el candado pero no lo edita.
+    const residente = await (await browser.newContext()).newPage();
+    await entrarComo(residente, 'residente');
+    await residente.goto('/partes');
+    await residente.getByLabel('Obra', { exact: true }).selectOption({ label: clave });
+    await expect(residente.getByText('Con candado de asignar')).toBeVisible();
+    await expect(residente.getByLabel('Candado de asignar')).toHaveCount(0);
+    await expect(residente.getByText('Umbrales de la alerta')).toHaveCount(0);
   });
 });

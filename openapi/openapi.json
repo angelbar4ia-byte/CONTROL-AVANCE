@@ -11505,6 +11505,229 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/partes/alertas": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Partes sin autorizar que el programa necesita pronto",
+        "description": "El presupuesto debe ir por delante del programa (D-575): a 2 semanas de que lo necesite y\nsin autorizar, aviso; a 1 semana o vencida, importante. Avisa; no bloquea.",
+        "operationId": "alertas_de_partes_api_v1_obras__obra_id__partes_alertas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertasDePartesRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/arranque": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Lo que la junta de arranque tiene a la vista: ¿todo validado?",
+        "description": "El requisito «todo validado» de la junta (D-574): qué partes aún no están autorizadas.\nAvisa; lo que impide es asignar, con el candado (por obra).",
+        "operationId": "arranque_de_la_obra_api_v1_obras__obra_id__arranque_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArranqueRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/candado-asignar": {
+      "put": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "El candado de asignar de la obra",
+        "description": "Lo edita Control de obra, por obra (D-574).",
+        "operationId": "fijar_candado_de_asignar_api_v1_obras__obra_id__candado_asignar_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandadoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/configuracion/desfase-de-partes": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Los umbrales de la alerta de desfase del presupuesto (globales)",
+        "operationId": "desfase_de_partes_api_v1_configuracion_desfase_de_partes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesfaseDePartesRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Editar los umbrales de la alerta de desfase (afectan a cada obra)",
+        "description": "Son globales y afectan a cada obra (D-577): 2 semanas de aviso y 1 de alerta importante\npor defecto.",
+        "operationId": "fijar_desfase_de_partes_api_v1_configuracion_desfase_de_partes_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DesfaseDePartesPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesfaseDePartesRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El aviso va antes que la alerta importante."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -13057,6 +13280,80 @@
         ],
         "title": "AlcanceRespuesta"
       },
+      "AlertaDeParteRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Inicio",
+            "description": "Cuándo necesita el programa la parte."
+          },
+          "dias": {
+            "type": "integer",
+            "title": "Dias",
+            "description": "Días para necesitarla; negativo si ya la necesitaba."
+          },
+          "severidad": {
+            "type": "string",
+            "title": "Severidad",
+            "description": "`aviso` (a las 2 semanas) · `importante` (a la semana)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "estado",
+          "inicio",
+          "dias",
+          "severidad"
+        ],
+        "title": "AlertaDeParteRespuesta"
+      },
+      "AlertasDePartesRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "aviso_dias": {
+            "type": "integer",
+            "title": "Aviso Dias"
+          },
+          "importante_dias": {
+            "type": "integer",
+            "title": "Importante Dias"
+          },
+          "alertas": {
+            "items": {
+              "$ref": "#/components/schemas/AlertaDeParteRespuesta"
+            },
+            "type": "array",
+            "title": "Alertas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "aviso_dias",
+          "importante_dias",
+          "alertas"
+        ],
+        "title": "AlertasDePartesRespuesta"
+      },
       "ArbolDeProgramaRespuesta": {
         "properties": {
           "obra_id": {
@@ -13168,6 +13465,57 @@
         ],
         "title": "ArmarPrecioPeticion",
         "description": "Con qué se va a hacer un trabajo que no está en el catálogo.\n\nEl jefe de obra lo describió así: *\"el residente dice qué cuadrilla va a\nutilizar, cuántas y el tiempo, también el material, y se crea el precio\"*."
+      },
+      "ArranqueRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "candado_asignar": {
+            "type": "boolean",
+            "title": "Candado Asignar"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "por_estado": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Por Estado"
+          },
+          "sin_autorizar": {
+            "items": {
+              "$ref": "#/components/schemas/ParteSinAutorizarRespuesta"
+            },
+            "type": "array",
+            "title": "Sin Autorizar"
+          },
+          "todo_validado": {
+            "type": "boolean",
+            "title": "Todo Validado",
+            "description": "Todas las partes están autorizadas o más. Requisito de la junta; avisa."
+          },
+          "programas_por_revisar": {
+            "type": "integer",
+            "title": "Programas Por Revisar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "candado_asignar",
+          "total",
+          "por_estado",
+          "sin_autorizar",
+          "todo_validado",
+          "programas_por_revisar"
+        ],
+        "title": "ArranqueRespuesta"
       },
       "AsignarFrentePeticion": {
         "properties": {
@@ -13570,6 +13918,20 @@
           "estatus"
         ],
         "title": "CambiarEstatusPeticion"
+      },
+      "CandadoPeticion": {
+        "properties": {
+          "activo": {
+            "type": "boolean",
+            "title": "Activo",
+            "description": "Con el candado, validar una parte exige una anotación y asignarla exige que quien la validó la haya dejado."
+          }
+        },
+        "type": "object",
+        "required": [
+          "activo"
+        ],
+        "title": "CandadoPeticion"
       },
       "CapturaAvancePeticion": {
         "properties": {
@@ -16310,6 +16672,46 @@
         ],
         "title": "DependenciaDTO",
         "description": "Precedencia entre actividades (§7.5, §6)."
+      },
+      "DesfaseDePartesPeticion": {
+        "properties": {
+          "aviso_dias": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Aviso Dias",
+            "description": "Días antes de que el programa la necesite: aviso."
+          },
+          "importante_dias": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Importante Dias",
+            "description": "Días antes: alerta importante."
+          }
+        },
+        "type": "object",
+        "required": [
+          "aviso_dias",
+          "importante_dias"
+        ],
+        "title": "DesfaseDePartesPeticion"
+      },
+      "DesfaseDePartesRespuesta": {
+        "properties": {
+          "aviso_dias": {
+            "type": "integer",
+            "title": "Aviso Dias"
+          },
+          "importante_dias": {
+            "type": "integer",
+            "title": "Importante Dias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aviso_dias",
+          "importante_dias"
+        ],
+        "title": "DesfaseDePartesRespuesta"
       },
       "DesviacionRespuesta": {
         "properties": {
@@ -21496,6 +21898,12 @@
             "title": "Estado",
             "description": "`cuantificando` · `enviada_presupuesto` · `por_validar` · `autorizada` · `enviada_programa` · `programada` · `asignada`. Sin renglón: `cuantificando`."
           },
+          "programa_por_revisar": {
+            "type": "boolean",
+            "title": "Programa Por Revisar",
+            "description": "La parte se devolvió teniendo programa: ese programa puede estar desactualizado. Se quita al volver a programarla.",
+            "default": false
+          },
           "n_actividades": {
             "type": "integer",
             "title": "N Actividades"
@@ -21532,6 +21940,29 @@
           "avance_pct"
         ],
         "title": "ParteRespuesta"
+      },
+      "ParteSinAutorizarRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "estado"
+        ],
+        "title": "ParteSinAutorizarRespuesta"
       },
       "PartesDeObraRespuesta": {
         "properties": {

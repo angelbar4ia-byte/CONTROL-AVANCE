@@ -74,3 +74,29 @@ class RepositorioConfiguracionSQL:
                 f"({type(valor).__name__})."
             )
         return Decimal(str(valor))
+
+    async def fijar(self, clave: str, valor: object) -> None:
+        """Deja el valor **global** vigente de un configurable (crea o actualiza)."""
+        import json
+
+        r = await self._sesion.execute(
+            text(
+                """
+                update configuracion set valor = cast(:valor as jsonb)
+                 where clave = :clave and ambito = 'global' and ambito_id is null
+                   and vigente_hasta is null
+                """
+            ),
+            {"clave": clave, "valor": json.dumps(valor)},
+        )
+        if r.rowcount == 0:
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into configuracion (org_id, clave, valor, ambito)
+                    values (current_setting('app.org_id')::uuid, :clave,
+                            cast(:valor as jsonb), 'global')
+                    """
+                ),
+                {"clave": clave, "valor": json.dumps(valor)},
+            )

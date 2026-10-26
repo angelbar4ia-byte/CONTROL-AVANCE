@@ -35,9 +35,21 @@ class RepositorioPartes(Protocol):
         ...
 
     async def fijar_estado(
-        self, obra_id: UUID, clave: str, estado: str, usuario_id: UUID | None
+        self,
+        obra_id: UUID,
+        clave: str,
+        estado: str,
+        usuario_id: UUID | None,
+        *,
+        programa_por_revisar: bool | None = None,
     ) -> None:
-        """Crea o actualiza el estado de una parte."""
+        """Crea o actualiza el estado de una parte. `programa_por_revisar` solo se escribe si
+        se pasa."""
+        ...
+
+    async def programas_por_revisar(self, obra_id: UUID) -> set[str]:
+        """Las claves de las partes cuyo programa quedó por revisar (se devolvieron
+        teniendo programa)."""
         ...
 
     async def registrar_transicion(
@@ -57,4 +69,14 @@ class RepositorioPartes(Protocol):
 
     async def bitacora_de_obra(self, obra_id: UUID, *, limite: int = 200) -> list[dict[str, Any]]:
         """Las últimas transiciones de la obra, las más recientes primero."""
+        ...
+
+    async def candado_de_obra(self, obra_id: UUID) -> bool | None:
+        """El candado de asignar de la obra, o `None` si no se ve."""
+        ...
+
+    async def fijar_candado(self, obra_id: UUID, activo: bool) -> bool: ...
+
+    async def validaciones_con_anotacion(self, obra_id: UUID) -> set[str]:
+        """Las claves de las partes cuya **última validación** dejó una anotación."""
         ...
