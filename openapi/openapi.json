@@ -8850,6 +8850,61 @@
         }
       }
     },
+    "/api/v1/planos/{plano_id}/archivo": {
+      "get": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "URL firmada para ver el archivo de un plano",
+        "description": "El visor pinta los trazos sobre el plano; el archivo vive en R2 y no\npasa por la API (§12.2), así que se entrega una URL de lectura.\n\n`archivo_url` la escribió quien dio de alta el plano, no el servidor: sin\nla comprobación del prefijo, un usuario podría registrar una clave de otra\norganización y pedir que se la firmen. R2 no tiene RLS (§12.4); el prefijo\npor `org_id` es la frontera, y aquí se hace valer.",
+        "operationId": "archivo_de_plano_api_v1_planos__plano_id__archivo_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchivoDePlanoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El plano no existe, está fuera de tu alcance, o su archivo no cuelga del almacenamiento de tu organización."
+          },
+          "503": {
+            "description": "El almacenamiento no está configurado en este entorno."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/reportes/tipos": {
       "get": {
         "tags": [
@@ -11011,6 +11066,31 @@
         ],
         "title": "ArbolDeProgramaRespuesta",
         "description": "§11.2 `GET /obras/{id}/programa/arbol`: el cronograma como árbol WBS."
+      },
+      "ArchivoDePlanoRespuesta": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "URL firmada para leer el archivo; caduca."
+          },
+          "expira_en_segundos": {
+            "type": "integer",
+            "title": "Expira En Segundos"
+          },
+          "expira_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expira En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "expira_en_segundos",
+          "expira_en"
+        ],
+        "title": "ArchivoDePlanoRespuesta"
       },
       "ArmarPrecioPeticion": {
         "properties": {

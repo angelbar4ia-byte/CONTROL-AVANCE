@@ -167,3 +167,20 @@ class TestClaveDeEvidencia:
         primera = clave_de_evidencia(org_id=org, nombre_archivo="foto.jpg")
         segunda = clave_de_evidencia(org_id=org, nombre_archivo="foto.jpg")
         assert primera != segunda
+
+
+class TestFirmarDescarga:
+    def test_firma_un_get_sin_exponer_el_secreto(self) -> None:
+        from obractrl.infrastructure.storage.r2 import firmar_descarga
+
+        firma = firmar_descarga(clave="org/planos/pb.png", cfg=_config())
+        query = parse_qs(urlparse(firma.url).query)
+        assert "org/planos/pb.png" in firma.url
+        assert "X-Amz-Signature" in query
+        assert SECRET_KEY not in firma.url
+
+    def test_sin_credenciales_falla_nombrando_la_variable(self) -> None:
+        from obractrl.infrastructure.storage.r2 import firmar_descarga
+
+        with pytest.raises(AlmacenamientoNoConfigurado, match="R2_SECRET_KEY"):
+            firmar_descarga(clave="org/planos/pb.png", cfg=_config(r2_secret_key=""))

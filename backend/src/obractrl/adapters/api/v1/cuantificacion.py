@@ -61,9 +61,11 @@ from obractrl.application.casos_uso.cuantificar import (
     IntencionEnlace,
     NodoCuantificado,
     NuevoEnlace,
+    PlanoNoEncontrado,
     ResultadoDeRecalculo,
 )
 from obractrl.domain.shared.diccionario import FuenteTrazo, MedidaCuantificacion, Rol
+from obractrl.infrastructure.storage.r2 import firmar_descarga
 
 router = APIRouter(tags=["cuantificacion"])
 
@@ -538,3 +540,47 @@ async def estado_de_cuantificacion(
 ) -> list[NodoCuantificadoRespuesta]:
     nodos = await caso_uso.estado_de_obra(obra_id)
     return [NodoCuantificadoRespuesta.desde_dominio(n) for n in nodos]
+
+
+class ArchivoDePlanoRespuesta(BaseModel):
+    url: str = Field(description="URL firmada para leer el archivo; caduca.")
+    expira_en_segundos: int
+    expira_en: datetime
+
+
+@router.get(
+    "/planos/{plano_id}/archivo",
+    response_model=ArchivoDePlanoRespuesta,
+    summary="URL firmada para ver el archivo de un plano",
+    responses={
+        404: {
+            "description": (
+                "El plano no existe, está fuera de tu alcance, o su archivo no "
+                "cuelga del almacenamiento de tu organización."
+            )
+        },
+        503: {"description": "El almacenamiento no está configurado en este entorno."},
+    },
+)
+async def archivo_de_plano(
+    plano_id: UUID, ctx: ContextoActual, caso_uso: ConsultarCuantificacionDep
+) -> ArchivoDePlanoRespuesta:
+    """El visor pinta los trazos sobre el plano; el archivo vive en R2 y no
+    pasa por la API (§12.2), así que se entrega una URL de lectura.
+
+    `archivo_url` la escribió quien dio de alta el plano, no el servidor: sin
+    la comprobación del prefijo, un usuario podría registrar una clave de otra
+    organización y pedir que se la firmen. R2 no tiene RLS (§12.4); el prefijo
+    por `org_id` es la frontera, y aquí se hace valer."""
+    plano, _ = await caso_uso.trazos_de_plano(plano_id)
+    clave = str(plano["archivo_url"])
+    if not clave.startswith(f"{ctx.org_id}/"):
+        raise PlanoNoEncontrado(
+            f"El plano {plano_id} no tiene un archivo en el almacenamiento de tu organización."
+        )
+    firma = firmar_descarga(clave=clave)
+    return ArchivoDePlanoRespuesta(
+        url=firma.url,
+        expira_en_segundos=firma.expira_en_segundos,
+        expira_en=firma.expira_en,
+    )

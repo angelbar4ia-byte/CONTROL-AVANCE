@@ -8,7 +8,7 @@ para `npm run e2e` a secas, que solo corre el humo.
 | Archivo | Qué es |
 |---|---|
 | `auth-falsa.mjs` | Imita lo mínimo de GoTrue que usa supabase-js (`/auth/v1/token`, `/auth/v1/user`). Emite el JWT con `org_id`, `rol`, `usuario_id` y `nombre` en la raíz (como el hook de la migración 0015), firmado HS256 con `JWT_SECRET`. |
-| `semilla.sql` | Recrea la organización `e2e`: 4 usuarios (uno por rol) con su cadena de mando, un prototipo con CPU, el calendario del año y el ancla de la semana de **hoy**, y cuatro obras (`OBRA-C/D/E/F`), una por workflow. |
+| `semilla.sql` | Recrea la organización `e2e`: 4 usuarios (uno por rol) con su cadena de mando, un prototipo con CPU, el calendario del año y el ancla de la semana de **hoy**, y cinco obras (`OBRA-C/D/E/F/G`), una por workflow (la G es del cuantificador). |
 
 ## Cómo se corren
 
@@ -64,8 +64,8 @@ y los registros de la API y de la auth falsa (`e2e-workflows`).
 
 ## Reglas de uso
 
-- **Cada spec de C, D, E y F es de un solo uso**: cambia el estado de su obra
-  (`OBRA-C` … `OBRA-F`). Para repetirlo, vuelve a correr `semilla.sql`. El A no
+- **Cada spec de C, D, E, F y G es de un solo uso**: cambia el estado de su obra
+  (`OBRA-C` … `OBRA-G`). Para repetirlo, vuelve a correr `semilla.sql`. El A no
   lo necesita: cada corrida da de alta una obra con clave nueva.
 - La semilla **borra** la organización `e2e`. No la apuntes a una base con datos
   que quieras conservar con ese `slug`.

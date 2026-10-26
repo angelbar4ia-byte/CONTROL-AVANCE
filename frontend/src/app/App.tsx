@@ -47,6 +47,7 @@ const ProgramaTabla = lazy(() => import('@/programacion/ProgramaTabla'));
 import Consumo from '@/materiales/Consumo';
 import InsumosProgramados from '@/insumos/InsumosProgramados';
 import PlaneacionObra from '@/planeacion/PlaneacionObra';
+import Cuantificador from '@/cuantificador/Cuantificador';
 import Salidas from '@/materiales/Salidas';
 import Incidencias from '@/incidencias/Incidencias';
 import Evaluaciones from '@/evaluaciones/Evaluaciones';
@@ -191,6 +192,7 @@ function Rutas() {
             no es Control ni Super intendente. */}
         <Route path="/insumos-programados" element={<InsumosProgramados />} />
         <Route path="/planeacion" element={<PlaneacionObra />} />
+        <Route path="/cuantificador" element={<Cuantificador />} />
         <Route path="/materiales/salidas" element={<Salidas />} />
         {/* Incidencias y Evaluación son pantallas compartidas (§5.3): una
             sola ruta que los cuatro sidebars ya traen con distinta etiqueta
