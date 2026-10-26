@@ -330,6 +330,18 @@ jobs:
         # fallaría por otra razón, tapando la verdadera.
         run: npx playwright test e2e/workflows --retries=0
 
+      - name: Mostrar el final de los registros si algo falló
+        if: failure()
+        # Los registros completos van al artefacto, pero un artefacto hay que
+        # descargarlo; una anotación se ve en el propio check. Se escapa lo que
+        # GitHub interpreta en un comando de flujo (`%`, saltos de línea).
+        run: |
+          for archivo in api.log auth-falsa.log; do
+            [ -f "$archivo" ] || continue
+            cuerpo=$(tail -n 60 "$archivo" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | awk 'BEGIN{ORS="%0A"} {print}')
+            echo "::warning title=${archivo} (últimas 60 líneas)::${cuerpo}"
+          done
+
       - name: Guardar el reporte y los registros si algo falló
         if: failure()
         uses: actions/upload-artifact@v4
