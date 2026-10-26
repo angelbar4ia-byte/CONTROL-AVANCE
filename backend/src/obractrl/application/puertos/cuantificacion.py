@@ -80,6 +80,16 @@ class RepositorioTrazos(Protocol):
         autor_id: UUID,
     ) -> UUID: ...
 
+    async def obtener(self, trazo_id: UUID) -> dict[str, Any] | None:
+        """El trazo (sin geometría) o `None` si no existe o RLS no lo deja ver."""
+        ...
+
+    async def aprobar(self, *, trazo_id: UUID, aprobador_id: UUID) -> bool:
+        """Marca el trazo como aprobado **solo si aún no lo estaba**. `True` si
+        esta llamada lo aprobó, `False` si ya tenía aprobación (que no se pisa:
+        quién y cuándo aprobó primero es un hecho)."""
+        ...
+
     async def de_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
         """Trazos de un plano con su geometría ya en **GeoJSON** (dict) y
         todos sus enlaces —vigentes y reemplazados— con `medida_valor`

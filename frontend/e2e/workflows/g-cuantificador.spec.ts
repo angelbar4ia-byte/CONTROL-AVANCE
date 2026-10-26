@@ -376,4 +376,65 @@ test.describe('Cuantificador · trazar un polígono', () => {
     await expect(residente.getByLabel('Actividad 1')).toBeVisible();
     await expect(residente.getByLabel('Enlazar a')).toHaveCount(0);
   });
+
+  test('Control aprueba un trazo: queda constancia y la cantidad no cambia', async ({
+    browser,
+    request,
+  }) => {
+    test.skip(!hayRoles('control'), motivoSinRoles('control'));
+    const obra = await obraG(request);
+    const plano = await llamarApi<{ id: string }>(
+      request,
+      'residente',
+      'POST',
+      `/obras/${obra.id}/planos`,
+      { nombre: 'Plano para aprobar', archivo_url: 'e2e/aprobar.dwg' },
+    );
+    const actividadId = await actividadDe(request, 'residente', 'OBRA-G', 'E2E-PLA');
+    await llamarApi(request, 'residente', 'POST', `/planos/${plano.id}/trazos`, {
+      version_plano: 1,
+      fuente: 'pdf',
+      geometria_wkt: 'POLYGON((0 0, 40 0, 40 30, 0 30, 0 0))',
+      enlaces: [{ medida: 'area', factor: '1', actividad_id: actividadId }],
+    });
+    const medido = async () => {
+      const nodos = await llamarApi<{ nodo_id: string; cantidad_medida: string }[]>(
+        request,
+        'control',
+        'GET',
+        `/obras/${obra.id}/cuantificacion`,
+      );
+      return Number(nodos.find((n) => n.nodo_id === actividadId)?.cantidad_medida);
+    };
+    const antes = await medido();
+
+    async function elegirElTrazo(rol: 'control' | 'residente') {
+      const pagina = await (await browser.newContext()).newPage();
+      await entrarComo(pagina, rol);
+      await pagina.goto('/cuantificador');
+      await pagina.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+      await pagina.getByLabel('Plano', { exact: true }).selectOption({ label: 'Plano para aprobar · v1' });
+      await expect(pagina.locator('.visor__trazo')).toHaveCount(1);
+      const caja = (await pagina.getByRole('img', { name: 'Plano con sus trazos' }).boundingBox())!;
+      await pagina.mouse.click(caja.x + caja.width * 0.5, caja.y + caja.height * 0.5);
+      await expect(pagina.getByText('Trazo elegido')).toBeVisible();
+      return pagina;
+    }
+
+    // El residente no aprueba lo que se traza: ve «Sin aprobar» y ningún botón.
+    const residente = await elegirElTrazo('residente');
+    await expect(residente.getByText('Sin aprobar')).toBeVisible();
+    await expect(residente.getByRole('button', { name: 'Aprobar trazo' })).toHaveCount(0);
+
+    const control = await elegirElTrazo('control');
+    await expect(control.getByText('Aprobar deja constancia de la revisión')).toBeVisible();
+    await control.getByRole('button', { name: 'Aprobar trazo' }).click();
+    await expect(control.getByRole('status')).toContainText('Trazo aprobado');
+    await expect(control.getByText(/^Aprobado ·/)).toBeVisible();
+    await expect(control.locator('.visor__trazo.is-aprobado')).toHaveCount(1);
+    await expect(control.getByRole('button', { name: 'Aprobar trazo' })).toHaveCount(0);
+
+    // Es una marca de revisión, no una compuerta: la cantidad es la misma.
+    expect(await medido()).toBe(antes);
+  });
 });

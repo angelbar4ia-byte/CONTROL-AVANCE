@@ -37,6 +37,7 @@ import type {
   PlanoRespuesta,
   ReemplazarEnlacePeticion,
   ResultadoRecalculoRespuesta,
+  TrazoAprobadoRespuesta,
   TrazoPeticion,
   TrazoRespuesta,
   TrazosDePlanoRespuesta,
@@ -1087,6 +1088,97 @@ export const useReemplazarEnlaceApiV1EnlacesCuantificacionEnlaceIdReemplazarPost
 
     return useMutation(mutationOptions, queryClient);
   };
+/**
+ * Idempotente. **No es una compuerta:** un trazo cuenta en la cantidad
+desde que se guarda, aprobado o no — el cerebro no define lo contrario
+(migración 0065). Aprobar solo deja constancia de quién lo revisó y cuándo.
+ * @summary Aprobar un trazo (marca de revisión, no cambia la cantidad)
+ */
+export const aprobarTrazoApiV1TrazosTrazoIdAprobarPost = (
+  trazoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<TrazoAprobadoRespuesta>(
+    { url: `/api/v1/trazos/${trazoId}/aprobar`, method: "POST", signal },
+    options,
+  );
+};
+
+export const getAprobarTrazoApiV1TrazosTrazoIdAprobarPostMutationOptions = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aprobarTrazoApiV1TrazosTrazoIdAprobarPost>>,
+    TError,
+    { trazoId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof aprobarTrazoApiV1TrazosTrazoIdAprobarPost>>,
+  TError,
+  { trazoId: string },
+  TContext
+> => {
+  const mutationKey = ["aprobarTrazoApiV1TrazosTrazoIdAprobarPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof aprobarTrazoApiV1TrazosTrazoIdAprobarPost>>,
+    { trazoId: string }
+  > = (props) => {
+    const { trazoId } = props ?? {};
+
+    return aprobarTrazoApiV1TrazosTrazoIdAprobarPost(trazoId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AprobarTrazoApiV1TrazosTrazoIdAprobarPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof aprobarTrazoApiV1TrazosTrazoIdAprobarPost>>
+  >;
+
+export type AprobarTrazoApiV1TrazosTrazoIdAprobarPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Aprobar un trazo (marca de revisión, no cambia la cantidad)
+ */
+export const useAprobarTrazoApiV1TrazosTrazoIdAprobarPost = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof aprobarTrazoApiV1TrazosTrazoIdAprobarPost>>,
+      TError,
+      { trazoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof aprobarTrazoApiV1TrazosTrazoIdAprobarPost>>,
+  TError,
+  { trazoId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getAprobarTrazoApiV1TrazosTrazoIdAprobarPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * Residente y Supervisor, solamente (cerebro MODELO.md §1b: distinto
 de los cuatro roles que trazan).

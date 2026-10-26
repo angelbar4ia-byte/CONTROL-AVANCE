@@ -7,6 +7,8 @@
  */
 import type { TrazoPropiedadesCapa } from "./trazoPropiedadesCapa";
 import type { TrazoPropiedadesAutorId } from "./trazoPropiedadesAutorId";
+import type { TrazoPropiedadesAprobadoPor } from "./trazoPropiedadesAprobadoPor";
+import type { TrazoPropiedadesAprobadoEn } from "./trazoPropiedadesAprobadoEn";
 import type { EnlaceDeTrazoRespuesta } from "./enlaceDeTrazoRespuesta";
 
 export interface TrazoPropiedades {
@@ -16,6 +18,9 @@ export interface TrazoPropiedades {
   fuente: string;
   autor_id: TrazoPropiedadesAutorId;
   por_revisar: boolean;
+  /** Control de obra que lo aprobó, o `null` si aún no está aprobado. */
+  aprobado_por: TrazoPropiedadesAprobadoPor;
+  aprobado_en: TrazoPropiedadesAprobadoEn;
   /** Nodos a los que el trazo alimenta con un enlace **vigente**: lo que el visor necesita para resolver el clic (MODELO.md §1b). Un trazo puede alimentar varios (el área da el piso, el perímetro el zoclo). */
   nodo_ids: string[];
   enlaces: EnlaceDeTrazoRespuesta[];

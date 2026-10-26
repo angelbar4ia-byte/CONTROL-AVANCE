@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "api:generar": "orval --config orval.config.ts"
+    "api:generar": "orval --config orval.config.ts && node scripts/aligerar-barril.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.0",
