@@ -28,6 +28,7 @@ import {
   Boxes,
   HardHat,
   Package,
+  Ruler,
   Settings,
   ShieldCheck,
   Star,
@@ -87,6 +88,7 @@ const RESIDENTE: readonly SeccionNav[] = [
       },
       { a: '/insumos-programados', etiqueta: 'Insumos programados', icono: Boxes },
       { a: '/planeacion', etiqueta: 'Cuadrillas por frente', icono: HardHat },
+      { a: '/cuantificador', etiqueta: 'Cuantificador', icono: Ruler },
     ],
   },
   {
@@ -120,6 +122,7 @@ const SUPERVISOR: readonly SeccionNav[] = [
       { a: '/obras', etiqueta: 'Obras supervisadas', icono: Home },
       { a: '/insumos-programados', etiqueta: 'Insumos programados', icono: Boxes },
       { a: '/planeacion', etiqueta: 'Cuadrillas por frente', icono: HardHat },
+      { a: '/cuantificador', etiqueta: 'Cuantificador', icono: Ruler },
     ],
   },
 ];
@@ -144,6 +147,7 @@ const CONTROL_OBRA: readonly SeccionNav[] = [
       { a: '/materiales/consumo', etiqueta: 'Consumo vs presupuesto', icono: Package },
       { a: '/insumos-programados', etiqueta: 'Insumos programados', icono: Boxes },
       { a: '/planeacion', etiqueta: 'Cuadrillas por frente', icono: HardHat },
+      { a: '/cuantificador', etiqueta: 'Cuantificador', icono: Ruler },
     ],
   },
   {
@@ -222,6 +226,7 @@ const SUPER_INTENDENTE: readonly SeccionNav[] = [
       { a: '/rendimientos', etiqueta: 'Rendimientos de obra', icono: LineChart },
       { a: '/insumos-programados', etiqueta: 'Insumos programados', icono: Boxes },
       { a: '/planeacion', etiqueta: 'Cuadrillas por frente', icono: HardHat },
+      { a: '/cuantificador', etiqueta: 'Cuantificador', icono: Ruler },
       { a: '/bitacora', etiqueta: 'Bitácora de eventos', icono: FileText },
       { a: '/procesos', etiqueta: 'Mejora de procesos', icono: Settings },
     ],

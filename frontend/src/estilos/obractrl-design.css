@@ -2354,6 +2354,56 @@ a { color: inherit; text-decoration: none; }
   border-left: 1px solid var(--c-line);
 }
 
+/* ── Cuantificador: visor de planos ─────────────────────────────────────────
+   Lienzo SVG con zoom y arrastre. Los trazos usan `non-scaling-stroke` (en el
+   JSX) para conservar su grosor en píxeles a cualquier zoom; la rejilla de
+   fondo es la que se ve cuando el plano no es una imagen. */
+.cuant {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+  align-items: start;
+}
+.cuant__lienzo { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cuant__barra { flex-wrap: wrap; }
+.cuant__lateral { min-width: 0; }
+@media (max-width: 1100px) {
+  .cuant { grid-template-columns: minmax(0, 1fr); }
+}
+.visor {
+  display: block;
+  width: 100%;
+  height: min(70vh, 720px);
+  min-height: 360px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background-color: var(--c-panel);
+  background-image:
+    linear-gradient(var(--c-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--c-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+  /* El gesto del plano es del lienzo: sin esto el navegador desplaza la página
+     al arrastrar o rodar la rueda sobre él. */
+  touch-action: none;
+  overscroll-behavior: contain;
+  user-select: none;
+}
+.visor__trazo path,
+.visor__trazo circle {
+  fill: var(--c-accent-soft);
+  stroke: var(--c-accent);
+  stroke-width: 2;
+}
+.visor__trazo circle { stroke-width: 1; fill: var(--c-accent); }
+.visor__trazo path { fill-opacity: .45; }
+.visor__trazo.is-selected path { stroke: var(--c-accent-strong); stroke-width: 3.5; fill-opacity: .7; }
+.visor__trazo.is-selected circle { fill: var(--c-accent-strong); }
+.visor__trazo.is-por-revisar path,
+.visor__trazo.is-por-revisar circle { stroke: var(--c-warn); stroke-dasharray: 6 4; }
+.visor__trazo.is-por-revisar path { fill: var(--c-warn-soft); }
+.visor__borrador polyline { fill: none; stroke: var(--c-text); stroke-width: 2; stroke-dasharray: 5 3; }
+.visor__borrador circle { fill: var(--c-text); stroke: var(--c-panel); stroke-width: 1; }
+
 /* Utility */
 .row { display: flex; align-items: center; gap: 8px; }
 .col { display: flex; flex-direction: column; gap: 8px; }
