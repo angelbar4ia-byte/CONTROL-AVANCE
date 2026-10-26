@@ -25,12 +25,13 @@ import {
  * («Conviene revisarlos»), pero eso **no impide** firmar y es lo que se verifica:
  * que el cierre exija el trabajo concluido y no el acervo.
  *
- * ## Una precondición que la semilla pone a mano
+ * ## El avance de la obra se deriva solo
  *
- * `OBRA-D` arranca con `avance_pct = 100`. Ningún código del sistema calcula el
- * avance de la obra a partir del de sus actividades: sin ese 100 la regla
- * `avance_incompleto` frena la entrega para siempre, por mucho que todas las
- * actividades estén concluidas. Este spec prueba el acta, no ese cálculo.
+ * `OBRA-D` arranca en 0 %. El avance de la obra lo calcula la base a partir del
+ * de sus actividades (migración 0064): al concluir las dos, la obra llega a
+ * 100 % sin que nadie lo ponga, y eso es lo que se verifica. Antes de esa
+ * migración nada lo calculaba y la regla `avance_incompleto` frenaba la entrega
+ * para siempre.
  *
  * Usa `OBRA-D` de `e2e/soporte/semilla.sql`; es de un solo uso.
  */
@@ -65,7 +66,7 @@ test.describe('§11.3 D · Cierre de obra', () => {
     const acta = superIntendente.getByRole('dialog', { name: 'Cierre de obra' });
     await expect(acta).toContainText('Impiden entregar');
     await expect(acta).toContainText('2 actividad(es) sin concluir');
-    await expect(acta).not.toContainText('de avance'); // el 100 % lo trae la semilla
+    await expect(acta).toContainText('La obra va en 0.00 % de avance');
     await acta.getByLabel('Cerrar', { exact: true }).click();
 
     await superIntendente.getByRole('button', { name: 'Todos', exact: true }).click();
@@ -74,6 +75,11 @@ test.describe('§11.3 D · Cierre de obra', () => {
     // --- 2. Se concluye el trabajo --------------------------------------
     await cerrarPorApi(request, 'OBRA-D', 'E2E-EXC', 10);
     await cerrarPorApi(request, 'OBRA-D', 'E2E-PLA', 10);
+
+    // La obra llegó a 100 % sola, y de ahí se deriva su estatus (>= 90).
+    await superIntendente.reload();
+    await superIntendente.getByRole('button', { name: 'Todos', exact: true }).click();
+    await expect(filaObra(superIntendente)).toContainText('por_entregar');
 
     // --- 3. Los cuatro roles registran su parte -------------------------
     const partes: { rol: Rol; etiqueta: string; comentario: string }[] = [
