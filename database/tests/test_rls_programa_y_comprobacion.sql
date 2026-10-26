@@ -5,9 +5,9 @@
 -- Spec §12.4 (RLS) · D4 del roadmap ("toda tabla nueva entra con política RLS +
 -- prueba de aislamiento en el mismo PR").
 --
--- Las dos son bitácoras: se agregan y no se reescriben. Cuelgan de la obra
--- (`programa_edicion.obra_id`) o de la actividad (`comprobacion_excedente`) y
--- heredan el alcance de `app.obra_visible`.
+-- Las tres son bitácoras: se agregan y no se reescriben. Cuelgan de la obra
+-- (`programa_edicion.obra_id`, `confirmacion_avance.obra_id`) o de la actividad
+-- (`comprobacion_excedente`) y heredan el alcance de `app.obra_visible`.
 --
 -- Lo que se prueba:
 --   1. El alcance por rol del §4 se hereda de la obra en las dos tablas.
@@ -111,6 +111,14 @@ insert into comprobacion_excedente (org_id, actividad_id, decision, cantidad, no
   ('22222222-2222-2222-2222-222222222222', 'b5000000-0000-0000-0000-000000000001',
    'perdida', 3, 'Desperdicio', null, 'bbbbbbbb-0000-0000-0000-000000000005');
 
+insert into confirmacion_avance (org_id, obra_id, actividad_id, cantidad, confirmado_por) values
+  ('11111111-1111-1111-1111-111111111111', 'a3000000-0000-0000-0000-000000000001',
+   'a5000000-0000-0000-0000-000000000001', 60, 'aaaaaaaa-0000-0000-0000-000000000001'),
+  ('11111111-1111-1111-1111-111111111111', 'a3000000-0000-0000-0000-000000000003',
+   'a5000000-0000-0000-0000-000000000003', 40, 'aaaaaaaa-0000-0000-0000-000000000002'),
+  ('22222222-2222-2222-2222-222222222222', 'b3000000-0000-0000-0000-000000000001',
+   'b5000000-0000-0000-0000-000000000001', 30, 'bbbbbbbb-0000-0000-0000-000000000001');
+
 -- ------------------------------------------------------------
 -- Helpers (mismos que `test_rls.sql`)
 -- ------------------------------------------------------------
@@ -147,10 +155,15 @@ select pg_temp.esperar('residente ve las ediciones de su obra', count(*), 1)
 select pg_temp.esperar('residente ve las decisiones de su obra', count(*), 1)
   from comprobacion_excedente;
 
+select pg_temp.esperar('residente ve las confirmaciones de su obra', count(*), 1)
+  from confirmacion_avance;
+
 select pg_temp.como('11111111-1111-1111-1111-111111111111',
                     'aaaaaaaa-0000-0000-0000-000000000003', 'supervisor');
 select pg_temp.esperar('supervisor ve solo las de su residente', count(*), 1)
   from programa_edicion;
+select pg_temp.esperar('supervisor no ve la confirmación de un residente ajeno', count(*), 0)
+  from confirmacion_avance where obra_id = 'a3000000-0000-0000-0000-000000000003';
 select pg_temp.esperar('supervisor no ve la edición de un residente ajeno', count(*), 0)
   from programa_edicion where obra_id = 'a3000000-0000-0000-0000-000000000003';
 select pg_temp.esperar('supervisor no ve la decisión de una obra ajena', count(*), 0)
@@ -163,6 +176,8 @@ select pg_temp.esperar('control ve las ediciones de toda su org', count(*), 2)
   from programa_edicion;
 select pg_temp.esperar('control ve las decisiones de toda su org', count(*), 2)
   from comprobacion_excedente;
+select pg_temp.esperar('control ve las confirmaciones de toda su org', count(*), 2)
+  from confirmacion_avance;
 
 select pg_temp.como('11111111-1111-1111-1111-111111111111',
                     'aaaaaaaa-0000-0000-0000-000000000005', 'super_intendente');
@@ -184,6 +199,8 @@ select pg_temp.esperar('Beta solo ve sus decisiones', count(*), 1)
   from comprobacion_excedente;
 select pg_temp.esperar('Beta no ve las ediciones de Alfa', count(*), 0)
   from programa_edicion where org_id = '11111111-1111-1111-1111-111111111111';
+select pg_temp.esperar('Beta no ve las confirmaciones de Alfa', count(*), 0)
+  from confirmacion_avance where org_id = '11111111-1111-1111-1111-111111111111';
 
 -- ------------------------------------------------------------
 -- 3 · La escritura no es más ancha que la lectura
@@ -197,6 +214,23 @@ insert into programa_edicion (org_id, obra_id, actividad_id, usuario_id, rol, ti
    'residente', 'fechas', '{}', '{"fecha_termino": "2026-03-13"}');
 select pg_temp.esperar('residente anota una edición de su obra', count(*), 2)
   from programa_edicion;
+
+insert into confirmacion_avance (org_id, obra_id, actividad_id, cantidad, confirmado_por) values
+  ('11111111-1111-1111-1111-111111111111', 'a3000000-0000-0000-0000-000000000001',
+   'a5000000-0000-0000-0000-000000000001', 80, 'aaaaaaaa-0000-0000-0000-000000000001');
+select pg_temp.esperar('residente confirma el avance de su obra', count(*), 2)
+  from confirmacion_avance;
+do $$
+begin
+  insert into confirmacion_avance (org_id, obra_id, actividad_id, cantidad, confirmado_por) values
+    ('11111111-1111-1111-1111-111111111111', 'a3000000-0000-0000-0000-000000000003',
+     'a5000000-0000-0000-0000-000000000003', 10, 'aaaaaaaa-0000-0000-0000-000000000001');
+  raise exception 'FALLA [confirmar en obra ajena]: el INSERT debió rechazarse';
+exception
+  when insufficient_privilege then
+    raise notice 'OK  [confirmar en obra ajena] -> rechazada por RLS';
+end;
+$$;
 
 -- Res Uno no ve FRESNO 02: tampoco puede anotar una edición ahí.
 do $$
@@ -263,11 +297,16 @@ select pg_temp.intentar('borrar una edición', 'delete from programa_edicion');
 select pg_temp.intentar('reescribir una decisión',
                         $q$update comprobacion_excedente set nota = 'reescrita'$q$);
 select pg_temp.intentar('borrar una decisión', 'delete from comprobacion_excedente');
+select pg_temp.intentar('reescribir una confirmación',
+                        'update confirmacion_avance set cantidad = 999');
+select pg_temp.intentar('borrar una confirmación', 'delete from confirmacion_avance');
 
 select pg_temp.esperar('las ediciones siguen intactas', count(*), 3)
   from programa_edicion where tipo = 'fechas';
 select pg_temp.esperar('las decisiones siguen intactas', count(*), 2)
   from comprobacion_excedente where nota <> 'reescrita';
+select pg_temp.esperar('las confirmaciones siguen intactas', count(*), 3)
+  from confirmacion_avance where cantidad <> 999;
 
 -- ------------------------------------------------------------
 -- 5 · Sin contexto (anónimo) no se ve nada
@@ -276,5 +315,6 @@ select pg_temp.como('00000000-0000-0000-0000-000000000000',
                     '00000000-0000-0000-0000-000000000000', 'anonimo');
 select pg_temp.esperar('anónimo no ve ediciones', count(*), 0) from programa_edicion;
 select pg_temp.esperar('anónimo no ve decisiones', count(*), 0) from comprobacion_excedente;
+select pg_temp.esperar('anónimo no ve confirmaciones', count(*), 0) from confirmacion_avance;
 
 rollback;
