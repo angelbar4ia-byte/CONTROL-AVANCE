@@ -6,6 +6,8 @@ import {
   cajaDePuntos,
   desplazar,
   distanciaA,
+  distanciaEntre,
+  escalaPrevista,
   herramientaDeGeometria,
   marcadoresDe,
   notaEnPunto,
@@ -191,5 +193,22 @@ describe('notas y formas', () => {
     expect(herramientaDeGeometria({ type: 'MultiLineString' })).toBe('linea');
     expect(herramientaDeGeometria({ type: 'Point' })).toBe('punto');
     expect(herramientaDeGeometria({ type: 'GeometryCollection' })).toBeNull();
+  });
+});
+
+describe('calibrar la escala (vista previa)', () => {
+  it('la distancia entre dos puntos es euclidiana', () => {
+    expect(distanciaEntre([0, 0], [3, 4])).toBe(5);
+  });
+
+  it('metros por unidad = metros reales / distancia en el plano', () => {
+    expect(escalaPrevista([0, 0], [100, 0], 5)).toBe(0.05);
+    expect(escalaPrevista([0, 0], [3, 4], 10)).toBe(2);
+  });
+
+  it('sin datos para calcular no hay vista previa', () => {
+    expect(escalaPrevista([1, 1], [1, 1], 5)).toBeNull(); // los dos puntos son el mismo
+    expect(escalaPrevista([0, 0], [10, 0], 0)).toBeNull();
+    expect(escalaPrevista([0, 0], [10, 0], Number.NaN)).toBeNull();
   });
 });

@@ -27,6 +27,8 @@ import type {
 
 import type {
   ArchivoDePlanoRespuesta,
+  EscalaPeticion,
+  EscalaRespuesta,
   HTTPValidationError,
   NodoCuantificadoRespuesta,
   NotaPlanoDetalleRespuesta,
@@ -960,6 +962,107 @@ export function useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet<
   return query;
 }
 
+/**
+ * Sin escala, lo que se mide está en unidades de plano —píxeles del visor— y
+no se puede comparar con el presupuesto. Calibrar corrige todos los trazos del
+plano de golpe (la medida se lee ya escalada) y recalcula lo que alimentan.
+Se puede repetir: la última calibración manda.
+ * @summary Calibrar la escala de un plano con dos puntos y una distancia real
+ */
+export const calibrarEscalaApiV1PlanosPlanoIdEscalaPut = (
+  planoId: string,
+  escalaPeticion: EscalaPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<EscalaRespuesta>(
+    {
+      url: `/api/v1/planos/${planoId}/escala`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: escalaPeticion,
+    },
+    options,
+  );
+};
+
+export const getCalibrarEscalaApiV1PlanosPlanoIdEscalaPutMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof calibrarEscalaApiV1PlanosPlanoIdEscalaPut>>,
+    TError,
+    { planoId: string; data: EscalaPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof calibrarEscalaApiV1PlanosPlanoIdEscalaPut>>,
+  TError,
+  { planoId: string; data: EscalaPeticion },
+  TContext
+> => {
+  const mutationKey = ["calibrarEscalaApiV1PlanosPlanoIdEscalaPut"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof calibrarEscalaApiV1PlanosPlanoIdEscalaPut>>,
+    { planoId: string; data: EscalaPeticion }
+  > = (props) => {
+    const { planoId, data } = props ?? {};
+
+    return calibrarEscalaApiV1PlanosPlanoIdEscalaPut(
+      planoId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CalibrarEscalaApiV1PlanosPlanoIdEscalaPutMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof calibrarEscalaApiV1PlanosPlanoIdEscalaPut>>
+  >;
+export type CalibrarEscalaApiV1PlanosPlanoIdEscalaPutMutationBody =
+  EscalaPeticion;
+export type CalibrarEscalaApiV1PlanosPlanoIdEscalaPutMutationError = void;
+
+/**
+ * @summary Calibrar la escala de un plano con dos puntos y una distancia real
+ */
+export const useCalibrarEscalaApiV1PlanosPlanoIdEscalaPut = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof calibrarEscalaApiV1PlanosPlanoIdEscalaPut>>,
+      TError,
+      { planoId: string; data: EscalaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof calibrarEscalaApiV1PlanosPlanoIdEscalaPut>>,
+  TError,
+  { planoId: string; data: EscalaPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCalibrarEscalaApiV1PlanosPlanoIdEscalaPutMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * Marca `vigente=false` y, si se manda `nuevo`, crea el reemplazo
 vigente en la misma llamada — siempre una acción explícita (MODELO.md

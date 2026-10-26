@@ -7,7 +7,13 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { advertenciasAvance, tonoEstatusActividad } from '@/avance/reglas';
+import {
+  advertenciasAvance,
+  etiquetaConfirmacion,
+  puedeConfirmar,
+  tonoConfirmacion,
+  tonoEstatusActividad,
+} from '@/avance/reglas';
 
 describe('advertenciasAvance (§6, reflejo de UX)', () => {
   it('sin cant_base conocida, no advierte sobre el límite de programada', () => {
@@ -54,5 +60,32 @@ describe('tonoEstatusActividad (§8.2)', () => {
 
   it('cae a "outline" ante un estatus desconocido, sin romper', () => {
     expect(tonoEstatusActividad('algo-inesperado')).toBe('outline');
+  });
+});
+
+describe('confirmar el avance antes de estimar (D-534)', () => {
+  const conAvance = { cant_ejecutada: '60' };
+
+  it('confirma solo el residente', () => {
+    expect(puedeConfirmar('residente', conAvance, 'sin_confirmar')).toBe(true);
+    for (const rol of ['supervisor', 'control_obra', 'super_intendente', null]) {
+      expect(puedeConfirmar(rol, conAvance, 'sin_confirmar')).toBe(false);
+    }
+  });
+
+  it('sin avance no hay nada que confirmar, y lo ya confirmado tal cual no se ofrece', () => {
+    expect(puedeConfirmar('residente', { cant_ejecutada: '0' }, 'sin_confirmar')).toBe(false);
+    expect(puedeConfirmar('residente', conAvance, 'confirmada')).toBe(false);
+    // Si el avance cambió después de confirmar, hay que volver a confirmar.
+    expect(puedeConfirmar('residente', conAvance, 'desactualizada')).toBe(true);
+  });
+
+  it('el estado se traduce a etiqueta y tono', () => {
+    expect(etiquetaConfirmacion('confirmada')).toBe('confirmado');
+    expect(etiquetaConfirmacion('desactualizada')).toBe('cambió tras confirmar');
+    expect(etiquetaConfirmacion('sin_confirmar')).toBe('sin confirmar');
+    expect(tonoConfirmacion('confirmada')).toBe('ok');
+    expect(tonoConfirmacion('desactualizada')).toBe('warn');
+    expect(tonoConfirmacion('sin_confirmar')).toBe('outline');
   });
 });

@@ -38,6 +38,7 @@ import {
 import type {
   ActividadRespuesta,
   ArchivoDePlanoRespuesta,
+  EscalaRespuesta,
   NodoCuantificadoRespuesta,
   NodoPrototipoRespuesta,
   NotaPlanoDetalleRespuesta,
@@ -57,6 +58,7 @@ import { SelectorObra } from '@/lib/SelectorObra';
 import { AltaNota } from './AltaNota';
 import { AltaPlano } from './AltaPlano';
 import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
+import { CalibrarEscala } from './CalibrarEscala';
 import { ReemplazarEnlace } from './ReemplazarEnlace';
 import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Visor';
 import {
@@ -73,6 +75,7 @@ const HERRAMIENTAS: readonly { readonly clave: Herramienta; readonly etiqueta: s
   { clave: 'poligono', etiqueta: 'Polígono' },
   { clave: 'linea', etiqueta: 'Línea' },
   { clave: 'punto', etiqueta: 'Punto' },
+  { clave: 'escala', etiqueta: 'Calibrar escala' },
 ];
 
 /** Anotar el plano es solo de Residente y Supervisor (MODELO.md §1b); el
@@ -139,6 +142,7 @@ export function EspacioDeTrazo({
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
   const [notaPunto, setNotaPunto] = useState<Punto | null>(null);
   const [reemplazando, setReemplazando] = useState<string | null>(null);
+  const [calibrando, setCalibrando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
   const planos = useListarPlanosApiV1ObrasObraIdPlanosGet<
@@ -247,7 +251,10 @@ export function EspacioDeTrazo({
   });
 
   const forma: HerramientaDeTrazo | null =
-    herramienta === 'seleccionar' || herramienta === 'nota' ? null : herramienta;
+    herramienta === 'seleccionar' || herramienta === 'nota' || herramienta === 'escala'
+      ? null
+      : herramienta;
+  const escalaDelPlano = plano?.escala_m_por_unidad != null ? Number(plano.escala_m_por_unidad) : null;
 
   function cambiarHerramienta(nueva: Herramienta) {
     setHerramienta(nueva);
@@ -260,6 +267,14 @@ export function EspacioDeTrazo({
     setAviso(null);
     if (herramienta === 'nota') {
       setNotaPunto(p);
+      return;
+    }
+    if (herramienta === 'escala') {
+      // Dos puntos de referencia: al segundo se pide la distancia real. Un
+      // tercer clic empieza de nuevo.
+      const siguiente = borrador.length >= 2 ? [p] : [...borrador, p];
+      setBorrador(siguiente);
+      if (siguiente.length === 2) setCalibrando(true);
       return;
     }
     if (!forma) return;
@@ -413,6 +428,25 @@ export function EspacioDeTrazo({
                   {h.etiqueta}
                 </button>
               ))}
+              <span
+                className={`badge badge--${escalaDelPlano === null ? 'warn' : 'ok'}`}
+                title={
+                  escalaDelPlano === null
+                    ? 'Sin calibrar: se asume 1 unidad de plano = 1 m y las cantidades están en unidades de plano.'
+                    : `1 unidad de plano = ${escalaDelPlano} m`
+                }
+              >
+                {escalaDelPlano === null
+                  ? 'Sin calibrar: cantidades en unidades de plano'
+                  : `Escala 1 u = ${escalaDelPlano.toPrecision(4)} m`}
+              </span>
+              {herramienta === 'escala' && (
+                <span className="text-mute text-xs">
+                  {borrador.length === 0
+                    ? 'Marca el primer punto de una distancia conocida (una cota, un eje)'
+                    : 'Marca el segundo punto'}
+                </span>
+              )}
               {forma && forma !== 'punto' && (
                 <>
                   <span className="text-mute text-xs">
@@ -651,6 +685,39 @@ export function EspacioDeTrazo({
             if (forma === 'punto') setBorrador([]);
           }}
           onGuardado={alGuardar}
+        />
+      )}
+
+      {calibrando && plano && borrador.length === 2 && (
+        <CalibrarEscala
+          planoId={plano.id}
+          puntoA={borrador[0] as Punto}
+          puntoB={borrador[1] as Punto}
+          escalaActual={escalaDelPlano}
+          onCerrar={() => {
+            setCalibrando(false);
+            setBorrador([]);
+          }}
+          onCalibrada={(r: EscalaRespuesta) => {
+            setCalibrando(false);
+            setBorrador([]);
+            setHerramienta('seleccionar');
+            setAviso(
+              `Escala calibrada: 1 unidad de plano = ${Number(r.escala_m_por_unidad).toPrecision(4)} m. ` +
+                (r.recalculos.length === 0
+                  ? 'Todavía no hay trazos enlazados que recalcular.'
+                  : `Se recalcularon ${r.recalculos.length} ${r.recalculos.length === 1 ? 'nodo' : 'nodos'}.`),
+            );
+            void queryClient.invalidateQueries({
+              queryKey: getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId),
+            });
+            void queryClient.invalidateQueries({
+              queryKey: getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey(planoElegido),
+            });
+            void queryClient.invalidateQueries({
+              queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId),
+            });
+          }}
         />
       )}
 

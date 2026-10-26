@@ -69,6 +69,7 @@ from obractrl.application.puertos.repositorios import (
     RepositorioPrototipoNodo,
     UnidadDeTrabajo,
 )
+from obractrl.domain.cuantificacion.escala import escala_desde_referencia
 from obractrl.domain.cuantificacion.reglas import (
     EnlaceCuantificacion,
     ErrorDeCuantificacion,
@@ -85,12 +86,15 @@ from obractrl.domain.shared.diccionario import (
 )
 
 __all__ = [
+    "CalibrarEscalaDePlano",
+    "ComandoCalibrarEscala",
     "ComandoReemplazarEnlace",
     "ComandoRegistrarNotaPlano",
     "ComandoRegistrarTrazo",
     "ConsultarCuantificacion",
     "EnlaceNoEncontrado",
     "ErrorDeCuantificacion",
+    "EscalaCalibrada",
     "GobiernoDeCuantificacionInvalido",
     "IntencionEnlace",
     "NodoCuantificado",
@@ -506,6 +510,109 @@ class ReemplazarEnlace:
             await self._uow.commit()
 
         return resultado
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoCalibrarEscala:
+    plano_id: UUID
+    punto_a: tuple[float, float]
+    punto_b: tuple[float, float]
+    distancia_m: Decimal
+    usuario_id: UUID
+    rol: Rol
+
+
+@dataclass(frozen=True, slots=True)
+class EscalaCalibrada:
+    escala_m_por_unidad: Decimal
+    recalculos: tuple[ResultadoDeRecalculo, ...] = field(default_factory=tuple)
+
+
+class CalibrarEscalaDePlano:
+    """`PUT /planos/{id}/escala`: dos puntos de una distancia conocida y los
+    metros que son (migración 0069).
+
+    Sin escala, la cantidad que se mide es un número en unidades de plano —píxeles
+    del visor, o lo que el CAD traiga— y compararla contra la `cant_base` del
+    presupuesto (m², ml) no significa nada. La medida se lee ya escalada, así que
+    calibrar corrige de golpe todos los trazos del plano; lo que hay que hacer
+    aquí es **recalcular** cada nodo que esos trazos alimentan, porque su cantidad
+    total cambió: la actividad se vuelve a comparar contra su `cant_base` (y puede
+    levantar una desviación nueva; las anteriores, medidas con la escala vieja,
+    quedan como historia) y el `prototipo_nodo` se vuelve a sobreescribir.
+
+    Recalibrar sobre un plano con enlaces a `prototipo_nodo` toca un catálogo
+    compartido, así que tiene el mismo gobierno que enlazarlos: Control de obra o
+    Super intendente. Se valida **antes** de escribir.
+    """
+
+    def __init__(
+        self,
+        *,
+        planos: RepositorioPlanos,
+        enlaces: RepositorioEnlacesCuantificacion,
+        actividades: RepositorioActividades,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        desviaciones: RepositorioDesviaciones,
+        uow: UnidadDeTrabajo,
+    ) -> None:
+        self._planos = planos
+        self._enlaces = enlaces
+        self._actividades = actividades
+        self._prototipo_nodos = prototipo_nodos
+        self._desviaciones = desviaciones
+        self._uow = uow
+
+    async def ejecutar(
+        self, cmd: ComandoCalibrarEscala, *, detectada_en: datetime
+    ) -> EscalaCalibrada:
+        if await self._planos.obtener(cmd.plano_id) is None:
+            raise PlanoNoEncontrado(
+                f"El plano {cmd.plano_id} no existe o está fuera de tu alcance."
+            )
+
+        escala = escala_desde_referencia(cmd.punto_a, cmd.punto_b, cmd.distancia_m)
+
+        nodos = await self._enlaces.nodos_vigentes_de_plano(cmd.plano_id)
+        if (
+            any(n["tipo_nodo"] == TipoNodoCuantificacion.PROTOTIPO_NODO.value for n in nodos)
+            and cmd.rol not in _ROLES_QUE_TOCAN_PROTOTIPO
+        ):
+            permitidos = ", ".join(r.value for r in _ROLES_QUE_TOCAN_PROTOTIPO)
+            raise GobiernoDeCuantificacionInvalido(
+                f"Este plano alimenta cantidades de un prototipo_nodo: recalibrarlo "
+                f"las cambia, y eso exige {permitidos}; el rol {cmd.rol.value!r} no puede."
+            )
+
+        async with self._uow:
+            await self._planos.fijar_escala(
+                cmd.plano_id,
+                escala_m_por_unidad=escala,
+                referencia={
+                    "punto_a": list(cmd.punto_a),
+                    "punto_b": list(cmd.punto_b),
+                    "distancia_m": str(cmd.distancia_m),
+                },
+                usuario_id=cmd.usuario_id,
+            )
+            recalculos = tuple(
+                [
+                    await _recalcular_nodo(
+                        tipo_nodo=TipoNodoCuantificacion(str(n["tipo_nodo"])),
+                        actividad_id=n["actividad_id"],
+                        prototipo_nodo_id=n["prototipo_nodo_id"],
+                        enlaces=self._enlaces,
+                        actividades=self._actividades,
+                        prototipo_nodos=self._prototipo_nodos,
+                        desviaciones=self._desviaciones,
+                        detectada_en=detectada_en,
+                    )
+                    for n in nodos
+                ]
+            )
+            await self._uow.commit()
+
+        return EscalaCalibrada(escala_m_por_unidad=escala, recalculos=recalculos)
 
 
 @dataclass(frozen=True, slots=True)

@@ -22,6 +22,8 @@ import {
  *        y la desviación que levanta se ve (con y sin causa) y se le captura causa.
  *   6    El residente captura avance: el avance y el estatus de la obra se derivan.
  *   8    Se cierran las actividades (residente → supervisor → control).
+ *   6    El residente confirma los avances antes de estimar (D-534); confirmar
+ *        no es un candado: lo estimado por encima de lo confirmado es una alerta.
  *   7    El supervisor genera la estimación; control la valida.
  *   8    El cierre de obra no deja entregar con dinero sin resolver; con la
  *        estimación validada, las cuatro partes firman y la obra queda entregada.
@@ -185,6 +187,20 @@ test.describe('§8.3 · El recorrido de una obra', () => {
     expect(porEntregar.estatus).toBe('por_entregar');
     expect(Number(porEntregar.avance_pct)).toBe(100);
 
+    // --- Etapa 6: confirmar los avances, antes de estimar (D-534) -----------
+    // El residente confirma desde la pantalla de avances; confirmar guarda lo
+    // ejecutado en ese momento y deja la fila «confirmado».
+    await page.goto('/avances');
+    await page.getByLabel('Obra', { exact: true }).selectOption({ label: clave });
+    await page.getByRole('tab', { name: /^Todas/ }).click();
+    const filaExc = page.getByRole('row', { name: /^E2E-EXC Excavación de cepas/ });
+    await expect(filaExc).toContainText('sin confirmar');
+    await filaExc.getByRole('button', { name: 'Confirmar' }).click();
+    await expect(filaExc).toContainText('confirmado');
+    await expect(filaExc.getByRole('button', { name: 'Confirmar' })).toHaveCount(0);
+    await llamarApi(request, 'residente', 'POST', `/actividades/${plantilla.id}/avance/confirmar`, {});
+    // El cimiento se queda sin confirmar a propósito: confirmar no es un candado.
+
     // --- Etapa 7: estimar ---------------------------------------------------
     const estimacion = await llamarApi<{ id: string; estatus: string; monto_total: string }>(
       request,
@@ -195,6 +211,16 @@ test.describe('§8.3 · El recorrido de una obra', () => {
     );
     expect(estimacion.estatus).toBe('borrador');
     expect(Number(estimacion.monto_total)).toBeGreaterThan(0);
+
+    // Lo estimado por encima de lo confirmado es una alerta, no un bloqueo: la
+    // estimación se generó igual, y solo el cimiento sin confirmar la lleva.
+    const guia = await llamarApi<{
+      n_alertas_de_respaldo: number;
+      conceptos: { actividad_id: string; alerta: string | null }[];
+    }>(request, 'supervisor', 'GET', `/estimaciones/${estimacion.id}`);
+    expect(guia.n_alertas_de_respaldo).toBe(1);
+    expect(guia.conceptos.find((c) => c.actividad_id === cimiento.id)!.alerta).toBe('sin_confirmar');
+    expect(guia.conceptos.find((c) => c.actividad_id === excavacion.id)!.alerta).toBeNull();
 
     // --- Etapa 8: entregar --------------------------------------------------
     const acta = await llamarApi<{ id: string }>(request, 'superIntendente', 'POST', `/obras/${obra.id}/cierre-obra`);

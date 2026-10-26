@@ -48,6 +48,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from obractrl.adapters.api.casos_uso import (
     AprobarTrazoDep,
+    CalibrarEscalaDePlanoDep,
     ConsultarCuantificacionDep,
     ReemplazarEnlaceDep,
     RegistrarNotaPlanoDep,
@@ -57,6 +58,7 @@ from obractrl.adapters.api.casos_uso import (
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.application.casos_uso.cuantificar import (
     ComandoAprobarTrazo,
+    ComandoCalibrarEscala,
     ComandoReemplazarEnlace,
     ComandoRegistrarNotaPlano,
     ComandoRegistrarTrazo,
@@ -288,6 +290,72 @@ async def registrar_trazo(
     )
 
 
+class EscalaPeticion(BaseModel):
+    """Calibrar la escala de un plano (migración 0069): dos puntos de una distancia
+    conocida del plano y los metros que son."""
+
+    punto_a: tuple[float, float] = Field(description="Coordenada de plano `[x, y]`.")
+    punto_b: tuple[float, float] = Field(description="Coordenada de plano `[x, y]`.")
+    distancia_m: Decimal = Field(
+        gt=0, description="Los metros reales entre `punto_a` y `punto_b`."
+    )
+
+
+class EscalaRespuesta(BaseModel):
+    escala_m_por_unidad: Decimal = Field(description="Metros por unidad de plano.")
+    recalculos: list[ResultadoRecalculoRespuesta] = Field(
+        description=(
+            "Una por cada nodo que alimentan los trazos del plano: su cantidad "
+            "cambió con la escala."
+        )
+    )
+
+
+@router.put(
+    "/planos/{plano_id}/escala",
+    response_model=EscalaRespuesta,
+    summary="Calibrar la escala de un plano con dos puntos y una distancia real",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        403: {
+            "description": (
+                "El plano alimenta cantidades de un prototipo_nodo y el rol no es "
+                "Control de obra ni Super intendente."
+            )
+        },
+        404: {"description": "El plano no existe o está fuera de tu alcance."},
+        422: {"description": "Puntos iguales, distancia no positiva o escala implausible."},
+    },
+)
+async def calibrar_escala(
+    plano_id: UUID,
+    peticion: EscalaPeticion,
+    ctx: ContextoActual,
+    caso_uso: CalibrarEscalaDePlanoDep,
+) -> EscalaRespuesta:
+    """Sin escala, lo que se mide está en unidades de plano —píxeles del visor— y
+    no se puede comparar con el presupuesto. Calibrar corrige todos los trazos del
+    plano de golpe (la medida se lee ya escalada) y recalcula lo que alimentan.
+    Se puede repetir: la última calibración manda."""
+    resultado = await caso_uso.ejecutar(
+        ComandoCalibrarEscala(
+            plano_id=plano_id,
+            punto_a=peticion.punto_a,
+            punto_b=peticion.punto_b,
+            distancia_m=peticion.distancia_m,
+            usuario_id=ctx.usuario_id,
+            rol=Rol(ctx.rol),
+        ),
+        detectada_en=datetime.now(UTC),
+    )
+    return EscalaRespuesta(
+        escala_m_por_unidad=resultado.escala_m_por_unidad,
+        recalculos=[
+            ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos
+        ],
+    )
+
+
 @router.post(
     "/enlaces-cuantificacion/{enlace_id}/reemplazar",
     response_model=ResultadoRecalculoRespuesta,
@@ -424,6 +492,18 @@ class PlanoDetalleRespuesta(BaseModel):
             "para revisión y no se recalculan solos (MODELO.md §1b)."
         )
     )
+    escala_m_por_unidad: Decimal | None = Field(
+        default=None,
+        description=(
+            "Metros por unidad de plano; `null` = sin calibrar (se asume 1 unidad = "
+            "1 m y las cantidades están en unidades de plano). Migración 0069."
+        ),
+    )
+    escala_referencia: dict[str, Any] | None = Field(
+        default=None,
+        description="Los dos puntos y la distancia real con que se calibró.",
+    )
+    escala_calibrada_en: datetime | None = None
 
 
 class EnlaceDeTrazoRespuesta(BaseModel):
@@ -480,6 +560,9 @@ class TrazosDePlanoRespuesta(BaseModel):
     type: Literal["FeatureCollection"] = "FeatureCollection"
     plano_id: UUID
     version_plano: int
+    escala_m_por_unidad: Decimal | None = Field(
+        default=None, description="Metros por unidad de plano; `null` = sin calibrar."
+    )
     features: list[TrazoFeature]
 
 
@@ -577,7 +660,10 @@ async def trazos_de_plano(
             )
         )
     return TrazosDePlanoRespuesta(
-        plano_id=plano["id"], version_plano=plano["version"], features=features
+        plano_id=plano["id"],
+        version_plano=plano["version"],
+        escala_m_por_unidad=plano.get("escala_m_por_unidad"),
+        features=features,
     )
 
 

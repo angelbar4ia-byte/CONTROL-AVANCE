@@ -472,6 +472,8 @@ export function useListarDesviacionesApiV1ObrasObraIdDesviacionesGet<
 /**
  * La causa se agrega después de detectar la desviación, sin penalizar, y se
 puede corregir. Debe ser del mismo factor (`precio` o `consumo`) que la fila.
+
+Es un `PUT`: repetirlo deja lo mismo, así que no lleva `Idempotency-Key`.
  * @summary Capturar (o corregir) la causa de una desviación
  */
 export const capturarCausaApiV1DesviacionesDesviacionIdCausaPut = (

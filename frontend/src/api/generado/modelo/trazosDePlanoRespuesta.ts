@@ -5,6 +5,7 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
+import type { TrazosDePlanoRespuestaEscalaMPorUnidad } from "./trazosDePlanoRespuestaEscalaMPorUnidad";
 import type { TrazoFeature } from "./trazoFeature";
 
 /**
@@ -14,5 +15,7 @@ export interface TrazosDePlanoRespuesta {
   type?: "FeatureCollection";
   plano_id: string;
   version_plano: number;
+  /** Metros por unidad de plano; `null` = sin calibrar. */
+  escala_m_por_unidad?: TrazosDePlanoRespuestaEscalaMPorUnidad;
   features: TrazoFeature[];
 }

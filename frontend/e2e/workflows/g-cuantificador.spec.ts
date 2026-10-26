@@ -133,6 +133,9 @@ test.describe('Cuantificador · trazar un polígono', () => {
 
     await page.reload();
     await page.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+    // Al recargar se abre el primer plano de la lista, que depende de los que
+    // hayan registrado las demás pruebas: se elige el de ésta por nombre.
+    await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Planta baja E2E · v1' });
     await expect(page.locator('.visor__trazo')).toHaveCount(1);
   });
 
@@ -479,5 +482,81 @@ test.describe('Cuantificador · trazar un polígono', () => {
     // El cajón sigue abierto con lo dibujado: quien traza corrige y reintenta.
     await expect(alta).toBeVisible();
     await expect(page.locator('.visor__trazo')).toHaveCount(0);
+  });
+  test('calibrar la escala: dos puntos y los metros que son corrigen todas las cantidades del plano', async ({
+    page,
+    request,
+  }) => {
+    test.skip(!hayRoles('control'), motivoSinRoles('control'));
+    // Una obra propia con sus tres actividades: la cantidad de una de ellas es solo
+    // de este plano, así que la prueba no depende de lo que midan las demás.
+    const clave = `CAL-${Date.now().toString(36).toUpperCase()}`;
+    const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
+    const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
+    const usuarios = await llamarApi<{ id: string; nombre: string }[]>(request, 'control', 'GET', '/usuarios');
+    const obra = await llamarApi<{ id: string }>(request, 'control', 'POST', '/obras', {
+      cluster_id: clusters.find((c) => c.clave === 'CLU-E2E')!.id,
+      prototipo_id: prototipos.find((p) => p.clave === 'CAS-E2E')!.id,
+      residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
+      clave,
+    });
+    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
+    const plano = await llamarApi<{ id: string }>(
+      request,
+      'residente',
+      'POST',
+      `/obras/${obra.id}/planos`,
+      { nombre: 'Plano para calibrar', archivo_url: 'e2e/calibrar.dwg' },
+    );
+    const actividadId = await actividadDe(request, 'residente', clave, 'E2E-CIM');
+    await llamarApi(request, 'residente', 'POST', `/planos/${plano.id}/trazos`, {
+      version_plano: 1,
+      fuente: 'pdf',
+      geometria_wkt: 'POLYGON((0 0, 40 0, 40 30, 0 30, 0 0))',
+      enlaces: [{ medida: 'area', factor: '1', actividad_id: actividadId }],
+    });
+    const medido = async () => {
+      const nodos = await llamarApi<{ nodo_id: string; cantidad_medida: string }[]>(
+        request,
+        'residente',
+        'GET',
+        `/obras/${obra.id}/cuantificacion`,
+      );
+      return Number(nodos.find((n) => n.nodo_id === actividadId)?.cantidad_medida);
+    };
+
+    // Sin calibrar: la cantidad está en unidades de plano (40 × 30) y la pantalla lo dice.
+    expect(await medido()).toBe(1200);
+    await entrarComo(page, 'residente');
+    await page.goto('/cuantificador');
+    await page.getByLabel('Obra', { exact: true }).selectOption({ label: clave });
+    await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Plano para calibrar · v1' });
+    await expect(page.getByText('Sin calibrar: cantidades en unidades de plano')).toBeVisible();
+
+    // Marcar dos puntos de una distancia conocida y decir cuántos metros son.
+    const caja = (await page.getByRole('img', { name: 'Plano con sus trazos' }).boundingBox())!;
+    await page.getByRole('button', { name: 'Calibrar escala', exact: true }).click();
+    await page.mouse.click(caja.x + caja.width * 0.3, caja.y + caja.height * 0.1);
+    await page.mouse.click(caja.x + caja.width * 0.7, caja.y + caja.height * 0.1);
+    const dialogo = page.getByRole('dialog', { name: 'Calibrar la escala' });
+    await expect(dialogo).toContainText('unidades de plano');
+    await dialogo.getByLabel('Distancia real (m)').fill('10');
+    await expect(dialogo.getByText(/Escala: 1 unidad de plano = /)).toBeVisible();
+    await dialogo.getByRole('button', { name: 'Calibrar escala', exact: true }).click();
+
+    await expect(page.getByRole('status')).toContainText('Escala calibrada');
+    await expect(page.getByText(/^Escala 1 u = /)).toBeVisible();
+
+    // El servidor aplicó la escala: el área cambió con el cuadrado de los metros por unidad.
+    const trazos = await llamarApi<{ escala_m_por_unidad: string }>(
+      request,
+      'residente',
+      'GET',
+      `/planos/${plano.id}/trazos`,
+    );
+    const k = Number(trazos.escala_m_por_unidad);
+    expect(k).toBeGreaterThan(0);
+    expect(k).not.toBe(1);
+    expect(Math.abs((await medido()) - 1200 * k * k)).toBeLessThan(1e-3 * Math.max(1, 1200 * k * k));
   });
 });

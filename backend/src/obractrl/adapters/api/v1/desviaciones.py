@@ -25,7 +25,6 @@ from obractrl.adapters.api.casos_uso import (
     ConsultarDesviacionesDep,
 )
 from obractrl.adapters.api.dependencias import ContextoActual
-from obractrl.adapters.api.idempotencia import Idempotencia
 from obractrl.application.casos_uso.gestionar_desviaciones import ComandoCapturarCausa
 from obractrl.domain.shared.diccionario import CausaDesviacion
 
@@ -76,7 +75,6 @@ async def listar_desviaciones(
     "/desviaciones/{desviacion_id}/causa",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Capturar (o corregir) la causa de una desviación",
-    dependencies=[Idempotencia],
     responses={
         404: {"description": "La desviación no existe o está fuera de tu alcance."},
         422: {"description": "La causa es del otro factor: no cabe en esta desviación."},
@@ -89,7 +87,9 @@ async def capturar_causa(
     ctx: ContextoActual,
 ) -> None:
     """La causa se agrega después de detectar la desviación, sin penalizar, y se
-    puede corregir. Debe ser del mismo factor (`precio` o `consumo`) que la fila."""
+    puede corregir. Debe ser del mismo factor (`precio` o `consumo`) que la fila.
+
+    Es un `PUT`: repetirlo deja lo mismo, así que no lleva `Idempotency-Key`."""
     await caso_uso.ejecutar(
         ComandoCapturarCausa(
             desviacion_id=desviacion_id,

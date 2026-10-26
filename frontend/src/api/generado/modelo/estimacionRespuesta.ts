@@ -9,6 +9,7 @@ import type { EstimacionRespuestaFolio } from "./estimacionRespuestaFolio";
 import type { EstimacionRespuestaCreadaPor } from "./estimacionRespuestaCreadaPor";
 import type { EstimacionRespuestaValidadaPor } from "./estimacionRespuestaValidadaPor";
 import type { EstimacionRespuestaNConceptos } from "./estimacionRespuestaNConceptos";
+import type { EstimacionRespuestaNAlertasDeRespaldo } from "./estimacionRespuestaNAlertasDeRespaldo";
 
 export interface EstimacionRespuesta {
   id: string;
@@ -25,4 +26,6 @@ export interface EstimacionRespuesta {
   validada_por: EstimacionRespuestaValidadaPor;
   /** Solo presente justo al generar (§11.3 E.2). */
   n_conceptos?: EstimacionRespuestaNConceptos;
+  /** Renglones estimados por encima de lo que el residente confirmó del avance (D-535). Una alerta, no un bloqueo. No viene al generar. */
+  n_alertas_de_respaldo?: EstimacionRespuestaNAlertasDeRespaldo;
 }

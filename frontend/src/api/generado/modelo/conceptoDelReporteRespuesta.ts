@@ -9,6 +9,9 @@ import type { ConceptoDelReporteRespuestaActividadId } from "./conceptoDelReport
 import type { ConceptoDelReporteRespuestaNivelId } from "./conceptoDelReporteRespuestaNivelId";
 import type { ConceptoDelReporteRespuestaNivelClave } from "./conceptoDelReporteRespuestaNivelClave";
 import type { ConceptoDelReporteRespuestaNivelDescripcion } from "./conceptoDelReporteRespuestaNivelDescripcion";
+import type { ConceptoDelReporteRespuestaCantidadConfirmada } from "./conceptoDelReporteRespuestaCantidadConfirmada";
+import type { ConceptoDelReporteRespuestaAlerta } from "./conceptoDelReporteRespuestaAlerta";
+import type { ConceptoDelReporteRespuestaExceso } from "./conceptoDelReporteRespuestaExceso";
 
 export interface ConceptoDelReporteRespuesta {
   actividad_id?: ConceptoDelReporteRespuestaActividadId;
@@ -25,4 +28,10 @@ export interface ConceptoDelReporteRespuesta {
   nivel_id?: ConceptoDelReporteRespuestaNivelId;
   nivel_clave?: ConceptoDelReporteRespuestaNivelClave;
   nivel_descripcion?: ConceptoDelReporteRespuestaNivelDescripcion;
+  /** Lo último que el residente confirmó del avance de la actividad; `null` = nunca. */
+  cantidad_confirmada?: ConceptoDelReporteRespuestaCantidadConfirmada;
+  /** `sin_confirmar` (se estima un avance que nadie confirmó) o `por_encima` (se estima más de lo confirmado). `null` = con respaldo. */
+  alerta?: ConceptoDelReporteRespuestaAlerta;
+  /** Cuánto de lo estimado carece de respaldo. */
+  exceso?: ConceptoDelReporteRespuestaExceso;
 }

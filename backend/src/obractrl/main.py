@@ -48,6 +48,10 @@ from obractrl.application.casos_uso.capturar_avance import (
     ActividadNoEncontrada,
 )
 from obractrl.application.casos_uso.comprobar_excedente import ActividadSinComprobacion
+from obractrl.application.casos_uso.confirmar_avance import (
+    ActividadSinConfirmacion,
+    PeriodoBloqueadoParaConfirmar,
+)
 from obractrl.application.casos_uso.consultar_insumos_programados import (
     CalendarioSinGenerar,
     PrototipoSinPrograma,
@@ -102,6 +106,7 @@ from obractrl.application.puertos.repositorios import (
     VersionVigenteNoEliminable,
 )
 from obractrl.domain.avance.comprobacion import ErrorDeComprobacion, SinExcedente
+from obractrl.domain.avance.confirmacion import ErrorDeConfirmacion
 from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera
 from obractrl.domain.catalogos.apu import CicloEnExplosion, ErrorDeAPU
@@ -590,6 +595,40 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=403,
             tipo="edicion-de-programa-no-permitida",
             titulo="Esa edición del programa no te corresponde",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeConfirmacion)
+    async def _confirmacion(request: Request, exc: ErrorDeConfirmacion) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-confirmacion",
+            titulo="Confirmación de avance inválida",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ActividadSinConfirmacion)
+    async def _actividad_sin_confirmacion(
+        request: Request, exc: ActividadSinConfirmacion
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="actividad-no-encontrada",
+            titulo="Actividad no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(PeriodoBloqueadoParaConfirmar)
+    async def _periodo_bloqueado_confirmar(
+        request: Request, exc: PeriodoBloqueadoParaConfirmar
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="periodo-bloqueado",
+            titulo="El periodo está bloqueado",
             detalle=str(exc),
         )
 

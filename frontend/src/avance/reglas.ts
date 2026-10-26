@@ -198,3 +198,37 @@ export function porSubFrente(
     actividades: grupos.get(clave)!,
   }));
 }
+
+/**
+ * Confirmar el avance antes de estimar (D-533, D-534, D-535). El residente
+ * **registra** siempre y **confirma** que la cifra es la real; confirmar no es un
+ * candado. El estado lo calcula el servidor; aquí solo se traduce a presentación.
+ */
+export type EstadoDeConfirmacion = 'sin_confirmar' | 'desactualizada' | 'confirmada';
+
+export function etiquetaConfirmacion(estado: string): string {
+  switch (estado) {
+    case 'confirmada':
+      return 'confirmado';
+    case 'desactualizada':
+      return 'cambió tras confirmar';
+    default:
+      return 'sin confirmar';
+  }
+}
+
+export function tonoConfirmacion(estado: string): 'ok' | 'warn' | 'outline' {
+  return estado === 'confirmada' ? 'ok' : estado === 'desactualizada' ? 'warn' : 'outline';
+}
+
+/**
+ * ¿Se ofrece «Confirmar»? Solo el residente (D-534), solo si hay avance que
+ * afirmar y solo si la cifra no está ya confirmada tal cual.
+ */
+export function puedeConfirmar(
+  rol: string | null | undefined,
+  actividad: { readonly cant_ejecutada: string | number },
+  estado: string | undefined,
+): boolean {
+  return rol === 'residente' && Number(actividad.cant_ejecutada) > 0 && estado !== 'confirmada';
+}

@@ -14,10 +14,13 @@
 
 export type Punto = readonly [number, number];
 
-export type Herramienta = 'seleccionar' | 'poligono' | 'linea' | 'punto' | 'nota';
+export type Herramienta = 'seleccionar' | 'poligono' | 'linea' | 'punto' | 'nota' | 'escala';
 
-/** Herramientas que dibujan una geometría que alimenta cantidades (no `seleccionar` ni `nota`). */
-export type HerramientaDeTrazo = Exclude<Herramienta, 'seleccionar' | 'nota'>;
+/**
+ * Herramientas que dibujan una geometría que alimenta cantidades (no `seleccionar`,
+ * `nota` ni `escala`: la escala marca dos puntos de referencia, no un trazo).
+ */
+export type HerramientaDeTrazo = Exclude<Herramienta, 'seleccionar' | 'nota' | 'escala'>;
 
 export type MedidaDeTrazo = 'area' | 'perimetro' | 'longitud' | 'conteo';
 
@@ -365,4 +368,21 @@ export function notaEnPunto(
     }
   }
   return elegida;
+}
+
+
+/** Distancia entre dos puntos, en unidades de plano. */
+export function distanciaEntre(a: Punto, b: Punto): number {
+  return Math.hypot(b[0] - a[0], b[1] - a[1]);
+}
+
+/**
+ * Metros por unidad de plano que saldrían de dos puntos y una distancia real.
+ * Es **solo una vista previa** para quien calibra: la escala que cuenta la calcula
+ * el servidor (`domain/cuantificacion/escala.py`). `null` si no se puede calcular.
+ */
+export function escalaPrevista(a: Punto, b: Punto, metros: number): number | null {
+  const enPlano = distanciaEntre(a, b);
+  if (!Number.isFinite(metros) || metros <= 0 || enPlano === 0) return null;
+  return metros / enPlano;
 }

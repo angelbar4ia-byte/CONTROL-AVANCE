@@ -40,6 +40,8 @@ export interface EstimacionDetalleRespuesta {
   monto_calculado: string;
   /** ¿Cabecera y renglones coinciden? Falso es una señal de auditoría, no un error de captura. */
   cuadra: boolean;
+  /** Renglones estimados por encima de lo confirmado (D-535): una alerta, no un bloqueo. */
+  n_alertas_de_respaldo?: number;
   conceptos: ConceptoDelReporteRespuesta[];
   n_conceptos_catalogo: number;
   n_conceptos_extra: number;

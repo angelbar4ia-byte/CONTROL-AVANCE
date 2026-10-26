@@ -29,10 +29,16 @@
 
 import { useMemo, useState } from 'react';
 
-import { useCapturarAvanceApiV1ActividadesActividadIdAvancePatch } from '@/api/generado/avance/avance';
+import {
+  useCapturarAvanceApiV1ActividadesActividadIdAvancePatch,
+  useConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet,
+  useConfirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPost,
+} from '@/api/generado/avance/avance';
+import { useSesion } from '@/app/sesion';
+import { useClavesPorRecurso } from '@/lib/idempotencia';
 import { useAbrirCuantificador } from '@/cuantificador/VentanaCuantificador';
 import { useActividadesDeObraApiV1ObrasObraIdActividadesGet } from '@/api/generado/torre/torre';
-import type { ActividadRespuesta } from '@/api/generado/modelo';
+import type { ActividadRespuesta, ConfirmacionDeActividad } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
 import { colorAvance, fmtFecha, fmtNum, fmtPct } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
@@ -42,14 +48,20 @@ import {
   advertenciasAvance,
   contarPorVista,
   enVista,
+  etiquetaConfirmacion,
   frentesDe,
   porSubFrente,
+  puedeConfirmar,
+  tonoConfirmacion,
   tonoEstatusActividad,
   VISTAS,
   type Vista,
 } from './reglas';
 
 export default function Avances() {
+  const { sesion } = useSesion();
+  const rol = sesion?.rol ?? null;
+  const idempotente = useClavesPorRecurso();
   const [obraId, setObraId] = useState('');
   const [vista, setVista] = useState<Vista>('activas');
   const [frenteId, setFrenteId] = useState('');
@@ -68,9 +80,32 @@ export default function Avances() {
         setCapturando(null);
         setError(null);
         void consulta.refetch();
+        void confirmaciones.refetch();
       },
       onError: (err) => setError(err.message),
     },
+  });
+
+  // Qué avances están confirmados (D-534): lo ve quien ve la obra; confirma el
+  // residente. Confirmar no es un candado, pero lo estimado por encima de lo
+  // confirmado es una alerta en la estimación.
+  const confirmaciones = useConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet<
+    ConfirmacionDeActividad[],
+    ErrorApi
+  >(obraId, { query: { enabled: obraId !== '' } });
+  const confirmacionDe = useMemo(
+    () => new Map((confirmaciones.data ?? []).map((c) => [c.actividad_id, c])),
+    [confirmaciones.data],
+  );
+  const confirmar = useConfirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPost<ErrorApi>({
+    mutation: {
+      onSuccess: () => {
+        setError(null);
+        void confirmaciones.refetch();
+      },
+      onError: (err) => setError(err.message),
+    },
+    ...idempotente,
   });
 
   const actividades = useMemo(() => consulta.data ?? [], [consulta.data]);
@@ -223,6 +258,12 @@ export default function Avances() {
                     key={grupo.clave}
                     grupo={grupo}
                     onCapturar={setCapturando}
+                    confirmacionDe={confirmacionDe}
+                    rol={rol}
+                    confirmando={confirmar.isPending}
+                    onConfirmar={(actividad) =>
+                      confirmar.mutate({ actividadId: actividad.id, data: {} })
+                    }
                   />
                 ))}
               </tbody>
@@ -255,9 +296,17 @@ export default function Avances() {
 function FilasDelSubFrente({
   grupo,
   onCapturar,
+  confirmacionDe,
+  rol,
+  confirmando,
+  onConfirmar,
 }: {
   readonly grupo: { readonly etiqueta: string; readonly actividades: readonly ActividadRespuesta[] };
   readonly onCapturar: (actividad: ActividadRespuesta) => void;
+  readonly confirmacionDe: ReadonlyMap<string, ConfirmacionDeActividad>;
+  readonly rol: string | null;
+  readonly confirmando: boolean;
+  readonly onConfirmar: (actividad: ActividadRespuesta) => void;
 }) {
   const primera = grupo.actividades[0];
   return (
@@ -278,6 +327,10 @@ function FilasDelSubFrente({
           key={actividad.id}
           actividad={actividad}
           onCapturar={onCapturar}
+          confirmacion={confirmacionDe.get(actividad.id)}
+          rol={rol}
+          confirmando={confirmando}
+          onConfirmar={onConfirmar}
         />
       ))}
     </>
@@ -287,9 +340,17 @@ function FilasDelSubFrente({
 function FilaActividad({
   actividad,
   onCapturar,
+  confirmacion,
+  rol,
+  confirmando,
+  onConfirmar,
 }: {
   readonly actividad: ActividadRespuesta;
   readonly onCapturar: (actividad: ActividadRespuesta) => void;
+  readonly confirmacion: ConfirmacionDeActividad | undefined;
+  readonly rol: string | null;
+  readonly confirmando: boolean;
+  readonly onConfirmar: (actividad: ActividadRespuesta) => void;
 }) {
   const abrirCuantificador = useAbrirCuantificador();
   const pct = Number(actividad.avance_pct);
@@ -335,6 +396,20 @@ function FilaActividad({
             excedente {fmtNum(actividad.cant_excedente)}
           </span>
         )}
+        {confirmacion !== undefined && Number(actividad.cant_ejecutada) > 0 && (
+          <span
+            className={`badge badge--${tonoConfirmacion(confirmacion.estado)}`}
+            title={
+              confirmacion.estado === 'confirmada'
+                ? `Confirmado por ${confirmacion.confirmado_por_nombre ?? 'el residente'} · ${fmtNum(confirmacion.cant_confirmada)}`
+                : confirmacion.estado === 'desactualizada'
+                  ? `Se confirmó ${fmtNum(confirmacion.cant_confirmada)} y luego el avance cambió: hay que volver a confirmar`
+                  : 'El residente aún no confirma este avance. Lo estimado por encima de lo confirmado es una alerta'
+            }
+          >
+            {etiquetaConfirmacion(confirmacion.estado)}
+          </span>
+        )}
       </td>
       <td className="text-xs">{fmtFecha(actividad.fecha_inicio)}</td>
       <td className="cell-actions">
@@ -346,6 +421,19 @@ function FilaActividad({
         >
           Medir
         </button>{' '}
+        {puedeConfirmar(rol, actividad, confirmacion?.estado) && (
+          <>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              disabled={confirmando}
+              title="Afirmar que el avance registrado es el real (antes de estimar)"
+              onClick={() => onConfirmar(actividad)}
+            >
+              Confirmar
+            </button>{' '}
+          </>
+        )}
         <button
           type="button"
           className="btn btn--sm"

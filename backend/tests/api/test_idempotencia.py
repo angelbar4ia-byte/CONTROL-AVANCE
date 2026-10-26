@@ -195,6 +195,13 @@ class TestContrato:
             "POST /api/v1/incidencias/{incidencia_id}/eventos",
             "POST /api/v1/incidencias/{incidencia_id}/cerrar",
             "POST /api/v1/incidencias/{incidencia_id}/rechazar",
+            # La junta de arranque es una marca de una sola vez: pasa la obra a
+            # `iniciada` y mueve el arranque del cronograma. Un doble clic no debe
+            # recalcular dos veces.
+            "POST /api/v1/obras/{obra_id}/iniciar",
+            # Confirmar el avance agrega una fila a una bitácora que no se
+            # reescribe: un reintento por red caída dejaría dos confirmaciones.
+            "POST /api/v1/actividades/{actividad_id}/avance/confirmar",
         }
 
     def test_es_opcional(self) -> None:

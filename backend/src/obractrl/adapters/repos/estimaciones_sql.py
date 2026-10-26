@@ -149,7 +149,18 @@ class RepositorioEstimacionesSQL:
                     """
                     select id, obra_id, folio, semana, anio, tipo_semana,
                            modo, estatus, monto_total, origen_erp,
-                           creada_por, validada_por
+                           creada_por, validada_por,
+                           (select count(*)
+                             from estimacion_concepto ec
+                            where ec.estimacion_id = estimacion.id
+                              and ec.actividad_id is not null
+                              and ec.cantidad_validada > coalesce(
+                                    (select ca.cantidad
+                                       from confirmacion_avance ca
+                                      where ca.actividad_id = ec.actividad_id
+                                      order by ca.confirmado_en desc, ca.id desc
+                                      limit 1), 0)
+                           ) as n_alertas_de_respaldo
                     from estimacion
                     where id = :id
                     """
@@ -194,7 +205,18 @@ class RepositorioEstimacionesSQL:
                     """
                     select id, obra_id, folio, semana, anio, tipo_semana,
                            modo, estatus, monto_total, origen_erp,
-                           creada_por, validada_por
+                           creada_por, validada_por,
+                           (select count(*)
+                             from estimacion_concepto ec
+                            where ec.estimacion_id = estimacion.id
+                              and ec.actividad_id is not null
+                              and ec.cantidad_validada > coalesce(
+                                    (select ca.cantidad
+                                       from confirmacion_avance ca
+                                      where ca.actividad_id = ec.actividad_id
+                                      order by ca.confirmado_en desc, ca.id desc
+                                      limit 1), 0)
+                           ) as n_alertas_de_respaldo
                     from estimacion
                     where obra_id = :obra_id
                     order by anio desc, semana desc
@@ -234,8 +256,19 @@ class RepositorioEstimacionesSQL:
                            c.clave, u.clave as unidad,
                            coalesce(a.nivel_id, eta.nivel_id) as nivel_id,
                            niv.clave       as nivel_clave,
-                           niv.descripcion as nivel_descripcion
+                           niv.descripcion as nivel_descripcion,
+                           -- La última confirmación de avance de la actividad
+                           -- (0070): contra ella se lee la alerta de lo estimado
+                           -- por encima de lo confirmado.
+                           conf.cantidad   as cantidad_confirmada
                     from estimacion_concepto ec
+                    left join lateral (
+                        select ca.cantidad
+                          from confirmacion_avance ca
+                         where ca.actividad_id = ec.actividad_id
+                         order by ca.confirmado_en desc, ca.id desc
+                         limit 1
+                    ) conf on true
                     left join actividad a on a.id = ec.actividad_id
                     left join concepto  c on c.id = ec.concepto_id
                     left join unidad    u on u.id = c.unidad_id

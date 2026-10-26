@@ -5,15 +5,34 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
-import { useMutation } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  DataTag,
+  DefinedInitialDataOptions,
+  DefinedUseInfiniteQueryResult,
+  DefinedUseQueryResult,
+  InfiniteData,
   MutationFunction,
   QueryClient,
+  QueryFunction,
+  QueryKey,
+  UndefinedInitialDataOptions,
+  UseInfiniteQueryOptions,
+  UseInfiniteQueryResult,
   UseMutationOptions,
   UseMutationResult,
+  UseQueryOptions,
+  UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { AvanceRespuesta, CapturaAvancePeticion } from ".././modelo";
+import type {
+  AvanceRespuesta,
+  CapturaAvancePeticion,
+  ConfirmacionDeActividad,
+  ConfirmacionRespuesta,
+  ConfirmarPeticion,
+  HTTPValidationError,
+} from ".././modelo";
 
 import { peticion } from "../../cliente";
 
@@ -140,3 +159,640 @@ export const useCapturarAvanceApiV1ActividadesActividadIdAvancePatch = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * Guarda el avance ejecutado **en este momento** como lo confirmado. No
+bloquea nada; si luego se captura más avance, queda detrás y hay que confirmar
+de nuevo.
+ * @summary Confirmar el avance de una actividad (el residente afirma que es el real)
+ */
+export const confirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPost = (
+  actividadId: string,
+  confirmarPeticion: ConfirmarPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ConfirmacionRespuesta>(
+    {
+      url: `/api/v1/actividades/${actividadId}/avance/confirmar`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: confirmarPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getConfirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof confirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPost
+        >
+      >,
+      TError,
+      { actividadId: string; data: ConfirmarPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof confirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPost
+      >
+    >,
+    TError,
+    { actividadId: string; data: ConfirmarPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "confirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof confirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPost
+        >
+      >,
+      { actividadId: string; data: ConfirmarPeticion }
+    > = (props) => {
+      const { actividadId, data } = props ?? {};
+
+      return confirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPost(
+        actividadId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ConfirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof confirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPost
+      >
+    >
+  >;
+export type ConfirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPostMutationBody =
+  ConfirmarPeticion;
+export type ConfirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPostMutationError =
+  void;
+
+/**
+ * @summary Confirmar el avance de una actividad (el residente afirma que es el real)
+ */
+export const useConfirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof confirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPost
+          >
+        >,
+        TError,
+        { actividadId: string; data: ConfirmarPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof confirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPost
+      >
+    >,
+    TError,
+    { actividadId: string; data: ConfirmarPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getConfirmarAvanceApiV1ActividadesActividadIdAvanceConfirmarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * Todas las actividades de la obra con su estado de confirmación. Lo ve quien
+ve la obra (RLS).
+ * @summary Qué avances están confirmados, desactualizados o sin confirmar
+ */
+export const confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ConfirmacionDeActividad[]>(
+    {
+      url: `/api/v1/obras/${obraId}/avance/confirmaciones`,
+      method: "GET",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetInfiniteQueryKey =
+  (obraId?: string) => {
+    return [
+      "infinite",
+      `/api/v1/obras/${obraId}/avance/confirmaciones`,
+    ] as const;
+  };
+
+export const getConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetQueryKey =
+  (obraId?: string) => {
+    return [`/api/v1/obras/${obraId}/avance/confirmaciones`] as const;
+  };
+
+export const getConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetInfiniteQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+        >
+      >
+    > = ({ signal }) =>
+      confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+      >
+    >
+  >;
+export type ConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Qué avances están confirmados, desactualizados o sin confirmar
+ */
+
+export function useConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+        >
+      >
+    > = ({ signal }) =>
+      confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+      >
+    >
+  >;
+export type ConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetQueryError =
+  void | HTTPValidationError;
+
+export function useConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Qué avances están confirmados, desactualizados o sin confirmar
+ */
+
+export function useConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof confirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getConfirmacionesDeObraApiV1ObrasObraIdAvanceConfirmacionesGetQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}

@@ -5387,6 +5387,141 @@
         }
       }
     },
+    "/api/v1/actividades/{actividad_id}/avance/confirmar": {
+      "post": {
+        "tags": [
+          "avance"
+        ],
+        "summary": "Confirmar el avance de una actividad (el residente afirma que es el real)",
+        "description": "Guarda el avance ejecutado **en este momento** como lo confirmado. No\nbloquea nada; si luego se captura más avance, queda detrás y hay que confirmar\nde nuevo.",
+        "operationId": "confirmar_avance_api_v1_actividades__actividad_id__avance_confirmar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmarPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmacionRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Confirma el residente (D-534)."
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La semana activa ya la cerró una estimación validada (D-540)."
+          },
+          "422": {
+            "description": "La actividad no tiene avance capturado que confirmar."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/avance/confirmaciones": {
+      "get": {
+        "tags": [
+          "avance"
+        ],
+        "summary": "Qué avances están confirmados, desactualizados o sin confirmar",
+        "description": "Todas las actividades de la obra con su estado de confirmación. Lo ve quien\nve la obra (RLS).",
+        "operationId": "confirmaciones_de_obra_api_v1_obras__obra_id__avance_confirmaciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConfirmacionDeActividad"
+                  },
+                  "title": "Response Confirmaciones De Obra Api V1 Obras  Obra Id  Avance Confirmaciones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/actividades/{actividad_id}/cierre": {
       "post": {
         "tags": [
@@ -9008,6 +9143,64 @@
         }
       }
     },
+    "/api/v1/planos/{plano_id}/escala": {
+      "put": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Calibrar la escala de un plano con dos puntos y una distancia real",
+        "description": "Sin escala, lo que se mide está en unidades de plano —píxeles del visor— y\nno se puede comparar con el presupuesto. Calibrar corrige todos los trazos del\nplano de golpe (la medida se lee ya escalada) y recalcula lo que alimentan.\nSe puede repetir: la última calibración manda.",
+        "operationId": "calibrar_escala_api_v1_planos__plano_id__escala_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EscalaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscalaRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El plano alimenta cantidades de un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El plano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Puntos iguales, distancia no positiva o escala implausible."
+          }
+        }
+      }
+    },
     "/api/v1/enlaces-cuantificacion/{enlace_id}/reemplazar": {
       "post": {
         "tags": [
@@ -9416,7 +9609,7 @@
           "desviaciones"
         ],
         "summary": "Capturar (o corregir) la causa de una desviación",
-        "description": "La causa se agrega después de detectar la desviación, sin penalizar, y se\npuede corregir. Debe ser del mismo factor (`precio` o `consumo`) que la fila.",
+        "description": "La causa se agrega después de detectar la desviación, sin penalizar, y se\npuede corregir. Debe ser del mismo factor (`precio` o `consumo`) que la fila.\n\nEs un `PUT`: repetirlo deja lo mismo, así que no lleva `Idempotency-Key`.",
         "operationId": "capturar_causa_api_v1_desviaciones__desviacion_id__causa_put",
         "security": [
           {
@@ -9433,24 +9626,6 @@
               "format": "uuid",
               "title": "Desviacion Id"
             }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
-              "title": "Idempotency-Key"
-            },
-            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
           }
         ],
         "requestBody": {
@@ -12650,6 +12825,44 @@
               }
             ],
             "title": "Nivel Descripcion"
+          },
+          "cantidad_confirmada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Confirmada",
+            "description": "Lo último que el residente confirmó del avance de la actividad; `null` = nunca."
+          },
+          "alerta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alerta",
+            "description": "`sin_confirmar` (se estima un avance que nadie confirmó) o `por_encima` (se estima más de lo confirmado). `null` = con respaldo."
+          },
+          "exceso": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exceso",
+            "description": "Cuánto de lo estimado carece de respaldo."
           }
         },
         "type": "object",
@@ -12748,6 +12961,165 @@
         "type": "object",
         "title": "ConceptosDelOficioPeticion",
         "description": "Los conceptos que se ejecutan con ese oficio, **completos**.\n\nReemplazo y no alta, igual que las etapas de un frente: lo que no venga en\nla lista se queda sin oficio. Así mover un concepto de un oficio a otro es\nuna llamada y no dos."
+      },
+      "ConfirmacionDeActividad": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "cant_ejecutada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Ejecutada"
+          },
+          "cant_confirmada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cant Confirmada",
+            "description": "La última confirmación; `null` = nunca."
+          },
+          "confirmado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmado En"
+          },
+          "confirmado_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmado Por Nombre"
+          },
+          "momento": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Momento"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado",
+            "description": "`sin_confirmar` · `desactualizada` (el avance cambió después de confirmar) · `confirmada`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "cant_ejecutada",
+          "estado"
+        ],
+        "title": "ConfirmacionDeActividad"
+      },
+      "ConfirmacionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "description": "Lo que se afirmó: el avance ejecutado en este momento."
+          },
+          "momento": {
+            "type": "string",
+            "title": "Momento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cantidad",
+          "momento"
+        ],
+        "title": "ConfirmacionRespuesta"
+      },
+      "ConfirmarPeticion": {
+        "properties": {
+          "momento": {
+            "type": "string",
+            "enum": [
+              "al_terminar",
+              "antes_de_estimar"
+            ],
+            "title": "Momento",
+            "description": "Los dos momentos del cerebro (D-533): al terminar la actividad y antes de estimar.",
+            "default": "antes_de_estimar"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "title": "ConfirmarPeticion"
       },
       "ConflictoJerarquiaRespuesta": {
         "properties": {
@@ -15309,6 +15681,86 @@
         "title": "ErrorDeFilaRespuesta",
         "description": "Un renglón del reporte de errores por fila/columna (§9.3)."
       },
+      "EscalaPeticion": {
+        "properties": {
+          "punto_a": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Punto A",
+            "description": "Coordenada de plano `[x, y]`."
+          },
+          "punto_b": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Punto B",
+            "description": "Coordenada de plano `[x, y]`."
+          },
+          "distancia_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Distancia M",
+            "description": "Los metros reales entre `punto_a` y `punto_b`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "punto_a",
+          "punto_b",
+          "distancia_m"
+        ],
+        "title": "EscalaPeticion",
+        "description": "Calibrar la escala de un plano (migración 0069): dos puntos de una distancia\nconocida del plano y los metros que son."
+      },
+      "EscalaRespuesta": {
+        "properties": {
+          "escala_m_por_unidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Escala M Por Unidad",
+            "description": "Metros por unidad de plano."
+          },
+          "recalculos": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+            },
+            "type": "array",
+            "title": "Recalculos",
+            "description": "Una por cada nodo que alimentan los trazos del plano: su cantidad cambió con la escala."
+          }
+        },
+        "type": "object",
+        "required": [
+          "escala_m_por_unidad",
+          "recalculos"
+        ],
+        "title": "EscalaRespuesta"
+      },
       "EspecialidadRespuesta": {
         "properties": {
           "id": {
@@ -15724,6 +16176,12 @@
             "title": "Cuadra",
             "description": "¿Cabecera y renglones coinciden? Falso es una señal de auditoría, no un error de captura."
           },
+          "n_alertas_de_respaldo": {
+            "type": "integer",
+            "title": "N Alertas De Respaldo",
+            "description": "Renglones estimados por encima de lo confirmado (D-535): una alerta, no un bloqueo.",
+            "default": 0
+          },
           "conceptos": {
             "items": {
               "$ref": "#/components/schemas/ConceptoDelReporteRespuesta"
@@ -15871,6 +16329,18 @@
             ],
             "title": "N Conceptos",
             "description": "Solo presente justo al generar (§11.3 E.2)."
+          },
+          "n_alertas_de_respaldo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Alertas De Respaldo",
+            "description": "Renglones estimados por encima de lo que el residente confirmó del avance (D-535). Una alerta, no un bloqueo. No viene al generar."
           }
         },
         "type": "object",
@@ -19863,6 +20333,44 @@
             "type": "integer",
             "title": "N Trazos Por Revisar",
             "description": "Trazos hechos sobre una versión anterior del plano: quedan marcados para revisión y no se recalculan solos (MODELO.md §1b)."
+          },
+          "escala_m_por_unidad": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escala M Por Unidad",
+            "description": "Metros por unidad de plano; `null` = sin calibrar (se asume 1 unidad = 1 m y las cantidades están en unidades de plano). Migración 0069."
+          },
+          "escala_referencia": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escala Referencia",
+            "description": "Los dos puntos y la distancia real con que se calibró."
+          },
+          "escala_calibrada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escala Calibrada En"
           }
         },
         "type": "object",
@@ -22916,6 +23424,19 @@
           "version_plano": {
             "type": "integer",
             "title": "Version Plano"
+          },
+          "escala_m_por_unidad": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escala M Por Unidad",
+            "description": "Metros por unidad de plano; `null` = sin calibrar."
           },
           "features": {
             "items": {

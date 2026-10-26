@@ -30,6 +30,7 @@ from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
 from obractrl.adapters.repos.comprobacion_sql import RepositorioComprobacionesSQL
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQL
+from obractrl.adapters.repos.confirmaciones_sql import RepositorioConfirmacionesSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.control_cambio_sql import RepositorioControlCambioSQL
 from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
@@ -105,6 +106,10 @@ from obractrl.application.casos_uso.comprobar_excedente import (
     DeclararPerdidaDeExcedente,
     ValidarExcedente,
 )
+from obractrl.application.casos_uso.confirmar_avance import (
+    ConfirmarAvance,
+    ConsultarConfirmaciones,
+)
 from obractrl.application.casos_uso.consultar_insumos_programados import (
     ConsultarInsumosProgramados,
 )
@@ -114,6 +119,7 @@ from obractrl.application.casos_uso.consultar_planeacion import (
 )
 from obractrl.application.casos_uso.cuantificar import (
     AprobarTrazo,
+    CalibrarEscalaDePlano,
     ConsultarCuantificacion,
     ReemplazarEnlace,
     RegistrarNotaPlano,
@@ -254,14 +260,17 @@ __all__ = [
     "AsignarAlcanceDep",
     "AsignarFrenteDeObraDep",
     "AutorizarCierreDep",
+    "CalibrarEscalaDePlanoDep",
     "CapturarAvanceDep",
     "CapturarCausaDeDesviacionDep",
     "CerrarIncidenciaDep",
     "ColaDeTrabajosDep",
+    "ConfirmarAvanceDep",
     "ConsultarArbolProgramaDep",
     "ConsultarCargaDep",
     "ConsultarCierreDeObraDep",
     "ConsultarComprobacionesDep",
+    "ConsultarConfirmacionesDep",
     "ConsultarCuantificacionDep",
     "ConsultarDesviacionesDep",
     "ConsultarEdicionesDeProgramaDep",
@@ -657,6 +666,17 @@ def obtener_registrar_trazo_con_enlaces(sesion: SesionRLS) -> RegistrarTrazoConE
     )
 
 
+def obtener_calibrar_escala(sesion: SesionRLS) -> CalibrarEscalaDePlano:
+    return CalibrarEscalaDePlano(
+        planos=RepositorioPlanosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_reemplazar_enlace(sesion: SesionRLS) -> ReemplazarEnlace:
     return ReemplazarEnlace(
         enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
@@ -664,6 +684,21 @@ def obtener_reemplazar_enlace(sesion: SesionRLS) -> ReemplazarEnlace:
         prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
         desviaciones=RepositorioDesviacionesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_confirmar_avance(sesion: SesionRLS) -> ConfirmarAvance:
+    return ConfirmarAvance(
+        actividades=RepositorioActividadesSQL(sesion),
+        confirmaciones=RepositorioConfirmacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_consultar_confirmaciones(sesion: SesionRLS) -> ConsultarConfirmaciones:
+    return ConsultarConfirmaciones(
+        confirmaciones=RepositorioConfirmacionesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
     )
 
 
@@ -729,6 +764,9 @@ RegistrarTrazoConEnlacesDep = Annotated[
     RegistrarTrazoConEnlaces, Depends(obtener_registrar_trazo_con_enlaces)
 ]
 ReemplazarEnlaceDep = Annotated[ReemplazarEnlace, Depends(obtener_reemplazar_enlace)]
+CalibrarEscalaDePlanoDep = Annotated[
+    CalibrarEscalaDePlano, Depends(obtener_calibrar_escala)
+]
 RegistrarNotaPlanoDep = Annotated[
     RegistrarNotaPlano, Depends(obtener_registrar_nota_plano)
 ]
@@ -1135,6 +1173,10 @@ InstanciarProgramaObraDep = Annotated[
 ]
 EditarProgramacionActividadDep = Annotated[
     EditarProgramacionActividad, Depends(obtener_editar_programacion)
+]
+ConfirmarAvanceDep = Annotated[ConfirmarAvance, Depends(obtener_confirmar_avance)]
+ConsultarConfirmacionesDep = Annotated[
+    ConsultarConfirmaciones, Depends(obtener_consultar_confirmaciones)
 ]
 ConsultarDesviacionesDep = Annotated[
     ConsultarDesviaciones, Depends(obtener_consultar_desviaciones)
