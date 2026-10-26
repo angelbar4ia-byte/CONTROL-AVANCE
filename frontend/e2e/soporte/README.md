@@ -39,6 +39,29 @@ export VITE_SUPABASE_URL=http://127.0.0.1:54321 VITE_SUPABASE_ANON_KEY=cualquier
 npx playwright test e2e/workflows
 ```
 
+## En CI
+
+El job `e2e-workflows` de `.github/workflows/ci.yml` hace exactamente lo de arriba
+sobre un Postgres con PostGIS de servicio y corre `npx playwright test
+e2e/workflows --retries=0`. Sin reintentos a propósito: casi todos los specs son
+de un solo uso y un reintento correría sobre estado ya usado, fallando por otra
+razón que la verdadera. Declara `E2E_AUTH_FALSA=1`, con lo que la prueba de dar de
+alta un usuario se salta (la auth falsa no crea cuentas).
+
+Sirve la web **construida** (`E2E_SERVIDOR=build`: `vite build` y `vite preview`) y
+no el servidor de desarrollo. Éste manda cada módulo por separado —solo el
+contrato generado son ~740 archivos— y con varias sesiones de navegador abiertas
+a la vez (el cierre de obra usa cinco) Chromium agota sus recursos en un runner de
+2 CPU: las peticiones caen con `net::ERR_INSUFFICIENT_RESOURCES` y la prueba se
+atora hasta el timeout. Servir `dist/` además prueba lo que de verdad se despliega
+y es cuatro veces más rápido. En local, `E2E_SERVIDOR=build` requiere antes `npx
+vite build` con las mismas `VITE_*`; sin ella, Playwright usa el servidor de
+desarrollo. El job `e2e` de siempre
+sigue corriendo solo el humo, sin backend.
+
+Si algo falla, el job guarda como artefacto el reporte de Playwright, las capturas
+y los registros de la API y de la auth falsa (`e2e-workflows`).
+
 ## Reglas de uso
 
 - **Cada spec de C, D, E y F es de un solo uso**: cambia el estado de su obra
@@ -55,6 +78,7 @@ npx playwright test e2e/workflows
 
 - **Dar de alta un usuario** (`alta-de-usuario.spec.ts`, primera prueba) crea una
   cuenta en el proveedor de auth con la llave de servicio; la auth falsa no lo
-  imita, así que esa prueba falla contra ella (las otras dos pasan).
+  imita. Con `E2E_AUTH_FALSA=1` (lo que usa el CI) esa prueba se salta; sin esa
+  variable, contra la auth falsa, falla (las otras dos pasan).
 - **El worker de jobs (Arq)** no corre: no hace falta para estos workflows.
 - **El workflow B** (captura offline) es de la app móvil: `mobile/e2e/`.

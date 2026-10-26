@@ -222,6 +222,149 @@ jobs:
           path: frontend/playwright-report/
           retention-days: 7
 
+  e2e-workflows:
+    name: Web · workflows de punta a punta
+    # Fijo por lo mismo que `backend`: `psql`/`pg_dump` del runner deben ser de
+    # la misma versión mayor que el Postgres 16 del servicio.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        # PostGIS por la migración 0057 (ver `backend`).
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: obractrl
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Superusuario: migra, siembra y deja que la auth falsa lea `usuario`.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/obractrl
+      # Valores de PRUEBA, no secretos: la auth falsa firma con este secreto y la
+      # API lo verifica. Mismo secreto en los dos lados, y largo de sobra.
+      JWT_SECRET: ci-e2e-secreto-de-prueba-que-no-es-un-secreto-0123456789
+      E2E_PASSWORD: ci-e2e-contrasena
+      # Hacia dónde apunta la web: la auth falsa (en lugar de un proyecto de
+      # Supabase) y la API local.
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_ANON_KEY: ci-e2e-anon
+      VITE_API_URL: http://127.0.0.1:8000
+      # Lo que lee `frontend/e2e/infraestructura.ts`.
+      E2E_API_URL: http://127.0.0.1:8000
+      E2E_AUTH_FALSA: '1'
+      # Sirve `dist/` y no el servidor de desarrollo (ver `playwright.config.ts`).
+      E2E_SERVIDOR: build
+      E2E_USUARIO: ctrl@e2e.mx
+      E2E_USUARIO_RESIDENTE: res@e2e.mx
+      E2E_USUARIO_SUPERVISOR: sup@e2e.mx
+      E2E_USUARIO_CONTROL: ctrl@e2e.mx
+      E2E_USUARIO_SUPER_INTENDENTE: si@e2e.mx
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar el backend
+        working-directory: backend
+        # Con `constraints.txt`, como `backend`: la misma versión de FastAPI que
+        # se probó. No hace falta el extra `dev`: aquí solo se ejecuta la API.
+        run: pip install -e . -c constraints.txt
+
+      - name: Aplicar migraciones
+        run: bash database/scripts/migrar.sh
+
+      - name: Dar contraseña a obractrl_api
+        # El rol que usa la API en producción: NO es dueño de las tablas, así
+        # que RLS le aplica (ver `backend`).
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "alter role obractrl_api with password 'ci'"
+
+      - name: Sembrar la organización de los E2E
+        # Cuatro roles, un prototipo con CPU, el calendario y el ancla de la
+        # semana de HOY, y una obra por workflow. Ver `frontend/e2e/soporte/`.
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f frontend/e2e/soporte/semilla.sql
+
+      - name: Levantar la auth falsa y la API
+        # En segundo plano; los registros van a archivos que se guardan si algo
+        # falla. Sin Redis: estos workflows no encolan trabajos.
+        run: |
+          nohup node frontend/e2e/soporte/auth-falsa.mjs 54321 > auth-falsa.log 2>&1 &
+          (cd backend && \
+            DATABASE_URL="postgresql+asyncpg://obractrl_api:ci@localhost:5432/obractrl" \
+            ENTORNO=dev CORS_ORIGENES=http://localhost:5173 \
+            nohup python -m uvicorn obractrl.main:app --host 127.0.0.1 --port 8000 \
+            > ../api.log 2>&1 &)
+          for i in $(seq 1 30); do
+            if curl -fs http://127.0.0.1:8000/health >/dev/null; then
+              echo "API arriba tras ${i} intento(s)"; exit 0
+            fi
+            sleep 1
+          done
+          echo "La API no levantó en 30 s:"; cat api.log; exit 1
+
+      - name: Instalar dependencias del front
+        working-directory: frontend
+        run: npm ci
+
+      - name: Instalar Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Construir la web
+        working-directory: frontend
+        # Los E2E prueban la web construida: el servidor de desarrollo manda
+        # cada módulo por separado (~740 solo del contrato generado) y con varias
+        # sesiones de navegador abiertas Chromium se queda sin recursos
+        # (`ERR_INSUFFICIENT_RESOURCES`). Las `VITE_*` del job se hornean aquí.
+        # Solo `vite build`: el typecheck ya lo hace el job `frontend`.
+        run: npx vite build --mode test
+
+      - name: Workflows
+        working-directory: frontend
+        # `--retries=0`: casi todos los specs son de UN solo uso (cambian el
+        # estado de su obra). Un reintento correría sobre estado ya usado y
+        # fallaría por otra razón, tapando la verdadera.
+        run: npx playwright test e2e/workflows --retries=0
+
+      - name: Mostrar el final de los registros si algo falló
+        if: failure()
+        # Los registros completos van al artefacto, pero un artefacto hay que
+        # descargarlo; una anotación se ve en el propio check. Se escapa lo que
+        # GitHub interpreta en un comando de flujo (`%`, saltos de línea).
+        run: |
+          for archivo in api.log auth-falsa.log; do
+            [ -f "$archivo" ] || continue
+            cuerpo=$(tail -n 60 "$archivo" | sed -e 's/%/%25/g' -e 's/\r/%0D/g' | awk 'BEGIN{ORS="%0A"} {print}')
+            echo "::warning title=${archivo} (últimas 60 líneas)::${cuerpo}"
+          done
+
+      - name: Guardar el reporte y los registros si algo falló
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-workflows
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+            api.log
+            auth-falsa.log
+          retention-days: 7
+
   mobile:
     name: Móvil · tipos
     runs-on: ubuntu-latest

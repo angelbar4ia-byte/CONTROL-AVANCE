@@ -39,6 +39,13 @@ export const PASSWORD = process.env.E2E_PASSWORD ?? '';
 
 export const hayInfraestructura = Boolean(API_URL && USUARIO && PASSWORD);
 
+/**
+ * `E2E_AUTH_FALSA=1`: el proveedor de auth es `e2e/soporte/auth-falsa.mjs`, no un
+ * Supabase real. La auth falsa inicia sesión, pero **no crea cuentas**: lo que
+ * necesita la llave de servicio (dar de alta un usuario) no se puede probar así.
+ */
+export const AUTH_FALSA = process.env.E2E_AUTH_FALSA === '1';
+
 /** Un usuario por rol, para los workflows que cambian de actor entre pasos. */
 export const ROLES = {
   residente: process.env.E2E_USUARIO_RESIDENTE ?? '',
@@ -69,6 +76,7 @@ export const MOTIVO_SALTO =
  * que usa la persona y sobrevive a un cambio de almacenamiento.
  */
 export async function entrar(page: Page, correo: string = USUARIO): Promise<void> {
+  rastrear(page, correo.split('@')[0] ?? correo);
   await page.goto('/');
   await page.getByLabel('Correo').fill(correo);
   await page.getByLabel('Contraseña').fill(PASSWORD);
@@ -80,6 +88,40 @@ export async function entrar(page: Page, correo: string = USUARIO): Promise<void
   await expect(
     page.getByRole('navigation').or(page.getByText(/sesión no está vinculada/i)),
   ).toBeVisible({ timeout: 15_000 });
+}
+
+/**
+ * Rastro de lo que pasó en el navegador, para los fallos.
+ *
+ * El reporte de GitHub solo muestra el **mensaje** del error, y un «Test
+ * timeout» dice que algo no apareció, no por qué. Aquí se anota, por sesión, lo
+ * que explica una pantalla que no llega: errores de consola, respuestas ≥ 400,
+ * peticiones caídas y cada navegación (una recarga inesperada se ve como dos
+ * navegaciones seguidas a la misma ruta). Solo se adjunta cuando la prueba falla.
+ */
+const rastroDeLaPrueba: string[] = [];
+
+function anotar(linea: string): void {
+  const marca = new Date().toISOString().slice(11, 23);
+  rastroDeLaPrueba.push(`${marca} ${linea}`);
+}
+
+export function rastrear(page: Page, sesion: string): void {
+  page.on('console', (m) => {
+    if (m.type() === 'error') anotar(`[${sesion}] console.error: ${m.text().slice(0, 240)}`);
+  });
+  page.on('pageerror', (e) => anotar(`[${sesion}] pageerror: ${e.message.slice(0, 240)}`));
+  page.on('requestfailed', (r) =>
+    anotar(`[${sesion}] petición caída: ${r.method()} ${r.url().slice(0, 110)} ${r.failure()?.errorText ?? ''}`),
+  );
+  page.on('response', (r) => {
+    if (r.status() >= 400) {
+      anotar(`[${sesion}] HTTP ${r.status()} ${r.request().method()} ${r.url().slice(0, 110)}`);
+    }
+  });
+  page.on('framenavigated', (f) => {
+    if (f === page.mainFrame()) anotar(`[${sesion}] navega a ${f.url().slice(0, 110)}`);
+  });
 }
 
 /** Entra con el usuario de un rol (§11.3: cada paso lo hace un actor distinto). */
@@ -201,7 +243,22 @@ export async function cerrarPorApi(
 }
 
 /** `test` que se salta solo cuando falta la infraestructura. */
-export const test = base.extend({});
+export const test = base.extend<{ rastro: void }>({
+  rastro: [
+    async ({}, use, testInfo) => {
+      rastroDeLaPrueba.length = 0;
+      await use();
+      if (testInfo.status !== testInfo.expectedStatus && rastroDeLaPrueba.length > 0) {
+        // Lanzar aquí suma un error al reporte, y el de GitHub sí lo muestra.
+        throw new Error(
+          `Rastro del navegador (últimos ${Math.min(rastroDeLaPrueba.length, 60)} de ` +
+            `${rastroDeLaPrueba.length} eventos):\n${rastroDeLaPrueba.slice(-60).join('\n')}`,
+        );
+      }
+    },
+    { auto: true },
+  ],
+});
 test.skip(!hayInfraestructura, MOTIVO_SALTO);
 
 export { expect };
