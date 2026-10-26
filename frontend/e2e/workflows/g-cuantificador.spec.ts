@@ -44,6 +44,26 @@ async function obraG(request: APIRequestContext) {
   return obra!;
 }
 
+/**
+ * Una obra propia con sus tres actividades (E2E-EXC, E2E-PLA, E2E-CIM): la
+ * cantidad medida de una de ellas es solo de la prueba que la crea, así que no
+ * depende de lo que midan las demás en paralelo.
+ */
+async function obraPropia(request: APIRequestContext, prefijo: string) {
+  const clave = `${prefijo}-${Date.now().toString(36).toUpperCase()}`;
+  const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
+  const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
+  const usuarios = await llamarApi<{ id: string; nombre: string }[]>(request, 'control', 'GET', '/usuarios');
+  const obra = await llamarApi<{ id: string }>(request, 'control', 'POST', '/obras', {
+    cluster_id: clusters.find((c) => c.clave === 'CLU-E2E')!.id,
+    prototipo_id: prototipos.find((p) => p.clave === 'CAS-E2E')!.id,
+    residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
+    clave,
+  });
+  await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
+  return { id: obra.id, clave };
+}
+
 test.describe('Cuantificador · trazar un polígono', () => {
   test.skip(!hayRoles(...ROLES_G), motivoSinRoles(...ROLES_G));
   test.setTimeout(90_000);
@@ -488,19 +508,8 @@ test.describe('Cuantificador · trazar un polígono', () => {
     request,
   }) => {
     test.skip(!hayRoles('control'), motivoSinRoles('control'));
-    // Una obra propia con sus tres actividades: la cantidad de una de ellas es solo
-    // de este plano, así que la prueba no depende de lo que midan las demás.
-    const clave = `CAL-${Date.now().toString(36).toUpperCase()}`;
-    const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
-    const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
-    const usuarios = await llamarApi<{ id: string; nombre: string }[]>(request, 'control', 'GET', '/usuarios');
-    const obra = await llamarApi<{ id: string }>(request, 'control', 'POST', '/obras', {
-      cluster_id: clusters.find((c) => c.clave === 'CLU-E2E')!.id,
-      prototipo_id: prototipos.find((p) => p.clave === 'CAS-E2E')!.id,
-      residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
-      clave,
-    });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
+    const obra = await obraPropia(request, 'CAL');
+    const clave = obra.clave;
     const plano = await llamarApi<{ id: string }>(
       request,
       'residente',
@@ -558,5 +567,103 @@ test.describe('Cuantificador · trazar un polígono', () => {
     expect(k).toBeGreaterThan(0);
     expect(k).not.toBe(1);
     expect(Math.abs((await medido()) - 1200 * k * k)).toBeLessThan(1e-3 * Math.max(1, 1200 * k * k));
+  });
+  test('un polígono con hueco descuenta la abertura: se dibuja, se guarda y el servidor mide el área restada', async ({
+    page,
+    request,
+  }) => {
+    test.skip(!hayRoles('control'), motivoSinRoles('control'));
+    const obra = await obraPropia(request, 'HUE');
+    const plano = await llamarApi<{ id: string }>(request, 'residente', 'POST', `/obras/${obra.id}/planos`, {
+      nombre: 'Fachada con ventana',
+      archivo_url: 'e2e/fachada.dwg',
+    });
+    const actividadId = await actividadDe(request, 'residente', obra.clave, 'E2E-CIM');
+
+    await entrarComo(page, 'residente');
+    await page.goto('/cuantificador');
+    await page.getByLabel('Obra', { exact: true }).selectOption({ label: obra.clave });
+    await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Fachada con ventana · v1' });
+    const caja = (await page.getByRole('img', { name: 'Plano con sus trazos' }).boundingBox())!;
+    const en = (fx: number, fy: number) => ({
+      x: caja.x + caja.width * fx,
+      y: caja.y + caja.height * fy,
+    });
+    const clic = async ([fx, fy]: readonly [number, number]) =>
+      page.mouse.click(en(fx, fy).x, en(fx, fy).y);
+
+    // El muro: cuatro vértices.
+    await page.getByRole('button', { name: 'Polígono', exact: true }).click();
+    for (const p of [[0.2, 0.1], [0.8, 0.1], [0.8, 0.35], [0.2, 0.35]] as const) await clic(p);
+    await expect(page.getByText('4 vértices')).toBeVisible();
+
+    // Agregar un hueco dentro: la ventana. Mientras se dibuja, Enter cierra el
+    // hueco (no el trazo) y «Terminar trazo» espera.
+    await page.getByRole('button', { name: 'Agregar hueco' }).click();
+    await expect(page.getByRole('button', { name: 'Terminar trazo' })).toBeDisabled();
+    for (const p of [[0.4, 0.17], [0.55, 0.17], [0.55, 0.27], [0.4, 0.27]] as const) await clic(p);
+    await expect(page.getByText(/Hueco: 4 vértices/)).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(page.getByText(/1 hueco/)).toBeVisible();
+    await expect(page.getByTestId('huecos')).toBeVisible();
+
+    // Enter otra vez cierra el trazo y abre el formulario, que avisa del descuento.
+    await page.keyboard.press('Enter');
+    const alta = page.getByRole('dialog', { name: 'Guardar polígono' });
+    await expect(alta.getByTestId('aviso-huecos')).toContainText('1 hueco');
+    const valor = await alta
+      .locator('#enlace-actividad-0 option', { hasText: 'E2E-CIM' })
+      .getAttribute('value');
+    await alta.getByLabel('Actividad 1').selectOption(valor!);
+    await alta.getByLabel('Medida').selectOption('area');
+    await alta.getByRole('button', { name: 'Guardar trazo' }).click();
+    await expect(page.getByRole('status')).toContainText('Trazo guardado');
+
+    // El servidor lo guardó con dos anillos y midió el área ya descontada.
+    const trazos = await llamarApi<{
+      features: { geometry: { type: string; coordinates: [number, number][][] } }[];
+    }>(request, 'residente', 'GET', `/planos/${plano.id}/trazos`);
+    const [exterior, hueco] = trazos.features[0]!.geometry.coordinates as [[number, number][], [number, number][]];
+    expect(trazos.features[0]!.geometry.type).toBe('Polygon');
+    expect(hueco).toBeDefined();
+    const area = (anillo: [number, number][]) => {
+      let suma = 0;
+      for (let i = 0; i < anillo.length - 1; i += 1) {
+        suma += anillo[i]![0] * anillo[i + 1]![1] - anillo[i + 1]![0] * anillo[i]![1];
+      }
+      return Math.abs(suma) / 2;
+    };
+    const esperado = area(exterior) - area(hueco);
+    const nodos = await llamarApi<{ nodo_id: string; cantidad_medida: string }[]>(
+      request,
+      'residente',
+      'GET',
+      `/obras/${obra.id}/cuantificacion`,
+    );
+    const medido = Number(nodos.find((n) => n.nodo_id === actividadId)!.cantidad_medida);
+    expect(Math.abs(medido - esperado)).toBeLessThan(1e-6 * Math.max(1, esperado));
+    expect(medido).toBeLessThan(area(exterior)); // el hueco sí se descontó
+
+    // Un clic dentro de la ventana no elige el muro; uno en el muro, sí. Al guardar,
+    // el visor se reencuadra al trazo, así que los puntos se calculan sobre lo que
+    // se ve: la posición relativa del hueco dentro del muro, según lo que guardó el
+    // servidor, aplicada a la caja del trazo en pantalla.
+    await page.getByRole('button', { name: 'Seleccionar', exact: true }).click();
+    const xs = exterior.map((c) => c[0]);
+    const ys = exterior.map((c) => c[1]);
+    const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const centro = (anillo: [number, number][]) => [
+      anillo.reduce((s2, c) => s2 + c[0], 0) / anillo.length,
+      anillo.reduce((s2, c) => s2 + c[1], 0) / anillo.length,
+    ] as const;
+    const [hx, hy] = centro(hueco.slice(0, -1));
+    const muro = (await page.locator('.visor__trazo path').first().boundingBox())!;
+    await page.mouse.click(
+      muro.x + muro.width * ((hx - minX) / (maxX - minX)),
+      muro.y + muro.height * ((hy - minY) / (maxY - minY)),
+    );
+    await expect(page.getByText('Trazo elegido')).toHaveCount(0);
+    await page.mouse.click(muro.x + muro.width * 0.05, muro.y + muro.height * 0.5);
+    await expect(page.getByText('Trazo elegido')).toBeVisible();
   });
 });

@@ -2412,6 +2412,10 @@ a { color: inherit; text-decoration: none; }
   stroke: var(--c-accent);
   stroke-width: 2;
 }
+/* Un polígono con hueco (la ventana de un muro) se pinta vacío por dentro: con
+   la regla por defecto, `nonzero`, un hueco del mismo giro que el exterior se
+   rellenaría y parecería que no descuenta. */
+.visor__trazo path { fill-rule: evenodd; }
 .visor__trazo circle { stroke-width: 1; fill: var(--c-accent); }
 .visor__trazo path { fill-opacity: .45; }
 .visor__trazo.is-selected path { stroke: var(--c-accent-strong); stroke-width: 3.5; fill-opacity: .7; }
@@ -2427,6 +2431,11 @@ a { color: inherit; text-decoration: none; }
 .visor__nota.is-por-revisar path { stroke-dasharray: 4 3; }
 .visor__borrador polyline { fill: none; stroke: var(--c-text); stroke-width: 2; stroke-dasharray: 5 3; }
 .visor__borrador circle { fill: var(--c-text); stroke: var(--c-panel); stroke-width: 1; }
+/* Los huecos que se están dibujando: lo que se descuenta, en rojo y punteado. */
+.visor__hueco polygon,
+.visor__hueco polyline { fill: var(--c-danger-soft); fill-opacity: .6; stroke: var(--c-danger); stroke-width: 2; stroke-dasharray: 5 3; }
+.visor__hueco polyline { fill: none; }
+.visor__hueco circle { fill: var(--c-danger); stroke: var(--c-panel); stroke-width: 1; }
 
 /* ── Cuantificador: ventana flotante (la herramienta puntual, D-532) ─────────
    Por debajo del `.scrim` (100): los cajones de guardar/anotar/reemplazar que

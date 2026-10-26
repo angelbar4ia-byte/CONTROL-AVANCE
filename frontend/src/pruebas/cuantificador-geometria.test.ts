@@ -13,6 +13,7 @@ import {
   notaEnPunto,
   medidaLocal,
   perimetroLocal,
+  PUNTOS_MINIMOS_DE_HUECO,
   rutaSvg,
   trazoCompleto,
   trazoEnPunto,
@@ -210,5 +211,69 @@ describe('calibrar la escala (vista previa)', () => {
     expect(escalaPrevista([1, 1], [1, 1], 5)).toBeNull(); // los dos puntos son el mismo
     expect(escalaPrevista([0, 0], [10, 0], 0)).toBeNull();
     expect(escalaPrevista([0, 0], [10, 0], Number.NaN)).toBeNull();
+  });
+});
+
+describe('polígono con hueco (descuento de aberturas)', () => {
+  // Un muro de 10 × 4 con una ventana de 2 × 1.
+  const MURO: Punto[] = [
+    [0, 0],
+    [10, 0],
+    [10, 4],
+    [0, 4],
+  ];
+  const VENTANA: Punto[] = [
+    [4, 1],
+    [6, 1],
+    [6, 2],
+    [4, 2],
+  ];
+
+  it('el WKT lleva el hueco como anillo interior, cada uno cerrado', () => {
+    expect(aWkt('poligono', MURO, [VENTANA])).toBe(
+      'POLYGON((0 0, 10 0, 10 4, 0 4, 0 0), (4 1, 6 1, 6 2, 4 2, 4 1))',
+    );
+  });
+
+  it('sin huecos, el WKT es el de siempre', () => {
+    expect(aWkt('poligono', MURO)).toBe('POLYGON((0 0, 10 0, 10 4, 0 4, 0 0))');
+    expect(aWkt('poligono', MURO, [])).toBe(aWkt('poligono', MURO));
+  });
+
+  it('un hueco necesita sus tres vértices y solo un polígono los tiene', () => {
+    expect(() => aWkt('poligono', MURO, [[[4, 1], [6, 1]]])).toThrow(/un hueco necesita al menos 3/);
+    expect(PUNTOS_MINIMOS_DE_HUECO).toBe(3);
+    expect(() =>
+      aWkt('linea', [[0, 0], [5, 5]], [VENTANA]),
+    ).toThrow(/Solo un polígono/);
+  });
+
+  it('el área se descuenta y el perímetro suma el borde del hueco', () => {
+    expect(medidaLocal('poligono', 'area', MURO)).toBe(40);
+    expect(medidaLocal('poligono', 'area', MURO, [VENTANA])).toBe(38);
+    expect(medidaLocal('poligono', 'perimetro', MURO)).toBe(28);
+    expect(medidaLocal('poligono', 'perimetro', MURO, [VENTANA])).toBe(34);
+    expect(medidaLocal('poligono', 'conteo', MURO, [VENTANA])).toBe(1);
+  });
+
+  const conHueco = {
+    type: 'Polygon',
+    coordinates: [
+      [...MURO, MURO[0]],
+      [...VENTANA, VENTANA[0]],
+    ],
+  };
+
+  it('un clic dentro del hueco no elige el muro, y uno en el muro sí', () => {
+    expect(distanciaA([5, 1.5], conHueco)).toBeGreaterThan(0); // en la ventana
+    expect(distanciaA([2, 2], conHueco)).toBe(0); // en el muro
+    expect(trazoEnPunto([{ id: 'muro', geometry: conHueco }], [5, 1.5], 0.1)).toBeNull();
+    expect(trazoEnPunto([{ id: 'muro', geometry: conHueco }], [2, 2], 0.1)).toBe('muro');
+    // Cerca del borde de la ventana todavía cuenta: es borde del muro.
+    expect(trazoEnPunto([{ id: 'muro', geometry: conHueco }], [5, 1.05], 0.1)).toBe('muro');
+  });
+
+  it('el trazo SVG lleva los dos anillos, cada uno cerrado', () => {
+    expect(rutaSvg(conHueco).match(/Z/g)).toHaveLength(2);
   });
 });

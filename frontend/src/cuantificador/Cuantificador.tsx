@@ -62,6 +62,7 @@ import { CalibrarEscala } from './CalibrarEscala';
 import { ReemplazarEnlace } from './ReemplazarEnlace';
 import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Visor';
 import {
+  PUNTOS_MINIMOS_DE_HUECO,
   trazoCompleto,
   type Herramienta,
   type HerramientaDeTrazo,
@@ -137,6 +138,12 @@ export function EspacioDeTrazo({
   const [planoElegido, setPlanoElegido] = useState(planoInicial ?? '');
   const [herramienta, setHerramienta] = useState<Herramienta>('seleccionar');
   const [borrador, setBorrador] = useState<readonly Punto[]>([]);
+  // Huecos del polígono en curso (la ventana de un muro, el cubo de una escalera):
+  // anillos interiores que se **descuentan**. `huecoEnCurso` es el que se está
+  // dibujando ahora; al cerrarlo pasa a `huecos`.
+  const [huecos, setHuecos] = useState<readonly (readonly Punto[])[]>([]);
+  const [huecoEnCurso, setHuecoEnCurso] = useState<readonly Punto[]>([]);
+  const [dibujandoHueco, setDibujandoHueco] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [subiendoPlano, setSubiendoPlano] = useState(false);
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
@@ -256,9 +263,24 @@ export function EspacioDeTrazo({
       : herramienta;
   const escalaDelPlano = plano?.escala_m_por_unidad != null ? Number(plano.escala_m_por_unidad) : null;
 
+  function limpiarDibujo() {
+    setBorrador([]);
+    setHuecos([]);
+    setHuecoEnCurso([]);
+    setDibujandoHueco(false);
+  }
+
+  /** Cierra el hueco en curso (si ya tiene sus vértices) y vuelve al exterior. */
+  function cerrarHueco() {
+    if (huecoEnCurso.length < PUNTOS_MINIMOS_DE_HUECO) return;
+    setHuecos((actuales) => [...actuales, huecoEnCurso]);
+    setHuecoEnCurso([]);
+    setDibujandoHueco(false);
+  }
+
   function cambiarHerramienta(nueva: Herramienta) {
     setHerramienta(nueva);
-    setBorrador([]);
+    limpiarDibujo();
     setAviso(null);
     if (nueva !== 'seleccionar') setSeleccion(null);
   }
@@ -283,6 +305,10 @@ export function EspacioDeTrazo({
       setGuardando(true);
       return;
     }
+    if (dibujandoHueco) {
+      setHuecoEnCurso((actual) => [...actual, p]);
+      return;
+    }
     setBorrador((actual) => [...actual, p]);
   }
 
@@ -299,21 +325,31 @@ export function EspacioDeTrazo({
       if (destino && /^(INPUT|SELECT|TEXTAREA)$/.test(destino.tagName)) return;
       if (e.key === 'Enter') {
         e.preventDefault();
-        if (forma && trazoCompleto(forma, borrador)) setGuardando(true);
+        if (dibujandoHueco) cerrarHueco();
+        else if (forma && trazoCompleto(forma, borrador)) setGuardando(true);
       } else if (e.key === 'Backspace') {
         e.preventDefault();
-        setBorrador((actual) => actual.slice(0, -1));
+        if (dibujandoHueco) setHuecoEnCurso((actual) => actual.slice(0, -1));
+        else setBorrador((actual) => actual.slice(0, -1));
       } else if (e.key === 'Escape') {
-        setBorrador([]);
+        // Esc descarta lo que se está dibujando: el hueco en curso, o todo.
+        if (dibujandoHueco) {
+          setHuecoEnCurso([]);
+          setDibujandoHueco(false);
+        } else {
+          limpiarDibujo();
+        }
       }
     }
     window.addEventListener('keydown', alTeclear);
     return () => window.removeEventListener('keydown', alTeclear);
-  }, [forma, borrador, guardando, subiendoPlano, notaPunto, reemplazando]);
+    // `cerrarHueco` y `limpiarDibujo` leen estado del render: se rearma con él.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forma, borrador, huecos, huecoEnCurso, dibujandoHueco, guardando, subiendoPlano, notaPunto, reemplazando]);
 
   function alGuardar(resultado: TrazoRespuesta) {
     setGuardando(false);
-    setBorrador([]);
+    limpiarDibujo();
     const total = resultado.recalculos[0]?.cantidad_total;
     setAviso(
       resultado.enlace_ids.length === 0
@@ -450,12 +486,47 @@ export function EspacioDeTrazo({
               {forma && forma !== 'punto' && (
                 <>
                   <span className="text-mute text-xs">
-                    {borrador.length} vértices · Enter cierra · Retroceso quita · Esc descarta
+                    {dibujandoHueco
+                      ? `Hueco: ${huecoEnCurso.length} vértices · Enter lo cierra · Retroceso quita · Esc lo descarta`
+                      : `${borrador.length} vértices · Enter cierra · Retroceso quita · Esc descarta`}
+                    {huecos.length > 0 && ` · ${huecos.length} ${huecos.length === 1 ? 'hueco' : 'huecos'}`}
                   </span>
+                  {forma === 'poligono' && trazoCompleto(forma, borrador) && !dibujandoHueco && (
+                    <button
+                      type="button"
+                      className="btn btn--sm"
+                      title="Dibuja dentro del polígono lo que se descuenta: una ventana, un cubo de escalera"
+                      onClick={() => setDibujandoHueco(true)}
+                    >
+                      Agregar hueco
+                    </button>
+                  )}
+                  {dibujandoHueco && (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn--sm"
+                        disabled={huecoEnCurso.length < PUNTOS_MINIMOS_DE_HUECO}
+                        onClick={cerrarHueco}
+                      >
+                        Cerrar hueco
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => {
+                          setHuecoEnCurso([]);
+                          setDibujandoHueco(false);
+                        }}
+                      >
+                        Cancelar hueco
+                      </button>
+                    </>
+                  )}
                   <button
                     type="button"
                     className="btn btn--accent btn--sm"
-                    disabled={!trazoCompleto(forma, borrador)}
+                    disabled={!trazoCompleto(forma, borrador) || dibujandoHueco}
                     onClick={terminar}
                   >
                     Terminar trazo
@@ -502,6 +573,8 @@ export function EspacioDeTrazo({
               seleccion={seleccion}
               herramienta={herramienta}
               borrador={borrador}
+              huecos={huecos}
+              huecoEnCurso={huecoEnCurso}
               onPunto={alPunto}
               onSeleccionar={setSeleccion}
             />
@@ -675,6 +748,7 @@ export function EspacioDeTrazo({
           versionPlano={plano.version}
           herramienta={forma}
           puntos={borrador}
+          huecos={huecos}
           actividades={actividades}
           actividadInicial={actividadFocoId}
           nodosDePrototipo={puedeEnlazarPrototipo ? nodosDePrototipo : null}
@@ -682,7 +756,7 @@ export function EspacioDeTrazo({
             setGuardando(false);
             // Un punto se captura con un solo clic: si se cancela el cajón no
             // hay nada que seguir editando, se descarta.
-            if (forma === 'punto') setBorrador([]);
+            if (forma === 'punto') limpiarDibujo();
           }}
           onGuardado={alGuardar}
         />

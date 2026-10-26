@@ -76,12 +76,35 @@ function par(p: Punto): string {
   return `${p[0]} ${p[1]}`;
 }
 
-/** WKT del trazo capturado. Lanza si faltan puntos: nunca emite un WKT inválido. */
-export function aWkt(herramienta: HerramientaDeTrazo, puntos: readonly Punto[]): string {
+/** Un hueco es un anillo interior del polígono: necesita tres vértices, como el exterior. */
+export const PUNTOS_MINIMOS_DE_HUECO = 3;
+
+/**
+ * WKT del trazo capturado. Lanza si faltan puntos: nunca emite un WKT inválido.
+ *
+ * `huecos` son los anillos interiores de un polígono —lo que se **descuenta**: la
+ * ventana de un muro, el cubo de una escalera—. WKT los pone tras el exterior, cada
+ * uno cerrado. El servidor mide el área ya descontada (`ST_Area` resta los huecos) y
+ * suma su borde al perímetro; si un hueco queda fuera del polígono o se cruza con
+ * otro, la geometría es inválida y el trazo se rechaza con su motivo.
+ */
+export function aWkt(
+  herramienta: HerramientaDeTrazo,
+  puntos: readonly Punto[],
+  huecos: readonly (readonly Punto[])[] = [],
+): string {
   if (!trazoCompleto(herramienta, puntos)) {
     throw new Error(
       `Faltan puntos: ${herramienta} necesita al menos ${PUNTOS_MINIMOS[herramienta]}.`,
     );
+  }
+  if (huecos.length > 0 && herramienta !== 'poligono') {
+    throw new Error('Solo un polígono tiene huecos.');
+  }
+  for (const hueco of huecos) {
+    if (hueco.length < PUNTOS_MINIMOS_DE_HUECO) {
+      throw new Error(`Faltan puntos: un hueco necesita al menos ${PUNTOS_MINIMOS_DE_HUECO}.`);
+    }
   }
   switch (herramienta) {
     case 'punto':
@@ -89,9 +112,10 @@ export function aWkt(herramienta: HerramientaDeTrazo, puntos: readonly Punto[]):
     case 'linea':
       return `LINESTRING(${puntos.map(par).join(', ')})`;
     case 'poligono': {
-      // WKT exige el anillo cerrado: el primer punto se repite al final.
-      const anillo = [...puntos, puntos[0] as Punto];
-      return `POLYGON((${anillo.map(par).join(', ')}))`;
+      // WKT exige cada anillo cerrado: el primer punto se repite al final.
+      const cerrado = (anillo: readonly Punto[]) =>
+        `(${[...anillo, anillo[0] as Punto].map(par).join(', ')})`;
+      return `POLYGON(${[puntos, ...huecos].map(cerrado).join(', ')})`;
     }
   }
 }
@@ -132,10 +156,15 @@ export function medidaLocal(
   herramienta: HerramientaDeTrazo,
   medida: MedidaDeTrazo,
   puntos: readonly Punto[],
+  huecos: readonly (readonly Punto[])[] = [],
 ): number {
   if (medida === 'conteo') return 1;
   if (herramienta === 'poligono') {
-    return medida === 'area' ? areaLocal(puntos) : perimetroLocal(puntos);
+    // El área descuenta los huecos; el perímetro suma su borde (`ST_Perimeter`
+    // recorre todos los anillos).
+    return medida === 'area'
+      ? areaLocal(puntos) - huecos.reduce((s, h) => s + areaLocal(h), 0)
+      : perimetroLocal(puntos) + huecos.reduce((s, h) => s + perimetroLocal(h), 0);
   }
   if (herramienta === 'linea' && medida === 'longitud') return longitudLocal(puntos);
   return 0;
@@ -156,8 +185,29 @@ function aPuntos(valor: unknown): Punto[] {
   return Array.isArray(valor) ? valor.filter(esPunto).map((p) => [p[0], p[1]] as Punto) : [];
 }
 
+interface Parte {
+  readonly tipo: 'punto' | 'linea' | 'anillo';
+  readonly puntos: Punto[];
+  /** Solo en anillos: a qué polígono pertenece, para saber qué es exterior y qué hueco. */
+  readonly poligono?: number;
+  /** Solo en anillos: `true` si es un anillo interior (lo que se descuenta). */
+  readonly hueco?: boolean;
+}
+
+/** Los anillos de un polígono GeoJSON: el primero es el exterior, el resto son huecos. */
+function anillosDe(poligono: unknown, indice: number): Parte[] {
+  return Array.isArray(poligono)
+    ? poligono.map((a, i) => ({
+        tipo: 'anillo' as const,
+        puntos: aPuntos(a),
+        poligono: indice,
+        hueco: i > 0,
+      }))
+    : [];
+}
+
 /** Los anillos/líneas de una geometría, aplanados. Lo desconocido se ignora. */
-function partes(geometria: GeometriaGeoJson): { tipo: 'punto' | 'linea' | 'anillo'; puntos: Punto[] }[] {
+function partes(geometria: GeometriaGeoJson): Parte[] {
   const c = geometria.coordinates;
   switch (geometria.type) {
     case 'Point':
@@ -169,15 +219,9 @@ function partes(geometria: GeometriaGeoJson): { tipo: 'punto' | 'linea' | 'anill
     case 'MultiLineString':
       return Array.isArray(c) ? c.map((l) => ({ tipo: 'linea' as const, puntos: aPuntos(l) })) : [];
     case 'Polygon':
-      return Array.isArray(c) ? c.map((a) => ({ tipo: 'anillo' as const, puntos: aPuntos(a) })) : [];
+      return anillosDe(c, 0);
     case 'MultiPolygon':
-      return Array.isArray(c)
-        ? c.flatMap((poligono) =>
-            Array.isArray(poligono)
-              ? poligono.map((a) => ({ tipo: 'anillo' as const, puntos: aPuntos(a) }))
-              : [],
-          )
-        : [];
+      return Array.isArray(c) ? c.flatMap((poligono, i) => anillosDe(poligono, i)) : [];
     default:
       return [];
   }
@@ -282,13 +326,28 @@ function dentroDeAnillo(p: Punto, anillo: readonly Punto[]): boolean {
  */
 export function distanciaA(p: Punto, geometria: GeometriaGeoJson): number {
   let mejor = Infinity;
-  for (const parte of partes(geometria)) {
+  const todas = partes(geometria);
+  // Un clic dentro de un hueco **no** está dentro del polígono: la ventana de un
+  // muro no es muro. Cae a la distancia a su borde, que es el del polígono.
+  const enHueco = new Set(
+    todas
+      .filter((q) => q.tipo === 'anillo' && q.hueco && dentroDeAnillo(p, q.puntos))
+      .map((q) => q.poligono),
+  );
+  for (const parte of todas) {
     if (parte.tipo === 'punto') {
       const q = parte.puntos[0];
       if (q) mejor = Math.min(mejor, Math.hypot(p[0] - q[0], p[1] - q[1]));
       continue;
     }
-    if (parte.tipo === 'anillo' && dentroDeAnillo(p, parte.puntos)) return 0;
+    if (
+      parte.tipo === 'anillo' &&
+      !parte.hueco &&
+      !enHueco.has(parte.poligono) &&
+      dentroDeAnillo(p, parte.puntos)
+    ) {
+      return 0;
+    }
     const pts = parte.tipo === 'anillo' ? [...parte.puntos, parte.puntos[0] as Punto] : parte.puntos;
     for (let i = 1; i < pts.length; i += 1) {
       mejor = Math.min(mejor, distanciaASegmento(p, pts[i - 1] as Punto, pts[i] as Punto));
@@ -317,7 +376,7 @@ export function trazoEnPunto(
     if (d > tolerancia) continue;
     const area = partes(trazo.geometry)
       .filter((q) => q.tipo === 'anillo')
-      .reduce((s, q) => s + areaLocal(q.puntos), 0);
+      .reduce((s, q) => s + (q.hueco ? -areaLocal(q.puntos) : areaLocal(q.puntos)), 0);
     if (d < mejorDistancia || (d === mejorDistancia && area < mejorArea)) {
       elegido = trazo.id;
       mejorDistancia = d;
