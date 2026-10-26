@@ -258,6 +258,8 @@ jobs:
       # Lo que lee `frontend/e2e/infraestructura.ts`.
       E2E_API_URL: http://127.0.0.1:8000
       E2E_AUTH_FALSA: '1'
+      # Sirve `dist/` y no el servidor de desarrollo (ver `playwright.config.ts`).
+      E2E_SERVIDOR: build
       E2E_USUARIO: ctrl@e2e.mx
       E2E_USUARIO_RESIDENTE: res@e2e.mx
       E2E_USUARIO_SUPERVISOR: sup@e2e.mx
@@ -322,6 +324,15 @@ jobs:
       - name: Instalar Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
+
+      - name: Construir la web
+        working-directory: frontend
+        # Los E2E prueban la web construida: el servidor de desarrollo manda
+        # cada módulo por separado (~740 solo del contrato generado) y con varias
+        # sesiones de navegador abiertas Chromium se queda sin recursos
+        # (`ERR_INSUFFICIENT_RESOURCES`). Las `VITE_*` del job se hornean aquí.
+        # Solo `vite build`: el typecheck ya lo hace el job `frontend`.
+        run: npx vite build --mode test
 
       - name: Workflows
         working-directory: frontend

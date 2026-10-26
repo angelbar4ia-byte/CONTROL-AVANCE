@@ -62,7 +62,26 @@ export default defineConfig({
      * El humo nunca habla con Supabase: sin sesión, la app pinta el login,
      * que es exactamente lo que se verifica.
      */
-    command: 'npm run dev -- --mode test',
+    /**
+     * `E2E_SERVIDOR=build` sirve la web **ya construida** (`dist/`, con
+     * `vite build`) en vez del servidor de desarrollo.
+     *
+     * El de desarrollo no empaqueta: manda cada módulo por separado, y solo el
+     * contrato generado son ~740 archivos en `src/api/generado/modelo/`. Con
+     * varias sesiones de navegador abiertas a la vez (el cierre de obra usa
+     * cinco) Chromium agota sus recursos en un runner de 2 CPU y las peticiones
+     * caen con `net::ERR_INSUFFICIENT_RESOURCES`: la pantalla nunca llega y la
+     * prueba se atora hasta el timeout. Los workflows de punta a punta corren así
+     * en CI; además prueban lo que de verdad se despliega. El humo sigue con el
+     * servidor de desarrollo: una sola página no alcanza ese límite.
+     *
+     * Las `VITE_*` se hornean al construir, así que `npm run build` se corre
+     * antes, con las mismas variables (ver el job `e2e-workflows` de CI).
+     */
+    command:
+      process.env.E2E_SERVIDOR === 'build'
+        ? 'npm run preview -- --port 5173 --strictPort'
+        : 'npm run dev -- --mode test',
     url: process.env.E2E_BASE_URL ?? 'http://localhost:5173',
     // Si ya hay un dev server corriendo se reutiliza; en CI siempre se levanta
     // uno limpio.
