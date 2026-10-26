@@ -10643,7 +10643,7 @@
         "tags": [
           "programacion"
         ],
-        "summary": "Las reprogramaciones de lo contratado de una obra",
+        "summary": "Las reprogramaciones de lo asignado de una obra",
         "description": "Todos los roles, cada uno con su alcance (RLS). Lo más reciente, primero.",
         "operationId": "reprogramaciones_de_la_obra_api_v1_obras__obra_id__reprogramaciones_get",
         "security": [
@@ -10699,8 +10699,8 @@
         "tags": [
           "programacion"
         ],
-        "summary": "Proponer la fecha nueva de una actividad contratada",
-        "description": "Propone el residente (lo revisa el supervisor) o el supervisor (la revisión se\nsalta). Solo se reprograma lo contratado; lo demás se edita directo.",
+        "summary": "Proponer la fecha nueva de una actividad asignada",
+        "description": "Propone el residente (lo revisa el supervisor) o el supervisor (la revisión se\nsalta). Solo se reprograma lo asignado; lo demás se edita directo.",
         "operationId": "proponer_reprogramacion_api_v1_actividades__actividad_id__reprogramaciones_post",
         "security": [
           {
@@ -10762,7 +10762,7 @@
             "description": "La actividad no existe o está fuera de tu alcance."
           },
           "409": {
-            "description": "La actividad no está contratada, no hay nada que mover, o ya tiene una reprogramación en la cadena."
+            "description": "La actividad no está asignada, no hay nada que mover, o ya tiene una reprogramación en la cadena."
           },
           "422": {
             "description": "Validation Error",
@@ -10926,7 +10926,7 @@
         "tags": [
           "programacion"
         ],
-        "summary": "Realizar la reprogramación: mueve la fecha de lo contratado y avisa",
+        "summary": "Realizar la reprogramación: mueve la fecha de lo asignado y avisa",
         "description": "Control de obra realiza lo validado. La fecha se mueve y la reprogramación queda\naplicada en la misma transacción; después se notifica a los demás.",
         "operationId": "aplicar_reprogramacion_api_v1_reprogramaciones__reprogramacion_id__aplicar_post",
         "security": [
@@ -11062,6 +11062,89 @@
           },
           "409": {
             "description": "Ese paso no corresponde en el estado actual de la cadena."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reprogramaciones/{reprogramacion_id}/observaciones": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Dejar una observación al residente y al supervisor",
+        "description": "Control de obra dice algo sin mover la cadena: cabe en cualquier estatus, también\naplicada o rechazada. Se avisa al residente y al supervisor de la obra (correo y push).\nLas observaciones solo se agregan.",
+        "operationId": "observar_reprogramacion_api_v1_reprogramaciones__reprogramacion_id__observaciones_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reprogramacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reprogramacion Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservarReprogramacionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La reprogramación no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "El texto de la observación está vacío."
           },
           "422": {
             "description": "Validation Error",
@@ -20600,6 +20683,74 @@
         ],
         "title": "ObraRespuesta"
       },
+      "ObservacionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "reprogramacion_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Reprogramacion Id"
+          },
+          "usuario_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Usuario Id"
+          },
+          "usuario_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Nombre"
+          },
+          "rol": {
+            "type": "string",
+            "title": "Rol"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          },
+          "creada_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creada En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "reprogramacion_id",
+          "usuario_id",
+          "rol",
+          "texto",
+          "creada_en"
+        ],
+        "title": "ObservacionRespuesta"
+      },
+      "ObservarReprogramacionPeticion": {
+        "properties": {
+          "texto": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Texto",
+            "description": "La observación para el residente y el supervisor. No cambia el estatus."
+          }
+        },
+        "type": "object",
+        "required": [
+          "texto"
+        ],
+        "title": "ObservarReprogramacionPeticion"
+      },
       "OficioDeFrenteRespuesta": {
         "properties": {
           "especialidad_id": {
@@ -22221,7 +22372,7 @@
             "type": "string",
             "minLength": 1,
             "title": "Motivo",
-            "description": "Obligatorio: por qué se mueve lo contratado."
+            "description": "Obligatorio: por qué se mueve lo asignado."
           }
         },
         "type": "object",
@@ -23571,6 +23722,14 @@
               }
             ],
             "title": "Motivo Rechazo"
+          },
+          "observaciones": {
+            "items": {
+              "$ref": "#/components/schemas/ObservacionRespuesta"
+            },
+            "type": "array",
+            "title": "Observaciones",
+            "description": "Lo que control de obra le ha dicho al residente y al supervisor, en orden."
           }
         },
         "type": "object",

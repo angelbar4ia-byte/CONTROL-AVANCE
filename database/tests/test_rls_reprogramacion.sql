@@ -1,10 +1,13 @@
 -- ============================================================
--- ObraCtrl · Aislamiento RLS de la reprogramación de lo contratado
+-- ObraCtrl · Aislamiento RLS de la reprogramación de lo asignado
 -- Migración 0072 (`reprogramacion`) · Spec §12.4 (RLS) · D4 del roadmap ("toda tabla
 -- nueva entra con política RLS + prueba de aislamiento en el mismo PR").
 --
 -- La reprogramación **sí se actualiza** (propone → revisa → valida → realiza), pero no
--- se borra: es el rastro de quién movió lo que estaba contratado.
+-- se borra: es el rastro de quién movió lo que estaba asignado.
+--
+-- También las observaciones de control (0073, `reprogramacion_observacion`): se ven con el
+-- alcance de la obra, solo se agregan (ni se editan ni se borran) y no pueden ir vacías.
 --
 -- Lo que se prueba:
 --   1. El alcance por rol del §4 se hereda de la obra.
@@ -13,7 +16,8 @@
 --   4. Se actualiza dentro del alcance y no se borra.
 --   5. Las reglas de la cadena viven también en la base: una sola viva por actividad y
 --      no se aplica lo que no se validó.
---   6. Sin contexto (anónimo) no se ve nada.
+--   6. Las observaciones: alcance de la obra, solo se agregan, no vacías.
+--   7. Sin contexto (anónimo) no se ve nada.
 --
 -- Uso:  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/test_rls_reprogramacion.sql
 -- ============================================================
@@ -262,10 +266,117 @@ select pg_temp.esperar('rechazada la primera cabe otra', count(*), 2)
   from reprogramacion where actividad_id = 'a7000000-0000-0000-0000-000000000001';
 
 -- ------------------------------------------------------------
--- 6 · Sin contexto (anónimo) no se ve nada
+-- 6 · Observaciones de control: alcance, solo se agregan, no vacías
+-- ------------------------------------------------------------
+reset role;
+insert into reprogramacion_observacion
+    (org_id, obra_id, reprogramacion_id, usuario_id, rol, texto)
+select r.org_id, r.obra_id, r.id, 'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra',
+       'Ojo con la cuadrilla'
+  from reprogramacion r
+ where r.motivo <> 'Otra, ya rechazada la primera';
+set local role obractrl_api;
+
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000001', 'residente');
+select pg_temp.esperar('residente ve las observaciones de su obra', count(*), 1)
+  from reprogramacion_observacion;
+
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000003', 'supervisor');
+select pg_temp.esperar('supervisor ve las de su residente', count(*), 1)
+  from reprogramacion_observacion;
+select pg_temp.esperar('supervisor no ve las de una obra ajena', count(*), 0)
+  from reprogramacion_observacion where obra_id = 'a3000000-0000-0000-0000-000000000003';
+
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra');
+select pg_temp.esperar('control ve las de toda su org', count(*), 2)
+  from reprogramacion_observacion;
+
+select pg_temp.como('22222222-2222-2222-2222-222222222222',
+                    'bbbbbbbb-0000-0000-0000-000000000005', 'super_intendente');
+select pg_temp.esperar('Beta no ve las observaciones de Alfa', count(*), 0)
+  from reprogramacion_observacion where org_id = '11111111-1111-1111-1111-111111111111';
+
+-- Alta: dentro del alcance sí; en una obra que no ve, no.
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra');
+insert into reprogramacion_observacion
+    (org_id, obra_id, reprogramacion_id, usuario_id, rol, texto)
+select r.org_id, r.obra_id, r.id, 'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra', 'Otra nota'
+  from reprogramacion r
+ where r.obra_id = 'a3000000-0000-0000-0000-000000000001' limit 1;
+select pg_temp.esperar('control agrega una observación', count(*), 3)
+  from reprogramacion_observacion;
+
+-- La reprogramación de la obra ajena se toma con privilegios (el supervisor ni la ve): lo
+-- que se prueba es que **escribir** sobre ella tampoco se puede.
+reset role;
+select set_config('test.rep_ajena',
+  (select id::text from reprogramacion
+    where obra_id = 'a3000000-0000-0000-0000-000000000003' limit 1), true);
+set local role obractrl_api;
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000003', 'supervisor');
+do $$
+begin
+  insert into reprogramacion_observacion
+      (org_id, obra_id, reprogramacion_id, usuario_id, rol, texto)
+  values ('11111111-1111-1111-1111-111111111111', 'a3000000-0000-0000-0000-000000000003',
+          current_setting('test.rep_ajena')::uuid,
+          'aaaaaaaa-0000-0000-0000-000000000003', 'supervisor', 'Cuela');
+  raise exception 'FALLA [observar en obra ajena]: el INSERT debió rechazarse';
+exception
+  when insufficient_privilege then
+    raise notice 'OK  [observar en obra ajena] -> rechazado por RLS';
+end;
+$$;
+
+-- Solo se agregan: ni UPDATE ni DELETE, por privilegio.
+select pg_temp.como('11111111-1111-1111-1111-111111111111',
+                    'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra');
+do $$
+begin
+  update reprogramacion_observacion set texto = 'reescrita';
+  raise exception 'FALLA [reescribir una observación]: el UPDATE debió rechazarse';
+exception
+  when insufficient_privilege then
+    raise notice 'OK  [reescribir una observación] -> sin permiso';
+end;
+$$;
+do $$
+begin
+  delete from reprogramacion_observacion;
+  raise exception 'FALLA [borrar una observación]: el DELETE debió rechazarse';
+exception
+  when insufficient_privilege then
+    raise notice 'OK  [borrar una observación] -> sin permiso';
+end;
+$$;
+
+-- No pueden ir vacías.
+do $$
+begin
+  insert into reprogramacion_observacion
+      (org_id, obra_id, reprogramacion_id, usuario_id, rol, texto)
+  select r.org_id, r.obra_id, r.id, 'aaaaaaaa-0000-0000-0000-000000000004', 'control_obra', '   '
+    from reprogramacion r
+   where r.obra_id = 'a3000000-0000-0000-0000-000000000001' limit 1;
+  raise exception 'FALLA [observación vacía]: el INSERT debió rechazarse';
+exception
+  when check_violation then
+    raise notice 'OK  [observación vacía] -> rechazada por ck_reprogramacion_observacion_texto';
+end;
+$$;
+
+-- ------------------------------------------------------------
+-- 7 · Sin contexto (anónimo) no se ve nada
 -- ------------------------------------------------------------
 select pg_temp.como('00000000-0000-0000-0000-000000000000',
                     '00000000-0000-0000-0000-000000000000', 'anonimo');
 select pg_temp.esperar('anónimo no ve reprogramaciones', count(*), 0) from reprogramacion;
+select pg_temp.esperar('anónimo no ve observaciones', count(*), 0)
+  from reprogramacion_observacion;
 
 rollback;

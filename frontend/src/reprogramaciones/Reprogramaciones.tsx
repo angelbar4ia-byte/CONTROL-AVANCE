@@ -1,12 +1,16 @@
 /**
- * Reprogramar lo contratado — las fechas contratadas no se mueven solas
+ * Reprogramar lo asignado — las fechas asignadas no se mueven solas
  * (migración 0072; cerebro D-533, P-4).
  *
- * Una actividad con contratista asignado no admite que se le mueva la fecha directo:
+ * Una actividad asignada a un contratista no admite que se le mueva la fecha directo:
  * el residente o el supervisor **proponen** la fecha nueva (desde la programación) y
  * una cadena la acepta —el supervisor **revisa** lo del residente, control de obra
  * **valida** y **realiza**—. Al realizarse se mueve la fecha, queda el rastro en la
- * bitácora del programa y se notifica a los demás.
+ * bitácora del programa y se avisa a los demás: si propuso el residente, al supervisor y a
+ * control; si propuso el supervisor, al residente y a control.
+ *
+ * Control de obra también puede **observar**: dejar una nota al residente y al supervisor
+ * sin mover la cadena, en cualquier estatus.
  *
  * Esta pantalla es la bandeja de esa cadena: cada reprogramación de la obra, lo que se
  * movió y quién ha intervenido, con la acción que le toca a cada rol.
@@ -18,6 +22,7 @@ import type { ErrorApi } from '@/api/cliente';
 import {
   getReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetQueryKey,
   useAplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPost,
+  useObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost,
   useRechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPost,
   useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet,
   useRevisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPost,
@@ -34,6 +39,7 @@ import { SelectorObra } from '@/lib/SelectorObra';
 import {
   accionesDeReprogramacion,
   etiquetaEstatusDeReprogramacion,
+  puedeObservar,
   quienSigue,
   tonoEstatusDeReprogramacion,
 } from './reglas';
@@ -43,7 +49,9 @@ export default function Reprogramaciones() {
   const idempotente = useClavesPorRecurso();
   const [obraId, setObraId] = useState('');
   const [rechazando, setRechazando] = useState<ReprogramacionDeObraRespuesta | null>(null);
+  const [observando, setObservando] = useState<ReprogramacionDeObraRespuesta | null>(null);
   const [motivo, setMotivo] = useState('');
+  const [observacion, setObservacion] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
@@ -55,7 +63,9 @@ export default function Reprogramaciones() {
   const alExito = (mensaje: string) => () => {
     setError(null);
     setRechazando(null);
+    setObservando(null);
     setMotivo('');
+    setObservacion('');
     setAviso(mensaje);
     void queryClient.invalidateQueries({
       queryKey: getReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetQueryKey(obraId),
@@ -78,6 +88,10 @@ export default function Reprogramaciones() {
     opciones('Reprogramación rechazada.'),
   );
 
+  const observar = useObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost<ErrorApi>(
+    opciones('Observación enviada al residente y al supervisor.'),
+  );
+
   if (!sesion) return null;
   const rol = sesion.rol;
   const filas = consulta.data ?? [];
@@ -91,7 +105,7 @@ export default function Reprogramaciones() {
           <div className="page__eyebrow mono">Programa</div>
           <h1 className="page__title">Reprogramaciones</h1>
           <div className="page__subtitle">
-            Las fechas de lo <strong>contratado</strong> no se mueven solas: el residente o el
+            Las fechas de lo <strong>asignado</strong> no se mueven solas: el residente o el
             supervisor proponen la fecha nueva; el supervisor revisa, y control de obra valida y
             realiza. Se propone desde la programación de la actividad.
           </div>
@@ -144,7 +158,7 @@ export default function Reprogramaciones() {
         <div className="empty">
           <div className="empty-title">Sin reprogramaciones</div>
           <div className="empty-sub">
-            Ninguna actividad contratada de esta obra ha movido su fecha.
+            Ninguna actividad asignada de esta obra ha movido su fecha.
           </div>
         </div>
       ) : (
@@ -166,6 +180,7 @@ export default function Reprogramaciones() {
                 {filas.map((f) => {
                   const acciones = accionesDeReprogramacion(rol, f.estatus);
                   const siguiente = quienSigue(f);
+                  const observaciones = f.observaciones ?? [];
                   return (
                     <tr key={f.id}>
                       <td>
@@ -206,6 +221,21 @@ export default function Reprogramaciones() {
                           )}
                         </ul>
                         {siguiente && <div className="text-mute text-xs">{siguiente}</div>}
+                        {observaciones.length > 0 && (
+                          <ul
+                            className="text-xs"
+                            aria-label="Observaciones"
+                            style={{ margin: '6px 0 0', padding: 0, listStyle: 'none' }}
+                          >
+                            {observaciones.map((o) => (
+                              <li key={o.id}>
+                                <strong>{o.usuario_nombre ?? 'Control de obra'}</strong>
+                                <span className="text-mute"> · {fmtFecha(o.creada_en)}</span>
+                                <div>{o.texto}</div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </td>
                       <td className="cell-actions">
                         <div className="row gap-4">
@@ -248,6 +278,15 @@ export default function Reprogramaciones() {
                               Rechazar
                             </button>
                           )}
+                          {puedeObservar(rol) && (
+                            <button
+                              type="button"
+                              className="btn btn--sm"
+                              onClick={() => setObservando(f)}
+                            >
+                              Observar
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -257,6 +296,69 @@ export default function Reprogramaciones() {
             </table>
           </div>
         </div>
+      )}
+
+      {observando && (
+        <Modal
+          titulo="Observación para el residente y el supervisor"
+          onCerrar={() => {
+            setObservando(null);
+            setObservacion('');
+          }}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (observacion.trim() !== '') {
+                observar.mutate({
+                  reprogramacionId: observando.id,
+                  data: { texto: observacion.trim() },
+                });
+              }
+            }}
+          >
+            <div className="sheet__body col gap-12">
+              <p className="text-sm">
+                <span className="mono">{observando.concepto_clave}</span> {observando.actividad}
+              </p>
+              <p className="text-mute text-sm">
+                No mueve la cadena ni la fecha: es una nota. Les llega al residente y al
+                supervisor de la obra por correo y en la app.
+              </p>
+              <div className="field">
+                <label className="field__label" htmlFor="reprogramacion-observacion">
+                  Observación
+                </label>
+                <textarea
+                  id="reprogramacion-observacion"
+                  className="input"
+                  rows={3}
+                  value={observacion}
+                  onChange={(e) => setObservacion(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="sheet__footer">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  setObservando(null);
+                  setObservacion('');
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="btn btn--primary"
+                disabled={observacion.trim() === '' || observar.isPending}
+              >
+                Enviar observación
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {rechazando && (

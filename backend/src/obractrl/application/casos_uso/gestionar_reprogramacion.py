@@ -1,6 +1,6 @@
-"""Casos de uso: reprogramar lo contratado (migración 0072; cerebro D-533, P-4).
+"""Casos de uso: reprogramar lo asignado (migración 0072; cerebro D-533, P-4).
 
-«Las fechas contratadas no se mueven solas.» Quien quiere moverlas **propone** y una
+«Las fechas asignadas no se mueven solas.» Quien quiere moverlas **propone** y una
 cadena la acepta:
 
     propone              revisa        valida           realiza
@@ -9,7 +9,7 @@ cadena la acepta:
 
 Las transiciones y los permisos de cada paso los decide `domain.programacion.
 reprogramacion`; aquí solo se secuencia. El último paso, **realizar**, es el único
-camino que mueve la fecha de lo contratado: llama a `EditarProgramacionActividad` con
+camino que mueve la fecha de lo asignado: llama a `EditarProgramacionActividad` con
 el id de la reprogramación, y esa llamada marca la reprogramación como `aplicada` **en
 la misma transacción** que escribe la fecha (el gancho `en_la_transaccion`). Después
 —ya con todo commiteado— publica `ReprogramacionAplicada` para avisar a los demás.
@@ -28,7 +28,11 @@ from obractrl.application.casos_uso.gestionar_programacion import (
     ComandoEditarProgramacion,
     EditarProgramacionActividad,
 )
-from obractrl.application.eventos import PublicadorEventos, ReprogramacionAplicada
+from obractrl.application.eventos import (
+    PublicadorEventos,
+    ReprogramacionAplicada,
+    ReprogramacionObservada,
+)
 from obractrl.application.puertos.repositorios import (
     RegistroNoEncontrado,
     RepositorioActividades,
@@ -40,19 +44,22 @@ from obractrl.domain.programacion.reprogramacion import (
     ErrorDeReprogramacion,
     EstatusReprogramacion,
     Reprogramacion,
-    esta_contratada,
+    esta_asignada,
+    texto_de_observacion,
 )
 from obractrl.domain.shared.diccionario import Rol
 
 __all__ = [
     "AplicarReprogramacion",
     "ComandoAplicarReprogramacion",
+    "ComandoObservarReprogramacion",
     "ComandoProponerReprogramacion",
     "ComandoRechazarReprogramacion",
     "ComandoRevisarReprogramacion",
     "ComandoValidarReprogramacion",
     "ConsultarReprogramaciones",
     "ErrorDeReprogramacion",
+    "ObservarReprogramacion",
     "ProponerReprogramacion",
     "RechazarReprogramacion",
     "ReprogramacionNoEncontrada",
@@ -104,6 +111,14 @@ class ComandoRechazarReprogramacion:
     motivo: str
 
 
+@dataclass(frozen=True, slots=True)
+class ComandoObservarReprogramacion:
+    reprogramacion_id: UUID
+    usuario_id: UUID
+    rol: Rol
+    texto: str
+
+
 def _reconstruir(fila: dict[str, Any]) -> Reprogramacion:
     def _id(valor: object) -> str | None:
         return str(valor) if valor else None
@@ -125,7 +140,8 @@ def _reconstruir(fila: dict[str, Any]) -> Reprogramacion:
 
 
 class ConsultarReprogramaciones:
-    """`GET /obras/{id}/reprogramaciones`: la cadena de cada reprogramación de la obra."""
+    """`GET /obras/{id}/reprogramaciones`: la cadena de cada reprogramación de la obra,
+    con las observaciones que se le han dejado."""
 
     def __init__(
         self, *, reprogramaciones: RepositorioReprogramaciones, obras: RepositorioObras
@@ -136,11 +152,17 @@ class ConsultarReprogramaciones:
     async def ejecutar(self, obra_id: UUID) -> list[dict[str, Any]]:
         if await self._obras.obtener(obra_id) is None:
             raise ObraNoEncontrada(f"Obra {obra_id} no encontrada en tu alcance.")
-        return await self._reprogramaciones.de_obra(obra_id)
+        filas = await self._reprogramaciones.de_obra(obra_id)
+        por_reprogramacion: dict[UUID, list[dict[str, Any]]] = {}
+        for observacion in await self._reprogramaciones.observaciones_de_obra(obra_id):
+            por_reprogramacion.setdefault(observacion["reprogramacion_id"], []).append(
+                observacion
+            )
+        return [{**f, "observaciones": por_reprogramacion.get(f["id"], [])} for f in filas]
 
 
 class ProponerReprogramacion:
-    """El residente o el supervisor proponen la fecha nueva de algo contratado."""
+    """El residente o el supervisor proponen la fecha nueva de algo asignado."""
 
     def __init__(
         self,
@@ -165,7 +187,7 @@ class ProponerReprogramacion:
             usuario_id=str(cmd.usuario_id),
             rol=cmd.rol,
             motivo=cmd.motivo,
-            contratada=esta_contratada(contratista_id=fila.get("contratista_id")),
+            asignada=esta_asignada(contratista_id=fila.get("contratista_id")),
             fecha_inicio=cmd.fecha_inicio,
             fecha_termino=cmd.fecha_termino,
             fecha_inicio_actual=fila["fecha_inicio"],
@@ -268,7 +290,7 @@ class RechazarReprogramacion(_PasoDeLaCadena):
 
 
 class AplicarReprogramacion(_PasoDeLaCadena):
-    """Control de obra **realiza** la reprogramación: mueve la fecha de lo contratado y
+    """Control de obra **realiza** la reprogramación: mueve la fecha de lo asignado y
     avisa a los demás.
 
     La fecha se escribe por `EditarProgramacionActividad`, que recalcula el CPM y deja
@@ -318,3 +340,53 @@ class AplicarReprogramacion(_PasoDeLaCadena):
             )
         )
         return reprogramacion
+
+
+class ObservarReprogramacion(_PasoDeLaCadena):
+    """Control de obra deja una observación al residente y al supervisor.
+
+    No es un paso de la cadena: no cambia el estatus y cabe en cualquiera, también
+    después de aplicada o rechazada. Queda escrita y después se avisa; si el aviso
+    falla, la observación ya está dicha.
+    """
+
+    def __init__(
+        self,
+        *,
+        reprogramaciones: RepositorioReprogramaciones,
+        uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos,
+    ) -> None:
+        super().__init__(reprogramaciones=reprogramaciones, uow=uow)
+        self._eventos = eventos
+
+    async def ejecutar(self, cmd: ComandoObservarReprogramacion) -> dict[str, Any]:
+        # Primero el permiso y el texto: quien no puede observar no debe enterarse de
+        # si la reprogramación existe.
+        texto = texto_de_observacion(rol=cmd.rol, texto=cmd.texto)
+        fila, _ = await self._cargar(cmd.reprogramacion_id)
+
+        async with self._uow:
+            observacion_id = await self._reprogramaciones.agregar_observacion(
+                reprogramacion_id=cmd.reprogramacion_id,
+                obra_id=fila["obra_id"],
+                usuario_id=cmd.usuario_id,
+                rol=cmd.rol.value,
+                texto=texto,
+            )
+            await self._uow.commit()
+
+        await self._eventos.publicar(
+            ReprogramacionObservada(
+                obra_id=UUID(str(fila["obra_id"])),
+                reprogramacion_id=cmd.reprogramacion_id,
+                observacion_id=observacion_id,
+            )
+        )
+        # Se relee para devolver lo escrito, con el nombre de su autor.
+        observacion = await self._reprogramaciones.obtener_observacion(observacion_id)
+        if observacion is None:  # pragma: no cover - carrera con RLS
+            raise ReprogramacionNoEncontrada(
+                f"Reprogramación {cmd.reprogramacion_id} ya no está en tu alcance."
+            )
+        return observacion

@@ -233,6 +233,7 @@ from obractrl.application.casos_uso.gestionar_proyecto import (
 from obractrl.application.casos_uso.gestionar_reprogramacion import (
     AplicarReprogramacion,
     ConsultarReprogramaciones,
+    ObservarReprogramacion,
     ProponerReprogramacion,
     RechazarReprogramacion,
     RevisarReprogramacion,
@@ -248,7 +249,7 @@ from obractrl.application.casos_uso.notificar_estimacion import (
     NotificarEstimacionValidada,
 )
 from obractrl.application.casos_uso.notificar_reprogramacion import (
-    NotificarReprogramacionAplicada,
+    NotificarReprogramacion,
 )
 from obractrl.application.casos_uso.registrar_revision_fisica import (
     RegistrarRevisionFisica,
@@ -260,6 +261,7 @@ from obractrl.application.eventos import (
     EstimacionValidada,
     IncidenciaDetiene,
     ReprogramacionAplicada,
+    ReprogramacionObservada,
 )
 from obractrl.domain.shared.diccionario import TipoCarga, TipoConcepto, TipoInsumo
 from obractrl.infrastructure.auth.supabase_admin import AdminDeSupabase
@@ -333,6 +335,7 @@ __all__ = [
     "GenerarObraDesdePrototipoDep",
     "IniciarObraDep",
     "InstanciarProgramaObraDep",
+    "ObservarReprogramacionDep",
     "ObtenerCPUDep",
     "ParticiparEnCierreDep",
     "ProgramarIncidenciaDep",
@@ -1223,9 +1226,9 @@ def obtener_consultar_ediciones_de_programa(
 
 
 def _bus_de_reprogramacion(sesion: SesionRLS, ctx: ContextoActual) -> BusEnProceso:
-    """`ReprogramacionAplicada` → avisar a los demás (D-533): correo + push, y el
-    aviso en vivo. Mismo cableado que `_bus_de_estimacion`."""
-    notificar = NotificarReprogramacionAplicada(
+    """`ReprogramacionAplicada` y `ReprogramacionObservada` → avisar (D-533): correo +
+    push, y el aviso en vivo. Mismo cableado que `_bus_de_estimacion`."""
+    notificar = NotificarReprogramacion(
         reprogramaciones=RepositorioReprogramacionesSQL(sesion),
         obras=RepositorioObrasSQL(sesion),
         usuarios=RepositorioUsuariosSQL(sesion),
@@ -1233,11 +1236,15 @@ def _bus_de_reprogramacion(sesion: SesionRLS, ctx: ContextoActual) -> BusEnProce
         push=ClienteExpoPush(),
     )
 
-    async def _notificar(evento: ReprogramacionAplicada) -> None:
-        await notificar.ejecutar(evento)
+    async def _avisar_aplicada(evento: ReprogramacionAplicada) -> None:
+        await notificar.aplicada(evento)
+
+    async def _avisar_observada(evento: ReprogramacionObservada) -> None:
+        await notificar.observada(evento)
 
     bus = BusEnProceso()
-    bus.suscribir(ReprogramacionAplicada, _notificar)
+    bus.suscribir(ReprogramacionAplicada, _avisar_aplicada)
+    bus.suscribir(ReprogramacionObservada, _avisar_observada)
     return suscribir_avisos(bus, ctx=ctx, canal=canal_de_avisos)
 
 
@@ -1274,6 +1281,16 @@ def obtener_rechazar_reprogramacion(sesion: SesionRLS) -> RechazarReprogramacion
     return RechazarReprogramacion(
         reprogramaciones=RepositorioReprogramacionesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_observar_reprogramacion(
+    sesion: SesionRLS, ctx: ContextoActual
+) -> ObservarReprogramacion:
+    return ObservarReprogramacion(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_reprogramacion(sesion, ctx),
     )
 
 
@@ -1349,6 +1366,9 @@ RechazarReprogramacionDep = Annotated[
 ]
 AplicarReprogramacionDep = Annotated[
     AplicarReprogramacion, Depends(obtener_aplicar_reprogramacion)
+]
+ObservarReprogramacionDep = Annotated[
+    ObservarReprogramacion, Depends(obtener_observar_reprogramacion)
 ]
 ReplicarProgramaEnObrasDep = Annotated[
     ReplicarProgramaEnObras, Depends(obtener_replicar_programa)

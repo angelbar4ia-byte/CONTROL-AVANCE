@@ -36,6 +36,8 @@ import type {
   ListarProgramasBaseApiV1ProgramasBaseGetParams,
   NodoProgramadoRespuesta,
   ObraCandidataRespuesta,
+  ObservacionRespuesta,
+  ObservarReprogramacionPeticion,
   ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
   ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
   ProgramaBaseCreadoRespuesta,
@@ -4087,7 +4089,7 @@ export const useEditarProgramacionActividadApiV1ActividadesActividadIdProgramaci
   };
 /**
  * Todos los roles, cada uno con su alcance (RLS). Lo más reciente, primero.
- * @summary Las reprogramaciones de lo contratado de una obra
+ * @summary Las reprogramaciones de lo asignado de una obra
  */
 export const reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet = (
   obraId: string,
@@ -4305,7 +4307,7 @@ export function useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetIn
   queryKey: DataTag<QueryKey, TData, TError>;
 };
 /**
- * @summary Las reprogramaciones de lo contratado de una obra
+ * @summary Las reprogramaciones de lo asignado de una obra
  */
 
 export function useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetInfinite<
@@ -4542,7 +4544,7 @@ export function useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet<
   queryKey: DataTag<QueryKey, TData, TError>;
 };
 /**
- * @summary Las reprogramaciones de lo contratado de una obra
+ * @summary Las reprogramaciones de lo asignado de una obra
  */
 
 export function useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet<
@@ -4590,8 +4592,8 @@ export function useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet<
 
 /**
  * Propone el residente (lo revisa el supervisor) o el supervisor (la revisión se
-salta). Solo se reprograma lo contratado; lo demás se edita directo.
- * @summary Proponer la fecha nueva de una actividad contratada
+salta). Solo se reprograma lo asignado; lo demás se edita directo.
+ * @summary Proponer la fecha nueva de una actividad asignada
  */
 export const proponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost =
   (
@@ -4680,7 +4682,7 @@ export type ProponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPos
   void | HTTPValidationError;
 
 /**
- * @summary Proponer la fecha nueva de una actividad contratada
+ * @summary Proponer la fecha nueva de una actividad asignada
  */
 export const useProponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost =
   <TError = void | HTTPValidationError, TContext = unknown>(
@@ -4958,7 +4960,7 @@ export const useValidarReprogramacionApiV1ReprogramacionesReprogramacionIdValida
 /**
  * Control de obra realiza lo validado. La fecha se mueve y la reprogramación queda
 aplicada en la misma transacción; después se notifica a los demás.
- * @summary Realizar la reprogramación: mueve la fecha de lo contratado y avisa
+ * @summary Realizar la reprogramación: mueve la fecha de lo asignado y avisa
  */
 export const aplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPost =
   (
@@ -5042,7 +5044,7 @@ export type AplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPos
   void | HTTPValidationError;
 
 /**
- * @summary Realizar la reprogramación: mueve la fecha de lo contratado y avisa
+ * @summary Realizar la reprogramación: mueve la fecha de lo asignado y avisa
  */
 export const useAplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPost =
   <TError = void | HTTPValidationError, TContext = unknown>(
@@ -5197,6 +5199,134 @@ export const useRechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRecha
   > => {
     const mutationOptions =
       getRechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * Control de obra dice algo sin mover la cadena: cabe en cualquier estatus, también
+aplicada o rechazada. Se avisa al residente y al supervisor de la obra (correo y push).
+Las observaciones solo se agregan.
+ * @summary Dejar una observación al residente y al supervisor
+ */
+export const observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost =
+  (
+    reprogramacionId: string,
+    observarReprogramacionPeticion: ObservarReprogramacionPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ObservacionRespuesta>(
+      {
+        url: `/api/v1/reprogramaciones/${reprogramacionId}/observaciones`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: observarReprogramacionPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost
+        >
+      >,
+      TError,
+      { reprogramacionId: string; data: ObservarReprogramacionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost
+      >
+    >,
+    TError,
+    { reprogramacionId: string; data: ObservarReprogramacionPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost
+        >
+      >,
+      { reprogramacionId: string; data: ObservarReprogramacionPeticion }
+    > = (props) => {
+      const { reprogramacionId, data } = props ?? {};
+
+      return observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost(
+        reprogramacionId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost
+      >
+    >
+  >;
+export type ObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPostMutationBody =
+  ObservarReprogramacionPeticion;
+export type ObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Dejar una observación al residente y al supervisor
+ */
+export const useObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost
+          >
+        >,
+        TError,
+        { reprogramacionId: string; data: ObservarReprogramacionPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost
+      >
+    >,
+    TError,
+    { reprogramacionId: string; data: ObservarReprogramacionPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPostMutationOptions(
         options,
       );
 

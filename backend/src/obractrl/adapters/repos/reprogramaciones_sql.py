@@ -1,4 +1,4 @@
-"""Repositorio de las reprogramaciones de lo contratado (migración 0072).
+"""Repositorio de las reprogramaciones de lo asignado (migración 0072).
 
 Nada aquí filtra por organización u obra para decidir qué es visible: lo impone
 RLS (§12.4). `org_id` en el INSERT sale de `current_setting('app.org_id')`.
@@ -23,6 +23,14 @@ _COLUMNAS = """
     r.motivo, r.propuesta_por, r.propuesta_rol, r.propuesta_en,
     r.revisada_por, r.revisada_en, r.validada_por, r.validada_en,
     r.aplicada_por, r.aplicada_en, r.rechazada_por, r.rechazada_en, r.motivo_rechazo
+"""
+
+
+_OBSERVACION = """
+    select o.id, o.reprogramacion_id, o.obra_id, o.usuario_id, u.nombre as usuario_nombre,
+           o.rol, o.texto, o.creada_en
+      from reprogramacion_observacion o
+      left join usuario u on u.id = o.usuario_id
 """
 
 
@@ -196,3 +204,51 @@ class RepositorioReprogramacionesSQL:
                 f"No se actualizó la reprogramación {reprogramacion_id}: ya no existe o "
                 "salió de tu alcance."
             )
+
+    async def agregar_observacion(
+        self,
+        *,
+        reprogramacion_id: UUID,
+        obra_id: UUID,
+        usuario_id: UUID,
+        rol: str,
+        texto: str,
+    ) -> UUID:
+        id_ = uuid4()
+        await self._sesion.execute(
+            text(
+                """
+                insert into reprogramacion_observacion
+                    (id, org_id, obra_id, reprogramacion_id, usuario_id, rol, texto)
+                values
+                    (:id, current_setting('app.org_id')::uuid, :obra_id,
+                     :reprogramacion_id, :usuario_id, :rol, :texto)
+                """
+            ),
+            {
+                "id": str(id_),
+                "obra_id": str(obra_id),
+                "reprogramacion_id": str(reprogramacion_id),
+                "usuario_id": str(usuario_id),
+                "rol": rol,
+                "texto": texto,
+            },
+        )
+        return id_
+
+    async def obtener_observacion(self, observacion_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text(f"{_OBSERVACION} where o.id = :id"), {"id": str(observacion_id)}
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def observaciones_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(f"{_OBSERVACION} where o.obra_id = :obra_id order by o.creada_en, o.id"),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]

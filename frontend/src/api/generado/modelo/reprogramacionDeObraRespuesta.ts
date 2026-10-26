@@ -26,6 +26,7 @@ import type { ReprogramacionDeObraRespuestaRechazadaPor } from "./reprogramacion
 import type { ReprogramacionDeObraRespuestaRechazadaPorNombre } from "./reprogramacionDeObraRespuestaRechazadaPorNombre";
 import type { ReprogramacionDeObraRespuestaRechazadaEn } from "./reprogramacionDeObraRespuestaRechazadaEn";
 import type { ReprogramacionDeObraRespuestaMotivoRechazo } from "./reprogramacionDeObraRespuestaMotivoRechazo";
+import type { ObservacionRespuesta } from "./observacionRespuesta";
 
 /**
  * Una reprogramación con lo que la lista necesita: la actividad, las fechas de
@@ -62,4 +63,6 @@ export interface ReprogramacionDeObraRespuesta {
   rechazada_por_nombre?: ReprogramacionDeObraRespuestaRechazadaPorNombre;
   rechazada_en?: ReprogramacionDeObraRespuestaRechazadaEn;
   motivo_rechazo?: ReprogramacionDeObraRespuestaMotivoRechazo;
+  /** Lo que control de obra le ha dicho al residente y al supervisor, en orden. */
+  observaciones?: ObservacionRespuesta[];
 }

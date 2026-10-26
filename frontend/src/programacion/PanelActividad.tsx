@@ -24,7 +24,7 @@ import { colorAvance, fmtFecha, fmtNum, fmtPct } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { useClavesPorRecurso } from '@/lib/idempotencia';
 import { Sheet } from '@/lib/Sheet';
-import { esFechaDeLoContratado, puedeProponerReprogramacion } from '@/reprogramaciones/reglas';
+import { esFechaDeLoAsignado, puedeProponerReprogramacion } from '@/reprogramaciones/reglas';
 import { EditorDependencias } from './Dependencias';
 import type { FilaGantt } from './filas';
 import {
@@ -90,7 +90,7 @@ export function PanelActividad({
     },
   });
 
-  // P-4: las fechas de lo contratado no se editan directo; se propone la nueva.
+  // P-4: las fechas de lo asignado no se editan directo; se propone la nueva.
   const proponer = useProponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost<
     ErrorApi
   >({
@@ -119,7 +119,7 @@ export function PanelActividad({
     .filter((otra) => otra.actividadId !== fila.actividadId)
     .map((otra) => ({ valor: otra.actividadId, etiqueta: otra.descripcion }));
 
-  const contratada = esFechaDeLoContratado(error);
+  const asignada = esFechaDeLoAsignado(error);
   const rol = sesion?.rol ?? null;
 
   function alProponer(evento: FormEvent) {
@@ -192,13 +192,13 @@ export function PanelActividad({
           </div>
         </div>
 
-        {error && !contratada && <ErrorBanner mensaje={error.mensaje} campo={error.campo} />}
+        {error && !asignada && <ErrorBanner mensaje={error.mensaje} campo={error.campo} />}
 
-        {contratada && (
+        {asignada && (
           <div className="card" role="alert">
             <div className="card__header">
               <div>
-                <h3 className="card__title">Esta actividad está contratada</h3>
+                <h3 className="card__title">Esta actividad está asignada</h3>
                 <div className="card__sub">{error?.mensaje}</div>
               </div>
             </div>
@@ -234,7 +234,8 @@ export function PanelActividad({
               ) : (
                 <div className="text-sm">
                   La reprogramación la propone el residente o el supervisor; tú la validas y la
-                  realizas desde <strong>Reprogramaciones</strong>.
+                  realizas desde <strong>Reprogramaciones</strong>, donde también puedes dejarles
+                  observaciones.
                 </div>
               )}
             </form>

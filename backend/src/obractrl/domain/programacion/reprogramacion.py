@@ -1,6 +1,6 @@
-"""Reprogramar lo contratado: una cadena con salto (migración 0072; D-533, P-4).
+"""Reprogramar lo asignado: una cadena con salto (migración 0072; D-533, P-4).
 
-«Las fechas contratadas no se mueven solas: reprogramar **propone** la fecha nueva y
+«Las fechas de lo asignado no se mueven solas: reprogramar **propone** la fecha nueva y
 alguien la acepta.» Ese alguien es una cadena del mismo molde que la de la incidencia
 (D-269), con una diferencia: la **realiza** control de obra.
 
@@ -8,14 +8,17 @@ alguien la acepta.» Ese alguien es una cadena del mismo molde que la de la inci
     Residente            Supervisor    Control de obra  Control de obra
     Supervisor           (se salta)    Control de obra  Control de obra
 
-y al aplicarse se notifica el cambio a los demás. Mientras nada está contratado no hay
+y al aplicarse se notifica el cambio a los demás (`roles_a_avisar_al_aplicar`). Control
+de obra, además, puede dejar **observaciones** al residente y al supervisor
+(`texto_de_observacion`): no mueven la cadena, solo se dicen. Mientras nada está asignado no hay
 nada que proponer: el residente edita las fechas y control de obra la estructura.
 
-**Qué es «lo contratado» en ObraCtrl.** Una actividad con contratista: el del trato de
-su frente en la obra (la planeación, `frente_obra`: «se contrata por frente») o el que
-la actividad traiga directo. El cerebro lo llama `ESTADO_CONGELAMIENTO = contratado`
-sobre el concepto; ObraCtrl no modela ese estado y el trato con un contratista es lo
-más cercano. Se decide en un solo lugar: `esta_contratada`.
+**Qué es «lo asignado» en ObraCtrl.** Una actividad asignada a un contratista: el del
+trato de su frente en la obra (la planeación, `frente_obra`: «se contrata por frente») o
+el que la actividad traiga directo. El cerebro lo llama `ESTADO_CONGELAMIENTO =
+contratado` sobre el concepto; ObraCtrl no modela ese estado, dice «asignado», y la
+asignación a un contratista es lo más cercano. Se decide en un solo lugar:
+`esta_asignada`.
 
 Módulo puro: sin BD ni FastAPI (§12.11).
 """
@@ -29,12 +32,15 @@ from enum import StrEnum
 from obractrl.domain.shared.diccionario import Rol
 
 __all__ = [
+    "ROLES_QUE_RECIBEN_OBSERVACIONES",
     "ErrorDeReprogramacion",
     "EstatusReprogramacion",
-    "FechasDeLoContratado",
+    "FechasDeLoAsignado",
     "Reprogramacion",
-    "esta_contratada",
+    "esta_asignada",
     "exigir_fechas_libres",
+    "roles_a_avisar_al_aplicar",
+    "texto_de_observacion",
 ]
 
 
@@ -42,8 +48,8 @@ class ErrorDeReprogramacion(ValueError):
     """La reprogramación o su paso no es válido."""
 
 
-class FechasDeLoContratado(RuntimeError):
-    """Se quiso mover directo la fecha de algo contratado (P-4): hay que proponer una
+class FechasDeLoAsignado(RuntimeError):
+    """Se quiso mover directo la fecha de algo asignado (P-4): hay que proponer una
     reprogramación y que alguien la acepte."""
 
 
@@ -57,19 +63,60 @@ class EstatusReprogramacion(StrEnum):
     RECHAZADA = "rechazada"
 
 
-def esta_contratada(*, contratista_id: object | None) -> bool:
-    """Una actividad está contratada si tiene contratista (el de su frente o el suyo)."""
+def esta_asignada(*, contratista_id: object | None) -> bool:
+    """Una actividad está asignada si tiene contratista (el de su frente o el suyo)."""
     return contratista_id is not None
 
 
-def exigir_fechas_libres(*, contratada: bool, toca_fechas: bool) -> None:
-    """Las fechas de lo contratado no se editan directo (P-4)."""
-    if contratada and toca_fechas:
-        raise FechasDeLoContratado(
-            "Esta actividad está contratada: sus fechas no se mueven solas. Propón una "
+def exigir_fechas_libres(*, asignada: bool, toca_fechas: bool) -> None:
+    """Las fechas de lo asignado no se editan directo (P-4)."""
+    if asignada and toca_fechas:
+        raise FechasDeLoAsignado(
+            "Esta actividad está asignada a un contratista: sus fechas no se mueven solas. Propón una "
             "reprogramación; el supervisor la revisa y control de obra la valida y la "
             "realiza."
         )
+
+
+def roles_a_avisar_al_aplicar(propuesta_rol: Rol) -> frozenset[Rol]:
+    """A quién se avisa cuando se aplica una reprogramación (D-533: «se notifica el
+    cambio a los demás»). Depende de quién la propuso: los demás son los otros dos.
+
+    * propuso el residente  → supervisor y control de obra;
+    * propuso el supervisor → residente y control de obra.
+
+    La persona que realiza la acción no se avisa a sí misma: eso lo resuelve quien
+    notifica; aquí solo se dice qué **roles** son «los demás».
+    """
+    if propuesta_rol is Rol.RESIDENTE:
+        return frozenset({Rol.SUPERVISOR, Rol.CONTROL_OBRA})
+    if propuesta_rol is Rol.SUPERVISOR:
+        return frozenset({Rol.RESIDENTE, Rol.CONTROL_OBRA})
+    raise ErrorDeReprogramacion(
+        f"Una reprogramación la propone el residente o el supervisor; no hay a quién "
+        f"avisar si la propuso el rol {propuesta_rol.value!r}."
+    )
+
+
+ROLES_QUE_RECIBEN_OBSERVACIONES: frozenset[Rol] = frozenset({Rol.RESIDENTE, Rol.SUPERVISOR})
+"""A quiénes les deja observaciones control de obra: al residente y al supervisor."""
+
+
+def texto_de_observacion(*, rol: Rol, texto: str) -> str:
+    """El texto limpio de una observación, o `ErrorDeReprogramacion`.
+
+    Observa control de obra —quien valida y realiza— y no cambia el estatus de la
+    reprogramación: es una nota para el residente y el supervisor, no un rechazo.
+    Cabe en cualquier estatus, también después de aplicada o rechazada.
+    """
+    if rol is not Rol.CONTROL_OBRA:
+        raise ErrorDeReprogramacion(
+            f"Deja observaciones control de obra; el rol {rol.value!r} no."
+        )
+    limpio = texto.strip()
+    if not limpio:
+        raise ErrorDeReprogramacion("Una observación dice algo: falta el texto.")
+    return limpio
 
 
 _TRANSICIONES: dict[EstatusReprogramacion, set[EstatusReprogramacion]] = {
@@ -113,7 +160,7 @@ class Reprogramacion:
         usuario_id: str,
         rol: Rol,
         motivo: str,
-        contratada: bool,
+        asignada: bool,
         fecha_inicio: date | None,
         fecha_termino: date | None,
         fecha_inicio_actual: date | None,
@@ -125,9 +172,9 @@ class Reprogramacion:
                 f"Proponen una reprogramación el residente o el supervisor; el rol "
                 f"{rol.value!r} no."
             )
-        if not contratada:
+        if not asignada:
             raise ErrorDeReprogramacion(
-                "Solo se reprograma lo contratado: esta actividad no tiene contratista. "
+                "Solo se reprograma lo asignado: esta actividad no está asignada a ningún contratista. "
                 "Sus fechas se editan directo."
             )
         if not motivo.strip():
@@ -190,7 +237,7 @@ class Reprogramacion:
         self.validada_por = usuario_id
 
     def aplicar(self, *, usuario_id: str, rol: Rol) -> None:
-        """La realiza control de obra: mueve la fecha de lo contratado."""
+        """La realiza control de obra: mueve la fecha de lo asignado."""
         if rol is not Rol.CONTROL_OBRA:
             raise ErrorDeReprogramacion(
                 f"Realiza una reprogramación control de obra; el rol {rol.value!r} no."

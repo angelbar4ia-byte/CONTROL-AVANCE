@@ -1,5 +1,5 @@
 /**
- * Reflejo de UX de reprogramar lo contratado (migración 0072; D-533, P-4): qué acción le
+ * Reflejo de UX de reprogramar lo asignado (migración 0072; D-533, P-4): qué acción le
  * toca a cada rol en cada paso de la cadena y cómo se ve cada estado. La regla real la
  * impone el backend.
  */
@@ -8,9 +8,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   accionesDeReprogramacion,
-  esFechaDeLoContratado,
+  esFechaDeLoAsignado,
   estaViva,
   etiquetaEstatusDeReprogramacion,
+  puedeObservar,
   puedeProponerReprogramacion,
   quienSigue,
   tonoEstatusDeReprogramacion,
@@ -26,6 +27,15 @@ describe('quién propone', () => {
     expect(puedeProponerReprogramacion('control_obra')).toBe(false);
     expect(puedeProponerReprogramacion('super_intendente')).toBe(false);
     expect(puedeProponerReprogramacion(null)).toBe(false);
+  });
+});
+
+describe('quién observa', () => {
+  it('observa control de obra; nadie más', () => {
+    expect(puedeObservar('control_obra')).toBe(true);
+    for (const rol of ['residente', 'supervisor', 'super_intendente', null] as const) {
+      expect(puedeObservar(rol)).toBe(false);
+    }
   });
 });
 
@@ -75,16 +85,16 @@ describe('estados', () => {
   });
 });
 
-describe('el rechazo de las fechas de lo contratado', () => {
+describe('el rechazo de las fechas de lo asignado', () => {
   it('se reconoce por el tipo del problema', () => {
     expect(
-      esFechaDeLoContratado({ tipo: 'https://obractrl.mx/problemas/fechas-de-lo-contratado' }),
+      esFechaDeLoAsignado({ tipo: 'https://obractrl.mx/problemas/fechas-de-lo-asignado' }),
     ).toBe(true);
-    expect(esFechaDeLoContratado({ tipo: 'https://obractrl.mx/problemas/ciclo-en-grafo' })).toBe(
+    expect(esFechaDeLoAsignado({ tipo: 'https://obractrl.mx/problemas/ciclo-en-grafo' })).toBe(
       false,
     );
-    expect(esFechaDeLoContratado({})).toBe(false);
-    expect(esFechaDeLoContratado(null)).toBe(false);
+    expect(esFechaDeLoAsignado({})).toBe(false);
+    expect(esFechaDeLoAsignado(null)).toBe(false);
   });
 });
 

@@ -512,7 +512,7 @@ class RepositorioActividadesSQL:
                 text(
                     f"""
                     select obra_id, programa_obra_id,
-                           -- Lo contratado (P-4): el contratista del trato del frente
+                           -- Lo asignado (P-4): el contratista del trato del frente
                            -- en esta obra (la planeación, `frente_obra`) o, si la
                            -- actividad lo trae directo, ese.
                            coalesce(

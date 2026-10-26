@@ -139,7 +139,7 @@ from obractrl.domain.programacion.reglas import (
 )
 from obractrl.domain.programacion.reprogramacion import (
     ErrorDeReprogramacion,
-    FechasDeLoContratado,
+    FechasDeLoAsignado,
 )
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto
 from obractrl.domain.revisiones.reglas import ErrorDeRevision
@@ -610,17 +610,17 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             detalle=str(exc),
         )
 
-    @app.exception_handler(FechasDeLoContratado)
-    async def _fechas_de_lo_contratado(
-        request: Request, exc: FechasDeLoContratado
+    @app.exception_handler(FechasDeLoAsignado)
+    async def _fechas_de_lo_asignado(
+        request: Request, exc: FechasDeLoAsignado
     ) -> JSONResponse:
         # 409: la petición es válida pero choca con el estado de la actividad
-        # (contratada). El camino es proponer una reprogramación (P-4).
+        # (asignada). El camino es proponer una reprogramación (P-4).
         return _problema(
             request,
             status=409,
-            tipo="fechas-de-lo-contratado",
-            titulo="Las fechas de lo contratado no se mueven solas",
+            tipo="fechas-de-lo-asignado",
+            titulo="Las fechas de lo asignado no se mueven solas",
             detalle=str(exc),
         )
 

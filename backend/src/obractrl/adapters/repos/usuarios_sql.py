@@ -75,6 +75,34 @@ class RepositorioUsuariosSQL:
         ).mappings().all()
         return [dict(fila) for fila in filas]
 
+    async def de_la_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select u.id, u.nombre, u.email, u.rol::text as rol
+                      from usuario u
+                     where u.estatus = 'activo'
+                       and (
+                            u.rol = 'control_obra'
+                         or (u.rol = 'residente' and exists (
+                                select 1 from residente_obra ro
+                                 where ro.obra_id = :obra_id and ro.residente_id = u.id))
+                         or (u.rol = 'supervisor' and exists (
+                                select 1
+                                  from supervisor_residente sr
+                                  join residente_obra ro
+                                    on ro.residente_id = sr.residente_id
+                                 where sr.supervisor_id = u.id and ro.obra_id = :obra_id))
+                       )
+                     order by u.nombre
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
     async def tokens_push_de(self, usuario_ids: list[UUID]) -> list[str]:
         """Tokens de Expo Push activos (§12.2, migración 0028).
 

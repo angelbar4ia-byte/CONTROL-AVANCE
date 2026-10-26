@@ -592,6 +592,9 @@ export type * from "./obractrlAdaptersApiV1PlaneacionFrenteDeObraRespuestaContra
 export type * from "./obractrlAdaptersApiV1PlaneacionFrenteDeObraRespuestaCuadrillasPlan";
 export type * from "./obractrlAdaptersApiV1PlaneacionFrenteDeObraRespuestaNotas";
 export type * from "./obractrlAdaptersApiV1PlaneacionPeriodoRespuesta";
+export type * from "./observacionRespuesta";
+export type * from "./observacionRespuestaUsuarioNombre";
+export type * from "./observarReprogramacionPeticion";
 export type * from "./obtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams";
 export type * from "./obtenerCpuApiV1ConceptosConceptoIdCpuGetParams";
 export type * from "./obtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams";

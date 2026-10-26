@@ -1520,6 +1520,18 @@ class RepositorioUsuarios(Protocol):
         en el alcance. Los que no, simplemente no aparecen."""
         ...
 
+    async def de_la_obra(self, obra_id: UUID) -> list[dict]:
+        """`{id, nombre, email, rol}` de quienes llevan esa obra, activos: sus
+        residentes, los supervisores de esos residentes y los usuarios de control de
+        obra (que ven toda la organización).
+
+        Sirve para avisar **por rol** («al supervisor y a control»), que es como lo
+        pide el flujo de reprogramación (D-533). Se lee con el alcance de quien
+        llama: la jerarquía (`residente_obra`, `supervisor_residente`) la ve completa
+        control de obra, que es quien dispara esos avisos.
+        """
+        ...
+
     async def tokens_push_de(self, usuario_ids: list[UUID]) -> list[str]:
         """Tokens de Expo Push activos de esos usuarios (§12.2).
 

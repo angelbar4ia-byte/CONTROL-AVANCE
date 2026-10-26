@@ -38,6 +38,7 @@ __all__ = [
     "Manejador",
     "PublicadorEventos",
     "ReprogramacionAplicada",
+    "ReprogramacionObservada",
 ]
 
 _log = logging.getLogger(__name__)
@@ -117,11 +118,11 @@ class EstimacionValidada:
 
 @dataclass(frozen=True, slots=True)
 class ReprogramacionAplicada:
-    """D-533 — control de obra realizó una reprogramación de lo contratado: la fecha
+    """D-533 — control de obra realizó una reprogramación de lo asignado: la fecha
     ya se movió y «se notifica el cambio a los demás».
 
     La fecha se mueve y la reprogramación queda `aplicada` en la **misma** transacción
-    de `AplicarReprogramacion` (lo uno sin lo otro dejaría lo contratado movido sin
+    de `AplicarReprogramacion` (lo uno sin lo otro dejaría lo asignado movido sin
     constancia, o constancia sin movimiento). Lo que viaja por el evento es solo el
     aviso, que se puede perder sin consecuencias.
     """
@@ -129,6 +130,16 @@ class ReprogramacionAplicada:
     obra_id: UUID
     reprogramacion_id: UUID
     actividad_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class ReprogramacionObservada:
+    """D-533 — control de obra dejó una observación al residente y al supervisor sobre
+    una reprogramación. La observación ya está escrita; el evento solo avisa."""
+
+    obra_id: UUID
+    reprogramacion_id: UUID
+    observacion_id: UUID
 
 
 @runtime_checkable

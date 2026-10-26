@@ -1,4 +1,4 @@
-"""Reprogramar lo contratado (migración 0072; D-533, P-4): la cadena con salto."""
+"""Reprogramar lo asignado (migración 0072; D-533, P-4): la cadena con salto."""
 
 from __future__ import annotations
 
@@ -7,12 +7,15 @@ from datetime import date
 import pytest
 
 from obractrl.domain.programacion.reprogramacion import (
+    ROLES_QUE_RECIBEN_OBSERVACIONES,
     ErrorDeReprogramacion,
     EstatusReprogramacion,
-    FechasDeLoContratado,
+    FechasDeLoAsignado,
     Reprogramacion,
-    esta_contratada,
+    esta_asignada,
     exigir_fechas_libres,
+    roles_a_avisar_al_aplicar,
+    texto_de_observacion,
 )
 from obractrl.domain.shared.diccionario import Rol
 
@@ -26,7 +29,7 @@ def _proponer(rol: Rol = Rol.RESIDENTE, **cambios) -> Reprogramacion:
         "usuario_id": "u1",
         "rol": rol,
         "motivo": "El contratista no tenía cuadrilla",
-        "contratada": True,
+        "asignada": True,
         "fecha_inicio": date(2026, 3, 9),
         "fecha_termino": date(2026, 3, 20),
         "fecha_inicio_actual": INICIO,
@@ -36,20 +39,20 @@ def _proponer(rol: Rol = Rol.RESIDENTE, **cambios) -> Reprogramacion:
     return Reprogramacion.proponer(**datos)
 
 
-class TestLoContratado:
-    def test_contratada_es_tener_contratista(self) -> None:
-        assert esta_contratada(contratista_id="c1")
-        assert not esta_contratada(contratista_id=None)
+class TestLoAsignado:
+    def test_asignada_es_tener_contratista(self) -> None:
+        assert esta_asignada(contratista_id="c1")
+        assert not esta_asignada(contratista_id=None)
 
-    def test_las_fechas_de_lo_contratado_no_se_editan_directo(self) -> None:
-        with pytest.raises(FechasDeLoContratado, match="reprogramación"):
-            exigir_fechas_libres(contratada=True, toca_fechas=True)
+    def test_las_fechas_de_lo_asignado_no_se_editan_directo(self) -> None:
+        with pytest.raises(FechasDeLoAsignado, match="reprogramación"):
+            exigir_fechas_libres(asignada=True, toca_fechas=True)
 
-    def test_lo_contratado_si_admite_editar_lo_que_no_son_fechas(self) -> None:
-        exigir_fechas_libres(contratada=True, toca_fechas=False)
+    def test_lo_asignado_si_admite_editar_lo_que_no_son_fechas(self) -> None:
+        exigir_fechas_libres(asignada=True, toca_fechas=False)
 
-    def test_lo_no_contratado_se_edita_libre(self) -> None:
-        exigir_fechas_libres(contratada=False, toca_fechas=True)
+    def test_lo_no_asignado_se_edita_libre(self) -> None:
+        exigir_fechas_libres(asignada=False, toca_fechas=True)
 
 
 class TestProponer:
@@ -70,9 +73,9 @@ class TestProponer:
         with pytest.raises(ErrorDeReprogramacion, match="residente o el supervisor"):
             _proponer(rol)
 
-    def test_solo_se_reprograma_lo_contratado(self) -> None:
-        with pytest.raises(ErrorDeReprogramacion, match="contratad"):
-            _proponer(contratada=False)
+    def test_solo_se_reprograma_lo_asignado(self) -> None:
+        with pytest.raises(ErrorDeReprogramacion, match="asignad"):
+            _proponer(asignada=False)
 
     def test_pide_motivo(self) -> None:
         with pytest.raises(ErrorDeReprogramacion, match="motivo"):
@@ -192,3 +195,37 @@ class TestRechazar:
     def test_un_rol_ajeno_no_rechaza(self) -> None:
         with pytest.raises(ErrorDeReprogramacion, match="no puede rechazar"):
             _proponer().rechazar(usuario_id="r1", rol=Rol.RESIDENTE, motivo="x")
+
+
+class TestAQuienSeAvisa:
+    def test_si_propuso_el_residente_se_avisa_al_supervisor_y_a_control(self) -> None:
+        assert roles_a_avisar_al_aplicar(Rol.RESIDENTE) == {Rol.SUPERVISOR, Rol.CONTROL_OBRA}
+
+    def test_si_propuso_el_supervisor_se_avisa_al_residente_y_a_control(self) -> None:
+        assert roles_a_avisar_al_aplicar(Rol.SUPERVISOR) == {Rol.RESIDENTE, Rol.CONTROL_OBRA}
+
+    def test_nunca_se_avisa_a_quien_propuso(self) -> None:
+        for propone in (Rol.RESIDENTE, Rol.SUPERVISOR):
+            assert propone not in roles_a_avisar_al_aplicar(propone)
+
+    @pytest.mark.parametrize("rol", [Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE])
+    def test_quien_no_propone_no_tiene_a_quien_avisar(self, rol: Rol) -> None:
+        with pytest.raises(ErrorDeReprogramacion, match="residente o el supervisor"):
+            roles_a_avisar_al_aplicar(rol)
+
+
+class TestObservaciones:
+    def test_control_observa_al_residente_y_al_supervisor(self) -> None:
+        assert {Rol.RESIDENTE, Rol.SUPERVISOR} == ROLES_QUE_RECIBEN_OBSERVACIONES
+        assert texto_de_observacion(rol=Rol.CONTROL_OBRA, texto="  Ojo con la cuadrilla ") == (
+            "Ojo con la cuadrilla"
+        )
+
+    @pytest.mark.parametrize("rol", [Rol.RESIDENTE, Rol.SUPERVISOR, Rol.SUPER_INTENDENTE])
+    def test_solo_control_observa(self, rol: Rol) -> None:
+        with pytest.raises(ErrorDeReprogramacion, match="control de obra"):
+            texto_de_observacion(rol=rol, texto="algo")
+
+    def test_la_observacion_dice_algo(self) -> None:
+        with pytest.raises(ErrorDeReprogramacion, match="texto"):
+            texto_de_observacion(rol=Rol.CONTROL_OBRA, texto="   ")

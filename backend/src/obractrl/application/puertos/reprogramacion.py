@@ -1,4 +1,4 @@
-"""Puerto de las reprogramaciones de lo contratado (migración 0072)."""
+"""Puerto de las reprogramaciones de lo asignado (migración 0072)."""
 
 from __future__ import annotations
 
@@ -53,4 +53,25 @@ class RepositorioReprogramaciones(Protocol):
     ) -> None:
         """Avanza el estatus y sella a quien lo hizo y cuándo. Lo que no se pasa no
         se toca."""
+        ...
+
+    async def agregar_observacion(
+        self,
+        *,
+        reprogramacion_id: UUID,
+        obra_id: UUID,
+        usuario_id: UUID,
+        rol: str,
+        texto: str,
+    ) -> UUID:
+        """Agrega una observación. Solo se agregan: no se editan ni se borran."""
+        ...
+
+    async def obtener_observacion(self, observacion_id: UUID) -> dict[str, Any] | None:
+        """La observación con el nombre de su autor."""
+        ...
+
+    async def observaciones_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Las observaciones de todas las reprogramaciones de la obra, las más
+        antiguas primero, con el nombre de su autor."""
         ...

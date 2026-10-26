@@ -34,6 +34,7 @@ from obractrl.application.eventos import (
     EstimacionValidada,
     IncidenciaDetiene,
     ReprogramacionAplicada,
+    ReprogramacionObservada,
 )
 from obractrl.application.puertos.tiempo_real import Aviso, PublicadorEnVivo
 from obractrl.infrastructure.db.sesion import ContextoSesion
@@ -86,12 +87,22 @@ def _reprogramacion_aplicada(evento: ReprogramacionAplicada) -> tuple[str, dict[
     }
 
 
+def _reprogramacion_observada(evento: ReprogramacionObservada) -> tuple[str, dict[str, str]]:
+    # Sin el texto: el aviso llega a todos los conectados de la organización y la
+    # observación la lee quien tenga permiso, por su endpoint (§12.4).
+    return "reprogramacion_observada", {
+        "obra_id": str(evento.obra_id),
+        "reprogramacion_id": str(evento.reprogramacion_id),
+    }
+
+
 TRADUCCIONES: dict[type, Callable[[Any], tuple[str, dict[str, str]]]] = {
     ActividadCerrada: _actividad_cerrada,
     IncidenciaDetiene: _incidencia_detiene,
     EstimacionValidada: _estimacion_validada,
     CierreDeObraCompletado: _cierre_de_obra,
     ReprogramacionAplicada: _reprogramacion_aplicada,
+    ReprogramacionObservada: _reprogramacion_observada,
 }
 """Los eventos del §11.1 que hoy existen (y el de D-533). Ver el encabezado sobre por
 qué esto es una tabla explícita."""

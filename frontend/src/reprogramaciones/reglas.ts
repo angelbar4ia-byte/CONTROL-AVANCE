@@ -1,7 +1,7 @@
 /**
- * Reflejo de UX de reprogramar lo contratado (migración 0072; D-533, P-4).
+ * Reflejo de UX de reprogramar lo asignado (migración 0072; D-533, P-4).
  *
- * «Las fechas contratadas no se mueven solas»: se **propone** la fecha nueva y una
+ * «Las fechas asignadas no se mueven solas»: se **propone** la fecha nueva y una
  * cadena la acepta.
  *
  *     propone              revisa        valida           realiza
@@ -35,6 +35,14 @@ export function accionesDeReprogramacion(
     if (estatus === 'validada') return ['aplicar', 'rechazar'];
   }
   return [];
+}
+
+/**
+ * Control de obra deja observaciones al residente y al supervisor. No es un paso de la
+ * cadena: cabe en cualquier estatus, también aplicada o rechazada.
+ */
+export function puedeObservar(rol: Rol | null): boolean {
+  return rol === 'control_obra';
 }
 
 /** Sigue en la cadena: ocupa a la actividad y no admite otra propuesta. */
@@ -82,7 +90,7 @@ export function quienSigue(
   }
 }
 
-/** El rechazo del `PATCH` de fechas de algo contratado (P-4): el camino es proponer. */
-export function esFechaDeLoContratado(error: { readonly tipo?: string } | null): boolean {
-  return error?.tipo?.endsWith('fechas-de-lo-contratado') === true;
+/** El rechazo del `PATCH` de fechas de algo asignado (P-4): el camino es proponer. */
+export function esFechaDeLoAsignado(error: { readonly tipo?: string } | null): boolean {
+  return error?.tipo?.endsWith('fechas-de-lo-asignado') === true;
 }

@@ -14,7 +14,7 @@ export interface ProponerReprogramacionPeticion {
   /** La fecha de término nueva. */
   fecha_termino?: ProponerReprogramacionPeticionFechaTermino;
   /**
-   * Obligatorio: por qué se mueve lo contratado.
+   * Obligatorio: por qué se mueve lo asignado.
    * @minLength 1
    */
   motivo: string;

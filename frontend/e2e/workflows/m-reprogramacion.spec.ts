@@ -10,7 +10,7 @@ import {
 } from '../infraestructura';
 
 /**
- * Reprogramar lo contratado: las fechas no se mueven solas (migración 0072; cerebro
+ * Reprogramar lo asignado: las fechas no se mueven solas (migración 0072; cerebro
  * D-533, P-4).
  *
  * Una actividad cuyo frente tiene contratista en la planeación de la obra no admite que
@@ -23,13 +23,15 @@ import {
  *  3. El supervisor la revisa y control de obra la valida y la realiza, cada uno desde
  *     la bandeja de Reprogramaciones, que solo le ofrece el paso que le toca.
  *  4. Realizada, la fecha se movió y la bitácora del programa dice por qué reprogramación.
+ *  5. Control de obra deja una observación al residente y al supervisor: no mueve la
+ *     cadena, y ellos la leen en su bandeja (quien no es control no ve cómo observar).
  *
  * Es una obra nueva por corrida: no consume obras de la semilla.
  */
 
 const ROLES_M = ['residente', 'supervisor', 'control'] as const;
 
-test.describe('Reprogramar lo contratado · la cadena con salto', () => {
+test.describe('Reprogramar lo asignado · la cadena con salto', () => {
   test.skip(!hayRoles(...ROLES_M), motivoSinRoles(...ROLES_M));
   test.setTimeout(120_000);
 
@@ -86,7 +88,7 @@ test.describe('Reprogramar lo contratado · la cadena con salto', () => {
     );
     expect(trato.status()).toBe(204);
 
-    // --- 2. Contratada: el panel no mueve la fecha, ofrece proponerla --------------
+    // --- 2. Asignada: el panel no mueve la fecha, ofrece proponerla --------------
     await residente.reload();
     await residente.getByLabel('Obra', { exact: true }).selectOption({ label: clave });
     await residente.getByRole('button', { name: /Excavación de cepas/ }).first().click();
@@ -94,7 +96,7 @@ test.describe('Reprogramar lo contratado · la cadena con salto', () => {
     await panel.getByLabel('Inicio').fill('2031-03-10');
     await panel.getByLabel('Término').fill('2031-03-14');
     await panel.getByRole('button', { name: 'Guardar y recalcular' }).click();
-    await expect(panel.getByRole('heading', { name: 'Esta actividad está contratada' })).toBeVisible();
+    await expect(panel.getByRole('heading', { name: 'Esta actividad está asignada' })).toBeVisible();
     await expect(panel.getByText('Programación ajustada')).toHaveCount(0);
 
     await panel.getByLabel('Motivo de la reprogramación').fill('El contratista no tenía cuadrilla');
@@ -158,5 +160,25 @@ test.describe('Reprogramar lo contratado · la cadena con salto', () => {
     expect(movida!.antes).toEqual({ fecha_inicio: '2031-03-03', fecha_termino: '2031-03-07' });
     expect(movida!.despues).toMatchObject({ fecha_inicio: '2031-03-10', fecha_termino: '2031-03-14' });
     expect(movida!.despues.reprogramacion_id).toBeTruthy();
+
+    // --- 5. Control observa; el residente y el supervisor la leen --------------------
+    await expect(filaSup.getByRole('button', { name: 'Observar' })).toHaveCount(0); // no es de su rol
+    await filaCtrl.getByRole('button', { name: 'Observar' }).click();
+    await control.getByRole('dialog').getByLabel('Observación').fill('Avisa al cliente del nuevo plazo');
+    await control.getByRole('dialog').getByRole('button', { name: 'Enviar observación' }).click();
+    await expect(filaCtrl).toContainText('Avisa al cliente del nuevo plazo');
+    await expect(filaCtrl).toContainText('Aplicada'); // observar no cambia el estatus
+
+    await residente.goto('/reprogramaciones');
+    await residente.getByLabel('Obra', { exact: true }).selectOption({ label: clave });
+    const filaRes = residente.getByRole('row', { name: /Excavación de cepas/ });
+    await expect(filaRes).toContainText('Avisa al cliente del nuevo plazo');
+    await expect(filaRes.getByRole('button', { name: 'Observar' })).toHaveCount(0);
+
+    await supervisor.reload();
+    await supervisor.getByLabel('Obra', { exact: true }).selectOption({ label: clave });
+    await expect(supervisor.getByRole('row', { name: /Excavación de cepas/ })).toContainText(
+      'Avisa al cliente del nuevo plazo',
+    );
   });
 });

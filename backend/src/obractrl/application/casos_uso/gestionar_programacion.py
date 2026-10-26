@@ -95,7 +95,7 @@ from obractrl.domain.programacion.reglas import (
     validar_item_base,
 )
 from obractrl.domain.programacion.reprogramacion import (
-    esta_contratada,
+    esta_asignada,
     exigir_fechas_libres,
 )
 from obractrl.domain.shared.diccionario import ClaseNodo, Rol
@@ -307,7 +307,7 @@ class ComandoEditarProgramacion:
     tramos: tuple[Tramo, ...] | None = None
     inicio_dias: Decimal | None = None
     reprogramacion_id: UUID | None = None
-    """Solo lo pone `AplicarReprogramacion`: la fecha de lo contratado se mueve por
+    """Solo lo pone `AplicarReprogramacion`: la fecha de lo asignado se mueve por
     la cadena (D-533), y ese es el único camino que puede tocarla (P-4)."""
 
 
@@ -1224,11 +1224,11 @@ class EditarProgramacionActividad:
                 f"Actividad {cmd.actividad_id} no encontrada en tu alcance."
             )
 
-        # Las fechas de lo contratado no se mueven solas (P-4): se cambian por la
+        # Las fechas de lo asignado no se mueven solas (P-4): se cambian por la
         # cadena de reprogramación, que es la única que llega aquí con su id.
         if cmd.reprogramacion_id is None:
             exigir_fechas_libres(
-                contratada=esta_contratada(contratista_id=fila.get("contratista_id")),
+                asignada=esta_asignada(contratista_id=fila.get("contratista_id")),
                 toca_fechas=cmd.fecha_inicio is not None or cmd.fecha_termino is not None,
             )
 

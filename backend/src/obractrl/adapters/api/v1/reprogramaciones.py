@@ -1,6 +1,6 @@
-"""Reprogramar lo contratado (migración 0072; cerebro D-533, P-4).
+"""Reprogramar lo asignado (migración 0072; cerebro D-533, P-4).
 
-«Las fechas contratadas no se mueven solas.» El `PATCH` de programación rechaza con 409 el
+«Las fechas asignadas no se mueven solas.» El `PATCH` de programación rechaza con 409 el
 intento de mover directo la fecha de una actividad con contratista; el camino es esta
 cadena:
 
@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 from obractrl.adapters.api.casos_uso import (
     AplicarReprogramacionDep,
     ConsultarReprogramacionesDep,
+    ObservarReprogramacionDep,
     ProponerReprogramacionDep,
     RechazarReprogramacionDep,
     RevisarReprogramacionDep,
@@ -33,6 +34,7 @@ from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.adapters.api.idempotencia import Idempotencia
 from obractrl.application.casos_uso.gestionar_reprogramacion import (
     ComandoAplicarReprogramacion,
+    ComandoObservarReprogramacion,
     ComandoProponerReprogramacion,
     ComandoRechazarReprogramacion,
     ComandoRevisarReprogramacion,
@@ -47,11 +49,28 @@ router = APIRouter(tags=["programacion"])
 class ProponerReprogramacionPeticion(BaseModel):
     fecha_inicio: date | None = Field(default=None, description="La fecha de inicio nueva.")
     fecha_termino: date | None = Field(default=None, description="La fecha de término nueva.")
-    motivo: str = Field(min_length=1, description="Obligatorio: por qué se mueve lo contratado.")
+    motivo: str = Field(min_length=1, description="Obligatorio: por qué se mueve lo asignado.")
 
 
 class RechazarReprogramacionPeticion(BaseModel):
     motivo: str = Field(min_length=1, description="Obligatorio: es lo que quien propuso corrige.")
+
+
+class ObservarReprogramacionPeticion(BaseModel):
+    texto: str = Field(
+        min_length=1,
+        description="La observación para el residente y el supervisor. No cambia el estatus.",
+    )
+
+
+class ObservacionRespuesta(BaseModel):
+    id: UUID
+    reprogramacion_id: UUID
+    usuario_id: UUID
+    usuario_nombre: str | None = None
+    rol: str
+    texto: str
+    creada_en: datetime
 
 
 class ReprogramacionRespuesta(BaseModel):
@@ -132,6 +151,10 @@ class ReprogramacionDeObraRespuesta(BaseModel):
     rechazada_por_nombre: str | None = None
     rechazada_en: datetime | None = None
     motivo_rechazo: str | None = None
+    observaciones: list[ObservacionRespuesta] = Field(
+        default_factory=list,
+        description="Lo que control de obra le ha dicho al residente y al supervisor, en orden.",
+    )
 
 
 _PASO = {
@@ -143,7 +166,7 @@ _PASO = {
 @router.get(
     "/obras/{obra_id}/reprogramaciones",
     response_model=list[ReprogramacionDeObraRespuesta],
-    summary="Las reprogramaciones de lo contratado de una obra",
+    summary="Las reprogramaciones de lo asignado de una obra",
     responses={404: {"description": "La obra no existe o está fuera de tu alcance."}},
 )
 async def reprogramaciones_de_la_obra(
@@ -157,13 +180,13 @@ async def reprogramaciones_de_la_obra(
     "/actividades/{actividad_id}/reprogramaciones",
     response_model=ReprogramacionRespuesta,
     status_code=status.HTTP_201_CREATED,
-    summary="Proponer la fecha nueva de una actividad contratada",
+    summary="Proponer la fecha nueva de una actividad asignada",
     dependencies=[Depends(exigir_rol(Rol.RESIDENTE, Rol.SUPERVISOR)), Idempotencia],
     responses={
         404: {"description": "La actividad no existe o está fuera de tu alcance."},
         409: {
             "description": (
-                "La actividad no está contratada, no hay nada que mover, o ya tiene una "
+                "La actividad no está asignada, no hay nada que mover, o ya tiene una "
                 "reprogramación en la cadena."
             )
         },
@@ -176,7 +199,7 @@ async def proponer_reprogramacion(
     caso_uso: ProponerReprogramacionDep,
 ) -> ReprogramacionRespuesta:
     """Propone el residente (lo revisa el supervisor) o el supervisor (la revisión se
-    salta). Solo se reprograma lo contratado; lo demás se edita directo."""
+    salta). Solo se reprograma lo asignado; lo demás se edita directo."""
     reprogramacion_id, reprogramacion = await caso_uso.ejecutar(
         ComandoProponerReprogramacion(
             actividad_id=actividad_id,
@@ -229,7 +252,7 @@ async def validar_reprogramacion(
 @router.post(
     "/reprogramaciones/{reprogramacion_id}/aplicar",
     response_model=ReprogramacionRespuesta,
-    summary="Realizar la reprogramación: mueve la fecha de lo contratado y avisa",
+    summary="Realizar la reprogramación: mueve la fecha de lo asignado y avisa",
     dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA)), Idempotencia],
     responses=_PASO,
 )
@@ -268,3 +291,34 @@ async def rechazar_reprogramacion(
         )
     )
     return ReprogramacionRespuesta.desde_dominio(reprogramacion_id, reprogramacion)
+
+
+@router.post(
+    "/reprogramaciones/{reprogramacion_id}/observaciones",
+    response_model=ObservacionRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Dejar una observación al residente y al supervisor",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA)), Idempotencia],
+    responses={
+        404: {"description": "La reprogramación no existe o está fuera de tu alcance."},
+        409: {"description": "El texto de la observación está vacío."},
+    },
+)
+async def observar_reprogramacion(
+    reprogramacion_id: UUID,
+    peticion: ObservarReprogramacionPeticion,
+    ctx: ContextoActual,
+    caso_uso: ObservarReprogramacionDep,
+) -> ObservacionRespuesta:
+    """Control de obra dice algo sin mover la cadena: cabe en cualquier estatus, también
+    aplicada o rechazada. Se avisa al residente y al supervisor de la obra (correo y push).
+    Las observaciones solo se agregan."""
+    observacion = await caso_uso.ejecutar(
+        ComandoObservarReprogramacion(
+            reprogramacion_id=reprogramacion_id,
+            usuario_id=ctx.usuario_id,
+            rol=Rol(ctx.rol),
+            texto=peticion.texto,
+        )
+    )
+    return ObservacionRespuesta(**observacion)

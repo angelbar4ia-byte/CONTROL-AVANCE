@@ -209,7 +209,7 @@ class TestContrato:
             "POST /api/v1/cierres-frente/{cierre_id}/aprobar",
             "POST /api/v1/cierres-frente/{cierre_id}/validar",
             "POST /api/v1/cierres-frente/{cierre_id}/rechazar",
-            # Reprogramar lo contratado (0072): cada paso de la cadena deja un trámite
+            # Reprogramar lo asignado (0072): cada paso de la cadena deja un trámite
             # con quién y cuándo, y «realizar» mueve la fecha y avisa a los demás —un
             # doble clic no debe repetir ni lo uno ni lo otro.
             "POST /api/v1/actividades/{actividad_id}/reprogramaciones",
@@ -217,6 +217,9 @@ class TestContrato:
             "POST /api/v1/reprogramaciones/{reprogramacion_id}/validar",
             "POST /api/v1/reprogramaciones/{reprogramacion_id}/aplicar",
             "POST /api/v1/reprogramaciones/{reprogramacion_id}/rechazar",
+            # Una observación se agrega a un rastro que no se reescribe y dispara un
+            # correo y un push: un reintento no debe dejarla ni avisarla dos veces.
+            "POST /api/v1/reprogramaciones/{reprogramacion_id}/observaciones",
         }
 
     def test_es_opcional(self) -> None:
