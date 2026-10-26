@@ -66,6 +66,7 @@ from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.organizacion_sql import RepositorioOrganizacionSQL
+from obractrl.adapters.repos.partes_sql import RepositorioPartesSQL
 from obractrl.adapters.repos.planeacion_sql import RepositorioPlaneacionSQL
 from obractrl.adapters.repos.presupuestos_sql import RepositorioPresupuestosSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
@@ -212,6 +213,14 @@ from obractrl.application.casos_uso.gestionar_obra import (
     CrearObrasEnLote,
 )
 from obractrl.application.casos_uso.gestionar_organizacion import ReiniciarOrganizacion
+from obractrl.application.casos_uso.gestionar_partes import (
+    CambiarEstadoDePartes,
+    ConsultarBitacoraDePartes,
+    ConsultarPartes,
+    FijarPlantasDeObra,
+    FijarPlantasDePrototipo,
+    MarcarParteIndependiente,
+)
 from obractrl.application.casos_uso.gestionar_programacion import (
     ComandoRecalcularRutaCritica,
     ConsultarArbolPrograma,
@@ -286,12 +295,14 @@ __all__ = [
     "AsignarFrenteDeObraDep",
     "AutorizarCierreDep",
     "CalibrarEscalaDePlanoDep",
+    "CambiarEstadoDePartesDep",
     "CapturarAvanceDep",
     "CapturarCausaDeDesviacionDep",
     "CerrarIncidenciaDep",
     "ColaDeTrabajosDep",
     "ConfirmarAvanceDep",
     "ConsultarArbolProgramaDep",
+    "ConsultarBitacoraDePartesDep",
     "ConsultarCargaDep",
     "ConsultarCierreDeObraDep",
     "ConsultarComprobacionesDep",
@@ -302,6 +313,7 @@ __all__ = [
     "ConsultarExpedienteDep",
     "ConsultarFrentesDeObraDep",
     "ConsultarInsumosProgramadosDep",
+    "ConsultarPartesDep",
     "ConsultarPlaneacionDep",
     "ConsultarReprogramacionesDep",
     "ConsultarRutaCriticaDep",
@@ -330,11 +342,14 @@ __all__ = [
     "ExplotarEnsambleDep",
     "ExtraerEnsambleDep",
     "FabricaDeCargasDep",
+    "FijarPlantasDeObraDep",
+    "FijarPlantasDePrototipoDep",
     "GenerarDesdeEnsambleDep",
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
     "IniciarObraDep",
     "InstanciarProgramaObraDep",
+    "MarcarParteIndependienteDep",
     "ObservarReprogramacionDep",
     "ObtenerCPUDep",
     "ParticiparEnCierreDep",
@@ -1304,6 +1319,66 @@ def obtener_aplicar_reprogramacion(
         eventos=_bus_de_reprogramacion(sesion, ctx),
     )
 
+
+def obtener_consultar_partes(sesion: SesionRLS) -> ConsultarPartes:
+    return ConsultarPartes(
+        partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion)
+    )
+
+
+def obtener_marcar_parte_independiente(sesion: SesionRLS) -> MarcarParteIndependiente:
+    return MarcarParteIndependiente(
+        partes=RepositorioPartesSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+def obtener_fijar_plantas_de_obra(sesion: SesionRLS) -> FijarPlantasDeObra:
+    return FijarPlantasDeObra(partes=RepositorioPartesSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
+
+
+def obtener_fijar_plantas_de_prototipo(sesion: SesionRLS) -> FijarPlantasDePrototipo:
+    return FijarPlantasDePrototipo(
+        partes=RepositorioPartesSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+def _bus_de_partes(sesion: SesionRLS, ctx: ContextoActual) -> BusEnProceso:
+    """`PartesCambiaronDeEstado` → aviso en vivo (D-571). Los avisos por correo y push a quien
+    da el siguiente paso llegan con la autorización (fase 2)."""
+    return suscribir_avisos(BusEnProceso(), ctx=ctx, canal=canal_de_avisos)
+
+
+def obtener_cambiar_estado_de_partes(
+    sesion: SesionRLS, ctx: ContextoActual
+) -> CambiarEstadoDePartes:
+    return CambiarEstadoDePartes(
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+    )
+
+
+def obtener_consultar_bitacora_de_partes(sesion: SesionRLS) -> ConsultarBitacoraDePartes:
+    return ConsultarBitacoraDePartes(
+        partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion)
+    )
+
+
+CambiarEstadoDePartesDep = Annotated[
+    CambiarEstadoDePartes, Depends(obtener_cambiar_estado_de_partes)
+]
+ConsultarBitacoraDePartesDep = Annotated[
+    ConsultarBitacoraDePartes, Depends(obtener_consultar_bitacora_de_partes)
+]
+ConsultarPartesDep = Annotated[ConsultarPartes, Depends(obtener_consultar_partes)]
+MarcarParteIndependienteDep = Annotated[
+    MarcarParteIndependiente, Depends(obtener_marcar_parte_independiente)
+]
+FijarPlantasDeObraDep = Annotated[FijarPlantasDeObra, Depends(obtener_fijar_plantas_de_obra)]
+FijarPlantasDePrototipoDep = Annotated[
+    FijarPlantasDePrototipo, Depends(obtener_fijar_plantas_de_prototipo)
+]
 
 CrearProgramaBaseDep = Annotated[
     CrearProgramaBase, Depends(obtener_crear_programa_base)

@@ -11159,6 +11159,352 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/partes": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Las partes de una obra: etapas y conceptos independientes",
+        "description": "Todos los roles, cada uno con su alcance (RLS).",
+        "operationId": "partes_de_la_obra_api_v1_obras__obra_id__partes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartesDeObraRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/parte-independiente": {
+      "put": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Una actividad es una parte por sí sola, o vuelve a viajar con su etapa",
+        "operationId": "marcar_parte_independiente_api_v1_actividades__actividad_id__parte_independiente_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParteIndependientePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/plantas": {
+      "put": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Las plantas de la obra (1 o 2)",
+        "operationId": "fijar_plantas_de_obra_api_v1_obras__obra_id__plantas_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlantasPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Una casa tiene 1 o 2 plantas."
+          }
+        }
+      }
+    },
+    "/api/v1/prototipos/{prototipo_id}/plantas": {
+      "put": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Las plantas del prototipo (1 o 2)",
+        "operationId": "fijar_plantas_de_prototipo_api_v1_prototipos__prototipo_id__plantas_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "prototipo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Prototipo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlantasPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Una casa tiene 1 o 2 plantas."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/partes/transicion": {
+      "post": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Mandar, autorizar, validar, programar, asignar o devolver partes",
+        "description": "Una, varias o todas («total o por partes»). Todo o nada: si una parte no puede dar el\npaso, no se escribe ninguna. Cada paso queda en la bitácora.",
+        "operationId": "cambiar_estado_de_partes_api_v1_obras__obra_id__partes_transicion_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarEstadoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PasoDeParteRespuesta"
+                  },
+                  "title": "Response Cambiar Estado De Partes Api V1 Obras  Obra Id  Partes Transicion Post"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "403": {
+            "description": "Tu rol no puede hacer esa acción sobre una parte."
+          },
+          "409": {
+            "description": "Una parte no está en el paso que la acción pide (no se escribe ninguna)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/partes/bitacora": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Bitácora de las partes: quién mandó, autorizó o devolvió qué",
+        "description": "Todos los roles, cada uno con su alcance. Lo más reciente, primero. No se edita.",
+        "operationId": "bitacora_de_partes_api_v1_obras__obra_id__partes_bitacora_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TransicionDeParteRespuesta"
+                  },
+                  "title": "Response Bitacora De Partes Api V1 Obras  Obra Id  Partes Bitacora Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -11319,6 +11665,19 @@
         ],
         "title": "AbrirIncidenciaPeticion",
         "description": "Alta de incidencia (§11.3 F.1). Cualquier rol la abre."
+      },
+      "Accion": {
+        "type": "string",
+        "enum": [
+          "enviar_a_presupuesto",
+          "autorizar",
+          "validar",
+          "enviar_a_programa",
+          "programar",
+          "asignar",
+          "devolver"
+        ],
+        "title": "Accion"
       },
       "ActividadDetalleRespuesta": {
         "properties": {
@@ -13149,6 +13508,55 @@
         ],
         "title": "CalendarioRespuesta",
         "description": "El calendario tal como quedó, con su lectura para la pantalla.\n\n`tipo` es **derivado** de `dias_habiles`, no un segundo dato: se calcula al\nconstruir la respuesta y nunca se captura, así que no hay forma de que los\ndos se contradigan. Existe para que el interruptor \"semana laboral / semana\nnatural\" no obligue a cada cliente a reimplementar la equivalencia."
+      },
+      "CambiarEstadoPeticion": {
+        "properties": {
+          "accion": {
+            "$ref": "#/components/schemas/Accion",
+            "description": "Qué se hace con las partes."
+          },
+          "claves": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Claves",
+            "description": "Las partes (por `clave`)."
+          },
+          "todas": {
+            "type": "boolean",
+            "title": "Todas",
+            "description": "Todas las partes que están en el paso que la acción pide («el total»).",
+            "default": false
+          },
+          "a": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EstadoDeParte"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo `devolver`: el paso anterior al que se vuelve."
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accion"
+        ],
+        "title": "CambiarEstadoPeticion"
       },
       "CambiarEstatusPeticion": {
         "properties": {
@@ -16890,6 +17298,20 @@
         ],
         "title": "EstadoDeObraRespuesta",
         "description": "El renglón de la Torre: una obra y lo que le falta (§5.1)."
+      },
+      "EstadoDeParte": {
+        "type": "string",
+        "enum": [
+          "cuantificando",
+          "enviada_presupuesto",
+          "por_validar",
+          "autorizada",
+          "enviada_programa",
+          "programada",
+          "asignada"
+        ],
+        "title": "EstadoDeParte",
+        "description": "Es el enum de Postgres `estado_parte`."
       },
       "EstadoRenglonGenerado": {
         "type": "string",
@@ -21026,6 +21448,136 @@
         "title": "ParametrosReporte",
         "description": "Lo que puede necesitar un reporte del catálogo.\n\nUn solo modelo con todo opcional en vez de uno por tipo: el borde valida\ncontra `TipoDeReporte.requiere`, que es la lista que de verdad manda, y\nasí agregar un reporte no agrega un DTO. Lo que se pierde —que OpenAPI no\ndiga *para este tipo, este campo es obligatorio*— se compensa con\n`GET /reportes/tipos`, que publica la tabla.\n\n**Ningún campo de alcance.** No hay `usuario_id` ni `org_id`: el alcance\nsale del token y lo aplica RLS (§12.4). `proyecto_id` y `cluster_id` son\nfoco dentro de lo visible, no permiso."
       },
+      "ParteIndependientePeticion": {
+        "properties": {
+          "independiente": {
+            "type": "boolean",
+            "title": "Independiente",
+            "description": "`true`: la actividad es una parte por sí sola (losa, piso…)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "independiente"
+        ],
+        "title": "ParteIndependientePeticion"
+      },
+      "ParteRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave",
+            "description": "`etapa:<id>`, `concepto:<id>` o `sin_etapa:-`."
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "`etapa` · `concepto` (independiente) · `sin_etapa`."
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "La etapa o la actividad independiente."
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado",
+            "description": "`cuantificando` · `enviada_presupuesto` · `por_validar` · `autorizada` · `enviada_programa` · `programada` · `asignada`. Sin renglón: `cuantificando`."
+          },
+          "n_actividades": {
+            "type": "integer",
+            "title": "N Actividades"
+          },
+          "actividad_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Actividad Ids"
+          },
+          "importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe"
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct",
+            "description": "Ponderado por importe, como el de la obra."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "tipo",
+          "nombre",
+          "estado",
+          "n_actividades",
+          "actividad_ids",
+          "importe",
+          "avance_pct"
+        ],
+        "title": "ParteRespuesta"
+      },
+      "PartesDeObraRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "plantas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantas",
+            "description": "1 o 2; nace del prototipo."
+          },
+          "plantas_del_prototipo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantas Del Prototipo"
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/ParteRespuesta"
+            },
+            "type": "array",
+            "title": "Partes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "partes"
+        ],
+        "title": "PartesDeObraRespuesta"
+      },
       "ParticipacionRespuesta": {
         "properties": {
           "id": {
@@ -21245,6 +21797,29 @@
           "orden"
         ],
         "title": "PartidaRespuesta"
+      },
+      "PasoDeParteRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "de": {
+            "type": "string",
+            "title": "De"
+          },
+          "a": {
+            "type": "string",
+            "title": "A"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "de",
+          "a"
+        ],
+        "title": "PasoDeParteRespuesta"
       },
       "PendienteBandejaRespuesta": {
         "properties": {
@@ -21655,6 +22230,24 @@
           "version"
         ],
         "title": "PlanoRespuesta"
+      },
+      "PlantasPeticion": {
+        "properties": {
+          "plantas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantas",
+            "description": "1 o 2; `null` la deja sin decir."
+          }
+        },
+        "type": "object",
+        "title": "PlantasPeticion"
       },
       "PrecioArmadoRespuesta": {
         "properties": {
@@ -22434,6 +23027,18 @@
               }
             ],
             "title": "Recamaras"
+          },
+          "plantas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantas",
+            "description": "1 o 2 (planta baja y alta); ver `PUT /prototipos/{id}/plantas`."
           }
         },
         "type": "object",
@@ -24862,6 +25467,79 @@
         ],
         "title": "TramoDTO",
         "description": "Un segmento de una actividad interrumpida (§7.6).\n\nLista vacía = actividad continua, el caso normal. Con tramos, la\n`duracion_dias` de la actividad es la **suma** de sus tramos —los días de\ntrabajo— y lo que ocupa en el calendario es\n`max(offset_dias + duracion_dias)`, que es lo que el CPM encadena."
+      },
+      "TransicionDeParteRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "accion": {
+            "type": "string",
+            "title": "Accion"
+          },
+          "de": {
+            "type": "string",
+            "title": "De"
+          },
+          "a": {
+            "type": "string",
+            "title": "A"
+          },
+          "usuario_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Usuario Id"
+          },
+          "usuario_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Nombre"
+          },
+          "rol": {
+            "type": "string",
+            "title": "Rol"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          },
+          "creada_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creada En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "accion",
+          "de",
+          "a",
+          "usuario_id",
+          "rol",
+          "creada_en"
+        ],
+        "title": "TransicionDeParteRespuesta"
       },
       "TrazoAprobadoRespuesta": {
         "properties": {

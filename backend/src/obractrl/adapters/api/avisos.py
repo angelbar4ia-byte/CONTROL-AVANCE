@@ -33,6 +33,7 @@ from obractrl.application.eventos import (
     CierreDeObraCompletado,
     EstimacionValidada,
     IncidenciaDetiene,
+    PartesCambiaronDeEstado,
     ReprogramacionAplicada,
     ReprogramacionObservada,
 )
@@ -96,6 +97,14 @@ def _reprogramacion_observada(evento: ReprogramacionObservada) -> tuple[str, dic
     }
 
 
+def _partes_cambiaron(evento: PartesCambiaronDeEstado) -> tuple[str, dict[str, str]]:
+    return "partes_cambiaron_de_estado", {
+        "obra_id": str(evento.obra_id),
+        "accion": evento.accion,
+        "n": str(len(evento.claves)),
+    }
+
+
 TRADUCCIONES: dict[type, Callable[[Any], tuple[str, dict[str, str]]]] = {
     ActividadCerrada: _actividad_cerrada,
     IncidenciaDetiene: _incidencia_detiene,
@@ -103,6 +112,7 @@ TRADUCCIONES: dict[type, Callable[[Any], tuple[str, dict[str, str]]]] = {
     CierreDeObraCompletado: _cierre_de_obra,
     ReprogramacionAplicada: _reprogramacion_aplicada,
     ReprogramacionObservada: _reprogramacion_observada,
+    PartesCambiaronDeEstado: _partes_cambiaron,
 }
 """Los eventos del §11.1 que hoy existen (y el de D-533). Ver el encabezado sobre por
 qué esto es una tabla explícita."""

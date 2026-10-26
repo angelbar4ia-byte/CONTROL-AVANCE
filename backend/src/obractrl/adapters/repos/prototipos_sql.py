@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 __all__ = ["RepositorioPrototiposSQL"]
 
 _COLUMNAS = """
-    id, proyecto_id, clave, nombre, m2, niveles, recamaras
+    id, proyecto_id, clave, nombre, m2, niveles, recamaras, plantas
 """
 
 

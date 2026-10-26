@@ -1,0 +1,178 @@
+"""Repositorio de las partes de una obra y de sus plantas (migración 0074).
+
+Nada aquí filtra por organización u obra para decidir qué es visible: lo impone RLS (§12.4).
+"""
+
+from __future__ import annotations
+
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+__all__ = ["RepositorioPartesSQL"]
+
+
+class RepositorioPartesSQL:
+    def __init__(self, sesion: AsyncSession) -> None:
+        self._sesion = sesion
+
+    async def actividades_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select a.id, coalesce(a.descripcion, c.descripcion, '') as descripcion,
+                           a.avance_pct, a.cant_base * a.precio_unitario as importe,
+                           a.parte_independiente as independiente,
+                           a.etapa_id, e.descripcion as etapa_nombre,
+                           n.clave as nivel_clave
+                      from actividad a
+                      left join concepto c on c.id = a.concepto_id
+                      left join etapa_constructiva e on e.id = a.etapa_id
+                      left join nivel n on n.id = coalesce(a.nivel_id, e.nivel_id)
+                     where a.obra_id = :obra_id
+                     order by n.orden nulls last, e.orden nulls last, e.clave nulls last,
+                              c.clave nulls last, a.id
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def plantas_de_obra(self, obra_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select o.plantas, p.plantas as plantas_del_prototipo
+                      from obra o left join prototipo p on p.id = o.prototipo_id
+                     where o.id = :id
+                    """
+                ),
+                {"id": str(obra_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def marcar_independiente(self, actividad_id: UUID, independiente: bool) -> bool:
+        r = await self._sesion.execute(
+            text("update actividad set parte_independiente = :v where id = :id"),
+            {"v": independiente, "id": str(actividad_id)},
+        )
+        return r.rowcount > 0
+
+    async def fijar_plantas_de_obra(self, obra_id: UUID, plantas: int | None) -> bool:
+        r = await self._sesion.execute(
+            text("update obra set plantas = :p where id = :id"),
+            {"p": plantas, "id": str(obra_id)},
+        )
+        return r.rowcount > 0
+
+    async def fijar_plantas_de_prototipo(self, prototipo_id: UUID, plantas: int | None) -> bool:
+        r = await self._sesion.execute(
+            text("update prototipo set plantas = :p where id = :id"),
+            {"p": plantas, "id": str(prototipo_id)},
+        )
+        return r.rowcount > 0
+
+    async def parte_de_actividad(self, actividad_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select obra_id,
+                           case when parte_independiente then 'concepto:' || id::text
+                                when etapa_id is not null then 'etapa:' || etapa_id::text
+                                else 'sin_etapa:-' end as clave
+                      from actividad where id = :id
+                    """
+                ),
+                {"id": str(actividad_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def estados_de_obra(self, obra_id: UUID) -> dict[str, str]:
+        filas = (
+            await self._sesion.execute(
+                text("select clave, estado::text as estado from parte_estado where obra_id = :id"),
+                {"id": str(obra_id)},
+            )
+        ).mappings().all()
+        return {f["clave"]: f["estado"] for f in filas}
+
+    async def fijar_estado(
+        self, obra_id: UUID, clave: str, estado: str, usuario_id: UUID | None
+    ) -> None:
+        await self._sesion.execute(
+            text(
+                """
+                insert into parte_estado (org_id, obra_id, clave, estado, actualizada_por)
+                values (current_setting('app.org_id')::uuid, :obra_id, :clave,
+                        cast(:estado as estado_parte), cast(:usuario as uuid))
+                on conflict (obra_id, clave) do update
+                   set estado = excluded.estado, actualizada_por = excluded.actualizada_por,
+                       actualizada_en = now()
+                """
+            ),
+            {
+                "obra_id": str(obra_id),
+                "clave": clave,
+                "estado": estado,
+                "usuario": str(usuario_id) if usuario_id else None,
+            },
+        )
+
+    async def registrar_transicion(
+        self,
+        *,
+        obra_id: UUID,
+        clave: str,
+        accion: str,
+        de: str,
+        a: str,
+        usuario_id: UUID,
+        rol: str,
+        nota: str | None,
+    ) -> None:
+        await self._sesion.execute(
+            text(
+                """
+                insert into parte_transicion
+                    (org_id, obra_id, clave, accion, de, a, usuario_id, rol, nota)
+                values (current_setting('app.org_id')::uuid, :obra_id, :clave, :accion,
+                        cast(:de as estado_parte), cast(:a as estado_parte), :usuario, :rol, :nota)
+                """
+            ),
+            {
+                "obra_id": str(obra_id),
+                "clave": clave,
+                "accion": accion,
+                "de": de,
+                "a": a,
+                "usuario": str(usuario_id),
+                "rol": rol,
+                "nota": nota,
+            },
+        )
+
+    async def bitacora_de_obra(self, obra_id: UUID, *, limite: int = 200) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select t.id, t.clave, t.accion, t.de::text as de, t.a::text as a,
+                           t.usuario_id, u.nombre as usuario_nombre, t.rol, t.nota, t.creada_en
+                      from parte_transicion t left join usuario u on u.id = t.usuario_id
+                     where t.obra_id = :obra_id
+                     order by t.creada_en desc, t.id
+                     limit :limite
+                    """
+                ),
+                {"obra_id": str(obra_id), "limite": limite},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]

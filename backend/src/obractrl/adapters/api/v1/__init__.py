@@ -41,6 +41,7 @@ from obractrl.adapters.api.v1.insumos import router as router_insumos
 from obractrl.adapters.api.v1.materiales import router as router_materiales
 from obractrl.adapters.api.v1.obras import router as router_obras
 from obractrl.adapters.api.v1.organizacion import router as router_organizacion
+from obractrl.adapters.api.v1.partes import router as router_partes
 from obractrl.adapters.api.v1.planeacion import router as router_planeacion
 from obractrl.adapters.api.v1.presupuesto import router as router_presupuesto
 from obractrl.adapters.api.v1.procesos import router as router_procesos
@@ -95,3 +96,4 @@ api_v1.include_router(router_eventos)
 # es SSE (`GET /events`), la alternativa que el propio §11.2 nombra.
 __all__ = ["api_v1"]
 api_v1.include_router(router_reprogramaciones)
+api_v1.include_router(router_partes)

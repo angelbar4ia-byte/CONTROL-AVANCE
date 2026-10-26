@@ -223,6 +223,9 @@ class PrototipoRespuesta(BaseModel):
     m2: Decimal | None = None
     niveles: int | None = None
     recamaras: int | None = None
+    plantas: int | None = Field(
+        default=None, description="1 o 2 (planta baja y alta); ver `PUT /prototipos/{id}/plantas`."
+    )
 
     @classmethod
     def desde_dominio(
@@ -248,6 +251,7 @@ class PrototipoRespuesta(BaseModel):
             m2=fila["m2"],
             niveles=fila["niveles"],
             recamaras=fila["recamaras"],
+            plantas=fila.get("plantas"),
         )
 
 

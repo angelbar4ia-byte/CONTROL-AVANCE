@@ -92,6 +92,13 @@ from obractrl.application.casos_uso.gestionar_ensamble import (
 from obractrl.application.casos_uso.gestionar_estimacion import EstimacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_evaluacion import EvaluacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_incidencia import IncidenciaNoEncontrada
+from obractrl.application.casos_uso.gestionar_partes import (
+    ErrorDeParte,
+    ErrorDePlantas,
+    ParteNoEncontrada,
+    ParteNoPermitida,
+    PrototipoNoEncontrado,
+)
 from obractrl.application.casos_uso.gestionar_programacion import (
     ActividadNoProgramable,
     ConflictoNoResuelto,
@@ -607,6 +614,58 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=403,
             tipo="edicion-de-programa-no-permitida",
             titulo="Esa edición del programa no te corresponde",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ParteNoPermitida)
+    async def _parte_no_permitida(request: Request, exc: ParteNoPermitida) -> JSONResponse:
+        return _problema(
+            request,
+            status=403,
+            tipo="parte-no-permitida",
+            titulo="Ese paso de la parte no te corresponde",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeParte)
+    async def _error_de_parte(request: Request, exc: ErrorDeParte) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="regla-de-parte",
+            titulo="La parte no está en ese paso",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ParteNoEncontrada)
+    async def _parte_no_encontrada(request: Request, exc: ParteNoEncontrada) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="parte-no-encontrada",
+            titulo="Parte no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDePlantas)
+    async def _plantas(request: Request, exc: ErrorDePlantas) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="plantas-invalidas",
+            titulo="Plantas inválidas",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(PrototipoNoEncontrado)
+    async def _prototipo_no_encontrado(
+        request: Request, exc: PrototipoNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="prototipo-no-encontrado",
+            titulo="Prototipo no encontrado",
             detalle=str(exc),
         )
 

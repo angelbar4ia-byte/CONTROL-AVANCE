@@ -220,6 +220,9 @@ class TestContrato:
             # Una observación se agrega a un rastro que no se reescribe y dispara un
             # correo y un push: un reintento no debe dejarla ni avisarla dos veces.
             "POST /api/v1/reprogramaciones/{reprogramacion_id}/observaciones",
+            # Mandar, autorizar o asignar partes (0075) escribe estado y bitácora: un
+            # reintento por red caída no debe repetir el paso.
+            "POST /api/v1/obras/{obra_id}/partes/transicion",
         }
 
     def test_es_opcional(self) -> None:

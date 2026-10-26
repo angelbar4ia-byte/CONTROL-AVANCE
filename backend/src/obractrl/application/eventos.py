@@ -36,6 +36,7 @@ __all__ = [
     "EstimacionValidada",
     "IncidenciaDetiene",
     "Manejador",
+    "PartesCambiaronDeEstado",
     "PublicadorEventos",
     "ReprogramacionAplicada",
     "ReprogramacionObservada",
@@ -140,6 +141,16 @@ class ReprogramacionObservada:
     obra_id: UUID
     reprogramacion_id: UUID
     observacion_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class PartesCambiaronDeEstado:
+    """D-571 — una o varias partes de una obra pasaron de un paso al siguiente (o volvieron
+    a uno anterior). El estado ya está escrito; el evento solo avisa en vivo."""
+
+    obra_id: UUID
+    accion: str
+    claves: tuple[str, ...]
 
 
 @runtime_checkable

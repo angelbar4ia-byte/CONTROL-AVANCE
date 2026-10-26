@@ -8,6 +8,7 @@
 import type { PrototipoRespuestaM2 } from "./prototipoRespuestaM2";
 import type { PrototipoRespuestaNiveles } from "./prototipoRespuestaNiveles";
 import type { PrototipoRespuestaRecamaras } from "./prototipoRespuestaRecamaras";
+import type { PrototipoRespuestaPlantas } from "./prototipoRespuestaPlantas";
 
 export interface PrototipoRespuesta {
   id: string;
@@ -17,4 +18,6 @@ export interface PrototipoRespuesta {
   m2?: PrototipoRespuestaM2;
   niveles?: PrototipoRespuestaNiveles;
   recamaras?: PrototipoRespuestaRecamaras;
+  /** 1 o 2 (planta baja y alta); ver `PUT /prototipos/{id}/plantas`. */
+  plantas?: PrototipoRespuestaPlantas;
 }
