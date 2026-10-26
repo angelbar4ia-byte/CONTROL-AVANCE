@@ -8793,6 +8793,60 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Notas flotantes de un plano",
+        "description": "Leerlas está abierto a quien ve la obra; anotar es de Residente y\nSupervisor (MODELO.md §1b). Una nota nunca produce cantidad.",
+        "operationId": "notas_de_plano_api_v1_planos__plano_id__notas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotaPlanoDetalleRespuesta"
+                  },
+                  "title": "Response Notas De Plano Api V1 Planos  Plano Id  Notas Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El plano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/obras/{obra_id}/cuantificacion": {
@@ -17557,6 +17611,76 @@
           "nombre"
         ],
         "title": "NodoPrototipoRespuesta"
+      },
+      "NotaPlanoDetalleRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "version_plano": {
+            "type": "integer",
+            "title": "Version Plano"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          },
+          "autor_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autor Id"
+          },
+          "actividad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad Id",
+            "description": "Concepto sobre el que habla la nota; `null` si es solo un lugar del plano."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "por_revisar": {
+            "type": "boolean",
+            "title": "Por Revisar",
+            "description": "Hecha sobre una versión anterior del plano: el lugar pudo haberse movido."
+          },
+          "ubicacion": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Ubicacion",
+            "description": "`Point` GeoJSON en **coordenadas de plano** (SRID 0), no lon/lat."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "version_plano",
+          "texto",
+          "autor_id",
+          "actividad_id",
+          "created_at",
+          "por_revisar",
+          "ubicacion"
+        ],
+        "title": "NotaPlanoDetalleRespuesta"
       },
       "NotaPlanoPeticion": {
         "properties": {

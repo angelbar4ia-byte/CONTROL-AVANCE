@@ -2401,6 +2401,9 @@ a { color: inherit; text-decoration: none; }
 .visor__trazo.is-por-revisar path,
 .visor__trazo.is-por-revisar circle { stroke: var(--c-warn); stroke-dasharray: 6 4; }
 .visor__trazo.is-por-revisar path { fill: var(--c-warn-soft); }
+.visor__nota path { fill: var(--c-warn-soft); stroke: var(--c-warn); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.visor__nota.is-selected path { fill: var(--c-warn); stroke: var(--c-text); stroke-width: 3; }
+.visor__nota.is-por-revisar path { stroke-dasharray: 4 3; }
 .visor__borrador polyline { fill: none; stroke: var(--c-text); stroke-width: 2; stroke-dasharray: 5 3; }
 .visor__borrador circle { fill: var(--c-text); stroke: var(--c-panel); stroke-width: 1; }
 

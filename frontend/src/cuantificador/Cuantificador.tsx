@@ -26,28 +26,34 @@ import type { ErrorApi } from '@/api/cliente';
 import {
   getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey,
   getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey,
+  getNotasDePlanoApiV1PlanosPlanoIdNotasGetQueryKey,
   getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey,
   useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet,
   useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet,
   useListarPlanosApiV1ObrasObraIdPlanosGet,
+  useNotasDePlanoApiV1PlanosPlanoIdNotasGet,
   useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet,
 } from '@/api/generado/cuantificacion/cuantificacion';
 import type {
   ActividadRespuesta,
   ArchivoDePlanoRespuesta,
   NodoCuantificadoRespuesta,
+  NotaPlanoDetalleRespuesta,
   PlanoDetalleRespuesta,
   TrazoRespuesta,
   TrazosDePlanoRespuesta,
 } from '@/api/generado/modelo';
 import { useActividadesDeObraApiV1ObrasObraIdActividadesGet } from '@/api/generado/torre/torre';
 import { queryClient } from '@/app/queryClient';
-import { fmtNum } from '@/lib/formato';
+import { useSesion } from '@/app/sesion';
+import { fmtFecha, fmtNum } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { SelectorObra } from '@/lib/SelectorObra';
+import { AltaNota } from './AltaNota';
 import { AltaPlano } from './AltaPlano';
 import { AltaTrazo } from './AltaTrazo';
-import { Visor, type TrazoVisible } from './Visor';
+import { ReemplazarEnlace } from './ReemplazarEnlace';
+import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Visor';
 import {
   trazoCompleto,
   type Herramienta,
@@ -63,6 +69,10 @@ const HERRAMIENTAS: readonly { readonly clave: Herramienta; readonly etiqueta: s
   { clave: 'punto', etiqueta: 'Punto' },
 ];
 
+/** Anotar el plano es solo de Residente y Supervisor (MODELO.md §1b); el
+ *  servidor lo impone con 403, esto solo evita ofrecer un botón que fallaría. */
+const HERRAMIENTA_NOTA = { clave: 'nota', etiqueta: 'Nota' } as const;
+
 const ES_IMAGEN = /\.(png|jpe?g|webp)$/i;
 
 function etiquetaActividad(a: ActividadRespuesta | undefined, id: string): string {
@@ -73,13 +83,17 @@ function etiquetaActividad(a: ActividadRespuesta | undefined, id: string): strin
 }
 
 export default function Cuantificador() {
+  const { sesion } = useSesion();
+  const puedeAnotar = sesion?.rol === 'residente' || sesion?.rol === 'supervisor';
   const [obraId, setObraId] = useState('');
   const [planoElegido, setPlanoElegido] = useState('');
   const [herramienta, setHerramienta] = useState<Herramienta>('seleccionar');
   const [borrador, setBorrador] = useState<readonly Punto[]>([]);
   const [guardando, setGuardando] = useState(false);
   const [subiendoPlano, setSubiendoPlano] = useState(false);
-  const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null);
+  const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
+  const [notaPunto, setNotaPunto] = useState<Punto | null>(null);
+  const [reemplazando, setReemplazando] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
   const planos = useListarPlanosApiV1ObrasObraIdPlanosGet<
@@ -93,7 +107,7 @@ export default function Cuantificador() {
   useEffect(() => {
     setPlanoElegido('');
     setBorrador([]);
-    setSeleccionadoId(null);
+    setSeleccion(null);
     setHerramienta('seleccionar');
   }, [obraId]);
   useEffect(() => {
@@ -135,20 +149,45 @@ export default function Cuantificador() {
       })),
     [features],
   );
-  const seleccionado = features.find((f) => f.id === seleccionadoId) ?? null;
+  const notasConsulta = useNotasDePlanoApiV1PlanosPlanoIdNotasGet<
+    NotaPlanoDetalleRespuesta[],
+    ErrorApi
+  >(planoElegido, { query: { enabled: planoElegido !== '' } });
+  const listaDeNotas = useMemo(() => notasConsulta.data ?? [], [notasConsulta.data]);
+  const notasVisibles = useMemo<NotaVisible[]>(
+    () =>
+      listaDeNotas.flatMap((n) => {
+        const c = n.ubicacion.coordinates;
+        return Array.isArray(c) && typeof c[0] === 'number' && typeof c[1] === 'number'
+          ? [{ id: n.id, punto: [c[0], c[1]] as Punto, texto: n.texto, porRevisar: n.por_revisar }]
+          : [];
+      }),
+    [listaDeNotas],
+  );
 
-  const forma: HerramientaDeTrazo | null = herramienta === 'seleccionar' ? null : herramienta;
+  const seleccionado =
+    seleccion?.tipo === 'trazo' ? (features.find((f) => f.id === seleccion.id) ?? null) : null;
+  const notaElegida =
+    seleccion?.tipo === 'nota' ? (listaDeNotas.find((n) => n.id === seleccion.id) ?? null) : null;
+  const enlaceAReemplazar = seleccionado?.properties.enlaces.find((e) => e.enlace_id === reemplazando);
+
+  const forma: HerramientaDeTrazo | null =
+    herramienta === 'seleccionar' || herramienta === 'nota' ? null : herramienta;
 
   function cambiarHerramienta(nueva: Herramienta) {
     setHerramienta(nueva);
     setBorrador([]);
     setAviso(null);
-    if (nueva !== 'seleccionar') setSeleccionadoId(null);
+    if (nueva !== 'seleccionar') setSeleccion(null);
   }
 
   function alPunto(p: Punto) {
-    if (!forma) return;
     setAviso(null);
+    if (herramienta === 'nota') {
+      setNotaPunto(p);
+      return;
+    }
+    if (!forma) return;
     if (forma === 'punto') {
       setBorrador([p]);
       setGuardando(true);
@@ -164,7 +203,7 @@ export default function Cuantificador() {
   // Atajos mientras se dibuja. El efecto se rearma con cada cambio del borrador:
   // los manejadores leen el estado de este render, no uno viejo.
   useEffect(() => {
-    if (!forma || guardando || subiendoPlano) return;
+    if (!forma || guardando || subiendoPlano || notaPunto !== null || reemplazando !== null) return;
     function alTeclear(e: KeyboardEvent) {
       const destino = e.target as HTMLElement | null;
       if (destino && /^(INPUT|SELECT|TEXTAREA)$/.test(destino.tagName)) return;
@@ -180,7 +219,7 @@ export default function Cuantificador() {
     }
     window.addEventListener('keydown', alTeclear);
     return () => window.removeEventListener('keydown', alTeclear);
-  }, [forma, borrador, guardando, subiendoPlano]);
+  }, [forma, borrador, guardando, subiendoPlano, notaPunto, reemplazando]);
 
   function alGuardar(resultado: TrazoRespuesta) {
     setGuardando(false);
@@ -234,7 +273,7 @@ export default function Cuantificador() {
             onChange={(e) => {
               setPlanoElegido(e.target.value);
               setBorrador([]);
-              setSeleccionadoId(null);
+              setSeleccion(null);
             }}
           >
             <option value="">{obraId === '' ? 'Elige una obra primero' : 'Sin planos'}</option>
@@ -272,7 +311,7 @@ export default function Cuantificador() {
         <div className="cuant">
           <div className="cuant__lienzo">
             <div className="row cuant__barra" role="toolbar" aria-label="Herramientas de trazo">
-              {HERRAMIENTAS.map((h) => (
+              {(puedeAnotar ? [...HERRAMIENTAS, HERRAMIENTA_NOTA] : HERRAMIENTAS).map((h) => (
                 <button
                   key={h.clave}
                   type="button"
@@ -323,21 +362,41 @@ export default function Cuantificador() {
               claveDePlano={planoElegido}
               fondoUrl={esImagen ? (archivo.data?.url ?? null) : null}
               trazos={trazosVisibles}
-              seleccionadoId={seleccionadoId}
+              notas={notasVisibles}
+              seleccion={seleccion}
               herramienta={herramienta}
               borrador={borrador}
               onPunto={alPunto}
-              onSeleccionar={setSeleccionadoId}
+              onSeleccionar={setSeleccion}
             />
           </div>
 
           <aside className="cuant__lateral col gap-12">
             <div className="card">
               <div className="card__header">
-                <div className="card__title">{seleccionado ? 'Trazo elegido' : 'Trazos del plano'}</div>
+                <div className="card__title">
+                  {seleccionado ? 'Trazo elegido' : notaElegida ? 'Nota elegida' : 'Trazos del plano'}
+                </div>
               </div>
               <div className="card__body col">
-                {seleccionado ? (
+                {notaElegida ? (
+                  <>
+                    <div className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>
+                      {notaElegida.texto}
+                    </div>
+                    <div className="text-mute text-xs">
+                      {fmtFecha(notaElegida.created_at)}
+                      {notaElegida.actividad_id &&
+                        ` · ${etiquetaActividad(porActividad.get(notaElegida.actividad_id), notaElegida.actividad_id)}`}
+                    </div>
+                    {notaElegida.por_revisar && (
+                      <span className="badge badge--warn">
+                        Hecha sobre una versión anterior: el lugar pudo moverse
+                      </span>
+                    )}
+                    <div className="text-mute text-xs">Una nota no suma cantidad.</div>
+                  </>
+                ) : seleccionado ? (
                   <>
                     <div className="text-sm">
                       {seleccionado.properties.capa ?? 'Sin capa'} ·{' '}
@@ -357,6 +416,7 @@ export default function Cuantificador() {
                             <th>Actividad</th>
                             <th>Medida</th>
                             <th className="is-num">Cantidad</th>
+                            <th />
                           </tr>
                         </thead>
                         <tbody>
@@ -370,6 +430,17 @@ export default function Cuantificador() {
                                 {etiquetaMedida(e.medida)} × {fmtNum(e.factor)}
                               </td>
                               <td className="is-num">{fmtNum(e.cantidad)}</td>
+                              <td>
+                                {e.vigente && (
+                                  <button
+                                    type="button"
+                                    className="btn btn--ghost btn--sm"
+                                    onClick={() => setReemplazando(e.enlace_id)}
+                                  >
+                                    Reemplazar
+                                  </button>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -378,9 +449,9 @@ export default function Cuantificador() {
                   </>
                 ) : (
                   <div className="text-mute text-sm">
-                    {features.length === 0
-                      ? 'Este plano aún no tiene trazos.'
-                      : `${features.length} ${features.length === 1 ? 'trazo' : 'trazos'}. Elige uno con la herramienta Seleccionar.`}
+                    {features.length === 0 && listaDeNotas.length === 0
+                      ? 'Este plano aún no tiene trazos ni notas.'
+                      : `${features.length} ${features.length === 1 ? 'trazo' : 'trazos'} y ${listaDeNotas.length} ${listaDeNotas.length === 1 ? 'nota' : 'notas'}. Elige uno con la herramienta Seleccionar.`}
                   </div>
                 )}
               </div>
@@ -451,6 +522,45 @@ export default function Cuantificador() {
             if (forma === 'punto') setBorrador([]);
           }}
           onGuardado={alGuardar}
+        />
+      )}
+
+      {notaPunto !== null && plano && (
+        <AltaNota
+          planoId={plano.id}
+          versionPlano={plano.version}
+          punto={notaPunto}
+          actividades={actividades}
+          onCerrar={() => setNotaPunto(null)}
+          onGuardada={() => {
+            setNotaPunto(null);
+            setAviso('Nota guardada.');
+            void queryClient.invalidateQueries({
+              queryKey: getNotasDePlanoApiV1PlanosPlanoIdNotasGetQueryKey(planoElegido),
+            });
+          }}
+        />
+      )}
+
+      {enlaceAReemplazar && seleccionado && (
+        <ReemplazarEnlace
+          enlace={enlaceAReemplazar}
+          candidatos={features.filter((f) => f.id !== seleccionado.id)}
+          nombreDelNodo={etiquetaActividad(
+            porActividad.get(enlaceAReemplazar.nodo_id),
+            enlaceAReemplazar.nodo_id,
+          )}
+          onCerrar={() => setReemplazando(null)}
+          onReemplazado={() => {
+            setReemplazando(null);
+            setAviso('Enlace reemplazado: el anterior queda como evidencia y ya no suma.');
+            void queryClient.invalidateQueries({
+              queryKey: getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey(planoElegido),
+            });
+            void queryClient.invalidateQueries({
+              queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId),
+            });
+          }}
         />
       )}
 

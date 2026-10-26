@@ -324,3 +324,40 @@ async def test_el_archivo_de_un_plano_inexistente_es_404(
     _con_r2_de_prueba(monkeypatch)
     respuesta = await cliente_control.get(f"/api/v1/planos/{uuid.uuid4()}/archivo")
     assert respuesta.status_code == 404
+
+
+async def test_las_notas_del_plano_salen_con_su_ubicacion_y_se_marcan_por_revisar(
+    escenario: Escenario,
+    cliente_control: httpx.AsyncClient,
+    contexto_residente: ContextoSesion,
+) -> None:
+    plano_id, _, _ = await _plano_con_dos_trazos(cliente_control, escenario)
+
+    # Control ve el plano pero no anota (§1b: solo Residente y Supervisor).
+    assert (await cliente_control.get(f"/api/v1/planos/{plano_id}/notas")).json() == []
+    async with _cliente(contexto_residente) as residente:
+        alta = await residente.post(
+            f"/api/v1/planos/{plano_id}/notas",
+            json={
+                "version_plano": 1,
+                "ubicacion_wkt": "POINT(2.5 1.5)",
+                "texto": "Revisar nivel de piso aquí",
+                "actividad_id": str(escenario.actividad_id),
+            },
+        )
+        assert alta.status_code == 201, alta.text
+
+    notas = (await cliente_control.get(f"/api/v1/planos/{plano_id}/notas")).json()
+    assert len(notas) == 1
+    assert notas[0]["texto"] == "Revisar nivel de piso aquí"
+    assert notas[0]["ubicacion"] == {"type": "Point", "coordinates": [2.5, 1.5]}
+    assert notas[0]["actividad_id"] == str(escenario.actividad_id)
+    assert notas[0]["por_revisar"] is False
+
+    await _subir_version_del_plano(plano_id, 2)
+    notas = (await cliente_control.get(f"/api/v1/planos/{plano_id}/notas")).json()
+    assert notas[0]["por_revisar"] is True
+
+    assert (
+        await cliente_control.get(f"/api/v1/planos/{uuid.uuid4()}/notas")
+    ).status_code == 404
