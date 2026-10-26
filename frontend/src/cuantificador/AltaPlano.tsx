@@ -5,9 +5,9 @@
  * clave. El archivo no pasa por la API (§12.2). Ver `AgregarDocumento` para el
  * razonamiento de cada paso; aquí solo cambia el destino del registro.
  *
- * Solo las **imágenes** (PNG, JPG, WebP) se ven de fondo en el visor. Un PDF se
- * puede registrar, pero el visor aún no sabe pintarlo: se traza sobre una
- * rejilla en blanco y el aviso lo dice, en vez de fingir que el plano cargó.
+ * Se ven de fondo en el visor las imágenes (PNG, JPG, WebP) y la **primera hoja**
+ * de un PDF, que el navegador rasteriza a una escala fija (ver `pdf.ts`: la
+ * escala es parte de las coordenadas del plano).
  */
 
 import { useState, type FormEvent } from 'react';
@@ -93,11 +93,11 @@ export function AltaPlano({ obraId, onCerrar, onRegistrado }: Props) {
             />
             <div className="field__hint">
               Se sube directo al almacenamiento; no pasa por la API. Las coordenadas del plano
-              son las de la imagen, en píxeles.
+              son las de la imagen, en píxeles. De un PDF se usa solo la primera hoja.
             </div>
             {esPdf && (
               <div className="field__hint">
-                El visor todavía no pinta PDF: podrás trazar, pero sobre una rejilla en blanco.
+                Se usa solo la primera hoja. Si el PDF trae varias, súbelas como planos aparte.
               </div>
             )}
           </div>

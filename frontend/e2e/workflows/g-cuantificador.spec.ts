@@ -21,8 +21,10 @@ import {
  *  5. Un clic dentro del polígono lo elige y muestra su enlace; recargar la
  *     página no lo pierde.
  *
- * El plano se registra con un `archivo_url` que no es imagen a propósito: así
- * el visor traza sobre su rejilla y la prueba no depende de R2 (en CI no hay).
+ * Los planos se registran con un `archivo_url` que no es imagen ni PDF
+ * (`.dwg`) a propósito: así el visor traza sobre su rejilla y la prueba no
+ * depende de R2 (en CI no hay). Los fondos de imagen y de PDF se prueban
+ * aparte, simulando la URL firmada.
  *
  * Usa `OBRA-G` de `e2e/soporte/semilla.sql`; es de un solo uso (cada prueba
  * registra su propio plano y lo elige por nombre, así no dependen del orden).
@@ -60,7 +62,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
     expect(obra, 'OBRA-G existe (¿se sembró?)').toBeDefined();
     await llamarApi(request, 'residente', 'POST', `/obras/${obra!.id}/planos`, {
       nombre: 'Planta baja E2E',
-      archivo_url: 'e2e/planta-baja.pdf',
+      archivo_url: 'e2e/planta-baja.dwg',
     });
 
     // --- 1. Abrir el cuantificador -------------------------------------
@@ -185,7 +187,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
     const obra = await obraG(request);
     await llamarApi(request, 'residente', 'POST', `/obras/${obra.id}/planos`, {
       nombre: 'Plano con notas',
-      archivo_url: 'e2e/notas.pdf',
+      archivo_url: 'e2e/notas.dwg',
     });
 
     await entrarComo(page, 'residente');
@@ -233,7 +235,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
       'residente',
       'POST',
       `/obras/${obra.id}/planos`,
-      { nombre: 'Plano para reemplazar', archivo_url: 'e2e/reemplazo.pdf' },
+      { nombre: 'Plano para reemplazar', archivo_url: 'e2e/reemplazo.dwg' },
     );
     // A (40×30 = 1200) alimenta la actividad; B (60×30 = 1800) llega después,
     // sin enlace, y es la que va a sustituir a A.
@@ -287,5 +289,91 @@ test.describe('Cuantificador · trazar un polígono', () => {
     await expect(page.getByText('· reemplazado')).toBeVisible();
     // El servidor es la fuente de verdad: A ya no suma, B sí.
     expect(await medido()).toBe(1800);
+  });
+
+  test('la primera hoja de un PDF se pinta de fondo a escala fija', async ({ page, request }) => {
+    const obra = await obraG(request);
+    await llamarApi(request, 'residente', 'POST', `/obras/${obra.id}/planos`, {
+      nombre: 'Plano en PDF',
+      archivo_url: 'e2e/hoja.pdf',
+    });
+
+    // Una hoja de 300×200 puntos. A escala 2 (ESCALA_PDF) son 600×400 unidades
+    // de plano: si alguien cambia la escala, los trazos hechos sobre PDF se
+    // mueven y esta prueba avisa.
+    const pdf = [
+      '%PDF-1.4',
+      '1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj',
+      '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj',
+      '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]>>endobj',
+      'trailer<</Root 1 0 R/Size 4>>',
+      '%%EOF',
+    ].join('\n');
+    await page.route('**/api/v1/planos/*/archivo', (ruta) =>
+      ruta.fulfill({
+        json: {
+          url: 'http://127.0.0.1:5173/__e2e/hoja.pdf',
+          expira_en_segundos: 900,
+          expira_en: new Date(Date.now() + 900_000).toISOString(),
+        },
+      }),
+    );
+    await page.route('**/__e2e/hoja.pdf', (ruta) =>
+      ruta.fulfill({ contentType: 'application/pdf', body: pdf }),
+    );
+
+    await entrarComo(page, 'residente');
+    await page.goto('/cuantificador');
+    await page.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+    await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Plano en PDF · v1' });
+
+    const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
+    await expect(lienzo.locator('image')).toHaveCount(1);
+    await expect(lienzo).toHaveAttribute('viewBox', '0 0 600 400');
+  });
+
+  test('enlazar a un nodo del prototipo es de Control: el residente no lo ve', async ({
+    browser,
+    request,
+  }) => {
+    test.skip(!hayRoles('control'), motivoSinRoles('control'));
+    const obra = await obraG(request);
+    await llamarApi(request, 'residente', 'POST', `/obras/${obra.id}/planos`, {
+      nombre: 'Plano de gobierno',
+      archivo_url: 'e2e/gobierno.dwg',
+    });
+
+    // No se guarda: enlazar a un nodo sobrescribe la cantidad del prototipo,
+    // que comparten todas las obras (otros workflows generan obras de él). El
+    // guardado lo cubre el test de backend del camino «diseño nuevo»; aquí se
+    // fija lo que es de la interfaz: quién ve la opción y la advertencia.
+    async function abrirFormularioDeTrazo(rol: 'control' | 'residente') {
+      const pagina = await (await browser.newContext()).newPage();
+      await entrarComo(pagina, rol);
+      await pagina.goto('/cuantificador');
+      await pagina.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+      await pagina.getByLabel('Plano', { exact: true }).selectOption({ label: 'Plano de gobierno · v1' });
+      const caja = (await pagina.getByRole('img', { name: 'Plano con sus trazos' }).boundingBox())!;
+      await pagina.getByRole('button', { name: 'Polígono', exact: true }).click();
+      for (const [fx, fy] of [
+        [0.3, 0.3],
+        [0.7, 0.3],
+        [0.5, 0.7],
+      ] as const) {
+        await pagina.mouse.click(caja.x + caja.width * fx, caja.y + caja.height * fy);
+      }
+      await pagina.keyboard.press('Enter');
+      return pagina.getByRole('dialog', { name: 'Guardar polígono' });
+    }
+
+    const control = await abrirFormularioDeTrazo('control');
+    await control.getByLabel('Enlazar a').selectOption('prototipo');
+    await expect(control.getByRole('note')).toContainText('Sobrescribe la cantidad');
+    // Los conceptos del prototipo de la semilla están disponibles.
+    await expect(control.locator('#enlace-actividad-0 option', { hasText: 'E2E-EXC' })).toHaveCount(1);
+
+    const residente = await abrirFormularioDeTrazo('residente');
+    await expect(residente.getByLabel('Actividad 1')).toBeVisible();
+    await expect(residente.getByLabel('Enlazar a')).toHaveCount(0);
   });
 });

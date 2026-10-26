@@ -38,11 +38,14 @@ import type {
   ActividadRespuesta,
   ArchivoDePlanoRespuesta,
   NodoCuantificadoRespuesta,
+  NodoPrototipoRespuesta,
   NotaPlanoDetalleRespuesta,
   PlanoDetalleRespuesta,
   TrazoRespuesta,
   TrazosDePlanoRespuesta,
 } from '@/api/generado/modelo';
+import { useListarObrasApiV1ObrasGet } from '@/api/generado/obras/obras';
+import { useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet } from '@/api/generado/proyectos/proyectos';
 import { useActividadesDeObraApiV1ObrasObraIdActividadesGet } from '@/api/generado/torre/torre';
 import { queryClient } from '@/app/queryClient';
 import { useSesion } from '@/app/sesion';
@@ -51,7 +54,7 @@ import { ErrorBanner } from '@/lib/ErrorBanner';
 import { SelectorObra } from '@/lib/SelectorObra';
 import { AltaNota } from './AltaNota';
 import { AltaPlano } from './AltaPlano';
-import { AltaTrazo } from './AltaTrazo';
+import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
 import { ReemplazarEnlace } from './ReemplazarEnlace';
 import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Visor';
 import {
@@ -60,6 +63,7 @@ import {
   type HerramientaDeTrazo,
   type Punto,
 } from './geometria';
+import { useImagenDePdf } from './pdf';
 import { etiquetaMedida } from './reglas';
 
 const HERRAMIENTAS: readonly { readonly clave: Herramienta; readonly etiqueta: string }[] = [
@@ -74,6 +78,7 @@ const HERRAMIENTAS: readonly { readonly clave: Herramienta; readonly etiqueta: s
 const HERRAMIENTA_NOTA = { clave: 'nota', etiqueta: 'Nota' } as const;
 
 const ES_IMAGEN = /\.(png|jpe?g|webp)$/i;
+const ES_PDF = /\.pdf$/i;
 
 function etiquetaActividad(a: ActividadRespuesta | undefined, id: string): string {
   if (!a) return id.slice(0, 8);
@@ -85,6 +90,7 @@ function etiquetaActividad(a: ActividadRespuesta | undefined, id: string): strin
 export default function Cuantificador() {
   const { sesion } = useSesion();
   const puedeAnotar = sesion?.rol === 'residente' || sesion?.rol === 'supervisor';
+  const puedeEnlazarPrototipo = sesion?.rol === 'control_obra' || sesion?.rol === 'super_intendente';
   const [obraId, setObraId] = useState('');
   const [planoElegido, setPlanoElegido] = useState('');
   const [herramienta, setHerramienta] = useState<Herramienta>('seleccionar');
@@ -116,6 +122,7 @@ export default function Cuantificador() {
 
   const plano = listaDePlanos.find((p) => p.id === planoElegido);
   const esImagen = plano !== undefined && ES_IMAGEN.test(plano.archivo_url);
+  const esPdf = plano !== undefined && ES_PDF.test(plano.archivo_url);
 
   const trazosConsulta = useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet<
     TrazosDePlanoRespuesta,
@@ -131,13 +138,32 @@ export default function Cuantificador() {
   >(obraId, undefined, { query: { enabled: obraId !== '' } });
   const actividades = useMemo(() => actividadesConsulta.data ?? [], [actividadesConsulta.data]);
 
-  // La URL firmada solo se pide si el archivo es una imagen que el visor sabe
-  // pintar. Una caducidad corta no es problema: se carga una vez al abrir el
+  // Los nodos del prototipo de la obra, solo para quien puede enlazarlos. Se
+  // ofrecen los conceptos: son los que llevan cantidad (`prototipo_nodo.cantidad`).
+  const obras = useListarObrasApiV1ObrasGet();
+  const prototipoId = obras.data?.find((o) => o.id === obraId)?.prototipo_id ?? '';
+  const nodosConsulta = useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet<
+    NodoPrototipoRespuesta[],
+    ErrorApi
+  >(prototipoId, { query: { enabled: puedeEnlazarPrototipo && prototipoId !== '' } });
+  const nodosDePrototipo = useMemo<NodoDePrototipo[]>(
+    () =>
+      (nodosConsulta.data ?? [])
+        .filter((n) => n.tipo === 'concepto')
+        .map((n) => ({ id: n.id, etiqueta: [n.clave, n.nombre].filter(Boolean).join(' · ') })),
+    [nodosConsulta.data],
+  );
+
+  // La URL firmada solo se pide si el archivo es algo que el visor sabe pintar:
+  // una imagen, o un PDF que se rasteriza (`useImagenDePdf`). Una caducidad corta no es problema: se carga una vez al abrir el
   // plano y la imagen queda en memoria del navegador.
   const archivo = useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet<
     ArchivoDePlanoRespuesta,
     ErrorApi
-  >(planoElegido, { query: { enabled: planoElegido !== '' && esImagen, retry: false, staleTime: 5 * 60_000 } });
+  >(planoElegido, { query: { enabled: planoElegido !== '' && (esImagen || esPdf), retry: false, staleTime: 5 * 60_000 } });
+
+  const pdf = useImagenDePdf(esPdf ? (archivo.data?.url ?? null) : null);
+  const fondoUrl = esImagen ? (archivo.data?.url ?? null) : esPdf ? pdf.url : null;
 
   const features = useMemo(() => trazosConsulta.data?.features ?? [], [trazosConsulta.data]);
   const trazosVisibles = useMemo<TrazoVisible[]>(
@@ -242,6 +268,15 @@ export default function Cuantificador() {
   }
 
   const porActividad = useMemo(() => new Map(actividades.map((a) => [a.id, a])), [actividades]);
+  const porNodoDePrototipo = useMemo(
+    () => new Map(nodosDePrototipo.map((n) => [n.id, n.etiqueta])),
+    [nodosDePrototipo],
+  );
+  /** Nombre legible del nodo de un enlace, sea actividad o nodo de prototipo. */
+  const nombreDeNodo = (tipo: string, id: string): string =>
+    tipo === 'prototipo_nodo'
+      ? (porNodoDePrototipo.get(id) ?? `Nodo de prototipo ${id.slice(0, 8)}`)
+      : etiquetaActividad(porActividad.get(id), id);
   const nodos = estado.data ?? [];
 
   return (
@@ -345,22 +380,33 @@ export default function Cuantificador() {
               </div>
             )}
             {trazosConsulta.error && <ErrorBanner mensaje={trazosConsulta.error.message} />}
-            {!esImagen && (
+            {plano !== undefined && !esImagen && !esPdf && (
               <div className="text-mute text-xs">
-                Este plano no es una imagen (PNG, JPG o WebP): el visor aún no pinta PDF, así que
-                se traza sobre una rejilla en blanco.
+                Este plano no es una imagen (PNG, JPG o WebP) ni un PDF: se traza sobre una
+                rejilla en blanco.
               </div>
             )}
-            {esImagen && archivo.error && (
+            {(esImagen || esPdf) && archivo.error && (
               <div className="text-mute text-xs">
                 No se pudo cargar el archivo del plano ({archivo.error.message}). Los trazos se
                 muestran sobre una rejilla en blanco.
               </div>
             )}
+            {esPdf && pdf.cargando && (
+              <div className="text-mute text-xs" role="status">
+                Preparando la hoja del PDF…
+              </div>
+            )}
+            {esPdf && pdf.error && (
+              <div className="text-mute text-xs">
+                No se pudo dibujar el PDF ({pdf.error}). Los trazos se muestran sobre una
+                rejilla en blanco.
+              </div>
+            )}
 
             <Visor
               claveDePlano={planoElegido}
-              fondoUrl={esImagen ? (archivo.data?.url ?? null) : null}
+              fondoUrl={fondoUrl}
               trazos={trazosVisibles}
               notas={notasVisibles}
               seleccion={seleccion}
@@ -423,7 +469,7 @@ export default function Cuantificador() {
                           {seleccionado.properties.enlaces.map((e) => (
                             <tr key={e.enlace_id} style={e.vigente ? undefined : { opacity: 0.5 }}>
                               <td>
-                                {etiquetaActividad(porActividad.get(e.nodo_id), e.nodo_id)}
+                                {nombreDeNodo(e.tipo_nodo, e.nodo_id)}
                                 {!e.vigente && <span className="text-mute"> · reemplazado</span>}
                               </td>
                               <td>
@@ -486,7 +532,7 @@ export default function Cuantificador() {
                         {nodos.map((n) => (
                           <tr key={`${n.tipo_nodo}-${n.nodo_id}`}>
                             <td>
-                              {n.descripcion ?? etiquetaActividad(porActividad.get(n.nodo_id), n.nodo_id)}
+                              {n.descripcion ?? nombreDeNodo(n.tipo_nodo, n.nodo_id)}
                               {n.trazos_por_revisar > 0 && (
                                 <span className="badge badge--warn" style={{ marginLeft: 6 }}>
                                   {n.trazos_por_revisar} por revisar
@@ -515,6 +561,7 @@ export default function Cuantificador() {
           herramienta={forma}
           puntos={borrador}
           actividades={actividades}
+          nodosDePrototipo={puedeEnlazarPrototipo ? nodosDePrototipo : null}
           onCerrar={() => {
             setGuardando(false);
             // Un punto se captura con un solo clic: si se cancela el cajón no
@@ -546,10 +593,7 @@ export default function Cuantificador() {
         <ReemplazarEnlace
           enlace={enlaceAReemplazar}
           candidatos={features.filter((f) => f.id !== seleccionado.id)}
-          nombreDelNodo={etiquetaActividad(
-            porActividad.get(enlaceAReemplazar.nodo_id),
-            enlaceAReemplazar.nodo_id,
-          )}
+          nombreDelNodo={nombreDeNodo(enlaceAReemplazar.tipo_nodo, enlaceAReemplazar.nodo_id)}
           onCerrar={() => setReemplazando(null)}
           onReemplazado={() => {
             setReemplazando(null);

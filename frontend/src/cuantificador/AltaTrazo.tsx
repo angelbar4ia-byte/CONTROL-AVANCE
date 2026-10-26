@@ -32,8 +32,16 @@ import { etiquetaMedida } from './reglas';
 
 type Fuente = 'pdf' | 'dwg' | 'ifc';
 
+/** Un nodo del prototipo al que se puede enlazar (camino «diseño nuevo»). */
+export interface NodoDePrototipo {
+  readonly id: string;
+  readonly etiqueta: string;
+}
+
 interface FilaEnlace {
   readonly clave: number;
+  /** A qué se enlaza: una actividad de la obra o un nodo del prototipo. */
+  readonly destino: 'actividad' | 'prototipo';
   readonly actividadId: string;
   readonly medida: MedidaDeTrazo;
   readonly factor: string;
@@ -45,6 +53,12 @@ interface Props {
   readonly herramienta: HerramientaDeTrazo;
   readonly puntos: readonly Punto[];
   readonly actividades: readonly ActividadRespuesta[];
+  /**
+   * Nodos del prototipo, o `null` si este rol no puede enlazarlos. Enlazar a un
+   * nodo de prototipo es de Control de obra y Super intendente (el servidor lo
+   * impone con 403; aquí solo no se ofrece lo que fallaría).
+   */
+  readonly nodosDePrototipo: readonly NodoDePrototipo[] | null;
   readonly onCerrar: () => void;
   readonly onGuardado: (resultado: TrazoRespuesta) => void;
 }
@@ -67,6 +81,7 @@ export function AltaTrazo({
   herramienta,
   puntos,
   actividades,
+  nodosDePrototipo,
   onCerrar,
   onGuardado,
 }: Props) {
@@ -74,7 +89,7 @@ export function AltaTrazo({
   const [fuente, setFuente] = useState<Fuente>('pdf');
   const [capa, setCapa] = useState('');
   const [filas, setFilas] = useState<readonly FilaEnlace[]>([
-    { clave: 0, actividadId: '', medida: medidas[0] as MedidaDeTrazo, factor: '1' },
+    { clave: 0, destino: 'actividad', actividadId: '', medida: medidas[0] as MedidaDeTrazo, factor: '1' },
   ]);
   const [siguienteClave, setSiguienteClave] = useState(1);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +103,7 @@ export function AltaTrazo({
   function agregarFila() {
     setFilas((actuales) => [
       ...actuales,
-      { clave: siguienteClave, actividadId: '', medida: medidas[0] as MedidaDeTrazo, factor: '1' },
+      { clave: siguienteClave, destino: 'actividad', actividadId: '', medida: medidas[0] as MedidaDeTrazo, factor: '1' },
     ]);
     setSiguienteClave((n) => n + 1);
   }
@@ -100,7 +115,7 @@ export function AltaTrazo({
     // Una fila sin actividad es una fila a medias, no «sin enlace»: quien no
     // quiere enlazar la quita. Mandarla vacía daría un 422 sin decir cuál.
     if (filas.some((f) => f.actividadId === '')) {
-      setError('Cada enlace necesita una actividad; quita las filas que no vayas a usar.');
+      setError('Cada enlace necesita un destino; quita las filas que no vayas a usar.');
       return;
     }
     for (const f of filas) {
@@ -128,7 +143,9 @@ export function AltaTrazo({
           enlaces: filas.map((f) => ({
             medida: f.medida,
             factor: f.factor,
-            actividad_id: f.actividadId,
+            ...(f.destino === 'actividad'
+              ? { actividad_id: f.actividadId }
+              : { prototipo_nodo_id: f.actividadId }),
           })),
         },
       });
@@ -186,9 +203,30 @@ export function AltaTrazo({
               return (
                 <div key={f.clave} className="card">
                   <div className="card__body col">
+                    {nodosDePrototipo !== null && (
+                      <div className="field">
+                        <label className="field__label" htmlFor={`enlace-destino-${f.clave}`}>
+                          Enlazar a
+                        </label>
+                        <select
+                          id={`enlace-destino-${f.clave}`}
+                          className="select"
+                          value={f.destino}
+                          onChange={(e) =>
+                            cambiar(f.clave, {
+                              destino: e.target.value as FilaEnlace['destino'],
+                              actividadId: '',
+                            })
+                          }
+                        >
+                          <option value="actividad">Una actividad de la obra</option>
+                          <option value="prototipo">Un nodo del prototipo (diseño nuevo)</option>
+                        </select>
+                      </div>
+                    )}
                     <div className="field">
                       <label className="field__label" htmlFor={`enlace-actividad-${f.clave}`}>
-                        Actividad {i + 1}
+                        {f.destino === 'actividad' ? 'Actividad' : 'Nodo'} {i + 1}
                       </label>
                       <select
                         id={`enlace-actividad-${f.clave}`}
@@ -196,13 +234,27 @@ export function AltaTrazo({
                         value={f.actividadId}
                         onChange={(e) => cambiar(f.clave, { actividadId: e.target.value })}
                       >
-                        <option value="">Elige una actividad…</option>
-                        {actividades.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {etiquetaActividad(a)}
-                          </option>
-                        ))}
+                        <option value="">
+                          {f.destino === 'actividad' ? 'Elige una actividad…' : 'Elige un nodo…'}
+                        </option>
+                        {f.destino === 'actividad'
+                          ? actividades.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {etiquetaActividad(a)}
+                              </option>
+                            ))
+                          : (nodosDePrototipo ?? []).map((n) => (
+                              <option key={n.id} value={n.id}>
+                                {n.etiqueta}
+                              </option>
+                            ))}
                       </select>
+                      {f.destino === 'prototipo' && (
+                        <div className="field__hint" role="note">
+                          Sobrescribe la cantidad del nodo del prototipo, y la comparten todas
+                          las obras de ese prototipo.
+                        </div>
+                      )}
                     </div>
                     <div className="row">
                       <div className="field" style={{ flex: 1 }}>
