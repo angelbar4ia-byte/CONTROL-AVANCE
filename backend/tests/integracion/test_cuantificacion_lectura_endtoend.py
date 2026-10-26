@@ -271,3 +271,56 @@ async def test_la_lectura_esta_abierta_a_quien_ve_la_obra(
             assert (
                 await cliente.get(f"/api/v1/obras/{escenario.obra_id}/cuantificacion")
             ).status_code == 200
+
+
+def _con_r2_de_prueba(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Firma con credenciales de mentira: SigV4 es cómputo local, no hay red."""
+    from obractrl.adapters.api.v1 import cuantificacion
+    from obractrl.infrastructure.config import Config
+    from obractrl.infrastructure.storage.r2 import firmar_descarga
+
+    cfg = Config(  # type: ignore[call-arg]
+        r2_endpoint="https://cuenta.r2.cloudflarestorage.com",
+        r2_bucket="obractrl-evidencias",
+        r2_access_key="AKIAOBRACTRLDEPRUEBA",
+        r2_secret_key="secreto-de-prueba",
+    )
+    monkeypatch.setattr(
+        cuantificacion, "firmar_descarga", lambda *, clave: firmar_descarga(clave=clave, cfg=cfg)
+    )
+
+
+async def test_el_archivo_del_plano_se_firma_solo_si_cuelga_de_mi_organizacion(
+    escenario: Escenario,
+    cliente_control: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`archivo_url` la escribe quien da de alta el plano: sin el prefijo por
+    `org_id`, una clave ajena se firmaría y R2 no tiene RLS que lo impida."""
+    _con_r2_de_prueba(monkeypatch)
+
+    propio = await cliente_control.post(
+        f"/api/v1/obras/{escenario.obra_id}/planos",
+        json={"nombre": "Propio", "archivo_url": f"{escenario.org_id}/planos/pb.png"},
+    )
+    ajeno = await cliente_control.post(
+        f"/api/v1/obras/{escenario.obra_id}/planos",
+        json={"nombre": "Ajeno", "archivo_url": f"{uuid.uuid4()}/planos/secreto.png"},
+    )
+
+    firmado = await cliente_control.get(f"/api/v1/planos/{propio.json()['id']}/archivo")
+    assert firmado.status_code == 200, firmado.text
+    assert f"{escenario.org_id}/planos/pb.png" in firmado.json()["url"]
+    assert "X-Amz-Signature" in firmado.json()["url"]
+
+    rechazado = await cliente_control.get(f"/api/v1/planos/{ajeno.json()['id']}/archivo")
+    assert rechazado.status_code == 404
+    assert "secreto.png" not in rechazado.text
+
+
+async def test_el_archivo_de_un_plano_inexistente_es_404(
+    cliente_control: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _con_r2_de_prueba(monkeypatch)
+    respuesta = await cliente_control.get(f"/api/v1/planos/{uuid.uuid4()}/archivo")
+    assert respuesta.status_code == 404

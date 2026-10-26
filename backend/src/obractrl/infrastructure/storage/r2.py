@@ -131,20 +131,8 @@ def _cliente(endpoint: str, access_key: str, secret_key: str) -> object:
     )
 
 
-def firmar_subida(
-    *,
-    clave: str,
-    content_type: str,
-    cfg: Config | None = None,
-    expira_en: timedelta = EXPIRACION_POR_DEFECTO,
-) -> SubidaFirmada:
-    """URL firmada para un `PUT` directo a R2 (§12.2).
-
-    Levanta `AlmacenamientoNoConfigurado` si falta cualquier credencial: sin
-    ella `boto3` firmaría igual y el fallo aparecería recién en el `PUT` del
-    cliente, como un 403 de R2 imposible de diagnosticar desde el móvil.
-    """
-    cfg = cfg or obtener_config()
+def _exigir_configuracion(cfg: Config) -> None:
+    """Falla con `AlmacenamientoNoConfigurado` si falta cualquier credencial."""
     faltantes = [
         nombre
         for nombre, valor in (
@@ -162,6 +150,23 @@ def firmar_subida(
             "El almacenamiento de evidencias no está configurado en este "
             f"entorno; faltan: {', '.join(faltantes)} (§12.8)."
         )
+
+
+def firmar_subida(
+    *,
+    clave: str,
+    content_type: str,
+    cfg: Config | None = None,
+    expira_en: timedelta = EXPIRACION_POR_DEFECTO,
+) -> SubidaFirmada:
+    """URL firmada para un `PUT` directo a R2 (§12.2).
+
+    Levanta `AlmacenamientoNoConfigurado` si falta cualquier credencial: sin
+    ella `boto3` firmaría igual y el fallo aparecería recién en el `PUT` del
+    cliente, como un 403 de R2 imposible de diagnosticar desde el móvil.
+    """
+    cfg = cfg or obtener_config()
+    _exigir_configuracion(cfg)
 
     segundos = int(expira_en.total_seconds())
     cliente = _cliente(cfg.r2_endpoint, cfg.r2_access_key, cfg.r2_secret_key)
@@ -185,5 +190,45 @@ def firmar_subida(
         # quedarse días sin red (§12.2), y con solo "900 segundos" no sabría
         # si la URL que guardó sigue sirviendo. En UTC, como toda marca de
         # tiempo del sistema (§3.1).
+        expira_en=datetime.now(UTC) + expira_en,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class DescargaFirmada:
+    """URL firmada para leer un objeto; caduca, la clave no."""
+
+    url: str
+    expira_en_segundos: int
+    expira_en: datetime
+
+
+def firmar_descarga(
+    *,
+    clave: str,
+    cfg: Config | None = None,
+    expira_en: timedelta = EXPIRACION_POR_DEFECTO,
+) -> DescargaFirmada:
+    """URL firmada para un `GET` directo a R2.
+
+    Es el par de `firmar_subida`: quien la pide ya probó que ve el objeto que
+    lo referencia (RLS sobre la fila), pero R2 no tiene RLS, así que **quien
+    llama** debe comprobar que la clave cuelga del prefijo de su organización
+    antes de firmar — la clave que guarda una fila la escribió un cliente.
+    """
+    cfg = cfg or obtener_config()
+    _exigir_configuracion(cfg)
+
+    segundos = int(expira_en.total_seconds())
+    cliente = _cliente(cfg.r2_endpoint, cfg.r2_access_key, cfg.r2_secret_key)
+    url = cliente.generate_presigned_url(  # type: ignore[attr-defined]
+        "get_object",
+        Params={"Bucket": cfg.r2_bucket, "Key": clave},
+        ExpiresIn=segundos,
+        HttpMethod="GET",
+    )
+    return DescargaFirmada(
+        url=url,
+        expira_en_segundos=segundos,
         expira_en=datetime.now(UTC) + expira_en,
     )

@@ -26,6 +26,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ArchivoDePlanoRespuesta,
   HTTPValidationError,
   NodoCuantificadoRespuesta,
   NotaPlanoPeticion,
@@ -1656,6 +1657,388 @@ export function useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet<
       obraId,
       options,
     );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * El visor pinta los trazos sobre el plano; el archivo vive en R2 y no
+pasa por la API (§12.2), así que se entrega una URL de lectura.
+
+`archivo_url` la escribió quien dio de alta el plano, no el servidor: sin
+la comprobación del prefijo, un usuario podría registrar una clave de otra
+organización y pedir que se la firmen. R2 no tiene RLS (§12.4); el prefijo
+por `org_id` es la frontera, y aquí se hace valer.
+ * @summary URL firmada para ver el archivo de un plano
+ */
+export const archivoDePlanoApiV1PlanosPlanoIdArchivoGet = (
+  planoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ArchivoDePlanoRespuesta>(
+    { url: `/api/v1/planos/${planoId}/archivo`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getArchivoDePlanoApiV1PlanosPlanoIdArchivoGetInfiniteQueryKey = (
+  planoId?: string,
+) => {
+  return ["infinite", `/api/v1/planos/${planoId}/archivo`] as const;
+};
+
+export const getArchivoDePlanoApiV1PlanosPlanoIdArchivoGetQueryKey = (
+  planoId?: string,
+) => {
+  return [`/api/v1/planos/${planoId}/archivo`] as const;
+};
+
+export const getArchivoDePlanoApiV1PlanosPlanoIdArchivoGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    planoId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getArchivoDePlanoApiV1PlanosPlanoIdArchivoGetInfiniteQueryKey(planoId);
+
+    const queryFn: QueryFunction<
+      Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>
+    > = ({ signal }) =>
+      archivoDePlanoApiV1PlanosPlanoIdArchivoGet(
+        planoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!planoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ArchivoDePlanoApiV1PlanosPlanoIdArchivoGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>
+  >;
+export type ArchivoDePlanoApiV1PlanosPlanoIdArchivoGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useArchivoDePlanoApiV1PlanosPlanoIdArchivoGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>
+          >,
+          TError,
+          Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useArchivoDePlanoApiV1PlanosPlanoIdArchivoGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>
+          >,
+          TError,
+          Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useArchivoDePlanoApiV1PlanosPlanoIdArchivoGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary URL firmada para ver el archivo de un plano
+ */
+
+export function useArchivoDePlanoApiV1PlanosPlanoIdArchivoGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getArchivoDePlanoApiV1PlanosPlanoIdArchivoGetInfiniteQueryOptions(
+      planoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getArchivoDePlanoApiV1PlanosPlanoIdArchivoGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getArchivoDePlanoApiV1PlanosPlanoIdArchivoGetQueryKey(planoId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>
+  > = ({ signal }) =>
+    archivoDePlanoApiV1PlanosPlanoIdArchivoGet(planoId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!planoId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ArchivoDePlanoApiV1PlanosPlanoIdArchivoGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>
+>;
+export type ArchivoDePlanoApiV1PlanosPlanoIdArchivoGetQueryError =
+  void | HTTPValidationError;
+
+export function useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet<
+  TData = Awaited<
+    ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>
+          >,
+          TError,
+          Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet<
+  TData = Awaited<
+    ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>
+          >,
+          TError,
+          Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet<
+  TData = Awaited<
+    ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary URL firmada para ver el archivo de un plano
+ */
+
+export function useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet<
+  TData = Awaited<
+    ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof archivoDePlanoApiV1PlanosPlanoIdArchivoGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getArchivoDePlanoApiV1PlanosPlanoIdArchivoGetQueryOptions(planoId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,
