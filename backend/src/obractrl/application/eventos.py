@@ -151,6 +151,9 @@ class PartesCambiaronDeEstado:
     obra_id: UUID
     accion: str
     claves: tuple[str, ...]
+    estados: tuple[str, ...] = ()
+    """El estado al que pasó cada parte, en el mismo orden que `claves`."""
+    usuario_id: UUID | None = None
 
 
 @runtime_checkable

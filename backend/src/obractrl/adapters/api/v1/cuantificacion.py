@@ -73,7 +73,13 @@ from obractrl.infrastructure.storage.r2 import firmar_descarga
 
 router = APIRouter(tags=["cuantificacion"])
 
-ROLES_QUE_TRAZAN = (Rol.RESIDENTE, Rol.SUPERVISOR, Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE)
+ROLES_QUE_TRAZAN = (
+    Rol.RESIDENTE,
+    Rol.SUPERVISOR,
+    Rol.CONTROL_OBRA,
+    Rol.SUPER_INTENDENTE,
+    Rol.COSTOS,  # cuantifica: es su trabajo (D-575)
+)
 """Los cuatro roles existentes en ObraCtrl (ver docstring del módulo): el
 vocabulario de cerebro excluye a "Cotizador", que no tiene equivalente
 aquí, así que ninguno de los cuatro queda fuera."""

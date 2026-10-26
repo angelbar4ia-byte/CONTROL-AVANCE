@@ -71,6 +71,7 @@ const ENCABEZADO: Record<Rol, { readonly eyebrow: string; readonly titulo: strin
   supervisor: { eyebrow: 'Control supervisión', titulo: 'Ruta crítica' },
   control_obra: { eyebrow: 'Control de obra', titulo: 'Ruta crítica' },
   super_intendente: { eyebrow: 'Control general', titulo: 'Ruta crítica' },
+  costos: { eyebrow: 'Presupuesto', titulo: 'Ruta crítica' },
 };
 
 export default function Programacion() {

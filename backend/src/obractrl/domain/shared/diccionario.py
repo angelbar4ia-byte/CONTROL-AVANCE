@@ -72,6 +72,9 @@ class Rol(_Canonico):
     SUPERVISOR = "supervisor"
     CONTROL_OBRA = "control_obra"
     SUPER_INTENDENTE = "super_intendente"
+    COSTOS = "costos"
+    """Cuantifica y forma el presupuesto; ve todas las obras, sin los privilegios de Control
+    (D-575; migraciones 0076 y 0077)."""
 
     @property
     def puede_configurar(self) -> bool:

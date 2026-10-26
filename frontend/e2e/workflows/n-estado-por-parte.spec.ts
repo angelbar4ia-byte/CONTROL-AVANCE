@@ -7,9 +7,9 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
  * presupuesto, se autoriza (la realiza Costos o Control, Control la valida), se envía a
  * programar, se programa y se asigna. «Total o por partes»; volver es libre hasta asignar.
  *
- *  1. Control manda **todas** las partes a presupuesto con un clic.
- *  2. Una parte se autoriza, se valida, se envía a programar y se programa; las demás no se
- *     mueven (el orden es por parte, no por obra).
+ *  1. **Costos** manda **todas** las partes a presupuesto con un clic: es quien cuantifica.
+ *  2. Costos autoriza una parte, **Control la valida** (Costos no se valida a sí mismo), y
+ *     Control la envía a programar; las demás no se mueven (el orden es por parte, no por obra).
  *  3. El supervisor programa lo que ya está en programa, pero no autoriza ni asigna.
  *  4. Control devuelve una parte autorizada a cuantificando (libre hasta asignar) y la bitácora
  *     lo dice con quién y cuándo.
@@ -18,7 +18,7 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
  * Es una obra nueva por corrida: no consume obras de la semilla.
  */
 
-const ROLES_N = ['residente', 'supervisor', 'control'] as const;
+const ROLES_N = ['residente', 'supervisor', 'control', 'costos'] as const;
 
 test.describe('Partes · cada una a su paso', () => {
   test.skip(!hayRoles(...ROLES_N), motivoSinRoles(...ROLES_N));
@@ -45,22 +45,34 @@ test.describe('Partes · cada una a su paso', () => {
     expect(partes.length).toBeGreaterThan(0);
     const primera = partes[0]!;
 
+    const costos = await (await browser.newContext()).newPage();
+    await entrarComo(costos, 'costos');
+    await costos.goto('/partes');
+    await costos.getByLabel('Obra', { exact: true }).selectOption({ label: clave });
+    const filasCostos = costos.getByRole('row').filter({ has: costos.getByRole('checkbox') });
+    await expect(filasCostos).toHaveCount(partes.length);
+    await expect(filasCostos.first()).toContainText('Cuantificando');
+
+    // --- 1. Costos manda todas, con un clic -------------------------------------------------
+    await costos.getByRole('button', { name: /Enviar a presupuesto: todas/ }).click();
+    for (let i = 0; i < partes.length; i++) await expect(filasCostos.nth(i)).toContainText('En presupuesto');
+
+    // --- 2. Costos autoriza; Control valida; las demás partes no se mueven ---------------------
+    await costos.getByRole('checkbox', { name: `Elegir ${primera.nombre}` }).check();
+    await costos.getByRole('button', { name: 'Autorizar (1)' }).click();
+    await expect(filasCostos.first()).toContainText('Por validar');
+    // Quien autoriza no se valida a sí mismo: ni el botón de validar ni el de asignar.
+    await costos.getByRole('checkbox', { name: `Elegir ${primera.nombre}` }).check();
+    await expect(costos.getByRole('button', { name: /Validar|Asignar|Programar/ })).toHaveCount(0);
+
     const control = await (await browser.newContext()).newPage();
     await entrarComo(control, 'control');
     await control.goto('/partes');
     await control.getByLabel('Obra', { exact: true }).selectOption({ label: clave });
     const filas = control.getByRole('row').filter({ has: control.getByRole('checkbox') });
     await expect(filas).toHaveCount(partes.length);
-    await expect(filas.first()).toContainText('Cuantificando');
-
-    // --- 1. Todas, con un clic -----------------------------------------------------------
-    await control.getByRole('button', { name: /Enviar a presupuesto: todas/ }).click();
-    for (let i = 0; i < partes.length; i++) await expect(filas.nth(i)).toContainText('En presupuesto');
-
-    // --- 2. Una parte avanza; las demás no ------------------------------------------------
     const marcar = async () => control.getByRole('checkbox', { name: `Elegir ${primera.nombre}` }).check();
     for (const [boton, estado] of [
-      ['Autorizar (1)', 'Por validar'],
       ['Validar (1)', 'Autorizada'],
       ['Enviar a programar (1)', 'En programa'],
     ] as const) {

@@ -32,6 +32,7 @@ __all__ = [
     "EstadoDeParte",
     "ParteNoPermitida",
     "aplicar",
+    "roles_del_siguiente_paso",
 ]
 
 
@@ -70,10 +71,13 @@ class ParteNoPermitida(PermissionError):
 
 
 _C = Rol.CONTROL_OBRA
+_K = Rol.COSTOS
 
 PERMISOS: dict[Accion, frozenset[Rol]] = {
-    Accion.ENVIAR_A_PRESUPUESTO: frozenset({_C}),
-    Accion.AUTORIZAR: frozenset({_C}),  # Costos se suma en la fase 2
+    # Quien cuantifica manda lo que ya está; autorizar lo realiza Costos o Control y Control
+    # valida al final (D-571). Costos ve todas las obras pero no programa, no asigna ni valida.
+    Accion.ENVIAR_A_PRESUPUESTO: frozenset({_C, _K}),
+    Accion.AUTORIZAR: frozenset({_C, _K}),
     Accion.VALIDAR: frozenset({_C}),
     Accion.ENVIAR_A_PROGRAMA: frozenset({_C}),
     Accion.PROGRAMAR: frozenset({_C, Rol.SUPERVISOR}),
@@ -89,6 +93,24 @@ _DE_A: dict[Accion, tuple[EstadoDeParte, EstadoDeParte]] = {
     Accion.PROGRAMAR: (EstadoDeParte.ENVIADA_PROGRAMA, EstadoDeParte.PROGRAMADA),
     Accion.ASIGNAR: (EstadoDeParte.PROGRAMADA, EstadoDeParte.ASIGNADA),
 }
+
+
+_SIGUIENTE: dict[EstadoDeParte, Accion] = {
+    EstadoDeParte.CUANTIFICANDO: Accion.ENVIAR_A_PRESUPUESTO,
+    EstadoDeParte.ENVIADA_PRESUPUESTO: Accion.AUTORIZAR,
+    EstadoDeParte.POR_VALIDAR: Accion.VALIDAR,
+    EstadoDeParte.AUTORIZADA: Accion.ENVIAR_A_PROGRAMA,
+    EstadoDeParte.ENVIADA_PROGRAMA: Accion.PROGRAMAR,
+    EstadoDeParte.PROGRAMADA: Accion.ASIGNAR,
+}
+
+
+def roles_del_siguiente_paso(estado: EstadoDeParte) -> frozenset[Rol]:
+    """Quiénes pueden dar el paso que sigue a una parte en ese estado: a ellos se les avisa
+    («se avisa a quien tiene que dar el siguiente paso», §8.6). Una parte asignada ya no tiene
+    paso siguiente."""
+    accion = _SIGUIENTE.get(estado)
+    return PERMISOS[accion] if accion is not None else frozenset()
 
 
 def aplicar(

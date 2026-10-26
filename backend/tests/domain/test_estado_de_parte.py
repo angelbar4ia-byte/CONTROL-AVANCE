@@ -85,3 +85,29 @@ def test_devolver_solo_a_un_paso_anterior_y_diciendo_a_cual() -> None:
         aplicar(Accion.DEVOLVER, estado=E.AUTORIZADA, rol=C, a=E.PROGRAMADA)
     with pytest.raises(ErrorDeParte, match="a qué estado"):
         aplicar(Accion.DEVOLVER, estado=E.AUTORIZADA, rol=C)
+
+
+def test_costos_manda_y_autoriza_pero_no_valida_ni_programa_ni_asigna() -> None:
+    K = Rol.COSTOS
+    assert aplicar(Accion.ENVIAR_A_PRESUPUESTO, estado=E.CUANTIFICANDO, rol=K) is E.ENVIADA_PRESUPUESTO
+    assert aplicar(Accion.AUTORIZAR, estado=E.ENVIADA_PRESUPUESTO, rol=K) is E.POR_VALIDAR
+    # Control valida al final (D-571): quien autoriza no se valida a sí mismo.
+    for accion, estado in (
+        (Accion.VALIDAR, E.POR_VALIDAR),
+        (Accion.ENVIAR_A_PROGRAMA, E.AUTORIZADA),
+        (Accion.PROGRAMAR, E.ENVIADA_PROGRAMA),
+        (Accion.ASIGNAR, E.PROGRAMADA),
+        (Accion.DEVOLVER, E.AUTORIZADA),
+    ):
+        with pytest.raises(ParteNoPermitida):
+            aplicar(accion, estado=estado, rol=K, a=E.CUANTIFICANDO)
+
+
+def test_se_avisa_a_quien_da_el_siguiente_paso() -> None:
+    from obractrl.domain.partes.estado import roles_del_siguiente_paso
+
+    assert roles_del_siguiente_paso(E.ENVIADA_PRESUPUESTO) == {Rol.COSTOS, Rol.CONTROL_OBRA}
+    assert roles_del_siguiente_paso(E.POR_VALIDAR) == {Rol.CONTROL_OBRA}
+    assert roles_del_siguiente_paso(E.ENVIADA_PROGRAMA) == {Rol.CONTROL_OBRA, Rol.SUPERVISOR}
+    assert roles_del_siguiente_paso(E.CUANTIFICANDO) == {Rol.COSTOS, Rol.CONTROL_OBRA}
+    assert roles_del_siguiente_paso(E.ASIGNADA) == frozenset()

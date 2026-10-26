@@ -41,7 +41,9 @@ from obractrl.domain.shared.diccionario import Rol
 
 router = APIRouter(tags=["presupuesto"])
 
-CONSULTA_PRESUPUESTO = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE))
+CONSULTA_PRESUPUESTO = Depends(
+    exigir_rol(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE, Rol.COSTOS)
+)
 """«Presupuesto de obras» y «Rendimientos» son de C y SI (§5.1)."""
 
 Umbral = Annotated[

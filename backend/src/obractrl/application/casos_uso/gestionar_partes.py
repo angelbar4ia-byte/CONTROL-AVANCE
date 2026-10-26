@@ -263,7 +263,11 @@ class CambiarEstadoDePartes:
 
         await self._eventos.publicar(
             PartesCambiaronDeEstado(
-                obra_id=cmd.obra_id, accion=cmd.accion.value, claves=tuple(c for c, _, _ in pasos)
+                obra_id=cmd.obra_id,
+                accion=cmd.accion.value,
+                claves=tuple(c for c, _, _ in pasos),
+                estados=tuple(a.value for _, _, a in pasos),
+                usuario_id=cmd.usuario_id,
             )
         )
         return [{"clave": c, "de": de.value, "a": a.value} for c, de, a in pasos]

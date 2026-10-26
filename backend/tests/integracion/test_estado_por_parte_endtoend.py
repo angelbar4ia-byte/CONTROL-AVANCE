@@ -24,7 +24,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from obractrl.adapters.api.dependencias import contexto_actual
+from obractrl.application.puertos.notificaciones import Correo
 from obractrl.infrastructure.db.sesion import ContextoSesion
+from obractrl.infrastructure.notificaciones.expo import ClienteExpoPush
+from obractrl.infrastructure.notificaciones.resend import ClienteResend
 from obractrl.main import crear_app
 from tests.integracion.conftest import DATABASE_URL_ADMIN, Escenario
 
@@ -54,6 +57,45 @@ async def supervisor(contexto_supervisor: ContextoSesion) -> AsyncIterator[httpx
 async def control(contexto_control: ContextoSesion) -> AsyncIterator[httpx.AsyncClient]:
     async with _cliente(contexto_control) as c:
         yield c
+
+
+@pytest.fixture
+async def costos(escenario: Escenario) -> AsyncIterator[httpx.AsyncClient]:
+    """Un usuario de Costos: ve todas las obras de la organización, sin privilegios de Control."""
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    usuario = uuid.uuid4()
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "insert into usuario (id, org_id, nombre, email, rol) "
+                "values (:i, :o, 'Costos Test', :e, 'costos')"
+            ),
+            {"i": str(usuario), "o": str(escenario.org_id), "e": f"cos-{usuario.hex[:8]}@test.mx"},
+        )
+    await engine.dispose()
+    contexto = ContextoSesion(org_id=escenario.org_id, usuario_id=usuario, rol="costos")
+    async with _cliente(contexto) as c:
+        yield c
+
+
+@pytest.fixture
+async def buzon(monkeypatch: pytest.MonkeyPatch) -> list[Correo]:
+    enviados: list[Correo] = []
+
+    async def capturar(self, correo: Correo) -> bool:  # type: ignore[no-untyped-def]
+        enviados.append(correo)
+        return True
+
+    async def sin_push(self, aviso) -> int:  # type: ignore[no-untyped-def]
+        return 0
+
+    monkeypatch.setattr(ClienteResend, "enviar", capturar)
+    monkeypatch.setattr(ClienteExpoPush, "enviar", sin_push)
+    return enviados
+
+
+def _prefijos(correo: Correo) -> list[str]:
+    return sorted(a.split("@")[0].split("-")[0] for a in correo.para)
 
 
 @pytest.fixture
@@ -258,3 +300,66 @@ async def test_otra_organizacion_no_ve_ni_toca_nada(
         )
         assert r.status_code == 404, r.text
     assert set((await _estados(control, escenario)).values()) == {"cuantificando"}
+
+
+async def test_costos_manda_y_autoriza_y_control_valida_al_final(
+    escenario: Escenario, partes: dict, costos: httpx.AsyncClient, control: httpx.AsyncClient
+) -> None:
+    # Costos ve toda la organización: la obra es visible aunque no sea «suya».
+    assert set((await _estados(costos, escenario)).values()) == {"cuantificando"}
+
+    assert (await _paso(costos, escenario, "enviar_a_presupuesto", claves=[partes["a"]])).status_code == 200
+    assert (await _paso(costos, escenario, "autorizar", claves=[partes["a"]])).status_code == 200
+    # Pero no se valida a sí mismo, ni programa, ni asigna, ni devuelve: eso es de Control.
+    for accion, cuerpo in (
+        ("validar", {}),
+        ("enviar_a_programa", {}),
+        ("programar", {}),
+        ("asignar", {}),
+        ("devolver", {"a": "cuantificando"}),
+    ):
+        r = await _paso(costos, escenario, accion, claves=[partes["a"]], **cuerpo)
+        assert r.status_code == 403, (accion, r.text)
+    assert (await _estados(control, escenario))[partes["a"]] == "por_validar"
+
+    assert (await _paso(control, escenario, "validar", claves=[partes["a"]])).status_code == 200
+    bitacora = (await control.get(f"/api/v1/obras/{escenario.obra_id}/partes/bitacora")).json()
+    assert [(f["accion"], f["rol"]) for f in bitacora] == [
+        ("validar", "control_obra"),
+        ("autorizar", "costos"),
+        ("enviar_a_presupuesto", "costos"),
+    ]
+
+
+async def test_se_avisa_a_quien_da_el_siguiente_paso_sin_quien_acaba_de_darlo(
+    escenario: Escenario,
+    partes: dict,
+    costos: httpx.AsyncClient,
+    control: httpx.AsyncClient,
+    buzon: list[Correo],
+) -> None:
+    # Costos manda a presupuesto: le toca autorizar a Costos y a Control (no a quien mandó).
+    await _paso(costos, escenario, "enviar_a_presupuesto", claves=[partes["a"]])
+    [correo] = buzon
+    assert correo.etiquetas == {"tipo": "partes_cambiaron_de_estado"}
+    assert _prefijos(correo) == ["ctrl"]
+    assert "en presupuesto" in correo.texto
+
+    # Costos autoriza: le toca validar a Control.
+    await _paso(costos, escenario, "autorizar", claves=[partes["a"]])
+    assert _prefijos(buzon[-1]) == ["ctrl"]
+    assert "por validar" in buzon[-1].texto
+
+    # Control manda a presupuesto otra parte: le toca autorizar a Costos (y a otro Control, si hubiera).
+    antes = len(buzon)
+    await _paso(control, escenario, "enviar_a_presupuesto", claves=[partes["b"]])
+    assert len(buzon) == antes + 1
+    assert _prefijos(buzon[-1]) == ["cos"]
+
+    # Una parte asignada ya no tiene siguiente paso: no se avisa a nadie.
+    for accion in ("autorizar", "validar", "enviar_a_programa", "programar", "asignar"):
+        await _paso(control, escenario, accion, claves=[partes["b"]])
+    assert (await _estados(control, escenario))[partes["b"]] == "asignada"
+    despues = len(buzon)
+    assert (await control.get(f"/api/v1/obras/{escenario.obra_id}/partes")).status_code == 200
+    assert despues == len(buzon)

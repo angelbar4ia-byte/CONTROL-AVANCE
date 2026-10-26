@@ -154,7 +154,7 @@ async def fijar_plantas_de_prototipo(
     "/obras/{obra_id}/partes/transicion",
     response_model=list[PasoDeParteRespuesta],
     summary="Mandar, autorizar, validar, programar, asignar o devolver partes",
-    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPERVISOR)), Idempotencia],
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPERVISOR, Rol.COSTOS)), Idempotencia],
     responses={
         **_NO_ENCONTRADO,
         403: {"description": "Tu rol no puede hacer esa acción sobre una parte."},

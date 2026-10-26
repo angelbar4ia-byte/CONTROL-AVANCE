@@ -24986,7 +24986,8 @@
           "residente",
           "supervisor",
           "control_obra",
-          "super_intendente"
+          "super_intendente",
+          "costos"
         ],
         "title": "Rol"
       },

@@ -257,6 +257,7 @@ from obractrl.application.casos_uso.gestionar_usuarios import (
 from obractrl.application.casos_uso.notificar_estimacion import (
     NotificarEstimacionValidada,
 )
+from obractrl.application.casos_uso.notificar_partes import NotificarPartes
 from obractrl.application.casos_uso.notificar_reprogramacion import (
     NotificarReprogramacion,
 )
@@ -269,6 +270,7 @@ from obractrl.application.eventos import (
     BusEnProceso,
     EstimacionValidada,
     IncidenciaDetiene,
+    PartesCambiaronDeEstado,
     ReprogramacionAplicada,
     ReprogramacionObservada,
 )
@@ -1343,9 +1345,22 @@ def obtener_fijar_plantas_de_prototipo(sesion: SesionRLS) -> FijarPlantasDeProto
 
 
 def _bus_de_partes(sesion: SesionRLS, ctx: ContextoActual) -> BusEnProceso:
-    """`PartesCambiaronDeEstado` → aviso en vivo (D-571). Los avisos por correo y push a quien
-    da el siguiente paso llegan con la autorización (fase 2)."""
-    return suscribir_avisos(BusEnProceso(), ctx=ctx, canal=canal_de_avisos)
+    """`PartesCambiaronDeEstado` → avisar por correo y push a quien da el siguiente paso, y el
+    aviso en vivo (D-571, §8.6)."""
+    notificar = NotificarPartes(
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        usuarios=RepositorioUsuariosSQL(sesion),
+        correo=ClienteResend(),
+        push=ClienteExpoPush(),
+    )
+
+    async def _avisar(evento: PartesCambiaronDeEstado) -> None:
+        await notificar.ejecutar(evento)
+
+    bus = BusEnProceso()
+    bus.suscribir(PartesCambiaronDeEstado, _avisar)
+    return suscribir_avisos(bus, ctx=ctx, canal=canal_de_avisos)
 
 
 def obtener_cambiar_estado_de_partes(

@@ -84,7 +84,7 @@ class RepositorioUsuariosSQL:
                       from usuario u
                      where u.estatus = 'activo'
                        and (
-                            u.rol = 'control_obra'
+                            u.rol in ('control_obra', 'costos')
                          or (u.rol = 'residente' and exists (
                                 select 1 from residente_obra ro
                                  where ro.obra_id = :obra_id and ro.residente_id = u.id))

@@ -87,6 +87,8 @@ export function accionSiguiente(estado: string): AccionDeParte | null {
 /** Quién puede cada acción (espejo de `PERMISOS` del dominio). */
 export function puedeAccion(rol: Rol | null, accion: AccionDeParte): boolean {
   if (rol === 'control_obra') return true;
+  // Costos cuantifica y autoriza; Control valida al final (D-571).
+  if (rol === 'costos') return accion === 'enviar_a_presupuesto' || accion === 'autorizar';
   return rol === 'supervisor' && accion === 'programar';
 }
 

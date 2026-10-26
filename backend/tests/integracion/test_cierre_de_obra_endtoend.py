@@ -103,7 +103,7 @@ class TestAbrir:
         # La obra del escenario está a medias: abrir con pendientes es
         # justamente lo que convoca al equipo a resolverlos (§11.3 D.1).
         assert resultado.pendientes
-        assert set(resultado.faltan) == set(Rol)
+        assert set(resultado.faltan) == set(Rol) - {Rol.COSTOS}
 
     async def test_control_de_obra_no_abre_el_cierre(
         self, escenario: Escenario, contexto_control: ContextoSesion

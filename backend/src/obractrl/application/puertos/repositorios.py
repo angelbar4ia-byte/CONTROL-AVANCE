@@ -1523,7 +1523,7 @@ class RepositorioUsuarios(Protocol):
     async def de_la_obra(self, obra_id: UUID) -> list[dict]:
         """`{id, nombre, email, rol}` de quienes llevan esa obra, activos: sus
         residentes, los supervisores de esos residentes y los usuarios de control de
-        obra (que ven toda la organización).
+        obra y de costos (que ven toda la organización).
 
         Sirve para avisar **por rol** («al supervisor y a control»), que es como lo
         pide el flujo de reprogramación (D-533). Se lee con el alcance de quien

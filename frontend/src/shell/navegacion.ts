@@ -41,7 +41,7 @@ import {
   Users,
 } from 'lucide-react';
 
-export type Rol = 'residente' | 'supervisor' | 'control_obra' | 'super_intendente';
+export type Rol = 'residente' | 'supervisor' | 'control_obra' | 'super_intendente' | 'costos';
 
 export interface ItemNav {
   /** Ruta de React Router. */
@@ -63,6 +63,7 @@ export const NOMBRE_ROL: Record<Rol, string> = {
   supervisor: 'Supervisor de obra',
   control_obra: 'Control de obra',
   super_intendente: 'Super intendente de obra',
+  costos: 'Costos',
 };
 
 /** Alcance del rol, tal como lo impone RLS (§4). Se muestra como contexto. */
@@ -71,6 +72,7 @@ export const ALCANCE_ROL: Record<Rol, string> = {
   supervisor: 'Sus clusters',
   control_obra: 'Proyectos asignados',
   super_intendente: 'Todos los proyectos',
+  costos: 'Todas las obras, sin privilegios de Control',
 };
 
 const RESIDENTE: readonly SeccionNav[] = [
@@ -266,7 +268,25 @@ const SUPER_INTENDENTE: readonly SeccionNav[] = [
   },
 ];
 
+/**
+ * Costos (D-575): cuantifica y forma el presupuesto, y autoriza lo cuantificado (Control lo valida
+ * al final). **Ve todas las obras, sin las funciones ni los privilegios de Control.**
+ */
+const COSTOS: readonly SeccionNav[] = [
+  {
+    titulo: 'Presupuesto',
+    items: [
+      { a: '/obras', etiqueta: 'Obras', icono: Home, soloLectura: true },
+      { a: '/cuantificador', etiqueta: 'Cuantificador', icono: Ruler },
+      { a: '/partes', etiqueta: 'Partes', icono: Layers },
+      { a: '/desviaciones', etiqueta: 'Desviaciones', icono: Scale },
+      { a: '/config/presupuesto', etiqueta: 'Presupuesto', icono: FileSpreadsheet },
+    ],
+  },
+];
+
 const POR_ROL: Record<Rol, readonly SeccionNav[]> = {
+  costos: COSTOS,
   residente: RESIDENTE,
   supervisor: SUPERVISOR,
   control_obra: CONTROL_OBRA,

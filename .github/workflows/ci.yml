@@ -265,6 +265,7 @@ jobs:
       E2E_USUARIO_SUPERVISOR: sup@e2e.mx
       E2E_USUARIO_CONTROL: ctrl@e2e.mx
       E2E_USUARIO_SUPER_INTENDENTE: si@e2e.mx
+      E2E_USUARIO_COSTOS: cos@e2e.mx
 
     steps:
       - uses: actions/checkout@v4

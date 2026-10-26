@@ -15,7 +15,7 @@ import {
 } from '@/partes/reglas';
 import { navegacionDe, rutaPermitida, type Rol } from '@/shell/navegacion';
 
-const ROLES: readonly Rol[] = ['residente', 'supervisor', 'control_obra', 'super_intendente'];
+const ROLES: readonly Rol[] = ['residente', 'supervisor', 'control_obra', 'super_intendente', 'costos'];
 
 describe('el camino de una parte', () => {
   it('cada estado tiene su paso siguiente, hasta asignar', () => {
@@ -58,6 +58,16 @@ describe('quién da cada paso', () => {
     expect(puedeAccion('supervisor', 'asignar')).toBe(false);
     for (const rol of ['residente', 'super_intendente', null] as const) {
       expect(puedeAccion(rol, 'programar')).toBe(false);
+    }
+  });
+});
+
+describe('Costos', () => {
+  it('manda a presupuesto y autoriza; no valida, no programa, no asigna, no devuelve', () => {
+    expect(puedeAccion('costos', 'enviar_a_presupuesto')).toBe(true);
+    expect(puedeAccion('costos', 'autorizar')).toBe(true);
+    for (const a of ['validar', 'enviar_a_programa', 'programar', 'asignar', 'devolver'] as const) {
+      expect(puedeAccion('costos', a)).toBe(false);
     }
   });
 });
