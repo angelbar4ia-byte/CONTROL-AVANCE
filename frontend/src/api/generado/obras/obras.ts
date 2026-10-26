@@ -31,6 +31,7 @@ import type {
   CrearObrasEnLotePeticion,
   GenerarObraPeticion,
   HTTPValidationError,
+  IniciarObraPeticion,
   ListarObrasApiV1ObrasGetParams,
   ObraGeneradaRespuesta,
   ObraRespuesta,
@@ -1193,6 +1194,103 @@ export const useGenerarObraApiV1ObrasObraIdGenerarPost = <
 > => {
   const mutationOptions =
     getGenerarObraApiV1ObrasObraIdGenerarPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Control de obra declara la junta de arranque (`marcar_obra_iniciada`,
+D-537): la obra pasa a `iniciada` y el cronograma se recalcula contra la
+fecha de la junta, que es la que dispara las fechas contractuales.
+ * @summary Junta de arranque: marcar la obra como iniciada
+ */
+export const iniciarObraApiV1ObrasObraIdIniciarPost = (
+  obraId: string,
+  iniciarObraPeticion: IniciarObraPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ObraRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/iniciar`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: iniciarObraPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getIniciarObraApiV1ObrasObraIdIniciarPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof iniciarObraApiV1ObrasObraIdIniciarPost>>,
+    TError,
+    { obraId: string; data: IniciarObraPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof iniciarObraApiV1ObrasObraIdIniciarPost>>,
+  TError,
+  { obraId: string; data: IniciarObraPeticion },
+  TContext
+> => {
+  const mutationKey = ["iniciarObraApiV1ObrasObraIdIniciarPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof iniciarObraApiV1ObrasObraIdIniciarPost>>,
+    { obraId: string; data: IniciarObraPeticion }
+  > = (props) => {
+    const { obraId, data } = props ?? {};
+
+    return iniciarObraApiV1ObrasObraIdIniciarPost(obraId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type IniciarObraApiV1ObrasObraIdIniciarPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof iniciarObraApiV1ObrasObraIdIniciarPost>>
+>;
+export type IniciarObraApiV1ObrasObraIdIniciarPostMutationBody =
+  IniciarObraPeticion;
+export type IniciarObraApiV1ObrasObraIdIniciarPostMutationError = void;
+
+/**
+ * @summary Junta de arranque: marcar la obra como iniciada
+ */
+export const useIniciarObraApiV1ObrasObraIdIniciarPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof iniciarObraApiV1ObrasObraIdIniciarPost>>,
+      TError,
+      { obraId: string; data: IniciarObraPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof iniciarObraApiV1ObrasObraIdIniciarPost>>,
+  TError,
+  { obraId: string; data: IniciarObraPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getIniciarObraApiV1ObrasObraIdIniciarPostMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };

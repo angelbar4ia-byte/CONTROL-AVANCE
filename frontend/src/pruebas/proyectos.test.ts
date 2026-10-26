@@ -36,6 +36,7 @@ import {
   obraCongelada,
   puedeAdministrarObras,
   puedeConfigurarEstructura,
+  puedeDeclararJuntaDeArranque,
   puedeEditarObra,
   tonoEstatusObra,
 } from '@/proyectos/reglas';
@@ -96,6 +97,22 @@ describe('obra entregada = congelada (§11.3 D.3)', () => {
     const enProceso = obra('o1', 'c1', 'FRESNO 01', { estatus: 'en_proceso' });
     expect(puedeEditarObra('control_obra', enProceso)).toBe(true);
     expect(puedeEditarObra('supervisor', enProceso)).toBe(false);
+  });
+});
+
+describe('la junta de arranque (D-537)', () => {
+  it('solo Control de obra la declara, y solo con la obra pendiente', () => {
+    const pendiente = obra('o1', 'c1', 'FRESNO 01', { estatus: 'pendiente' });
+    expect(ROLES.filter((rol) => puedeDeclararJuntaDeArranque(rol, pendiente))).toEqual([
+      'control_obra',
+    ]);
+  });
+
+  it('una obra que ya arrancó no ofrece la junta', () => {
+    for (const estatus of ['iniciada', 'en_proceso', 'por_entregar', 'entregada']) {
+      const ya = obra('o1', 'c1', 'FRESNO 01', { estatus });
+      expect(puedeDeclararJuntaDeArranque('control_obra', ya)).toBe(false);
+    }
   });
 });
 

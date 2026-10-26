@@ -3892,6 +3892,82 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/iniciar": {
+      "post": {
+        "tags": [
+          "obras"
+        ],
+        "summary": "Junta de arranque: marcar la obra como iniciada",
+        "description": "Control de obra declara la junta de arranque (`marcar_obra_iniciada`,\nD-537): la obra pasa a `iniciada` y el cronograma se recalcula contra la\nfecha de la junta, que es la que dispara las fechas contractuales.",
+        "operationId": "iniciar_obra_api_v1_obras__obra_id__iniciar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IniciarObraPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObraRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Solo una obra `pendiente` se inicia."
+          },
+          "422": {
+            "description": "La fecha de la junta es posterior al fin de la obra."
+          }
+        }
+      }
+    },
     "/api/v1/organizacion/reiniciar": {
       "post": {
         "tags": [
@@ -4501,6 +4577,62 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/programa/ediciones": {
+      "get": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Bitácora de ediciones manuales del programa",
+        "description": "Quién cambió qué del programa y con qué rol, lo más reciente primero.\nTodos los roles, cada uno con su alcance (RLS). La bitácora no se edita.",
+        "operationId": "listar_ediciones_del_programa_api_v1_obras__obra_id__programa_ediciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EdicionDeProgramaRespuesta"
+                  },
+                  "title": "Response Listar Ediciones Del Programa Api V1 Obras  Obra Id  Programa Ediciones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/ruta-critica/recalcular": {
       "post": {
         "tags": [
@@ -4571,7 +4703,7 @@
           "programacion"
         ],
         "summary": "Ajustar fechas, duración y dependencias de una actividad",
-        "description": "Supervisor y Control de obra ajustan el cronograma (§11.2). El recálculo\nde la ruta va en la misma transacción.",
+        "description": "Control de obra y Supervisor ajustan el cronograma (§11.2); el Residente,\nsolo las fechas. Cada edición queda en la bitácora del programa. El recálculo\nde la ruta va en la misma transacción.",
         "operationId": "editar_programacion_actividad_api_v1_actividades__actividad_id__programacion_patch",
         "security": [
           {
@@ -4616,6 +4748,9 @@
           },
           "422": {
             "description": "El cronograma tiene dependencias circulares o la programación es inválida; nada se escribió (§6, §7.5)."
+          },
+          "403": {
+            "description": "El residente solo edita fechas; la estructura del programa (duración, vínculos, tramos, frente) es de Control de obra."
           }
         }
       }
@@ -9219,6 +9354,128 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/desviaciones": {
+      "get": {
+        "tags": [
+          "desviaciones"
+        ],
+        "summary": "Desviaciones de una obra, con o sin causa",
+        "description": "Las más recientes primero. Las que no tienen causa salen igual.",
+        "operationId": "listar_desviaciones_api_v1_obras__obra_id__desviaciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DesviacionRespuesta"
+                  },
+                  "title": "Response Listar Desviaciones Api V1 Obras  Obra Id  Desviaciones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/desviaciones/{desviacion_id}/causa": {
+      "put": {
+        "tags": [
+          "desviaciones"
+        ],
+        "summary": "Capturar (o corregir) la causa de una desviación",
+        "description": "La causa se agrega después de detectar la desviación, sin penalizar, y se\npuede corregir. Debe ser del mismo factor (`precio` o `consumo`) que la fila.",
+        "operationId": "capturar_causa_api_v1_desviaciones__desviacion_id__causa_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "desviacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Desviacion Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CausaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La desviación no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "La causa es del otro factor: no cabe en esta desviación."
+          }
+        }
+      }
+    },
     "/api/v1/reportes/tipos": {
       "get": {
         "tags": [
@@ -11990,6 +12247,45 @@
         ],
         "title": "CategoriaExplosion"
       },
+      "CausaDesviacion": {
+        "type": "string",
+        "enum": [
+          "mercado",
+          "volumen",
+          "proveedor_distinto",
+          "cambio_de_presentacion",
+          "desperdicio_mayor_al_teorico",
+          "merma_por_dano_clima_o_robo",
+          "sustitucion_por_equivalente",
+          "renegociacion",
+          "urgencia",
+          "alza_de_tabulador",
+          "rendimiento_real_distinto",
+          "retrabajo",
+          "trabajo_fuera_de_alcance",
+          "tarifa_distinta",
+          "dias_reales_de_renta",
+          "equipo_parado",
+          "tarifa",
+          "combustible",
+          "horas_efectivas_contra_facturadas",
+          "volumen_realmente_ejecutado"
+        ],
+        "title": "CausaDesviacion",
+        "description": "Vocabulario controlado de \"Causas por categoría\" (CONOCIMIENTO.md\n§13.6, tabla de líneas 8693-8699): \"vocabulario controlado, no texto\nlibre — si no, las desviaciones no se pueden agregar ni comparar\".\n\nCuál de estas aplica a una fila de `Desviacion` depende del tipo del\ninsumo/concepto detectado (material · mano_de_obra · herramienta ·\nmaquinaria · contratos) y de `TipoDesviacion` (precio/consumo) de esa\nmisma fila. La base no restringe esa combinación —el enum es plano,\ncon los ~20 valores de las cinco categorías juntos—: decidir cuál\naplica es trabajo del dominio/aplicación, no un CHECK de Postgres\n(MODELO.md §5g: \"cuál aplica ... lo decide el dominio\").\n\n**No confundir con `domain.desviacion.CausaRaiz`** (las nueve causas de\n§13.6 que deciden SI el hallazgo es una `Desviacion`): confundir esos dos\nvocabularios fue exactamente el error D-343 que el propio cerebro\ncorrigió en D-347 (MODELO.md §5g)."
+      },
+      "CausaPeticion": {
+        "properties": {
+          "causa": {
+            "$ref": "#/components/schemas/CausaDesviacion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "causa"
+        ],
+        "title": "CausaPeticion"
+      },
       "CerrarIncidenciaPeticion": {
         "properties": {
           "comentario": {
@@ -14267,6 +14563,165 @@
         "title": "DependenciaDTO",
         "description": "Precedencia entre actividades (§7.5, §6)."
       },
+      "DesviacionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "tipo_nodo": {
+            "type": "string",
+            "title": "Tipo Nodo",
+            "description": "`insumo` o `concepto`: dónde se detectó."
+          },
+          "nodo_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nodo Clave"
+          },
+          "nodo_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nodo Descripcion"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "`precio` o `consumo`: los dos factores, nunca sumados."
+          },
+          "monto": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto",
+            "description": "El efecto en dinero de este factor, solamente."
+          },
+          "cantidad_plan": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Plan"
+          },
+          "cantidad_real": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Real"
+          },
+          "precio_plan": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Plan"
+          },
+          "precio_real": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Real"
+          },
+          "causa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causa",
+            "description": "`null` es «sin causa»: un estado válido, no un dato faltante."
+          },
+          "causa_capturada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causa Capturada En"
+          },
+          "causa_capturada_por": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causa Capturada Por"
+          },
+          "detectada_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Detectada En"
+          },
+          "causas_posibles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Causas Posibles",
+            "description": "Las causas del vocabulario controlado que caben en el factor de esta fila."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "tipo_nodo",
+          "tipo",
+          "monto",
+          "detectada_en",
+          "causas_posibles"
+        ],
+        "title": "DesviacionRespuesta"
+      },
       "DispositivoRespuesta": {
         "properties": {
           "token": {
@@ -14344,6 +14799,98 @@
           "subido_por"
         ],
         "title": "DocumentoRespuesta"
+      },
+      "EdicionDeProgramaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "actividad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "usuario_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Usuario Id"
+          },
+          "usuario_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Nombre"
+          },
+          "rol": {
+            "type": "string",
+            "title": "Rol"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "`estructura`, `fechas` o `mixta`."
+          },
+          "antes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Antes"
+          },
+          "despues": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Despues"
+          },
+          "creada_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creada En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "actividad_id",
+          "actividad",
+          "concepto_clave",
+          "usuario_id",
+          "usuario_nombre",
+          "rol",
+          "tipo",
+          "antes",
+          "despues",
+          "creada_en"
+        ],
+        "title": "EdicionDeProgramaRespuesta",
+        "description": "Una edición manual del programa: quién, con qué rol, qué pidió y cómo\nestaba (0067). Solo trae lo que esa persona cambió."
       },
       "EditarEspecialidadPeticion": {
         "properties": {
@@ -16625,6 +17172,26 @@
           "evidencias"
         ],
         "title": "IncidenciaRespuesta"
+      },
+      "IniciarObraPeticion": {
+        "properties": {
+          "fecha": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha",
+            "description": "Día de la junta de arranque; sin él, hoy. Es el arranque del cronograma: todo lo que cuelga de él se recalcula contra esta fecha."
+          }
+        },
+        "type": "object",
+        "title": "IniciarObraPeticion",
+        "description": "La junta de arranque (WORKFLOWS.md §8.1, D-537)."
       },
       "InstanciaEnsambleRespuesta": {
         "properties": {

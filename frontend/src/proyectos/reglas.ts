@@ -10,7 +10,8 @@
  * El contrato (§11.2, bloque "Proyecto · Obra") reparte así:
  *   - `GET/POST /proyectos` · `/clusters` · `/prototipos` → **C, SI**
  *   - `POST /obras` · `PATCH /obras/{id}` · `/obras/bulk` ·
- *     `/obras/{id}/generar` → **solo C** (creador de obra, §5.1)
+ *     `/obras/{id}/generar` · `/obras/{id}/iniciar` (junta de arranque) →
+ *     **solo C** (creador de obra, §5.1)
  *   - `GET /obras` · `GET /frentes` → todos, cada uno con su alcance (§4)
  */
 
@@ -75,6 +76,18 @@ export function puedeAdministrarObras(rol: Rol): boolean {
  */
 export function obraCongelada(obra: Pick<ObraRespuesta, 'estatus'>): boolean {
   return obra.estatus === 'entregada';
+}
+
+/**
+ * ¿Se ofrece la junta de arranque? Solo Control de obra (`marcar_obra_iniciada`,
+ * D-537) y solo con la obra `pendiente`: es la marca manual que la pasa a
+ * `iniciada`, y el backend rechaza con 409 cualquier otro estatus.
+ */
+export function puedeDeclararJuntaDeArranque(
+  rol: Rol,
+  obra: Pick<ObraRespuesta, 'estatus'>,
+): boolean {
+  return puedeAdministrarObras(rol) && obra.estatus === 'pendiente';
 }
 
 export function puedeEditarObra(rol: Rol, obra: Pick<ObraRespuesta, 'estatus'>): boolean {

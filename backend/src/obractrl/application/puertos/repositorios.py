@@ -1729,6 +1729,15 @@ class RepositorioDesviaciones(Protocol):
         es una escritura aparte — nunca se combinan en un solo método."""
         ...
 
+    async def obtener(self, desviacion_id: UUID) -> dict | None:
+        """Una desviación, o `None` si no existe o no se ve (RLS)."""
+        ...
+
+    async def de_obra(self, obra_id: UUID) -> list[dict]:
+        """Las desviaciones de una obra con el nombre de su nodo y de quien
+        capturó la causa, las más recientes primero."""
+        ...
+
     async def capturar_causa(
         self, desviacion_id: UUID, *, causa: str, usuario_id: UUID
     ) -> None:

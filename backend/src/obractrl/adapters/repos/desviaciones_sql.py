@@ -57,6 +57,31 @@ class RepositorioDesviacionesSQL:
         ).mappings().first()
         return dict(fila) if fila is not None else None
 
+    async def de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select d.id, d.obra_id, d.tipo_nodo, d.insumo_id, d.concepto_id,
+                           coalesce(i.clave, c.clave)             as nodo_clave,
+                           coalesce(i.descripcion, c.descripcion) as nodo_descripcion,
+                           d.tipo, d.monto, d.cantidad_plan, d.cantidad_real,
+                           d.precio_plan, d.precio_real, d.causa,
+                           d.causa_capturada_en, u.nombre as causa_capturada_por,
+                           d.detectada_en
+                      from desviacion d
+                      left join insumo   i on i.id = d.insumo_id
+                      left join concepto c on c.id = d.concepto_id
+                      left join usuario  u on u.id = d.usuario_id
+                     where d.obra_id = :obra_id
+                     order by d.detectada_en desc, d.id
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
     async def crear(self, datos: dict[str, Any]) -> UUID:
         """Alta de una desviación. `causa` nunca se recibe aquí: nace en
         `null` siempre (regla de captura 1, MODELO.md §5g) — `capturar_causa`

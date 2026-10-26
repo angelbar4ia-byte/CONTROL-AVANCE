@@ -29,6 +29,7 @@ import type {
   ActividadEnRutaRespuesta,
   ArbolDeProgramaRespuesta,
   CrearProgramaBasePeticion,
+  EdicionDeProgramaRespuesta,
   HTTPValidationError,
   InstanciarProgramaPeticion,
   ItemProgramaBaseRespuesta,
@@ -3308,6 +3309,514 @@ export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet<
 }
 
 /**
+ * Quién cambió qué del programa y con qué rol, lo más reciente primero.
+Todos los roles, cada uno con su alcance (RLS). La bitácora no se edita.
+ * @summary Bitácora de ediciones manuales del programa
+ */
+export const listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<EdicionDeProgramaRespuesta[]>(
+    {
+      url: `/api/v1/obras/${obraId}/programa/ediciones`,
+      method: "GET",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfiniteQueryKey =
+  (obraId?: string) => {
+    return ["infinite", `/api/v1/obras/${obraId}/programa/ediciones`] as const;
+  };
+
+export const getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryKey =
+  (obraId?: string) => {
+    return [`/api/v1/obras/${obraId}/programa/ediciones`] as const;
+  };
+
+export const getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfiniteQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+        >
+      >
+    > = ({ signal }) =>
+      listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >
+  >;
+export type ListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Bitácora de ediciones manuales del programa
+ */
+
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+        >
+      >
+    > = ({ signal }) =>
+      listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >
+  >;
+export type ListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryError =
+  void | HTTPValidationError;
+
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Bitácora de ediciones manuales del programa
+ */
+
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
  * Recálculo on-demand (§6). Es idempotente: con el mismo cronograma y la
 misma fecha de corte deja exactamente los mismos valores.
  * @summary Recalcular y persistir la ruta crítica
@@ -3447,7 +3956,8 @@ export const useRecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost =
     return useMutation(mutationOptions, queryClient);
   };
 /**
- * Supervisor y Control de obra ajustan el cronograma (§11.2). El recálculo
+ * Control de obra y Supervisor ajustan el cronograma (§11.2); el Residente,
+solo las fechas. Cada edición queda en la bitácora del programa. El recálculo
 de la ruta va en la misma transacción.
  * @summary Ajustar fechas, duración y dependencias de una actividad
  */

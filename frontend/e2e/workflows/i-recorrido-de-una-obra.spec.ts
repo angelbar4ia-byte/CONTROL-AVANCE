@@ -18,7 +18,8 @@ import {
  *
  *   2-3  Control da de alta la obra y la genera desde su prototipo.
  *   4    Se programa: el CPM calcula la ruta crítica y reacciona a un vínculo.
- *   3    Se cuantifica sobre un plano: la medida se compara con la cantidad base.
+ *   3    Se cuantifica sobre un plano: la medida se compara con la cantidad base,
+ *        y la desviación que levanta se ve (con y sin causa) y se le captura causa.
  *   6    El residente captura avance: el avance y el estatus de la obra se derivan.
  *   8    Se cierran las actividades (residente → supervisor → control).
  *   7    El supervisor genera la estimación; control la valida.
@@ -146,8 +147,20 @@ test.describe('§8.3 · El recorrido de una obra', () => {
     expect(Number(enProceso.avance_pct)).toBeGreaterThan(0);
     expect(Number(enProceso.avance_pct)).toBeLessThan(90);
 
-    // La web lo refleja: el residente ve la obra y sus actividades, con el botón de medir.
+    // La desviación que levantó la medida se ve —sin causa, que es un estado
+    // válido— y el residente le captura su causa; solo caben las de su factor.
     await entrarComo(page, 'residente');
+    await page.goto('/desviaciones');
+    await page.getByLabel('Obra', { exact: true }).selectOption({ label: clave });
+    const causa = page.getByRole('combobox', { name: /^Causa de E2E-EXC/ });
+    await expect(causa).toHaveValue('');
+    await expect(causa.getByRole('option', { name: 'Retrabajo' })).toHaveCount(1);
+    await expect(causa.getByRole('option', { name: 'Mercado' })).toHaveCount(0); // esa es de precio
+    await causa.selectOption('retrabajo');
+    await expect(causa).toHaveValue('retrabajo');
+    await expect(page.getByText(/Rosa Residente ·/)).toBeVisible();
+
+    // La web lo refleja: el residente ve la obra y sus actividades, con el botón de medir.
     await page.goto('/avances');
     await page.getByLabel('Obra', { exact: true }).selectOption({ label: clave });
     await page.getByRole('tab', { name: /^Todas/ }).click();

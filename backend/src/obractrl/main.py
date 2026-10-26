@@ -72,6 +72,7 @@ from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEnc
 from obractrl.application.casos_uso.gestionar_cierre_de_obra import (
     CierreDeObraNoEncontrado,
 )
+from obractrl.application.casos_uso.gestionar_desviaciones import DesviacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_ensamble import (
     ClaveDeEnsambleEnUso,
     EnsambleNoCoincideConInstancia,
@@ -108,6 +109,7 @@ from obractrl.domain.catalogos.reglas import ErrorDeCatalogo
 from obractrl.domain.cierres.obra import ErrorDeCierreDeObra
 from obractrl.domain.cierres.reglas import ErrorDeCierre
 from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
+from obractrl.domain.desviacion.desviacion import ErrorDeDesviacion
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
 from obractrl.domain.evaluaciones.reglas import ErrorDeEvaluacion
 from obractrl.domain.expediente.reglas import ErrorDeExpediente
@@ -118,7 +120,10 @@ from obractrl.domain.obras.generacion import ErrorDeGeneracion
 from obractrl.domain.obras.precio_armado import ErrorDePrecioArmado
 from obractrl.domain.obras.reglas import ErrorDeObra, TransicionDeObraInvalida
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
-from obractrl.domain.programacion.reglas import ErrorDeProgramacion
+from obractrl.domain.programacion.reglas import (
+    EdicionDeProgramaNoPermitida,
+    ErrorDeProgramacion,
+)
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto
 from obractrl.domain.revisiones.reglas import ErrorDeRevision
 from obractrl.infrastructure.config import obtener_config
@@ -572,6 +577,42 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             titulo="Captura de avance inválida",
             detalle=str(exc),
             campo=exc.campo,
+        )
+
+    @app.exception_handler(EdicionDeProgramaNoPermitida)
+    async def _edicion_de_programa(
+        request: Request, exc: EdicionDeProgramaNoPermitida
+    ) -> JSONResponse:
+        # 403: el rol puede editar el programa, pero no ESTO. Depende de qué campos
+        # trae la petición, no solo de quién la manda (`exigir_rol` no lo ve).
+        return _problema(
+            request,
+            status=403,
+            tipo="edicion-de-programa-no-permitida",
+            titulo="Esa edición del programa no te corresponde",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeDesviacion)
+    async def _desviacion(request: Request, exc: ErrorDeDesviacion) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-desviacion",
+            titulo="Desviación inválida",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(DesviacionNoEncontrada)
+    async def _desviacion_no_encontrada(
+        request: Request, exc: DesviacionNoEncontrada
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="desviacion-no-encontrada",
+            titulo="Desviación no encontrada",
+            detalle=str(exc),
         )
 
     @app.exception_handler(ErrorDeComprobacion)

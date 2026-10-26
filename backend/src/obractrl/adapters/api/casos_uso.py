@@ -40,6 +40,9 @@ from obractrl.adapters.repos.cuantificacion_sql import (
     RepositorioTrazosSQL,
 )
 from obractrl.adapters.repos.desviaciones_sql import RepositorioDesviacionesSQL
+from obractrl.adapters.repos.ediciones_de_programa_sql import (
+    RepositorioEdicionesDeProgramaSQL,
+)
 from obractrl.adapters.repos.ensambles_sql import RepositorioEnsamblesSQL
 from obractrl.adapters.repos.especialidades_sql import (
     RepositorioEspecialidadesSQL,
@@ -158,6 +161,10 @@ from obractrl.application.casos_uso.gestionar_control_cambio import (
     ResolverControlDeCambio,
     SolicitarControlDeCambio,
 )
+from obractrl.application.casos_uso.gestionar_desviaciones import (
+    CapturarCausaDeDesviacion,
+    ConsultarDesviaciones,
+)
 from obractrl.application.casos_uso.gestionar_ensamble import (
     ExplotarEnsamble,
     ExtraerEnsamble,
@@ -193,9 +200,11 @@ from obractrl.application.casos_uso.gestionar_organizacion import ReiniciarOrgan
 from obractrl.application.casos_uso.gestionar_programacion import (
     ComandoRecalcularRutaCritica,
     ConsultarArbolPrograma,
+    ConsultarEdicionesDePrograma,
     ConsultarRutaCritica,
     CrearProgramaBase,
     EditarProgramacionActividad,
+    IniciarObra,
     InstanciarProgramaObra,
     ProgramarNodoDelArbol,
     RecalcularRutaCritica,
@@ -246,6 +255,7 @@ __all__ = [
     "AsignarFrenteDeObraDep",
     "AutorizarCierreDep",
     "CapturarAvanceDep",
+    "CapturarCausaDeDesviacionDep",
     "CerrarIncidenciaDep",
     "ColaDeTrabajosDep",
     "ConsultarArbolProgramaDep",
@@ -253,6 +263,8 @@ __all__ = [
     "ConsultarCierreDeObraDep",
     "ConsultarComprobacionesDep",
     "ConsultarCuantificacionDep",
+    "ConsultarDesviacionesDep",
+    "ConsultarEdicionesDeProgramaDep",
     "ConsultarExpedienteDep",
     "ConsultarInsumosProgramadosDep",
     "ConsultarPlaneacionDep",
@@ -285,6 +297,7 @@ __all__ = [
     "GenerarDesdeEnsambleDep",
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
+    "IniciarObraDep",
     "InstanciarProgramaObraDep",
     "ObtenerCPUDep",
     "ParticiparEnCierreDep",
@@ -649,6 +662,20 @@ def obtener_reemplazar_enlace(sesion: SesionRLS) -> ReemplazarEnlace:
         enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
         actividades=RepositorioActividadesSQL(sesion),
         prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_consultar_desviaciones(sesion: SesionRLS) -> ConsultarDesviaciones:
+    return ConsultarDesviaciones(
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+    )
+
+
+def obtener_capturar_causa(sesion: SesionRLS) -> CapturarCausaDeDesviacion:
+    return CapturarCausaDeDesviacion(
         desviaciones=RepositorioDesviacionesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
     )
@@ -1071,7 +1098,26 @@ def obtener_editar_programacion(sesion: SesionRLS) -> EditarProgramacionActivida
         actividades=RepositorioActividadesSQL(sesion),
         obras=RepositorioObrasSQL(sesion),
         programas=RepositorioProgramasSQL(sesion),
+        ediciones=RepositorioEdicionesDeProgramaSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_iniciar_obra(sesion: SesionRLS) -> IniciarObra:
+    return IniciarObra(
+        actividades=RepositorioActividadesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        programas=RepositorioProgramasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_consultar_ediciones_de_programa(
+    sesion: SesionRLS,
+) -> ConsultarEdicionesDePrograma:
+    return ConsultarEdicionesDePrograma(
+        obras=RepositorioObrasSQL(sesion),
+        ediciones=RepositorioEdicionesDeProgramaSQL(sesion),
     )
 
 
@@ -1089,6 +1135,16 @@ InstanciarProgramaObraDep = Annotated[
 ]
 EditarProgramacionActividadDep = Annotated[
     EditarProgramacionActividad, Depends(obtener_editar_programacion)
+]
+ConsultarDesviacionesDep = Annotated[
+    ConsultarDesviaciones, Depends(obtener_consultar_desviaciones)
+]
+CapturarCausaDeDesviacionDep = Annotated[
+    CapturarCausaDeDesviacion, Depends(obtener_capturar_causa)
+]
+IniciarObraDep = Annotated[IniciarObra, Depends(obtener_iniciar_obra)]
+ConsultarEdicionesDeProgramaDep = Annotated[
+    ConsultarEdicionesDePrograma, Depends(obtener_consultar_ediciones_de_programa)
 ]
 ReplicarProgramaEnObrasDep = Annotated[
     ReplicarProgramaEnObras, Depends(obtener_replicar_programa)

@@ -27,7 +27,7 @@ ya acota el alcance (§12.4).
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Any
 from uuid import UUID
@@ -37,6 +37,7 @@ from pydantic import BaseModel, Field
 
 from obractrl.adapters.api.casos_uso import (
     ConsultarArbolProgramaDep,
+    ConsultarEdicionesDeProgramaDep,
     ConsultarRutaCriticaDep,
     CrearProgramaBaseDep,
     EditarProgramacionActividadDep,
@@ -45,7 +46,7 @@ from obractrl.adapters.api.casos_uso import (
     RecalcularRutaCriticaDep,
     ReplicarProgramaEnObrasDep,
 )
-from obractrl.adapters.api.dependencias import SesionRLS, exigir_rol
+from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS, exigir_rol
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
@@ -83,6 +84,14 @@ CONFIGURA_PROGRAMA = Depends(exigir_rol(Rol.CONTROL_OBRA))
 
 PROGRAMA_DE_OBRA = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPERVISOR))
 """Instanciar el cronograma, recalcular y ajustar actividades (§11.2)."""
+
+EDITA_FECHAS_DEL_PROGRAMA = Depends(
+    exigir_rol(Rol.CONTROL_OBRA, Rol.SUPERVISOR, Rol.RESIDENTE)
+)
+"""Quien puede mandar un `PATCH` de programación. El residente entra, pero solo
+con fechas: qué campos alcanza cada rol lo decide el dominio
+(`exigir_permiso_de_edicion`), porque depende del contenido de la petición y no
+solo de quién la hace."""
 
 _NO_ENCONTRADA: dict[int | str, dict[str, Any]] = {
     404: {"description": "No existe o está fuera de tu alcance (§12.4)."}
@@ -512,6 +521,23 @@ class ActividadEnRutaRespuesta(BaseModel):
             bloqueada=actividad.bloqueada,
             avance_pct=actividad.avance_pct,
         )
+
+
+class EdicionDeProgramaRespuesta(BaseModel):
+    """Una edición manual del programa: quién, con qué rol, qué pidió y cómo
+    estaba (0067). Solo trae lo que esa persona cambió."""
+
+    id: UUID
+    actividad_id: UUID
+    actividad: str | None
+    concepto_clave: str | None
+    usuario_id: UUID
+    usuario_nombre: str | None
+    rol: str
+    tipo: str = Field(description="`estructura`, `fechas` o `mixta`.")
+    antes: dict[str, Any]
+    despues: dict[str, Any]
+    creada_en: datetime
 
 
 class RutaCriticaRespuesta(BaseModel):
@@ -1280,6 +1306,22 @@ async def obtener_ruta_critica(
     )
 
 
+@router.get(
+    "/obras/{obra_id}/programa/ediciones",
+    response_model=list[EdicionDeProgramaRespuesta],
+    summary="Bitácora de ediciones manuales del programa",
+    responses=_NO_ENCONTRADA,
+)
+async def listar_ediciones_del_programa(
+    obra_id: UUID, caso_uso: ConsultarEdicionesDeProgramaDep
+) -> list[EdicionDeProgramaRespuesta]:
+    """Quién cambió qué del programa y con qué rol, lo más reciente primero.
+    Todos los roles, cada uno con su alcance (RLS). La bitácora no se edita."""
+    return [
+        EdicionDeProgramaRespuesta(**fila) for fila in await caso_uso.ejecutar(obra_id)
+    ]
+
+
 @router.post(
     "/obras/{obra_id}/ruta-critica/recalcular",
     response_model=RutaCriticaRespuesta,
@@ -1307,20 +1349,33 @@ async def recalcular_ruta_critica(
     "/actividades/{actividad_id}/programacion",
     response_model=ActividadEnRutaRespuesta,
     summary="Ajustar fechas, duración y dependencias de una actividad",
-    dependencies=[PROGRAMA_DE_OBRA],
-    responses={**_NO_ENCONTRADA, **_CICLO},
+    dependencies=[EDITA_FECHAS_DEL_PROGRAMA],
+    responses={
+        **_NO_ENCONTRADA,
+        **_CICLO,
+        403: {
+            "description": (
+                "El residente solo edita fechas; la estructura del programa "
+                "(duración, vínculos, tramos, frente) es de Control de obra."
+            )
+        },
+    },
 )
 async def editar_programacion_actividad(
     actividad_id: UUID,
     peticion: ProgramacionActividadPeticion,
     caso_uso: EditarProgramacionActividadDep,
+    ctx: ContextoActual,
 ) -> ActividadEnRutaRespuesta:
-    """Supervisor y Control de obra ajustan el cronograma (§11.2). El recálculo
+    """Control de obra y Supervisor ajustan el cronograma (§11.2); el Residente,
+    solo las fechas. Cada edición queda en la bitácora del programa. El recálculo
     de la ruta va en la misma transacción."""
     return ActividadEnRutaRespuesta.desde_dominio(
         await caso_uso.ejecutar(
             ComandoEditarProgramacion(
                 actividad_id=actividad_id,
+                rol=Rol(ctx.rol),
+                usuario_id=ctx.usuario_id,
                 duracion_dias=peticion.duracion_dias,
                 dependencias=(
                     tuple(dep.a_dominio() for dep in peticion.dependencias)
