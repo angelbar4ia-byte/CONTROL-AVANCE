@@ -115,14 +115,6 @@ insert into obra (org_id, cluster_id, prototipo_id, clave, residente_id)
 select :org_id, :'cluster_id', :'proto_id', clave, :'res_id'
 from (values ('OBRA-C'), ('OBRA-D'), ('OBRA-E'), ('OBRA-F')) v(clave);
 
--- OBRA-D llega al cierre con el avance de obra ya en 100 %. NO es un atajo
--- cosmético: ningún código del sistema calcula `obra.avance_pct` (el método
--- `RepositorioObras.actualizar_avance` no tiene quién lo llame, y no hay trigger
--- ni job), y la regla `avance_incompleto` del cierre de obra exige 100. Por eso
--- `backend/tests/integracion/test_cierre_de_obra_endtoend.py` también lo fija a
--- mano. Si algún día se calcula solo, esta línea sobra.
-update obra set avance_pct = 100 where org_id = :org_id and clave = 'OBRA-D';
-
 -- Dos actividades por obra, con cantidad programada (sin ejecución: el avance
 -- lo capturan las pruebas, que es lo que se está probando).
 insert into actividad

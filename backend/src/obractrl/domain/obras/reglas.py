@@ -15,8 +15,10 @@ prototipo y arrastra su propio avance. Dos invariantes la definen:
 
 El resto del estatus es **derivado del avance**, no capturado —mismo criterio
 que el auto-estatus de la actividad (§6): la BD lo repite en
-`app.actividad_recalcular` y el front lo refleja, pero la regla se define una
-sola vez, aquí.
+`app.actividad_recalcular` (la actividad) y en `app.obra_recalcular_avance`
+(la obra, migración 0064: el móvil escribe directo a Postgres y ningún caso de
+uso se entera) y el front lo refleja, pero la regla se define una sola vez,
+aquí. `domain.obras.avance` es el cómo se agrega el avance de la obra.
 
 Módulo puro: sin FastAPI, SQLModel ni RLS (§12.11). Quién puede crear o editar
 una obra es RBAC del borde (§11.2) reforzado por RLS (§12.4), no de esta
