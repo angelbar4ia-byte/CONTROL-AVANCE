@@ -32,21 +32,11 @@ test.describe('§11.3 F · Incidencia que detiene', () => {
   test.skip(!hayRoles(...ROLES_F), motivoSinRoles(...ROLES_F));
   test.setTimeout(90_000);
 
-  // Pantalla de escritorio, no el 1280×720 por defecto de Playwright. Con
-  // impacto «detiene» el formulario de alta mide ~830 px y el panel lateral
-  // **no se desplaza**: `.sheet__body` lleva `overflow-y: auto`, pero el
-  // `<form>` que lo envuelve no es un contenedor flex, así que el cuerpo nunca
-  // se queda corto y el botón «Abrir incidencia» cae fuera de la pantalla en
-  // laptops de 720 px de alto, sin forma de alcanzarlo con el ratón. Es un
-  // defecto de la UI (también afecta a los demás formularios de panel); aquí
-  // se esquiva con el viewport para probar el workflow, no se oculta.
-  test.use({ viewport: { width: 1440, height: 900 } });
-
   test('abrirla bloquea la actividad y cerrarla la libera', async ({ browser, request }) => {
     const titulo = 'Sin cemento en cimentación';
 
     // --- 1. Residente: abre la incidencia que detiene ------------------
-    const residente = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+    const residente = await (await browser.newContext()).newPage();
     await entrarComo(residente, 'residente');
     await residente.goto('/incidencias');
     await residente.getByRole('button', { name: 'Abrir incidencia' }).first().click();
@@ -56,7 +46,10 @@ test.describe('§11.3 F · Incidencia que detiene', () => {
     await alta.getByLabel('Título').fill(titulo);
     await alta.getByLabel('Tipo').selectOption({ label: 'Falta de material' });
     await alta.getByLabel('Impacto').selectOption({ label: 'Detiene' });
-    // Con «detiene» aparece la lista de lo que se detiene.
+    // Con «detiene» aparece la lista de lo que se detiene y el formulario mide
+    // ~830 px: a 1280×720 (el tamaño por defecto, a propósito) el cuerpo del
+    // panel tiene que desplazarse y el botón de enviar quedar a la vista.
+    // Antes el panel desbordaba y ese botón era inalcanzable.
     await alta.getByRole('checkbox', { name: /E2E-EXC/ }).check();
     await alta.getByRole('button', { name: 'Abrir incidencia' }).click();
 
@@ -104,7 +97,7 @@ test.describe('§11.3 F · Incidencia que detiene', () => {
     const rosa = usuarios.find((u) => u.email === process.env.E2E_USUARIO_RESIDENTE);
     expect(rosa, 'el residente existe en /usuarios').toBeDefined();
 
-    const supervisor = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+    const supervisor = await (await browser.newContext()).newPage();
     await entrarComo(supervisor, 'supervisor');
     await supervisor.goto('/incidencias');
     await supervisor.getByRole('button', { name: 'Todas', exact: true }).click();
