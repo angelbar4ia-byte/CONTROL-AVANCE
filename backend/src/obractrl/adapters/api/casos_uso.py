@@ -104,6 +104,7 @@ from obractrl.application.casos_uso.consultar_planeacion import (
     ConsultarPlaneacion,
 )
 from obractrl.application.casos_uso.cuantificar import (
+    AprobarTrazo,
     ConsultarCuantificacion,
     ReemplazarEnlace,
     RegistrarNotaPlano,
@@ -232,6 +233,7 @@ __all__ = [
     "ActualizarUsuarioDep",
     "AgregarDocumentoDep",
     "AgregarRespuestasDep",
+    "AprobarTrazoDep",
     "ArmarExpedienteDep",
     "ArmarReporteDeEstimacionDep",
     "AsignarAlcanceDep",
@@ -643,6 +645,13 @@ def obtener_reemplazar_enlace(sesion: SesionRLS) -> ReemplazarEnlace:
     )
 
 
+def obtener_aprobar_trazo(sesion: SesionRLS) -> AprobarTrazo:
+    return AprobarTrazo(
+        trazos=RepositorioTrazosSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_registrar_nota_plano(sesion: SesionRLS) -> RegistrarNotaPlano:
     return RegistrarNotaPlano(
         notas=RepositorioNotasPlanoSQL(sesion),
@@ -650,6 +659,7 @@ def obtener_registrar_nota_plano(sesion: SesionRLS) -> RegistrarNotaPlano:
     )
 
 
+AprobarTrazoDep = Annotated[AprobarTrazo, Depends(obtener_aprobar_trazo)]
 ConsultarCuantificacionDep = Annotated[
     ConsultarCuantificacion, Depends(obtener_consultar_cuantificacion)
 ]

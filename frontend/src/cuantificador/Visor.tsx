@@ -49,6 +49,8 @@ export interface TrazoVisible {
   readonly geometry: GeometriaGeoJson;
   /** Hecho sobre una versión anterior del plano: se dibuja distinto. */
   readonly porRevisar: boolean;
+  /** Aprobado por Control de obra: se dibuja en verde. */
+  readonly aprobado: boolean;
 }
 
 export interface NotaVisible {
@@ -248,6 +250,7 @@ export function Visor({
           'visor__trazo',
           elegido && 'is-selected',
           t.porRevisar && 'is-por-revisar',
+          t.aprobado && 'is-aprobado',
         ]
           .filter(Boolean)
           .join(' ');

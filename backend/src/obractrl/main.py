@@ -55,6 +55,7 @@ from obractrl.application.casos_uso.cuantificar import (
     EnlaceNoEncontrado,
     GobiernoDeCuantificacionInvalido,
     PlanoNoEncontrado,
+    TrazoNoEncontrado,
 )
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     ObraNoEncontrada,
@@ -1310,6 +1311,18 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="enlace-no-encontrado",
             titulo="Enlace de cuantificación no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(TrazoNoEncontrado)
+    async def _trazo_no_encontrado(
+        request: Request, exc: TrazoNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="trazo-no-encontrado",
+            titulo="Trazo no encontrado",
             detalle=str(exc),
         )
 

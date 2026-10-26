@@ -361,3 +361,84 @@ async def test_las_notas_del_plano_salen_con_su_ubicacion_y_se_marcan_por_revisa
     assert (
         await cliente_control.get(f"/api/v1/planos/{uuid.uuid4()}/notas")
     ).status_code == 404
+
+
+async def _primer_trazo(cliente: httpx.AsyncClient, plano_id: str) -> dict:
+    cuerpo = (await cliente.get(f"/api/v1/planos/{plano_id}/trazos")).json()
+    return cuerpo["features"][0]["properties"]
+
+
+async def test_control_aprueba_un_trazo_y_la_cantidad_no_cambia(
+    escenario: Escenario, cliente_control: httpx.AsyncClient
+) -> None:
+    """`aprobar_trazo` es una marca de revisión, no una compuerta (migración
+    0065): quién y cuándo quedan a la vista, y la cantidad sigue siendo la misma."""
+    await _preparar_actividad_con_concepto(
+        org_id=escenario.org_id,
+        actividad_id=escenario.actividad_id,
+        precio_unitario=Decimal("10"),
+    )
+    plano_id, _, _ = await _plano_con_dos_trazos(cliente_control, escenario)
+    antes = (await cliente_control.get(f"/api/v1/obras/{escenario.obra_id}/cuantificacion")).json()
+
+    sin_aprobar = await _primer_trazo(cliente_control, plano_id)
+    assert sin_aprobar["aprobado_por"] is None
+    assert sin_aprobar["aprobado_en"] is None
+
+    respuesta = await cliente_control.post(f"/api/v1/trazos/{sin_aprobar['trazo_id']}/aprobar")
+    assert respuesta.status_code == 200, respuesta.text
+    cuerpo = respuesta.json()
+    assert cuerpo["aprobado_por"] == str(escenario.control_id)
+    assert cuerpo["ya_estaba_aprobado"] is False
+
+    aprobado = await _primer_trazo(cliente_control, plano_id)
+    assert aprobado["aprobado_por"] == str(escenario.control_id)
+    assert aprobado["aprobado_en"] is not None
+
+    despues = (await cliente_control.get(f"/api/v1/obras/{escenario.obra_id}/cuantificacion")).json()
+    assert despues == antes
+
+
+async def test_aprobar_dos_veces_no_pisa_la_primera_aprobacion(
+    escenario: Escenario, cliente_control: httpx.AsyncClient
+) -> None:
+    plano_id, _, _ = await _plano_con_dos_trazos(cliente_control, escenario)
+    trazo_id = (await _primer_trazo(cliente_control, plano_id))["trazo_id"]
+
+    primera = (await cliente_control.post(f"/api/v1/trazos/{trazo_id}/aprobar")).json()
+    segunda = await cliente_control.post(f"/api/v1/trazos/{trazo_id}/aprobar")
+
+    assert segunda.status_code == 200
+    assert segunda.json()["ya_estaba_aprobado"] is True
+    assert segunda.json()["aprobado_en"] == primera["aprobado_en"]
+    assert segunda.json()["aprobado_por"] == primera["aprobado_por"]
+
+
+async def test_solo_control_aprueba_y_lo_que_no_existe_es_404(
+    escenario: Escenario,
+    cliente_control: httpx.AsyncClient,
+    contexto_residente: ContextoSesion,
+    contexto_supervisor: ContextoSesion,
+    contexto_super_intendente: ContextoSesion,
+) -> None:
+    plano_id, _, _ = await _plano_con_dos_trazos(cliente_control, escenario)
+    trazo_id = (await _primer_trazo(cliente_control, plano_id))["trazo_id"]
+
+    # Ni quien traza aprueba su propio trazo, ni Super intendente: es de Control.
+    for contexto in (contexto_residente, contexto_supervisor, contexto_super_intendente):
+        async with _cliente(contexto) as cliente:
+            assert (await cliente.post(f"/api/v1/trazos/{trazo_id}/aprobar")).status_code == 403
+    assert (await _primer_trazo(cliente_control, plano_id))["aprobado_por"] is None
+
+    inexistente = await cliente_control.post(f"/api/v1/trazos/{uuid.uuid4()}/aprobar")
+    assert inexistente.status_code == 404
+    assert inexistente.json()["type"].endswith("trazo-no-encontrado")
+
+    # Un Control de OTRA organización tiene el rol correcto pero no ve el trazo:
+    # RLS lo hace indistinguible de «no existe» (404, no 403) y no lo aprueba.
+    control_ajeno = ContextoSesion(
+        org_id=uuid.uuid4(), usuario_id=uuid.uuid4(), rol="control_obra"
+    )
+    async with _cliente(control_ajeno) as ajeno:
+        assert (await ajeno.post(f"/api/v1/trazos/{trazo_id}/aprobar")).status_code == 404
+    assert (await _primer_trazo(cliente_control, plano_id))["aprobado_por"] is None

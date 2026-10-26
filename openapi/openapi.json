@@ -8733,6 +8733,61 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/aprobar": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Aprobar un trazo (marca de revisión, no cambia la cantidad)",
+        "description": "Idempotente. **No es una compuerta:** un trazo cuenta en la cantidad\ndesde que se guarda, aprobado o no — el cerebro no define lo contrario\n(migración 0065). Aprobar solo deja constancia de quién lo revisó y cuándo.",
+        "operationId": "aprobar_trazo_api_v1_trazos__trazo_id__aprobar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrazoAprobadoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra aprueba un trazo (§1b)."
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/notas": {
       "post": {
         "tags": [
@@ -21534,6 +21589,38 @@
         "title": "TramoDTO",
         "description": "Un segmento de una actividad interrumpida (§7.6).\n\nLista vacía = actividad continua, el caso normal. Con tramos, la\n`duracion_dias` de la actividad es la **suma** de sus tramos —los días de\ntrabajo— y lo que ocupa en el calendario es\n`max(offset_dias + duracion_dias)`, que es lo que el CPM encadena."
       },
+      "TrazoAprobadoRespuesta": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "aprobado_por": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Aprobado Por"
+          },
+          "aprobado_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Aprobado En"
+          },
+          "ya_estaba_aprobado": {
+            "type": "boolean",
+            "title": "Ya Estaba Aprobado",
+            "description": "`true` si el trazo ya estaba aprobado: no se pisa quién ni cuándo aprobó primero."
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "aprobado_por",
+          "aprobado_en",
+          "ya_estaba_aprobado"
+        ],
+        "title": "TrazoAprobadoRespuesta"
+      },
       "TrazoFeature": {
         "properties": {
           "type": {
@@ -21651,6 +21738,31 @@
             "type": "boolean",
             "title": "Por Revisar"
           },
+          "aprobado_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aprobado Por",
+            "description": "Control de obra que lo aprobó, o `null` si aún no está aprobado."
+          },
+          "aprobado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aprobado En"
+          },
           "nodo_ids": {
             "items": {
               "type": "string",
@@ -21676,6 +21788,8 @@
           "fuente",
           "autor_id",
           "por_revisar",
+          "aprobado_por",
+          "aprobado_en",
           "nodo_ids",
           "enlaces"
         ],

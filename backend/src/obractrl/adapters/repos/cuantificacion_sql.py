@@ -187,6 +187,36 @@ class RepositorioTrazosSQL:
         ).scalar_one()
         return fila
 
+    async def obtener(self, trazo_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, plano_id, version_plano, autor_id,
+                           aprobado_por, aprobado_en
+                      from trazo
+                     where id = :id
+                    """
+                ),
+                {"id": str(trazo_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def aprobar(self, *, trazo_id: UUID, aprobador_id: UUID) -> bool:
+        # `aprobado_por is null`: la primera aprobación manda y no se pisa.
+        resultado = await self._sesion.execute(
+            text(
+                """
+                update trazo
+                   set aprobado_por = :aprobador_id, aprobado_en = now()
+                 where id = :id and aprobado_por is null
+                """
+            ),
+            {"id": str(trazo_id), "aprobador_id": str(aprobador_id)},
+        )
+        return resultado.rowcount == 1
+
     async def de_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
         """Los trazos de un plano con sus enlaces, en dos consultas.
 
@@ -200,7 +230,7 @@ class RepositorioTrazosSQL:
                 text(
                     """
                     select t.id, t.version_plano, t.capa, t.fuente, t.autor_id,
-                           t.created_at,
+                           t.aprobado_por, t.aprobado_en, t.created_at,
                            (t.version_plano < p.version) as por_revisar,
                            ST_AsGeoJSON(t.geometria, 9, 0) as geojson
                       from trazo t

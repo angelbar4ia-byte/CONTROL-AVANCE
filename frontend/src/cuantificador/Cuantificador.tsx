@@ -28,6 +28,7 @@ import {
   getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey,
   getNotasDePlanoApiV1PlanosPlanoIdNotasGetQueryKey,
   getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey,
+  useAprobarTrazoApiV1TrazosTrazoIdAprobarPost,
   useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet,
   useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet,
   useListarPlanosApiV1ObrasObraIdPlanosGet,
@@ -127,6 +128,8 @@ export function EspacioDeTrazo({
 }: PropsEspacio) {
   const { sesion } = useSesion();
   const puedeAnotar = sesion?.rol === 'residente' || sesion?.rol === 'supervisor';
+  /** `aprobar_trazo` es solo de Control de obra (MODELO.md §1b); el servidor lo impone con 403. */
+  const puedeAprobar = sesion?.rol === 'control_obra';
   const puedeEnlazarPrototipo = sesion?.rol === 'control_obra' || sesion?.rol === 'super_intendente';
   const [planoElegido, setPlanoElegido] = useState(planoInicial ?? '');
   const [herramienta, setHerramienta] = useState<Herramienta>('seleccionar');
@@ -205,6 +208,7 @@ export function EspacioDeTrazo({
         id: f.id,
         geometry: f.geometry,
         porRevisar: f.properties.por_revisar,
+        aprobado: f.properties.aprobado_en != null,
       })),
     [features],
   );
@@ -229,6 +233,18 @@ export function EspacioDeTrazo({
   const notaElegida =
     seleccion?.tipo === 'nota' ? (listaDeNotas.find((n) => n.id === seleccion.id) ?? null) : null;
   const enlaceAReemplazar = seleccionado?.properties.enlaces.find((e) => e.enlace_id === reemplazando);
+
+  const aprobar = useAprobarTrazoApiV1TrazosTrazoIdAprobarPost<ErrorApi>({
+    mutation: {
+      onSuccess: () => {
+        setAviso('Trazo aprobado.');
+        void queryClient.invalidateQueries({
+          queryKey: getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey(planoElegido),
+        });
+      },
+      onError: (err) => setAviso(`No se pudo aprobar el trazo: ${err.message}`),
+    },
+  });
 
   const forma: HerramientaDeTrazo | null =
     herramienta === 'seleccionar' || herramienta === 'nota' ? null : herramienta;
@@ -488,6 +504,31 @@ export function EspacioDeTrazo({
                       {seleccionado.properties.capa ?? 'Sin capa'} ·{' '}
                       <span className="mono">{seleccionado.properties.fuente.toUpperCase()}</span>
                     </div>
+                    <div className="row">
+                      {seleccionado.properties.aprobado_en ? (
+                        <span className="badge badge--ok">
+                          Aprobado · {fmtFecha(seleccionado.properties.aprobado_en)}
+                        </span>
+                      ) : (
+                        <span className="badge badge--outline">Sin aprobar</span>
+                      )}
+                      {puedeAprobar && !seleccionado.properties.aprobado_en && (
+                        <button
+                          type="button"
+                          className="btn btn--sm"
+                          disabled={aprobar.isPending}
+                          onClick={() => aprobar.mutate({ trazoId: seleccionado.id })}
+                        >
+                          Aprobar trazo
+                        </button>
+                      )}
+                    </div>
+                    {puedeAprobar && !seleccionado.properties.aprobado_en && (
+                      <div className="text-mute text-xs">
+                        Aprobar deja constancia de la revisión; no cambia la cantidad: el trazo
+                        cuenta desde que se guarda.
+                      </div>
+                    )}
                     {seleccionado.properties.por_revisar && (
                       <span className="badge badge--warn">
                         Hecho sobre una versión anterior: revísalo

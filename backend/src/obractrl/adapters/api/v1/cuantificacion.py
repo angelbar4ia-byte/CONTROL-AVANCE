@@ -47,6 +47,7 @@ from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field, model_validator
 
 from obractrl.adapters.api.casos_uso import (
+    AprobarTrazoDep,
     ConsultarCuantificacionDep,
     ReemplazarEnlaceDep,
     RegistrarNotaPlanoDep,
@@ -55,6 +56,7 @@ from obractrl.adapters.api.casos_uso import (
 )
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.application.casos_uso.cuantificar import (
+    ComandoAprobarTrazo,
     ComandoReemplazarEnlace,
     ComandoRegistrarNotaPlano,
     ComandoRegistrarTrazo,
@@ -73,6 +75,11 @@ ROLES_QUE_TRAZAN = (Rol.RESIDENTE, Rol.SUPERVISOR, Rol.CONTROL_OBRA, Rol.SUPER_I
 """Los cuatro roles existentes en ObraCtrl (ver docstring del módulo): el
 vocabulario de cerebro excluye a "Cotizador", que no tiene equivalente
 aquí, así que ninguno de los cuatro queda fuera."""
+
+ROLES_QUE_APRUEBAN = (Rol.CONTROL_OBRA,)
+"""`aprobar_trazo` -> Control de obra (cerebro MODELO.md §1b, «Quién puede
+trazar»). Ni Residente ni Supervisor aprueban lo que trazan; Super intendente
+tampoco: la función es solo de Control."""
 
 ROLES_QUE_ANOTAN = (Rol.RESIDENTE, Rol.SUPERVISOR)
 """Cerebro es explícito y distinto de `ROLES_QUE_TRAZAN`: anotar el plano
@@ -324,6 +331,45 @@ async def reemplazar_enlace(
     return ResultadoRecalculoRespuesta.desde_dominio(resultado)
 
 
+class TrazoAprobadoRespuesta(BaseModel):
+    trazo_id: UUID
+    aprobado_por: UUID
+    aprobado_en: datetime
+    ya_estaba_aprobado: bool = Field(
+        description=(
+            "`true` si el trazo ya estaba aprobado: no se pisa quién ni cuándo "
+            "aprobó primero."
+        )
+    )
+
+
+@router.post(
+    "/trazos/{trazo_id}/aprobar",
+    response_model=TrazoAprobadoRespuesta,
+    summary="Aprobar un trazo (marca de revisión, no cambia la cantidad)",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_APRUEBAN))],
+    responses={
+        403: {"description": "Solo Control de obra aprueba un trazo (§1b)."},
+        404: {"description": "El trazo no existe o está fuera de tu alcance."},
+    },
+)
+async def aprobar_trazo(
+    trazo_id: UUID, ctx: ContextoActual, caso_uso: AprobarTrazoDep
+) -> TrazoAprobadoRespuesta:
+    """Idempotente. **No es una compuerta:** un trazo cuenta en la cantidad
+    desde que se guarda, aprobado o no — el cerebro no define lo contrario
+    (migración 0065). Aprobar solo deja constancia de quién lo revisó y cuándo."""
+    resultado = await caso_uso.ejecutar(
+        ComandoAprobarTrazo(trazo_id=trazo_id, aprobador_id=ctx.usuario_id)
+    )
+    return TrazoAprobadoRespuesta(
+        trazo_id=resultado.trazo_id,
+        aprobado_por=resultado.aprobado_por,
+        aprobado_en=resultado.aprobado_en,
+        ya_estaba_aprobado=resultado.ya_estaba_aprobado,
+    )
+
+
 @router.post(
     "/planos/{plano_id}/notas",
     response_model=NotaPlanoRespuesta,
@@ -402,6 +448,10 @@ class TrazoPropiedades(BaseModel):
     fuente: str
     autor_id: UUID | None
     por_revisar: bool
+    aprobado_por: UUID | None = Field(
+        description="Control de obra que lo aprobó, o `null` si aún no está aprobado."
+    )
+    aprobado_en: datetime | None
     nodo_ids: list[UUID] = Field(
         description=(
             "Nodos a los que el trazo alimenta con un enlace **vigente**: lo que "
@@ -519,6 +569,8 @@ async def trazos_de_plano(
                     fuente=str(trazo["fuente"]),
                     autor_id=trazo["autor_id"],
                     por_revisar=trazo["por_revisar"],
+                    aprobado_por=trazo["aprobado_por"],
+                    aprobado_en=trazo["aprobado_en"],
                     nodo_ids=list(dict.fromkeys(e.nodo_id for e in enlaces if e.vigente)),
                     enlaces=enlaces,
                 ),

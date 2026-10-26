@@ -123,6 +123,11 @@ class EnlaceNoEncontrado(LookupError):
     """El enlace a reemplazar no existe o salió del alcance (RLS)."""
 
 
+class TrazoNoEncontrado(LookupError):
+    """El trazo no existe o salió del alcance (RLS): indistinguibles a propósito
+    (§12.4)."""
+
+
 class PlanoNoEncontrado(LookupError):
     """El plano no existe o salió del alcance (RLS): indistinguibles a
     propósito (§12.4)."""
@@ -495,6 +500,57 @@ class ReemplazarEnlace:
             await self._uow.commit()
 
         return resultado
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoAprobarTrazo:
+    trazo_id: UUID
+    aprobador_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class TrazoAprobado:
+    trazo_id: UUID
+    aprobado_por: UUID
+    aprobado_en: datetime
+    ya_estaba_aprobado: bool
+
+
+class AprobarTrazo:
+    """`aprobar_trazo`: Control de obra marca un trazo como revisado (cerebro
+    MODELO.md §1b). El rol lo impone el endpoint; aquí vive el hecho.
+
+    Es una **marca de revisión, no una compuerta**: un trazo cuenta en la
+    cantidad desde que se guarda, aprobado o no (ver migración 0065 — el
+    cerebro no define lo contrario). Por eso aprobar no recalcula nada.
+
+    Idempotente: aprobar de nuevo no pisa quién ni cuándo aprobó primero.
+    """
+
+    def __init__(self, *, trazos: RepositorioTrazos, uow: UnidadDeTrabajo) -> None:
+        self._trazos = trazos
+        self._uow = uow
+
+    async def ejecutar(self, cmd: ComandoAprobarTrazo) -> TrazoAprobado:
+        if await self._trazos.obtener(cmd.trazo_id) is None:
+            raise TrazoNoEncontrado(
+                f"El trazo {cmd.trazo_id} no existe o no está en tu alcance."
+            )
+
+        async with self._uow:
+            aprobado_ahora = await self._trazos.aprobar(
+                trazo_id=cmd.trazo_id, aprobador_id=cmd.aprobador_id
+            )
+            await self._uow.commit()
+
+        trazo = await self._trazos.obtener(cmd.trazo_id)
+        assert trazo is not None and trazo["aprobado_por"] is not None
+        return TrazoAprobado(
+            trazo_id=cmd.trazo_id,
+            aprobado_por=trazo["aprobado_por"],
+            aprobado_en=trazo["aprobado_en"],
+            ya_estaba_aprobado=not aprobado_ahora,
+        )
 
 
 class RegistrarNotaPlano:
