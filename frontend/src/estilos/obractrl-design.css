@@ -806,6 +806,17 @@ a { color: inherit; text-decoration: none; }
   display: flex; gap: 8px; justify-content: flex-end;
   background: var(--c-surface);
 }
+
+/* El formulario de un panel envuelve a `.sheet__body` y `.sheet__footer`. Sin ser
+   él mismo una columna flex que pueda encogerse (`min-height: 0`), el
+   `overflow-y: auto` del cuerpo nunca entra en juego: el formulario crece a su
+   alto natural, el panel lo desborda y el botón de enviar queda fuera de la
+   pantalla sin forma de alcanzarlo (laptops de 720 px de alto). Así el cuerpo
+   se desplaza y el pie queda siempre a la vista. */
+.sheet > form {
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0;
+}
 .modal {
   margin: auto;
   width: 480px;
