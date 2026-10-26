@@ -39,6 +39,7 @@ import { ALCANCE_ROL, NOMBRE_ROL, navegacionDe, tabsDe, type Rol } from './naveg
 import { useTiempoReal, type EstadoEnVivo } from '@/lib/tiempoReal';
 import { fmtSemana } from '@/lib/formato';
 import { SelectorDensidad } from './SelectorDensidad';
+import { ProveedorDeVentanaCuantificador } from '@/cuantificador/VentanaCuantificador';
 
 interface Props {
   readonly rol: Rol;
@@ -72,6 +73,7 @@ export function AppShell({ rol, usuario, semana, enLinea }: Props) {
   }, [navAbierta]);
 
   return (
+    <ProveedorDeVentanaCuantificador>
     <div className={navAbierta ? 'app is-mobile-nav-open' : 'app'}>
       <BarraSuperior
         rol={rol}
@@ -108,6 +110,7 @@ export function AppShell({ rol, usuario, semana, enLinea }: Props) {
 
       <TabsMoviles rol={rol} />
     </div>
+    </ProveedorDeVentanaCuantificador>
   );
 }
 

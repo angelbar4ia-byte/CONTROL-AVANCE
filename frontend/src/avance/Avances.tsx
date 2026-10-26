@@ -30,6 +30,7 @@
 import { useMemo, useState } from 'react';
 
 import { useCapturarAvanceApiV1ActividadesActividadIdAvancePatch } from '@/api/generado/avance/avance';
+import { useAbrirCuantificador } from '@/cuantificador/VentanaCuantificador';
 import { useActividadesDeObraApiV1ObrasObraIdActividadesGet } from '@/api/generado/torre/torre';
 import type { ActividadRespuesta } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
@@ -290,6 +291,7 @@ function FilaActividad({
   readonly actividad: ActividadRespuesta;
   readonly onCapturar: (actividad: ActividadRespuesta) => void;
 }) {
+  const abrirCuantificador = useAbrirCuantificador();
   const pct = Number(actividad.avance_pct);
   return (
     <tr>
@@ -328,6 +330,14 @@ function FilaActividad({
       </td>
       <td className="text-xs">{fmtFecha(actividad.fecha_inicio)}</td>
       <td className="cell-actions">
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          title="Medir esta actividad sobre el plano"
+          onClick={() => abrirCuantificador({ obraId: actividad.obra_id, actividadId: actividad.id })}
+        >
+          Medir
+        </button>{' '}
         <button
           type="button"
           className="btn btn--sm"

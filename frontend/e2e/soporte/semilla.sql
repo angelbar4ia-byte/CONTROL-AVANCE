@@ -113,7 +113,7 @@ where c.org_id = :org_id
 -- La del workflow A NO se siembra: se da de alta por la UI.
 insert into obra (org_id, cluster_id, prototipo_id, clave, residente_id)
 select :org_id, :'cluster_id', :'proto_id', clave, :'res_id'
-from (values ('OBRA-C'), ('OBRA-D'), ('OBRA-E'), ('OBRA-F'), ('OBRA-G')) v(clave);
+from (values ('OBRA-C'), ('OBRA-D'), ('OBRA-E'), ('OBRA-F'), ('OBRA-G'), ('OBRA-H')) v(clave);
 
 -- Dos actividades por obra, con cantidad programada (sin ejecución: el avance
 -- lo capturan las pruebas, que es lo que se está probando).

@@ -20,7 +20,7 @@
  * escribir «0.5» en un factor no debe borrar vértices.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import {
@@ -49,6 +49,7 @@ import { useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet } from '@/a
 import { useActividadesDeObraApiV1ObrasObraIdActividadesGet } from '@/api/generado/torre/torre';
 import { queryClient } from '@/app/queryClient';
 import { useSesion } from '@/app/sesion';
+import { useSearchParams } from 'react-router-dom';
 import { fmtFecha, fmtNum } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { SelectorObra } from '@/lib/SelectorObra';
@@ -87,12 +88,47 @@ function etiquetaActividad(a: ActividadRespuesta | undefined, id: string): strin
   return donde ? `${que} — ${donde}` : String(que);
 }
 
-export default function Cuantificador() {
+interface PropsEspacio {
+  readonly obraId: string;
+  /** Plano con el que abre; si no se manda, el primero de la obra. */
+  readonly planoInicial?: string;
+  /**
+   * La actividad sobre la que se trabaja (la herramienta puntual, D-532): su
+   * renglón queda a la vista y se actualiza al guardar cada trazo, y el
+   * formulario de enlaces la trae ya elegida.
+   */
+  readonly actividadFocoId?: string;
+  /** Una sola columna y un visor más bajo: es lo que cabe en la ventana flotante. */
+  readonly compacto?: boolean;
+  /** Avisa qué plano se está viendo, para que «Abrir en el módulo» lleve el mismo. */
+  readonly onPlanoCambiado?: (planoId: string) => void;
+  /** Lo que va al inicio de la barra de filtros (el módulo pone aquí el selector de obra). */
+  readonly cabecera?: ReactNode;
+}
+
+/**
+ * El motor del cuantificador: plano, herramientas, trazos y estado de la obra.
+ * Lo usan las dos entradas (D-532): el módulo (`Cuantificador`) y la ventana
+ * flotante (`VentanaCuantificador`). Es **el mismo motor y los mismos datos**:
+ * lo que se traza en una se ve en la otra porque las dos leen y escriben lo
+ * mismo, sin estado propio de la entrada.
+ *
+ * La obra es un parámetro y no un estado: cambiar de obra es montar otro
+ * `EspacioDeTrazo` (`key={obraId}`), lo que limpia solo todo lo que dependía
+ * de la anterior.
+ */
+export function EspacioDeTrazo({
+  obraId,
+  planoInicial,
+  actividadFocoId,
+  compacto = false,
+  onPlanoCambiado,
+  cabecera,
+}: PropsEspacio) {
   const { sesion } = useSesion();
   const puedeAnotar = sesion?.rol === 'residente' || sesion?.rol === 'supervisor';
   const puedeEnlazarPrototipo = sesion?.rol === 'control_obra' || sesion?.rol === 'super_intendente';
-  const [obraId, setObraId] = useState('');
-  const [planoElegido, setPlanoElegido] = useState('');
+  const [planoElegido, setPlanoElegido] = useState(planoInicial ?? '');
   const [herramienta, setHerramienta] = useState<Herramienta>('seleccionar');
   const [borrador, setBorrador] = useState<readonly Punto[]>([]);
   const [guardando, setGuardando] = useState(false);
@@ -108,17 +144,14 @@ export default function Cuantificador() {
   >(obraId, { query: { enabled: obraId !== '' } });
   const listaDePlanos = useMemo(() => planos.data ?? [], [planos.data]);
 
-  // Al cambiar de obra se limpia todo lo que dependía de ella; al llegar la
-  // lista, se abre el primer plano para no dejar al usuario frente a un vacío.
-  useEffect(() => {
-    setPlanoElegido('');
-    setBorrador([]);
-    setSeleccion(null);
-    setHerramienta('seleccionar');
-  }, [obraId]);
+  // Al llegar la lista, se abre el primer plano para no dejar al usuario frente
+  // a un vacío.
   useEffect(() => {
     if (planoElegido === '' && listaDePlanos[0]) setPlanoElegido(listaDePlanos[0].id);
   }, [listaDePlanos, planoElegido]);
+  useEffect(() => {
+    if (planoElegido !== '') onPlanoCambiado?.(planoElegido);
+  }, [planoElegido, onPlanoCambiado]);
 
   const plano = listaDePlanos.find((p) => p.id === planoElegido);
   const esImagen = plano !== undefined && ES_IMAGEN.test(plano.archivo_url);
@@ -279,23 +312,15 @@ export default function Cuantificador() {
       : etiquetaActividad(porActividad.get(id), id);
   const nodos = estado.data ?? [];
 
-  return (
-    <div className="page">
-      <div className="page__header">
-        <div className="page__titlewrap">
-          <div className="page__eyebrow mono">Presupuesto</div>
-          <h1 className="page__title">Cuantificador</h1>
-          <div className="page__subtitle">
-            Traza sobre el plano y enlaza cada trazo a las actividades que alimenta. Lo que se
-            mide <strong>informa</strong> y se compara con la cantidad base; no la reemplaza.
-          </div>
-        </div>
-      </div>
+  const filaDeFoco = actividadFocoId
+    ? (estado.data ?? []).find((n) => n.nodo_id === actividadFocoId)
+    : undefined;
+  const actividadDeFoco = actividadFocoId ? porActividad.get(actividadFocoId) : undefined;
 
-      <div className="filterbar">
-        <div style={{ minWidth: 220 }}>
-          <SelectorObra id="cuant-obra" etiqueta="Obra" valor={obraId} onCambio={setObraId} />
-        </div>
+  return (
+    <div className={compacto ? 'cuant-espacio cuant-espacio--compacto' : 'cuant-espacio'}>
+      <div className="filterbar filterbar--suelta">
+        {cabecera}
         <div className="field" style={{ minWidth: 240 }}>
           <label className="field__label" htmlFor="cuant-plano">
             Plano
@@ -304,14 +329,13 @@ export default function Cuantificador() {
             id="cuant-plano"
             className="select"
             value={planoElegido}
-            disabled={obraId === ''}
             onChange={(e) => {
               setPlanoElegido(e.target.value);
               setBorrador([]);
               setSeleccion(null);
             }}
           >
-            <option value="">{obraId === '' ? 'Elige una obra primero' : 'Sin planos'}</option>
+            <option value="">Sin planos</option>
             {listaDePlanos.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.nombre} · v{p.version}
@@ -320,22 +344,38 @@ export default function Cuantificador() {
             ))}
           </select>
         </div>
-        <button
-          type="button"
-          className="btn"
-          disabled={obraId === ''}
-          onClick={() => setSubiendoPlano(true)}
-        >
+        <button type="button" className="btn" onClick={() => setSubiendoPlano(true)}>
           Subir plano
         </button>
       </div>
 
-      {obraId === '' ? (
-        <div className="empty">
-          <div className="empty-title">Elige una obra</div>
-          <div className="empty-sub">Los planos y sus trazos son de una obra.</div>
+      {actividadFocoId && (
+        <div className="cuant__renglon" data-testid="renglon-foco">
+          <div>
+            <div className="text-xs text-mute">Actividad</div>
+            <div className="text-sm">
+              <strong>{etiquetaActividad(actividadDeFoco, actividadFocoId)}</strong>
+              {actividadDeFoco?.descripcion ? ` · ${actividadDeFoco.descripcion}` : ''}
+            </div>
+          </div>
+          <dl className="cuant__cifras">
+            <div>
+              <dt>Base</dt>
+              <dd>{fmtNum(filaDeFoco?.cant_base ?? actividadDeFoco?.cant_base)}</dd>
+            </div>
+            <div>
+              <dt>Medido</dt>
+              <dd data-testid="medido-foco">{filaDeFoco ? fmtNum(filaDeFoco.cantidad_medida) : '—'}</dd>
+            </div>
+            <div>
+              <dt>Dif.</dt>
+              <dd>{filaDeFoco ? fmtNum(filaDeFoco.diferencia) : '—'}</dd>
+            </div>
+          </dl>
         </div>
-      ) : plano === undefined ? (
+      )}
+
+      {plano === undefined ? (
         <div className="empty">
           <div className="empty-title">{planos.isLoading ? 'Cargando planos…' : 'Esta obra no tiene planos'}</div>
           {!planos.isLoading && (
@@ -530,7 +570,7 @@ export default function Cuantificador() {
                       </thead>
                       <tbody>
                         {nodos.map((n) => (
-                          <tr key={`${n.tipo_nodo}-${n.nodo_id}`}>
+                          <tr key={`${n.tipo_nodo}-${n.nodo_id}`} className={n.nodo_id === actividadFocoId ? 'is-selected' : undefined}>
                             <td>
                               {n.descripcion ?? nombreDeNodo(n.tipo_nodo, n.nodo_id)}
                               {n.trazos_por_revisar > 0 && (
@@ -561,6 +601,7 @@ export default function Cuantificador() {
           herramienta={forma}
           puntos={borrador}
           actividades={actividades}
+          actividadInicial={actividadFocoId}
           nodosDePrototipo={puedeEnlazarPrototipo ? nodosDePrototipo : null}
           onCerrar={() => {
             setGuardando(false);
@@ -619,6 +660,62 @@ export default function Cuantificador() {
               queryKey: getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId),
             });
           }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * El módulo (espacio de trabajo, D-532): una entrada propia del menú, con la
+ * obra elegida a la vista. Acepta `?obra=&plano=&actividad=` para que
+ * «Abrir en el módulo», desde la ventana flotante, llegue al mismo plano y a la
+ * misma actividad sin que se pierda lo trazado.
+ */
+export default function Cuantificador() {
+  const [busqueda, setBusqueda] = useSearchParams();
+  const obraId = busqueda.get('obra') ?? '';
+  const selectorDeObra = (
+    <div style={{ minWidth: 220 }}>
+      <SelectorObra
+        id="cuant-obra"
+        etiqueta="Obra"
+        valor={obraId}
+        onCambio={(id) => setBusqueda(id === '' ? {} : { obra: id })}
+      />
+    </div>
+  );
+
+  return (
+    <div className="page">
+      <div className="page__header">
+        <div className="page__titlewrap">
+          <div className="page__eyebrow mono">Presupuesto</div>
+          <h1 className="page__title">Cuantificador</h1>
+          <div className="page__subtitle">
+            Traza sobre el plano y enlaza cada trazo a las actividades que alimenta. Lo que se
+            mide <strong>informa</strong> y se compara con la cantidad base; no la reemplaza.
+          </div>
+        </div>
+      </div>
+
+      {obraId === '' ? (
+        <>
+          <div className="filterbar filterbar--suelta">
+            {selectorDeObra}
+          </div>
+          <div className="empty">
+            <div className="empty-title">Elige una obra</div>
+            <div className="empty-sub">Los planos y sus trazos son de una obra.</div>
+          </div>
+        </>
+      ) : (
+        <EspacioDeTrazo
+          key={obraId}
+          obraId={obraId}
+          cabecera={selectorDeObra}
+          planoInicial={busqueda.get('plano') ?? undefined}
+          actividadFocoId={busqueda.get('actividad') ?? undefined}
         />
       )}
     </div>
