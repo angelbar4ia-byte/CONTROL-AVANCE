@@ -214,18 +214,21 @@ from obractrl.application.casos_uso.gestionar_obra import (
 )
 from obractrl.application.casos_uso.gestionar_organizacion import ReiniciarOrganizacion
 from obractrl.application.casos_uso.gestionar_partes import (
+    AgregarActividadNueva,
     CambiarEstadoDePartes,
     ConsultarAlertasDePartes,
     ConsultarArranque,
     ConsultarBitacoraDePartes,
     ConsultarCargaDePartes,
     ConsultarDesfaseDePartes,
+    ConsultarModificaciones,
     ConsultarPartes,
     FijarCandadoDeAsignar,
     FijarDesfaseDePartes,
     FijarPlantasDeObra,
     FijarPlantasDePrototipo,
     MarcarParteIndependiente,
+    ModificarActividad,
 )
 from obractrl.application.casos_uso.gestionar_programacion import (
     ComandoRecalcularRutaCritica,
@@ -292,6 +295,7 @@ __all__ = [
     "AbrirIncidenciaDep",
     "ActualizarObraDep",
     "ActualizarUsuarioDep",
+    "AgregarActividadNuevaDep",
     "AgregarDocumentoDep",
     "AgregarRespuestasDep",
     "AplicarReprogramacionDep",
@@ -325,6 +329,7 @@ __all__ = [
     "ConsultarExpedienteDep",
     "ConsultarFrentesDeObraDep",
     "ConsultarInsumosProgramadosDep",
+    "ConsultarModificacionesDep",
     "ConsultarPartesDep",
     "ConsultarPlaneacionDep",
     "ConsultarReprogramacionesDep",
@@ -364,6 +369,7 @@ __all__ = [
     "IniciarObraDep",
     "InstanciarProgramaObraDep",
     "MarcarParteIndependienteDep",
+    "ModificarActividadDep",
     "ObservarReprogramacionDep",
     "ObtenerCPUDep",
     "ParticiparEnCierreDep",
@@ -1346,6 +1352,29 @@ def obtener_consultar_carga_de_partes(sesion: SesionRLS) -> ConsultarCargaDePart
     )
 
 
+def obtener_modificar_actividad(sesion: SesionRLS, ctx: ContextoActual) -> ModificarActividad:
+    return ModificarActividad(
+        partes=RepositorioPartesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+    )
+
+
+def obtener_agregar_actividad_nueva(sesion: SesionRLS, ctx: ContextoActual) -> AgregarActividadNueva:
+    return AgregarActividadNueva(
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+    )
+
+
+def obtener_consultar_modificaciones(sesion: SesionRLS) -> ConsultarModificaciones:
+    return ConsultarModificaciones(
+        partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion)
+    )
+
+
 def obtener_marcar_parte_independiente(sesion: SesionRLS) -> MarcarParteIndependiente:
     return MarcarParteIndependiente(
         partes=RepositorioPartesSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
@@ -1444,6 +1473,13 @@ ConsultarBitacoraDePartesDep = Annotated[
     ConsultarBitacoraDePartes, Depends(obtener_consultar_bitacora_de_partes)
 ]
 ConsultarPartesDep = Annotated[ConsultarPartes, Depends(obtener_consultar_partes)]
+ModificarActividadDep = Annotated[ModificarActividad, Depends(obtener_modificar_actividad)]
+AgregarActividadNuevaDep = Annotated[
+    AgregarActividadNueva, Depends(obtener_agregar_actividad_nueva)
+]
+ConsultarModificacionesDep = Annotated[
+    ConsultarModificaciones, Depends(obtener_consultar_modificaciones)
+]
 ConsultarCargaDePartesDep = Annotated[
     ConsultarCargaDePartes, Depends(obtener_consultar_carga_de_partes)
 ]

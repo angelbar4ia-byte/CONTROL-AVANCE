@@ -43,6 +43,7 @@ import {
   type EstadoDeParte,
 } from './reglas';
 import ArranqueYAlertas from './ArranqueYAlertas';
+import Modificaciones from './Modificaciones';
 
 export default function Partes() {
   const { sesion } = useSesion();
@@ -308,6 +309,12 @@ export default function Partes() {
               </table>
             </div>
           </div>
+
+          <Modificaciones
+            obraId={obraId}
+            rol={rol}
+            etapas={partes.filter((p) => p.tipo === 'etapa' && p.id).map((p) => ({ id: p.id as string, nombre: p.nombre }))}
+          />
 
           <section aria-label="Bitácora de las partes" className="mt-16">
             <h2 className="text-sm" style={{ margin: '16px 0 8px' }}>Bitácora</h2>

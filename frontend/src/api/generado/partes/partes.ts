@@ -26,6 +26,8 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ActividadNuevaPeticion,
+  ActividadNuevaRespuesta,
   AlertasDePartesRespuesta,
   ArranqueRespuesta,
   CambiarEstadoPeticion,
@@ -34,10 +36,13 @@ import type {
   DesfaseDePartesPeticion,
   DesfaseDePartesRespuesta,
   HTTPValidationError,
+  ModificacionPeticion,
+  ModificacionRespuesta,
   ParteIndependientePeticion,
   PartesDeObraRespuesta,
   PasoDeParteRespuesta,
   PlantasPeticion,
+  RegistroDeModificacionRespuesta,
   TransicionDeParteRespuesta,
 } from ".././modelo";
 
@@ -2095,6 +2100,739 @@ export function useCargaDePartesApiV1ObrasObraIdPartesCargaGet<
 } {
   const queryOptions =
     getCargaDePartesApiV1ObrasObraIdPartesCargaGetQueryOptions(obraId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Escenario 3 · prototipo modificado (D-573/D-574). Se dice cuánto cambia: un cambio puede
+restar, un adicional solo suma. Si la parte ya estaba validada vuelve a cuantificarse.
+ * @summary Un cambio o un adicional sobre un concepto del prototipo (antes de asignar)
+ */
+export const modificarActividadApiV1ActividadesActividadIdModificacionPost = (
+  actividadId: string,
+  modificacionPeticion: ModificacionPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ModificacionRespuesta>(
+    {
+      url: `/api/v1/actividades/${actividadId}/modificacion`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: modificacionPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getModificarActividadApiV1ActividadesActividadIdModificacionPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof modificarActividadApiV1ActividadesActividadIdModificacionPost
+        >
+      >,
+      TError,
+      { actividadId: string; data: ModificacionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof modificarActividadApiV1ActividadesActividadIdModificacionPost
+      >
+    >,
+    TError,
+    { actividadId: string; data: ModificacionPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "modificarActividadApiV1ActividadesActividadIdModificacionPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof modificarActividadApiV1ActividadesActividadIdModificacionPost
+        >
+      >,
+      { actividadId: string; data: ModificacionPeticion }
+    > = (props) => {
+      const { actividadId, data } = props ?? {};
+
+      return modificarActividadApiV1ActividadesActividadIdModificacionPost(
+        actividadId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ModificarActividadApiV1ActividadesActividadIdModificacionPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof modificarActividadApiV1ActividadesActividadIdModificacionPost
+      >
+    >
+  >;
+export type ModificarActividadApiV1ActividadesActividadIdModificacionPostMutationBody =
+  ModificacionPeticion;
+export type ModificarActividadApiV1ActividadesActividadIdModificacionPostMutationError =
+  void;
+
+/**
+ * @summary Un cambio o un adicional sobre un concepto del prototipo (antes de asignar)
+ */
+export const useModificarActividadApiV1ActividadesActividadIdModificacionPost =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof modificarActividadApiV1ActividadesActividadIdModificacionPost
+          >
+        >,
+        TError,
+        { actividadId: string; data: ModificacionPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof modificarActividadApiV1ActividadesActividadIdModificacionPost
+      >
+    >,
+    TError,
+    { actividadId: string; data: ModificacionPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getModificarActividadApiV1ActividadesActividadIdModificacionPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Lo que cambia nace nuevo: un highlight, un concepto fuera de catálogo o uno agregado
+ */
+export const agregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPost = (
+  obraId: string,
+  actividadNuevaPeticion: ActividadNuevaPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ActividadNuevaRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/modificaciones/nueva`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: actividadNuevaPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getAgregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof agregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPost
+        >
+      >,
+      TError,
+      { obraId: string; data: ActividadNuevaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof agregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPost
+      >
+    >,
+    TError,
+    { obraId: string; data: ActividadNuevaPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "agregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof agregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPost
+        >
+      >,
+      { obraId: string; data: ActividadNuevaPeticion }
+    > = (props) => {
+      const { obraId, data } = props ?? {};
+
+      return agregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPost(
+        obraId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AgregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof agregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPost
+      >
+    >
+  >;
+export type AgregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPostMutationBody =
+  ActividadNuevaPeticion;
+export type AgregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPostMutationError =
+  void;
+
+/**
+ * @summary Lo que cambia nace nuevo: un highlight, un concepto fuera de catálogo o uno agregado
+ */
+export const useAgregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof agregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPost
+        >
+      >,
+      TError,
+      { obraId: string; data: ActividadNuevaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<
+      typeof agregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPost
+    >
+  >,
+  TError,
+  { obraId: string; data: ActividadNuevaPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getAgregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Todos los roles, cada uno con su alcance. Solo se agrega.
+ * @summary Los cambios y adicionales de la obra, lo más reciente primero
+ */
+export const modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<RegistroDeModificacionRespuesta[]>(
+    { url: `/api/v1/obras/${obraId}/modificaciones`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetInfiniteQueryKey =
+  (obraId?: string) => {
+    return ["infinite", `/api/v1/obras/${obraId}/modificaciones`] as const;
+  };
+
+export const getModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetQueryKey =
+  (obraId?: string) => {
+    return [`/api/v1/obras/${obraId}/modificaciones`] as const;
+  };
+
+export const getModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetInfiniteQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+        >
+      >
+    > = ({ signal }) =>
+      modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet>
+    >
+  >;
+export type ModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los cambios y adicionales de la obra, lo más reciente primero
+ */
+
+export function useModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet>
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+        >
+      >
+    > = ({ signal }) =>
+      modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet>
+    >
+  >;
+export type ModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetQueryError =
+  void | HTTPValidationError;
+
+export function useModificacionesDeLaObraApiV1ObrasObraIdModificacionesGet<
+  TData = Awaited<
+    ReturnType<typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useModificacionesDeLaObraApiV1ObrasObraIdModificacionesGet<
+  TData = Awaited<
+    ReturnType<typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useModificacionesDeLaObraApiV1ObrasObraIdModificacionesGet<
+  TData = Awaited<
+    ReturnType<typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los cambios y adicionales de la obra, lo más reciente primero
+ */
+
+export function useModificacionesDeLaObraApiV1ObrasObraIdModificacionesGet<
+  TData = Awaited<
+    ReturnType<typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof modificacionesDeLaObraApiV1ObrasObraIdModificacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getModificacionesDeLaObraApiV1ObrasObraIdModificacionesGetQueryOptions(
+      obraId,
+      options,
+    );
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,

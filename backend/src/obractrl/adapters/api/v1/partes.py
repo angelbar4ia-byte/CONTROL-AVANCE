@@ -9,29 +9,38 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 
 from obractrl.adapters.api.casos_uso import (
+    AgregarActividadNuevaDep,
     CambiarEstadoDePartesDep,
     ConsultarAlertasDePartesDep,
     ConsultarArranqueDep,
     ConsultarBitacoraDePartesDep,
     ConsultarCargaDePartesDep,
     ConsultarDesfaseDePartesDep,
+    ConsultarModificacionesDep,
     ConsultarPartesDep,
     FijarCandadoDeAsignarDep,
     FijarDesfaseDePartesDep,
     FijarPlantasDeObraDep,
     FijarPlantasDePrototipoDep,
     MarcarParteIndependienteDep,
+    ModificarActividadDep,
 )
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.adapters.api.idempotencia import Idempotencia
-from obractrl.application.casos_uso.gestionar_partes import ComandoCambiarEstadoDePartes
+from obractrl.application.casos_uso.gestionar_partes import (
+    ComandoAgregarActividadNueva,
+    ComandoCambiarEstadoDePartes,
+    ComandoModificarActividad,
+)
 from obractrl.domain.partes.estado import Accion, EstadoDeParte
+from obractrl.domain.partes.modificacion import TipoDeModificacion
 from obractrl.domain.shared.diccionario import Rol
 
 router = APIRouter(tags=["partes"])
@@ -140,6 +149,62 @@ class CargaDePartesRespuesta(BaseModel):
     obra_id: UUID
     incompletas: int
     partes: list[CargaDeParteRespuesta]
+
+
+class ModificacionPeticion(BaseModel):
+    tipo: Literal["cambio", "adicional"] = Field(
+        description="`cambio` puede restar (se elimina del presupuesto); `adicional` solo suma."
+    )
+    delta: Decimal = Field(description="Cuánto cambia la cantidad; negativo solo en un cambio.")
+    nota: str | None = None
+
+
+class ModificacionRespuesta(BaseModel):
+    actividad_id: UUID
+    clave: str = Field(description="La parte a la que pertenece.")
+    tipo: str
+    cantidad_antes: Decimal
+    delta: Decimal
+    cantidad_despues: Decimal
+    parte_reabierta: bool = Field(
+        description="La parte ya estaba validada o más allá: volvió a cuantificarse."
+    )
+
+
+class ActividadNuevaPeticion(BaseModel):
+    tipo: Literal["cambio", "adicional"]
+    descripcion: str = Field(min_length=1)
+    cantidad: Decimal = Field(gt=0)
+    precio_unitario: Decimal = Field(default=Decimal(0), ge=0)
+    concepto_id: UUID | None = Field(default=None, description="Si el concepto es del catálogo.")
+    etapa_id: UUID | None = Field(default=None, description="La etapa donde nace; suelta si falta.")
+    nivel_id: UUID | None = None
+    nota: str | None = None
+
+
+class ActividadNuevaRespuesta(BaseModel):
+    actividad_id: UUID
+    clave: str
+    tipo: str
+    cantidad: Decimal
+    parte_reabierta: bool
+
+
+class RegistroDeModificacionRespuesta(BaseModel):
+    id: UUID
+    actividad_id: UUID
+    descripcion: str
+    concepto_clave: str | None = None
+    tipo: str
+    cantidad_antes: Decimal
+    delta: Decimal
+    cantidad_despues: Decimal
+    nace_nueva: bool
+    nota: str | None = None
+    usuario_id: UUID
+    usuario_nombre: str | None = None
+    rol: str
+    creada_en: datetime
 
 
 class ParteSinAutorizarRespuesta(BaseModel):
@@ -305,6 +370,89 @@ async def carga_de_partes(
     """Importe cargado entre presupuestado, por etapa. Una carga incompleta avisa, nunca
     bloquea (D-30): se puede mandar a programar con lo que llegó."""
     return CargaDePartesRespuesta(**await caso_uso.ejecutar(obra_id))
+
+
+@router.post(
+    "/actividades/{actividad_id}/modificacion",
+    response_model=ModificacionRespuesta,
+    summary="Un cambio o un adicional sobre un concepto del prototipo (antes de asignar)",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS)), Idempotencia],
+    responses={
+        **_NO_ENCONTRADO,
+        409: {"description": "La parte ya está asignada: cambiarla es control de cambio."},
+        422: {"description": "Delta cero, adicional que resta, o cantidad que quedaría negativa."},
+    },
+)
+async def modificar_actividad(
+    actividad_id: UUID,
+    peticion: ModificacionPeticion,
+    ctx: ContextoActual,
+    caso_uso: ModificarActividadDep,
+) -> ModificacionRespuesta:
+    """Escenario 3 · prototipo modificado (D-573/D-574). Se dice cuánto cambia: un cambio puede
+    restar, un adicional solo suma. Si la parte ya estaba validada vuelve a cuantificarse."""
+    return ModificacionRespuesta(
+        **await caso_uso.ejecutar(
+            ComandoModificarActividad(
+                actividad_id=actividad_id,
+                tipo=TipoDeModificacion(peticion.tipo),
+                delta=peticion.delta,
+                usuario_id=ctx.usuario_id,
+                rol=Rol(ctx.rol),
+                nota=peticion.nota,
+            )
+        )
+    )
+
+
+@router.post(
+    "/obras/{obra_id}/modificaciones/nueva",
+    response_model=ActividadNuevaRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Lo que cambia nace nuevo: un highlight, un concepto fuera de catálogo o uno agregado",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS)), Idempotencia],
+    responses={
+        **_NO_ENCONTRADO,
+        409: {"description": "La parte ya está asignada: agregarle algo es control de cambio."},
+        422: {"description": "Sin descripción o con cantidad que no suma."},
+    },
+)
+async def agregar_actividad_nueva(
+    obra_id: UUID,
+    peticion: ActividadNuevaPeticion,
+    ctx: ContextoActual,
+    caso_uso: AgregarActividadNuevaDep,
+) -> ActividadNuevaRespuesta:
+    return ActividadNuevaRespuesta(
+        **await caso_uso.ejecutar(
+            ComandoAgregarActividadNueva(
+                obra_id=obra_id,
+                tipo=TipoDeModificacion(peticion.tipo),
+                descripcion=peticion.descripcion,
+                cantidad=peticion.cantidad,
+                precio_unitario=peticion.precio_unitario,
+                usuario_id=ctx.usuario_id,
+                rol=Rol(ctx.rol),
+                concepto_id=peticion.concepto_id,
+                etapa_id=peticion.etapa_id,
+                nivel_id=peticion.nivel_id,
+                nota=peticion.nota,
+            )
+        )
+    )
+
+
+@router.get(
+    "/obras/{obra_id}/modificaciones",
+    response_model=list[RegistroDeModificacionRespuesta],
+    summary="Los cambios y adicionales de la obra, lo más reciente primero",
+    responses=_NO_ENCONTRADO,
+)
+async def modificaciones_de_la_obra(
+    obra_id: UUID, caso_uso: ConsultarModificacionesDep
+) -> list[RegistroDeModificacionRespuesta]:
+    """Todos los roles, cada uno con su alcance. Solo se agrega."""
+    return [RegistroDeModificacionRespuesta(**f) for f in await caso_uso.ejecutar(obra_id)]
 
 
 @router.get(

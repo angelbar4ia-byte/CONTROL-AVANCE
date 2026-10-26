@@ -223,6 +223,8 @@ class TestContrato:
             # Mandar, autorizar o asignar partes (0075) escribe estado y bitácora: un
             # reintento por red caída no debe repetir el paso.
             "POST /api/v1/obras/{obra_id}/partes/transicion",
+            "POST /api/v1/actividades/{actividad_id}/modificacion",
+            "POST /api/v1/obras/{obra_id}/modificaciones/nueva",
         }
 
     def test_es_opcional(self) -> None:

@@ -10,6 +10,8 @@ import {
   accionSiguiente,
   estadosAnteriores,
   etiquetaDeDias,
+  motivoDeModificacion,
+  puedeModificar,
   etiquetaDeEstado,
   puedeConfigurar,
   puedeAccion,
@@ -97,6 +99,26 @@ describe('alertas y configuración', () => {
     expect(puedeConfigurar('super_intendente')).toBe(true);
     for (const rol of ['residente', 'supervisor', 'costos', null] as const) {
       expect(puedeConfigurar(rol)).toBe(false);
+    }
+  });
+});
+
+describe('prototipo modificado', () => {
+  it('un cambio puede restar, un adicional solo suma, y nada deja la cantidad en negativo', () => {
+    expect(motivoDeModificacion('cambio', 100, -30)).toBeNull();
+    expect(motivoDeModificacion('cambio', 100, -100)).toBeNull(); // eliminar es dejarla en cero
+    expect(motivoDeModificacion('adicional', 0, 12)).toBeNull();
+    expect(motivoDeModificacion('adicional', 10, -1)).toMatch(/solo suma/);
+    expect(motivoDeModificacion('cambio', 10, -11)).toMatch(/negativo/);
+    expect(motivoDeModificacion('cambio', 10, 0)).toMatch(/cero/);
+    expect(motivoDeModificacion('cambio', 10, Number.NaN)).toMatch(/cero/);
+  });
+
+  it('lo modifican Control y Costos', () => {
+    expect(puedeModificar('control_obra')).toBe(true);
+    expect(puedeModificar('costos')).toBe(true);
+    for (const rol of ['residente', 'supervisor', 'super_intendente', null] as const) {
+      expect(puedeModificar(rol)).toBe(false);
     }
   });
 });

@@ -615,3 +615,140 @@ async def test_la_carga_de_otra_organizacion_no_se_ve(
     async with _cliente(ajeno) as c:
         r = await c.get(f"/api/v1/obras/{escenario.obra_id}/partes/carga")
         assert r.status_code == 404
+
+
+async def _cantidad(escenario: Escenario, actividad: str) -> dict:
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    async with engine.begin() as conn:
+        fila = (
+            await conn.execute(
+                text(
+                    "select cant_base, cant_programada, cant_prototipo, modificacion::text as tipo "
+                    "from actividad where id = :a"
+                ),
+                {"a": actividad},
+            )
+        ).mappings().one()
+    await engine.dispose()
+    return dict(fila)
+
+
+async def test_un_cambio_resta_y_un_adicional_suma_y_queda_la_bitacora(
+    escenario: Escenario, partes: dict, control: httpx.AsyncClient
+) -> None:
+    actividad = partes["actividad_b"]  # cant_base 100, cant_programada 100
+    # Un cambio negativo se elimina del presupuesto: 100 -> 70.
+    r = await control.post(
+        f"/api/v1/actividades/{actividad}/modificacion", json={"tipo": "cambio", "delta": "-30", "nota": "Sin cochera"}
+    )
+    assert r.status_code == 200, r.text
+    assert (float(r.json()["cantidad_antes"]), float(r.json()["cantidad_despues"])) == (100.0, 70.0)
+    antes = await _cantidad(escenario, actividad)
+    assert (float(antes["cant_base"]), float(antes["cant_programada"]), float(antes["cant_prototipo"])) == (
+        70.0, 70.0, 100.0,
+    )
+    assert antes["tipo"] == "cambio"
+    # Un adicional suma; lo del prototipo se conserva de la primera vez.
+    r = await control.post(f"/api/v1/actividades/{actividad}/modificacion", json={"tipo": "adicional", "delta": "5"})
+    assert r.status_code == 200, r.text
+    despues = await _cantidad(escenario, actividad)
+    assert (float(despues["cant_base"]), float(despues["cant_prototipo"]), despues["tipo"]) == (75.0, 100.0, "adicional")
+
+    bitacora = (await control.get(f"/api/v1/obras/{escenario.obra_id}/modificaciones")).json()
+    assert [(b["tipo"], float(b["delta"])) for b in bitacora] == [("adicional", 5.0), ("cambio", -30.0)]
+    assert bitacora[1]["nota"] == "Sin cochera" and bitacora[1]["nace_nueva"] is False
+
+
+async def test_lo_que_no_cabe_se_rechaza_con_su_motivo(
+    escenario: Escenario, partes: dict, control: httpx.AsyncClient
+) -> None:
+    actividad = partes["actividad_b"]
+    for cuerpo, motivo in (
+        ({"tipo": "adicional", "delta": "-1"}, "solo suma"),
+        ({"tipo": "cambio", "delta": "-101"}, "cero"),
+        ({"tipo": "cambio", "delta": "0"}, "no cambia nada"),
+    ):
+        r = await control.post(f"/api/v1/actividades/{actividad}/modificacion", json=cuerpo)
+        assert r.status_code == 422, r.text
+        assert motivo in r.text
+    assert float((await _cantidad(escenario, actividad))["cant_base"]) == 100.0
+
+
+async def test_modificar_una_parte_validada_la_devuelve_a_cuantificarse_y_asignada_ya_no_se_toca(
+    escenario: Escenario, partes: dict, control: httpx.AsyncClient, buzon: list[Correo]
+) -> None:
+    clave = partes["b"]
+    for accion in ("enviar_a_presupuesto", "autorizar", "validar", "enviar_a_programa", "programar"):
+        assert (await _paso(control, escenario, accion, claves=[clave])).status_code == 200
+    buzon.clear()
+    r = await control.post(
+        f"/api/v1/actividades/{partes['actividad_b']}/modificacion", json={"tipo": "cambio", "delta": "-10"}
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["parte_reabierta"] is True
+    ver = await control.get(f"/api/v1/obras/{escenario.obra_id}/partes")
+    b = {p["clave"]: p for p in ver.json()["partes"]}[clave]
+    assert (b["estado"], b["programa_por_revisar"]) == ("cuantificando", True)
+    assert [c for c in buzon if c.etiquetas == {"tipo": "programa_por_revisar"}]
+    bitacora = (await control.get(f"/api/v1/obras/{escenario.obra_id}/partes/bitacora")).json()
+    assert bitacora[0]["accion"] == "devolver" and "Modificación (cambio)" in bitacora[0]["nota"]
+
+    # Asignada: congelada, cambiarla es control de cambio.
+    for accion in ("enviar_a_presupuesto", "autorizar", "validar", "enviar_a_programa", "programar", "asignar"):
+        assert (await _paso(control, escenario, accion, claves=[clave])).status_code == 200
+    r = await control.post(
+        f"/api/v1/actividades/{partes['actividad_b']}/modificacion", json={"tipo": "cambio", "delta": "-10"}
+    )
+    assert r.status_code == 409, r.text
+    assert float((await _cantidad(escenario, partes["actividad_b"]))["cant_base"]) == 90.0
+
+
+async def test_lo_que_cambia_puede_nacer_nuevo_en_una_etapa(
+    escenario: Escenario, partes: dict, control: httpx.AsyncClient
+) -> None:
+    etapa = partes["b"].split(":")[1]
+    r = await control.post(
+        f"/api/v1/obras/{escenario.obra_id}/modificaciones/nueva",
+        json={
+            "tipo": "adicional",
+            "descripcion": "Highlight: pérgola de acero",
+            "cantidad": "12",
+            "precio_unitario": "850",
+            "etapa_id": etapa,
+        },
+    )
+    assert r.status_code == 201, r.text
+    nueva = r.json()
+    assert nueva["clave"] == partes["b"]
+    fila = await _cantidad(escenario, nueva["actividad_id"])
+    assert (float(fila["cant_base"]), float(fila["cant_prototipo"]), fila["tipo"]) == (12.0, 0.0, "adicional")
+    # La parte la cuenta en su importe: 100 × 0 (la del fixture) + 12 × 850.
+    ver = await control.get(f"/api/v1/obras/{escenario.obra_id}/partes")
+    b = {p["clave"]: p for p in ver.json()["partes"]}[partes["b"]]
+    assert b["n_actividades"] == 2 and float(b["importe"]) == 10200.0
+    bit = (await control.get(f"/api/v1/obras/{escenario.obra_id}/modificaciones")).json()
+    assert bit[0]["nace_nueva"] is True and bit[0]["descripcion"] == "Highlight: pérgola de acero"
+
+    for malo in ({"cantidad": "0"}, {"descripcion": "  "}):
+        r = await control.post(
+            f"/api/v1/obras/{escenario.obra_id}/modificaciones/nueva",
+            json={"tipo": "adicional", "descripcion": "x", "cantidad": "1", **malo},
+        )
+        assert r.status_code == 422, r.text
+
+
+async def test_costos_modifica_pero_el_residente_y_otra_organizacion_no(
+    escenario: Escenario,
+    partes: dict,
+    costos: httpx.AsyncClient,
+    residente: httpx.AsyncClient,
+    contexto_ajeno: ContextoSesion,
+) -> None:
+    actividad = partes["actividad_b"]
+    cuerpo = {"tipo": "cambio", "delta": "-1"}
+    assert (await costos.post(f"/api/v1/actividades/{actividad}/modificacion", json=cuerpo)).status_code == 200
+    assert (await residente.post(f"/api/v1/actividades/{actividad}/modificacion", json=cuerpo)).status_code == 403
+    ajeno = ContextoSesion(org_id=contexto_ajeno.org_id, usuario_id=contexto_ajeno.usuario_id, rol="control_obra")
+    async with _cliente(ajeno) as c:
+        assert (await c.post(f"/api/v1/actividades/{actividad}/modificacion", json=cuerpo)).status_code == 404
+        assert (await c.get(f"/api/v1/obras/{escenario.obra_id}/modificaciones")).status_code == 404

@@ -19,6 +19,28 @@ class RepositorioPartes(Protocol):
         etapa de la obra y lo que la ingeniería ya aplicada (y no revertida) trajo de cada una."""
         ...
 
+    async def actividad_a_modificar(self, actividad_id: UUID) -> dict[str, Any] | None:
+        """`{obra_id, clave, descripcion, cant_base, cant_programada, cant_prototipo}` de una
+        actividad que se ve, con la clave de su parte; `None` si no existe o no se ve."""
+        ...
+
+    async def aplicar_modificacion(
+        self, actividad_id: UUID, *, tipo: str, cantidad: Any, cant_prototipo: Any
+    ) -> None:
+        """Escribe la cantidad base nueva, la marca del tipo y —solo la primera vez— lo que
+        decía el prototipo; la cantidad programada no puede pasar de la nueva base."""
+        ...
+
+    async def crear_actividad_nueva(self, datos: dict[str, Any]) -> UUID:
+        """Una actividad que nace con la modificación (cambio o adicional), sin prototipo."""
+        ...
+
+    async def registrar_modificacion(self, **datos: Any) -> None: ...
+
+    async def modificaciones_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Bitácora de modificaciones de la obra, lo más reciente primero."""
+        ...
+
     async def plantas_de_obra(self, obra_id: UUID) -> dict[str, Any] | None:
         """`{plantas, plantas_del_prototipo}` de la obra, o `None` si no se ve."""
         ...

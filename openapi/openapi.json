@@ -11609,6 +11609,213 @@
         }
       }
     },
+    "/api/v1/actividades/{actividad_id}/modificacion": {
+      "post": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Un cambio o un adicional sobre un concepto del prototipo (antes de asignar)",
+        "description": "Escenario 3 · prototipo modificado (D-573/D-574). Se dice cuánto cambia: un cambio puede\nrestar, un adicional solo suma. Si la parte ya estaba validada vuelve a cuantificarse.",
+        "operationId": "modificar_actividad_api_v1_actividades__actividad_id__modificacion_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModificacionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModificacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "409": {
+            "description": "La parte ya está asignada: cambiarla es control de cambio."
+          },
+          "422": {
+            "description": "Delta cero, adicional que resta, o cantidad que quedaría negativa."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/modificaciones/nueva": {
+      "post": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Lo que cambia nace nuevo: un highlight, un concepto fuera de catálogo o uno agregado",
+        "operationId": "agregar_actividad_nueva_api_v1_obras__obra_id__modificaciones_nueva_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActividadNuevaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActividadNuevaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "409": {
+            "description": "La parte ya está asignada: agregarle algo es control de cambio."
+          },
+          "422": {
+            "description": "Sin descripción o con cantidad que no suma."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/modificaciones": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Los cambios y adicionales de la obra, lo más reciente primero",
+        "description": "Todos los roles, cada uno con su alcance. Solo se agrega.",
+        "operationId": "modificaciones_de_la_obra_api_v1_obras__obra_id__modificaciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RegistroDeModificacionRespuesta"
+                  },
+                  "title": "Response Modificaciones De La Obra Api V1 Obras  Obra Id  Modificaciones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/arranque": {
       "get": {
         "tags": [
@@ -12483,6 +12690,141 @@
         ],
         "title": "ActividadEnRutaRespuesta",
         "description": "Una actividad con su cálculo de CPM (§6)."
+      },
+      "ActividadNuevaPeticion": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "cambio",
+              "adicional"
+            ],
+            "title": "Tipo"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Descripcion"
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "precio_unitario": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Precio Unitario",
+            "default": "0"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id",
+            "description": "Si el concepto es del catálogo."
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id",
+            "description": "La etapa donde nace; suelta si falta."
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "descripcion",
+          "cantidad"
+        ],
+        "title": "ActividadNuevaPeticion"
+      },
+      "ActividadNuevaRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "parte_reabierta": {
+            "type": "boolean",
+            "title": "Parte Reabierta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "clave",
+          "tipo",
+          "cantidad",
+          "parte_reabierta"
+        ],
+        "title": "ActividadNuevaRespuesta"
       },
       "ActividadProgramadaRespuesta": {
         "properties": {
@@ -20797,6 +21139,98 @@
         "title": "MedidaCuantificacion",
         "description": "Qué métrica del trazo alimenta la cantidad (ENLACE_CUANTIFICACION.\nmedida, MODELO.md §1b). `AREA`/`PERIMETRO`/`LONGITUD` se calculan en\nSQL con `ST_Area`/`ST_Perimeter`/`ST_Length` sobre la geometría\n(§12.11: el dominio nunca toca PostGIS); `CONTEO` no es una función de\nPostGIS, es \"este trazo cuenta como una instancia\"."
       },
+      "ModificacionPeticion": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "cambio",
+              "adicional"
+            ],
+            "title": "Tipo",
+            "description": "`cambio` puede restar (se elimina del presupuesto); `adicional` solo suma."
+          },
+          "delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Delta",
+            "description": "Cuánto cambia la cantidad; negativo solo en un cambio."
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "delta"
+        ],
+        "title": "ModificacionPeticion"
+      },
+      "ModificacionRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave",
+            "description": "La parte a la que pertenece."
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "cantidad_antes": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Antes"
+          },
+          "delta": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Delta"
+          },
+          "cantidad_despues": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Despues"
+          },
+          "parte_reabierta": {
+            "type": "boolean",
+            "title": "Parte Reabierta",
+            "description": "La parte ya estaba validada o más allá: volvió a cuantificarse."
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "clave",
+          "tipo",
+          "cantidad_antes",
+          "delta",
+          "cantidad_despues",
+          "parte_reabierta"
+        ],
+        "title": "ModificacionRespuesta"
+      },
       "ModoCarga": {
         "type": "string",
         "enum": [
@@ -24001,6 +24435,109 @@
         ],
         "title": "RegistrarSalidaPeticion",
         "description": "Movimiento de almacén a registrar (§7.7, §10.5)."
+      },
+      "RegistroDeModificacionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "cantidad_antes": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Antes"
+          },
+          "delta": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Delta"
+          },
+          "cantidad_despues": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Despues"
+          },
+          "nace_nueva": {
+            "type": "boolean",
+            "title": "Nace Nueva"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          },
+          "usuario_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Usuario Id"
+          },
+          "usuario_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Nombre"
+          },
+          "rol": {
+            "type": "string",
+            "title": "Rol"
+          },
+          "creada_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creada En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "actividad_id",
+          "descripcion",
+          "tipo",
+          "cantidad_antes",
+          "delta",
+          "cantidad_despues",
+          "nace_nueva",
+          "usuario_id",
+          "rol",
+          "creada_en"
+        ],
+        "title": "RegistroDeModificacionRespuesta"
       },
       "RendimientoPorConceptoRespuesta": {
         "properties": {

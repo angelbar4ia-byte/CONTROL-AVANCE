@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -83,6 +83,117 @@ class RepositorioPartesSQL:
             ).mappings()
         }
         return {"claves": claves, "cargado": cargado}
+
+    async def actividad_a_modificar(self, actividad_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select a.obra_id, a.cant_base, a.cant_programada, a.cant_prototipo,
+                           coalesce(a.descripcion, c.descripcion, '') as descripcion,
+                           case when a.parte_independiente then 'concepto:' || a.id::text
+                                when a.etapa_id is not null then 'etapa:' || a.etapa_id::text
+                                else 'sin_etapa:-' end as clave
+                      from actividad a left join concepto c on c.id = a.concepto_id
+                     where a.id = :id
+                       for update of a
+                    """
+                ),
+                {"id": str(actividad_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def aplicar_modificacion(
+        self, actividad_id: UUID, *, tipo: str, cantidad: Any, cant_prototipo: Any
+    ) -> None:
+        await self._sesion.execute(
+            text(
+                """
+                update actividad
+                   set cant_base = :cantidad,
+                       cant_programada = least(cant_programada, :cantidad),
+                       modificacion = cast(:tipo as tipo_modificacion),
+                       cant_prototipo = coalesce(cant_prototipo, :prototipo)
+                 where id = :id
+                """
+            ),
+            {
+                "id": str(actividad_id),
+                "cantidad": cantidad,
+                "tipo": tipo,
+                "prototipo": cant_prototipo,
+            },
+        )
+
+    async def crear_actividad_nueva(self, datos: dict[str, Any]) -> UUID:
+        actividad_id = uuid4()
+        await self._sesion.execute(
+            text(
+                """
+                insert into actividad
+                    (id, org_id, obra_id, concepto_id, nivel_id, etapa_id, descripcion,
+                     cant_base, cant_programada, cant_ejecutada, precio_unitario,
+                     duracion_dias, modificacion, cant_prototipo)
+                values
+                    (:id, cast(current_setting('app.org_id') as uuid), :obra_id,
+                     cast(:concepto_id as uuid), cast(:nivel_id as uuid), cast(:etapa_id as uuid),
+                     :descripcion, :cantidad, :cantidad, 0, :precio_unitario, 1,
+                     cast(:tipo as tipo_modificacion), 0)
+                """
+            ),
+            {
+                "id": str(actividad_id),
+                "obra_id": str(datos["obra_id"]),
+                "concepto_id": str(datos["concepto_id"]) if datos.get("concepto_id") else None,
+                "nivel_id": str(datos["nivel_id"]) if datos.get("nivel_id") else None,
+                "etapa_id": str(datos["etapa_id"]) if datos.get("etapa_id") else None,
+                "descripcion": datos["descripcion"],
+                "cantidad": datos["cantidad"],
+                "precio_unitario": datos["precio_unitario"],
+                "tipo": datos["tipo"],
+            },
+        )
+        return actividad_id
+
+    async def registrar_modificacion(self, **datos: Any) -> None:
+        await self._sesion.execute(
+            text(
+                """
+                insert into actividad_modificacion
+                    (org_id, obra_id, actividad_id, tipo, cantidad_antes, delta,
+                     cantidad_despues, nace_nueva, nota, usuario_id, rol)
+                values
+                    (cast(current_setting('app.org_id') as uuid), :obra_id, :actividad_id,
+                     cast(:tipo as tipo_modificacion), :cantidad_antes, :delta,
+                     :cantidad_despues, :nace_nueva, :nota, :usuario_id, :rol)
+                """
+            ),
+            {k: (str(v) if k.endswith("_id") else v) for k, v in datos.items()},
+        )
+
+    async def modificaciones_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select m.id, m.actividad_id,
+                           coalesce(a.descripcion, c.descripcion, '') as descripcion,
+                           c.clave as concepto_clave, m.tipo::text as tipo, m.cantidad_antes,
+                           m.delta, m.cantidad_despues, m.nace_nueva, m.nota, m.usuario_id,
+                           u.nombre as usuario_nombre, m.rol, m.creada_en
+                      from actividad_modificacion m
+                      join actividad a on a.id = m.actividad_id
+                      left join concepto c on c.id = a.concepto_id
+                      left join usuario u on u.id = m.usuario_id
+                     where m.obra_id = :obra_id
+                     order by m.creada_en desc, m.id
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
 
     async def plantas_de_obra(self, obra_id: UUID) -> dict[str, Any] | None:
         fila = (

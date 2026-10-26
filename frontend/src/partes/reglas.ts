@@ -121,3 +121,31 @@ export function etiquetaDeDias(dias: number): string {
   if (dias === -1) return 'desde ayer';
   return `hace ${-dias} días`;
 }
+
+/** Quién modifica el prototipo antes de asignar (el servidor lo impone). */
+export function puedeModificar(rol: Rol | null): boolean {
+  return rol === 'control_obra' || rol === 'costos';
+}
+
+export type TipoDeModificacion = 'cambio' | 'adicional';
+
+export const ETIQUETA_MODIFICACION: Readonly<Record<TipoDeModificacion, string>> = {
+  cambio: 'Cambio',
+  adicional: 'Adicional',
+};
+
+/**
+ * Lo que la web adelanta del servidor para no mandar lo que va a rechazar: un adicional solo
+ * suma, un cambio puede restar, y nada deja la cantidad en negativo ni cambia en cero.
+ * Devuelve el motivo, o `null` si cabe.
+ */
+export function motivoDeModificacion(
+  tipo: TipoDeModificacion,
+  cantidadActual: number,
+  delta: number,
+): string | null {
+  if (!Number.isFinite(delta) || delta === 0) return 'Dilo con un número que no sea cero.';
+  if (tipo === 'adicional' && delta < 0) return 'Un adicional solo suma; para quitar usa un cambio.';
+  if (cantidadActual + delta < 0) return 'Eso dejaría la cantidad en negativo; eliminar es dejarla en cero.';
+  return null;
+}

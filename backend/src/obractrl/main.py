@@ -140,6 +140,7 @@ from obractrl.domain.obras.generacion import ErrorDeGeneracion
 from obractrl.domain.obras.precio_armado import ErrorDePrecioArmado
 from obractrl.domain.obras.reglas import ErrorDeObra, TransicionDeObraInvalida
 from obractrl.domain.partes.alertas import ErrorDeUmbrales
+from obractrl.domain.partes.modificacion import ErrorDeModificacion
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
 from obractrl.domain.programacion.reglas import (
     EdicionDeProgramaNoPermitida,
@@ -645,6 +646,16 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="parte-no-encontrada",
             titulo="Parte no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeModificacion)
+    async def _modificacion(request: Request, exc: ErrorDeModificacion) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="modificacion-invalida",
+            titulo="Esa modificación no cabe",
             detalle=str(exc),
         )
 
