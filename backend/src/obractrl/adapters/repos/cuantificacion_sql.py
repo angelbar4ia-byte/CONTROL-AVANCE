@@ -420,3 +420,31 @@ class RepositorioNotasPlanoSQL:
             )
         ).scalar_one()
         return fila
+
+    async def de_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
+        """Las notas de un plano, la ubicación como GeoJSON de plano (SRID 0,
+        sin `crs`: mismo criterio que los trazos)."""
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select n.id, n.version_plano, n.autor_id, n.texto,
+                           n.actividad_id, n.created_at,
+                           (n.version_plano < p.version) as por_revisar,
+                           ST_AsGeoJSON(n.ubicacion, 9, 0) as geojson
+                      from nota_plano n
+                      join plano p on p.id = n.plano_id
+                     where n.plano_id = :plano_id
+                     order by n.created_at, n.id
+                    """
+                ),
+                {"plano_id": str(plano_id)},
+            )
+        ).mappings().all()
+        return [
+            {
+                **{k: v for k, v in fila.items() if k != "geojson"},
+                "ubicacion": json.loads(fila["geojson"]),
+            }
+            for fila in filas
+        ]

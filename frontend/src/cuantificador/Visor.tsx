@@ -30,6 +30,7 @@ import {
   marcadoresDe,
   puntosDe,
   rutaSvg,
+  notaEnPunto,
   trazoEnPunto,
   vistaQueEncuadra,
   zoomEn,
@@ -50,16 +51,30 @@ export interface TrazoVisible {
   readonly porRevisar: boolean;
 }
 
+export interface NotaVisible {
+  readonly id: string;
+  readonly punto: Punto;
+  readonly texto: string;
+  readonly porRevisar: boolean;
+}
+
+/** Lo elegido en el plano: un trazo o una nota, nunca los dos. */
+export interface Seleccion {
+  readonly tipo: 'trazo' | 'nota';
+  readonly id: string;
+}
+
 interface Props {
   /** URL de la imagen de fondo, o `null` si no hay (o no es una imagen). */
   readonly fondoUrl: string | null;
   readonly trazos: readonly TrazoVisible[];
-  readonly seleccionadoId: string | null;
+  readonly notas: readonly NotaVisible[];
+  readonly seleccion: Seleccion | null;
   readonly herramienta: Herramienta;
   /** Vértices del trazo en curso. */
   readonly borrador: readonly Punto[];
   readonly onPunto: (p: Punto) => void;
-  readonly onSeleccionar: (id: string | null) => void;
+  readonly onSeleccionar: (seleccion: Seleccion | null) => void;
   /** Cambia cuando hay que volver a encuadrar (otro plano). */
   readonly claveDePlano: string;
 }
@@ -74,7 +89,8 @@ interface Gesto {
 export function Visor({
   fondoUrl,
   trazos,
-  seleccionadoId,
+  notas,
+  seleccion,
   herramienta,
   borrador,
   onPunto,
@@ -96,14 +112,21 @@ export function Visor({
     return caja ? vistaQueEncuadra(caja) : VISTA_VACIA;
   }, [imagen, trazos]);
 
-  // Re-encuadrar al cambiar de plano o cuando por fin se sabe cuánto mide el
-  // fondo — pero no cada vez que llegan trazos nuevos, que movería la vista
-  // bajo las manos de quien está dibujando.
-  const encuadreInicial = useRef(encuadre);
-  encuadreInicial.current = encuadre;
+  // Re-encuadrar al cambiar de plano y cuando llega lo que define el encuadre
+  // (la imagen, o los primeros trazos: al abrir un plano los trazos llegan *después*
+  // de montar el visor, y sin esto quedarían fuera de cuadro). No se re-encuadra
+  // si quien trazaba ya movió la vista: saltarle bajo las manos al guardar el
+  // primer trazo sería peor que no encuadrar.
+  const encuadreActual = useRef(encuadre);
+  encuadreActual.current = encuadre;
+  const vistaTocada = useRef(false);
+  const hayTrazos = trazos.length > 0;
   useEffect(() => {
-    setVista(encuadreInicial.current);
-  }, [claveDePlano, imagen]);
+    vistaTocada.current = false;
+  }, [claveDePlano]);
+  useEffect(() => {
+    if (!vistaTocada.current) setVista(encuadreActual.current);
+  }, [claveDePlano, imagen, hayTrazos]);
 
   useEffect(() => {
     setImagen(null);
@@ -160,6 +183,7 @@ export function Visor({
     const dy = e.clientY - g.pantallaY;
     if (!g.movido && Math.hypot(dx, dy) < UMBRAL_ARRASTRE) return;
     g.movido = true;
+    vistaTocada.current = true;
     const escala = g.vista.ancho / anchoPantalla;
     setVista(desplazar(g.vista, dx * escala, dy * escala));
   }
@@ -170,7 +194,19 @@ export function Visor({
     if (!g || g.movido) return;
     const p = aPlano(e.clientX, e.clientY);
     if (herramienta === 'seleccionar') {
-      onSeleccionar(trazoEnPunto(trazos, p, TOLERANCIA_PX * porPixel));
+      const tolerancia = TOLERANCIA_PX * porPixel;
+      // Una nota es un punto diminuto sobre trazos que suelen ser polígonos
+      // grandes: si se probara el trazo primero, dentro de un polígono siempre
+      // ganaría el trazo y la nota nunca se podría elegir.
+      const nota = notaEnPunto(notas, p, tolerancia);
+      const trazo = nota === null ? trazoEnPunto(trazos, p, tolerancia) : null;
+      onSeleccionar(
+        nota !== null
+          ? { tipo: 'nota', id: nota }
+          : trazo !== null
+            ? { tipo: 'trazo', id: trazo }
+            : null,
+      );
     } else {
       onPunto(p);
     }
@@ -179,12 +215,13 @@ export function Visor({
   function alRodar(e: React.WheelEvent<SVGSVGElement>) {
     // Sin `preventDefault` aquí: React registra `wheel` como pasivo. El scroll
     // de la página se evita con `touch-action`/`overscroll` en el CSS del lienzo.
+    vistaTocada.current = true;
     const factor = e.deltaY > 0 ? 1.15 : 1 / 1.15;
     setVista((v) => zoomEn(v, factor, aPlano(e.clientX, e.clientY)));
   }
 
   const radio = 5 * porPixel;
-  const dibujando = herramienta !== 'seleccionar';
+  const dibujando = herramienta !== 'seleccionar'; // incluye la nota: también es un clic de captura
 
   return (
     <svg
@@ -206,7 +243,7 @@ export function Visor({
       )}
 
       {trazos.map((t) => {
-        const elegido = t.id === seleccionadoId;
+        const elegido = seleccion?.tipo === 'trazo' && t.id === seleccion.id;
         const clase = [
           'visor__trazo',
           elegido && 'is-selected',
@@ -220,6 +257,26 @@ export function Visor({
             {marcadoresDe(t.geometry).map((m, i) => (
               <circle key={i} cx={m[0]} cy={m[1]} r={radio} />
             ))}
+          </g>
+        );
+      })}
+
+      {notas.map((n) => {
+        const clase = [
+          'visor__nota',
+          seleccion?.tipo === 'nota' && n.id === seleccion.id && 'is-selected',
+          n.porRevisar && 'is-por-revisar',
+        ]
+          .filter(Boolean)
+          .join(' ');
+        const r = radio * 1.6;
+        return (
+          <g key={n.id} className={clase} data-nota-id={n.id}>
+            <title>{n.texto}</title>
+            {/* Rombo: se distingue de los marcadores redondos de los puntos. */}
+            <path
+              d={`M${n.punto[0]} ${n.punto[1] - r}L${n.punto[0] + r} ${n.punto[1]}L${n.punto[0]} ${n.punto[1] + r}L${n.punto[0] - r} ${n.punto[1]}Z`}
+            />
           </g>
         );
       })}

@@ -29,6 +29,7 @@ import type {
   ArchivoDePlanoRespuesta,
   HTTPValidationError,
   NodoCuantificadoRespuesta,
+  NotaPlanoDetalleRespuesta,
   NotaPlanoPeticion,
   NotaPlanoRespuesta,
   PlanoDetalleRespuesta,
@@ -1188,6 +1189,360 @@ export const useRegistrarNotaPlanoApiV1PlanosPlanoIdNotasPost = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * Leerlas está abierto a quien ve la obra; anotar es de Residente y
+Supervisor (MODELO.md §1b). Una nota nunca produce cantidad.
+ * @summary Notas flotantes de un plano
+ */
+export const notasDePlanoApiV1PlanosPlanoIdNotasGet = (
+  planoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<NotaPlanoDetalleRespuesta[]>(
+    { url: `/api/v1/planos/${planoId}/notas`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getNotasDePlanoApiV1PlanosPlanoIdNotasGetInfiniteQueryKey = (
+  planoId?: string,
+) => {
+  return ["infinite", `/api/v1/planos/${planoId}/notas`] as const;
+};
+
+export const getNotasDePlanoApiV1PlanosPlanoIdNotasGetQueryKey = (
+  planoId?: string,
+) => {
+  return [`/api/v1/planos/${planoId}/notas`] as const;
+};
+
+export const getNotasDePlanoApiV1PlanosPlanoIdNotasGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getNotasDePlanoApiV1PlanosPlanoIdNotasGetInfiniteQueryKey(planoId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>
+  > = ({ signal }) =>
+    notasDePlanoApiV1PlanosPlanoIdNotasGet(planoId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!planoId,
+    ...queryOptions,
+  } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type NotasDePlanoApiV1PlanosPlanoIdNotasGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>
+  >;
+export type NotasDePlanoApiV1PlanosPlanoIdNotasGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useNotasDePlanoApiV1PlanosPlanoIdNotasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+          TError,
+          Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useNotasDePlanoApiV1PlanosPlanoIdNotasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+          TError,
+          Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useNotasDePlanoApiV1PlanosPlanoIdNotasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Notas flotantes de un plano
+ */
+
+export function useNotasDePlanoApiV1PlanosPlanoIdNotasGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getNotasDePlanoApiV1PlanosPlanoIdNotasGetInfiniteQueryOptions(
+      planoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getNotasDePlanoApiV1PlanosPlanoIdNotasGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getNotasDePlanoApiV1PlanosPlanoIdNotasGetQueryKey(planoId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>
+  > = ({ signal }) =>
+    notasDePlanoApiV1PlanosPlanoIdNotasGet(planoId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!planoId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type NotasDePlanoApiV1PlanosPlanoIdNotasGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>
+>;
+export type NotasDePlanoApiV1PlanosPlanoIdNotasGetQueryError =
+  void | HTTPValidationError;
+
+export function useNotasDePlanoApiV1PlanosPlanoIdNotasGet<
+  TData = Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+          TError,
+          Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useNotasDePlanoApiV1PlanosPlanoIdNotasGet<
+  TData = Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+          TError,
+          Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useNotasDePlanoApiV1PlanosPlanoIdNotasGet<
+  TData = Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Notas flotantes de un plano
+ */
+
+export function useNotasDePlanoApiV1PlanosPlanoIdNotasGet<
+  TData = Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+  TError = void | HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof notasDePlanoApiV1PlanosPlanoIdNotasGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getNotasDePlanoApiV1PlanosPlanoIdNotasGetQueryOptions(
+    planoId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
 /**
  * @summary Cómo va la cuantificación de la obra, nodo por nodo
  */

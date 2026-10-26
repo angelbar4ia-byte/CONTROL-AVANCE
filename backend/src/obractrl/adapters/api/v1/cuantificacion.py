@@ -529,6 +529,38 @@ async def trazos_de_plano(
     )
 
 
+class NotaPlanoDetalleRespuesta(BaseModel):
+    id: UUID
+    version_plano: int
+    texto: str
+    autor_id: UUID | None
+    actividad_id: UUID | None = Field(
+        description="Concepto sobre el que habla la nota; `null` si es solo un lugar del plano."
+    )
+    created_at: datetime
+    por_revisar: bool = Field(
+        description="Hecha sobre una versión anterior del plano: el lugar pudo haberse movido."
+    )
+    ubicacion: dict[str, Any] = Field(
+        description="`Point` GeoJSON en **coordenadas de plano** (SRID 0), no lon/lat."
+    )
+
+
+@router.get(
+    "/planos/{plano_id}/notas",
+    response_model=list[NotaPlanoDetalleRespuesta],
+    summary="Notas flotantes de un plano",
+    responses={404: {"description": "El plano no existe o está fuera de tu alcance."}},
+)
+async def notas_de_plano(
+    plano_id: UUID, caso_uso: ConsultarCuantificacionDep
+) -> list[NotaPlanoDetalleRespuesta]:
+    """Leerlas está abierto a quien ve la obra; anotar es de Residente y
+    Supervisor (MODELO.md §1b). Una nota nunca produce cantidad."""
+    filas = await caso_uso.notas_de_plano(plano_id)
+    return [NotaPlanoDetalleRespuesta(**fila) for fila in filas]
+
+
 @router.get(
     "/obras/{obra_id}/cuantificacion",
     response_model=list[NodoCuantificadoRespuesta],

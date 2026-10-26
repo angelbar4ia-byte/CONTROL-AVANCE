@@ -748,6 +748,11 @@ a { color: inherit; text-decoration: none; }
   border-top-right-radius: var(--r-lg);
   flex-wrap: wrap;
 }
+.filterbar--suelta {
+  /* Sin tabla debajo a la que pegarse: lleva su propio borde y esquinas. */
+  border-bottom: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+}
 .filterbar + .table-wrap {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
@@ -2401,8 +2406,65 @@ a { color: inherit; text-decoration: none; }
 .visor__trazo.is-por-revisar path,
 .visor__trazo.is-por-revisar circle { stroke: var(--c-warn); stroke-dasharray: 6 4; }
 .visor__trazo.is-por-revisar path { fill: var(--c-warn-soft); }
+.visor__nota path { fill: var(--c-warn-soft); stroke: var(--c-warn); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.visor__nota.is-selected path { fill: var(--c-warn); stroke: var(--c-text); stroke-width: 3; }
+.visor__nota.is-por-revisar path { stroke-dasharray: 4 3; }
 .visor__borrador polyline { fill: none; stroke: var(--c-text); stroke-width: 2; stroke-dasharray: 5 3; }
 .visor__borrador circle { fill: var(--c-text); stroke: var(--c-panel); stroke-width: 1; }
+
+/* ── Cuantificador: ventana flotante (la herramienta puntual, D-532) ─────────
+   Por debajo del `.scrim` (100): los cajones de guardar/anotar/reemplazar que
+   abre el motor deben quedar ENCIMA de la ventana, no detrás. */
+.ventana-cuant {
+  position: fixed;
+  z-index: 90;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 88px);
+  display: flex;
+  flex-direction: column;
+  background: var(--c-bg);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-md);
+  box-shadow: 0 12px 40px oklch(20% 0.012 255 / 0.22);
+}
+.ventana-cuant__encabezado {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid var(--c-line);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.ventana-cuant__titulo { font-weight: 600; font-size: var(--fs-sm); }
+.ventana-cuant__cuerpo { overflow: auto; padding: 12px; }
+.ventana-cuant__cuerpo[hidden] { display: none; }
+.ventana-cuant.is-minimizada .ventana-cuant__encabezado { border-bottom: none; }
+/* En un teléfono es una hoja a pantalla completa y no se arrastra. */
+@media (max-width: 700px) {
+  .ventana-cuant {
+    left: 0 !important; top: 0 !important;
+    width: 100vw !important; max-width: none;
+    height: 100vh; max-height: none;
+    border-radius: 0;
+  }
+  .ventana-cuant.is-minimizada { height: auto; }
+  .ventana-cuant__encabezado { cursor: default; }
+}
+/* Compacto: una columna y un visor más bajo, que es lo que cabe en la ventana. */
+.cuant-espacio { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.cuant-espacio--compacto .cuant { grid-template-columns: minmax(0, 1fr); }
+.cuant-espacio--compacto .visor { height: 320px; min-height: 240px; }
+/* El renglón de la actividad que se mide: base, medido y diferencia a la vista. */
+.cuant__renglon {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 8px 12px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-panel);
+}
+.cuant__cifras { display: flex; gap: 20px; margin: 0; }
+.cuant__cifras dt { font-size: var(--fs-xs); color: var(--c-text-mute); }
+.cuant__cifras dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; }
 
 /* Utility */
 .row { display: flex; align-items: center; gap: 8px; }

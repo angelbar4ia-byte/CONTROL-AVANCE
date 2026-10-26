@@ -619,10 +619,12 @@ class ConsultarCuantificacion:
         planos: RepositorioPlanos,
         trazos: RepositorioTrazos,
         enlaces: RepositorioEnlacesCuantificacion,
+        notas: RepositorioNotasPlano,
     ) -> None:
         self._planos = planos
         self._trazos = trazos
         self._enlaces = enlaces
+        self._notas = notas
 
     async def planos_de_obra(self, obra_id: UUID) -> list[dict]:
         await self._exigir_obra(obra_id)
@@ -637,6 +639,14 @@ class ConsultarCuantificacion:
                 f"El plano {plano_id} no existe o no está en tu alcance."
             )
         return plano, await self._trazos.de_plano(plano_id)
+
+    async def notas_de_plano(self, plano_id: UUID) -> list[dict]:
+        """Las notas del plano; leerlas no pide rol (solo anotar lo pide)."""
+        if await self._planos.obtener(plano_id) is None:
+            raise PlanoNoEncontrado(
+                f"El plano {plano_id} no existe o no está en tu alcance."
+            )
+        return await self._notas.de_plano(plano_id)
 
     async def estado_de_obra(self, obra_id: UUID) -> list[NodoCuantificado]:
         await self._exigir_obra(obra_id)

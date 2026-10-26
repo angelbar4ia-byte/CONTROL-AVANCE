@@ -14,10 +14,10 @@
 
 export type Punto = readonly [number, number];
 
-export type Herramienta = 'seleccionar' | 'poligono' | 'linea' | 'punto';
+export type Herramienta = 'seleccionar' | 'poligono' | 'linea' | 'punto' | 'nota';
 
-/** Herramientas que dibujan una geometría (todas menos `seleccionar`). */
-export type HerramientaDeTrazo = Exclude<Herramienta, 'seleccionar'>;
+/** Herramientas que dibujan una geometría que alimenta cantidades (no `seleccionar` ni `nota`). */
+export type HerramientaDeTrazo = Exclude<Herramienta, 'seleccionar' | 'nota'>;
 
 export type MedidaDeTrazo = 'area' | 'perimetro' | 'longitud' | 'conteo';
 
@@ -322,4 +322,47 @@ export function trazoEnPunto(
     }
   }
   return elegido;
+}
+
+/**
+ * La herramienta con la que se habría dibujado una geometría del servidor, para
+ * saber qué medidas tienen sentido sobre ella al enlazarla. `null` si no es una
+ * de las tres formas que el visor sabe capturar.
+ */
+export function herramientaDeGeometria(geometria: GeometriaGeoJson): HerramientaDeTrazo | null {
+  switch (geometria.type) {
+    case 'Polygon':
+    case 'MultiPolygon':
+      return 'poligono';
+    case 'LineString':
+    case 'MultiLineString':
+      return 'linea';
+    case 'Point':
+    case 'MultiPoint':
+      return 'punto';
+    default:
+      return null;
+  }
+}
+
+/**
+ * Id de la nota más cercana al clic, dentro de `tolerancia`. Las notas son
+ * puntos, así que solo cuenta la distancia; a igual distancia gana la última
+ * (la más reciente, que es la que quedó dibujada encima).
+ */
+export function notaEnPunto(
+  notas: readonly { readonly id: string; readonly punto: Punto }[],
+  p: Punto,
+  tolerancia: number,
+): string | null {
+  let elegida: string | null = null;
+  let mejor = Infinity;
+  for (const nota of notas) {
+    const d = Math.hypot(p[0] - nota.punto[0], p[1] - nota.punto[1]);
+    if (d <= tolerancia && d <= mejor) {
+      elegida = nota.id;
+      mejor = d;
+    }
+  }
+  return elegida;
 }

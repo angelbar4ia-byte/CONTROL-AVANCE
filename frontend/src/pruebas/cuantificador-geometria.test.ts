@@ -6,7 +6,9 @@ import {
   cajaDePuntos,
   desplazar,
   distanciaA,
+  herramientaDeGeometria,
   marcadoresDe,
+  notaEnPunto,
   medidaLocal,
   perimetroLocal,
   rutaSvg,
@@ -169,5 +171,25 @@ describe('textos', () => {
   it('etiqueta las medidas y deja pasar las desconocidas', () => {
     expect(etiquetaMedida('perimetro')).toBe('Perímetro');
     expect(etiquetaMedida('volumen')).toBe('volumen');
+  });
+});
+
+describe('notas y formas', () => {
+  it('una nota se elige por cercanía y, a igual distancia, gana la más reciente', () => {
+    const notas = [
+      { id: 'a', punto: [10, 10] as Punto },
+      { id: 'b', punto: [10, 10] as Punto },
+      { id: 'c', punto: [50, 50] as Punto },
+    ];
+    expect(notaEnPunto(notas, [11, 10], 3)).toBe('b');
+    expect(notaEnPunto(notas, [49, 50], 3)).toBe('c');
+    expect(notaEnPunto(notas, [30, 30], 3)).toBeNull();
+  });
+
+  it('reconoce la herramienta de una geometría del servidor', () => {
+    expect(herramientaDeGeometria({ type: 'Polygon' })).toBe('poligono');
+    expect(herramientaDeGeometria({ type: 'MultiLineString' })).toBe('linea');
+    expect(herramientaDeGeometria({ type: 'Point' })).toBe('punto');
+    expect(herramientaDeGeometria({ type: 'GeometryCollection' })).toBeNull();
   });
 });
