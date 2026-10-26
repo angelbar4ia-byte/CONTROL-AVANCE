@@ -18,6 +18,7 @@ from obractrl.adapters.api.v1.catalogos import router as router_catalogos
 from obractrl.adapters.api.v1.cierres import router as router_cierres
 from obractrl.adapters.api.v1.cierres_obra import router as router_cierres_obra
 from obractrl.adapters.api.v1.cliente import router as router_cliente
+from obractrl.adapters.api.v1.comprobaciones import router as router_comprobaciones
 from obractrl.adapters.api.v1.control_cambio import (
     router as router_control_cambio,
 )
@@ -60,6 +61,7 @@ api_v1.include_router(router_organizacion)
 api_v1.include_router(router_programacion)
 api_v1.include_router(router_presupuesto)
 api_v1.include_router(router_avance)
+api_v1.include_router(router_comprobaciones)
 api_v1.include_router(router_cierres)
 api_v1.include_router(router_cierres_obra)
 api_v1.include_router(router_estimacion)

@@ -9,8 +9,10 @@ PowerSync (§12.5). Si una cambia, cambia en los tres lados a la vez.
 
 Reglas:
   * ``cant_programada ≤ cant_base × 1.2``
-  * ``cant_ejecutada ≤ cant_programada``
-  * ``avance_pct = cant_ejecutada / cant_base × 100``
+  * ``cant_ejecutada ≥ 0`` — y **puede exceder lo programado**: el excedente se
+    registra y queda pendiente de comprobación y validación (migración 0066;
+    cerebro WORKFLOWS.md §8.1, «registrar nunca se bloquea»)
+  * ``avance_pct = cant_ejecutada / cant_base × 100`` (topado en 100)
   * auto-estatus: ``≥ 90% → casi`` · ``> 0 → en_proceso``
 
 Módulo puro: sin BD, sin FastAPI, 100% testeable (§12.11).
@@ -31,6 +33,7 @@ __all__ = [
     "ErrorDeCaptura",
     "aplicar_captura",
     "calcular_avance",
+    "excedente_de",
     "resolver_estatus",
     "validar_ejecucion",
     "validar_programacion",
@@ -77,6 +80,8 @@ class CapturaAvance:
     cant_ejecutada: Decimal
     avance: Avance
     estatus: EstatusActividad
+    cant_excedente: Decimal = Decimal(0)
+    """Lo ejecutado de más pendiente de comprobación y validación."""
 
 
 def validar_programacion(
@@ -99,19 +104,32 @@ def validar_programacion(
         )
 
 
-def validar_ejecucion(cant_ejecutada: Decimal, cant_programada: Decimal) -> None:
-    """``cant_ejecutada ≤ cant_programada`` (§6)."""
+def validar_ejecucion(cant_ejecutada: Decimal) -> None:
+    """``cant_ejecutada ≥ 0``.
+
+    **Ya no se compara con lo programado.** Antes se rechazaba lo ejecutado de
+    más; la obra real ejecuta de más y hay que poder decirlo (cerebro:
+    «registrar nunca se bloquea»). Lo que pasa de lo programado se registra y
+    se vuelve excedente: ver `excedente_de`.
+    """
     if cant_ejecutada < 0:
         raise ErrorDeCaptura(
             "La cantidad ejecutada no puede ser negativa.", "cant_ejecutada"
         )
 
-    if cant_ejecutada > cant_programada:
-        raise ErrorDeCaptura(
-            f"La cantidad ejecutada ({cant_ejecutada}) no puede exceder la "
-            f"programada ({cant_programada}). Reprograma primero.",
-            "cant_ejecutada",
-        )
+
+def excedente_de(
+    cant_ejecutada: Decimal,
+    cant_programada: Decimal,
+    cant_perdida: Decimal = Decimal(0),
+) -> Decimal:
+    """Lo ejecutado por encima de lo programado que **aún no se decidió**.
+
+    ``max(ejecutada − programada − perdida, 0)``. Es un dato derivado, nunca
+    guardado: lo que se guarda es lo que Control decide (subir el techo al
+    validarlo, o la pérdida acumulada). Es lo que va a comprobación y validación.
+    """
+    return max(cant_ejecutada - cant_programada - cant_perdida, Decimal(0))
 
 
 def calcular_avance(cant_ejecutada: Decimal, cant_base: Decimal) -> Avance:
@@ -145,6 +163,7 @@ def aplicar_captura(
     cant_base: Decimal,
     cant_programada: Decimal,
     cant_ejecutada: Decimal,
+    cant_perdida: Decimal = Decimal(0),
     estatus_actual: EstatusActividad = EstatusActividad.PROGRAMADA,
     tope: Decimal = TOPE_SOBREPROGRAMA,
     umbral_casi: Decimal = UMBRAL_CASI_PCT,
@@ -156,7 +175,7 @@ def aplicar_captura(
     para que ambas rutas apliquen exactamente las mismas reglas (§11.3, B).
     """
     validar_programacion(cant_programada, cant_base, tope)
-    validar_ejecucion(cant_ejecutada, cant_programada)
+    validar_ejecucion(cant_ejecutada)
 
     avance = calcular_avance(cant_ejecutada, cant_base)
     estatus = resolver_estatus(avance, estatus_actual, umbral_casi)
@@ -167,4 +186,5 @@ def aplicar_captura(
         cant_ejecutada=cant_ejecutada,
         avance=avance,
         estatus=estatus,
+        cant_excedente=excedente_de(cant_ejecutada, cant_programada, cant_perdida),
     )

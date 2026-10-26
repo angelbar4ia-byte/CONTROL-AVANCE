@@ -27,7 +27,8 @@ Postgres vía PowerSync, con RLS como única frontera (§11.3 B). Allá el
 total lo deriva el trigger `app.registro_avance_agregar` (migración 0017)
 a partir de la bitácora `registro_avance`; acá lo escribe este caso de
 uso. Las reglas del §6 son las mismas en ambas rutas porque las garantiza
-también la BD (CHECKs de la migración 0007).
+también la BD (CHECKs de la migración 0007; desde la 0066 lo ejecutado de
+más ya no se rechaza en ninguna de las dos).
  * @summary Capturar avance de una actividad
  */
 export const capturarAvanceApiV1ActividadesActividadIdAvancePatch = (

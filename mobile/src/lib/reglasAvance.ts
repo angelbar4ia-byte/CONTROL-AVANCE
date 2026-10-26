@@ -79,19 +79,30 @@ export function validarProgramacion(
   }
 }
 
-/** `cant_ejecutada ≤ cant_programada` (§6). */
-export function validarEjecucion(cantEjecutada: number, cantProgramada: number): void {
+/**
+ * `cant_ejecutada ≥ 0`.
+ *
+ * **Ya no se compara con lo programado** (migración 0066): lo ejecutado de más
+ * se registra —también sin señal, donde antes llegaba como un `conflicto` de
+ * sincronización— y el excedente va a comprobación y validación de Control de
+ * obra. Ver `excedenteDe`.
+ */
+export function validarEjecucion(cantEjecutada: number): void {
   if (cantEjecutada < 0) {
     throw new ErrorDeCaptura('La cantidad ejecutada no puede ser negativa.', 'cant_ejecutada');
   }
+}
 
-  if (cantEjecutada > cantProgramada) {
-    throw new ErrorDeCaptura(
-      `La cantidad ejecutada (${cantEjecutada}) no puede exceder la programada ` +
-        `(${cantProgramada}). Reprograma primero.`,
-      'cant_ejecutada',
-    );
-  }
+/**
+ * Lo ejecutado por encima de lo programado que aún no se decidió:
+ * `max(ejecutada − programada − perdida, 0)`. Derivado, nunca guardado.
+ */
+export function excedenteDe(
+  cantEjecutada: number,
+  cantProgramada: number,
+  cantPerdida: number = 0,
+): number {
+  return Math.max(cantEjecutada - cantProgramada - cantPerdida, 0);
 }
 
 /** `avance_pct = cant_ejecutada / cant_base × 100` (§6). Con base cero el avance es 0. */
@@ -122,6 +133,8 @@ export interface ResultadoCaptura {
   readonly cantEjecutada: number;
   readonly avancePct: number;
   readonly estatus: EstatusActividad;
+  /** Lo ejecutado de más: va a comprobación y validación, no se rechaza. */
+  readonly cantExcedente: number;
 }
 
 export interface ParametrosCaptura {
@@ -149,10 +162,17 @@ export function aplicarCaptura(params: ParametrosCaptura): ResultadoCaptura {
   } = params;
 
   validarProgramacion(cantProgramada, cantBase, tope);
-  validarEjecucion(cantEjecutada, cantProgramada);
+  validarEjecucion(cantEjecutada);
 
   const avancePct = calcularAvance(cantEjecutada, cantBase);
   const estatus = resolverEstatus(avancePct, estatusActual, umbralCasi);
 
-  return { cantBase, cantProgramada, cantEjecutada, avancePct, estatus };
+  return {
+    cantBase,
+    cantProgramada,
+    cantEjecutada,
+    avancePct,
+    estatus,
+    cantExcedente: excedenteDe(cantEjecutada, cantProgramada),
+  };
 }

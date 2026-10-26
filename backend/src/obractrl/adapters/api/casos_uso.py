@@ -27,6 +27,7 @@ from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
 from obractrl.adapters.repos.cierres_obra_sql import RepositorioCierresDeObraSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
+from obractrl.adapters.repos.comprobacion_sql import RepositorioComprobacionesSQL
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
@@ -96,6 +97,11 @@ from obractrl.application.casos_uso.calcular_cpu import (
     PublicarVersionCPU,
 )
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
+from obractrl.application.casos_uso.comprobar_excedente import (
+    ConsultarComprobaciones,
+    DeclararPerdidaDeExcedente,
+    ValidarExcedente,
+)
 from obractrl.application.casos_uso.consultar_insumos_programados import (
     ConsultarInsumosProgramados,
 )
@@ -245,6 +251,7 @@ __all__ = [
     "ConsultarArbolProgramaDep",
     "ConsultarCargaDep",
     "ConsultarCierreDeObraDep",
+    "ConsultarComprobacionesDep",
     "ConsultarCuantificacionDep",
     "ConsultarExpedienteDep",
     "ConsultarInsumosProgramadosDep",
@@ -265,6 +272,7 @@ __all__ = [
     "CrearUnidadDep",
     "CrearUsuarioDep",
     "DarDeAltaExtraDep",
+    "DeclararPerdidaDeExcedenteDep",
     "EditarProgramacionActividadDep",
     "EliminarCargaDep",
     "EliminarVersionDeCPUDep",
@@ -303,6 +311,7 @@ __all__ = [
     "SolicitarCierreDep",
     "ValidarCierreDep",
     "ValidarEstimacionDep",
+    "ValidarExcedenteDep",
 ]
 
 
@@ -645,6 +654,24 @@ def obtener_reemplazar_enlace(sesion: SesionRLS) -> ReemplazarEnlace:
     )
 
 
+def obtener_consultar_comprobaciones(sesion: SesionRLS) -> ConsultarComprobaciones:
+    return ConsultarComprobaciones(comprobaciones=RepositorioComprobacionesSQL(sesion))
+
+
+def obtener_validar_excedente(sesion: SesionRLS) -> ValidarExcedente:
+    return ValidarExcedente(
+        comprobaciones=RepositorioComprobacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_declarar_perdida_de_excedente(sesion: SesionRLS) -> DeclararPerdidaDeExcedente:
+    return DeclararPerdidaDeExcedente(
+        comprobaciones=RepositorioComprobacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_aprobar_trazo(sesion: SesionRLS) -> AprobarTrazo:
     return AprobarTrazo(
         trazos=RepositorioTrazosSQL(sesion),
@@ -659,6 +686,13 @@ def obtener_registrar_nota_plano(sesion: SesionRLS) -> RegistrarNotaPlano:
     )
 
 
+ConsultarComprobacionesDep = Annotated[
+    ConsultarComprobaciones, Depends(obtener_consultar_comprobaciones)
+]
+ValidarExcedenteDep = Annotated[ValidarExcedente, Depends(obtener_validar_excedente)]
+DeclararPerdidaDeExcedenteDep = Annotated[
+    DeclararPerdidaDeExcedente, Depends(obtener_declarar_perdida_de_excedente)
+]
 AprobarTrazoDep = Annotated[AprobarTrazo, Depends(obtener_aprobar_trazo)]
 ConsultarCuantificacionDep = Annotated[
     ConsultarCuantificacion, Depends(obtener_consultar_cuantificacion)

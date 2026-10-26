@@ -24,7 +24,13 @@ export function Modal({ titulo, onCerrar, children }: Props) {
 
   return (
     <div className="scrim" onClick={onCerrar}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={titulo}
+      >
         <div className="sheet__header">
           <h2 className="sheet__title">{titulo}</h2>
           <button type="button" className="btn btn--ghost btn--icon" onClick={onCerrar} aria-label="Cerrar">

@@ -12,8 +12,13 @@
 export interface AdvertenciasAvance {
   /** `cant_programada` excede `cant_base × 1.2` (§6). */
   readonly cantProgramadaExcedeBase: boolean;
-  /** `cant_ejecutada` excede `cant_programada` (§6). */
-  readonly cantEjecutadaExcedeProgramada: boolean;
+  /**
+   * Lo ejecutado de más: `cant_ejecutada − cant_programada`, o 0. **No es un
+   * error**: registrar nunca se bloquea y el excedente va a comprobación y
+   * validación de Control de obra (migración 0066). Es solo un aviso de lo que
+   * va a pasar al guardar.
+   */
+  readonly excedente: number;
 }
 
 export function advertenciasAvance(params: {
@@ -25,8 +30,10 @@ export function advertenciasAvance(params: {
   return {
     cantProgramadaExcedeBase:
       cantBase !== null && cantProgramada !== null && cantProgramada > cantBase * 1.2,
-    cantEjecutadaExcedeProgramada:
-      cantProgramada !== null && cantEjecutada !== null && cantEjecutada > cantProgramada,
+    excedente:
+      cantProgramada !== null && cantEjecutada !== null
+        ? Math.max(cantEjecutada - cantProgramada, 0)
+        : 0,
   };
 }
 

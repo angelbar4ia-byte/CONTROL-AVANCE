@@ -24,6 +24,7 @@ import type { ActividadDetalleRespuestaContratistaId } from "./actividadDetalleR
 import type { ActividadDetalleRespuestaContratistaNombre } from "./actividadDetalleRespuestaContratistaNombre";
 import type { ActividadDetalleRespuestaCuadrillaId } from "./actividadDetalleRespuestaCuadrillaId";
 import type { ActividadDetalleRespuestaCuadrillaNombre } from "./actividadDetalleRespuestaCuadrillaNombre";
+import type { ActividadDetalleRespuestaExcedenteDesde } from "./actividadDetalleRespuestaExcedenteDesde";
 import type { ActividadDetalleRespuestaCantAutorizada } from "./actividadDetalleRespuestaCantAutorizada";
 import type { ActividadDetalleRespuestaHolgura } from "./actividadDetalleRespuestaHolgura";
 import type { ActividadDetalleRespuestaDesfase } from "./actividadDetalleRespuestaDesfase";
@@ -67,6 +68,13 @@ export interface ActividadDetalleRespuesta {
   cant_programada: string;
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   cant_ejecutada: string;
+  /**
+   * Lo ejecutado por encima de lo programado que aún espera comprobación y validación de Control de obra (migración 0066). Registrar nunca se bloquea: el excedente se registra y se decide aparte.
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
+  cant_excedente?: string;
+  /** Desde cuándo hay excedente pendiente: su antigüedad. */
+  excedente_desde?: ActividadDetalleRespuestaExcedenteDesde;
   /**
    * Cuánto puede exceder la programada a la base sin control de cambio (§6, migración 0049). Copia del umbral de la obra.
    * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$

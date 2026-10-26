@@ -327,6 +327,14 @@ function FilaActividad({
             bloqueada
           </span>
         )}
+        {Number(actividad.cant_excedente) > 0 && (
+          <span
+            className="badge badge--warn"
+            title="Ejecutado de más: espera comprobación y validación de Control de obra"
+          >
+            excedente {fmtNum(actividad.cant_excedente)}
+          </span>
+        )}
       </td>
       <td className="text-xs">{fmtFecha(actividad.fecha_inicio)}</td>
       <td className="cell-actions">
@@ -396,7 +404,6 @@ function FormularioDeCaptura({
   const valido =
     ejecutada.trim() !== '' &&
     !Number.isNaN(Number(ejecutada)) &&
-    !advertencias.cantEjecutadaExcedeProgramada &&
     !advertencias.cantProgramadaExcedeBase;
 
   return (
@@ -460,10 +467,12 @@ function FormularioDeCaptura({
             control de cambio: pídelo a Control de obra.
           </div>
         )}
-        {advertencias.cantEjecutadaExcedeProgramada && (
+        {advertencias.excedente > 0 && (
           <div className="mt-8" role="status">
-            <span className="badge badge--danger">No</span> No puedes ejecutar
-            más de lo programado. Sube primero la programada.
+            <span className="badge badge--warn">Excedente</span> Ejecutaste{' '}
+            {fmtNum(advertencias.excedente)} más de lo programado. Se registra y va a{' '}
+            <strong>comprobación y validación</strong> de Control de obra; hasta
+            que la decida no podrás cerrar esta actividad.
           </div>
         )}
       </div>

@@ -47,6 +47,7 @@ from obractrl.application.casos_uso.capturar_avance import (
     ActividadBloqueada,
     ActividadNoEncontrada,
 )
+from obractrl.application.casos_uso.comprobar_excedente import ActividadSinComprobacion
 from obractrl.application.casos_uso.consultar_insumos_programados import (
     CalendarioSinGenerar,
     PrototipoSinPrograma,
@@ -99,6 +100,7 @@ from obractrl.application.puertos.repositorios import (
     RegistroNoEncontrado,
     VersionVigenteNoEliminable,
 )
+from obractrl.domain.avance.comprobacion import ErrorDeComprobacion, SinExcedente
 from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera
 from obractrl.domain.catalogos.apu import CicloEnExplosion, ErrorDeAPU
@@ -570,6 +572,39 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             titulo="Captura de avance inválida",
             detalle=str(exc),
             campo=exc.campo,
+        )
+
+    @app.exception_handler(ErrorDeComprobacion)
+    async def _comprobacion(request: Request, exc: ErrorDeComprobacion) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-comprobacion",
+            titulo="Comprobación de excedente inválida",
+            detalle=str(exc),
+            campo=exc.campo,
+        )
+
+    @app.exception_handler(SinExcedente)
+    async def _sin_excedente(request: Request, exc: SinExcedente) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="sin-excedente",
+            titulo="No hay excedente que decidir",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ActividadSinComprobacion)
+    async def _actividad_sin_comprobacion(
+        request: Request, exc: ActividadSinComprobacion
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="actividad-no-encontrada",
+            titulo="Actividad no encontrada",
+            detalle=str(exc),
         )
 
     @app.exception_handler(ErrorDePrecioArmado)

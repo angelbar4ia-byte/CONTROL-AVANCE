@@ -9,8 +9,9 @@
 --      API) mueve `cant_ejecutada`, `avance_pct` y el auto-estatus.
 --   2. Varios deltas se acumulan; el borrado de uno lo descuenta.
 --   3. El auto-estatus del §6 encadena: >0 -> en_proceso · >=90% -> casi.
---   4. Un delta que excede `cant_programada` se RECHAZA (no se clampea),
---      y no deja la actividad a medias.
+--   4. Un delta que excede `cant_programada` se REGISTRA (0066): el excedente
+--      queda pendiente de comprobación y validación, con su antigüedad; la
+--      bitácora sigue sumando el total y solo una suma negativa se rechaza.
 --   5. La captura NO toca las actividades de otra organización.
 --   6. Un residente de otra obra no inserta en la bitácora ajena (RLS).
 --
@@ -157,24 +158,49 @@ select pg_temp.esperar_texto('el estatus vuelve a en_proceso', estatus::text, 'e
   from actividad where id = 'e4000000-0000-0000-0000-000000000001';
 
 -- ------------------------------------------------------------
--- 5 · Exceder cant_programada se RECHAZA, no se clampea (§6).
---     Un clamp rompería la identidad y dejaría una bitácora que ya no
---     explica el total: justo lo que el expediente debe poder auditar.
+-- 5 · Ejecutar de más NO se rechaza: se registra y el excedente queda pendiente
+--     de comprobación y validación (migración 0066; WORKFLOWS.md §8.1:
+--     «registrar nunca se bloquea»). La identidad se conserva: la bitácora
+--     sigue sumando exactamente el total, y el avance sigue topado en 100.
 -- ------------------------------------------------------------
+select pg_temp.esperar_texto('antes del exceso no hay antigüedad de excedente',
+                             coalesce(excedente_desde::text, 'nulo'), 'nulo')
+  from actividad where id = 'e4000000-0000-0000-0000-000000000001';
+
+insert into registro_avance (org_id, actividad_id, delta_ejecutado, usuario_id) values
+  ('e1111111-1111-1111-1111-111111111111', 'e4000000-0000-0000-0000-000000000001',
+   50, 'eeeeeeee-0000-0000-0000-000000000001');   -- 67 + 50 = 117 > 100 programada
+
+select pg_temp.esperar_num('lo ejecutado de más se registra: 67 + 50 = 117', cant_ejecutada, 117)
+  from actividad where id = 'e4000000-0000-0000-0000-000000000001';
+select pg_temp.esperar_num('el avance sigue topado en 100', avance_pct, 100)
+  from actividad where id = 'e4000000-0000-0000-0000-000000000001';
+select pg_temp.esperar_texto('desde cuándo hay excedente: hoy',
+                             excedente_desde::text, current_date::text)
+  from actividad where id = 'e4000000-0000-0000-0000-000000000001';
+
+-- Quitar el exceso lo limpia (la antigüedad solo existe mientras haya excedente).
+delete from registro_avance
+ where actividad_id = 'e4000000-0000-0000-0000-000000000001' and delta_ejecutado = 50;
+
+select pg_temp.esperar_num('tras quitar el exceso vuelve a 67', cant_ejecutada, 67)
+  from actividad where id = 'e4000000-0000-0000-0000-000000000001';
+select pg_temp.esperar_texto('y ya no hay antigüedad de excedente',
+                             coalesce(excedente_desde::text, 'nulo'), 'nulo')
+  from actividad where id = 'e4000000-0000-0000-0000-000000000001';
+
+-- Lo que sí sigue siendo imposible es una bitácora negativa.
 do $$
 begin
   insert into registro_avance (org_id, actividad_id, delta_ejecutado, usuario_id) values
     ('e1111111-1111-1111-1111-111111111111', 'e4000000-0000-0000-0000-000000000001',
-     50, 'eeeeeeee-0000-0000-0000-000000000001');   -- 67 + 50 = 117 > 100
-  raise exception 'FALLA: se aceptó una captura que excede la cantidad programada';
+     -500, 'eeeeeeee-0000-0000-0000-000000000001');
+  raise exception 'FALLA: se aceptó una bitácora que suma menos que cero';
 exception
   when check_violation then
-    raise notice 'OK  [excederse rechaza la captura]';
+    raise notice 'OK  [una bitácora negativa se rechaza]';
 end;
 $$;
-
-select pg_temp.esperar_num('tras el rechazo la actividad sigue en 67', cant_ejecutada, 67)
-  from actividad where id = 'e4000000-0000-0000-0000-000000000001';
 
 -- ------------------------------------------------------------
 -- 6 · Nada de esto cruzó a la otra organización.

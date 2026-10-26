@@ -4995,7 +4995,7 @@
           "avance"
         ],
         "summary": "Capturar avance de una actividad",
-        "description": "Captura el avance ejecutado de una actividad (§11.3 B) — **ruta web**.\n\nEl móvil **no** pasa por aquí: su conciliación offline escribe directo a\nPostgres vía PowerSync, con RLS como única frontera (§11.3 B). Allá el\ntotal lo deriva el trigger `app.registro_avance_agregar` (migración 0017)\na partir de la bitácora `registro_avance`; acá lo escribe este caso de\nuso. Las reglas del §6 son las mismas en ambas rutas porque las garantiza\ntambién la BD (CHECKs de la migración 0007).",
+        "description": "Captura el avance ejecutado de una actividad (§11.3 B) — **ruta web**.\n\nEl móvil **no** pasa por aquí: su conciliación offline escribe directo a\nPostgres vía PowerSync, con RLS como única frontera (§11.3 B). Allá el\ntotal lo deriva el trigger `app.registro_avance_agregar` (migración 0017)\na partir de la bitácora `registro_avance`; acá lo escribe este caso de\nuso. Las reglas del §6 son las mismas en ambas rutas porque las garantiza\ntambién la BD (CHECKs de la migración 0007; desde la 0066 lo ejecutado de\nmás ya no se rechaza en ninguna de las dos).",
         "operationId": "capturar_avance_api_v1_actividades__actividad_id__avance_patch",
         "security": [
           {
@@ -5043,6 +5043,211 @@
           },
           "422": {
             "description": "Violación de una regla de captura (§6)."
+          }
+        }
+      }
+    },
+    "/api/v1/comprobaciones": {
+      "get": {
+        "tags": [
+          "comprobaciones"
+        ],
+        "summary": "Lo ejecutado de más que espera comprobación y validación",
+        "description": "Las actividades con excedente por decidir, las más viejas primero. Lo ve\nquien ve la obra; lo decide Control de obra.",
+        "operationId": "bandeja_api_v1_comprobaciones_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExcedentePendiente"
+                  },
+                  "type": "array",
+                  "title": "Response Bandeja Api V1 Comprobaciones Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/excedente": {
+      "get": {
+        "tags": [
+          "comprobaciones"
+        ],
+        "summary": "Qué se ha decidido sobre el excedente de una actividad",
+        "operationId": "historial_api_v1_actividades__actividad_id__excedente_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DecisionHistorial"
+                  },
+                  "title": "Response Historial Api V1 Actividades  Actividad Id  Excedente Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/excedente/validar": {
+      "post": {
+        "tags": [
+          "comprobaciones"
+        ],
+        "summary": "Validar el excedente: se vuelve control de cambio",
+        "description": "Sube el techo de la actividad a lo ejecutado y deja un control de cambio\nya autorizado con su orden de cambio. Es lo que vuelve cobrable el\nexcedente.",
+        "operationId": "validar_api_v1_actividades__actividad_id__excedente_validar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra y el Super intendente deciden un excedente."
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La actividad no tiene excedente pendiente (quizá ya se decidió)."
+          },
+          "422": {
+            "description": "Falta la nota o, al validar, la orden de cambio."
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/excedente/perdida": {
+      "post": {
+        "tags": [
+          "comprobaciones"
+        ],
+        "summary": "Declarar el excedente como pérdida: se ejecutó y no se cobra",
+        "description": "El excedente deja de ser pendiente y no sube el techo: no se estima.",
+        "operationId": "perdida_api_v1_actividades__actividad_id__excedente_perdida_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra y el Super intendente deciden un excedente."
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La actividad no tiene excedente pendiente (quizá ya se decidió)."
+          },
+          "422": {
+            "description": "Falta la nota o, al validar, la orden de cambio."
           }
         }
       }
@@ -10036,6 +10241,26 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Ejecutada"
           },
+          "cant_excedente": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Excedente",
+            "description": "Lo ejecutado por encima de lo programado que aún espera comprobación y validación de Control de obra (migración 0066). Registrar nunca se bloquea: el excedente se registra y se decide aparte.",
+            "default": "0"
+          },
+          "excedente_desde": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excedente Desde",
+            "description": "Desde cuándo hay excedente pendiente: su antigüedad."
+          },
           "tolerancia_pct": {
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -10719,6 +10944,26 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Ejecutada"
           },
+          "cant_excedente": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Excedente",
+            "description": "Lo ejecutado por encima de lo programado que aún espera comprobación y validación de Control de obra (migración 0066). Registrar nunca se bloquea: el excedente se registra y se decide aparte.",
+            "default": "0"
+          },
+          "excedente_desde": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excedente Desde",
+            "description": "Desde cuándo hay excedente pendiente: su antigüedad."
+          },
           "tolerancia_pct": {
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -11311,6 +11556,12 @@
           "estatus": {
             "type": "string",
             "title": "Estatus"
+          },
+          "cant_excedente": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Excedente",
+            "description": "Lo ejecutado por encima de lo programado que aún no se decidió. Va a comprobación y validación (`GET /comprobaciones`)."
           }
         },
         "type": "object",
@@ -11320,7 +11571,8 @@
           "cant_programada",
           "cant_ejecutada",
           "avance_pct",
-          "estatus"
+          "estatus",
+          "cant_excedente"
         ],
         "title": "AvanceRespuesta"
       },
@@ -11599,7 +11851,7 @@
               }
             ],
             "title": "Cant Ejecutada",
-            "description": "No puede exceder la programada."
+            "description": "Puede exceder la programada: registrar nunca se bloquea. Lo que pase de lo programado queda como excedente pendiente de comprobación y validación de Control de obra."
           },
           "cant_programada": {
             "anyOf": [
@@ -13839,6 +14091,154 @@
         "title": "DarDeAltaExtraPeticion",
         "description": "Trabajo que apareció en obra y no estaba en el prototipo (§11.2)."
       },
+      "DecisionHistorial": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "decision": {
+            "type": "string",
+            "title": "Decision"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "orden_cambio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden Cambio"
+          },
+          "control_cambio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Control Cambio Id"
+          },
+          "decidido_por": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Decidido Por"
+          },
+          "decidido_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidido Por Nombre"
+          },
+          "decidido_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Decidido En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "actividad_id",
+          "decision",
+          "cantidad",
+          "nota",
+          "decidido_por",
+          "decidido_en"
+        ],
+        "title": "DecisionHistorial"
+      },
+      "DecisionPeticion": {
+        "properties": {
+          "nota": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nota",
+            "description": "Qué se comprobó. Queda como constancia."
+          },
+          "orden_cambio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden Cambio",
+            "description": "Obligatoria al validar: la orden de cambio que respalda el excedente."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nota"
+        ],
+        "title": "DecisionPeticion"
+      },
+      "DecisionRespuesta": {
+        "properties": {
+          "decision_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Decision Id"
+          },
+          "decision": {
+            "type": "string",
+            "title": "Decision"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "description": "El excedente que cubrió esta decisión."
+          },
+          "control_cambio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Control Cambio Id",
+            "description": "El control de cambio que quedó, si se validó."
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision_id",
+          "decision",
+          "cantidad"
+        ],
+        "title": "DecisionRespuesta"
+      },
       "DependenciaDTO": {
         "properties": {
           "ref": {
@@ -15189,6 +15589,113 @@
         ],
         "title": "EvidenciaRespuesta",
         "description": "Una clave de R2 referenciada por alguna entidad de la obra (§7.8)."
+      },
+      "ExcedentePendiente": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "obra_clave": {
+            "type": "string",
+            "title": "Obra Clave"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "cant_programada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Programada"
+          },
+          "cant_ejecutada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Ejecutada"
+          },
+          "cant_perdida": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Perdida"
+          },
+          "cant_excedente": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Excedente",
+            "description": "Lo ejecutado por encima de lo programado que aún no se decidió."
+          },
+          "excedente_desde": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excedente Desde"
+          },
+          "dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias",
+            "description": "Antigüedad del excedente, en días."
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "obra_id",
+          "obra_clave",
+          "cant_programada",
+          "cant_ejecutada",
+          "cant_perdida",
+          "cant_excedente"
+        ],
+        "title": "ExcedentePendiente"
       },
       "ExpedienteRespuesta": {
         "properties": {

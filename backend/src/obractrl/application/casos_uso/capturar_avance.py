@@ -106,6 +106,7 @@ class CapturarAvance:
             cant_base=cant_base,
             cant_programada=cant_programada,
             cant_ejecutada=cmd.cant_ejecutada,
+            cant_perdida=Decimal(str(actividad.get("cant_perdida") or 0)),
             estatus_actual=estatus_actual,
         )
 

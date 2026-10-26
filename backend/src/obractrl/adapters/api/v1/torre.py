@@ -116,6 +116,17 @@ class ActividadRespuesta(BaseModel):
     cant_base: Decimal
     cant_programada: Decimal
     cant_ejecutada: Decimal
+    cant_excedente: Decimal = Field(
+        default=Decimal(0),
+        description=(
+            "Lo ejecutado por encima de lo programado que aún espera comprobación "
+            "y validación de Control de obra (migración 0066). Registrar nunca se "
+            "bloquea: el excedente se registra y se decide aparte."
+        ),
+    )
+    excedente_desde: date | None = Field(
+        default=None, description="Desde cuándo hay excedente pendiente: su antigüedad."
+    )
     tolerancia_pct: Decimal = Field(
         default=Decimal(20),
         description=(

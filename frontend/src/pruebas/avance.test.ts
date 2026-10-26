@@ -25,14 +25,19 @@ describe('advertenciasAvance (§6, reflejo de UX)', () => {
     expect(r.cantProgramadaExcedeBase).toBe(false);
   });
 
-  it('advierte cuando cant_ejecutada excede cant_programada', () => {
+  it('lo ejecutado de más no es un error: se avisa cuánto va a comprobación', () => {
     const r = advertenciasAvance({ cantBase: null, cantProgramada: 50, cantEjecutada: 51 });
-    expect(r.cantEjecutadaExcedeProgramada).toBe(true);
+    expect(r.excedente).toBe(1);
   });
 
-  it('sin cant_programada capturada, no advierte sobre ejecutada', () => {
+  it('sin excedente, el aviso dice cero', () => {
+    expect(advertenciasAvance({ cantBase: null, cantProgramada: 50, cantEjecutada: 50 }).excedente).toBe(0);
+    expect(advertenciasAvance({ cantBase: null, cantProgramada: 50, cantEjecutada: 10 }).excedente).toBe(0);
+  });
+
+  it('sin cant_programada capturada, no avisa de excedente', () => {
     const r = advertenciasAvance({ cantBase: null, cantProgramada: null, cantEjecutada: 999 });
-    expect(r.cantEjecutadaExcedeProgramada).toBe(false);
+    expect(r.excedente).toBe(0);
   });
 });
 

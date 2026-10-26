@@ -94,8 +94,8 @@ class RepositorioActividadesSQL:
                 text(
                     """
                     select id, obra_id, concepto_id, cant_base, cant_programada,
-                           cant_ejecutada, avance_pct, estatus, bloqueada,
-                           precio_unitario, precio_destajo, modo_pago
+                           cant_ejecutada, cant_perdida, avance_pct, estatus,
+                           bloqueada, precio_unitario, precio_destajo, modo_pago
                     from actividad
                     where id = :id
                     """
@@ -134,8 +134,8 @@ class RepositorioActividadesSQL:
                 text(
                     """
                     select id, obra_id, cant_base, cant_programada,
-                           cant_ejecutada, avance_pct, estatus, bloqueada,
-                           precio_unitario, precio_destajo, modo_pago
+                           cant_ejecutada, cant_perdida, avance_pct, estatus,
+                           bloqueada, precio_unitario, precio_destajo, modo_pago
                     from actividad
                     where id = :id
                     for update

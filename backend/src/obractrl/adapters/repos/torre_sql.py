@@ -193,6 +193,11 @@ class RepositorioTorreSQL:
                            fre.clave as contratacion_clave,
                            esp.clave as especialidad_clave,
                            act.cant_base, act.cant_programada, act.cant_ejecutada,
+                           -- Lo ejecutado de más que aún espera comprobación y
+                           -- validación de Control (0066): derivado, no guardado.
+                           greatest(act.cant_ejecutada - act.cant_programada
+                                    - act.cant_perdida, 0) as cant_excedente,
+                           act.excedente_desde,
                            -- El techo con el que el residente sabe cuánto puede
                            -- programar sin pedirle nada a nadie (§6, 0049).
                            act.tolerancia_pct, act.cant_autorizada,
@@ -245,6 +250,10 @@ class RepositorioTorreSQL:
                            f.nombre as frente_nombre,
                            o.clave as obra_clave,
                            act.cant_base, act.cant_programada, act.cant_ejecutada,
+                           greatest(act.cant_ejecutada - act.cant_programada
+                                    - act.cant_perdida, 0) as cant_excedente,
+                           act.excedente_desde,
+                           act.tolerancia_pct, act.cant_autorizada,
                            act.avance_pct, act.estatus, act.bloqueada, act.extra,
                            act.es_critica, act.holgura, act.desfase,
                            act.fecha_inicio, act.fecha_termino, act.duracion_dias,
