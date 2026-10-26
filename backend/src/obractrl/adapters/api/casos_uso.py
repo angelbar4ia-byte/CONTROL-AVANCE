@@ -72,6 +72,7 @@ from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
 from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
 from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
 from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
+from obractrl.adapters.repos.reprogramaciones_sql import RepositorioReprogramacionesSQL
 from obractrl.adapters.repos.revisiones_sql import RepositorioRevisionesSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
@@ -229,6 +230,14 @@ from obractrl.application.casos_uso.gestionar_proyecto import (
     CrearPrototipo,
     CrearProyecto,
 )
+from obractrl.application.casos_uso.gestionar_reprogramacion import (
+    AplicarReprogramacion,
+    ConsultarReprogramaciones,
+    ProponerReprogramacion,
+    RechazarReprogramacion,
+    RevisarReprogramacion,
+    ValidarReprogramacion,
+)
 from obractrl.application.casos_uso.gestionar_usuarios import (
     ActualizarUsuario,
     AsignarAlcance,
@@ -237,6 +246,9 @@ from obractrl.application.casos_uso.gestionar_usuarios import (
 )
 from obractrl.application.casos_uso.notificar_estimacion import (
     NotificarEstimacionValidada,
+)
+from obractrl.application.casos_uso.notificar_reprogramacion import (
+    NotificarReprogramacionAplicada,
 )
 from obractrl.application.casos_uso.registrar_revision_fisica import (
     RegistrarRevisionFisica,
@@ -247,6 +259,7 @@ from obractrl.application.eventos import (
     BusEnProceso,
     EstimacionValidada,
     IncidenciaDetiene,
+    ReprogramacionAplicada,
 )
 from obractrl.domain.shared.diccionario import TipoCarga, TipoConcepto, TipoInsumo
 from obractrl.infrastructure.auth.supabase_admin import AdminDeSupabase
@@ -262,6 +275,7 @@ __all__ = [
     "ActualizarUsuarioDep",
     "AgregarDocumentoDep",
     "AgregarRespuestasDep",
+    "AplicarReprogramacionDep",
     "AprobarCierreDeFrenteDep",
     "AprobarTrazoDep",
     "ArmarExpedienteDep",
@@ -287,6 +301,7 @@ __all__ = [
     "ConsultarFrentesDeObraDep",
     "ConsultarInsumosProgramadosDep",
     "ConsultarPlaneacionDep",
+    "ConsultarReprogramacionesDep",
     "ConsultarRutaCriticaDep",
     "CrearClusterDep",
     "CrearConceptoDep",
@@ -322,11 +337,13 @@ __all__ = [
     "ParticiparEnCierreDep",
     "ProgramarIncidenciaDep",
     "ProgramarNodoDelArbolDep",
+    "ProponerReprogramacionDep",
     "PublicarVersionCPUDep",
     "RecalcularRutaCriticaDep",
     "RechazarCierreDeFrenteDep",
     "RechazarCierreDep",
     "RechazarIncidenciaDep",
+    "RechazarReprogramacionDep",
     "ReemplazarEnlaceDep",
     "RegistrarEventoIncidenciaDep",
     "RegistrarNotaPlanoDep",
@@ -341,12 +358,14 @@ __all__ = [
     "RevertirCargaDep",
     "RevertirCargaEnCadenaDep",
     "RevertirGeneracionDeObraDep",
+    "RevisarReprogramacionDep",
     "SolicitarCierreDeFrenteDep",
     "SolicitarCierreDep",
     "ValidarCierreDeFrenteDep",
     "ValidarCierreDep",
     "ValidarEstimacionDep",
     "ValidarExcedenteDep",
+    "ValidarReprogramacionDep",
 ]
 
 
@@ -1203,6 +1222,72 @@ def obtener_consultar_ediciones_de_programa(
     )
 
 
+def _bus_de_reprogramacion(sesion: SesionRLS, ctx: ContextoActual) -> BusEnProceso:
+    """`ReprogramacionAplicada` → avisar a los demás (D-533): correo + push, y el
+    aviso en vivo. Mismo cableado que `_bus_de_estimacion`."""
+    notificar = NotificarReprogramacionAplicada(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        usuarios=RepositorioUsuariosSQL(sesion),
+        correo=ClienteResend(),
+        push=ClienteExpoPush(),
+    )
+
+    async def _notificar(evento: ReprogramacionAplicada) -> None:
+        await notificar.ejecutar(evento)
+
+    bus = BusEnProceso()
+    bus.suscribir(ReprogramacionAplicada, _notificar)
+    return suscribir_avisos(bus, ctx=ctx, canal=canal_de_avisos)
+
+
+def obtener_consultar_reprogramaciones(sesion: SesionRLS) -> ConsultarReprogramaciones:
+    return ConsultarReprogramaciones(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+    )
+
+
+def obtener_proponer_reprogramacion(sesion: SesionRLS) -> ProponerReprogramacion:
+    return ProponerReprogramacion(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_revisar_reprogramacion(sesion: SesionRLS) -> RevisarReprogramacion:
+    return RevisarReprogramacion(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_validar_reprogramacion(sesion: SesionRLS) -> ValidarReprogramacion:
+    return ValidarReprogramacion(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_rechazar_reprogramacion(sesion: SesionRLS) -> RechazarReprogramacion:
+    return RechazarReprogramacion(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_aplicar_reprogramacion(
+    sesion: SesionRLS, ctx: ContextoActual
+) -> AplicarReprogramacion:
+    return AplicarReprogramacion(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        editar=obtener_editar_programacion(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_reprogramacion(sesion, ctx),
+    )
+
+
 CrearProgramaBaseDep = Annotated[
     CrearProgramaBase, Depends(obtener_crear_programa_base)
 ]
@@ -1246,6 +1331,24 @@ CapturarCausaDeDesviacionDep = Annotated[
 IniciarObraDep = Annotated[IniciarObra, Depends(obtener_iniciar_obra)]
 ConsultarEdicionesDeProgramaDep = Annotated[
     ConsultarEdicionesDePrograma, Depends(obtener_consultar_ediciones_de_programa)
+]
+ConsultarReprogramacionesDep = Annotated[
+    ConsultarReprogramaciones, Depends(obtener_consultar_reprogramaciones)
+]
+ProponerReprogramacionDep = Annotated[
+    ProponerReprogramacion, Depends(obtener_proponer_reprogramacion)
+]
+RevisarReprogramacionDep = Annotated[
+    RevisarReprogramacion, Depends(obtener_revisar_reprogramacion)
+]
+ValidarReprogramacionDep = Annotated[
+    ValidarReprogramacion, Depends(obtener_validar_reprogramacion)
+]
+RechazarReprogramacionDep = Annotated[
+    RechazarReprogramacion, Depends(obtener_rechazar_reprogramacion)
+]
+AplicarReprogramacionDep = Annotated[
+    AplicarReprogramacion, Depends(obtener_aplicar_reprogramacion)
 ]
 ReplicarProgramaEnObrasDep = Annotated[
     ReplicarProgramaEnObras, Depends(obtener_replicar_programa)

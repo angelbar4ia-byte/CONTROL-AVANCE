@@ -39,7 +39,7 @@ no su tabla.
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -93,6 +93,10 @@ from obractrl.domain.programacion.reglas import (
     instanciar_programa,
     nodos_cpm,
     validar_item_base,
+)
+from obractrl.domain.programacion.reprogramacion import (
+    esta_contratada,
+    exigir_fechas_libres,
 )
 from obractrl.domain.shared.diccionario import ClaseNodo, Rol
 
@@ -302,6 +306,9 @@ class ComandoEditarProgramacion:
     fecha_termino: date | None = None
     tramos: tuple[Tramo, ...] | None = None
     inicio_dias: Decimal | None = None
+    reprogramacion_id: UUID | None = None
+    """Solo lo pone `AplicarReprogramacion`: la fecha de lo contratado se mueve por
+    la cadena (D-533), y ese es el único camino que puede tocarla (P-4)."""
 
 
 # --- Resultados ----------------------------------------------------------
@@ -1198,7 +1205,15 @@ class EditarProgramacionActividad:
         self._ediciones = ediciones
         self._uow = uow
 
-    async def ejecutar(self, cmd: ComandoEditarProgramacion) -> ActividadEnRuta:
+    async def ejecutar(
+        self,
+        cmd: ComandoEditarProgramacion,
+        *,
+        en_la_transaccion: Callable[[], Awaitable[None]] | None = None,
+    ) -> ActividadEnRuta:
+        """`en_la_transaccion` corre dentro de la unidad de trabajo, antes del commit:
+        es como `AplicarReprogramacion` marca la reprogramación como aplicada **en la
+        misma transacción** que mueve la fecha, sin dejar una sin la otra."""
         # Primero el permiso: quien no puede tocar esto no debe enterarse de si la
         # actividad existe ni de si el cronograma tendría un ciclo.
         tipo = exigir_permiso_de_edicion(cmd.rol, _campos_pedidos(cmd))
@@ -1207,6 +1222,14 @@ class EditarProgramacionActividad:
         if fila is None:
             raise ActividadNoProgramable(
                 f"Actividad {cmd.actividad_id} no encontrada en tu alcance."
+            )
+
+        # Las fechas de lo contratado no se mueven solas (P-4): se cambian por la
+        # cadena de reprogramación, que es la única que llega aquí con su id.
+        if cmd.reprogramacion_id is None:
+            exigir_fechas_libres(
+                contratada=esta_contratada(contratista_id=fila.get("contratista_id")),
+                toca_fechas=cmd.fecha_inicio is not None or cmd.fecha_termino is not None,
             )
 
         obra_id = fila["obra_id"]
@@ -1261,8 +1284,18 @@ class EditarProgramacionActividad:
                 rol=cmd.rol.value,
                 tipo=tipo,
                 antes={campo: _a_json(fila.get(campo)) for campo in cambios},
-                despues={campo: _a_json(valor) for campo, valor in cambios.items()},
+                despues={
+                    **{campo: _a_json(valor) for campo, valor in cambios.items()},
+                    # Si la fecha se movió por una reprogramación, la bitácora dice cuál.
+                    **(
+                        {"reprogramacion_id": str(cmd.reprogramacion_id)}
+                        if cmd.reprogramacion_id is not None
+                        else {}
+                    ),
+                },
             )
+            if en_la_transaccion is not None:
+                await en_la_transaccion()
             await self._uow.commit()
 
         # Se relee para devolver lo que quedó escrito, no lo que se propuso:

@@ -98,6 +98,9 @@ from obractrl.application.casos_uso.gestionar_programacion import (
     NodoNoProgramable,
     ProgramaBaseNoEncontrado,
 )
+from obractrl.application.casos_uso.gestionar_reprogramacion import (
+    ReprogramacionNoEncontrada,
+)
 from obractrl.application.casos_uso.gestionar_usuarios import (
     CorreoYaRegistrado,
     UsuarioNoEncontrado,
@@ -133,6 +136,10 @@ from obractrl.domain.programacion.cpm import CicloEnGrafoError
 from obractrl.domain.programacion.reglas import (
     EdicionDeProgramaNoPermitida,
     ErrorDeProgramacion,
+)
+from obractrl.domain.programacion.reprogramacion import (
+    ErrorDeReprogramacion,
+    FechasDeLoContratado,
 )
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto
 from obractrl.domain.revisiones.reglas import ErrorDeRevision
@@ -600,6 +607,42 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=403,
             tipo="edicion-de-programa-no-permitida",
             titulo="Esa edición del programa no te corresponde",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(FechasDeLoContratado)
+    async def _fechas_de_lo_contratado(
+        request: Request, exc: FechasDeLoContratado
+    ) -> JSONResponse:
+        # 409: la petición es válida pero choca con el estado de la actividad
+        # (contratada). El camino es proponer una reprogramación (P-4).
+        return _problema(
+            request,
+            status=409,
+            tipo="fechas-de-lo-contratado",
+            titulo="Las fechas de lo contratado no se mueven solas",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeReprogramacion)
+    async def _reprogramacion(request: Request, exc: ErrorDeReprogramacion) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="regla-de-reprogramacion",
+            titulo="Reprogramación no permitida",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ReprogramacionNoEncontrada)
+    async def _reprogramacion_no_encontrada(
+        request: Request, exc: ReprogramacionNoEncontrada
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="reprogramacion-no-encontrada",
+            titulo="Reprogramación no encontrada",
             detalle=str(exc),
         )
 

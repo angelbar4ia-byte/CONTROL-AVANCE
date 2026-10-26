@@ -10638,6 +10638,444 @@
         ]
       }
     },
+    "/api/v1/obras/{obra_id}/reprogramaciones": {
+      "get": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Las reprogramaciones de lo contratado de una obra",
+        "description": "Todos los roles, cada uno con su alcance (RLS). Lo más reciente, primero.",
+        "operationId": "reprogramaciones_de_la_obra_api_v1_obras__obra_id__reprogramaciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReprogramacionDeObraRespuesta"
+                  },
+                  "title": "Response Reprogramaciones De La Obra Api V1 Obras  Obra Id  Reprogramaciones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/reprogramaciones": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Proponer la fecha nueva de una actividad contratada",
+        "description": "Propone el residente (lo revisa el supervisor) o el supervisor (la revisión se\nsalta). Solo se reprograma lo contratado; lo demás se edita directo.",
+        "operationId": "proponer_reprogramacion_api_v1_actividades__actividad_id__reprogramaciones_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProponerReprogramacionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprogramacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La actividad no está contratada, no hay nada que mover, o ya tiene una reprogramación en la cadena."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reprogramaciones/{reprogramacion_id}/revisar": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Revisar la reprogramación propuesta por el residente",
+        "operationId": "revisar_reprogramacion_api_v1_reprogramaciones__reprogramacion_id__revisar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reprogramacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reprogramacion Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprogramacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La reprogramación no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Ese paso no corresponde en el estado actual de la cadena."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reprogramaciones/{reprogramacion_id}/validar": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Validar la fecha nueva",
+        "operationId": "validar_reprogramacion_api_v1_reprogramaciones__reprogramacion_id__validar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reprogramacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reprogramacion Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprogramacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La reprogramación no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Ese paso no corresponde en el estado actual de la cadena."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reprogramaciones/{reprogramacion_id}/aplicar": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Realizar la reprogramación: mueve la fecha de lo contratado y avisa",
+        "description": "Control de obra realiza lo validado. La fecha se mueve y la reprogramación queda\naplicada en la misma transacción; después se notifica a los demás.",
+        "operationId": "aplicar_reprogramacion_api_v1_reprogramaciones__reprogramacion_id__aplicar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reprogramacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reprogramacion Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprogramacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La reprogramación no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Ese paso no corresponde en el estado actual de la cadena."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reprogramaciones/{reprogramacion_id}/rechazar": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Rechazar la reprogramación",
+        "operationId": "rechazar_reprogramacion_api_v1_reprogramaciones__reprogramacion_id__rechazar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reprogramacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reprogramacion Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechazarReprogramacionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprogramacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La reprogramación no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Ese paso no corresponde en el estado actual de la cadena."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -21751,6 +22189,47 @@
         "title": "ProgramarNodoPeticion",
         "description": "§11.2 `POST /obras/{id}/programa/nodos/{prototipo_nodo_id}`."
       },
+      "ProponerReprogramacionPeticion": {
+        "properties": {
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio",
+            "description": "La fecha de inicio nueva."
+          },
+          "fecha_termino": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Termino",
+            "description": "La fecha de término nueva."
+          },
+          "motivo": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Motivo",
+            "description": "Obligatorio: por qué se mueve lo contratado."
+          }
+        },
+        "type": "object",
+        "required": [
+          "motivo"
+        ],
+        "title": "ProponerReprogramacionPeticion"
+      },
       "PrototipoRespuesta": {
         "properties": {
           "id": {
@@ -21972,6 +22451,21 @@
           "motivo"
         ],
         "title": "RechazarIncidenciaPeticion"
+      },
+      "RechazarReprogramacionPeticion": {
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Motivo",
+            "description": "Obligatorio: es lo que quien propuso corrige."
+          }
+        },
+        "type": "object",
+        "required": [
+          "motivo"
+        ],
+        "title": "RechazarReprogramacionPeticion"
       },
       "ReemplazarEnlacePeticion": {
         "properties": {
@@ -22794,6 +23288,430 @@
           "pendientes"
         ],
         "title": "ReporteGeneracionRespuesta"
+      },
+      "ReprogramacionDeObraRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "actividad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "contratista": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio"
+          },
+          "fecha_termino": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Termino"
+          },
+          "fecha_inicio_anterior": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio Anterior",
+            "description": "La fecha de inicio que había cuando se propuso."
+          },
+          "fecha_termino_anterior": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Termino Anterior"
+          },
+          "motivo": {
+            "type": "string",
+            "title": "Motivo"
+          },
+          "propuesta_por": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Propuesta Por"
+          },
+          "propuesta_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuesta Por Nombre"
+          },
+          "propuesta_rol": {
+            "type": "string",
+            "title": "Propuesta Rol"
+          },
+          "propuesta_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Propuesta En"
+          },
+          "revisada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revisada Por"
+          },
+          "revisada_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revisada Por Nombre"
+          },
+          "revisada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revisada En"
+          },
+          "validada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada Por"
+          },
+          "validada_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada Por Nombre"
+          },
+          "validada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada En"
+          },
+          "aplicada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aplicada Por"
+          },
+          "aplicada_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aplicada Por Nombre"
+          },
+          "aplicada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aplicada En"
+          },
+          "rechazada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rechazada Por"
+          },
+          "rechazada_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rechazada Por Nombre"
+          },
+          "rechazada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rechazada En"
+          },
+          "motivo_rechazo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Rechazo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "actividad_id",
+          "estatus",
+          "motivo",
+          "propuesta_por",
+          "propuesta_rol",
+          "propuesta_en"
+        ],
+        "title": "ReprogramacionDeObraRespuesta",
+        "description": "Una reprogramación con lo que la lista necesita: la actividad, las fechas de\nantes y quién intervino en cada paso de la cadena."
+      },
+      "ReprogramacionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "description": "`propuesta` · `revisada` · `validada` · `aplicada` · `rechazada`."
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio"
+          },
+          "fecha_termino": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Termino"
+          },
+          "motivo": {
+            "type": "string",
+            "title": "Motivo"
+          },
+          "propuesta_por": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Propuesta Por"
+          },
+          "propuesta_rol": {
+            "type": "string",
+            "title": "Propuesta Rol"
+          },
+          "revisada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revisada Por",
+            "description": "Vacío si propuso el supervisor: la revisión se salta."
+          },
+          "validada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada Por"
+          },
+          "aplicada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aplicada Por"
+          },
+          "rechazada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rechazada Por"
+          },
+          "motivo_rechazo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Rechazo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "actividad_id",
+          "estatus",
+          "motivo",
+          "propuesta_por",
+          "propuesta_rol"
+        ],
+        "title": "ReprogramacionRespuesta"
       },
       "ResetearContrasenaPeticion": {
         "properties": {

@@ -31,6 +31,7 @@ import Frentes from '@/proyectos/Frentes';
 import Catalogos from '@/catalogos/Catalogos';
 import Ensambles from '@/ensambles/Ensambles';
 import Programacion from '@/programacion/Programacion';
+import Reprogramaciones from '@/reprogramaciones/Reprogramaciones';
 import ProgramasBase from '@/programacion/ProgramasBase';
 
 /**
@@ -187,6 +188,7 @@ function Rutas() {
         <Route path="/comprobaciones" element={<Comprobaciones />} />
         <Route path="/desviaciones" element={<Desviaciones />} />
         <Route path="/cierre-frentes" element={<CierresDeFrente />} />
+        <Route path="/reprogramaciones" element={<Reprogramaciones />} />
         {/* Control de materiales (§7.7, §11.2): Control de obra trae las dos
             entradas en su sidebar —"Salidas de almacén" y "Consumo vs
             presupuesto"—; el Residente trae una sola, "Control de materiales

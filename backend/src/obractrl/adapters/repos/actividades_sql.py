@@ -511,7 +511,18 @@ class RepositorioActividadesSQL:
             await self._sesion.execute(
                 text(
                     f"""
-                    select obra_id, programa_obra_id, {_COLUMNAS_PROGRAMACION}
+                    select obra_id, programa_obra_id,
+                           -- Lo contratado (P-4): el contratista del trato del frente
+                           -- en esta obra (la planeación, `frente_obra`) o, si la
+                           -- actividad lo trae directo, ese.
+                           coalesce(
+                               contratista_id,
+                               (select fo.contratista_id
+                                  from frente_obra fo
+                                 where fo.obra_id = actividad.obra_id
+                                   and fo.frente_id = actividad.frente_id)
+                           ) as contratista_id,
+                           {_COLUMNAS_PROGRAMACION}
                     from actividad
                     where id = :id
                     """

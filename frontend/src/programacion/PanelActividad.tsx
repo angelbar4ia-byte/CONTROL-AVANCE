@@ -13,12 +13,18 @@
 
 import { useState, type FormEvent } from 'react';
 
-import { useEditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch } from '@/api/generado/programacion/programacion';
+import {
+  useEditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch,
+  useProponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost,
+} from '@/api/generado/programacion/programacion';
 import type { FrenteRespuesta } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
+import { useSesion } from '@/app/sesion';
 import { colorAvance, fmtFecha, fmtNum, fmtPct } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
+import { useClavesPorRecurso } from '@/lib/idempotencia';
 import { Sheet } from '@/lib/Sheet';
+import { esFechaDeLoContratado, puedeProponerReprogramacion } from '@/reprogramaciones/reglas';
 import { EditorDependencias } from './Dependencias';
 import type { FilaGantt } from './filas';
 import {
@@ -59,8 +65,14 @@ export function PanelActividad({
   onAjustada,
 }: Props) {
   const [formulario, setFormulario] = useState(() => formularioDeFila(fila));
-  const [error, setError] = useState<{ mensaje: string; campo?: string } | null>(null);
+  const { sesion } = useSesion();
+  const idempotente = useClavesPorRecurso();
+  const [error, setError] = useState<{ mensaje: string; campo?: string; tipo?: string } | null>(
+    null,
+  );
   const [guardada, setGuardada] = useState(false);
+  const [motivo, setMotivo] = useState('');
+  const [propuesta, setPropuesta] = useState(false);
 
   const ajustar = useEditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch<
     ErrorApi
@@ -73,9 +85,24 @@ export function PanelActividad({
       },
       onError: (err) => {
         setGuardada(false);
-        setError({ mensaje: err.message, campo: err.campo });
+        setError({ mensaje: err.message, campo: err.campo, tipo: err.tipo });
       },
     },
+  });
+
+  // P-4: las fechas de lo contratado no se editan directo; se propone la nueva.
+  const proponer = useProponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost<
+    ErrorApi
+  >({
+    mutation: {
+      onSuccess: () => {
+        setError(null);
+        setPropuesta(true);
+        setMotivo('');
+      },
+      onError: (err) => setError({ mensaje: err.message, campo: err.campo, tipo: err.tipo }),
+    },
+    ...idempotente,
   });
 
   const tono = tonoBarra(fila);
@@ -91,6 +118,22 @@ export function PanelActividad({
   const opcionesPredecesoras = actividades
     .filter((otra) => otra.actividadId !== fila.actividadId)
     .map((otra) => ({ valor: otra.actividadId, etiqueta: otra.descripcion }));
+
+  const contratada = esFechaDeLoContratado(error);
+  const rol = sesion?.rol ?? null;
+
+  function alProponer(evento: FormEvent) {
+    evento.preventDefault();
+    if (motivo.trim() === '' || proponer.isPending) return;
+    proponer.mutate({
+      actividadId: fila.actividadId,
+      data: {
+        motivo: motivo.trim(),
+        fecha_inicio: cambios.fecha_inicio ?? null,
+        fecha_termino: cambios.fecha_termino ?? null,
+      },
+    });
+  }
 
   function alGuardar(evento: FormEvent) {
     evento.preventDefault();
@@ -149,7 +192,62 @@ export function PanelActividad({
           </div>
         </div>
 
-        {error && <ErrorBanner mensaje={error.mensaje} campo={error.campo} />}
+        {error && !contratada && <ErrorBanner mensaje={error.mensaje} campo={error.campo} />}
+
+        {contratada && (
+          <div className="card" role="alert">
+            <div className="card__header">
+              <div>
+                <h3 className="card__title">Esta actividad está contratada</h3>
+                <div className="card__sub">{error?.mensaje}</div>
+              </div>
+            </div>
+            <form onSubmit={alProponer} className="card__body col gap-12">
+              {puedeProponerReprogramacion(rol) ? (
+                <>
+                  <div className="field">
+                    <label className="field__label" htmlFor="prog-motivo-reprogramacion">
+                      Motivo de la reprogramación
+                    </label>
+                    <textarea
+                      id="prog-motivo-reprogramacion"
+                      className="input"
+                      rows={2}
+                      value={motivo}
+                      onChange={(e) => setMotivo(e.target.value)}
+                    />
+                    <span className="field__hint">
+                      Se propone con las fechas del formulario. La fecha no cambia hasta que
+                      control de obra la valide y la realice.
+                    </span>
+                  </div>
+                  <div className="row">
+                    <button
+                      type="submit"
+                      className="btn btn--primary"
+                      disabled={motivo.trim() === '' || proponer.isPending}
+                    >
+                      {proponer.isPending ? 'Proponiendo…' : 'Proponer reprogramación'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm">
+                  La reprogramación la propone el residente o el supervisor; tú la validas y la
+                  realizas desde <strong>Reprogramaciones</strong>.
+                </div>
+              )}
+            </form>
+          </div>
+        )}
+
+        {propuesta && (
+          <div role="status">
+            <span className="badge badge--ok">
+              Reprogramación propuesta · la fecha cambia cuando control de obra la realice
+            </span>
+          </div>
+        )}
 
         {guardada && !ajustar.isPending && error === null && (
           <div role="status">

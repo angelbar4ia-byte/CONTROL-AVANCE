@@ -47,6 +47,7 @@ from obractrl.adapters.api.v1.procesos import router as router_procesos
 from obractrl.adapters.api.v1.programacion import router as router_programacion
 from obractrl.adapters.api.v1.proyectos import router as router_proyectos
 from obractrl.adapters.api.v1.reportes import router as router_reportes
+from obractrl.adapters.api.v1.reprogramaciones import router as router_reprogramaciones
 from obractrl.adapters.api.v1.revisiones import router as router_revisiones
 from obractrl.adapters.api.v1.torre import router as router_torre
 from obractrl.adapters.api.v1.usuarios import router as router_usuarios
@@ -93,3 +94,4 @@ api_v1.include_router(router_eventos)
 # y tiempo real entraron en la Fase 16. El tiempo real vive en `eventos.py` y
 # es SSE (`GET /events`), la alternativa que el propio §11.2 nombra.
 __all__ = ["api_v1"]
+api_v1.include_router(router_reprogramaciones)
