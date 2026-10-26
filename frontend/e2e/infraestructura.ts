@@ -39,6 +39,13 @@ export const PASSWORD = process.env.E2E_PASSWORD ?? '';
 
 export const hayInfraestructura = Boolean(API_URL && USUARIO && PASSWORD);
 
+/**
+ * `E2E_AUTH_FALSA=1`: el proveedor de auth es `e2e/soporte/auth-falsa.mjs`, no un
+ * Supabase real. La auth falsa inicia sesión, pero **no crea cuentas**: lo que
+ * necesita la llave de servicio (dar de alta un usuario) no se puede probar así.
+ */
+export const AUTH_FALSA = process.env.E2E_AUTH_FALSA === '1';
+
 /** Un usuario por rol, para los workflows que cambian de actor entre pasos. */
 export const ROLES = {
   residente: process.env.E2E_USUARIO_RESIDENTE ?? '',

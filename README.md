@@ -85,7 +85,7 @@ autoriza), y el Super intendente ejecuta el **cierre de obra final**.
 |---|---|---|
 | `database/` | 28 migraciones con su `down` y bitácora de versión · RLS por rol en toda tabla · semillas · restauración de respaldo probada en CI · **7 archivos de pruebas de aislamiento** | Publicar las sync rules en el PowerSync de producción · sellar la base de producción |
 | `backend/` | Los 15 contextos del §11.1 end-to-end · cargadores Excel · jobs Arq + Redis · notificaciones (Resend + Expo Push) · **tiempo real por SSE** y **reportes por alcance** · `problem+json`, Sentry y sondas · **730 pruebas** + 246 de integración en CI | La superficie del §11.2 queda cubierta |
-| `frontend/` | Las 20 features del §5.1, sin huecos de sidebar · virtualización compartida · avisos en vivo · **365 pruebas** + humo en navegador + 5 E2E de workflow | Correr los E2E de workflow en CI |
+| `frontend/` | Las 20 features del §5.1, sin huecos de sidebar · virtualización compartida · avisos en vivo · **365 pruebas** + humo en navegador + 5 E2E de workflow (también en CI) | — |
 | `mobile/` | Las 14 pantallas del §5.2 · captura offline con evidencia · colas a R2 y a la API · force/soft update · Expo Push · **38 pruebas** + 3 flujos de Maestro | Assets y cuenta de Google Play (§12.13) |
 
 ## Verificación

@@ -1,5 +1,4 @@
-import { expect, test } from '../infraestructura';
-import { entrar } from '../infraestructura';
+import { AUTH_FALSA, entrar, expect, test } from '../infraestructura';
 
 /**
  * Alta de usuario de punta a punta — el criterio de cierre de la Fase 7.
@@ -39,6 +38,13 @@ test.describe('Fase 7 · alta de usuario sin tocar SQL', () => {
   test('Control de obra da de alta a un residente y aparece en el equipo', async ({
     page,
   }) => {
+    // Crear la cuenta pasa por la llave de servicio del proveedor de auth
+    // (`POST /usuarios` responde 503 sin ella); la auth falsa no la imita.
+    test.skip(
+      AUTH_FALSA,
+      'La auth falsa no crea cuentas: esta prueba necesita un Supabase real.',
+    );
+
     await entrar(page);
     await page.goto('/config/equipo');
 
