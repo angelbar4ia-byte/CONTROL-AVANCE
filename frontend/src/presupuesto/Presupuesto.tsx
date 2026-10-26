@@ -20,6 +20,18 @@
 
 import { useMemo, useState } from 'react';
 
+import { TipoCarga } from '@/api/generado/modelo';
+import {
+  useListarClustersApiV1ClustersGet,
+  useListarProyectosApiV1ProyectosGet,
+  useListarPrototiposApiV1PrototiposGet,
+} from '@/api/generado/proyectos/proyectos';
+import { getPresupuestoDeObrasApiV1PresupuestosObrasGetQueryKey } from '@/api/generado/presupuesto/presupuesto';
+import { queryClient } from '@/app/queryClient';
+import { SubirCarga } from '@/cargas/SubirCarga';
+import { AltaObra } from '@/proyectos/AltaObra';
+import { puedeAdministrarObras } from '@/proyectos/reglas';
+
 import { usePresupuestoDeObrasApiV1PresupuestosObrasGet } from '@/api/generado/presupuesto/presupuesto';
 import type { ResumenDeObraRespuesta } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
@@ -40,6 +52,15 @@ export default function Presupuesto() {
   const { sesion } = useSesion();
   const [soloDesviadas, setSoloDesviadas] = useState(false);
   const [abierta, setAbierta] = useState<ResumenDeObraRespuesta | null>(null);
+  // La entrada del escenario «Ingeniería» (cerebro §8.9): se crea o se elige la obra aquí, se
+  // asocia a su prototipo —o se parte del más parecido— y se carga la ingeniería.
+  const [dialogo, setDialogo] = useState<'obra' | 'ingenieria' | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  const administra = sesion?.rol != null && puedeAdministrarObras(sesion.rol);
+  const proyectosQ = useListarProyectosApiV1ProyectosGet({ query: { enabled: administra } });
+  const clustersQ = useListarClustersApiV1ClustersGet(undefined, { query: { enabled: administra } });
+  const prototiposQ = useListarPrototiposApiV1PrototiposGet(undefined, { query: { enabled: administra } });
 
   const consulta = usePresupuestoDeObrasApiV1PresupuestosObrasGet<
     ResumenDeObraRespuesta[],
@@ -72,6 +93,22 @@ export default function Presupuesto() {
       </div>
 
       {consulta.error && <ErrorBanner mensaje={consulta.error.message} />}
+      {aviso && (
+        <div className="text-sm mb-8" role="status">
+          {aviso}
+        </div>
+      )}
+
+      {administra && (
+        <div className="row gap-8 mb-8" style={{ flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn--sm" onClick={() => setDialogo('obra')}>
+            Nueva obra
+          </button>
+          <button type="button" className="btn btn--sm" onClick={() => setDialogo('ingenieria')}>
+            Cargar ingeniería
+          </button>
+        </div>
+      )}
 
       <div className="row gap-12 mb-8" style={{ flexWrap: 'wrap' }}>
         <Tarjeta etiqueta="Obras" valor={String(resumen.obras)} />
@@ -146,6 +183,35 @@ export default function Presupuesto() {
           </table>
         </div>
       </div>
+
+      {dialogo === 'obra' && (
+        <AltaObra
+          proyectos={proyectosQ.data ?? []}
+          clusters={clustersQ.data ?? []}
+          prototipos={prototiposQ.data ?? []}
+          onCerrar={() => setDialogo(null)}
+          onCreada={() => {
+            setDialogo(null);
+            setAviso('Obra creada. Cárgale la ingeniería: con su prototipo o partiendo del más parecido.');
+            void consulta.refetch();
+            void clustersQ.refetch();
+          }}
+        />
+      )}
+
+      {dialogo === 'ingenieria' && (
+        <SubirCarga
+          tipoInicial={TipoCarga.ingenieria_lote}
+          onCerrar={() => setDialogo(null)}
+          onAplicada={() => {
+            setDialogo(null);
+            setAviso('Ingeniería cargada. Si algo no cuadra, abre la obra y mide el renglón.');
+            void queryClient.invalidateQueries({
+              queryKey: getPresupuestoDeObrasApiV1PresupuestosObrasGetQueryKey(),
+            });
+          }}
+        />
+      )}
 
       {abierta && (
         <PanelRendimientos obra={abierta} onCerrar={() => setAbierta(null)} />

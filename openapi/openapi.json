@@ -11557,6 +11557,58 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/partes/carga": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Cuánta ingeniería de cada parte ya llegó (ESTADO_CARGA)",
+        "description": "Importe cargado entre presupuestado, por etapa. Una carga incompleta avisa, nunca\nbloquea (D-30): se puede mandar a programar con lo que llegó.",
+        "operationId": "carga_de_partes_api_v1_obras__obra_id__partes_carga_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CargaDePartesRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/arranque": {
       "get": {
         "tags": [
@@ -13994,6 +14046,89 @@
         ],
         "title": "CapturaAvancePeticion",
         "description": "Captura de avance (§6).\n\nLas mismas reglas se reflejan en el cliente para UX y se aplican de forma\nautoritativa en el servidor (§11.1)."
+      },
+      "CargaDeParteRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "etapa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa",
+            "description": "La clave de la etapa (`ECO-…`)."
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado",
+            "description": "`incompleto` · `completo`."
+          },
+          "porcentaje_cargado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Porcentaje Cargado",
+            "description": "Importe cargado / presupuestado, de 0 a 100."
+          },
+          "importe_presupuestado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe Presupuestado"
+          },
+          "importe_pendiente": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe Pendiente",
+            "description": "Lo que falta cargar."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "estado",
+          "porcentaje_cargado",
+          "importe_presupuestado",
+          "importe_pendiente"
+        ],
+        "title": "CargaDeParteRespuesta"
+      },
+      "CargaDePartesRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "incompletas": {
+            "type": "integer",
+            "title": "Incompletas"
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/CargaDeParteRespuesta"
+            },
+            "type": "array",
+            "title": "Partes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "incompletas",
+          "partes"
+        ],
+        "title": "CargaDePartesRespuesta"
       },
       "CargaRespuesta": {
         "properties": {

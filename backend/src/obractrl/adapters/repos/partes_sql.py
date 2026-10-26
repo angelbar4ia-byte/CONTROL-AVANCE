@@ -5,6 +5,7 @@ Nada aquí filtra por organización u obra para decidir qué es visible: lo impo
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -41,6 +42,47 @@ class RepositorioPartesSQL:
             )
         ).mappings().all()
         return [dict(f) for f in filas]
+
+    async def carga_por_etapa(self, obra_id: UUID) -> dict[str, Any]:
+        claves = {
+            str(f["id"]): f["clave"]
+            for f in (
+                await self._sesion.execute(
+                    text(
+                        """
+                        select distinct e.id, e.clave
+                          from actividad a join etapa_constructiva e on e.id = a.etapa_id
+                         where a.obra_id = :obra_id
+                        """
+                    ),
+                    {"obra_id": str(obra_id)},
+                )
+            ).mappings()
+        }
+        # Solo cuenta la ingeniería aplicada y no revertida (join, nunca una bandera propia).
+        cargado = {
+            f["etapa"]: Decimal(str(f["importe"]))
+            for f in (
+                await self._sesion.execute(
+                    text(
+                        """
+                        select ili.etapa,
+                               sum(coalesce(ili.importe, ili.cantidad * coalesce(ili.precio, 0))) as importe
+                          from ingenieria_lote_insumo ili
+                          join carga_datos cd on cd.id = ili.carga_id
+                         where ili.obra_id = :obra_id
+                           and cd.tipo = 'ingenieria_lote'
+                           and cd.estatus = 'aplicado'
+                           and cd.revertida_en is null
+                           and ili.etapa is not null
+                         group by ili.etapa
+                        """
+                    ),
+                    {"obra_id": str(obra_id)},
+                )
+            ).mappings()
+        }
+        return {"claves": claves, "cargado": cargado}
 
     async def plantas_de_obra(self, obra_id: UUID) -> dict[str, Any] | None:
         fila = (

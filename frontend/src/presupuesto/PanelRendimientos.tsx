@@ -23,11 +23,14 @@ import {
   useRendimientosPorCuadrillaApiV1ObrasObraIdRendimientosCuadrillasGet,
 } from '@/api/generado/presupuesto/presupuesto';
 import type {
+  ActividadRespuesta,
   RendimientoPorConceptoRespuesta,
   RendimientoPorCuadrillaRespuesta,
   ResumenDeObraRespuesta,
 } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
+import { useActividadesDeObraApiV1ObrasObraIdActividadesGet } from '@/api/generado/torre/torre';
+import { useAbrirCuantificador } from '@/cuantificador/VentanaCuantificador';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Sheet } from '@/lib/Sheet';
 import { fmtMXN, fmtNum } from '@/lib/formato';
@@ -90,7 +93,7 @@ export function PanelRendimientos({ obra, onCerrar }: Props) {
 
         <div className="table-scroll" style={{ maxHeight: 420 }}>
           {vista === 'conceptos' ? (
-            <TablaConceptos consulta={conceptos} />
+            <TablaConceptos obraId={obra.obra_id} consulta={conceptos} />
           ) : (
             <TablaCuadrillas consulta={cuadrillas} />
           )}
@@ -107,11 +110,23 @@ export function PanelRendimientos({ obra, onCerrar }: Props) {
 }
 
 function TablaConceptos({
+  obraId,
   consulta,
 }: {
+  readonly obraId: string;
   readonly consulta: { isLoading: boolean; data?: RendimientoPorConceptoRespuesta[] };
 }) {
   const filas = consulta.data ?? [];
+  // «Medir» abre la ventana del cuantificador sobre la actividad del renglón: comprobar una
+  // cantidad dudosa sin salir del presupuesto (escenario 2, paso 4). Informa; no corrige.
+  const abrirCuantificador = useAbrirCuantificador();
+  const actividades = useActividadesDeObraApiV1ObrasObraIdActividadesGet<ActividadRespuesta[], ErrorApi>(
+    obraId,
+    undefined,
+    { query: { enabled: filas.length > 0 } },
+  );
+  const actividadDe = (clave: string | null | undefined) =>
+    clave ? (actividades.data ?? []).find((a) => a.concepto_clave === clave) : undefined;
   return (
     <table className="table">
       <thead>
@@ -121,12 +136,13 @@ function TablaConceptos({
           <th className="is-num">Ejecutado</th>
           <th className="is-num">Desviación</th>
           <th>Estado</th>
+          <th className="cell-actions">Comprobar</th>
         </tr>
       </thead>
       <tbody>
         {consulta.isLoading ? (
           <tr>
-            <td colSpan={5}>
+            <td colSpan={6}>
               <div className="text-mute text-sm" style={{ padding: '16px 0' }}>
                 Cargando…
               </div>
@@ -134,7 +150,7 @@ function TablaConceptos({
           </tr>
         ) : filas.length === 0 ? (
           <tr>
-            <td colSpan={5}>
+            <td colSpan={6}>
               <div className="text-mute text-sm" style={{ padding: '16px 0' }}>
                 Sin presupuesto ni actividades que comparar.
               </div>
@@ -179,6 +195,21 @@ function TablaConceptos({
                 <span className={`badge badge--${tonoClasificacion(fila.clasificacion)}`}>
                   {etiquetaClasificacion(fila.clasificacion)}
                 </span>
+              </td>
+              <td className="cell-actions">
+                {actividadDe(fila.concepto_clave) && (
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    title="Medir este renglón sobre el plano y compararlo con la cantidad cargada"
+                    aria-label={`Medir ${fila.concepto_clave}`}
+                    onClick={() =>
+                      abrirCuantificador({ obraId, actividadId: actividadDe(fila.concepto_clave)!.id })
+                    }
+                  >
+                    Medir
+                  </button>
+                )}
               </td>
             </tr>
           ))

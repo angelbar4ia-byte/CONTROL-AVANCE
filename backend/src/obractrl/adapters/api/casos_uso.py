@@ -218,6 +218,7 @@ from obractrl.application.casos_uso.gestionar_partes import (
     ConsultarAlertasDePartes,
     ConsultarArranque,
     ConsultarBitacoraDePartes,
+    ConsultarCargaDePartes,
     ConsultarDesfaseDePartes,
     ConsultarPartes,
     FijarCandadoDeAsignar,
@@ -312,6 +313,7 @@ __all__ = [
     "ConsultarArbolProgramaDep",
     "ConsultarArranqueDep",
     "ConsultarBitacoraDePartesDep",
+    "ConsultarCargaDePartesDep",
     "ConsultarCargaDep",
     "ConsultarCierreDeObraDep",
     "ConsultarComprobacionesDep",
@@ -1338,6 +1340,12 @@ def obtener_consultar_partes(sesion: SesionRLS) -> ConsultarPartes:
     )
 
 
+def obtener_consultar_carga_de_partes(sesion: SesionRLS) -> ConsultarCargaDePartes:
+    return ConsultarCargaDePartes(
+        partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion)
+    )
+
+
 def obtener_marcar_parte_independiente(sesion: SesionRLS) -> MarcarParteIndependiente:
     return MarcarParteIndependiente(
         partes=RepositorioPartesSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
@@ -1436,6 +1444,9 @@ ConsultarBitacoraDePartesDep = Annotated[
     ConsultarBitacoraDePartes, Depends(obtener_consultar_bitacora_de_partes)
 ]
 ConsultarPartesDep = Annotated[ConsultarPartes, Depends(obtener_consultar_partes)]
+ConsultarCargaDePartesDep = Annotated[
+    ConsultarCargaDePartes, Depends(obtener_consultar_carga_de_partes)
+]
 MarcarParteIndependienteDep = Annotated[
     MarcarParteIndependiente, Depends(obtener_marcar_parte_independiente)
 ]

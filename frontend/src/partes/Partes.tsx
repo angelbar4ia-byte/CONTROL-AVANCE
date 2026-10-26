@@ -20,6 +20,7 @@ import {
   getBitacoraDePartesApiV1ObrasObraIdPartesBitacoraGetQueryKey,
   getPartesDeLaObraApiV1ObrasObraIdPartesGetQueryKey,
   useBitacoraDePartesApiV1ObrasObraIdPartesBitacoraGet,
+  useCargaDePartesApiV1ObrasObraIdPartesCargaGet,
   useCambiarEstadoDePartesApiV1ObrasObraIdPartesTransicionPost,
   usePartesDeLaObraApiV1ObrasObraIdPartesGet,
 } from '@/api/generado/partes/partes';
@@ -63,6 +64,11 @@ export default function Partes() {
   const bitacora = useBitacoraDePartesApiV1ObrasObraIdPartesBitacoraGet(obraId, {
     query: { enabled: obraId !== '' },
   });
+
+  const carga = useCargaDePartesApiV1ObrasObraIdPartesCargaGet(obraId, {
+    query: { enabled: obraId !== '' },
+  });
+  const cargaDe = new Map((carga.data?.partes ?? []).map((c) => [c.clave, c]));
 
   const mutacion = useCambiarEstadoDePartesApiV1ObrasObraIdPartesTransicionPost<ErrorApi>({
     mutation: {
@@ -132,6 +138,13 @@ export default function Partes() {
       </div>
 
       {error && <ErrorBanner mensaje={error} />}
+      {(carga.data?.incompletas ?? 0) > 0 && (
+        <div className="text-sm mb-8" role="status">
+          La ingeniería de {carga.data!.incompletas}{' '}
+          {carga.data!.incompletas === 1 ? 'parte está incompleta' : 'partes está incompleta'}: avisa, no
+          impide mandarlas a programar.
+        </div>
+      )}
       {consulta.error && <ErrorBanner mensaje={consulta.error.message} />}
       {aviso && (
         <div className="text-sm mb-8" role="status">
@@ -230,6 +243,7 @@ export default function Partes() {
                     <th style={{ minWidth: 160 }}>Tipo</th>
                     <th style={{ minWidth: 150 }}>Avance</th>
                     <th className="is-num">Importe</th>
+                    <th style={{ minWidth: 150 }}>Ingeniería cargada</th>
                     <th style={{ minWidth: 160 }}>Estado</th>
                   </tr>
                 </thead>
@@ -265,6 +279,20 @@ export default function Partes() {
                           </div>
                         </td>
                         <td className="is-num tnum">{fmtNum(p.importe)}</td>
+                        <td className="text-xs">
+                          {cargaDe.get(p.clave) ? (
+                            <span
+                              className={`badge badge--${cargaDe.get(p.clave)!.estado === 'completo' ? 'ok' : 'warn'}`}
+                              title={`Faltan ${fmtNum(cargaDe.get(p.clave)!.importe_pendiente)} por cargar`}
+                            >
+                              {cargaDe.get(p.clave)!.estado === 'completo'
+                                ? 'Completa'
+                                : `Incompleta · ${fmtPct(cargaDe.get(p.clave)!.porcentaje_cargado)}`}
+                            </span>
+                          ) : (
+                            <span className="text-mute">—</span>
+                          )}
+                        </td>
                         <td>
                           <span className={`badge badge--${tonoDeEstado(p.estado)}`}>{etiquetaDeEstado(p.estado)}</span>
                           {p.programa_por_revisar && (

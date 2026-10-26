@@ -30,6 +30,7 @@ import type {
   ArranqueRespuesta,
   CambiarEstadoPeticion,
   CandadoPeticion,
+  CargaDePartesRespuesta,
   DesfaseDePartesPeticion,
   DesfaseDePartesRespuesta,
   HTTPValidationError,
@@ -1708,6 +1709,392 @@ export function useAlertasDePartesApiV1ObrasObraIdPartesAlertasGet<
       obraId,
       options,
     );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Importe cargado entre presupuestado, por etapa. Una carga incompleta avisa, nunca
+bloquea (D-30): se puede mandar a programar con lo que llegó.
+ * @summary Cuánta ingeniería de cada parte ya llegó (ESTADO_CARGA)
+ */
+export const cargaDePartesApiV1ObrasObraIdPartesCargaGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CargaDePartesRespuesta>(
+    { url: `/api/v1/obras/${obraId}/partes/carga`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getCargaDePartesApiV1ObrasObraIdPartesCargaGetInfiniteQueryKey = (
+  obraId?: string,
+) => {
+  return ["infinite", `/api/v1/obras/${obraId}/partes/carga`] as const;
+};
+
+export const getCargaDePartesApiV1ObrasObraIdPartesCargaGetQueryKey = (
+  obraId?: string,
+) => {
+  return [`/api/v1/obras/${obraId}/partes/carga`] as const;
+};
+
+export const getCargaDePartesApiV1ObrasObraIdPartesCargaGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getCargaDePartesApiV1ObrasObraIdPartesCargaGetInfiniteQueryKey(obraId);
+
+    const queryFn: QueryFunction<
+      Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>
+    > = ({ signal }) =>
+      cargaDePartesApiV1ObrasObraIdPartesCargaGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type CargaDePartesApiV1ObrasObraIdPartesCargaGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>
+  >;
+export type CargaDePartesApiV1ObrasObraIdPartesCargaGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useCargaDePartesApiV1ObrasObraIdPartesCargaGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCargaDePartesApiV1ObrasObraIdPartesCargaGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCargaDePartesApiV1ObrasObraIdPartesCargaGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Cuánta ingeniería de cada parte ya llegó (ESTADO_CARGA)
+ */
+
+export function useCargaDePartesApiV1ObrasObraIdPartesCargaGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getCargaDePartesApiV1ObrasObraIdPartesCargaGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getCargaDePartesApiV1ObrasObraIdPartesCargaGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getCargaDePartesApiV1ObrasObraIdPartesCargaGetQueryKey(obraId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>
+  > = ({ signal }) =>
+    cargaDePartesApiV1ObrasObraIdPartesCargaGet(obraId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!obraId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type CargaDePartesApiV1ObrasObraIdPartesCargaGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>
+  >;
+export type CargaDePartesApiV1ObrasObraIdPartesCargaGetQueryError =
+  void | HTTPValidationError;
+
+export function useCargaDePartesApiV1ObrasObraIdPartesCargaGet<
+  TData = Awaited<
+    ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCargaDePartesApiV1ObrasObraIdPartesCargaGet<
+  TData = Awaited<
+    ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCargaDePartesApiV1ObrasObraIdPartesCargaGet<
+  TData = Awaited<
+    ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Cuánta ingeniería de cada parte ya llegó (ESTADO_CARGA)
+ */
+
+export function useCargaDePartesApiV1ObrasObraIdPartesCargaGet<
+  TData = Awaited<
+    ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof cargaDePartesApiV1ObrasObraIdPartesCargaGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getCargaDePartesApiV1ObrasObraIdPartesCargaGetQueryOptions(obraId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,

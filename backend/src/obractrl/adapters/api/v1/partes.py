@@ -19,6 +19,7 @@ from obractrl.adapters.api.casos_uso import (
     ConsultarAlertasDePartesDep,
     ConsultarArranqueDep,
     ConsultarBitacoraDePartesDep,
+    ConsultarCargaDePartesDep,
     ConsultarDesfaseDePartesDep,
     ConsultarPartesDep,
     FijarCandadoDeAsignarDep,
@@ -123,6 +124,22 @@ class AlertasDePartesRespuesta(BaseModel):
     aviso_dias: int
     importante_dias: int
     alertas: list[AlertaDeParteRespuesta]
+
+
+class CargaDeParteRespuesta(BaseModel):
+    clave: str
+    nombre: str
+    etapa: str | None = Field(default=None, description="La clave de la etapa (`ECO-…`).")
+    estado: str = Field(description="`incompleto` · `completo`.")
+    porcentaje_cargado: Decimal = Field(description="Importe cargado / presupuestado, de 0 a 100.")
+    importe_presupuestado: Decimal
+    importe_pendiente: Decimal = Field(description="Lo que falta cargar.")
+
+
+class CargaDePartesRespuesta(BaseModel):
+    obra_id: UUID
+    incompletas: int
+    partes: list[CargaDeParteRespuesta]
 
 
 class ParteSinAutorizarRespuesta(BaseModel):
@@ -274,6 +291,20 @@ async def alertas_de_partes(
     """El presupuesto debe ir por delante del programa (D-575): a 2 semanas de que lo necesite y
     sin autorizar, aviso; a 1 semana o vencida, importante. Avisa; no bloquea."""
     return AlertasDePartesRespuesta(**await caso_uso.ejecutar(obra_id))
+
+
+@router.get(
+    "/obras/{obra_id}/partes/carga",
+    response_model=CargaDePartesRespuesta,
+    summary="Cuánta ingeniería de cada parte ya llegó (ESTADO_CARGA)",
+    responses=_NO_ENCONTRADO,
+)
+async def carga_de_partes(
+    obra_id: UUID, caso_uso: ConsultarCargaDePartesDep
+) -> CargaDePartesRespuesta:
+    """Importe cargado entre presupuestado, por etapa. Una carga incompleta avisa, nunca
+    bloquea (D-30): se puede mandar a programar con lo que llegó."""
+    return CargaDePartesRespuesta(**await caso_uso.ejecutar(obra_id))
 
 
 @router.get(

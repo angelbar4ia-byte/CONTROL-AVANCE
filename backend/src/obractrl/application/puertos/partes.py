@@ -14,6 +14,11 @@ class RepositorioPartes(Protocol):
         `parte_independiente`, ordenadas por nivel, etapa y concepto."""
         ...
 
+    async def carga_por_etapa(self, obra_id: UUID) -> dict[str, Any]:
+        """`{claves: {etapa_id: clave}, cargado: {clave de etapa: importe}}`: la clave de cada
+        etapa de la obra y lo que la ingeniería ya aplicada (y no revertida) trajo de cada una."""
+        ...
+
     async def plantas_de_obra(self, obra_id: UUID) -> dict[str, Any] | None:
         """`{plantas, plantas_del_prototipo}` de la obra, o `None` si no se ve."""
         ...

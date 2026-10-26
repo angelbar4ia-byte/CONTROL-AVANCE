@@ -30,6 +30,7 @@ from obractrl.domain.partes.alertas import (
     severidad_del_desfase,
     validar_umbrales,
 )
+from obractrl.domain.partes.carga import EstadoDeCarga, estado_de_carga
 from obractrl.domain.partes.estado import (
     ORDEN,
     PERMISOS,
@@ -40,7 +41,12 @@ from obractrl.domain.partes.estado import (
     aplicar,
     deja_programa_por_revisar,
 )
-from obractrl.domain.partes.parte import ActividadParaParte, Parte, agrupar_en_partes
+from obractrl.domain.partes.parte import (
+    ActividadParaParte,
+    Parte,
+    TipoDeParte,
+    agrupar_en_partes,
+)
 from obractrl.domain.shared.diccionario import Rol
 
 __all__ = [
@@ -133,6 +139,45 @@ class ConsultarPartes:
                 for p in await _partes_de(self._partes, obra_id)
             ],
         }
+
+
+class ConsultarCargaDePartes:
+    """`GET /obras/{id}/partes/carga`: cuánta ingeniería de cada parte ya llegó (`ESTADO_CARGA`).
+
+    Se calcula al leer (el cerebro lo llama caché, nunca fuente de verdad). Una carga
+    incompleta **nunca bloquea**: avisa lo que falta (D-30). Solo las etapas reciben ingeniería
+    por etapa; un concepto independiente no tiene carga propia y no aparece.
+    """
+
+    def __init__(self, *, partes: RepositorioPartes, obras: RepositorioObras) -> None:
+        self._partes = partes
+        self._obras = obras
+
+    async def ejecutar(self, obra_id: UUID) -> dict[str, Any]:
+        if await self._obras.obtener(obra_id) is None:
+            raise ObraNoEncontrada(f"Obra {obra_id} no encontrada en tu alcance.")
+        carga = await self._partes.carga_por_etapa(obra_id)
+        partes = []
+        for p in await _partes_de(self._partes, obra_id):
+            if p.tipo is not TipoDeParte.ETAPA or p.id is None:
+                continue
+            etapa = carga["claves"].get(p.id)
+            estado = estado_de_carga(
+                cargado=carga["cargado"].get(etapa, Decimal("0")), presupuestado=p.importe
+            )
+            partes.append(
+                {
+                    "clave": p.clave,
+                    "nombre": p.nombre,
+                    "etapa": etapa,
+                    "estado": estado.estado.value,
+                    "porcentaje_cargado": estado.porcentaje_cargado,
+                    "importe_presupuestado": p.importe,
+                    "importe_pendiente": estado.importe_pendiente,
+                }
+            )
+        incompletas = sum(1 for p in partes if p["estado"] == EstadoDeCarga.INCOMPLETO.value)
+        return {"obra_id": obra_id, "incompletas": incompletas, "partes": partes}
 
 
 class MarcarParteIndependiente:

@@ -542,3 +542,76 @@ async def test_con_candado_no_se_asigna_lo_validado_sin_anotacion(
     r = await _paso(control, escenario, "asignar", claves=[clave])
     assert r.status_code == 409 and "anotación" in r.text
     assert (await _estados(control, escenario))[clave] == "programada"
+
+
+async def _cargar_ingenieria(escenario: Escenario, etapa: str, importe: int, revertida: bool = False) -> None:
+    """Una carga de ingeniería del lote ya aplicada con una fila de insumo para `etapa`."""
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    carga = uuid.uuid4()
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "insert into carga_datos (id, org_id, tipo, estatus, revertida_en) "
+                "values (:i, :o, 'ingenieria_lote', 'aplicado', "
+                "case when :r then now() end)"
+            ),
+            {"i": str(carga), "o": str(escenario.org_id), "r": revertida},
+        )
+        await conn.execute(
+            text(
+                "insert into ingenieria_lote_insumo "
+                "(org_id, obra_id, carga_id, clave, descripcion, cantidad, importe, etapa, fila) "
+                "values (:o, :ob, :c, 'INS-1', 'Insumo', 1, :imp, :e, 0)"
+            ),
+            {"o": str(escenario.org_id), "ob": str(escenario.obra_id), "c": str(carga), "imp": importe, "e": etapa},
+        )
+    await engine.dispose()
+
+
+async def test_la_ingenieria_llega_por_partes_y_una_carga_incompleta_solo_avisa(
+    escenario: Escenario, partes: dict, control: httpx.AsyncClient
+) -> None:
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    async with engine.begin() as conn:  # la etapa 2 vale algo: 100 × 10
+        await conn.execute(
+            text("update actividad set precio_unitario = 10 where id = :a"), {"a": partes["actividad_b"]}
+        )
+    await engine.dispose()
+    ver = lambda: control.get(f"/api/v1/obras/{escenario.obra_id}/partes/carga")  # noqa: E731
+    r = await ver()
+    assert r.status_code == 200, r.text
+    cuerpo = r.json()
+    assert cuerpo["incompletas"] == 2
+    assert {p["estado"] for p in cuerpo["partes"]} == {"incompleto"}
+    por_clave = {p["clave"]: p for p in cuerpo["partes"]}
+    assert por_clave[partes["a"]]["etapa"] == "ECO-1"
+    assert por_clave[partes["a"]]["porcentaje_cargado"] in ("0", "0.00", "0.0")
+
+    pres = float(por_clave[partes["b"]]["importe_presupuestado"])
+    assert pres > 0
+    # Llega la mitad de la etapa 2: sigue incompleta y dice cuánto falta.
+    await _cargar_ingenieria(escenario, "ECO-2", int(pres / 2))
+    b = {p["clave"]: p for p in (await ver()).json()["partes"]}[partes["b"]]
+    assert b["estado"] == "incompleto"
+    assert 49 <= float(b["porcentaje_cargado"]) <= 51
+    assert float(b["importe_pendiente"]) > 0
+    # Llega lo demás: completa. Una carga revertida no cuenta.
+    await _cargar_ingenieria(escenario, "ECO-2", int(pres), revertida=True)
+    await _cargar_ingenieria(escenario, "ECO-2", int(pres))
+    cuerpo = (await ver()).json()
+    b = {p["clave"]: p for p in cuerpo["partes"]}[partes["b"]]
+    assert (b["estado"], float(b["porcentaje_cargado"])) == ("completo", 100.0)
+    assert cuerpo["incompletas"] == 1
+
+    # Una carga incompleta nunca bloquea: la parte incompleta recorre su camino.
+    for accion in ("enviar_a_presupuesto", "autorizar", "validar", "enviar_a_programa"):
+        assert (await _paso(control, escenario, accion, claves=[partes["a"]])).status_code == 200
+
+
+async def test_la_carga_de_otra_organizacion_no_se_ve(
+    escenario: Escenario, partes: dict, contexto_ajeno: ContextoSesion
+) -> None:
+    ajeno = ContextoSesion(org_id=contexto_ajeno.org_id, usuario_id=contexto_ajeno.usuario_id, rol="control_obra")
+    async with _cliente(ajeno) as c:
+        r = await c.get(f"/api/v1/obras/{escenario.obra_id}/partes/carga")
+        assert r.status_code == 404
