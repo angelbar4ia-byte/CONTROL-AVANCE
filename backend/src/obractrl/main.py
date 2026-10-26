@@ -46,6 +46,7 @@ from obractrl.application.casos_uso.calcular_cpu import ConceptoNoEncontrado
 from obractrl.application.casos_uso.capturar_avance import (
     ActividadBloqueada,
     ActividadNoEncontrada,
+    FrenteCerrado,
 )
 from obractrl.application.casos_uso.comprobar_excedente import ActividadSinComprobacion
 from obractrl.application.casos_uso.confirmar_avance import (
@@ -73,6 +74,10 @@ from obractrl.application.casos_uso.gestionar_carga import (
     CargaNoRevertible,
 )
 from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEncontrada
+from obractrl.application.casos_uso.gestionar_cierre_de_frente import (
+    CierreDeFrenteNoEncontrado,
+    FrenteNoEncontrado,
+)
 from obractrl.application.casos_uso.gestionar_cierre_de_obra import (
     CierreDeObraNoEncontrado,
 )
@@ -598,6 +603,28 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             detalle=str(exc),
         )
 
+    @app.exception_handler(CierreDeFrenteNoEncontrado)
+    async def _cierre_de_frente_no_encontrado(
+        request: Request, exc: CierreDeFrenteNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="cierre-de-frente-no-encontrado",
+            titulo="Cierre de frente no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(FrenteNoEncontrado)
+    async def _frente_no_encontrado(request: Request, exc: FrenteNoEncontrado) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="frente-no-encontrado",
+            titulo="Frente no encontrado",
+            detalle=str(exc),
+        )
+
     @app.exception_handler(ErrorDeConfirmacion)
     async def _confirmacion(request: Request, exc: ErrorDeConfirmacion) -> JSONResponse:
         return _problema(
@@ -859,6 +886,16 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="actividad-no-encontrada",
             titulo="Actividad no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(FrenteCerrado)
+    async def _frente_cerrado(request: Request, exc: FrenteCerrado) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="frente-cerrado",
+            titulo="El frente está cerrado",
             detalle=str(exc),
         )
 

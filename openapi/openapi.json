@@ -5895,6 +5895,379 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/cierres-frente": {
+      "get": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Los frentes de una obra con su avance y su cierre",
+        "description": "Todos los roles, cada uno con su alcance. Marca los frentes listos para\ncierre (90 %): una alerta que avisa, no cierra.",
+        "operationId": "frentes_de_la_obra_api_v1_obras__obra_id__cierres_frente_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FrenteParaCierreRespuesta"
+                  },
+                  "title": "Response Frentes De La Obra Api V1 Obras  Obra Id  Cierres Frente Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Solicitar el cierre de un frente (al 90 % de avance)",
+        "description": "El residente solicita el cierre del frente.",
+        "operationId": "solicitar_cierre_de_frente_api_v1_obras__obra_id__cierres_frente_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitarCierreDeFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreDeFrenteRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no tiene actividades en ese frente."
+          },
+          "409": {
+            "description": "El frente aún no llega al 90 %, o ya tiene un cierre vivo."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cierres-frente/{cierre_id}/aprobar": {
+      "post": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Aprobar el cierre de un frente",
+        "operationId": "aprobar_cierre_de_frente_api_v1_cierres_frente__cierre_id__aprobar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cierre_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cierre Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreDeFrenteRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El cierre no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Transición de cierre no permitida."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cierres-frente/{cierre_id}/validar": {
+      "post": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Validar el cierre de un frente (el residente ya no registra avance ahí)",
+        "operationId": "validar_cierre_de_frente_api_v1_cierres_frente__cierre_id__validar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cierre_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cierre Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidarCierreDeFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreDeFrenteRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El cierre no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Transición de cierre no permitida."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cierres-frente/{cierre_id}/rechazar": {
+      "post": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Rechazar el cierre de un frente",
+        "operationId": "rechazar_cierre_de_frente_api_v1_cierres_frente__cierre_id__rechazar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cierre_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cierre Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechazarCierreDeFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreDeFrenteRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El cierre no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Transición de cierre no permitida."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/cierre-obra": {
       "post": {
         "tags": [
@@ -12478,6 +12851,80 @@
         "type": "object",
         "title": "CerrarIncidenciaPeticion"
       },
+      "CierreDeFrenteRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "nivel_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Nivel Id"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "description": "`solicitado` · `aprobado` · `validado` · `rechazado`."
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct",
+            "description": "El avance del frente cuando se solicitó."
+          },
+          "solicitado_por": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Solicitado Por"
+          },
+          "aprobado_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aprobado Por"
+          },
+          "validado_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validado Por"
+          },
+          "comentarios": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comentarios"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nivel_id",
+          "estatus",
+          "avance_pct",
+          "solicitado_por"
+        ],
+        "title": "CierreDeFrenteRespuesta"
+      },
       "CierreDeObraRespuesta": {
         "properties": {
           "id": {
@@ -17197,6 +17644,144 @@
         "title": "FrenteDelReporteRespuesta",
         "description": "Un renglón de «Resumen general»: un frente, cuánto suma y qué\nproporción de la semana es."
       },
+      "FrenteParaCierreRespuesta": {
+        "properties": {
+          "nivel_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Nivel Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "n_actividades": {
+            "type": "integer",
+            "title": "N Actividades"
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct",
+            "description": "Ponderado por costo, como el avance de la obra."
+          },
+          "umbral_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Umbral Pct",
+            "description": "Desde aquí el residente puede solicitar el cierre."
+          },
+          "listo_para_cierre": {
+            "type": "boolean",
+            "title": "Listo Para Cierre",
+            "description": "`frente_listo_para_cierre`: llegó al umbral y no se ha solicitado su cierre. Avisa, no cierra: el cierre pregunta, no impide."
+          },
+          "cierre_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cierre Id"
+          },
+          "cierre_estatus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cierre Estatus",
+            "description": "El cierre vivo del frente, o el rechazado más reciente (con su motivo)."
+          },
+          "cierre_avance_pct": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cierre Avance Pct"
+          },
+          "solicitado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solicitado En"
+          },
+          "aprobado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aprobado En"
+          },
+          "validado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validado En"
+          },
+          "cierre_comentarios": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cierre Comentarios"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nivel_id",
+          "clave",
+          "n_actividades",
+          "avance_pct",
+          "umbral_pct",
+          "listo_para_cierre"
+        ],
+        "title": "FrenteParaCierreRespuesta"
+      },
       "FrenteRespuesta": {
         "properties": {
           "id": {
@@ -21343,6 +21928,21 @@
         "type": "object",
         "title": "PublicarCPUPeticion"
       },
+      "RechazarCierreDeFrentePeticion": {
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Motivo",
+            "description": "Obligatorio: es lo que el residente corrige."
+          }
+        },
+        "type": "object",
+        "required": [
+          "motivo"
+        ],
+        "title": "RechazarCierreDeFrentePeticion"
+      },
       "RechazarCierrePeticion": {
         "properties": {
           "motivo": {
@@ -22915,6 +23515,21 @@
         ],
         "title": "SolicitarCambioPeticion"
       },
+      "SolicitarCierreDeFrentePeticion": {
+        "properties": {
+          "nivel_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Nivel Id",
+            "description": "El frente que se cierra: un nivel de la obra."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nivel_id"
+        ],
+        "title": "SolicitarCierreDeFrentePeticion"
+      },
       "SolicitarCierrePeticion": {
         "properties": {
           "cantidad": {
@@ -23566,6 +24181,23 @@
         ],
         "title": "UsuarioRespuesta",
         "description": "Una persona del equipo, como la ve la pantalla de Equipo (§5.1)."
+      },
+      "ValidarCierreDeFrentePeticion": {
+        "properties": {
+          "comentario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comentario"
+          }
+        },
+        "type": "object",
+        "title": "ValidarCierreDeFrentePeticion"
       },
       "ValidarCierrePeticion": {
         "properties": {

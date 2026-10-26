@@ -16,6 +16,7 @@ from obractrl.adapters.api.v1.bitacora import router as router_bitacora
 from obractrl.adapters.api.v1.cargas import router as router_cargas
 from obractrl.adapters.api.v1.catalogos import router as router_catalogos
 from obractrl.adapters.api.v1.cierres import router as router_cierres
+from obractrl.adapters.api.v1.cierres_frente import router as router_cierres_frente
 from obractrl.adapters.api.v1.cierres_obra import router as router_cierres_obra
 from obractrl.adapters.api.v1.cliente import router as router_cliente
 from obractrl.adapters.api.v1.comprobaciones import router as router_comprobaciones
@@ -68,6 +69,7 @@ api_v1.include_router(router_avance)
 api_v1.include_router(router_comprobaciones)
 api_v1.include_router(router_confirmacion_avance)
 api_v1.include_router(router_cierres)
+api_v1.include_router(router_cierres_frente)
 api_v1.include_router(router_cierres_obra)
 api_v1.include_router(router_estimacion)
 api_v1.include_router(router_materiales)

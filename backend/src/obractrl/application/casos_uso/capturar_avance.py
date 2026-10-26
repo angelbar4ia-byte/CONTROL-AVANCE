@@ -27,6 +27,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
+from obractrl.application.puertos.cierre_frente import RepositorioCierresDeFrente
 from obractrl.application.puertos.repositorios import (
     RegistroNoEncontrado,
     RepositorioActividades,
@@ -37,9 +38,9 @@ from obractrl.domain.avance.reglas import (
     ErrorDeCaptura,
     aplicar_captura,
 )
-from obractrl.domain.shared.diccionario import EstatusActividad
+from obractrl.domain.shared.diccionario import EstatusActividad, Rol
 
-__all__ = ["CapturarAvance", "ComandoCapturarAvance"]
+__all__ = ["CapturarAvance", "ComandoCapturarAvance", "FrenteCerrado"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +53,9 @@ class ComandoCapturarAvance:
     cant_programada: Decimal | None = None
     fecha: date | None = None
     evidencias: tuple[str, ...] = ()
+    rol: Rol | None = None
+    """El rol de quien captura. Sirve para una sola regla: un frente cerrado cierra
+    **al residente** (D-516). `None` = captura interna sin rol (no aplica)."""
 
 
 class ActividadNoEncontrada(LookupError):
@@ -62,6 +66,12 @@ class ActividadBloqueada(RuntimeError):
     """Una incidencia con impacto `detiene` frena la actividad (§6)."""
 
 
+class FrenteCerrado(RuntimeError):
+    """El frente de la actividad ya está cerrado: el residente ya no registra avance
+    ahí (D-516). Para los demás roles sigue abierto hasta la entrega de la casa —hoy
+    solo el residente captura avance, así que es él a quien la regla alcanza—."""
+
+
 class CapturarAvance:
     """Aplica una captura de avance sobre una actividad."""
 
@@ -70,9 +80,11 @@ class CapturarAvance:
         *,
         actividades: RepositorioActividades,
         uow: UnidadDeTrabajo,
+        cierres_de_frente: RepositorioCierresDeFrente | None = None,
     ) -> None:
         self._actividades = actividades
         self._uow = uow
+        self._cierres_de_frente = cierres_de_frente
 
     async def ejecutar(self, cmd: ComandoCapturarAvance) -> CapturaAvance:
         # Con bloqueo, no con `obtener`: esto es un lee-modifica-escribe y desde
@@ -93,6 +105,16 @@ class CapturarAvance:
                 "La actividad está bloqueada por una incidencia que detiene la "
                 "obra. Atiende la incidencia antes de capturar avance (§6)."
             )
+
+        if cmd.rol is Rol.RESIDENTE and self._cierres_de_frente is not None:
+            cerrado = await self._cierres_de_frente.frente_de_actividad_cerrado(
+                cmd.actividad_id
+            )
+            if cerrado is not None:
+                raise FrenteCerrado(
+                    f"El frente {cerrado['clave']} ya está cerrado: el residente ya no "
+                    f"registra avance ahí (D-516)."
+                )
 
         cant_base = Decimal(str(actividad["cant_base"]))
         cant_programada = (

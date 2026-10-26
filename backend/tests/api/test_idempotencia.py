@@ -202,6 +202,13 @@ class TestContrato:
             # Confirmar el avance agrega una fila a una bitácora que no se
             # reescribe: un reintento por red caída dejaría dos confirmaciones.
             "POST /api/v1/actividades/{actividad_id}/avance/confirmar",
+            # El cierre de un frente (0071) lleva las manos del cierre de
+            # actividad —solicita, aprueba, valida, rechaza— y, como ese, deja un
+            # trámite con folio de quién y cuándo que un doble clic no debe repetir.
+            "POST /api/v1/obras/{obra_id}/cierres-frente",
+            "POST /api/v1/cierres-frente/{cierre_id}/aprobar",
+            "POST /api/v1/cierres-frente/{cierre_id}/validar",
+            "POST /api/v1/cierres-frente/{cierre_id}/rechazar",
         }
 
     def test_es_opcional(self) -> None:

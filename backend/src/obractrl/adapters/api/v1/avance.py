@@ -104,6 +104,7 @@ async def capturar_avance(
             cant_programada=peticion.cant_programada,
             fecha=peticion.fecha,
             evidencias=tuple(peticion.evidencias),
+            rol=Rol(ctx.rol),
         )
     )
     return AvanceRespuesta(

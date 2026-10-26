@@ -24,6 +24,7 @@ from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.asignaciones_sql import RepositorioAsignacionesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
+from obractrl.adapters.repos.cierres_frente_sql import RepositorioCierresDeFrenteSQL
 from obractrl.adapters.repos.cierres_obra_sql import RepositorioCierresDeObraSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
@@ -158,6 +159,13 @@ from obractrl.application.casos_uso.gestionar_cierre import (
     SolicitarCierre,
     ValidarCierre,
 )
+from obractrl.application.casos_uso.gestionar_cierre_de_frente import (
+    AprobarCierreDeFrente,
+    ConsultarFrentesDeObra,
+    RechazarCierreDeFrente,
+    SolicitarCierreDeFrente,
+    ValidarCierreDeFrente,
+)
 from obractrl.application.casos_uso.gestionar_cierre_de_obra import (
     AbrirCierreDeObra,
     ConsultarCierreDeObra,
@@ -254,6 +262,7 @@ __all__ = [
     "ActualizarUsuarioDep",
     "AgregarDocumentoDep",
     "AgregarRespuestasDep",
+    "AprobarCierreDeFrenteDep",
     "AprobarTrazoDep",
     "ArmarExpedienteDep",
     "ArmarReporteDeEstimacionDep",
@@ -275,6 +284,7 @@ __all__ = [
     "ConsultarDesviacionesDep",
     "ConsultarEdicionesDeProgramaDep",
     "ConsultarExpedienteDep",
+    "ConsultarFrentesDeObraDep",
     "ConsultarInsumosProgramadosDep",
     "ConsultarPlaneacionDep",
     "ConsultarRutaCriticaDep",
@@ -314,6 +324,7 @@ __all__ = [
     "ProgramarNodoDelArbolDep",
     "PublicarVersionCPUDep",
     "RecalcularRutaCriticaDep",
+    "RechazarCierreDeFrenteDep",
     "RechazarCierreDep",
     "RechazarIncidenciaDep",
     "ReemplazarEnlaceDep",
@@ -330,7 +341,9 @@ __all__ = [
     "RevertirCargaDep",
     "RevertirCargaEnCadenaDep",
     "RevertirGeneracionDeObraDep",
+    "SolicitarCierreDeFrenteDep",
     "SolicitarCierreDep",
+    "ValidarCierreDeFrenteDep",
     "ValidarCierreDep",
     "ValidarEstimacionDep",
     "ValidarExcedenteDep",
@@ -341,6 +354,7 @@ def obtener_capturar_avance(sesion: SesionRLS) -> CapturarAvance:
     return CapturarAvance(
         actividades=RepositorioActividadesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+        cierres_de_frente=RepositorioCierresDeFrenteSQL(sesion),
     )
 
 
@@ -699,6 +713,36 @@ def obtener_consultar_confirmaciones(sesion: SesionRLS) -> ConsultarConfirmacion
     return ConsultarConfirmaciones(
         confirmaciones=RepositorioConfirmacionesSQL(sesion),
         obras=RepositorioObrasSQL(sesion),
+    )
+
+
+def obtener_consultar_frentes_de_obra(sesion: SesionRLS) -> ConsultarFrentesDeObra:
+    return ConsultarFrentesDeObra(
+        cierres=RepositorioCierresDeFrenteSQL(sesion), obras=RepositorioObrasSQL(sesion)
+    )
+
+
+def obtener_solicitar_cierre_de_frente(sesion: SesionRLS) -> SolicitarCierreDeFrente:
+    return SolicitarCierreDeFrente(
+        cierres=RepositorioCierresDeFrenteSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+def obtener_aprobar_cierre_de_frente(sesion: SesionRLS) -> AprobarCierreDeFrente:
+    return AprobarCierreDeFrente(
+        cierres=RepositorioCierresDeFrenteSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+def obtener_validar_cierre_de_frente(sesion: SesionRLS) -> ValidarCierreDeFrente:
+    return ValidarCierreDeFrente(
+        cierres=RepositorioCierresDeFrenteSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+def obtener_rechazar_cierre_de_frente(sesion: SesionRLS) -> RechazarCierreDeFrente:
+    return RechazarCierreDeFrente(
+        cierres=RepositorioCierresDeFrenteSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
     )
 
 
@@ -1177,6 +1221,21 @@ EditarProgramacionActividadDep = Annotated[
 ConfirmarAvanceDep = Annotated[ConfirmarAvance, Depends(obtener_confirmar_avance)]
 ConsultarConfirmacionesDep = Annotated[
     ConsultarConfirmaciones, Depends(obtener_consultar_confirmaciones)
+]
+ConsultarFrentesDeObraDep = Annotated[
+    ConsultarFrentesDeObra, Depends(obtener_consultar_frentes_de_obra)
+]
+SolicitarCierreDeFrenteDep = Annotated[
+    SolicitarCierreDeFrente, Depends(obtener_solicitar_cierre_de_frente)
+]
+AprobarCierreDeFrenteDep = Annotated[
+    AprobarCierreDeFrente, Depends(obtener_aprobar_cierre_de_frente)
+]
+ValidarCierreDeFrenteDep = Annotated[
+    ValidarCierreDeFrente, Depends(obtener_validar_cierre_de_frente)
+]
+RechazarCierreDeFrenteDep = Annotated[
+    RechazarCierreDeFrente, Depends(obtener_rechazar_cierre_de_frente)
 ]
 ConsultarDesviacionesDep = Annotated[
     ConsultarDesviaciones, Depends(obtener_consultar_desviaciones)
