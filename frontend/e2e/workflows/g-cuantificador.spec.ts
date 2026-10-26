@@ -437,4 +437,47 @@ test.describe('Cuantificador · trazar un polígono', () => {
     // Es una marca de revisión, no una compuerta: la cantidad es la misma.
     expect(await medido()).toBe(antes);
   });
+
+  test('un polígono con los bordes cruzados no se guarda: el motivo llega a la pantalla', async ({
+    page,
+    request,
+  }) => {
+    const obra = await obraG(request);
+    await llamarApi(request, 'residente', 'POST', `/obras/${obra.id}/planos`, {
+      nombre: 'Plano de la corbata',
+      archivo_url: 'e2e/corbata.dwg',
+    });
+
+    await entrarComo(page, 'residente');
+    await page.goto('/cuantificador');
+    await page.getByLabel('Obra', { exact: true }).selectOption({ label: 'OBRA-G' });
+    await page.getByLabel('Plano', { exact: true }).selectOption({ label: 'Plano de la corbata · v1' });
+
+    const caja = (await page.getByRole('img', { name: 'Plano con sus trazos' }).boundingBox())!;
+    await page.getByRole('button', { name: 'Polígono', exact: true }).click();
+    // Cuatro vértices en orden de «corbata»: los lados 1-2 y 3-4 se cruzan. El
+    // área firmada se cancela y PostGIS mediría 0: el trazo sumaría cero en silencio.
+    for (const [fx, fy] of [
+      [0.3, 0.2],
+      [0.7, 0.5],
+      [0.7, 0.2],
+      [0.3, 0.5],
+    ] as const) {
+      await page.mouse.click(caja.x + caja.width * fx, caja.y + caja.height * fy);
+    }
+    await page.keyboard.press('Enter');
+
+    const alta = page.getByRole('dialog', { name: 'Guardar polígono' });
+    const valor = await alta
+      .locator('#enlace-actividad-0 option', { hasText: 'E2E-EXC' })
+      .getAttribute('value');
+    await alta.getByLabel('Actividad 1').selectOption(valor!);
+    await alta.getByLabel('Medida').selectOption('area');
+    await alta.getByRole('button', { name: 'Guardar trazo' }).click();
+
+    await expect(alta.getByRole('alert')).toContainText('inválida');
+    // El cajón sigue abierto con lo dibujado: quien traza corrige y reintenta.
+    await expect(alta).toBeVisible();
+    await expect(page.locator('.visor__trazo')).toHaveCount(0);
+  });
 });

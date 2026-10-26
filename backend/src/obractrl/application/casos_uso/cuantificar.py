@@ -351,6 +351,12 @@ class RegistrarTrazoConEnlaces:
     ) -> TrazoRegistrado:
         _exigir_gobierno(cmd.rol, cmd.enlaces)
 
+        # Antes de abrir la transacción: una geometría inválida se rechaza con un
+        # motivo legible, no se acepta para medir cero ni revienta como un 500.
+        motivo = await self._trazos.motivo_de_geometria_invalida(cmd.geometria_wkt)
+        if motivo is not None:
+            raise ErrorDeCuantificacion(f"El trazo no se puede medir. {motivo}")
+
         async with self._uow:
             trazo_id = await self._trazos.crear(
                 plano_id=cmd.plano_id,

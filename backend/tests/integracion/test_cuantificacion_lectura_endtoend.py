@@ -442,3 +442,67 @@ async def test_solo_control_aprueba_y_lo_que_no_existe_es_404(
     async with _cliente(control_ajeno) as ajeno:
         assert (await ajeno.post(f"/api/v1/trazos/{trazo_id}/aprobar")).status_code == 404
     assert (await _primer_trazo(cliente_control, plano_id))["aprobado_por"] is None
+
+
+async def test_un_trazo_que_no_se_puede_medir_se_rechaza_con_un_motivo(
+    escenario: Escenario, cliente_control: httpx.AsyncClient
+) -> None:
+    """PostGIS acepta un polígono con bordes cruzados y `ST_Area` devuelve 0:
+    el trazo sumaría cero a la cantidad sin que nadie lo notara. Y un texto que
+    no es WKT no debe reventar como un 500."""
+    plano_id, _, _ = await _plano_con_dos_trazos(cliente_control, escenario)
+
+    async def intentar(wkt: str) -> httpx.Response:
+        return await cliente_control.post(
+            f"/api/v1/planos/{plano_id}/trazos",
+            json={
+                "version_plano": 1,
+                "fuente": "pdf",
+                "geometria_wkt": wkt,
+                "enlaces": [
+                    {"medida": "area", "factor": "1", "actividad_id": str(escenario.actividad_id)}
+                ],
+            },
+        )
+
+    corbata = await intentar("POLYGON((0 0,10 10,10 0,0 10,0 0))")
+    assert corbata.status_code == 422, corbata.text
+    assert corbata.json()["type"].endswith("regla-de-cuantificacion")
+    assert "inválida" in corbata.json()["detail"]
+
+    roto = await intentar("POLYGON((0 0,1 1))")
+    assert roto.status_code == 422, roto.text
+
+    basura = await intentar("esto no es una geometría")
+    assert basura.status_code == 422, basura.text
+
+    # Nada de lo rechazado quedó guardado: el plano conserva sus dos trazos.
+    trazos = (await cliente_control.get(f"/api/v1/planos/{plano_id}/trazos")).json()
+    assert len(trazos["features"]) == 2
+
+
+async def test_un_poligono_con_hueco_si_se_acepta_y_descuenta_la_abertura(
+    escenario: Escenario, cliente_control: httpx.AsyncClient
+) -> None:
+    """Un polígono con hueco es válido y es la forma de descontar una abertura:
+    la validación no debe confundirlo con uno roto."""
+    await _preparar_actividad_con_concepto(
+        org_id=escenario.org_id,
+        actividad_id=escenario.actividad_id,
+        precio_unitario=Decimal("10"),
+    )
+    plano_id, _, _ = await _plano_con_dos_trazos(cliente_control, escenario)
+    respuesta = await cliente_control.post(
+        f"/api/v1/planos/{plano_id}/trazos",
+        json={
+            "version_plano": 1,
+            "fuente": "pdf",
+            "geometria_wkt": "POLYGON((0 0,10 0,10 10,0 10,0 0),(2 2,4 2,4 4,2 4,2 2))",
+            "enlaces": [
+                {"medida": "area", "factor": "1", "actividad_id": str(escenario.actividad_id)}
+            ],
+        },
+    )
+    assert respuesta.status_code == 201, respuesta.text
+    # 100 del cuadro − 4 del hueco, sumado a los 12 + 1 que ya traía el plano.
+    assert Decimal(respuesta.json()["recalculos"][0]["cantidad_total"]) == Decimal("109")

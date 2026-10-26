@@ -25,6 +25,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 __all__ = [
@@ -186,6 +187,41 @@ class RepositorioTrazosSQL:
             )
         ).scalar_one()
         return fila
+
+    async def motivo_de_geometria_invalida(self, geometria_wkt: str) -> str | None:
+        """Por qué el WKT no sirve para medir, o `None` si sirve.
+
+        Dos cosas distintas pasan por aquí: un texto que ni siquiera es WKT
+        (PostGIS lo rechaza al leerlo) y una geometría bien formada pero
+        **inválida**, como un polígono cuyos bordes se cruzan. La segunda es la
+        peligrosa: PostGIS la acepta y `ST_Area` devuelve 0 en silencio, así que
+        el trazo sumaría cero a la cantidad sin que nadie lo notara.
+
+        El `SAVEPOINT` (`begin_nested`) es lo que permite probar un WKT roto sin
+        abortar la transacción de quien llama.
+        """
+        try:
+            async with self._sesion.begin_nested():
+                fila = (
+                    await self._sesion.execute(
+                        text(
+                            """
+                            select ST_IsValid(g) as valida,
+                                   ST_IsValidReason(g) as motivo,
+                                   ST_IsEmpty(g) as vacia
+                              from (select ST_GeomFromText(:wkt, 0) as g) s
+                            """
+                        ),
+                        {"wkt": geometria_wkt},
+                    )
+                ).one()
+        except DBAPIError:
+            return "No es una geometría WKT válida (revisa que tenga los puntos que su forma exige)."
+        if fila.vacia:
+            return "La geometría está vacía."
+        if not fila.valida:
+            return f"La geometría es inválida: {fila.motivo}."
+        return None
 
     async def obtener(self, trazo_id: UUID) -> dict[str, Any] | None:
         fila = (

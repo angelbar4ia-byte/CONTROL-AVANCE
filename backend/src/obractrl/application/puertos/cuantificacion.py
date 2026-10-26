@@ -80,6 +80,13 @@ class RepositorioTrazos(Protocol):
         autor_id: UUID,
     ) -> UUID: ...
 
+    async def motivo_de_geometria_invalida(self, geometria_wkt: str) -> str | None:
+        """Por qué el WKT no sirve para medir (no es WKT, está vacío o es
+        inválido —bordes que se cruzan—), o `None` si sirve. PostGIS acepta un
+        polígono con bordes cruzados y mide 0: sin esta guarda el trazo sumaría
+        cero en silencio."""
+        ...
+
     async def obtener(self, trazo_id: UUID) -> dict[str, Any] | None:
         """El trazo (sin geometría) o `None` si no existe o RLS no lo deja ver."""
         ...
