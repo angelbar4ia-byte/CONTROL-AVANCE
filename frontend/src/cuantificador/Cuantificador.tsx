@@ -60,6 +60,7 @@ import { AltaPlano } from './AltaPlano';
 import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
 import { CalibrarEscala } from './CalibrarEscala';
 import { arbolDeCuantificacion } from './arbol';
+import { MatricesDeActividad } from './MatricesDeActividad';
 import { NuevaObra } from './NuevaObra';
 import { ReemplazarEnlace } from './ReemplazarEnlace';
 import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Visor';
@@ -153,6 +154,7 @@ export function EspacioDeTrazo({
   const [reemplazando, setReemplazando] = useState<string | null>(null);
   const [calibrando, setCalibrando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [conMatrices, setConMatrices] = useState<ReadonlySet<string>>(new Set());
 
   const planos = useListarPlanosApiV1ObrasObraIdPlanosGet<
     PlanoDetalleRespuesta[],
@@ -434,24 +436,48 @@ export function EspacioDeTrazo({
                             </td>
                           </tr>
                           {etapa.hojas.map((hoja) => (
-                            <tr key={hoja.id} className={hoja.id === actividadFocoId ? 'is-selected' : undefined}>
-                              <td style={{ paddingLeft: 40 }}>
-                                {hoja.etiqueta}
-                                {!hoja.medido && (
-                                  <span className="badge badge--outline" style={{ marginLeft: 6 }}>
-                                    Sin medir
-                                  </span>
-                                )}
-                                {hoja.porRevisar > 0 && (
-                                  <span className="badge badge--warn" style={{ marginLeft: 6 }}>
-                                    {hoja.porRevisar} por revisar
-                                  </span>
-                                )}
-                              </td>
-                              <td className="is-num">{fmtNum(hoja.base)}</td>
-                              <td className="is-num">{hoja.medido ? fmtNum(hoja.medida) : '—'}</td>
-                              <td className="is-num">{hoja.medido ? fmtNum(hoja.diferencia) : '—'}</td>
-                            </tr>
+                            <Fragment key={hoja.id}>
+                              <tr className={hoja.id === actividadFocoId ? 'is-selected' : undefined}>
+                                <td style={{ paddingLeft: 40 }}>
+                                  {hoja.etiqueta}
+                                  <button
+                                    type="button"
+                                    className="btn btn--ghost btn--sm"
+                                    style={{ marginLeft: 6 }}
+                                    aria-expanded={conMatrices.has(hoja.id)}
+                                    aria-label={`Matrices de ${hoja.etiqueta}`}
+                                    onClick={() => {
+                                      const siguiente = new Set(conMatrices);
+                                      if (siguiente.has(hoja.id)) siguiente.delete(hoja.id);
+                                      else siguiente.add(hoja.id);
+                                      setConMatrices(siguiente);
+                                    }}
+                                  >
+                                    {conMatrices.has(hoja.id) ? '▾ Matrices' : '▸ Matrices'}
+                                  </button>
+                                  {!hoja.medido && (
+                                    <span className="badge badge--outline" style={{ marginLeft: 6 }}>
+                                      Sin medir
+                                    </span>
+                                  )}
+                                  {hoja.porRevisar > 0 && (
+                                    <span className="badge badge--warn" style={{ marginLeft: 6 }}>
+                                      {hoja.porRevisar} por revisar
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="is-num">{fmtNum(hoja.base)}</td>
+                                <td className="is-num">{hoja.medido ? fmtNum(hoja.medida) : '—'}</td>
+                                <td className="is-num">{hoja.medido ? fmtNum(hoja.diferencia) : '—'}</td>
+                              </tr>
+                              {conMatrices.has(hoja.id) && (
+                                <tr>
+                                  <td colSpan={4} style={{ paddingLeft: 56 }}>
+                                    <MatricesDeActividad actividadId={hoja.id} />
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
                           ))}
                         </Fragment>
                       ))}

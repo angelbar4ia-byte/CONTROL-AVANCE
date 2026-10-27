@@ -50,6 +50,7 @@ from obractrl.adapters.api.casos_uso import (
     AprobarTrazoDep,
     CalibrarEscalaDePlanoDep,
     ConsultarCuantificacionDep,
+    ConsultarMatricesDep,
     ReemplazarEnlaceDep,
     RegistrarNotaPlanoDep,
     RegistrarPlanoDep,
@@ -131,6 +132,13 @@ class IntencionEnlacePeticion(BaseModel):
     factor: Decimal = Field(gt=0)
     actividad_id: UUID | None = None
     prototipo_nodo_id: UUID | None = None
+    matriz_concepto_id: UUID | None = Field(
+        default=None,
+        description=(
+            "Si lo que se mide es una matriz interna de la actividad (nervaduras, trabes…) y no la "
+            "actividad entera (D-583). Solo con `actividad_id`."
+        ),
+    )
 
     @model_validator(mode="after")
     def _exactamente_un_nodo(self) -> IntencionEnlacePeticion:
@@ -141,6 +149,8 @@ class IntencionEnlacePeticion(BaseModel):
                 "Un enlace apunta a actividad_id o a prototipo_nodo_id, "
                 "nunca a los dos ni a ninguno."
             )
+        if self.matriz_concepto_id is not None and not tiene_actividad:
+            raise ValueError("Una matriz interna se mide dentro de una actividad: falta actividad_id.")
         return self
 
 
@@ -281,6 +291,7 @@ async def registrar_trazo(
                     factor=e.factor,
                     actividad_id=e.actividad_id,
                     prototipo_nodo_id=e.prototipo_nodo_id,
+                    matriz_concepto_id=e.matriz_concepto_id,
                 )
                 for e in peticion.enlaces
             ),
@@ -519,6 +530,9 @@ class EnlaceDeTrazoRespuesta(BaseModel):
     nodo_id: UUID = Field(
         description="`actividad_id` o `prototipo_nodo_id`, según `tipo_nodo`."
     )
+    matriz_concepto_id: UUID | None = Field(
+        default=None, description="La matriz interna de la actividad que mide este enlace (D-583)."
+    )
     medida: str
     factor: Decimal
     vigente: bool
@@ -640,6 +654,7 @@ async def trazos_de_plano(
                 enlace_id=e["id"],
                 tipo_nodo=str(e["tipo_nodo"]),
                 nodo_id=e["actividad_id"] or e["prototipo_nodo_id"],
+                matriz_concepto_id=e.get("matriz_concepto_id"),
                 medida=str(e["medida"]),
                 factor=e["factor"],
                 vigente=e["vigente"],
@@ -761,3 +776,48 @@ async def archivo_de_plano(
         expira_en_segundos=firma.expira_en_segundos,
         expira_en=firma.expira_en,
     )
+
+
+class MatrizRespuesta(BaseModel):
+    concepto_id: UUID
+    padre_id: UUID = Field(description="La matriz de la que es insumo (la madre es el concepto).")
+    nivel: int = Field(description="1 = insumo directo de la madre; 2 = dentro de una matriz…")
+    clave: str
+    descripcion: str
+    unidad: str | None = None
+    cantidad_unitaria: Decimal = Field(description="Por unidad de su matriz madre inmediata.")
+    cantidad_catalogo: Decimal = Field(description="Lo que el catálogo implica para esta actividad.")
+    precio_unitario: Decimal
+    cantidad_medida: Decimal | None = Field(
+        default=None, description="Lo medido en esta obra; no reescribe el catálogo."
+    )
+    diferencia: Decimal | None = None
+
+
+class MatricesDeActividadRespuesta(BaseModel):
+    actividad_id: UUID
+    concepto_clave: str | None = None
+    descripcion: str
+    cant_base: Decimal
+    importe: Decimal
+    importe_ajuste: Decimal = Field(
+        description="Lo que cambia el importe por lo medido en las matrices internas."
+    )
+    importe_ajustado: Decimal
+    medidas: int
+    matrices: list[MatrizRespuesta]
+
+
+@router.get(
+    "/actividades/{actividad_id}/matrices",
+    response_model=MatricesDeActividadRespuesta,
+    summary="Las matrices internas de una actividad y lo medido de cada una",
+    responses={404: {"description": "La actividad no existe o está fuera de tu alcance."}},
+)
+async def matrices_de_la_actividad(
+    actividad_id: UUID, caso_uso: ConsultarMatricesDep
+) -> MatricesDeActividadRespuesta:
+    """El concepto es la matriz madre; un insumo puede ser otra matriz (nervaduras, trabes,
+    bastones), a cualquier profundidad (D-583). Medirlas ajusta el importe de la actividad sin
+    tocar su cantidad base ni el catálogo."""
+    return MatricesDeActividadRespuesta(**await caso_uso.ejecutar(actividad_id))

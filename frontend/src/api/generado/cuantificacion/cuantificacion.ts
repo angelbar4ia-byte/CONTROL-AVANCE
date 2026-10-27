@@ -30,6 +30,7 @@ import type {
   EscalaPeticion,
   EscalaRespuesta,
   HTTPValidationError,
+  MatricesDeActividadRespuesta,
   NodoCuantificadoRespuesta,
   NotaPlanoDetalleRespuesta,
   NotaPlanoPeticion,
@@ -2589,6 +2590,515 @@ export function useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet<
 } {
   const queryOptions =
     getArchivoDePlanoApiV1PlanosPlanoIdArchivoGetQueryOptions(planoId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * El concepto es la matriz madre; un insumo puede ser otra matriz (nervaduras, trabes,
+bastones), a cualquier profundidad (D-583). Medirlas ajusta el importe de la actividad sin
+tocar su cantidad base ni el catálogo.
+ * @summary Las matrices internas de una actividad y lo medido de cada una
+ */
+export const matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet = (
+  actividadId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<MatricesDeActividadRespuesta>(
+    {
+      url: `/api/v1/actividades/${actividadId}/matrices`,
+      method: "GET",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetInfiniteQueryKey =
+  (actividadId?: string) => {
+    return ["infinite", `/api/v1/actividades/${actividadId}/matrices`] as const;
+  };
+
+export const getMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetQueryKey =
+  (actividadId?: string) => {
+    return [`/api/v1/actividades/${actividadId}/matrices`] as const;
+  };
+
+export const getMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    actividadId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetInfiniteQueryKey(
+        actividadId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+        >
+      >
+    > = ({ signal }) =>
+      matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet(
+        actividadId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!actividadId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type MatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+      >
+    >
+  >;
+export type MatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  actividadId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  actividadId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  actividadId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las matrices internas de una actividad y lo medido de cada una
+ */
+
+export function useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  actividadId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetInfiniteQueryOptions(
+      actividadId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    actividadId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetQueryKey(
+        actividadId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+        >
+      >
+    > = ({ signal }) =>
+      matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet(
+        actividadId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!actividadId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type MatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+      >
+    >
+  >;
+export type MatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetQueryError =
+  void | HTTPValidationError;
+
+export function useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  actividadId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  actividadId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  actividadId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las matrices internas de una actividad y lo medido de cada una
+ */
+
+export function useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  actividadId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof matricesDeLaActividadApiV1ActividadesActividadIdMatricesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetQueryOptions(
+      actividadId,
+      options,
+    );
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,

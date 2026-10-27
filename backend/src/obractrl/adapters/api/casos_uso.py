@@ -37,6 +37,7 @@ from obractrl.adapters.repos.control_cambio_sql import RepositorioControlCambioS
 from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.cuantificacion_sql import (
     RepositorioEnlacesCuantificacionSQL,
+    RepositorioMatricesSQL,
     RepositorioNotasPlanoSQL,
     RepositorioPlanosSQL,
     RepositorioTrazosSQL,
@@ -134,6 +135,7 @@ from obractrl.application.casos_uso.cuantificar import (
     AprobarTrazo,
     CalibrarEscalaDePlano,
     ConsultarCuantificacion,
+    ConsultarMatrices,
     ReemplazarEnlace,
     RegistrarNotaPlano,
     RegistrarPlano,
@@ -345,6 +347,7 @@ __all__ = [
     "ConsultarExpedienteDep",
     "ConsultarFrentesDeObraDep",
     "ConsultarInsumosProgramadosDep",
+    "ConsultarMatricesDep",
     "ConsultarModificacionesDep",
     "ConsultarPartesDep",
     "ConsultarPlaneacionDep",
@@ -741,6 +744,10 @@ def obtener_consultar_cuantificacion(sesion: SesionRLS) -> ConsultarCuantificaci
     )
 
 
+def obtener_consultar_matrices(sesion: SesionRLS) -> ConsultarMatrices:
+    return ConsultarMatrices(matrices=RepositorioMatricesSQL(sesion))
+
+
 def obtener_registrar_plano(sesion: SesionRLS) -> RegistrarPlano:
     return RegistrarPlano(
         planos=RepositorioPlanosSQL(sesion),
@@ -757,6 +764,7 @@ def obtener_registrar_trazo_con_enlaces(sesion: SesionRLS, ctx: ContextoActual) 
         desviaciones=RepositorioDesviacionesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
         eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
     )
 
 
@@ -769,6 +777,7 @@ def obtener_calibrar_escala(sesion: SesionRLS, ctx: ContextoActual) -> CalibrarE
         desviaciones=RepositorioDesviacionesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
         eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
     )
 
 
@@ -780,6 +789,7 @@ def obtener_reemplazar_enlace(sesion: SesionRLS, ctx: ContextoActual) -> Reempla
         desviaciones=RepositorioDesviacionesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
         eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
     )
 
 
@@ -882,6 +892,7 @@ DeclararPerdidaDeExcedenteDep = Annotated[
     DeclararPerdidaDeExcedente, Depends(obtener_declarar_perdida_de_excedente)
 ]
 AprobarTrazoDep = Annotated[AprobarTrazo, Depends(obtener_aprobar_trazo)]
+ConsultarMatricesDep = Annotated[ConsultarMatrices, Depends(obtener_consultar_matrices)]
 ConsultarCuantificacionDep = Annotated[
     ConsultarCuantificacion, Depends(obtener_consultar_cuantificacion)
 ]

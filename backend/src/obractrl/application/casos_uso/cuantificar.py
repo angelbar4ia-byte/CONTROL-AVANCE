@@ -55,12 +55,14 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
+from obractrl.application.casos_uso.capturar_avance import ActividadNoEncontrada
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     ObraNoEncontrada,
 )
 from obractrl.application.eventos import PartesCambiaronDeEstado, PublicadorEventos
 from obractrl.application.puertos.cuantificacion import (
     RepositorioEnlacesCuantificacion,
+    RepositorioMatrices,
     RepositorioNotasPlano,
     RepositorioPlanos,
     RepositorioTrazos,
@@ -72,6 +74,7 @@ from obractrl.application.puertos.repositorios import (
     UnidadDeTrabajo,
 )
 from obractrl.domain.cuantificacion.escala import escala_desde_referencia
+from obractrl.domain.cuantificacion.matriz import NodoDeMatriz, ajuste_por_medicion
 from obractrl.domain.cuantificacion.reglas import (
     EnlaceCuantificacion,
     ErrorDeCuantificacion,
@@ -150,6 +153,9 @@ class IntencionEnlace:
     factor: Decimal
     actividad_id: UUID | None = None
     prototipo_nodo_id: UUID | None = None
+    matriz_concepto_id: UUID | None = None
+    """Si se mide una matriz interna de la actividad (nervaduras, trabes…) y no la actividad
+    entera (D-583). Solo con `actividad_id`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -282,6 +288,8 @@ async def _recalcular_nodo(
     desviaciones: RepositorioDesviaciones,
     detectada_en: datetime,
     umbral: Decimal = UMBRAL_DESVIACION,
+    matriz_concepto_id: UUID | None = None,
+    matrices: RepositorioMatrices | None = None,
 ) -> ResultadoDeRecalculo:
     """Suma la cantidad vigente del nodo y aplica la consecuencia que le
     toca (ver docstring del módulo) — compartido por
@@ -291,6 +299,7 @@ async def _recalcular_nodo(
         tipo_nodo=tipo_nodo.value,
         actividad_id=actividad_id,
         prototipo_nodo_id=prototipo_nodo_id,
+        matriz_concepto_id=matriz_concepto_id,
     )
     medidas = tuple(
         MedidaDeEnlace(
@@ -301,6 +310,18 @@ async def _recalcular_nodo(
         for fila in filas
     )
     cantidad_total = cantidad_medida(medidas)
+
+    if matriz_concepto_id is not None:
+        # Una matriz interna de la actividad (nervaduras, trabes…, D-583): su cantidad es de esta
+        # obra y no reescribe ni la cantidad de la actividad ni el catálogo. Se guarda derivada.
+        if matrices is not None:
+            # Sin ningún enlace vigente la matriz vuelve a estar sin medir (no «medida en cero»).
+            await matrices.fijar_cantidad(
+                actividad_id=actividad_id,  # type: ignore[arg-type]
+                concepto_id=matriz_concepto_id,
+                cantidad=cantidad_total if any(m.vigente for m in medidas) else None,
+            )
+        return ResultadoDeRecalculo(cantidad_total=cantidad_total)
 
     if tipo_nodo is TipoNodoCuantificacion.ACTIVIDAD:
         actividad = await actividades.obtener(actividad_id)  # type: ignore[arg-type]
@@ -392,6 +413,7 @@ class RegistrarTrazoConEnlaces:
         desviaciones: RepositorioDesviaciones,
         uow: UnidadDeTrabajo,
         eventos: PublicadorEventos | None = None,
+        matrices: RepositorioMatrices | None = None,
     ) -> None:
         self._trazos = trazos
         self._enlaces = enlaces
@@ -400,6 +422,7 @@ class RegistrarTrazoConEnlaces:
         self._desviaciones = desviaciones
         self._uow = uow
         self._eventos = eventos
+        self._matrices = matrices
 
     async def ejecutar(
         self, cmd: ComandoRegistrarTrazo, *, detectada_en: datetime
@@ -424,13 +447,22 @@ class RegistrarTrazoConEnlaces:
 
             enlace_ids: list[UUID] = []
             nodos_tocados: dict[
-                tuple[TipoNodoCuantificacion, UUID | None, UUID | None], None
+                tuple[TipoNodoCuantificacion, UUID | None, UUID | None, UUID | None], None
             ] = {}
             for intencion in cmd.enlaces:
                 # Valida exclusividad de nodo, factor positivo y la
                 # coherencia de conteo ANTES de escribir — mismo criterio
                 # que el resto del repo (§12.11: el dominio decide, el
                 # repo solo ejecuta).
+                if intencion.matriz_concepto_id is not None and self._matrices is not None:
+                    arbol = await self._matrices.arbol_de_actividad(intencion.actividad_id)  # type: ignore[arg-type]
+                    if arbol is None or intencion.matriz_concepto_id not in {
+                        m["concepto_id"] for m in arbol["matrices"]
+                    }:
+                        raise ErrorDeCuantificacion(
+                            "Esa no es una matriz interna del concepto de la actividad: solo se "
+                            "miden las que su receta contiene (D-583)."
+                        )
                 validado = EnlaceCuantificacion(
                     trazo_id=str(trazo_id),
                     actividad_id=(
@@ -443,17 +475,26 @@ class RegistrarTrazoConEnlaces:
                     ),
                     medida=intencion.medida,
                     factor=intencion.factor,
+                    matriz_concepto_id=(
+                        str(intencion.matriz_concepto_id) if intencion.matriz_concepto_id else None
+                    ),
                 )
                 enlace_id = await self._enlaces.crear(
                     trazo_id=trazo_id,
                     actividad_id=intencion.actividad_id,
                     prototipo_nodo_id=intencion.prototipo_nodo_id,
+                    matriz_concepto_id=intencion.matriz_concepto_id,
                     medida=validado.medida.value,
                     factor=validado.factor,
                 )
                 enlace_ids.append(enlace_id)
                 nodos_tocados[
-                    (validado.tipo_nodo, intencion.actividad_id, intencion.prototipo_nodo_id)
+                    (
+                        validado.tipo_nodo,
+                        intencion.actividad_id,
+                        intencion.prototipo_nodo_id,
+                        intencion.matriz_concepto_id,
+                    )
                 ] = None
 
             recalculos = tuple(
@@ -462,13 +503,20 @@ class RegistrarTrazoConEnlaces:
                         tipo_nodo=tipo_nodo,
                         actividad_id=actividad_id,
                         prototipo_nodo_id=prototipo_nodo_id,
+                        matriz_concepto_id=matriz_concepto_id,
                         enlaces=self._enlaces,
                         actividades=self._actividades,
                         prototipo_nodos=self._prototipo_nodos,
                         desviaciones=self._desviaciones,
                         detectada_en=detectada_en,
+                        matrices=self._matrices,
                     )
-                    for (tipo_nodo, actividad_id, prototipo_nodo_id) in nodos_tocados
+                    for (
+                        tipo_nodo,
+                        actividad_id,
+                        prototipo_nodo_id,
+                        matriz_concepto_id,
+                    ) in nodos_tocados
                 ]
             )
 
@@ -495,6 +543,7 @@ class ReemplazarEnlace:
         desviaciones: RepositorioDesviaciones,
         uow: UnidadDeTrabajo,
         eventos: PublicadorEventos | None = None,
+        matrices: RepositorioMatrices | None = None,
     ) -> None:
         self._enlaces = enlaces
         self._actividades = actividades
@@ -502,6 +551,7 @@ class ReemplazarEnlace:
         self._desviaciones = desviaciones
         self._uow = uow
         self._eventos = eventos
+        self._matrices = matrices
 
     async def ejecutar(
         self, cmd: ComandoReemplazarEnlace, *, detectada_en: datetime
@@ -515,6 +565,7 @@ class ReemplazarEnlace:
         tipo_nodo = TipoNodoCuantificacion(str(anterior["tipo_nodo"]))
         actividad_id = anterior["actividad_id"]
         prototipo_nodo_id = anterior["prototipo_nodo_id"]
+        matriz_concepto_id = anterior.get("matriz_concepto_id")
 
         if (
             tipo_nodo is TipoNodoCuantificacion.PROTOTIPO_NODO
@@ -541,11 +592,13 @@ class ReemplazarEnlace:
                     ),
                     medida=cmd.nuevo.medida,
                     factor=cmd.nuevo.factor,
+                    matriz_concepto_id=str(matriz_concepto_id) if matriz_concepto_id else None,
                 )
                 await self._enlaces.crear(
                     trazo_id=cmd.nuevo.trazo_id,
                     actividad_id=actividad_id,
                     prototipo_nodo_id=prototipo_nodo_id,
+                    matriz_concepto_id=matriz_concepto_id,
                     medida=cmd.nuevo.medida.value,
                     factor=cmd.nuevo.factor,
                 )
@@ -554,11 +607,13 @@ class ReemplazarEnlace:
                 tipo_nodo=tipo_nodo,
                 actividad_id=actividad_id,
                 prototipo_nodo_id=prototipo_nodo_id,
+                matriz_concepto_id=matriz_concepto_id,
                 enlaces=self._enlaces,
                 actividades=self._actividades,
                 prototipo_nodos=self._prototipo_nodos,
                 desviaciones=self._desviaciones,
                 detectada_en=detectada_en,
+                matrices=self._matrices,
             )
 
             await self._uow.commit()
@@ -611,6 +666,7 @@ class CalibrarEscalaDePlano:
         desviaciones: RepositorioDesviaciones,
         uow: UnidadDeTrabajo,
         eventos: PublicadorEventos | None = None,
+        matrices: RepositorioMatrices | None = None,
     ) -> None:
         self._planos = planos
         self._enlaces = enlaces
@@ -619,6 +675,7 @@ class CalibrarEscalaDePlano:
         self._desviaciones = desviaciones
         self._uow = uow
         self._eventos = eventos
+        self._matrices = matrices
 
     async def ejecutar(
         self, cmd: ComandoCalibrarEscala, *, detectada_en: datetime
@@ -658,11 +715,13 @@ class CalibrarEscalaDePlano:
                         tipo_nodo=TipoNodoCuantificacion(str(n["tipo_nodo"])),
                         actividad_id=n["actividad_id"],
                         prototipo_nodo_id=n["prototipo_nodo_id"],
+                        matriz_concepto_id=n.get("matriz_concepto_id"),
                         enlaces=self._enlaces,
                         actividades=self._actividades,
                         prototipo_nodos=self._prototipo_nodos,
                         desviaciones=self._desviaciones,
                         detectada_en=detectada_en,
+                        matrices=self._matrices,
                     )
                     for n in nodos
                 ]
@@ -881,6 +940,8 @@ class ConsultarCuantificacion:
 
         por_nodo: dict[tuple[str, UUID], list[dict]] = {}
         for fila in filas:
+            if fila.get("matriz_concepto_id") is not None:
+                continue  # las matrices internas se leen aparte (`ConsultarMatrices`, D-583)
             nodo_id = fila["actividad_id"] or fila["prototipo_nodo_id"]
             por_nodo.setdefault((str(fila["tipo_nodo"]), nodo_id), []).append(fila)
 
@@ -921,3 +982,71 @@ class ConsultarCuantificacion:
             raise ObraNoEncontrada(
                 f"La obra {obra_id} no existe o no está en tu alcance."
             )
+
+
+class ConsultarMatrices:
+    """`GET /actividades/{id}/matrices`: las matrices internas de una actividad (D-583).
+
+    El concepto es la matriz madre y un insumo puede ser otra matriz (nervaduras, trabes,
+    bastones), a cualquier profundidad. Cada una trae lo que el catálogo implicaba para esta
+    actividad, lo que se midió y la diferencia; y el importe de la actividad **ajustado** por lo
+    medido, sin tocar su cantidad base.
+    """
+
+    def __init__(self, *, matrices: RepositorioMatrices) -> None:
+        self._matrices = matrices
+
+    async def ejecutar(self, actividad_id: UUID) -> dict:
+        arbol = await self._matrices.arbol_de_actividad(actividad_id)
+        if arbol is None:
+            raise ActividadNoEncontrada(
+                f"La actividad {actividad_id} no existe o está fuera de tu alcance."
+            )
+        cant_base = Decimal(str(arbol["cant_base"]))
+        precio = Decimal(str(arbol["precio_unitario"] or 0))
+        filas = arbol["matrices"]
+        nodos = [
+            NodoDeMatriz(
+                concepto_id=str(f["concepto_id"]),
+                ruta=tuple(str(x) for x in f["ruta"]),
+                acumulada=Decimal(str(f["acumulada"])),
+                precio_unitario=Decimal(str(f["precio_unitario"])),
+                cantidad_medida=(
+                    Decimal(str(f["cantidad_medida"])) if f["cantidad_medida"] is not None else None
+                ),
+            )
+            for f in filas
+        ]
+        ajuste = ajuste_por_medicion(nodos, cant_base=cant_base)
+        importe = cant_base * precio
+        matrices = []
+        for f, n in zip(filas, nodos, strict=True):
+            catalogo = n.catalogo(cant_base)
+            matrices.append(
+                {
+                    "concepto_id": f["concepto_id"],
+                    "padre_id": f["padre_id"],
+                    "nivel": f["nivel"],
+                    "clave": f["clave"],
+                    "descripcion": f["descripcion"],
+                    "unidad": f["unidad"],
+                    "cantidad_unitaria": f["unitaria"],
+                    "cantidad_catalogo": catalogo,
+                    "precio_unitario": f["precio_unitario"],
+                    "cantidad_medida": n.cantidad_medida,
+                    "diferencia": (
+                        n.cantidad_medida - catalogo if n.cantidad_medida is not None else None
+                    ),
+                }
+            )
+        return {
+            "actividad_id": actividad_id,
+            "concepto_clave": arbol["concepto_clave"],
+            "descripcion": arbol["descripcion"],
+            "cant_base": cant_base,
+            "importe": importe,
+            "importe_ajuste": ajuste.importe_ajuste,
+            "importe_ajustado": importe + ajuste.importe_ajuste,
+            "medidas": ajuste.medidas,
+            "matrices": matrices,
+        }

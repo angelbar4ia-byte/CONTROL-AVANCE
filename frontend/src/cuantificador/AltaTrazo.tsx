@@ -17,6 +17,7 @@ import { useState, type FormEvent } from 'react';
 import type { ErrorApi } from '@/api/cliente';
 import { useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost } from '@/api/generado/cuantificacion/cuantificacion';
 import type { ActividadRespuesta, TrazoRespuesta } from '@/api/generado/modelo';
+import { OpcionesDeMatriz } from './MatricesDeActividad';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Sheet } from '@/lib/Sheet';
 import {
@@ -43,6 +44,8 @@ interface FilaEnlace {
   /** A qué se enlaza: una actividad de la obra o un nodo del prototipo. */
   readonly destino: 'actividad' | 'prototipo';
   readonly actividadId: string;
+  /** Si se mide una matriz interna de la actividad (D-583); vacío = la actividad entera. */
+  readonly matrizId?: string;
   readonly medida: MedidaDeTrazo;
   readonly factor: string;
 }
@@ -150,7 +153,10 @@ export function AltaTrazo({
             medida: f.medida,
             factor: f.factor,
             ...(f.destino === 'actividad'
-              ? { actividad_id: f.actividadId }
+              ? {
+                  actividad_id: f.actividadId,
+                  ...(f.matrizId ? { matriz_concepto_id: f.matrizId } : {}),
+                }
               : { prototipo_nodo_id: f.actividadId }),
           })),
         },
@@ -246,7 +252,7 @@ export function AltaTrazo({
                         id={`enlace-actividad-${f.clave}`}
                         className="select"
                         value={f.actividadId}
-                        onChange={(e) => cambiar(f.clave, { actividadId: e.target.value })}
+                        onChange={(e) => cambiar(f.clave, { actividadId: e.target.value, matrizId: '' })}
                       >
                         <option value="">
                           {f.destino === 'actividad' ? 'Elige una actividad…' : 'Elige un nodo…'}
@@ -263,6 +269,22 @@ export function AltaTrazo({
                               </option>
                             ))}
                       </select>
+                      {f.destino === 'actividad' && f.actividadId !== '' && (
+                        <div className="field" style={{ marginTop: 6 }}>
+                          <label className="field__label" htmlFor={`enlace-matriz-${f.clave}`}>
+                            Qué se mide {i + 1}
+                          </label>
+                          <select
+                            id={`enlace-matriz-${f.clave}`}
+                            className="select"
+                            value={f.matrizId ?? ''}
+                            onChange={(e) => cambiar(f.clave, { matrizId: e.target.value })}
+                          >
+                            <option value="">La actividad entera</option>
+                            <OpcionesDeMatriz actividadId={f.actividadId} />
+                          </select>
+                        </div>
+                      )}
                       {f.destino === 'prototipo' && (
                         <div className="field__hint" role="note">
                           Sobrescribe la cantidad del nodo del prototipo, y la comparten todas
