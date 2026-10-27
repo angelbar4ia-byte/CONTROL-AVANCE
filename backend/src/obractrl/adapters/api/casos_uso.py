@@ -120,6 +120,11 @@ from obractrl.application.casos_uso.consultar_planeacion import (
     AsignarFrenteDeObra,
     ConsultarPlaneacion,
 )
+from obractrl.application.casos_uso.cotizacion_al_cliente import (
+    ConsultarCotizaciones,
+    CotizarLoModificado,
+    ResponderCotizacion,
+)
 from obractrl.application.casos_uso.crear_obra_desde_catalogo_base import (
     ConsultarCatalogosBase,
     CrearObraDesdeCatalogoBase,
@@ -332,6 +337,7 @@ __all__ = [
     "ConsultarCierreDeObraDep",
     "ConsultarComprobacionesDep",
     "ConsultarConfirmacionesDep",
+    "ConsultarCotizacionesDep",
     "ConsultarCuantificacionDep",
     "ConsultarDesfaseDePartesDep",
     "ConsultarDesviacionesDep",
@@ -345,6 +351,7 @@ __all__ = [
     "ConsultarReprogramacionesDep",
     "ConsultarRutaCriticaDep",
     "ConsultarValuacionDep",
+    "CotizarLoModificadoDep",
     "CrearClusterDep",
     "CrearConceptoDep",
     "CrearContratistaDep",
@@ -407,6 +414,7 @@ __all__ = [
     "ReplicarProgramaEnObrasDep",
     "ResetearContrasenaDep",
     "ResolverPendienteDep",
+    "ResponderCotizacionDep",
     "RevertirCargaDep",
     "RevertirCargaEnCadenaDep",
     "RevertirGeneracionDeObraDep",
@@ -1408,6 +1416,25 @@ def obtener_redisenar_parte(sesion: SesionRLS, ctx: ContextoActual) -> Redisenar
     )
 
 
+def obtener_cotizar_lo_modificado(sesion: SesionRLS) -> CotizarLoModificado:
+    return CotizarLoModificado(
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        configuracion=RepositorioConfiguracionSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_consultar_cotizaciones(sesion: SesionRLS) -> ConsultarCotizaciones:
+    return ConsultarCotizaciones(
+        partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion)
+    )
+
+
+def obtener_responder_cotizacion(sesion: SesionRLS) -> ResponderCotizacion:
+    return ResponderCotizacion(partes=RepositorioPartesSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
+
+
 def obtener_consultar_catalogos_base(sesion: SesionRLS) -> ConsultarCatalogosBase:
     return ConsultarCatalogosBase(partes=RepositorioPartesSQL(sesion))
 
@@ -1539,6 +1566,11 @@ CrearObraDesdeCatalogoBaseDep = Annotated[
 CrearObraDesdeCeroDep = Annotated[CrearObraDesdeCero, Depends(obtener_crear_obra_desde_cero)]
 ConsultarValuacionDep = Annotated[ConsultarValuacion, Depends(obtener_consultar_valuacion)]
 RedisenarParteDep = Annotated[RedisenarParte, Depends(obtener_redisenar_parte)]
+CotizarLoModificadoDep = Annotated[CotizarLoModificado, Depends(obtener_cotizar_lo_modificado)]
+ConsultarCotizacionesDep = Annotated[
+    ConsultarCotizaciones, Depends(obtener_consultar_cotizaciones)
+]
+ResponderCotizacionDep = Annotated[ResponderCotizacion, Depends(obtener_responder_cotizacion)]
 ConsultarCatalogosBaseDep = Annotated[
     ConsultarCatalogosBase, Depends(obtener_consultar_catalogos_base)
 ]

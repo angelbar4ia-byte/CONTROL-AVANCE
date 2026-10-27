@@ -12100,6 +12100,215 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/cotizaciones": {
+      "post": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Cotizar al cliente lo que la obra modificó",
+        "description": "Antes de un control de cambio se hace un presupuesto al cliente (D-531). Control de obra\ncotiza; el factor y el precio por m² son parámetros editables.",
+        "operationId": "cotizar_lo_modificado_api_v1_obras__obra_id__cotizaciones_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CotizacionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CotizacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Nada modificado que cotizar, o falta un dato del modo."
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Las cotizaciones al cliente de la obra, la más reciente primero",
+        "operationId": "cotizaciones_de_la_obra_api_v1_obras__obra_id__cotizaciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CotizacionRespuesta"
+                  },
+                  "title": "Response Cotizaciones De La Obra Api V1 Obras  Obra Id  Cotizaciones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cotizaciones/{cotizacion_id}/respuesta": {
+      "post": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Registrar la respuesta del cliente a una cotización",
+        "description": "Aceptada o rechazada, una sola vez. Quien debería registrarla —Proyectos y atención al\ncliente— no es todavía un rol: hoy lo registra Control de obra.",
+        "operationId": "responder_cotizacion_api_v1_cotizaciones__cotizacion_id__respuesta_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cotizacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cotizacion Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RespuestaDelClientePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CotizacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "409": {
+            "description": "El cliente ya respondió esta cotización."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/arranque": {
       "get": {
         "tags": [
@@ -16022,6 +16231,245 @@
         "type": "object",
         "title": "CostoDeJornadaPeticion",
         "description": "Lo que cuesta un día de esta cuadrilla (§7.6, migración 0048).\n\n`null` lo quita: dejar de saberlo es un estado real —una cuadrilla nueva sin\nprecio negociado— y un cero diría que es gratis."
+      },
+      "CotizacionPeticion": {
+        "properties": {
+          "metodo_precio": {
+            "type": "string",
+            "enum": [
+              "por_diferencia",
+              "por_m2"
+            ],
+            "title": "Metodo Precio",
+            "description": "`por_diferencia`: lo que entra menos lo que sale entre el factor (0.7). `por_m2`: los m² de la ampliación por el precio por m²."
+          },
+          "m2_ampliacion": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "M2 Ampliacion"
+          },
+          "precio_m2": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio M2",
+            "description": "Si falta, el configurado (17,000)."
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metodo_precio"
+        ],
+        "title": "CotizacionPeticion"
+      },
+      "CotizacionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "folio": {
+            "type": "string",
+            "title": "Folio"
+          },
+          "metodo_precio": {
+            "type": "string",
+            "title": "Metodo Precio"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado",
+            "description": "`enviada` · `aceptada` · `rechazada`."
+          },
+          "factor": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Factor"
+          },
+          "costo_entra": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Costo Entra"
+          },
+          "costo_sale": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Costo Sale"
+          },
+          "m2_ampliacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "M2 Ampliacion"
+          },
+          "precio_m2": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio M2"
+          },
+          "precio_por_diferencia": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Por Diferencia"
+          },
+          "precio_por_m2": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Por M2"
+          },
+          "precio": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio",
+            "description": "El que se le cobra al cliente, según el método elegido."
+          },
+          "por_m2_coincide_con_la_diferencia": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Por M2 Coincide Con La Diferencia",
+            "description": "Por m² y por diferencia no siempre coinciden: no se corrige solo (D-533)."
+          },
+          "entra": {
+            "items": {
+              "$ref": "#/components/schemas/LineaDeCotizacionRespuesta"
+            },
+            "type": "array",
+            "title": "Entra"
+          },
+          "sale": {
+            "items": {
+              "$ref": "#/components/schemas/LineaDeCotizacionRespuesta"
+            },
+            "type": "array",
+            "title": "Sale"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          },
+          "creada_por": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Creada Por"
+          },
+          "creada_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creada Por Nombre"
+          },
+          "creada_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creada En"
+          },
+          "respondida_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Respondida En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "folio",
+          "metodo_precio",
+          "estado",
+          "factor",
+          "costo_entra",
+          "costo_sale",
+          "precio_por_diferencia",
+          "precio",
+          "entra",
+          "sale",
+          "creada_por",
+          "creada_en"
+        ],
+        "title": "CotizacionRespuesta"
       },
       "CrearClusterPeticion": {
         "properties": {
@@ -21082,6 +21530,60 @@
         ],
         "title": "LineaDeControlRespuesta",
         "description": "Un renglón, con la actividad afectada ya resuelta (§11.3).\n\nEs lo que Control necesita para decidir sin abrir otra pantalla: cuánto\ntenía la actividad, cuánto lleva programado, y hasta dónde puede llegar\nsin esta autorización."
+      },
+      "LineaDeCotizacionRespuesta": {
+        "properties": {
+          "bloque": {
+            "type": "string",
+            "title": "Bloque",
+            "description": "`entra` o `sale`: las cantidades van positivas y el sistema resta."
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "precio_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Unitario"
+          },
+          "costo_directo": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Costo Directo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bloque",
+          "actividad_id",
+          "descripcion",
+          "cantidad",
+          "precio_unitario",
+          "costo_directo"
+        ],
+        "title": "LineaDeCotizacionRespuesta"
       },
       "LineaDeCuadrillaPeticion": {
         "properties": {
@@ -26335,6 +26837,30 @@
         ],
         "title": "ResolverPendientePeticion",
         "description": "Aprobar/rechazar un renglón de la bandeja (§10.3)."
+      },
+      "RespuestaDelClientePeticion": {
+        "properties": {
+          "aceptada": {
+            "type": "boolean",
+            "title": "Aceptada"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aceptada"
+        ],
+        "title": "RespuestaDelClientePeticion"
       },
       "RespuestaItem-Input": {
         "properties": {

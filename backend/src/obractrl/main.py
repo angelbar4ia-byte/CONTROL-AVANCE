@@ -57,6 +57,7 @@ from obractrl.application.casos_uso.consultar_insumos_programados import (
     CalendarioSinGenerar,
     PrototipoSinPrograma,
 )
+from obractrl.application.casos_uso.cotizacion_al_cliente import CotizacionNoEncontrada
 from obractrl.application.casos_uso.crear_obra_desde_catalogo_base import (
     ErrorDeCatalogoBase,
 )
@@ -143,6 +144,7 @@ from obractrl.domain.obras.generacion import ErrorDeGeneracion
 from obractrl.domain.obras.precio_armado import ErrorDePrecioArmado
 from obractrl.domain.obras.reglas import ErrorDeObra, TransicionDeObraInvalida
 from obractrl.domain.partes.alertas import ErrorDeUmbrales
+from obractrl.domain.partes.cotizacion import CotizacionYaRespondida, ErrorDeCotizacion
 from obractrl.domain.partes.modificacion import ErrorDeModificacion
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
 from obractrl.domain.programacion.reglas import (
@@ -649,6 +651,36 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="parte-no-encontrada",
             titulo="Parte no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeCotizacion)
+    async def _cotizacion(request: Request, exc: ErrorDeCotizacion) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="cotizacion-invalida",
+            titulo="No se puede cotizar eso",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(CotizacionYaRespondida)
+    async def _cotizacion_ya_respondida(request: Request, exc: CotizacionYaRespondida) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="cotizacion-ya-respondida",
+            titulo="El cliente ya respondió",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(CotizacionNoEncontrada)
+    async def _cotizacion_no_encontrada(request: Request, exc: CotizacionNoEncontrada) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="cotizacion-no-encontrada",
+            titulo="Cotización no encontrada",
             detalle=str(exc),
         )
 

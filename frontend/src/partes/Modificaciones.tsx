@@ -23,6 +23,7 @@ import {
 import { useActividadesDeObraApiV1ObrasObraIdActividadesGet } from '@/api/generado/torre/torre';
 import { queryClient } from '@/app/queryClient';
 import { ErrorBanner } from '@/lib/ErrorBanner';
+import Cotizaciones from './Cotizaciones';
 import { fmtFecha, fmtNum } from '@/lib/formato';
 import type { Rol } from '@/shell/navegacion';
 import {
@@ -349,6 +350,7 @@ export default function Modificaciones({ obraId, rol, etapas }: Props) {
           ))}
         </ul>
       )}
+      <Cotizaciones obraId={obraId} puedeCotizar={rol === 'control_obra'} />
     </section>
   );
 }

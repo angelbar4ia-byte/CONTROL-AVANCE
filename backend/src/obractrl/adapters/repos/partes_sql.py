@@ -5,12 +5,15 @@ Nada aquí filtra por organización u obra para decidir qué es visible: lo impo
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from obractrl.domain.partes.cotizacion import CotizacionYaRespondida
 
 __all__ = ["RepositorioPartesSQL"]
 
@@ -236,6 +239,131 @@ class RepositorioPartesSQL:
             {"id": str(presupuesto_id), "prototipo": str(prototipo_id)},
         )
         return presupuesto_id
+
+    async def modificados_netos(self, obra_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select a.id as actividad_id, coalesce(a.descripcion, c.descripcion, '') as descripcion,
+                           c.clave as concepto_clave, sum(m.delta) as delta, a.precio_unitario
+                      from actividad_modificacion m
+                      join actividad a on a.id = m.actividad_id
+                      left join concepto c on c.id = a.concepto_id
+                     where m.obra_id = :obra_id
+                     group by a.id, c.clave, c.descripcion
+                    having sum(m.delta) <> 0
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    _COLUMNAS_COTIZACION = """
+        c.id, c.obra_id, c.folio, c.metodo_precio, c.estado, c.factor, c.costo_entra, c.costo_sale,
+        c.m2_ampliacion, c.precio_m2, c.precio_por_diferencia, c.precio_por_m2, c.precio, c.lineas,
+        c.nota, c.creada_por, uc.nombre as creada_por_nombre, c.creada_en, c.respondida_por,
+        c.respondida_en
+    """
+
+    async def crear_cotizacion(self, **datos: Any) -> dict[str, Any]:
+        n = (
+            await self._sesion.execute(
+                text("select count(*) from cotizacion_cliente where obra_id = :o"),
+                {"o": str(datos["obra_id"])},
+            )
+        ).scalar_one()
+        folio = f"CZ-{datos['obra_clave']}-{int(n) + 1:03d}"
+        cid = uuid4()
+        await self._sesion.execute(
+            text(
+                """
+                insert into cotizacion_cliente
+                    (id, org_id, obra_id, folio, metodo_precio, factor, costo_entra, costo_sale,
+                     m2_ampliacion, precio_m2, precio_por_diferencia, precio_por_m2, precio,
+                     lineas, nota, creada_por)
+                values
+                    (:id, cast(current_setting('app.org_id') as uuid), :obra_id, :folio, :metodo,
+                     :factor, :entra, :sale, :m2, :precio_m2, :por_diferencia, :por_m2, :precio,
+                     cast(:lineas as jsonb), :nota, :usuario)
+                """
+            ),
+            {
+                "id": str(cid),
+                "obra_id": str(datos["obra_id"]),
+                "folio": folio,
+                "metodo": datos["metodo"],
+                "factor": datos["factor"],
+                "entra": datos["costo_entra"],
+                "sale": datos["costo_sale"],
+                "m2": datos.get("m2_ampliacion"),
+                "precio_m2": datos.get("precio_m2"),
+                "por_diferencia": datos["precio_por_diferencia"],
+                "por_m2": datos.get("precio_por_m2"),
+                "precio": datos["precio"],
+                "lineas": json.dumps(datos["lineas"]),
+                "nota": datos.get("nota"),
+                "usuario": str(datos["usuario_id"]),
+            },
+        )
+        return await self._una_cotizacion(cid)
+
+    async def _una_cotizacion(self, cotizacion_id: UUID) -> dict[str, Any]:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    f"select {self._COLUMNAS_COTIZACION} from cotizacion_cliente c "
+                    "left join usuario uc on uc.id = c.creada_por where c.id = :id"
+                ),
+                {"id": str(cotizacion_id)},
+            )
+        ).mappings().one()
+        return dict(fila)
+
+    async def cotizaciones_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    f"select {self._COLUMNAS_COTIZACION} from cotizacion_cliente c "
+                    "left join usuario uc on uc.id = c.creada_por "
+                    "where c.obra_id = :o order by c.creada_en desc, c.folio desc"
+                ),
+                {"o": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def responder_cotizacion(
+        self, cotizacion_id: UUID, *, aceptada: bool, usuario_id: UUID, nota: str | None
+    ) -> dict[str, Any] | None:
+        hay = (
+            await self._sesion.execute(
+                text("select estado from cotizacion_cliente where id = :id for update"),
+                {"id": str(cotizacion_id)},
+            )
+        ).first()
+        if hay is None:
+            return None
+        if hay[0] != "enviada":
+            raise CotizacionYaRespondida("El cliente ya respondió esta cotización.")
+        await self._sesion.execute(
+            text(
+                """
+                update cotizacion_cliente
+                   set estado = :estado, respondida_por = :usuario, respondida_en = now(),
+                       nota = coalesce(:nota, nota)
+                 where id = :id
+                """
+            ),
+            {
+                "estado": "aceptada" if aceptada else "rechazada",
+                "usuario": str(usuario_id),
+                "nota": nota,
+                "id": str(cotizacion_id),
+            },
+        )
+        return await self._una_cotizacion(cotizacion_id)
 
     async def catalogos_base(self) -> list[dict[str, Any]]:
         filas = (
