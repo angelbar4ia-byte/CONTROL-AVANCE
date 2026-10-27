@@ -390,6 +390,7 @@ async def reemplazar_enlace(
         ComandoReemplazarEnlace(
             enlace_id=enlace_id,
             rol=Rol(ctx.rol),
+            usuario_id=ctx.usuario_id,
             nuevo=(
                 NuevoEnlace(
                     trazo_id=peticion.nuevo.trazo_id,

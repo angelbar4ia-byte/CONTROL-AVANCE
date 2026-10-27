@@ -5376,6 +5376,8 @@ class AplicadorIngenieriaLote:
                 "m2": dominio.m2,
                 "niveles": dominio.niveles,
                 "recamaras": dominio.recamaras,
+                # Exclusivo de su obra (0081): es lo que deja a Costos crearlo (0083).
+                "de_una_obra": True,
             }
         )
         operaciones: list[dict[str, Any]] = [

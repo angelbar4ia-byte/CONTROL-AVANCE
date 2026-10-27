@@ -85,13 +85,12 @@ export default function Frentes() {
   // efecto y no al vuelo porque son estado editable: el usuario marca y
   // desmarca varias antes de guardar, y recalcularlas en cada render borraría
   // lo que lleva hecho.
+  const frenteId = frente?.id ?? null;
   useEffect(() => {
-    if (frente === null) return;
-    setMarcadas(
-      new Set(etapas.filter((e) => e.frente_id === frente.id).map((e) => e.id)),
-    );
+    if (frenteId === null) return;
+    setMarcadas(new Set(etapas.filter((e) => e.frente_id === frenteId).map((e) => e.id)));
     setAviso(null);
-  }, [frente?.id, etapas]);
+  }, [frenteId, etapas]);
 
   if (!sesion) return null;
   const administra = puedeAdministrarObras(sesion.rol);

@@ -173,7 +173,6 @@ function FilaInsumo({
         <td className="mono text-xs">{fila.unidad ?? ''}</td>
         {fila.cantidades.map((cantidad, indice) => (
           <td
-            // eslint-disable-next-line react/no-array-index-key
             key={indice}
             className="mono tnum is-num text-xs"
             style={{ opacity: cantidad === 0 ? 0.35 : 1 }}

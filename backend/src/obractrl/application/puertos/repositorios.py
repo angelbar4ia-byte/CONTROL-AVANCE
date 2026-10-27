@@ -95,12 +95,12 @@ class RepositorioActividades(Protocol):
         no un campo nuevo."""
         ...
 
-    async def fijar_cantidad_medida(self, actividad_id: UUID, cantidad: Decimal) -> bool:
+    async def fijar_cantidad_medida(self, actividad_id: UUID, cantidad: Decimal) -> dict | None:
         """En una obra «Nueva» (prototipo de un solo uso, 0081) **la cantidad medida es el
         presupuesto**: sustituye a `cant_base` mientras la parte no esté asignada, y si la parte
-        ya iba validada o más allá la devuelve a cuantificarse. `False` si no aplica (la obra
+        ya iba validada o más allá la devuelve a cuantificarse. `None` si no aplica (la obra
         tiene el presupuesto de un prototipo compartido, o la parte ya está asignada): entonces
-        el cuantificador solo compara."""
+        el cuantificador solo compara. Si aplica: `{obra_id, clave, reabierta, tenia_programa}`."""
         ...
 
     async def obtener_para_captura(self, actividad_id: UUID) -> dict | None:

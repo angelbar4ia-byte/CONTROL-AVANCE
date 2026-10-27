@@ -220,7 +220,8 @@ async def _leer_con_tope(archivo: UploadFile) -> bytes:
     response_model=CargaRespuesta,
     status_code=status.HTTP_201_CREATED,
     summary="Subir un archivo de carga (vista previa o commit)",
-    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
+    # Costos prepara la ingeniería y también la sube (D-581), pero solo esa: lo demás es de Control.
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))],
     responses={
         413: {"description": "El archivo excede el máximo permitido."},
         422: {"description": "El archivo no cumple el contrato del §10.6."},
@@ -306,6 +307,11 @@ async def subir_carga(
     solo contra ESE tipo — exigirlos siempre rompería los demás formularios
     que no tienen por qué mandarlos.
     """
+    if Rol(ctx.rol) is Rol.COSTOS and tipo is not TipoCarga.INGENIERIA_LOTE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Costos sube la ingeniería del lote; las demás cargas son de Control de obra.",
+        )
     if tipo is TipoCarga.INGENIERIA_LOTE:
         if obra_id is None:
             raise HTTPException(

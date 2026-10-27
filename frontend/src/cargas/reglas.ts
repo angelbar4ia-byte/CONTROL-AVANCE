@@ -163,3 +163,11 @@ export function resumenDe(lote: LoteRespuesta): ResumenDeLote {
     omitidos: numero('omitidos'),
   };
 }
+
+/**
+ * Qué tipos de carga ofrece la pantalla a cada rol. Costos prepara la ingeniería y también la
+ * sube (D-581), pero solo esa: las demás cargas son de Control de obra. El servidor lo impone.
+ */
+export function tiposParaRol(rol: string | null | undefined): readonly TipoCarga[] {
+  return rol === 'costos' ? TIPOS.filter((t) => t === TipoCarga.ingenieria_lote) : TIPOS;
+}

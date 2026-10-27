@@ -259,3 +259,64 @@ async def test_en_la_obra_nueva_lo_medido_es_el_presupuesto_y_en_las_demas_solo_
     await medir(10.0)
     despues = round(float((await control.get(f"/api/v1/obras/{obra_id}/actividades")).json()[0]["cant_base"]), 2)
     assert despues == antes
+
+
+async def test_medir_una_parte_programada_la_devuelve_y_avisa_a_quien_lleva_el_programa(
+    escenario: Escenario,
+    prototipos_base: dict,
+    control: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from obractrl.application.puertos.notificaciones import Correo
+    from obractrl.infrastructure.notificaciones.expo import ClienteExpoPush
+    from obractrl.infrastructure.notificaciones.resend import ClienteResend
+
+    enviados: list[Correo] = []
+
+    async def capturar(self, correo):  # type: ignore[no-untyped-def]
+        enviados.append(correo)
+        return True
+
+    async def sin_push(self, aviso) -> int:  # type: ignore[no-untyped-def]
+        return 0
+
+    monkeypatch.setattr(ClienteResend, "enviar", capturar)
+    monkeypatch.setattr(ClienteExpoPush, "enviar", sin_push)
+
+    nueva = (await _crear(control, escenario, "NUE-AV", plantas=1)).json()
+    obra_id = nueva["obra_id"]
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    async with engine.begin() as conn:  # a quien lleva el programa se le avisa
+        await conn.execute(
+            text("update obra set residente_id = :r where id = :o"),
+            {"r": str(escenario.residente_id), "o": obra_id},
+        )
+    await engine.dispose()
+    await control.post(f"/api/v1/obras/{obra_id}/generar", json={"modo_pago": "destajo"})
+    actividad = (await control.get(f"/api/v1/obras/{obra_id}/actividades")).json()[0]["id"]
+    clave = (await control.get(f"/api/v1/obras/{obra_id}/partes")).json()["partes"][0]["clave"]
+    plano = (await control.post(f"/api/v1/obras/{obra_id}/planos", json={"nombre": "P", "archivo_url": "r2://p"})).json()
+
+    async def medir(lado: int) -> None:
+        r = await control.post(
+            f"/api/v1/planos/{plano['id']}/trazos",
+            json={
+                "version_plano": 1,
+                "geometria_wkt": f"POLYGON((0 0, {lado} 0, {lado} {lado}, 0 {lado}, 0 0))",
+                "fuente": "pdf",
+                "enlaces": [{"actividad_id": actividad, "medida": "area", "factor": "1"}],
+            },
+        )
+        assert r.status_code == 201, r.text
+
+    await medir(10)
+    for accion in ("enviar_a_presupuesto", "autorizar", "validar", "enviar_a_programa", "programar"):
+        r = await control.post(f"/api/v1/obras/{obra_id}/partes/transicion", json={"accion": accion, "claves": [clave]})
+        assert r.status_code == 200, r.text
+    enviados.clear()
+
+    await medir(5)  # suma otra medida: cambia la cantidad vigente
+    ver = (await control.get(f"/api/v1/obras/{obra_id}/partes")).json()["partes"][0]
+    assert (ver["estado"], ver["programa_por_revisar"]) == ("cuantificando", True)
+    [aviso] = [c for c in enviados if c.etiquetas == {"tipo": "programa_por_revisar"}]
+    assert aviso.para  # a quien lleva el programa, no a quien midió

@@ -740,7 +740,7 @@ def obtener_registrar_plano(sesion: SesionRLS) -> RegistrarPlano:
     )
 
 
-def obtener_registrar_trazo_con_enlaces(sesion: SesionRLS) -> RegistrarTrazoConEnlaces:
+def obtener_registrar_trazo_con_enlaces(sesion: SesionRLS, ctx: ContextoActual) -> RegistrarTrazoConEnlaces:
     return RegistrarTrazoConEnlaces(
         trazos=RepositorioTrazosSQL(sesion),
         enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
@@ -748,10 +748,11 @@ def obtener_registrar_trazo_con_enlaces(sesion: SesionRLS) -> RegistrarTrazoConE
         prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
         desviaciones=RepositorioDesviacionesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
     )
 
 
-def obtener_calibrar_escala(sesion: SesionRLS) -> CalibrarEscalaDePlano:
+def obtener_calibrar_escala(sesion: SesionRLS, ctx: ContextoActual) -> CalibrarEscalaDePlano:
     return CalibrarEscalaDePlano(
         planos=RepositorioPlanosSQL(sesion),
         enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
@@ -759,16 +760,18 @@ def obtener_calibrar_escala(sesion: SesionRLS) -> CalibrarEscalaDePlano:
         prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
         desviaciones=RepositorioDesviacionesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
     )
 
 
-def obtener_reemplazar_enlace(sesion: SesionRLS) -> ReemplazarEnlace:
+def obtener_reemplazar_enlace(sesion: SesionRLS, ctx: ContextoActual) -> ReemplazarEnlace:
     return ReemplazarEnlace(
         enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
         actividades=RepositorioActividadesSQL(sesion),
         prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
         desviaciones=RepositorioDesviacionesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
     )
 
 

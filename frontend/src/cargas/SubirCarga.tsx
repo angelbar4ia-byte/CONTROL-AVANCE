@@ -23,12 +23,13 @@ import { useSubirCargaApiV1CargasPost } from '@/api/generado/cargas/cargas';
 import { ModoCarga, TipoCarga, type CargaRespuesta } from '@/api/generado/modelo';
 import { claveDeIdempotencia, type ErrorApi } from '@/api/cliente';
 import { useListarPrototiposApiV1PrototiposGet } from '@/api/generado/proyectos/proyectos';
+import { useSesion } from '@/app/sesion';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { SelectorObra } from '@/lib/SelectorObra';
 import { Sheet } from '@/lib/Sheet';
 import {
   MODOS,
-  TIPOS,
+  tiposParaRol,
   descripcionModo,
   etiquetaModo,
   etiquetaTipo,
@@ -64,7 +65,9 @@ interface Props {
 }
 
 export function SubirCarga({ tipoInicial, obraInicial, onCerrar, onAplicada }: Props) {
-  const [tipo, setTipo] = useState<TipoCarga>(tipoInicial ?? TipoCarga.catalogo_conceptos);
+  const { sesion } = useSesion();
+  const tipos = tiposParaRol(sesion?.rol);
+  const [tipo, setTipo] = useState<TipoCarga>(tipoInicial ?? tipos[0] ?? TipoCarga.catalogo_conceptos);
   const [modo, setModo] = useState<ModoCarga>(ModoCarga.actualizar);
   const [archivo, setArchivo] = useState<File | null>(null);
   const [previa, setPrevia] = useState<CargaRespuesta | null>(null);
@@ -174,7 +177,7 @@ export function SubirCarga({ tipoInicial, obraInicial, onCerrar, onAplicada }: P
                 reiniciarPrevia();
               }}
             >
-              {TIPOS.map((t) => (
+              {tipos.map((t) => (
                 <option key={t} value={t}>
                   {etiquetaTipo(t)}
                 </option>
