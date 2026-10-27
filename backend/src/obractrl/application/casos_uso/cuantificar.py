@@ -53,6 +53,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from obractrl.application.casos_uso.capturar_avance import ActividadNoEncontrada
@@ -91,7 +92,9 @@ from obractrl.domain.shared.diccionario import (
 )
 
 __all__ = [
+    "AgregarHuecoATrazo",
     "CalibrarEscalaDePlano",
+    "ComandoAgregarHueco",
     "ComandoCalibrarEscala",
     "ComandoReemplazarEnlace",
     "ComandoRegistrarNotaPlano",
@@ -101,6 +104,7 @@ __all__ = [
     "ErrorDeCuantificacion",
     "EscalaCalibrada",
     "GobiernoDeCuantificacionInvalido",
+    "HuecoAgregado",
     "IntencionEnlace",
     "NodoCuantificado",
     "NotaPlanoRegistrada",
@@ -168,6 +172,26 @@ class ComandoRegistrarTrazo:
     autor_id: UUID
     rol: Rol
     enlaces: tuple[IntencionEnlace, ...] = ()
+    grosor_m: Decimal | None = None
+    """Grosor en metros de una **línea** (un muro): su área es largo × grosor (0086)."""
+    alineacion: str | None = None
+    """De qué lado del eje queda el cuerpo de la línea: centro, izquierda o derecha."""
+    forma: dict[str, Any] | None = None
+    """Plantilla con la que se estampó un **polígono** que nació de un punto con forma."""
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoAgregarHueco:
+    trazo_id: UUID
+    geometria_wkt: str
+    autor_id: UUID
+    rol: Rol
+
+
+@dataclass(frozen=True, slots=True)
+class HuecoAgregado:
+    hueco_id: UUID
+    recalculos: tuple[ResultadoDeRecalculo, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True, slots=True)
@@ -435,6 +459,16 @@ class RegistrarTrazoConEnlaces:
         if motivo is not None:
             raise ErrorDeCuantificacion(f"El trazo no se puede medir. {motivo}")
 
+        # El grosor es de una línea y la forma de un polígono: en otra geometría no
+        # significan nada y se rechazan en vez de guardarse callados.
+        tipo = await self._trazos.tipo_de_geometria(cmd.geometria_wkt)
+        if (cmd.grosor_m is not None or cmd.alineacion is not None) and tipo != "ST_LineString":
+            raise ErrorDeCuantificacion("El grosor y la alineación son de una línea (un muro).")
+        if (cmd.grosor_m is None) != (cmd.alineacion is None):
+            raise ErrorDeCuantificacion("El grosor y la alineación van juntos.")
+        if cmd.forma is not None and tipo != "ST_Polygon":
+            raise ErrorDeCuantificacion("La forma es de un trazo cerrado (un polígono).")
+
         async with self._uow:
             trazo_id = await self._trazos.crear(
                 plano_id=cmd.plano_id,
@@ -443,6 +477,9 @@ class RegistrarTrazoConEnlaces:
                 geometria_wkt=cmd.geometria_wkt,
                 fuente=cmd.fuente,
                 autor_id=cmd.autor_id,
+                grosor_m=cmd.grosor_m,
+                alineacion=cmd.alineacion,
+                forma=cmd.forma,
             )
 
             enlace_ids: list[UUID] = []
@@ -781,6 +818,89 @@ class AprobarTrazo:
             aprobado_en=trazo["aprobado_en"],
             ya_estaba_aprobado=not aprobado_ahora,
         )
+
+
+class AgregarHuecoATrazo:
+    """Abre un hueco en un área ya trazada (la ventana de un muro, el cubo de una escalera).
+
+    La geometría de un trazo no se toca (0057): el hueco es un trazo hijo y lo que se mide
+    es la geometría efectiva, la del área menos sus huecos (0086). Como cambia lo que el
+    área mide, cada nodo que alimenta se **recalcula**: la actividad se vuelve a comparar
+    contra su `cant_base` (y puede levantar una desviación) y el `prototipo_nodo` se vuelve
+    a sobreescribir. Si el área alimenta un `prototipo_nodo`, tiene el mismo gobierno que
+    enlazarlo: Control de obra o Super intendente.
+    """
+
+    def __init__(
+        self,
+        *,
+        trazos: RepositorioTrazos,
+        enlaces: RepositorioEnlacesCuantificacion,
+        actividades: RepositorioActividades,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        desviaciones: RepositorioDesviaciones,
+        uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
+        matrices: RepositorioMatrices | None = None,
+    ) -> None:
+        self._trazos = trazos
+        self._enlaces = enlaces
+        self._actividades = actividades
+        self._prototipo_nodos = prototipo_nodos
+        self._desviaciones = desviaciones
+        self._uow = uow
+        self._eventos = eventos
+        self._matrices = matrices
+
+    async def ejecutar(
+        self, cmd: ComandoAgregarHueco, *, detectada_en: datetime
+    ) -> HuecoAgregado:
+        if await self._trazos.obtener(cmd.trazo_id) is None:
+            raise TrazoNoEncontrado(f"El trazo {cmd.trazo_id} no existe o no está en tu alcance.")
+
+        motivo = await self._trazos.motivo_de_geometria_invalida(cmd.geometria_wkt)
+        if motivo is not None:
+            raise ErrorDeCuantificacion(f"El hueco no se puede medir. {motivo}")
+        motivo = await self._trazos.motivo_de_hueco_invalido(cmd.trazo_id, cmd.geometria_wkt)
+        if motivo is not None:
+            raise ErrorDeCuantificacion(motivo)
+
+        nodos = await self._enlaces.nodos_vigentes_de_trazo(cmd.trazo_id)
+        if (
+            any(n["tipo_nodo"] == TipoNodoCuantificacion.PROTOTIPO_NODO.value for n in nodos)
+            and cmd.rol not in _ROLES_QUE_TOCAN_PROTOTIPO
+        ):
+            permitidos = ", ".join(r.value for r in _ROLES_QUE_TOCAN_PROTOTIPO)
+            raise GobiernoDeCuantificacionInvalido(
+                f"Esta área alimenta la cantidad de un prototipo_nodo: abrirle un hueco la "
+                f"cambia, y eso exige {permitidos}; el rol {cmd.rol.value!r} no puede."
+            )
+
+        async with self._uow:
+            hueco_id = await self._trazos.crear_hueco(
+                trazo_id=cmd.trazo_id, geometria_wkt=cmd.geometria_wkt, autor_id=cmd.autor_id
+            )
+            recalculos = tuple(
+                [
+                    await _recalcular_nodo(
+                        tipo_nodo=TipoNodoCuantificacion(str(n["tipo_nodo"])),
+                        actividad_id=n["actividad_id"],
+                        prototipo_nodo_id=n["prototipo_nodo_id"],
+                        matriz_concepto_id=n.get("matriz_concepto_id"),
+                        enlaces=self._enlaces,
+                        actividades=self._actividades,
+                        prototipo_nodos=self._prototipo_nodos,
+                        desviaciones=self._desviaciones,
+                        detectada_en=detectada_en,
+                        matrices=self._matrices,
+                    )
+                    for n in nodos
+                ]
+            )
+            await self._uow.commit()
+
+        await _avisar_reaperturas(self._eventos, recalculos, cmd.autor_id)
+        return HuecoAgregado(hueco_id=hueco_id, recalculos=recalculos)
 
 
 class RegistrarNotaPlano:

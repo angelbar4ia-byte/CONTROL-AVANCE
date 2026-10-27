@@ -8,6 +8,9 @@
 import type { TrazoPeticionCapa } from "./trazoPeticionCapa";
 import type { FuenteTrazo } from "./fuenteTrazo";
 import type { IntencionEnlacePeticion } from "./intencionEnlacePeticion";
+import type { TrazoPeticionGrosorM } from "./trazoPeticionGrosorM";
+import type { TrazoPeticionAlineacion } from "./trazoPeticionAlineacion";
+import type { TrazoPeticionForma } from "./trazoPeticionForma";
 
 /**
  * Alta de un trazo con sus enlaces (MODELO.md §1b, Decisión 3 de 3:
@@ -24,4 +27,10 @@ export interface TrazoPeticion {
    */
   geometria_wkt: string;
   enlaces?: IntencionEnlacePeticion[];
+  /** Grosor en metros de una **línea** (un muro de 0.15 o de 0.30 m). Con grosor, el área de la línea es su largo × grosor. Va junto con `alineacion`. */
+  grosor_m?: TrazoPeticionGrosorM;
+  /** De qué lado del eje dibujado queda el cuerpo de la línea, mirando en el sentido en que se dibujó. Solo orienta al visor: el área no depende de ella. */
+  alineacion?: TrazoPeticionAlineacion;
+  /** Plantilla con la que se estampó un polígono que nació de un punto con forma. */
+  forma?: TrazoPeticionForma;
 }

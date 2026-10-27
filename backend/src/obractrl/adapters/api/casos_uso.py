@@ -132,6 +132,7 @@ from obractrl.application.casos_uso.crear_obra_desde_catalogo_base import (
     CrearObraDesdeCero,
 )
 from obractrl.application.casos_uso.cuantificar import (
+    AgregarHuecoATrazo,
     AprobarTrazo,
     CalibrarEscalaDePlano,
     ConsultarCuantificacion,
@@ -313,6 +314,7 @@ __all__ = [
     "ActualizarUsuarioDep",
     "AgregarActividadNuevaDep",
     "AgregarDocumentoDep",
+    "AgregarHuecoDep",
     "AgregarRespuestasDep",
     "AplicarReprogramacionDep",
     "AprobarCierreDeFrenteDep",
@@ -768,6 +770,19 @@ def obtener_registrar_trazo_con_enlaces(sesion: SesionRLS, ctx: ContextoActual) 
     )
 
 
+def obtener_agregar_hueco(sesion: SesionRLS, ctx: ContextoActual) -> AgregarHuecoATrazo:
+    return AgregarHuecoATrazo(
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
 def obtener_calibrar_escala(sesion: SesionRLS, ctx: ContextoActual) -> CalibrarEscalaDePlano:
     return CalibrarEscalaDePlano(
         planos=RepositorioPlanosSQL(sesion),
@@ -892,6 +907,7 @@ DeclararPerdidaDeExcedenteDep = Annotated[
     DeclararPerdidaDeExcedente, Depends(obtener_declarar_perdida_de_excedente)
 ]
 AprobarTrazoDep = Annotated[AprobarTrazo, Depends(obtener_aprobar_trazo)]
+AgregarHuecoDep = Annotated[AgregarHuecoATrazo, Depends(obtener_agregar_hueco)]
 ConsultarMatricesDep = Annotated[ConsultarMatrices, Depends(obtener_consultar_matrices)]
 ConsultarCuantificacionDep = Annotated[
     ConsultarCuantificacion, Depends(obtener_consultar_cuantificacion)

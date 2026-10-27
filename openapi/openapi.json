@@ -9516,6 +9516,64 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/huecos": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Abrir un hueco en un área ya trazada",
+        "description": "El hueco resta del área y del perímetro del trazo; el trazo no se modifica (es un trazo\nhijo). Cada nodo que el área alimenta se recalcula, igual que al calibrar la escala.",
+        "operationId": "agregar_hueco_api_v1_trazos__trazo_id__huecos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HuecoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HuecoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El área alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "No es un área, el hueco no es un polígono válido o se sale del área."
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/escala": {
       "put": {
         "tags": [
@@ -20172,6 +20230,112 @@
         ],
         "title": "FilaDeInsumoRespuesta"
       },
+      "FormaDeTrazo": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "circulo",
+              "cuadrado",
+              "rectangulo",
+              "triangulo",
+              "hexagono",
+              "libre"
+            ],
+            "title": "Tipo"
+          },
+          "ancho_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Ancho M"
+          },
+          "alto_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Alto M"
+          },
+          "rotacion_grados": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 360.0,
+                "minimum": -360.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Rotacion Grados",
+            "default": "0"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre",
+            "description": "El elemento que representa: castillo, columna..."
+          },
+          "vertices": {
+            "anyOf": [
+              {
+                "items": {
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array",
+                  "maxItems": 2,
+                  "minItems": 2
+                },
+                "type": "array",
+                "maxItems": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vertices",
+            "description": "Solo en `libre`: el contorno normalizado a una caja de 1 × 1 centrada en el origen."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "ancho_m",
+          "alto_m"
+        ],
+        "title": "FormaDeTrazo",
+        "description": "Con qué plantilla y a qué tamaño se estampó un punto con forma (un castillo, una columna)."
+      },
       "FrenteDeObraRespuesta": {
         "properties": {
           "frente_id": {
@@ -20666,6 +20830,44 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HuecoPeticion": {
+        "properties": {
+          "geometria_wkt": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Geometria Wkt",
+            "description": "`POLYGON((...))` en coordenadas de plano, dentro del área."
+          }
+        },
+        "type": "object",
+        "required": [
+          "geometria_wkt"
+        ],
+        "title": "HuecoPeticion",
+        "description": "Un hueco dentro de un área ya trazada (la ventana de un muro, el cubo de una escalera)."
+      },
+      "HuecoRespuesta": {
+        "properties": {
+          "hueco_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Hueco Id"
+          },
+          "recalculos": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+            },
+            "type": "array",
+            "title": "Recalculos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hueco_id",
+          "recalculos"
+        ],
+        "title": "HuecoRespuesta"
       },
       "IdRespuesta": {
         "properties": {
@@ -28180,6 +28382,52 @@
             },
             "type": "array",
             "title": "Enlaces"
+          },
+          "grosor_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grosor M",
+            "description": "Grosor en metros de una **línea** (un muro de 0.15 o de 0.30 m). Con grosor, el área de la línea es su largo × grosor. Va junto con `alineacion`."
+          },
+          "alineacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "centro",
+                  "izquierda",
+                  "derecha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alineacion",
+            "description": "De qué lado del eje dibujado queda el cuerpo de la línea, mirando en el sentido en que se dibujó. Solo orienta al visor: el área no depende de ella."
+          },
+          "forma": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FormaDeTrazo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Plantilla con la que se estampó un polígono que nació de un punto con forma."
           }
         },
         "type": "object",
@@ -28257,6 +28505,54 @@
               }
             ],
             "title": "Aprobado En"
+          },
+          "grosor_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grosor M",
+            "description": "Grosor en metros de una línea (un muro); `null` si no tiene."
+          },
+          "alineacion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "centro",
+                  "izquierda",
+                  "derecha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alineacion"
+          },
+          "forma": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forma",
+            "description": "Plantilla con la que se estampó un punto con forma."
+          },
+          "n_huecos": {
+            "type": "integer",
+            "title": "N Huecos",
+            "description": "Huecos que tiene el área. Su geometría ya viene restada en `geometry`.",
+            "default": 0
           },
           "nodo_ids": {
             "items": {

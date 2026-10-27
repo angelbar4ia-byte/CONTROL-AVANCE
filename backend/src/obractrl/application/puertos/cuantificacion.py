@@ -90,7 +90,22 @@ class RepositorioTrazos(Protocol):
         geometria_wkt: str,
         fuente: str,
         autor_id: UUID,
+        grosor_m: Decimal | None = None,
+        alineacion: str | None = None,
+        forma: dict[str, Any] | None = None,
     ) -> UUID: ...
+
+    async def tipo_de_geometria(self, geometria_wkt: str) -> str:
+        """`ST_GeometryType` del WKT: `ST_Polygon`, `ST_LineString`, `ST_Point`..."""
+        ...
+
+    async def motivo_de_hueco_invalido(self, trazo_id: UUID, geometria_wkt: str) -> str | None:
+        """Por qué ese WKT no puede ser un hueco del trazo, o `None` si puede."""
+        ...
+
+    async def crear_hueco(self, *, trazo_id: UUID, geometria_wkt: str, autor_id: UUID) -> UUID:
+        """Un hueco es un trazo hijo (`hueco_de`) que resta del área del padre; sin enlaces."""
+        ...
 
     async def motivo_de_geometria_invalida(self, geometria_wkt: str) -> str | None:
         """Por qué el WKT no sirve para medir (no es WKT, está vacío o es
@@ -136,6 +151,10 @@ class RepositorioEnlacesCuantificacion(Protocol):
     ) -> UUID: ...
 
     async def obtener(self, enlace_id: UUID) -> dict[str, Any] | None: ...
+
+    async def nodos_vigentes_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]:
+        """Los nodos distintos a los que enlaza, vigentes, un trazo."""
+        ...
 
     async def marcar_no_vigente(self, enlace_id: UUID) -> None:
         """`ReemplazarEnlace`: acción explícita y manual (MODELO.md §1b,

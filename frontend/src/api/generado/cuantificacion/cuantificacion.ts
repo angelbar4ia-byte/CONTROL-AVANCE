@@ -30,6 +30,8 @@ import type {
   EscalaPeticion,
   EscalaRespuesta,
   HTTPValidationError,
+  HuecoPeticion,
+  HuecoRespuesta,
   MatricesDeActividadRespuesta,
   NodoCuantificadoRespuesta,
   NotaPlanoDetalleRespuesta,
@@ -963,6 +965,107 @@ export function useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet<
   return query;
 }
 
+/**
+ * El hueco resta del área y del perímetro del trazo; el trazo no se modifica (es un trazo
+hijo). Cada nodo que el área alimenta se recalcula, igual que al calibrar la escala.
+ * @summary Abrir un hueco en un área ya trazada
+ */
+export const agregarHuecoApiV1TrazosTrazoIdHuecosPost = (
+  trazoId: string,
+  huecoPeticion: HuecoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<HuecoRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/huecos`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: huecoPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getAgregarHuecoApiV1TrazosTrazoIdHuecosPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof agregarHuecoApiV1TrazosTrazoIdHuecosPost>>,
+    TError,
+    { trazoId: string; data: HuecoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof agregarHuecoApiV1TrazosTrazoIdHuecosPost>>,
+  TError,
+  { trazoId: string; data: HuecoPeticion },
+  TContext
+> => {
+  const mutationKey = ["agregarHuecoApiV1TrazosTrazoIdHuecosPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof agregarHuecoApiV1TrazosTrazoIdHuecosPost>>,
+    { trazoId: string; data: HuecoPeticion }
+  > = (props) => {
+    const { trazoId, data } = props ?? {};
+
+    return agregarHuecoApiV1TrazosTrazoIdHuecosPost(
+      trazoId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AgregarHuecoApiV1TrazosTrazoIdHuecosPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof agregarHuecoApiV1TrazosTrazoIdHuecosPost>>
+  >;
+export type AgregarHuecoApiV1TrazosTrazoIdHuecosPostMutationBody =
+  HuecoPeticion;
+export type AgregarHuecoApiV1TrazosTrazoIdHuecosPostMutationError = void;
+
+/**
+ * @summary Abrir un hueco en un área ya trazada
+ */
+export const useAgregarHuecoApiV1TrazosTrazoIdHuecosPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof agregarHuecoApiV1TrazosTrazoIdHuecosPost>>,
+      TError,
+      { trazoId: string; data: HuecoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof agregarHuecoApiV1TrazosTrazoIdHuecosPost>>,
+  TError,
+  { trazoId: string; data: HuecoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getAgregarHuecoApiV1TrazosTrazoIdHuecosPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * Sin escala, lo que se mide está en unidades de plano —píxeles del visor— y
 no se puede comparar con el presupuesto. Calibrar corrige todos los trazos del

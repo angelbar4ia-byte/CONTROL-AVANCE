@@ -9,6 +9,9 @@ import type { TrazoPropiedadesCapa } from "./trazoPropiedadesCapa";
 import type { TrazoPropiedadesAutorId } from "./trazoPropiedadesAutorId";
 import type { TrazoPropiedadesAprobadoPor } from "./trazoPropiedadesAprobadoPor";
 import type { TrazoPropiedadesAprobadoEn } from "./trazoPropiedadesAprobadoEn";
+import type { TrazoPropiedadesGrosorM } from "./trazoPropiedadesGrosorM";
+import type { TrazoPropiedadesAlineacion } from "./trazoPropiedadesAlineacion";
+import type { TrazoPropiedadesForma } from "./trazoPropiedadesForma";
 import type { EnlaceDeTrazoRespuesta } from "./enlaceDeTrazoRespuesta";
 
 export interface TrazoPropiedades {
@@ -21,6 +24,13 @@ export interface TrazoPropiedades {
   /** Control de obra que lo aprobó, o `null` si aún no está aprobado. */
   aprobado_por: TrazoPropiedadesAprobadoPor;
   aprobado_en: TrazoPropiedadesAprobadoEn;
+  /** Grosor en metros de una línea (un muro); `null` si no tiene. */
+  grosor_m?: TrazoPropiedadesGrosorM;
+  alineacion?: TrazoPropiedadesAlineacion;
+  /** Plantilla con la que se estampó un punto con forma. */
+  forma?: TrazoPropiedadesForma;
+  /** Huecos que tiene el área. Su geometría ya viene restada en `geometry`. */
+  n_huecos?: number;
   /** Nodos a los que el trazo alimenta con un enlace **vigente**: lo que el visor necesita para resolver el clic (MODELO.md §1b). Un trazo puede alimentar varios (el área da el piso, el perímetro el zoclo). */
   nodo_ids: string[];
   enlaces: EnlaceDeTrazoRespuesta[];

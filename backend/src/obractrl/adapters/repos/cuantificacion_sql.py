@@ -45,11 +45,19 @@ __all__ = [
 # cuadrado, un largo con la escala, un conteo no escala. Toda consulta que use
 # esta fórmula debe unir `plano p` (`p.id = t.plano_id`).
 _ESCALA_SQL = "coalesce(p.escala_m_por_unidad, 1)"
+#
+# La geometría que se mide es la **efectiva** (0086): la del trazo menos sus huecos. Y el
+# área de una línea con grosor es largo × grosor (un muro), no el área de un segmento.
+_GEOMETRIA_SQL = "app.geometria_efectiva(t.id, t.geometria)"
 _MEDIDA_VALOR_SQL = f"""
     case e.medida
-      when 'area'      then ST_Area(t.geometria) * power({_ESCALA_SQL}, 2)
-      when 'perimetro'  then ST_Perimeter(t.geometria) * {_ESCALA_SQL}
-      when 'longitud'   then ST_Length(t.geometria) * {_ESCALA_SQL}
+      when 'area'      then case
+                              when t.grosor_m is not null
+                                then ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * t.grosor_m
+                              else ST_Area({_GEOMETRIA_SQL}) * power({_ESCALA_SQL}, 2)
+                            end
+      when 'perimetro'  then ST_Perimeter({_GEOMETRIA_SQL}) * {_ESCALA_SQL}
+      when 'longitud'   then ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL}
       when 'conteo'     then 1
     end
 """
@@ -168,7 +176,7 @@ class RepositorioPlanosSQL:
                                where t.version_plano < p.version
                            ) as n_trazos_por_revisar
                       from plano p
-                      left join trazo t on t.plano_id = p.id
+                      left join trazo t on t.plano_id = p.id and t.hueco_de is null
                      where p.obra_id = :obra_id
                      group by p.id
                      order by p.nombre, p.version desc, p.created_at
@@ -193,6 +201,9 @@ class RepositorioTrazosSQL:
         geometria_wkt: str,
         fuente: str,
         autor_id: UUID,
+        grosor_m: Decimal | None = None,
+        alineacion: str | None = None,
+        forma: dict[str, Any] | None = None,
     ) -> UUID:
         fila = (
             await self._sesion.execute(
@@ -200,7 +211,7 @@ class RepositorioTrazosSQL:
                     """
                     insert into trazo
                         (org_id, plano_id, version_plano, capa, geometria,
-                         fuente, autor_id)
+                         fuente, autor_id, grosor_m, alineacion, forma)
                     values
                         (cast(current_setting('app.org_id') as uuid),
                          :plano_id, :version_plano, :capa,
@@ -208,7 +219,8 @@ class RepositorioTrazosSQL:
                          -- golpe (MODELO.md §1b, Decisión 3 de 3); SRID 0,
                          -- coordenadas de plano, no geográficas.
                          ST_GeomFromText(:geometria_wkt, 0),
-                         cast(:fuente as fuente_trazo), :autor_id)
+                         cast(:fuente as fuente_trazo), :autor_id,
+                         :grosor_m, :alineacion, cast(:forma as jsonb))
                     returning id
                     """
                 ),
@@ -219,10 +231,76 @@ class RepositorioTrazosSQL:
                     "geometria_wkt": geometria_wkt,
                     "fuente": fuente,
                     "autor_id": str(autor_id),
+                    "grosor_m": grosor_m,
+                    "alineacion": alineacion,
+                    "forma": json.dumps(forma) if forma is not None else None,
                 },
             )
         ).scalar_one()
         return fila
+
+    async def tipo_de_geometria(self, geometria_wkt: str) -> str:
+        """`ST_GeometryType` del WKT (`ST_Polygon`, `ST_LineString`, `ST_Point`...)."""
+        return str(
+            (
+                await self._sesion.execute(
+                    text("select ST_GeometryType(ST_GeomFromText(:wkt, 0))"),
+                    {"wkt": geometria_wkt},
+                )
+            ).scalar_one()
+        )
+
+    async def motivo_de_hueco_invalido(self, trazo_id: UUID, geometria_wkt: str) -> str | None:
+        """Por qué ese WKT no puede ser un hueco del trazo, o `None` si puede: el padre
+        tiene que ser un área (y no ser él mismo un hueco) y el hueco tiene que quedar
+        completamente dentro de lo que queda del padre."""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select ST_GeometryType(t.geometria) as tipo,
+                           t.hueco_de is not null as es_hueco,
+                           ST_GeometryType(h.g) as tipo_hueco,
+                           ST_Within(h.g, app.geometria_efectiva(t.id, t.geometria)) as dentro
+                      from trazo t,
+                           (select ST_GeomFromText(:wkt, 0) as g) h
+                     where t.id = :id
+                    """
+                ),
+                {"id": str(trazo_id), "wkt": geometria_wkt},
+            )
+        ).mappings().first()
+        if fila is None:
+            return "El trazo no existe o está fuera de tu alcance."
+        if fila["es_hueco"] or fila["tipo"] not in ("ST_Polygon", "ST_MultiPolygon"):
+            return "Solo un área (polígono) admite huecos."
+        if fila["tipo_hueco"] != "ST_Polygon":
+            return "El hueco tiene que ser un polígono."
+        if not fila["dentro"]:
+            return "El hueco tiene que quedar dentro del área, sin salirse ni cubrir otro hueco."
+        return None
+
+    async def crear_hueco(
+        self, *, trazo_id: UUID, geometria_wkt: str, autor_id: UUID
+    ) -> UUID:
+        """El hueco es un trazo hijo del área, de la misma versión de plano y sin enlaces."""
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into trazo
+                        (org_id, plano_id, version_plano, capa, geometria,
+                         fuente, autor_id, hueco_de)
+                    select t.org_id, t.plano_id, t.version_plano, t.capa,
+                           ST_GeomFromText(:wkt, 0), t.fuente, :autor_id, t.id
+                      from trazo t
+                     where t.id = :id
+                    returning id
+                    """
+                ),
+                {"id": str(trazo_id), "wkt": geometria_wkt, "autor_id": str(autor_id)},
+            )
+        ).scalar_one()
 
     async def motivo_de_geometria_invalida(self, geometria_wkt: str) -> str | None:
         """Por qué el WKT no sirve para medir, o `None` si sirve.
@@ -265,7 +343,7 @@ class RepositorioTrazosSQL:
                 text(
                     """
                     select id, plano_id, version_plano, autor_id,
-                           aprobado_por, aprobado_en
+                           aprobado_por, aprobado_en, hueco_de
                       from trazo
                      where id = :id
                     """
@@ -303,11 +381,14 @@ class RepositorioTrazosSQL:
                     """
                     select t.id, t.version_plano, t.capa, t.fuente, t.autor_id,
                            t.aprobado_por, t.aprobado_en, t.created_at,
+                           t.grosor_m, t.alineacion, t.forma,
+                           (select count(*) from trazo h where h.hueco_de = t.id) as n_huecos,
                            (t.version_plano < p.version) as por_revisar,
-                           ST_AsGeoJSON(t.geometria, 9, 0) as geojson
+                           -- La geometría que se dibuja y se mide es la efectiva: con sus huecos.
+                           ST_AsGeoJSON(app.geometria_efectiva(t.id, t.geometria), 9, 0) as geojson
                       from trazo t
                       join plano p on p.id = t.plano_id
-                     where t.plano_id = :plano_id
+                     where t.plano_id = :plano_id and t.hueco_de is null
                      order by t.created_at, t.id
                     """
                 ),
@@ -481,6 +562,26 @@ class RepositorioEnlacesCuantificacionSQL:
                     """
                 ),
                 {"plano_id": str(plano_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def nodos_vigentes_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]:
+        """Los nodos distintos a los que enlaza, vigentes, un trazo: lo que hay que
+        recalcular cuando cambia lo que ese trazo mide (le abren un hueco)."""
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select distinct e.tipo_nodo, e.actividad_id, e.prototipo_nodo_id,
+                                    e.matriz_concepto_id
+                      from enlace_cuantificacion e
+                     where e.trazo_id = :trazo_id and e.vigente
+                     order by e.tipo_nodo, e.actividad_id, e.prototipo_nodo_id,
+                              e.matriz_concepto_id
+                    """
+                ),
+                {"trazo_id": str(trazo_id)},
             )
         ).mappings().all()
         return [dict(f) for f in filas]
