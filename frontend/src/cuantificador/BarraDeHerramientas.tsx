@@ -11,6 +11,7 @@
 import {
   ArrowLeftRight,
   Box,
+  Circle,
   Eraser,
   Eye,
   Hand,
@@ -18,24 +19,54 @@ import {
   MapPin,
   MousePointer,
   Pentagon,
+  Redo2,
+  RectangleHorizontal,
   Ruler,
   Spline,
   SquareMinus,
+  Slash,
   StickyNote,
   Table2,
   Trash2,
+  Undo2,
   ZoomIn,
   type LucideIcon,
 } from 'lucide-react';
 
 import type { Herramienta } from './geometria';
 
-const ICONOS: Record<Herramienta, LucideIcon> = {
+function IconoElipse({ size = 24, strokeWidth = 2 }: { size?: number | string; strokeWidth?: number | string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <ellipse cx="12" cy="12" rx="10" ry="6" transform="rotate(-25 12 12)" />
+    </svg>
+  );
+}
+
+function IconoArco({ size = 24, strokeWidth = 2 }: { size?: number | string; strokeWidth?: number | string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 19a9 9 0 0 1 16 0" />
+      <circle cx="4" cy="19" r="1.4" />
+      <circle cx="20" cy="19" r="1.4" />
+    </svg>
+  );
+}
+
+/** Un icono: los de lucide y los pocos que ahí no hay (elipse, arco). */
+type Icono = LucideIcon | typeof IconoElipse;
+
+const ICONOS: Record<Herramienta, Icono> = {
   seleccionar: MousePointer,
   mano: Hand,
   zoom: ZoomIn,
   poligono: Pentagon,
-  linea: Spline,
+  linea: Slash,
+  polilinea: Spline,
+  arco: IconoArco,
+  rectangulo: RectangleHorizontal,
+  circulo: Circle,
+  elipse: IconoElipse,
   punto: MapPin,
   hueco: SquareMinus,
   borrar: Eraser,
@@ -49,6 +80,11 @@ export const ETIQUETAS: Record<Herramienta, string> = {
   zoom: 'Zoom',
   poligono: 'Polígono',
   linea: 'Línea',
+  polilinea: 'Polilínea',
+  arco: 'Arco',
+  rectangulo: 'Rectángulo',
+  circulo: 'Círculo',
+  elipse: 'Elipse',
   punto: 'Punto',
   hueco: 'Hueco',
   borrar: 'Borrar',
@@ -62,6 +98,11 @@ export const ATAJOS: Record<Herramienta, string> = {
   zoom: 'Z',
   poligono: 'P',
   linea: 'L',
+  polilinea: 'Y',
+  arco: 'A',
+  rectangulo: 'R',
+  circulo: 'I',
+  elipse: 'J',
   punto: 'O',
   hueco: 'U',
   borrar: 'B',
@@ -71,13 +112,13 @@ export const ATAJOS: Record<Herramienta, string> = {
 
 const GRUPOS: readonly (readonly Herramienta[])[] = [
   ['seleccionar', 'mano', 'zoom'],
-  ['poligono', 'linea', 'punto', 'hueco', 'nota'],
-  ['borrar'],
+  ['linea', 'polilinea', 'arco', 'poligono', 'rectangulo', 'circulo', 'elipse'],
+  ['punto', 'hueco', 'nota', 'borrar'],
   ['escala'],
 ];
 
 export interface Accion {
-  readonly clave: 'eliminar';
+  readonly clave: 'deshacer' | 'rehacer' | 'eliminar';
   readonly etiqueta: string;
   readonly deshabilitado: boolean;
   readonly descripcion: string;
@@ -95,7 +136,7 @@ export interface Interruptor {
   readonly descripcion?: string;
 }
 
-const INTERRUPTORES: Record<ClaveDeInterruptor, { etiqueta: string; icono: LucideIcon }> = {
+const INTERRUPTORES: Record<ClaveDeInterruptor, { etiqueta: string; icono: Icono }> = {
   medidas: { etiqueta: 'Mostrar medidas', icono: Hash },
   cotas: { etiqueta: 'Cota', icono: ArrowLeftRight },
   soloElegidos: { etiqueta: 'Solo los trazos de los conceptos elegidos', icono: Eye },
@@ -110,6 +151,8 @@ interface Props {
   /** Herramientas que ahora no se pueden usar, con la razón (el tooltip). */
   readonly deshabilitadas?: Readonly<Partial<Record<Herramienta, string>>>;
   readonly interruptores: readonly Interruptor[];
+  /** Deshacer y rehacer: van arriba de todo. */
+  readonly historial?: readonly Accion[];
   /** Acciones que se disparan una vez (no se quedan encendidas): eliminar lo elegido. */
   readonly acciones?: readonly Accion[];
   readonly onAlternar: (clave: ClaveDeInterruptor) => void;
@@ -125,7 +168,7 @@ function Boton({
   titulo,
 }: {
   readonly etiqueta: string;
-  readonly Icono: LucideIcon;
+  readonly Icono: Icono;
   readonly activo: boolean;
   readonly onClick: () => void;
   readonly deshabilitado?: boolean;
@@ -152,6 +195,7 @@ export function BarraDeHerramientas({
   onElegir,
   deshabilitadas = {},
   interruptores,
+  historial = [],
   acciones = [],
   onAlternar,
   orientacion = 'vertical',
@@ -164,9 +208,26 @@ export function BarraDeHerramientas({
       aria-label="Herramientas de trazo"
       aria-orientation={orientacion}
     >
+      {historial.length > 0 && (
+        <div className="barra-iconos__grupo" role="group">
+          {historial.map((a) => (
+            <button
+              key={a.clave}
+              type="button"
+              className="btn-icono"
+              aria-label={a.etiqueta}
+              title={a.descripcion}
+              disabled={a.deshabilitado}
+              onClick={a.onClick}
+            >
+              {a.clave === 'deshacer' ? <Undo2 size={17} strokeWidth={1.7} aria-hidden /> : <Redo2 size={17} strokeWidth={1.7} aria-hidden />}
+            </button>
+          ))}
+        </div>
+      )}
       {grupos.map((grupo, i) => (
         <div key={i} className="barra-iconos__grupo" role="group">
-          {i > 0 && <span className="barra-iconos__sep" role="separator" />}
+          {(i > 0 || historial.length > 0) && <span className="barra-iconos__sep" role="separator" />}
           {grupo.map((h) => (
             <Boton
               key={h}

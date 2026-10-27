@@ -478,6 +478,8 @@ test.describe('Cuantificador · trazar un polígono', () => {
 
     const caja = (await page.getByRole('img', { name: 'Plano con sus trazos' }).boundingBox())!;
     await page.getByRole('button', { name: 'Polígono', exact: true }).click();
+    // El ortogonal (por defecto) alinearía los lados; la corbata necesita diagonales: se apaga.
+    await page.getByRole('button', { name: /^ORTO/ }).click();
     // Cuatro vértices en orden de «corbata»: los lados 1-2 y 3-4 se cruzan. El
     // área firmada se cancela y PostGIS mediría 0: el trazo sumaría cero en silencio.
     for (const [fx, fy] of [

@@ -19,7 +19,12 @@ export type Herramienta =
   | 'mano'
   | 'zoom'
   | 'poligono'
+  | 'rectangulo'
+  | 'circulo'
+  | 'elipse'
+  | 'arco'
   | 'linea'
+  | 'polilinea'
   | 'punto'
   | 'hueco'
   | 'borrar'
@@ -36,6 +41,9 @@ export type HerramientaDeTrazo = Exclude<
   Herramienta,
   'seleccionar' | 'mano' | 'zoom' | 'hueco' | 'borrar' | 'nota' | 'escala'
 >;
+
+/** La geometría que se guarda: lo que el servidor mide. Las herramientas de dibujo desembocan en una de estas. */
+export type GeometriaBase = 'poligono' | 'linea' | 'punto';
 
 export type MedidaDeTrazo = 'area' | 'perimetro' | 'longitud' | 'conteo';
 
@@ -61,7 +69,7 @@ export interface GeometriaGeoJson {
 }
 
 /** Cuántos puntos hacen falta para que la herramienta pueda cerrar el trazo. */
-export const PUNTOS_MINIMOS: Record<HerramientaDeTrazo, number> = {
+export const PUNTOS_MINIMOS: Record<GeometriaBase, number> = {
   poligono: 3,
   linea: 2,
   punto: 1,
@@ -75,13 +83,13 @@ export const PUNTOS_MINIMOS: Record<HerramientaDeTrazo, number> = {
  * formulario solo ofrece las que miden algo (`ST_Area`/`ST_Perimeter` miden
  * polígonos, `ST_Length` mide líneas, el conteo vale para cualquier forma).
  */
-export const MEDIDAS_POR_HERRAMIENTA: Record<HerramientaDeTrazo, readonly MedidaDeTrazo[]> = {
+export const MEDIDAS_POR_HERRAMIENTA: Record<GeometriaBase, readonly MedidaDeTrazo[]> = {
   poligono: ['area', 'perimetro', 'conteo'],
   linea: ['longitud', 'conteo'],
   punto: ['conteo'],
 };
 
-export function trazoCompleto(herramienta: HerramientaDeTrazo, puntos: readonly Punto[]): boolean {
+export function trazoCompleto(herramienta: GeometriaBase, puntos: readonly Punto[]): boolean {
   return puntos.length >= PUNTOS_MINIMOS[herramienta];
 }
 
@@ -104,7 +112,7 @@ export const PUNTOS_MINIMOS_DE_HUECO = 3;
  * otro, la geometría es inválida y el trazo se rechaza con su motivo.
  */
 export function aWkt(
-  herramienta: HerramientaDeTrazo,
+  herramienta: GeometriaBase,
   puntos: readonly Punto[],
   huecos: readonly (readonly Punto[])[] = [],
 ): string {
@@ -168,7 +176,7 @@ export function perimetroLocal(puntos: readonly Punto[]): number {
  * calcula el servidor con PostGIS al registrar el trazo, y es la que cuenta.
  */
 export function medidaLocal(
-  herramienta: HerramientaDeTrazo,
+  herramienta: GeometriaBase,
   medida: MedidaDeTrazo,
   puntos: readonly Punto[],
   huecos: readonly (readonly Punto[])[] = [],
@@ -411,7 +419,7 @@ export function trazoEnPunto(
  * saber qué medidas tienen sentido sobre ella al enlazarla. `null` si no es una
  * de las tres formas que el visor sabe capturar.
  */
-export function herramientaDeGeometria(geometria: GeometriaGeoJson): HerramientaDeTrazo | null {
+export function herramientaDeGeometria(geometria: GeometriaGeoJson): GeometriaBase | null {
   switch (geometria.type) {
     case 'Polygon':
     case 'MultiPolygon':

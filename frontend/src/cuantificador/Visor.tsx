@@ -31,6 +31,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Cota, EtiquetaDeMedida } from './etiquetas';
+import type { Forma as FormaPrevia } from './dibujo';
+import { NOMBRE_DE_REFERENCIA, type Referencia } from './referencias';
 
 import {
   VISTA_VACIA,
@@ -104,8 +106,18 @@ interface Props {
   readonly etiquetas?: readonly EtiquetaDeMedida[];
   /** Cotas de cada tramo («Cota»). */
   readonly cotas?: readonly Cota[];
-  /** Dónde está el cursor sobre el plano; `null` al salir. Solo si alguien lo pide. */
+  /** Dónde está el cursor sobre el plano (ya asistido); `null` al salir. Solo si alguien lo pide. */
   readonly onMover?: (p: Punto | null) => void;
+  /**
+   * La ayuda de dibujo: recibe el punto bajo el cursor y cuánto vale un píxel en el plano, y devuelve
+   * el punto al que se pega (ortogonal, referencia a objetos) y a qué referencia. Con ella el visor
+   * dibuja la marca de la referencia y pone vértices en el punto ya asistido.
+   */
+  readonly asistir?: (p: Punto, porPixel: number) => { punto: Punto; referencia: Referencia | null };
+  /** La forma que resultaría del trazo en curso (círculo, rectángulo, arco…): vista previa. */
+  readonly previa?: FormaPrevia | null;
+  /** Los clics del trazo en curso, como marcas sueltas (sin unirlos con una línea). */
+  readonly marcas?: readonly Punto[];
   /** Cambia cuando hay que volver a encuadrar (otro plano). */
   readonly claveDePlano: string;
 }
@@ -135,6 +147,9 @@ export function Visor({
   etiquetas = [],
   cotas = [],
   onMover,
+  asistir,
+  previa = null,
+  marcas = [],
   claveDePlano,
 }: Props) {
   const svg = useRef<SVGSVGElement>(null);
@@ -146,6 +161,8 @@ export function Visor({
   const [imagen, setImagen] = useState<{ ancho: number; alto: number } | null>(null);
   const [fondoRoto, setFondoRoto] = useState(false);
   const [anchoPantalla, setAnchoPantalla] = useState(1000);
+  const [referencia, setReferencia] = useState<Referencia | null>(null);
+  const cuadro = useRef<number | null>(null);
 
   // El fondo manda en el encuadre: si hay imagen, el plano *es* la imagen. Sin
   // ella (PDF, o R2 sin configurar) se encuadran los trazos.
@@ -258,7 +275,18 @@ export function Visor({
     }
     const g = gesto.current;
     if (!g) {
-      onMover?.(aPlano(e.clientX, e.clientY));
+      // Una sola actualización por cuadro: el cursor manda decenas de eventos por segundo.
+      const x = e.clientX;
+      const y = e.clientY;
+      if (cuadro.current === null) {
+        cuadro.current = requestAnimationFrame(() => {
+          cuadro.current = null;
+          const bruto = aPlano(x, y);
+          const asistido = asistir?.(bruto, porPixel);
+          setReferencia(asistido?.referencia ?? null);
+          onMover?.(asistido ? asistido.punto : bruto);
+        });
+      }
       return;
     }
     const dx = e.clientX - g.pantallaX;
@@ -285,7 +313,8 @@ export function Visor({
     const g = gesto.current;
     gesto.current = null;
     if (!g || g.movido || g.soloMueve) return;
-    const p = aPlano(e.clientX, e.clientY);
+    const bruto = aPlano(e.clientX, e.clientY);
+    const p = asistir && !['seleccionar', 'borrar', 'mano', 'zoom'].includes(herramienta) ? asistir(bruto, porPixel).punto : bruto;
     if (herramienta === 'mano') return;
     if (herramienta === 'zoom') {
       vistaTocada.current = true;
@@ -361,7 +390,10 @@ export function Visor({
         alSoltarPuntero(e);
         gesto.current = null;
       }}
-      onPointerLeave={() => onMover?.(null)}
+      onPointerLeave={() => {
+        setReferencia(null);
+        onMover?.(null);
+      }}
       onContextMenu={(e) => e.preventDefault()}
       style={{ cursor }}
     >
@@ -514,6 +546,33 @@ export function Visor({
         </g>
       )}
 
+      {previa && previa.puntos.length > 1 && (
+        <g className="visor__previa" data-testid="previa">
+          {previa.tipo === 'poligono' ? (
+            <polygon points={previa.puntos.map((q) => `${q[0]},${q[1]}`).join(' ')} vectorEffect="non-scaling-stroke" />
+          ) : (
+            <polyline points={previa.puntos.map((q) => `${q[0]},${q[1]}`).join(' ')} vectorEffect="non-scaling-stroke" />
+          )}
+        </g>
+      )}
+
+      {marcas.length > 0 && (
+        <g className="visor__borrador" data-testid="marcas">
+          {marcas.map((p, i) => (
+            <circle key={i} cx={p[0]} cy={p[1]} r={radio * (i === 0 ? 1.4 : 1)} />
+          ))}
+        </g>
+      )}
+
+      {referencia && (
+        <g className="visor__referencia" data-testid="referencia" data-tipo={referencia.tipo}>
+          {marcaDeReferencia(referencia, 7 * porPixel)}
+          <text x={referencia.punto[0] + 10 * porPixel} y={referencia.punto[1] - 10 * porPixel} fontSize={11 * porPixel} style={{ strokeWidth: 3 * porPixel }}>
+            {NOMBRE_DE_REFERENCIA[referencia.tipo]}
+          </text>
+        </g>
+      )}
+
       {borrador.length > 0 && (
         <g className="visor__borrador" data-testid="borrador">
           <polyline
@@ -527,4 +586,23 @@ export function Visor({
       )}
     </svg>
   );
+}
+
+/** El símbolo de cada referencia, como en un programa de dibujo: cuadro, triángulo, círculo, equis… */
+function marcaDeReferencia(r: Referencia, t: number) {
+  const [x, y] = r.punto;
+  switch (r.tipo) {
+    case 'extremo':
+      return <rect x={x - t} y={y - t} width={2 * t} height={2 * t} vectorEffect="non-scaling-stroke" />;
+    case 'medio':
+      return <polygon points={`${x},${y - t} ${x + t},${y + t} ${x - t},${y + t}`} vectorEffect="non-scaling-stroke" />;
+    case 'centro':
+      return <circle cx={x} cy={y} r={t} vectorEffect="non-scaling-stroke" />;
+    case 'interseccion':
+      return <path d={`M${x - t} ${y - t}L${x + t} ${y + t}M${x - t} ${y + t}L${x + t} ${y - t}`} vectorEffect="non-scaling-stroke" />;
+    case 'perpendicular':
+      return <path d={`M${x - t} ${y + t}L${x - t} ${y - t}L${x + t} ${y - t}M${x - t} ${y}L${x} ${y}L${x} ${y - t}`} vectorEffect="non-scaling-stroke" />;
+    case 'cercano':
+      return <path d={`M${x - t} ${y - t}L${x + t} ${y - t}L${x - t} ${y + t}L${x + t} ${y + t}Z`} vectorEffect="non-scaling-stroke" />;
+  }
 }

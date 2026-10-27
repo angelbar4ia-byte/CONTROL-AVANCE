@@ -25,7 +25,7 @@ import {
   aWkt,
   longitudLocal,
   medidaLocal,
-  type HerramientaDeTrazo,
+  type GeometriaBase,
   type MedidaDeTrazo,
   type Punto,
 } from './geometria';
@@ -55,7 +55,7 @@ interface FilaEnlace {
 interface Props {
   readonly planoId: string;
   readonly versionPlano: number;
-  readonly herramienta: HerramientaDeTrazo;
+  readonly herramienta: GeometriaBase;
   readonly puntos: readonly Punto[];
   /** Grosor en metros de una línea (un muro), o `null` si es una línea simple. */
   readonly grosorM?: number | null;
@@ -78,7 +78,7 @@ interface Props {
   readonly onGuardado: (resultado: TrazoRespuesta) => void;
 }
 
-const NOMBRE_FORMA: Record<HerramientaDeTrazo, string> = {
+const NOMBRE_FORMA: Record<GeometriaBase, string> = {
   poligono: 'Polígono',
   linea: 'Línea',
   punto: 'Punto',

@@ -21,7 +21,7 @@
  */
 
 import { PanelLeft, PanelRight, Upload } from 'lucide-react';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import {
@@ -69,7 +69,20 @@ import { ArbolPresupuesto } from './ArbolPresupuesto';
 import { Modal } from '@/lib/Modal';
 import { BarraDeHerramientas, type ClaveDeInterruptor, type Interruptor } from './BarraDeHerramientas';
 import { CuadroDeDatos } from './CuadroDeDatos';
+import { AyudasDeDibujo } from './AyudasDeDibujo';
+import {
+  CLICS_DE_FORMA,
+  GEOMETRIA_DE,
+  ajustarAngulo,
+  formaDe,
+  type HerramientaDeDibujo,
+} from './dibujo';
 import { cotasDe, etiquetasDeMedidas, sinCierre } from './etiquetas';
+import {
+  REFERENCIAS_POR_DEFECTO,
+  buscarReferencia,
+  type ReferenciasActivas,
+} from './referencias';
 import {
   bandaDeLinea,
   poligonoDeForma,
@@ -88,6 +101,7 @@ import {
   PUNTOS_MINIMOS_DE_HUECO,
   aWkt,
   areaDeGeometria,
+  type GeometriaBase,
   partesDe,
   puntosDe,
   trazoCompleto,
@@ -102,8 +116,13 @@ const HERRAMIENTAS: readonly Herramienta[] = [
   'seleccionar',
   'mano',
   'zoom',
-  'poligono',
   'linea',
+  'polilinea',
+  'arco',
+  'poligono',
+  'rectangulo',
+  'circulo',
+  'elipse',
   'punto',
   'hueco',
   'borrar',
@@ -114,6 +133,17 @@ const HERRAMIENTAS: readonly Herramienta[] = [
  *  servidor lo impone con 403, esto solo evita ofrecer un botón que fallaría. */
 const HERRAMIENTA_NOTA: Herramienta = 'nota';
 
+/** Qué se da clic, en orden, en las herramientas que se cierran solas. */
+const PASOS_DE_LA_FORMA: Readonly<Record<HerramientaDeDibujo, string>> = {
+  linea: 'Clic en el inicio y en el final',
+  rectangulo: 'Clic en una esquina y en la opuesta',
+  circulo: 'Clic en el centro y en un punto del borde',
+  elipse: 'Clic en el centro, en el extremo de un eje y en un punto del otro',
+  arco: 'Clic en el inicio, en un punto del arco y en el final',
+  polilinea: '',
+  poligono: '',
+};
+
 /** Atajo de teclado de cada herramienta de la barra. */
 const ATAJOS: Readonly<Record<string, Herramienta>> = {
   v: 'seleccionar',
@@ -123,6 +153,11 @@ const ATAJOS: Readonly<Record<string, Herramienta>> = {
   b: 'borrar',
   p: 'poligono',
   l: 'linea',
+  y: 'polilinea',
+  a: 'arco',
+  r: 'rectangulo',
+  i: 'circulo',
+  j: 'elipse',
   o: 'punto',
   e: 'escala',
   n: 'nota',
@@ -193,6 +228,17 @@ export function EspacioDeTrazo({
   /** La forma con la que se está guardando el trazo (solo cuando nació de un punto con forma). */
   const [formaEstampada, setFormaEstampada] = useState<Forma | null>(null);
   const [cursor, setCursor] = useState<Punto | null>(null);
+  // Ayudas de dibujo: ortogonal (por defecto a 90°, que da 0° y 180° y las verticales) y referencia a objetos.
+  const [ortogonal, setOrtogonal] = useState(true);
+  const [pasoGrados, setPasoGrados] = useState(90);
+  const [baseGrados, setBaseGrados] = useState(0);
+  const [referenciasOn, setReferenciasOn] = useState(true);
+  const [referencias, setReferencias] = useState<ReferenciasActivas>(REFERENCIAS_POR_DEFECTO);
+  /** Mayús apretada: invierte el ortogonal mientras se mantiene. */
+  const mayus = useRef(false);
+  const [ayudasAbiertas, setAyudasAbiertas] = useState(false);
+  /** Lo que se está por guardar: la geometría final (un círculo ya es un polígono de muchos lados). */
+  const [aGuardar, setAGuardar] = useState<{ tipo: GeometriaBase; puntos: readonly Punto[] } | null>(null);
   /** El trazo que se está por borrar, a la espera de que se confirme. */
   const [porBorrar, setPorBorrar] = useState<string | null>(null);
   const [mostrarMedidas, setMostrarMedidas] = useState(false);
@@ -285,6 +331,7 @@ export function EspacioDeTrazo({
     () => (filtrando ? trazosDeConceptos(features, elegidos) : features),
     [features, elegidos, filtrando],
   );
+  const geometriasVisibles = useMemo(() => featuresVisibles.map((f) => f.geometry), [featuresVisibles]);
   const trazosVisibles = useMemo<TrazoVisible[]>(
     () =>
       featuresVisibles.map((f) => ({
@@ -338,10 +385,29 @@ export function EspacioDeTrazo({
     },
   });
 
-  const forma: HerramientaDeTrazo | null =
-    herramienta === 'poligono' || herramienta === 'linea' || herramienta === 'punto'
-      ? herramienta
-      : null;
+  const forma: HerramientaDeTrazo | null = [
+    'poligono',
+    'rectangulo',
+    'circulo',
+    'elipse',
+    'arco',
+    'linea',
+    'polilinea',
+    'punto',
+  ].includes(herramienta)
+    ? (herramienta as HerramientaDeTrazo)
+    : null;
+  /** Las que se cierran solas al dar el último clic; las demás terminan con Enter. */
+  const clicsDeLaForma = forma && forma !== 'punto' ? CLICS_DE_FORMA[forma] : undefined;
+  /** Dónde funcionan las ayudas: al dibujar, abrir un hueco, estampar un punto y calibrar. */
+  const asistida = forma !== null || herramienta === 'hueco' || herramienta === 'escala';
+  /** Solo los tramos rectos se alinean a un ángulo (no las curvas ni los rectángulos). */
+  const usaOrtogonal =
+    herramienta === 'poligono' ||
+    herramienta === 'polilinea' ||
+    herramienta === 'linea' ||
+    herramienta === 'hueco' ||
+    herramienta === 'escala';
 
   /** Un hueco solo se abre sobre un área (un polígono trazado, no una línea con grosor). */
   const areaElegida =
@@ -393,6 +459,7 @@ export function EspacioDeTrazo({
     setBorrador([]);
     setHuecoEnCurso([]);
     setFormaEstampada(null);
+    setAGuardar(null);
   }
 
   function cambiarHerramienta(nueva: Herramienta) {
@@ -402,6 +469,7 @@ export function EspacioDeTrazo({
     }
     setHerramienta(nueva);
     limpiarDibujo();
+    setCursor(null);
     setAviso(null);
     // Moverse, acercar y abrir un hueco no sueltan lo elegido: el hueco se abre sobre ello.
     if (nueva !== 'seleccionar' && nueva !== 'mano' && nueva !== 'zoom' && nueva !== 'hueco' && nueva !== 'borrar') {
@@ -431,19 +499,57 @@ export function EspacioDeTrazo({
     if (forma === 'punto') {
       if (formaPunto !== null) {
         // Un punto con forma: el polígono de la forma, centrado donde se hizo clic.
-        setBorrador(poligonoDeForma(p, formaPunto, unidadesPorMetro));
+        setAGuardar({ tipo: 'poligono', puntos: poligonoDeForma(p, formaPunto, unidadesPorMetro) });
         setFormaEstampada(formaPunto);
       } else {
-        setBorrador([p]);
+        setAGuardar({ tipo: 'punto', puntos: [p] });
       }
       setGuardando(true);
       return;
     }
-    setBorrador((actual) => [...actual, p]);
+    const clics = [...borrador, p];
+    if (clicsDeLaForma !== undefined && clics.length >= clicsDeLaForma) {
+      // Rectángulo, círculo, elipse, arco y línea terminan con su último clic.
+      const hecha = formaDe(forma as HerramientaDeDibujo, clics, null, baseGrados);
+      if (hecha) {
+        setBorrador(clics);
+        setAGuardar({ tipo: hecha.tipo, puntos: hecha.puntos });
+        setGuardando(true);
+      }
+      return;
+    }
+    setBorrador(clics);
   }
 
   function terminar() {
-    if (forma && trazoCompleto(forma, borrador)) setGuardando(true);
+    if (forma && forma !== 'punto' && trazoCompleto(GEOMETRIA_DE[forma as HerramientaDeDibujo], borrador)) {
+      setAGuardar({ tipo: GEOMETRIA_DE[forma as HerramientaDeDibujo], puntos: borrador });
+      setGuardando(true);
+    }
+  }
+
+  /**
+   * La ayuda de dibujo: a dónde va de verdad el punto que se apunta. La referencia a objetos manda
+   * (cierra exacto contra lo que ya hay); si no hay ninguna cerca, el ortogonal alinea el tramo al
+   * ángulo de trabajo. Mayús invierte el ortogonal mientras se mantiene.
+   */
+  function asistir(bruto: Punto, porPixel: number) {
+    const enCurso = herramienta === 'hueco' ? huecoEnCurso : borrador;
+    const desde = enCurso.length > 0 ? (enCurso[enCurso.length - 1] as Punto) : null;
+    const referencia = referenciasOn
+      ? buscarReferencia(
+          { geometrias: geometriasVisibles, enCurso: enCurso.length > 0 ? [enCurso] : [] },
+          bruto,
+          10 * porPixel,
+          referencias,
+          desde,
+        )
+      : null;
+    if (referencia) return { punto: referencia.punto, referencia };
+    if (desde && usaOrtogonal && ortogonal !== mayus.current) {
+      return { punto: ajustarAngulo(desde, bruto, { pasoGrados, baseGrados }), referencia: null };
+    }
+    return { punto: bruto, referencia: null };
   }
 
   /** Cierra el hueco en curso: lo manda al servidor, que lo resta del área y recalcula. */
@@ -483,7 +589,7 @@ export function EspacioDeTrazo({
       if (e.key === 'Enter') {
         e.preventDefault();
         if (herramienta === 'hueco') void cerrarHueco();
-        else if (forma && trazoCompleto(forma, borrador)) setGuardando(true);
+        else terminar();
       } else if (e.key === 'Backspace') {
         e.preventDefault();
         if (herramienta === 'hueco') setHuecoEnCurso((actual) => actual.slice(0, -1));
@@ -587,9 +693,15 @@ export function EspacioDeTrazo({
     () => resumenDePantalla(featuresVisibles as unknown as readonly TrazoParaResumen[], escalaDelPlano),
     [featuresVisibles, escalaDelPlano],
   );
+  /** Estas herramientas se ven como la línea que une sus clics; las demás, como la forma que resultaría. */
+  const polilineaEnCurso = forma === 'poligono' || forma === 'polilinea' || forma === 'linea';
+  const previa =
+    forma && forma !== 'punto' && borrador.length > 0
+      ? formaDe(forma as HerramientaDeDibujo, borrador, cursor, baseGrados)
+      : null;
   const bandaEnCurso =
-    forma === 'linea' && grosorM !== null && borrador.length >= 2
-      ? bandaDeLinea(borrador, grosorM * unidadesPorMetro, alineacion)
+    (forma === 'linea' || forma === 'polilinea') && grosorM !== null && previa && previa.puntos.length >= 2
+      ? bandaDeLinea(previa.puntos, grosorM * unidadesPorMetro, alineacion)
       : [];
   const fantasma =
     forma === 'punto' && formaPunto !== null && cursor !== null
@@ -647,6 +759,34 @@ export function EspacioDeTrazo({
     // `cambiarHerramienta` lee estado del render: se rearma con él.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hayCajon, puedeAnotar, borrador, areaElegida, seleccionado, herramienta, mostrarMedidas, mostrarCotas, datosAbiertos]);
+
+  // Mayús invierte el ortogonal mientras se mantiene; F8 y F3 encienden y apagan ortogonal y referencia.
+  useEffect(() => {
+    const suelta = () => {
+      mayus.current = false;
+    };
+    function alApretar(e: KeyboardEvent) {
+      if (e.key === 'Shift') mayus.current = true;
+      else if (e.key === 'F8') {
+        e.preventDefault();
+        setOrtogonal((v) => !v);
+      } else if (e.key === 'F3') {
+        e.preventDefault();
+        setReferenciasOn((v) => !v);
+      }
+    }
+    function alSoltar(e: KeyboardEvent) {
+      if (e.key === 'Shift') mayus.current = false;
+    }
+    window.addEventListener('keydown', alApretar);
+    window.addEventListener('keyup', alSoltar);
+    window.addEventListener('blur', suelta);
+    return () => {
+      window.removeEventListener('keydown', alApretar);
+      window.removeEventListener('keyup', alSoltar);
+      window.removeEventListener('blur', suelta);
+    };
+  }, []);
 
   const nombreDelTrazo = seleccionado
     ? (seleccionado.properties.enlaces.find((e) => e.vigente)
@@ -964,10 +1104,27 @@ export function EspacioDeTrazo({
                 orientacion={compacto ? 'horizontal' : 'vertical'}
               />
 
+              <div className="estacion__ayudas">
+        {ayudasAbiertas && asistida && herramienta !== 'escala' && (
+          <AyudasDeDibujo
+            ortogonal={ortogonal}
+            onOrtogonal={setOrtogonal}
+            pasoGrados={pasoGrados}
+            onPaso={setPasoGrados}
+            baseGrados={baseGrados}
+            onBase={setBaseGrados}
+            referenciasOn={referenciasOn}
+            onReferenciasOn={setReferenciasOn}
+            referencias={referencias}
+            onReferencia={(tipo, on) => setReferencias((r) => ({ ...r, [tipo]: on }))}
+          />
+        )}
+              </div>
+
               <div className="estacion__paneles">
-                {(herramienta === 'linea' || herramienta === 'punto') && (
+                {(herramienta === 'linea' || herramienta === 'polilinea' || herramienta === 'arco' || herramienta === 'punto') && (
                   <OpcionesDeHerramienta
-                    herramienta={herramienta}
+                    herramienta={herramienta === 'punto' ? 'punto' : 'linea'}
                     grosorM={grosorM}
                     onGrosor={setGrosorM}
                     alineacion={alineacion}
@@ -1027,13 +1184,16 @@ export function EspacioDeTrazo({
                 notas={notasVisibles}
                 seleccion={seleccion}
                 herramienta={herramienta}
-                borrador={borrador}
+                borrador={polilineaEnCurso ? borrador : []}
+                marcas={polilineaEnCurso ? [] : borrador}
+                previa={previa}
+                asistir={asistida ? asistir : undefined}
                 huecoEnCurso={huecoEnCurso}
                 bandaEnCurso={bandaEnCurso}
                 fantasma={fantasma}
                 etiquetas={etiquetas}
                 cotas={cotas}
-                onMover={forma === 'punto' && formaPunto !== null ? setCursor : undefined}
+                onMover={asistida ? setCursor : undefined}
                 onPunto={alPunto}
                 onSeleccionar={alElegirEnElPlano}
               />
@@ -1114,7 +1274,7 @@ export function EspacioDeTrazo({
                   </button>
                 </>
               )}
-              {forma && forma !== 'punto' && (
+              {forma && forma !== 'punto' && clicsDeLaForma === undefined && (
                 <>
                   <span className="text-mute text-xs">
                     {`${borrador.length} vértices · Enter cierra · Retroceso quita · Esc descarta`}
@@ -1122,21 +1282,56 @@ export function EspacioDeTrazo({
                   <button
                     type="button"
                     className="btn btn--accent btn--sm"
-                    disabled={!trazoCompleto(forma, borrador)}
+                    disabled={!trazoCompleto(GEOMETRIA_DE[forma as HerramientaDeDibujo], borrador)}
                     onClick={terminar}
                   >
                     Terminar trazo
                   </button>
                 </>
               )}
+              {forma && forma !== 'punto' && clicsDeLaForma !== undefined && (
+                <span className="text-mute text-xs">
+                  {PASOS_DE_LA_FORMA[forma as HerramientaDeDibujo]} · clic {borrador.length + 1} de {clicsDeLaForma} · Esc descarta
+                </span>
+              )}
               {forma === 'punto' && formaPunto !== null && (
                 <span className="text-mute text-xs">
-                  Clic para estampar: {formaPunto.nombre ?? NOMBRE_DE_FORMA[formaPunto.tipo]}{' '}
-                  {formaPunto.anchoM} × {formaPunto.altoM} m
+                  Clic para estampar: {formaPunto.nombre ?? NOMBRE_DE_FORMA[formaPunto.tipo]} {formaPunto.anchoM} ×{' '}
+                  {formaPunto.altoM} m
                 </span>
               )}
             </div>
           )}
+          {asistida && herramienta !== 'escala' && (
+            <button
+              type="button"
+              className={ayudasAbiertas ? 'estado-pastilla is-activa' : 'estado-pastilla'}
+              aria-pressed={ayudasAbiertas}
+              aria-label="Ayudas de dibujo"
+              title="Ajustar el ortogonal (ángulo de trabajo) y la referencia a objetos"
+              onClick={() => setAyudasAbiertas(!ayudasAbiertas)}
+            >
+              AYUDAS
+            </button>
+          )}
+          <button
+            type="button"
+            className={ortogonal ? 'estado-pastilla is-activa' : 'estado-pastilla'}
+            aria-pressed={ortogonal}
+            title="Ortogonal (F8). Mantén Mayús para invertirlo un momento."
+            onClick={() => setOrtogonal(!ortogonal)}
+          >
+            ORTO {pasoGrados}°
+          </button>
+          <button
+            type="button"
+            className={referenciasOn ? 'estado-pastilla is-activa' : 'estado-pastilla'}
+            aria-pressed={referenciasOn}
+            title="Referencia a objetos (F3)"
+            onClick={() => setReferenciasOn(!referenciasOn)}
+          >
+            REF
+          </button>
           <span>
             {featuresVisibles.length} de {features.length} {features.length === 1 ? 'trazo' : 'trazos'}
             {filtrando ? ' (filtrados)' : ''}
@@ -1170,14 +1365,14 @@ export function EspacioDeTrazo({
         </Modal>
       )}
 
-      {guardando && plano && forma && (
+      {guardando && plano && aGuardar && (
         <AltaTrazo
           planoId={plano.id}
           versionPlano={plano.version}
-          herramienta={formaEstampada !== null ? 'poligono' : forma}
-          puntos={borrador}
-          grosorM={forma === 'linea' ? grosorM : null}
-          alineacion={forma === 'linea' && grosorM !== null ? alineacion : null}
+          herramienta={aGuardar.tipo}
+          puntos={aGuardar.puntos}
+          grosorM={aGuardar.tipo === 'linea' ? grosorM : null}
+          alineacion={aGuardar.tipo === 'linea' && grosorM !== null ? alineacion : null}
           grosorU={grosorM !== null ? grosorM * unidadesPorMetro : null}
           forma={formaEstampada}
           actividades={actividades}
@@ -1185,10 +1380,11 @@ export function EspacioDeTrazo({
           nodosDePrototipo={puedeEnlazarPrototipo ? nodosDePrototipo : null}
           onCerrar={() => {
             setGuardando(false);
-            // Un punto se captura con un solo clic: si se cancela el cajón no
-            // hay nada que seguir editando, se descarta.
-            if (forma === 'punto') limpiarDibujo();
+            // Un punto o una forma de pocos clics se captura de una vez: si se cancela el cajón no
+            // hay nada que seguir editando, se descarta. Un polígono o una polilínea se pueden seguir.
+            if (forma === 'punto' || clicsDeLaForma !== undefined) limpiarDibujo();
             setFormaEstampada(null);
+            setAGuardar(null);
           }}
           onGuardado={alGuardar}
         />

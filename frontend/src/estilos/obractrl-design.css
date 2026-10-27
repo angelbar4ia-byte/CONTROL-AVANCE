@@ -2757,3 +2757,19 @@ a { color: inherit; text-decoration: none; }
 .datos__tabla--conceptos thead th:nth-child(2) { width: 14%; }
 
 .btn-icono--peligro:hover:not(:disabled) { background: var(--c-danger-soft); color: var(--c-danger); }
+
+/* Ayudas de dibujo: vista previa de la forma y marca de la referencia a objetos. */
+.visor__previa polygon, .visor__previa polyline { fill: var(--c-text); fill-opacity: .12; stroke: var(--c-text); stroke-width: 2; stroke-dasharray: 5 3; pointer-events: none; }
+.visor__previa polyline { fill: none; }
+.visor__referencia { pointer-events: none; }
+.visor__referencia rect, .visor__referencia polygon, .visor__referencia circle, .visor__referencia path { fill: none; stroke: var(--c-ok); stroke-width: 2; }
+.visor__referencia text { fill: var(--c-ok); stroke: var(--c-surface); paint-order: stroke; stroke-linejoin: round; font-family: var(--f-mono); font-weight: 600; }
+
+/* Pastillas de la barra de estado (ORTO, REF): como en un programa de dibujo, se encienden con un clic. */
+.estado-pastilla {
+  height: 18px; padding: 0 7px; border-radius: 4px; border: 1px solid var(--c-line); background: transparent;
+  color: var(--c-text-mute); font-family: var(--f-mono); font-size: var(--fs-xs); cursor: pointer;
+}
+.estado-pastilla.is-activa { background: var(--c-accent-soft); border-color: var(--c-accent); color: var(--c-accent-strong); }
+.estado-pastilla:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 1px; }
+.estacion__ayudas { position: absolute; right: 10px; top: 46px; z-index: 4; }

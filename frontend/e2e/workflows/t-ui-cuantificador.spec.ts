@@ -194,8 +194,7 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
     const lienzo2 = (await lienzo.boundingBox())!;
     const en = (fx: number, fy: number) => ({ x: lienzo2.x + lienzo2.width * fx, y: lienzo2.y + lienzo2.height * fy });
     await page.mouse.click(en(0.55, 0.8).x, en(0.55, 0.8).y);
-    await page.mouse.click(en(0.8, 0.8).x, en(0.8, 0.8).y);
-    await page.keyboard.press('Enter');
+    await page.mouse.click(en(0.8, 0.8).x, en(0.8, 0.8).y); // la línea de dos clics se cierra sola
     const altaLinea = page.getByRole('dialog', { name: 'Guardar línea' });
     await expect(altaLinea.getByTestId('aviso-grosor')).toContainText('0.15');
     await altaLinea.getByLabel('Actividad 1').selectOption({ value: await altaLinea.locator('#enlace-actividad-0 option', { hasText: b.concepto_clave }).getAttribute('value') ?? '' });
