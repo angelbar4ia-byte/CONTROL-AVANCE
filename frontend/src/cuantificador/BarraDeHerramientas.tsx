@@ -151,7 +151,7 @@ const BLOQUES: readonly { readonly clave: BloqueDeBarra; readonly titulo?: strin
   { clave: 'area', titulo: 'Área', herramientas: ['poligono', 'rectangulo', 'circulo', 'elipse', 'contorno', 'hueco'] },
   { clave: 'lineal', titulo: 'Lineal', herramientas: ['linea', 'polilinea', 'arco', 'rectangulo_l', 'circulo_l', 'elipse_l'] },
   { clave: 'conteo', titulo: 'Conteo', herramientas: ['punto', 'copiar'] },
-  { clave: 'otros', herramientas: ['nota', 'borrar', 'escala'] },
+  { clave: 'otros', herramientas: ['nota', 'borrar'] },
 ];
 
 export interface Accion {
@@ -252,16 +252,11 @@ function Boton({
   );
 }
 
-export function BarraDeHerramientas({
+export function BarraDeTrazo({
   herramientas,
   activa,
   onElegir,
   deshabilitadas = {},
-  interruptores,
-  historial = [],
-  acciones = [],
-  vista = [],
-  onAlternar,
   orientacion = 'vertical',
   bloqueActivo = null,
 }: Props) {
@@ -275,23 +270,6 @@ export function BarraDeHerramientas({
       aria-label="Herramientas de trazo"
       aria-orientation={orientacion}
     >
-      {historial.length > 0 && (
-        <div className="barra-iconos__grupo" role="group">
-          {historial.map((a) => (
-            <button
-              key={a.clave}
-              type="button"
-              className="btn-icono"
-              aria-label={a.etiqueta}
-              title={a.descripcion}
-              disabled={a.deshabilitado}
-              onClick={a.onClick}
-            >
-              {a.clave === 'deshacer' ? <Undo2 size={17} strokeWidth={1.7} aria-hidden /> : <Redo2 size={17} strokeWidth={1.7} aria-hidden />}
-            </button>
-          ))}
-        </div>
-      )}
       {grupos.map((grupo, i) => {
         const esDeTipo = grupo.clave === 'area' || grupo.clave === 'lineal' || grupo.clave === 'conteo';
         const clase = [
@@ -303,7 +281,7 @@ export function BarraDeHerramientas({
           .join(' ');
         return (
           <div key={grupo.clave} className={clase} role="group" aria-label={grupo.titulo} data-bloque={grupo.clave}>
-            {(i > 0 || historial.length > 0) && <span className="barra-iconos__sep" role="separator" />}
+            {i > 0 && <span className="barra-iconos__sep" role="separator" />}
             {grupo.titulo && (
               <span className="barra-iconos__rotulo" aria-hidden="true">
                 {grupo.titulo}
@@ -324,8 +302,65 @@ export function BarraDeHerramientas({
           </div>
         );
       })}
-      <div className="barra-iconos__grupo" role="group">
-        <span className="barra-iconos__sep" role="separator" />
+    </div>
+  );
+}
+
+/**
+ * FUNCIONES: deshacer, calibrar, lo que se muestra, la vista del plano y eliminar. Va en la cabecera de la
+ * pantalla, fuera del plano, para no tapar lo que se dibuja.
+ */
+export function BarraDeFunciones({
+  herramientas,
+  activa,
+  onElegir,
+  deshabilitadas = {},
+  interruptores,
+  historial = [],
+  acciones = [],
+  vista = [],
+  onAlternar,
+}: Props) {
+  const ctrlEscala = herramientas.includes('escala');
+  return (
+    <div
+      className="barra-iconos barra-iconos--en-cabecera"
+      role="toolbar"
+      aria-label="Funciones"
+      aria-orientation="horizontal"
+    >
+      {historial.length > 0 && (
+        <div className="barra-iconos__grupo" role="group" aria-label="Historial">
+          {historial.map((a) => (
+            <button
+              key={a.clave}
+              type="button"
+              className="btn-icono"
+              aria-label={a.etiqueta}
+              title={a.descripcion}
+              disabled={a.deshabilitado}
+              onClick={a.onClick}
+            >
+              {a.clave === 'deshacer' ? <Undo2 size={17} strokeWidth={1.7} aria-hidden /> : <Redo2 size={17} strokeWidth={1.7} aria-hidden />}
+            </button>
+          ))}
+        </div>
+      )}
+      {ctrlEscala && (
+        <div className="barra-iconos__grupo" role="group" aria-label="Escala">
+          {historial.length > 0 && <span className="barra-iconos__sep" role="separator" />}
+          <Boton
+            etiqueta={ETIQUETAS.escala}
+            Icono={ICONOS.escala}
+            activo={activa === 'escala'}
+            deshabilitado={deshabilitadas.escala !== undefined}
+            titulo={deshabilitadas.escala ?? `${ETIQUETAS.escala} (${ATAJOS.escala})`}
+            onClick={() => onElegir('escala')}
+          />
+        </div>
+      )}
+      <div className="barra-iconos__grupo" role="group" aria-label="Mostrar">
+        {(historial.length > 0 || ctrlEscala) && <span className="barra-iconos__sep" role="separator" />}
         {interruptores.map((i) => {
           const { etiqueta, icono } = INTERRUPTORES[i.clave];
           return (
@@ -358,7 +393,7 @@ export function BarraDeHerramientas({
         </div>
       )}
       {acciones.length > 0 && (
-        <div className="barra-iconos__grupo" role="group">
+        <div className="barra-iconos__grupo" role="group" aria-label="Eliminar">
           <span className="barra-iconos__sep" role="separator" />
           {acciones.map((a) => (
             <button

@@ -2864,3 +2864,17 @@ a { color: inherit; text-decoration: none; }
 .elementos__fila--nueva { padding-top: 4px; border-top: 1px dashed var(--c-line); }
 .select--chico { height: 22px; font-size: var(--fs-xs); padding-block: 0; }
 .mediciones__confirmar { display: grid; gap: 6px; margin: 2px 4px 6px 22px; padding: 8px; font-size: var(--fs-xs); background: var(--c-danger-soft); border: 1px solid var(--c-danger); border-radius: var(--r-md); }
+
+/* La barra se divide en dos: TRAZO (a la izquierda, lo que se dibuja) y FUNCIONES (a la derecha). */
+.barra-iconos--funciones.barra-iconos--vertical,
+.barra-iconos--funciones.barra-iconos--horizontal { left: auto; right: 10px; top: 46px; }
+.barra-iconos--funciones.barra-iconos--horizontal { flex-direction: row; }
+
+/* Funciones: una fila de iconos en la cabecera, fuera del plano. */
+.barra-iconos--en-cabecera {
+  position: static; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 2px 6px; padding: 0 4px;
+  background: none; border: 0; box-shadow: none; max-height: none; overflow: visible;
+}
+.barra-iconos--en-cabecera .barra-iconos__grupo { flex-direction: row; align-items: center; }
+.barra-iconos--en-cabecera .btn-icono { width: 28px; height: 28px; }
+.barra-iconos--en-cabecera .barra-iconos__sep { width: 1px; height: 18px; margin: 0 4px; }

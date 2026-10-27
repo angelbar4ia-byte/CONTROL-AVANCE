@@ -87,7 +87,7 @@ import { SeparadorDeAncho } from './SeparadorDeAncho';
 import { arbolDeCuantificacion, trazosDeConceptos } from './arbol';
 import { ArbolPresupuesto } from './ArbolPresupuesto';
 import { Modal } from '@/lib/Modal';
-import { BarraDeHerramientas, type ClaveDeInterruptor, type Interruptor } from './BarraDeHerramientas';
+import { BarraDeFunciones, BarraDeTrazo, type ClaveDeInterruptor, type Interruptor } from './BarraDeHerramientas';
 import { CuadroDeDatos } from './CuadroDeDatos';
 import { crearHistorial } from './historial';
 import { AyudasDeDibujo } from './AyudasDeDibujo';
@@ -1574,6 +1574,90 @@ export function EspacioDeTrazo({
     .filter(Boolean)
     .join(' ');
 
+  /** La barra se divide en dos: TRAZO (en el plano, lo que se dibuja) y FUNCIONES (en la cabecera, lo demás). */
+  const barra = (cual: 'trazo' | 'funciones') => {
+    const Barra = cual === 'trazo' ? BarraDeTrazo : BarraDeFunciones;
+    return (
+      <Barra
+            herramientas={herramientasDisponibles}
+            activa={herramienta}
+            onElegir={cambiarHerramienta}
+            deshabilitadas={{
+              ...(areaElegida === null
+                ? { hueco: 'Para abrir un hueco, primero elige el área con Seleccionar' }
+                : {}),
+              ...(piezaElegida === null
+                ? { copiar: 'Para copiar en lote, primero elige con Seleccionar el punto o la pieza que quieres repetir' }
+                : {}),
+            }}
+            interruptores={interruptores}
+            bloqueActivo={bloqueActivo}
+            historial={[
+              {
+                clave: 'deshacer',
+                etiqueta: 'Deshacer',
+                deshabilitado: historial.siguienteAdeshacer() === null || trabajandoHistorial,
+                descripcion: historial.siguienteAdeshacer()
+                  ? `Deshacer: ${historial.siguienteAdeshacer()?.etiqueta} (Ctrl+Z)`
+                  : 'Nada que deshacer',
+                onClick: () => void deshacerUltimo(),
+              },
+              {
+                clave: 'rehacer',
+                etiqueta: 'Rehacer',
+                deshabilitado: historial.siguienteArehacer() === null || trabajandoHistorial,
+                descripcion: historial.siguienteArehacer()
+                  ? `Rehacer: ${historial.siguienteArehacer()?.etiqueta} (Ctrl+Y)`
+                  : 'Nada que rehacer',
+                onClick: () => void rehacerUltimo(),
+              },
+            ]}
+            acciones={[
+              {
+                clave: 'eliminar',
+                etiqueta: 'Eliminar selección',
+                deshabilitado: seleccionado === null,
+                descripcion:
+                  seleccionado === null
+                    ? 'Elige un trazo con Seleccionar para poder eliminarlo'
+                    : 'Eliminar el trazo elegido (Supr)',
+                onClick: () => seleccionado && setPorBorrar(seleccionado.id),
+              },
+            ]}
+            vista={[
+              {
+                clave: 'girarIzquierda',
+                etiqueta: 'Girar el plano a la izquierda',
+                descripcion: 'Girar el plano 90° a la izquierda (solo la vista)',
+                onClick: () => cambiarVista(girar(vistaDelPlano, false)),
+              },
+              {
+                clave: 'girarDerecha',
+                etiqueta: 'Girar el plano a la derecha',
+                descripcion: 'Girar el plano 90° a la derecha (solo la vista)',
+                onClick: () => cambiarVista(girar(vistaDelPlano, true)),
+              },
+              {
+                clave: 'voltearH',
+                etiqueta: 'Voltear el plano de izquierda a derecha',
+                activo: vistaDelPlano.volteoH,
+                descripcion: 'Voltear el plano en espejo, de izquierda a derecha (solo la vista)',
+                onClick: () => cambiarVista({ ...vistaDelPlano, volteoH: !vistaDelPlano.volteoH }),
+              },
+              {
+                clave: 'voltearV',
+                etiqueta: 'Voltear el plano de arriba abajo',
+                activo: vistaDelPlano.volteoV,
+                descripcion: 'Voltear el plano en espejo, de arriba abajo (solo la vista)',
+                onClick: () => cambiarVista({ ...vistaDelPlano, volteoV: !vistaDelPlano.volteoV }),
+              },
+            ]}
+            onAlternar={alternar}
+            orientacion={compacto ? 'horizontal' : 'vertical'}
+      />
+    );
+  };
+
   return (
     <div className={claseEspacio}>
       <div className="estacion__cabecera">
@@ -1610,6 +1694,7 @@ export function EspacioDeTrazo({
         >
           <Upload size={16} aria-hidden />
         </button>
+        {plano !== undefined && barra('funciones')}
         <span className="estacion__relleno" />
         <button
           type="button"
@@ -1694,83 +1779,7 @@ export function EspacioDeTrazo({
             </div>
           ) : (
             <>
-              <BarraDeHerramientas
-                herramientas={herramientasDisponibles}
-                activa={herramienta}
-                onElegir={cambiarHerramienta}
-                deshabilitadas={{
-                  ...(areaElegida === null
-                    ? { hueco: 'Para abrir un hueco, primero elige el área con Seleccionar' }
-                    : {}),
-                  ...(piezaElegida === null
-                    ? { copiar: 'Para copiar en lote, primero elige con Seleccionar el punto o la pieza que quieres repetir' }
-                    : {}),
-                }}
-                interruptores={interruptores}
-                bloqueActivo={bloqueActivo}
-                historial={[
-                  {
-                    clave: 'deshacer',
-                    etiqueta: 'Deshacer',
-                    deshabilitado: historial.siguienteAdeshacer() === null || trabajandoHistorial,
-                    descripcion: historial.siguienteAdeshacer()
-                      ? `Deshacer: ${historial.siguienteAdeshacer()?.etiqueta} (Ctrl+Z)`
-                      : 'Nada que deshacer',
-                    onClick: () => void deshacerUltimo(),
-                  },
-                  {
-                    clave: 'rehacer',
-                    etiqueta: 'Rehacer',
-                    deshabilitado: historial.siguienteArehacer() === null || trabajandoHistorial,
-                    descripcion: historial.siguienteArehacer()
-                      ? `Rehacer: ${historial.siguienteArehacer()?.etiqueta} (Ctrl+Y)`
-                      : 'Nada que rehacer',
-                    onClick: () => void rehacerUltimo(),
-                  },
-                ]}
-                acciones={[
-                  {
-                    clave: 'eliminar',
-                    etiqueta: 'Eliminar selección',
-                    deshabilitado: seleccionado === null,
-                    descripcion:
-                      seleccionado === null
-                        ? 'Elige un trazo con Seleccionar para poder eliminarlo'
-                        : 'Eliminar el trazo elegido (Supr)',
-                    onClick: () => seleccionado && setPorBorrar(seleccionado.id),
-                  },
-                ]}
-                vista={[
-                  {
-                    clave: 'girarIzquierda',
-                    etiqueta: 'Girar el plano a la izquierda',
-                    descripcion: 'Girar el plano 90° a la izquierda (solo la vista)',
-                    onClick: () => cambiarVista(girar(vistaDelPlano, false)),
-                  },
-                  {
-                    clave: 'girarDerecha',
-                    etiqueta: 'Girar el plano a la derecha',
-                    descripcion: 'Girar el plano 90° a la derecha (solo la vista)',
-                    onClick: () => cambiarVista(girar(vistaDelPlano, true)),
-                  },
-                  {
-                    clave: 'voltearH',
-                    etiqueta: 'Voltear el plano de izquierda a derecha',
-                    activo: vistaDelPlano.volteoH,
-                    descripcion: 'Voltear el plano en espejo, de izquierda a derecha (solo la vista)',
-                    onClick: () => cambiarVista({ ...vistaDelPlano, volteoH: !vistaDelPlano.volteoH }),
-                  },
-                  {
-                    clave: 'voltearV',
-                    etiqueta: 'Voltear el plano de arriba abajo',
-                    activo: vistaDelPlano.volteoV,
-                    descripcion: 'Voltear el plano en espejo, de arriba abajo (solo la vista)',
-                    onClick: () => cambiarVista({ ...vistaDelPlano, volteoV: !vistaDelPlano.volteoV }),
-                  },
-                ]}
-                onAlternar={alternar}
-                orientacion={compacto ? 'horizontal' : 'vertical'}
-              />
+              {barra('trazo')}
 
               <div className="estacion__ayudas">
         {ayudasAbiertas && asistida && herramienta !== 'escala' && (

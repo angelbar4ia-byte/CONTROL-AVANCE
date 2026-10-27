@@ -1,5 +1,9 @@
 import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
+
+/** La barra de funciones (deshacer, escala, lo que se muestra, la vista del plano): va aparte de la de trazo. */
+const funciones = (page: import('@playwright/test').Page) => page.getByRole('toolbar', { name: 'Funciones' });
+
 /**
  * Herramientas de takeoff del cuantificador (Fase 1):
  *
@@ -90,7 +94,7 @@ test.describe('Cuantificador · herramientas de takeoff', () => {
     expect(Number(features[0]!.properties.enlaces[0]!.cantidad)).toBeCloseTo(planta * Math.sqrt(1 + 0.33 ** 2), 3);
 
     // La cota (y la etiqueta) escriben el largo real, no el de la planta.
-    await barra.getByRole('button', { name: 'Cota', exact: true }).click();
+    await funciones(page).getByRole('button', { name: 'Cota', exact: true }).click();
     const cota = Number((await page.getByTestId('cotas').locator('text').first().textContent())!.replace(/[^\d.]/g, ''));
     expect(cota).toBeCloseTo(planta * Math.sqrt(1 + 0.33 ** 2), 1);
   });
@@ -245,9 +249,9 @@ test.describe('Cuantificador · herramientas de takeoff', () => {
     await expect(girado).toHaveAttribute('data-rotacion', '0');
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
 
-    await barra.getByRole('button', { name: 'Girar el plano a la derecha' }).click();
+    await funciones(page).getByRole('button', { name: 'Girar el plano a la derecha' }).click();
     await expect(girado).toHaveAttribute('data-rotacion', '90');
-    await barra.getByRole('button', { name: 'Voltear el plano de izquierda a derecha' }).click();
+    await funciones(page).getByRole('button', { name: 'Voltear el plano de izquierda a derecha' }).click();
     await expect(girado).toHaveAttribute('data-volteo', 'h');
 
     // Se guardó con el plano.
@@ -293,8 +297,8 @@ test.describe('Cuantificador · herramientas de takeoff', () => {
     // Se recuerda al recargar, y se puede regresar a como estaba.
     await page.reload();
     await expect(page.getByTestId('plano-girado')).toHaveAttribute('data-rotacion', '90');
-    await barra.getByRole('button', { name: 'Girar el plano a la izquierda' }).click();
-    await barra.getByRole('button', { name: 'Voltear el plano de izquierda a derecha' }).click();
+    await funciones(page).getByRole('button', { name: 'Girar el plano a la izquierda' }).click();
+    await funciones(page).getByRole('button', { name: 'Voltear el plano de izquierda a derecha' }).click();
     await expect(page.getByTestId('plano-girado')).toHaveAttribute('data-rotacion', '0');
     await expect(page.getByTestId('plano-girado')).toHaveAttribute('data-volteo', '');
   });

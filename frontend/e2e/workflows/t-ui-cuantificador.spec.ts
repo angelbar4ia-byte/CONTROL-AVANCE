@@ -1,5 +1,9 @@
 import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
+
+/** La barra de funciones (deshacer, escala, lo que se muestra, la vista del plano): va aparte de la de trazo. */
+const funciones = (page: import('@playwright/test').Page) => page.getByRole('toolbar', { name: 'Funciones' });
+
 /**
  * Cuantificador como pantalla de trabajo.
  *
@@ -70,8 +74,16 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
 
     // --- 1. Herramientas como iconos, con nombre accesible --------------------------------------------
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
-    for (const nombre of ['Seleccionar', 'Polígono', 'Línea', 'Punto', 'Calibrar escala', 'Calcular volumen']) {
+    for (const nombre of ['Seleccionar', 'Polígono', 'Línea', 'Punto']) {
       await expect(barra.getByRole('button', { name: nombre, exact: true })).toBeVisible();
+    }
+    // La barra se divide en dos: Trazo (lo que se dibuja) y Funciones (escala, lo que se muestra, volumen…).
+    for (const nombre of ['Calibrar escala', 'Calcular volumen', 'Deshacer', 'Cota']) {
+      await expect(funciones(page).getByRole('button', { name: nombre, exact: true })).toBeVisible();
+      await expect(barra.getByRole('button', { name: nombre, exact: true })).toHaveCount(0);
+    }
+    for (const nombre of ['Polígono', 'Punto']) {
+      await expect(funciones(page).getByRole('button', { name: nombre, exact: true })).toHaveCount(0);
     }
     await expect(barra.getByRole('button', { name: 'Polígono', exact: true })).toHaveText('');
     await expect(page.locator('.visor__trazo')).toHaveCount(2);
@@ -95,7 +107,7 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
     await expect(hojaA).toBeVisible();
 
     // --- 4. Solo los trazos de los conceptos elegidos --------------------------------------------------
-    const soloElegidos = barra.getByRole('button', { name: 'Solo los trazos de los conceptos elegidos' });
+    const soloElegidos = funciones(page).getByRole('button', { name: 'Solo los trazos de los conceptos elegidos' });
     await expect(soloElegidos).toBeDisabled(); // sin conceptos elegidos no hay qué filtrar
     await hojaA.getByRole('checkbox').check();
     await expect(soloElegidos).toBeEnabled();
@@ -106,7 +118,7 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
     await expect(page.locator('.visor__trazo')).toHaveCount(2);
 
     // --- 5. Calcular volumen del trazo elegido ---------------------------------------------------------
-    await barra.getByRole('button', { name: 'Calcular volumen' }).click();
+    await funciones(page).getByRole('button', { name: 'Calcular volumen' }).click();
     const volumen = page.getByRole('region', { name: 'Calcular volumen' });
     await expect(volumen).toContainText('Elige un trazo en el plano');
     const caja = (await page.getByRole('img', { name: 'Plano con sus trazos' }).boundingBox())!;
@@ -396,7 +408,7 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
 
     // --- Eliminar selección está apagado sin selección ------------------------------------------------------
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
-    await expect(barra.getByRole('button', { name: 'Eliminar selección' })).toBeDisabled();
+    await expect(funciones(page).getByRole('button', { name: 'Eliminar selección' })).toBeDisabled();
 
     // --- La herramienta Borrar: un clic sobre un trazo pide confirmar -------------------------------------
     await barra.getByRole('button', { name: 'Borrar', exact: true }).click();

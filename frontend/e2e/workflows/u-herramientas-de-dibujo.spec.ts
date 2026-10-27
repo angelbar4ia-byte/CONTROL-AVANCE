@@ -1,5 +1,9 @@
 import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '../infraestructura';
 
+
+/** La barra de funciones (deshacer, escala, lo que se muestra, la vista del plano): va aparte de la de trazo. */
+const funciones = (page: import('@playwright/test').Page) => page.getByRole('toolbar', { name: 'Funciones' });
+
 /**
  * Herramientas de dibujo del cuantificador: rectángulo, círculo, elipse, arco, línea y polilínea,
  * con el ortogonal (90° por defecto, Mayús para invertirlo, ángulo de trabajo editable) y la
@@ -278,8 +282,8 @@ test.describe('Cuantificador · herramientas de dibujo', () => {
     const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
     await expect(lienzo).toBeVisible();
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
-    const deshacer = barra.getByRole('button', { name: 'Deshacer' });
-    const rehacer = barra.getByRole('button', { name: 'Rehacer' });
+    const deshacer = funciones(page).getByRole('button', { name: 'Deshacer' });
+    const rehacer = funciones(page).getByRole('button', { name: 'Rehacer' });
     await expect(deshacer).toBeDisabled();
     await expect(rehacer).toBeDisabled();
 
@@ -405,13 +409,13 @@ test.describe('Cuantificador · herramientas de dibujo', () => {
 
     // Mostrar medidas escribe lo mismo que el servidor midió, en metros.
     await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
-    await barra.getByRole('button', { name: 'Mostrar medidas', exact: true }).click();
+    await funciones(page).getByRole('button', { name: 'Mostrar medidas', exact: true }).click();
     const etiqueta = page.getByTestId('etiquetas').locator('.visor__etiqueta--area').first();
     await expect(etiqueta).toContainText('m²');
     const escrito = Number((await etiqueta.textContent())!.replace(/[^0-9.]/g, ''));
     expect(escrito).toBeCloseTo(Number(rect.properties.enlaces[0]!.cantidad), 1);
     // La cota de un lado: su largo en metros, el de las unidades por la escala.
-    await barra.getByRole('button', { name: 'Cota', exact: true }).click();
+    await funciones(page).getByRole('button', { name: 'Cota', exact: true }).click();
     const lado = Math.abs(anillo[1]![0] - anillo[0]![0]) || Math.abs(anillo[1]![1] - anillo[0]![1]);
     await expect(page.getByTestId('cotas')).toContainText(`${(lado * 0.5).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`);
 
