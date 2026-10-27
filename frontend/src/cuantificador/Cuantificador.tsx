@@ -41,7 +41,12 @@ import {
   useNotasDePlanoApiV1PlanosPlanoIdNotasGet,
   useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet,
 } from '@/api/generado/cuantificacion/cuantificacion';
+import {
+  getListarMedicionesApiV1PlanosPlanoIdMedicionesGetQueryKey,
+  useListarMedicionesApiV1PlanosPlanoIdMedicionesGet,
+} from '@/api/generado/mediciones/mediciones';
 import type {
+  MedicionRespuesta,
   TrazoPeticion,
   ActividadRespuesta,
   ArchivoDePlanoRespuesta,
@@ -63,6 +68,8 @@ import { fmtFecha, fmtNum } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { SelectorObra } from '@/lib/SelectorObra';
 import { AltaNota } from './AltaNota';
+import { PanelDeMediciones } from './PanelDeMediciones';
+import { asignacionesEfectivas, idsDeRama } from './mediciones';
 import { OpcionesDeContorno } from './OpcionesDeContorno';
 import { OpcionesDeNota, type ClaseDeNota } from './OpcionesDeNota';
 import { bloqueDeTipo, NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
@@ -326,7 +333,9 @@ export function EspacioDeTrazo({
   const [volumenAbierto, setVolumenAbierto] = useState(false);
   const [arbolAbierto, setArbolAbierto] = useAjuste('arbol', !compacto);
   // La segunda pestaña del panel lateral: el navegador de planos (el presupuesto es la primera).
-  const [verPlanos, setVerPlanos] = useState(false);
+  const [pestana, setPestana] = useState<'presupuesto' | 'planos' | 'mediciones'>('presupuesto');
+  /** La medición activa (la capa sombra): lo que se dibuja entra a ella. */
+  const [medicionActivaId, setMedicionActivaId] = useState<string | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useAjuste('detalle', !compacto);
   // El ancho de los dos paneles laterales se ajusta arrastrando su borde y se recuerda.
   const anchoArbol = useAnchoAjustable('ancho-arbol', 300, 200, 560);
@@ -337,6 +346,12 @@ export function EspacioDeTrazo({
     ErrorApi
   >(obraId, { query: { enabled: obraId !== '' } });
   const listaDePlanos = useMemo(() => planos.data ?? [], [planos.data]);
+  const medicionesConsulta = useListarMedicionesApiV1PlanosPlanoIdMedicionesGet<MedicionRespuesta[], ErrorApi>(
+    planoElegido,
+    { query: { enabled: planoElegido !== '' } },
+  );
+  const listaDeMediciones = useMemo(() => medicionesConsulta.data ?? [], [medicionesConsulta.data]);
+  const medicionActiva = medicionActivaId ? (listaDeMediciones.find((m) => m.id === medicionActivaId) ?? null) : null;
 
   // Al llegar la lista, se abre el primer plano para no dejar al usuario frente
   // a un vacío.
@@ -426,6 +441,14 @@ export function EspacioDeTrazo({
   const fondoUrl = esImagen ? (archivo.data?.url ?? null) : esPdf ? pdf.url : null;
 
   const features = useMemo(() => trazosConsulta.data?.features ?? [], [trazosConsulta.data]);
+  // Los trazos de la medición activa (y de sus submediciones), para resaltarlos en el plano.
+  const trazosDeLaMedicion = useMemo(() => {
+    if (!medicionActiva) return new Set<string>();
+    const ids = idsDeRama(listaDeMediciones, medicionActiva.id);
+    return new Set(
+      features.filter((f) => f.properties.medicion_id && ids.has(f.properties.medicion_id)).map((f) => f.id),
+    );
+  }, [medicionActiva, listaDeMediciones, features]);
   // «Solo los trazos de los conceptos elegidos»: sin conceptos elegidos no hay nada
   // que filtrar, y se ve todo.
   const escalaDelPlano = plano?.escala_m_por_unidad != null ? Number(plano.escala_m_por_unidad) : null;
@@ -444,6 +467,7 @@ export function EspacioDeTrazo({
         geometry: f.geometry,
         porRevisar: f.properties.por_revisar,
         aprobado: f.properties.aprobado_en != null,
+        resaltado: trazosDeLaMedicion.has(f.id),
         // El cuerpo de una línea con grosor (un muro), pintado con su alineación.
         banda:
           f.properties.grosor_m != null && f.properties.alineacion
@@ -454,7 +478,7 @@ export function EspacioDeTrazo({
               )
             : undefined,
       })),
-    [featuresVisibles, unidadesPorMetro],
+    [featuresVisibles, unidadesPorMetro, trazosDeLaMedicion],
   );
   const notasConsulta = useNotasDePlanoApiV1PlanosPlanoIdNotasGet<
     NotaPlanoDetalleRespuesta[],
@@ -556,6 +580,10 @@ export function EspacioDeTrazo({
     return actual;
   };
   function invalidarTrazos() {
+    // Lo que miden las mediciones (y cuántos trazos llevan) cambia con cada trazo.
+    void queryClient.invalidateQueries({
+      queryKey: getListarMedicionesApiV1PlanosPlanoIdMedicionesGetQueryKey(planoElegido),
+    });
     void queryClient.invalidateQueries({
       queryKey: getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey(planoElegido),
     });
@@ -638,6 +666,7 @@ export function EspacioDeTrazo({
       ...(p.grosor_m != null && p.alineacion ? { grosor_m: String(p.grosor_m), alineacion: p.alineacion } : {}),
       ...(p.forma ? { forma: p.forma } : {}),
       ...(p.pendiente_pct != null ? { pendiente_pct: String(p.pendiente_pct) } : {}),
+      ...(p.medicion_id ? { medicion_id: p.medicion_id } : {}),
     } as TrazoPeticion;
   }
 
@@ -978,6 +1007,9 @@ export function EspacioDeTrazo({
     void queryClient.invalidateQueries({
       queryKey: getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId),
     });
+    void queryClient.invalidateQueries({
+      queryKey: getListarMedicionesApiV1PlanosPlanoIdMedicionesGetQueryKey(planoElegido),
+    });
   }
 
   const porActividad = useMemo(() => new Map(actividades.map((a) => [a.id, a])), [actividades]);
@@ -1003,7 +1035,8 @@ export function EspacioDeTrazo({
   /** El tipo de medición que pide el concepto en foco (por su unidad) y el bloque de herramientas que le toca. */
   const tipoDelConcepto = tipoDeMedicion(matrizActiva ? matrizActiva.unidad : actividadDeFoco?.unidad);
   const unidadEnFoco = matrizActiva ? matrizActiva.unidad : actividadDeFoco?.unidad;
-  const bloqueActivo = bloqueDeTipo(tipoDelConcepto);
+  // Con una medición activa manda su tipo; si no, el del concepto que se mide.
+  const bloqueActivo = medicionActiva ? medicionActiva.tipo : bloqueDeTipo(tipoDelConcepto);
 
   const herramientasDisponibles: readonly Herramienta[] = puedeAnotar
     ? [...HERRAMIENTAS, HERRAMIENTA_NOTA]
@@ -1139,8 +1172,9 @@ export function EspacioDeTrazo({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hayCajon, puedeAnotar, borrador, areaElegida, seleccionado, herramienta, mostrarMedidas, mostrarCotas, datosAbiertos]);
 
-  // Al cambiar de plano se olvida lo que se podía deshacer: ya no es lo que se está viendo.
+  // Al cambiar de plano se olvida lo que se podía deshacer y la medición activa: ya no es lo que se está viendo.
   useEffect(() => {
+    setMedicionActivaId(null);
     historial.limpiar();
     alias.current.clear();
     refrescarHistorial();
@@ -1329,10 +1363,10 @@ export function EspacioDeTrazo({
           type="button"
           role="tab"
           id="pestana-presupuesto"
-          aria-selected={!verPlanos}
+          aria-selected={pestana === 'presupuesto'}
           aria-controls="panel-presupuesto"
-          className={!verPlanos ? 'estacion__pestana is-activa' : 'estacion__pestana'}
-          onClick={() => setVerPlanos(false)}
+          className={pestana === 'presupuesto' ? 'estacion__pestana is-activa' : 'estacion__pestana'}
+          onClick={() => setPestana('presupuesto')}
         >
           Presupuesto
         </button>
@@ -1340,15 +1374,50 @@ export function EspacioDeTrazo({
           type="button"
           role="tab"
           id="pestana-planos"
-          aria-selected={verPlanos}
+          aria-selected={pestana === 'planos'}
           aria-controls="panel-planos"
-          className={verPlanos ? 'estacion__pestana is-activa' : 'estacion__pestana'}
-          onClick={() => setVerPlanos(true)}
+          className={pestana === 'planos' ? 'estacion__pestana is-activa' : 'estacion__pestana'}
+          onClick={() => setPestana('planos')}
         >
           Planos <span className="estacion__contador">{listaDePlanos.length}</span>
         </button>
+        <button
+          type="button"
+          role="tab"
+          id="pestana-mediciones"
+          aria-selected={pestana === 'mediciones'}
+          aria-controls="panel-mediciones"
+          className={pestana === 'mediciones' ? 'estacion__pestana is-activa' : 'estacion__pestana'}
+          onClick={() => setPestana('mediciones')}
+        >
+          Mediciones <span className="estacion__contador">{listaDeMediciones.length}</span>
+        </button>
       </div>
-      {verPlanos ? (
+      {pestana === 'mediciones' ? (
+        <div role="tabpanel" id="panel-mediciones" aria-labelledby="pestana-mediciones" className="estacion__panel-pestana">
+          <PanelDeMediciones
+            planoId={planoElegido}
+            mediciones={listaDeMediciones}
+            cargando={medicionesConsulta.isLoading}
+            actividades={actividades}
+            conceptoEnFoco={conceptoEnFoco}
+            activaId={medicionActivaId}
+            onActivar={(m) => {
+              setMedicionActivaId(m ? m.id : null);
+              // Dibujar en una medición pide su tipo: se suelta lo que se estaba trazando.
+              limpiarDibujo();
+            }}
+            onCambio={(aviso) => {
+              if (aviso) setAviso(aviso);
+              void queryClient.invalidateQueries({
+                queryKey: getListarMedicionesApiV1PlanosPlanoIdMedicionesGetQueryKey(planoElegido),
+              });
+              invalidarTrazos();
+            }}
+            onError={(mensaje) => setAviso(mensaje)}
+          />
+        </div>
+      ) : pestana === 'planos' ? (
         <div role="tabpanel" id="panel-planos" aria-labelledby="pestana-planos" className="estacion__panel-pestana">
           <NavegadorDePlanos
             planos={listaDePlanos}
@@ -1885,11 +1954,17 @@ export function EspacioDeTrazo({
             REF
           </button>
           <span>
-            {tipoDelConcepto !== null && (
-              <span data-testid="tipo-del-concepto" title="El tipo de medición sale de la unidad del concepto elegido">
-                {matrizActiva ? `${matrizActiva.clave} · ` : ''}
-                {NOMBRE_DE_TIPO[tipoDelConcepto]} ({unidadEnFoco}) ·{' '}
+            {medicionActiva ? (
+              <span data-testid="tipo-del-concepto" title="La medición activa: lo que dibujes entra a ella">
+                Medición «{medicionActiva.nombre}» · {NOMBRE_DE_TIPO[medicionActiva.tipo]} ({medicionActiva.unidad}) ·{' '}
               </span>
+            ) : (
+              tipoDelConcepto !== null && (
+                <span data-testid="tipo-del-concepto" title="El tipo de medición sale de la unidad del concepto elegido">
+                  {matrizActiva ? `${matrizActiva.clave} · ` : ''}
+                  {NOMBRE_DE_TIPO[tipoDelConcepto]} ({unidadEnFoco}) ·{' '}
+                </span>
+              )
             )}
             {featuresVisibles.length} de {features.length} {features.length === 1 ? 'trazo' : 'trazos'}
             {filtrando ? ' (filtrados)' : ''}
@@ -1937,6 +2012,16 @@ export function EspacioDeTrazo({
           actividades={actividades}
           actividadInicial={conceptoEnFoco}
           matrizInicial={matrizActiva?.id}
+          medicion={
+            medicionActiva
+              ? {
+                  id: medicionActiva.id,
+                  nombre: medicionActiva.nombre,
+                  tipo: medicionActiva.tipo,
+                  nAsignaciones: asignacionesEfectivas(listaDeMediciones, medicionActiva.id),
+                }
+              : null
+          }
           nodosDePrototipo={puedeEnlazarPrototipo ? nodosDePrototipo : null}
           onCerrar={() => {
             setGuardando(false);

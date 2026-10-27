@@ -67,6 +67,8 @@ export interface TrazoVisible {
   readonly porRevisar: boolean;
   /** Aprobado por Control de obra: se dibuja en verde. */
   readonly aprobado: boolean;
+  /** Es de la medición activa (la capa sombra): se dibuja con un halo. */
+  readonly resaltado?: boolean;
   /** El cuerpo de una línea con grosor (un muro), ya como anillo en coordenadas de plano. */
   readonly banda?: readonly Punto[];
 }
@@ -440,6 +442,7 @@ export function Visor({
           elegido && 'is-selected',
           t.porRevisar && 'is-por-revisar',
           t.aprobado && 'is-aprobado',
+          t.resaltado && 'is-medicion',
         ]
           .filter(Boolean)
           .join(' ');

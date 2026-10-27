@@ -32,6 +32,7 @@ import {
 } from './geometria';
 import { fmtNum } from '@/lib/formato';
 import { NOMBRE_DE_FORMA, type Alineacion, type Forma } from './formas';
+import { motivoDeIncompatibilidad, NOMBRE_DE_TIPO_DE_MEDICION, type TipoDeMedicionSombra } from './mediciones';
 import { etiquetaMedida } from './reglas';
 
 type Fuente = 'pdf' | 'dwg' | 'ifc';
@@ -74,6 +75,11 @@ interface Props {
   /** La matriz interna con la que arranca el primer enlace (la que se está midiendo en el árbol). */
   readonly matrizInicial?: string;
   /**
+   * La medición activa (la capa sombra, 0088): el trazo entra a ella y hereda los enlaces que ya tenga
+   * asignados; sin ninguno, se guarda suelto en la medición y se enlaza cuando se asigne.
+   */
+  readonly medicion?: { readonly id: string; readonly nombre: string; readonly tipo: TipoDeMedicionSombra; readonly nAsignaciones: number } | null;
+  /**
    * Nodos del prototipo, o `null` si este rol no puede enlazarlos. Enlazar a un
    * nodo de prototipo es de Control de obra y Super intendente (el servidor lo
    * impone con 403; aquí solo no se ofrece lo que fallaría).
@@ -112,6 +118,7 @@ export function AltaTrazo({
   actividades,
   actividadInicial,
   matrizInicial,
+  medicion = null,
   nodosDePrototipo,
   onCerrar,
   onGuardado,
@@ -125,7 +132,10 @@ export function AltaTrazo({
       : MEDIDAS_POR_HERRAMIENTA[herramienta];
   const [fuente, setFuente] = useState<Fuente>('pdf');
   const [capa, setCapa] = useState('');
-  const [filas, setFilas] = useState<readonly FilaEnlace[]>([
+  const [filas, setFilas] = useState<readonly FilaEnlace[]>(
+    medicion
+      ? []
+      : [
     {
       clave: 0,
       destino: 'actividad',
@@ -134,8 +144,11 @@ export function AltaTrazo({
       medida: medidas[0] as MedidaDeTrazo,
       factor: '1',
     },
-  ]);
+      ],
+  );
   const [siguienteClave, setSiguienteClave] = useState(1);
+  // Una medición solo admite trazos de su tipo: se avisa antes de mandar.
+  const incompatible = medicion ? motivoDeIncompatibilidad(medicion.tipo, herramienta, forma !== null) : null;
   const [error, setError] = useState<string | null>(null);
 
   const registrar = useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost<ErrorApi>();
@@ -155,6 +168,10 @@ export function AltaTrazo({
   async function alEnviar(evento: FormEvent) {
     evento.preventDefault();
     setError(null);
+    if (incompatible) {
+      setError(incompatible);
+      return;
+    }
 
     // Una fila sin actividad es una fila a medias, no «sin enlace»: quien no
     // quiere enlazar la quita. Mandarla vacía daría un 422 sin decir cuál.
@@ -182,6 +199,7 @@ export function AltaTrazo({
           fuente,
           capa: capa.trim() === '' ? null : capa.trim(),
           geometria_wkt: aWkt(herramienta, puntos),
+          ...(medicion ? { medicion_id: medicion.id } : {}),
           ...(conGrosor && alineacion !== null ? { grosor_m: String(grosorM), alineacion } : {}),
           ...(herramienta === 'linea' && pendientePct !== null ? { pendiente_pct: String(pendientePct) } : {}),
           ...(forma !== null
@@ -225,6 +243,21 @@ export function AltaTrazo({
       <form onSubmit={(e) => void alEnviar(e)}>
         <div className="sheet__body col gap-12">
           {error && <ErrorBanner mensaje={error} />}
+
+          {medicion && (
+            <div className="text-sm" data-testid="aviso-medicion">
+              Entra a la medición <strong>«{medicion.nombre}»</strong> ({NOMBRE_DE_TIPO_DE_MEDICION[medicion.tipo]}).{' '}
+              {medicion.nAsignaciones > 0
+                ? 'Se enlaza sola a los conceptos que esa medición ya alimenta.'
+                : 'Todavía no alimenta ningún concepto: se guarda en la medición y suma cuando la asignes.'}{' '}
+              Puedes agregar enlaces extra abajo.
+            </div>
+          )}
+          {incompatible && (
+            <div className="text-sm" role="alert" data-testid="aviso-incompatible">
+              {incompatible}
+            </div>
+          )}
 
           {herramienta === 'linea' && pendientePct !== null && (
             <div className="text-sm" data-testid="aviso-pendiente">
@@ -397,7 +430,7 @@ export function AltaTrazo({
                         Vista previa en unidades de plano: {fmtNum(local)}. La cantidad
                         la calcula el servidor al guardar.
                       </span>
-                      {filas.length > 1 && (
+                      {filas.length > (medicion ? 0 : 1) && (
                         <button
                           type="button"
                           className="btn btn--ghost btn--sm"
@@ -420,7 +453,7 @@ export function AltaTrazo({
           <button type="button" className="btn" onClick={onCerrar}>
             Cancelar
           </button>
-          <button type="submit" className="btn btn--primary" disabled={registrar.isPending}>
+          <button type="submit" className="btn btn--primary" disabled={registrar.isPending || incompatible !== null}>
             {registrar.isPending ? 'Guardando…' : 'Guardar trazo'}
           </button>
         </div>
