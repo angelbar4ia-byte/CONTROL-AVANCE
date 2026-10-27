@@ -21,6 +21,7 @@
  */
 
 import { PanelLeft, PanelRight, Upload } from 'lucide-react';
+import { useIsMutating } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
@@ -42,10 +43,14 @@ import {
   useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet,
 } from '@/api/generado/cuantificacion/cuantificacion';
 import {
+  getListarElementosApiV1ElementosGetQueryKey,
   getListarMedicionesApiV1PlanosPlanoIdMedicionesGetQueryKey,
+  usePonerTrazoEnMedicionApiV1TrazosTrazoIdMedicionPut,
+  useListarElementosApiV1ElementosGet,
   useListarMedicionesApiV1PlanosPlanoIdMedicionesGet,
 } from '@/api/generado/mediciones/mediciones';
 import type {
+  ElementoRespuesta,
   MedicionRespuesta,
   TrazoPeticion,
   ActividadRespuesta,
@@ -69,7 +74,7 @@ import { ErrorBanner } from '@/lib/ErrorBanner';
 import { SelectorObra } from '@/lib/SelectorObra';
 import { AltaNota } from './AltaNota';
 import { PanelDeMediciones } from './PanelDeMediciones';
-import { asignacionesEfectivas, idsDeRama } from './mediciones';
+import { admiteGeometria, asignacionesEfectivas, idsDeRama } from './mediciones';
 import { OpcionesDeContorno } from './OpcionesDeContorno';
 import { OpcionesDeNota, type ClaseDeNota } from './OpcionesDeNota';
 import { bloqueDeTipo, NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
@@ -124,6 +129,7 @@ import {
   geojsonAWkt,
   areaDeGeometria,
   type GeometriaBase,
+  herramientaDeGeometria,
   partesDe,
   type GeometriaGeoJson,
   puntosDe,
@@ -211,6 +217,51 @@ function puntoDeGeoJson(g: { coordinates?: unknown } | null | undefined): Punto 
 }
 
 /** El centro de una pieza (un punto, o el contorno de una forma estampada). */
+/**
+ * La medición de un trazo ya guardado. **Sin botón**: al elegir otra, el cambio llega a la API en ese
+ * momento. Solo ofrece las mediciones donde el trazo cabe (su tipo y su plano).
+ */
+function SelectorDeMedicion({
+  trazo,
+  mediciones,
+  ocupado,
+  onCambiar,
+}: {
+  readonly trazo: {
+    readonly geometry: GeometriaGeoJson;
+    readonly properties: { readonly medicion_id?: string | null; readonly forma?: unknown };
+  };
+  readonly mediciones: readonly MedicionRespuesta[];
+  readonly ocupado: boolean;
+  readonly onCambiar: (medicionId: string | null) => void;
+}) {
+  const base = herramientaDeGeometria(trazo.geometry);
+  const esPieza = trazo.properties.forma != null;
+  const caben = mediciones.filter((m) => base !== null && admiteGeometria(m.tipo, base, esPieza));
+  if (mediciones.length === 0) return null;
+  return (
+    <div className="field">
+      <label className="field__label" htmlFor="trazo-medicion">
+        Medición
+      </label>
+      <select
+        id="trazo-medicion"
+        className="select"
+        value={trazo.properties.medicion_id ?? ''}
+        disabled={ocupado}
+        onChange={(e) => onCambiar(e.target.value === '' ? null : e.target.value)}
+      >
+        <option value="">Suelto (sin medición)</option>
+        {caben.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.nombre}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function centroDeLaPieza(geometria: GeometriaGeoJson): Punto | null {
   const primero = partesDe(geometria)[0];
   if (!primero) return null;
@@ -351,6 +402,13 @@ export function EspacioDeTrazo({
     { query: { enabled: planoElegido !== '' } },
   );
   const listaDeMediciones = useMemo(() => medicionesConsulta.data ?? [], [medicionesConsulta.data]);
+  // Todo cambio llega a la API en el momento: no hay botón de guardar. Esto solo dice si algo va en camino.
+  const guardandoAhora = useIsMutating() > 0;
+  const meterEnMedicion = usePonerTrazoEnMedicionApiV1TrazosTrazoIdMedicionPut<ErrorApi>();
+  const elementosConsulta = useListarElementosApiV1ElementosGet<ElementoRespuesta[], ErrorApi>();
+  const listaDeElementos = useMemo(() => elementosConsulta.data ?? [], [elementosConsulta.data]);
+  /** El peso de un elemento cambia cantidades de presupuesto (kg y ton): lo ponen Control de obra y Costos. */
+  const puedePonerPeso = sesion?.rol === 'control_obra' || sesion?.rol === 'costos';
   const medicionActiva = medicionActivaId ? (listaDeMediciones.find((m) => m.id === medicionActivaId) ?? null) : null;
 
   // Al llegar la lista, se abre el primer plano para no dejar al usuario frente
@@ -1275,6 +1333,23 @@ export function EspacioDeTrazo({
               {seleccionado.properties.capa ?? 'Sin capa'} ·{' '}
               <span className="mono">{seleccionado.properties.fuente.toUpperCase()}</span>
             </div>
+            <SelectorDeMedicion
+              trazo={seleccionado}
+              mediciones={listaDeMediciones}
+              ocupado={meterEnMedicion.isPending}
+              onCambiar={(medicionId) =>
+                meterEnMedicion.mutate(
+                  { trazoId: seleccionado.id, data: { medicion_id: medicionId } },
+                  {
+                    onSuccess: () => {
+                      setAviso(medicionId ? 'Trazo metido en la medición.' : 'Trazo fuera de su medición: ya no suma por ella.');
+                      invalidarTrazos();
+                    },
+                    onError: (err) => setAviso(err.message),
+                  },
+                )
+              }
+            />
             <div className="row">
               {seleccionado.properties.aprobado_en ? (
                 <span className="badge badge--ok">
@@ -1400,6 +1475,8 @@ export function EspacioDeTrazo({
             mediciones={listaDeMediciones}
             cargando={medicionesConsulta.isLoading}
             actividades={actividades}
+            elementos={listaDeElementos}
+            puedePonerPeso={puedePonerPeso}
             conceptoEnFoco={conceptoEnFoco}
             activaId={medicionActivaId}
             onActivar={(m) => {
@@ -1412,6 +1489,7 @@ export function EspacioDeTrazo({
               void queryClient.invalidateQueries({
                 queryKey: getListarMedicionesApiV1PlanosPlanoIdMedicionesGetQueryKey(planoElegido),
               });
+              void queryClient.invalidateQueries({ queryKey: getListarElementosApiV1ElementosGetQueryKey() });
               invalidarTrazos();
             }}
             onError={(mensaje) => setAviso(mensaje)}
@@ -1971,6 +2049,9 @@ export function EspacioDeTrazo({
           </span>
           <span>
             {listaDeNotas.length} {listaDeNotas.length === 1 ? 'nota' : 'notas'}
+          </span>
+          <span data-testid="autoguardado" aria-live="polite" title="Cada cambio llega a la API al momento">
+            {guardandoAhora ? 'Guardando…' : 'Todo guardado'}
           </span>
         </div>
       )}

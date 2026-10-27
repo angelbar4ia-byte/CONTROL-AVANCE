@@ -2851,3 +2851,16 @@ a { color: inherit; text-decoration: none; }
 .visor__trazo.is-medicion path, .visor__trazo.is-medicion line, .visor__trazo.is-medicion polyline, .visor__trazo.is-medicion circle {
   filter: drop-shadow(0 0 3px var(--c-accent));
 }
+
+/* Elementos con peso (K1): lista editable que se guarda sola. */
+.elementos { margin: 0 8px 8px; border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-surface); }
+.elementos > summary { cursor: pointer; padding: 6px 8px; font-weight: 600; }
+.elementos__ayuda { margin: 0; padding: 0 8px 6px; }
+.elementos__lista { list-style: none; margin: 0; padding: 0 6px 8px; display: grid; gap: 4px; }
+.elementos__fila { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.elementos__nombre { flex: 1 1 90px; min-width: 70px; height: 24px; }
+.elementos__tipo { height: 24px; width: 86px; }
+.elementos__peso { width: 58px; height: 24px; text-align: right; }
+.elementos__fila--nueva { padding-top: 4px; border-top: 1px dashed var(--c-line); }
+.select--chico { height: 22px; font-size: var(--fs-xs); padding-block: 0; }
+.mediciones__confirmar { display: grid; gap: 6px; margin: 2px 4px 6px 22px; padding: 8px; font-size: var(--fs-xs); background: var(--c-danger-soft); border: 1px solid var(--c-danger); border-radius: var(--r-md); }

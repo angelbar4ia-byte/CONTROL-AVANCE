@@ -15,12 +15,14 @@ import {
   useAsignarMedicionApiV1MedicionesMedicionIdAsignacionesPost,
   useCrearMedicionApiV1PlanosPlanoIdMedicionesPost,
   useEliminarMedicionApiV1MedicionesMedicionIdDelete,
+  usePonerElementoEnMedicionApiV1MedicionesMedicionIdElementoPut,
   useQuitarAsignacionApiV1AsignacionesDeMedicionAsignacionIdDelete,
   useRenombrarMedicionApiV1MedicionesMedicionIdPatch,
 } from '@/api/generado/mediciones/mediciones';
-import type { ActividadRespuesta, MedicionRespuesta } from '@/api/generado/modelo';
+import type { ActividadRespuesta, ElementoRespuesta, MedicionRespuesta } from '@/api/generado/modelo';
 import { fmtNum } from '@/lib/formato';
 import { OpcionesDeMatriz } from './MatricesDeActividad';
+import { PanelDeElementos, UNIDAD_DEL_PESO } from './PanelDeElementos';
 import {
   arbolDeMediciones,
   candidatasAMadre,
@@ -35,6 +37,9 @@ interface Props {
   readonly mediciones: readonly MedicionRespuesta[];
   readonly cargando: boolean;
   readonly actividades: readonly ActividadRespuesta[];
+  /** Los elementos con peso (K1…) y si quien mira puede ponerles peso (Control de obra y Costos). */
+  readonly elementos: readonly ElementoRespuesta[];
+  readonly puedePonerPeso: boolean;
   /** El concepto que se está midiendo en el árbol: trae elegido el destino de una asignación. */
   readonly conceptoEnFoco?: string;
   readonly activaId: string | null;
@@ -55,6 +60,8 @@ export function PanelDeMediciones({
   mediciones,
   cargando,
   actividades,
+  elementos,
+  puedePonerPeso,
   conceptoEnFoco,
   activaId,
   onActivar,
@@ -67,6 +74,8 @@ export function PanelDeMediciones({
   const [nombreNuevo, setNombreNuevo] = useState('');
   const [renombrando, setRenombrando] = useState<{ id: string; nombre: string } | null>(null);
   const [asignando, setAsignando] = useState<string | null>(null);
+  const [porBorrar, setPorBorrar] = useState<string | null>(null);
+  const ponerElemento = usePonerElementoEnMedicionApiV1MedicionesMedicionIdElementoPut<ErrorApi>();
 
   const crear = useCrearMedicionApiV1PlanosPlanoIdMedicionesPost<ErrorApi>();
   const renombrar = useRenombrarMedicionApiV1MedicionesMedicionIdPatch<ErrorApi>();
@@ -121,11 +130,25 @@ export function PanelDeMediciones({
     }
   }
 
+  async function alCambiarElemento(m: MedicionRespuesta, elementoId: string) {
+    try {
+      await ponerElemento.mutateAsync({ medicionId: m.id, data: { elemento_id: elementoId === '' ? null : elementoId } });
+      onCambio(elementoId === '' ? `«${m.nombre}» ya no tiene elemento.` : `«${m.nombre}» mide ahora a ${elementos.find((e) => e.id === elementoId)?.nombre ?? 'un elemento'}.`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo cambiar el elemento.');
+    }
+  }
+
   async function alEliminar(m: MedicionRespuesta) {
     try {
       await eliminar.mutateAsync({ medicionId: m.id });
+      setPorBorrar(null);
       if (activaId === m.id) onActivar(null);
-      onCambio(`Medición «${m.nombre}» borrada; sus trazos quedan sueltos.`);
+      onCambio(
+        m.asignaciones.length > 0
+          ? `Medición «${m.nombre}» borrada con sus ${m.asignaciones.length} ${m.asignaciones.length === 1 ? 'asignación' : 'asignaciones'}; los conceptos se recalcularon y sus trazos quedan sueltos.`
+          : `Medición «${m.nombre}» borrada; sus trazos quedan sueltos.`,
+      );
     } catch (err) {
       onError(err instanceof Error ? err.message : 'No se pudo borrar la medición.');
     }
@@ -202,7 +225,7 @@ export function PanelDeMediciones({
           {m.asignaciones.map((a) => (
             <span key={a.id} className="chip chip--asignacion" title={`${a.descripcion} · ${a.medida} × ${a.factor}`}>
               {a.concepto_clave || a.descripcion}
-              {a.matriz_clave ? ` › ${a.matriz_clave}` : ''} · {a.medida}
+              {a.matriz_clave ? ` › ${a.matriz_clave}` : ''} · {a.usa_peso ? 'peso' : a.medida}
               <button
                 type="button"
                 className="chip__quitar"
@@ -246,12 +269,49 @@ export function PanelDeMediciones({
               className="btn-icono btn-icono--chico btn-icono--peligro"
               aria-label={`Borrar ${m.nombre}`}
               title="Borrar (sin asignaciones ni submediciones)"
-              onClick={() => void alEliminar(m)}
+              onClick={() => (m.asignaciones.length > 0 ? setPorBorrar(m.id) : void alEliminar(m))}
             >
               <Trash2 size={13} aria-hidden />
             </button>
           </span>
         </div>
+        <div className="arbol__meta arbol__meta--medicion">
+          <label className="text-xs text-mute" htmlFor={`el-${m.id}`}>
+            Elemento
+          </label>
+          <select
+            id={`el-${m.id}`}
+            className="select select--chico"
+            aria-label={`Elemento de ${m.nombre}`}
+            value={m.elemento?.id ?? ''}
+            onChange={(e) => void alCambiarElemento(m, e.target.value)}
+          >
+            <option value="">Sin elemento</option>
+            {elementos
+              .filter((e) => e.tipo === m.tipo)
+              .map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nombre} · {Number(e.peso_kg)} {UNIDAD_DEL_PESO[e.tipo]}
+                </option>
+              ))}
+          </select>
+        </div>
+        {porBorrar === m.id && (
+          <div className="mediciones__confirmar" role="alert">
+            <span>
+              «{m.nombre}» alimenta {m.asignaciones.length} {m.asignaciones.length === 1 ? 'concepto' : 'conceptos'}: al
+              borrarla se quitan esas asignaciones y los conceptos se recalculan. Sus trazos quedan sueltos.
+            </span>
+            <span className="row" style={{ gap: 4 }}>
+              <button type="button" className="btn btn--sm btn--danger" onClick={() => void alEliminar(m)}>
+                Borrar con sus asignaciones
+              </button>
+              <button type="button" className="btn btn--sm btn--ghost" onClick={() => setPorBorrar(null)}>
+                Cancelar
+              </button>
+            </span>
+          </div>
+        )}
         {asignando === m.id && (
           <FormularioDeAsignacion
             medicion={m}
@@ -288,6 +348,8 @@ export function PanelDeMediciones({
           <Plus size={13} aria-hidden /> Nueva medición
         </button>
       </div>
+
+      <PanelDeElementos elementos={elementos} puedePonerPeso={puedePonerPeso} onCambio={onCambio} onError={onError} />
 
       {creando && (
         <form className="mediciones__nueva" onSubmit={(e) => void alCrear(e)} aria-label="Nueva medición">
@@ -381,6 +443,12 @@ function FormularioDeAsignacion({
   const [matrizId, setMatrizId] = useState('');
   const [medida, setMedida] = useState<string>(medidas[0]?.medida ?? 'area');
   const [factor, setFactor] = useState('1');
+  const [usarPeso, setUsarPeso] = useState(true);
+  const unidadDelConcepto = (actividades.find((a) => a.id === actividadId)?.unidad ?? '').trim().toLowerCase();
+  // El peso del elemento solo alimenta conceptos en kg o ton, con la medida cuya unidad es la de su peso.
+  const puedeUsarPeso = medicion.elemento != null && (unidadDelConcepto === 'kg' || unidadDelConcepto === 'ton');
+  const conPeso = puedeUsarPeso && usarPeso;
+  const medidaBase = medicion.tipo === 'conteo' ? 'conteo' : medicion.tipo === 'lineal' ? 'longitud' : 'area';
   const asignar = useAsignarMedicionApiV1MedicionesMedicionIdAsignacionesPost<ErrorApi>();
 
   async function alEnviar(e: FormEvent) {
@@ -392,8 +460,9 @@ function FormularioDeAsignacion({
         data: {
           actividad_id: actividadId,
           matriz_concepto_id: matrizId === '' ? null : matrizId,
-          medida: medida as 'area' | 'perimetro' | 'longitud' | 'conteo',
-          factor,
+          medida: (conPeso ? medidaBase : medida) as 'area' | 'perimetro' | 'longitud' | 'conteo',
+          factor: conPeso ? '1' : factor,
+          usar_peso: conPeso,
         },
       });
       onListo(
@@ -431,8 +500,14 @@ function FormularioDeAsignacion({
           <OpcionesDeMatriz actividadId={actividadId} />
         </select>
       )}
+      {puedeUsarPeso && medicion.elemento && (
+        <label className="row text-sm" style={{ gap: 6 }}>
+          <input type="checkbox" checked={usarPeso} onChange={(e) => setUsarPeso(e.target.checked)} />
+          Con el peso de {medicion.elemento.nombre} ({Number(medicion.elemento.peso_kg)} {UNIDAD_DEL_PESO[medicion.tipo]})
+        </label>
+      )}
       <div className="row" style={{ gap: 4 }}>
-        <select className="select" aria-label="Medida" value={medida} onChange={(e) => setMedida(e.target.value)}>
+        <select className="select" aria-label="Medida" value={conPeso ? medidaBase : medida} disabled={conPeso} onChange={(e) => setMedida(e.target.value)}>
           {medidas.map((m) => (
             <option key={m.medida} value={m.medida}>
               {m.etiqueta}
@@ -445,6 +520,7 @@ function FormularioDeAsignacion({
           inputMode="decimal"
           value={factor}
           style={{ width: 70 }}
+          disabled={conPeso}
           onChange={(e) => setFactor(e.target.value)}
         />
       </div>
