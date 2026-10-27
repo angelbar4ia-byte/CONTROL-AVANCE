@@ -8,7 +8,9 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, solicitarApi, 
  *     cabe (un adicional no resta) y el servidor lo respalda.
  *  2. **Lo que nace nuevo**: un adicional (highlight) entra a la parte.
  *  3. La bitácora lo cuenta y la ven todos los roles; el residente no tiene formularios.
- *  4. Una parte ya validada vuelve a cuantificarse con la modificación; asignada, ya no se toca.
+ *  4. Antes de un control de cambio se **cotiza al cliente** lo modificado, por diferencia entre 0.7, y el
+ *     cliente responde una sola vez.
+ *  5. Una parte ya validada vuelve a cuantificarse con la modificación; asignada, ya no se toca.
  *
  * Es una obra nueva por corrida: no consume obras de la semilla.
  */
@@ -78,7 +80,17 @@ test.describe('Prototipo modificado · cambios y adicionales', () => {
     await expect(residente.getByRole('list', { name: 'Modificaciones' })).toContainText('Highlight: pérgola de acero');
     await expect(residente.getByRole('form', { name: 'Modificar un concepto' })).toHaveCount(0);
 
-    // --- 4. Validada, vuelve a cuantificarse; asignada, ya no se toca --------------------------------
+    // --- 4. Se cotiza al cliente lo modificado y el cliente responde ------------------------------------
+    // (el adicional nació con precio; la cotización lo toma por diferencia entre 0.7)
+    await control.getByRole('form', { name: 'Cotizar lo modificado' }).getByRole('button', { name: 'Cotizar lo modificado' }).click();
+    const cotizaciones = control.getByRole('list', { name: 'Cotizaciones' });
+    await expect(cotizaciones).toContainText(/CZ-MOD-[A-Z0-9]+-001/);
+    await expect(cotizaciones).toContainText('Enviada');
+    await cotizaciones.getByRole('button', { name: 'El cliente aceptó' }).click();
+    await expect(cotizaciones).toContainText('Aceptada');
+    await expect(cotizaciones.getByRole('button', { name: 'El cliente aceptó' })).toHaveCount(0);
+
+    // --- 5. Validada, vuelve a cuantificarse; asignada, ya no se toca --------------------------------
     for (const accion of ['enviar_a_presupuesto', 'autorizar', 'validar', 'enviar_a_programa', 'programar']) {
       await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/partes/transicion`, {
         accion,

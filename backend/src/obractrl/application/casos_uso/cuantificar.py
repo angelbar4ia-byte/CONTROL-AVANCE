@@ -49,6 +49,7 @@ valida ANTES de escribir nada y lo nombra con un error de dominio claro.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
@@ -57,6 +58,7 @@ from uuid import UUID
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     ObraNoEncontrada,
 )
+from obractrl.application.eventos import PartesCambiaronDeEstado, PublicadorEventos
 from obractrl.application.puertos.cuantificacion import (
     RepositorioEnlacesCuantificacion,
     RepositorioNotasPlano,
@@ -170,6 +172,8 @@ class ResultadoDeRecalculo:
     cantidad_total: Decimal
     desviacion_id: UUID | None = None
     prototipo_nodo_actualizado: UUID | None = None
+    reapertura: tuple[UUID, str, bool] | None = None
+    """`(obra, parte, tenía_programa)`: medir devolvió a cuantificarse una parte ya validada."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -197,6 +201,7 @@ class ComandoReemplazarEnlace:
     enlace_id: UUID
     rol: Rol
     nuevo: NuevoEnlace | None = None
+    usuario_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,6 +246,31 @@ def _desviacion_a_datos(d: Desviacion) -> dict[str, object]:
     }
 
 
+async def _avisar_reaperturas(
+    eventos: PublicadorEventos | None,
+    recalculos: Sequence[ResultadoDeRecalculo],
+    usuario_id: UUID | None,
+) -> None:
+    """Medir puede devolver a cuantificarse una parte ya validada: se avisa igual que cuando la
+    devuelve una modificación (D-571), a quien lleva el programa."""
+    if eventos is None:
+        return
+    for r in recalculos:
+        if r.reapertura is None:
+            continue
+        obra_id, clave, tenia_programa = r.reapertura
+        await eventos.publicar(
+            PartesCambiaronDeEstado(
+                obra_id=obra_id,
+                accion="devolver",
+                claves=(clave,),
+                estados=("cuantificando",),
+                usuario_id=usuario_id,
+                programa_por_revisar=(clave,) if tenia_programa else (),
+            )
+        )
+
+
 async def _recalcular_nodo(
     *,
     tipo_nodo: TipoNodoCuantificacion,
@@ -276,11 +306,23 @@ async def _recalcular_nodo(
         actividad = await actividades.obtener(actividad_id)  # type: ignore[arg-type]
         # En una obra «Nueva» lo que se mide es el presupuesto: sustituye a la cantidad base
         # (0081). En las demás solo se compara.
-        if actividad is not None and await actividades.fijar_cantidad_medida(
-            actividad_id,  # type: ignore[arg-type]
-            cantidad_total,
-        ):
-            return ResultadoDeRecalculo(cantidad_total=cantidad_total)
+        sustituida = (
+            await actividades.fijar_cantidad_medida(
+                actividad_id,  # type: ignore[arg-type]
+                cantidad_total,
+            )
+            if actividad is not None
+            else None
+        )
+        if sustituida is not None:
+            return ResultadoDeRecalculo(
+                cantidad_total=cantidad_total,
+                reapertura=(
+                    (UUID(str(sustituida["obra_id"])), sustituida["clave"], sustituida["tenia_programa"])
+                    if sustituida["reabierta"]
+                    else None
+                ),
+            )
         # Sin fila o sin concepto de catálogo (actividad extra-catálogo,
         # §5.1) no hay con qué construir una `Desviacion` válida —exige
         # `concepto_id`, §3.3 lo resuelve el borde— así que no se levanta
@@ -349,6 +391,7 @@ class RegistrarTrazoConEnlaces:
         prototipo_nodos: RepositorioPrototipoNodo,
         desviaciones: RepositorioDesviaciones,
         uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
     ) -> None:
         self._trazos = trazos
         self._enlaces = enlaces
@@ -356,6 +399,7 @@ class RegistrarTrazoConEnlaces:
         self._prototipo_nodos = prototipo_nodos
         self._desviaciones = desviaciones
         self._uow = uow
+        self._eventos = eventos
 
     async def ejecutar(
         self, cmd: ComandoRegistrarTrazo, *, detectada_en: datetime
@@ -430,6 +474,7 @@ class RegistrarTrazoConEnlaces:
 
             await self._uow.commit()
 
+        await _avisar_reaperturas(self._eventos, recalculos, cmd.autor_id)
         return TrazoRegistrado(
             trazo_id=trazo_id, enlace_ids=tuple(enlace_ids), recalculos=recalculos
         )
@@ -449,12 +494,14 @@ class ReemplazarEnlace:
         prototipo_nodos: RepositorioPrototipoNodo,
         desviaciones: RepositorioDesviaciones,
         uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
     ) -> None:
         self._enlaces = enlaces
         self._actividades = actividades
         self._prototipo_nodos = prototipo_nodos
         self._desviaciones = desviaciones
         self._uow = uow
+        self._eventos = eventos
 
     async def ejecutar(
         self, cmd: ComandoReemplazarEnlace, *, detectada_en: datetime
@@ -516,6 +563,7 @@ class ReemplazarEnlace:
 
             await self._uow.commit()
 
+        await _avisar_reaperturas(self._eventos, (resultado,), cmd.usuario_id)
         return resultado
 
 
@@ -562,6 +610,7 @@ class CalibrarEscalaDePlano:
         prototipo_nodos: RepositorioPrototipoNodo,
         desviaciones: RepositorioDesviaciones,
         uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
     ) -> None:
         self._planos = planos
         self._enlaces = enlaces
@@ -569,6 +618,7 @@ class CalibrarEscalaDePlano:
         self._prototipo_nodos = prototipo_nodos
         self._desviaciones = desviaciones
         self._uow = uow
+        self._eventos = eventos
 
     async def ejecutar(
         self, cmd: ComandoCalibrarEscala, *, detectada_en: datetime
@@ -619,6 +669,7 @@ class CalibrarEscalaDePlano:
             )
             await self._uow.commit()
 
+        await _avisar_reaperturas(self._eventos, recalculos, cmd.usuario_id)
         return EscalaCalibrada(escala_m_por_unidad=escala, recalculos=recalculos)
 
 

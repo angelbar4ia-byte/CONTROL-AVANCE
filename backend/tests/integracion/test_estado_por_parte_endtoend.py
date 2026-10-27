@@ -752,3 +752,51 @@ async def test_costos_modifica_pero_el_residente_y_otra_organizacion_no(
     async with _cliente(ajeno) as c:
         assert (await c.post(f"/api/v1/actividades/{actividad}/modificacion", json=cuerpo)).status_code == 404
         assert (await c.get(f"/api/v1/obras/{escenario.obra_id}/modificaciones")).status_code == 404
+
+
+async def test_lo_modificado_se_cotiza_al_cliente_y_el_cliente_responde_una_vez(
+    escenario: Escenario, partes: dict, control: httpx.AsyncClient, residente: httpx.AsyncClient
+) -> None:
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    async with engine.begin() as conn:
+        await conn.execute(text("update actividad set precio_unitario = 100 where id = :a"), {"a": partes["actividad_b"]})
+    await engine.dispose()
+    url = f"/api/v1/obras/{escenario.obra_id}/cotizaciones"
+
+    # Sin nada modificado no hay qué cotizar.
+    assert (await control.post(url, json={"metodo_precio": "por_diferencia"})).status_code == 422
+
+    # Entran 10 y salen 4: (1,000 − 400) / 0.7.
+    for delta in ("10", "-4"):
+        r = await control.post(
+            f"/api/v1/actividades/{partes['actividad_b']}/modificacion",
+            json={"tipo": "cambio", "delta": delta},
+        )
+        assert r.status_code == 200, r.text
+    # El neto de la actividad es +6; se cotiza el neto, en su bloque.
+    r = await control.post(url, json={"metodo_precio": "por_diferencia", "nota": "Sanitarios"})
+    assert r.status_code == 201, r.text
+    c = r.json()
+    assert c["folio"].startswith("CZ-") and c["folio"].endswith("-001") and c["estado"] == "enviada"
+    assert (float(c["costo_entra"]), float(c["costo_sale"]), float(c["factor"])) == (600.0, 0.0, 0.7)
+    assert float(c["precio"]) == pytest.approx(857.14, abs=0.01)
+    assert [x["bloque"] for x in c["entra"]] == ["entra"] and c["sale"] == []
+
+    # Por m²: la ampliación a 17,000 el m²; no coincide con la diferencia y no se corrige solo.
+    r = await control.post(url, json={"metodo_precio": "por_m2", "m2_ampliacion": "10"})
+    assert r.status_code == 201, r.text
+    z = r.json()
+    assert z["folio"].endswith("-002") and float(z["precio"]) == 170000.0
+    assert z["por_m2_coincide_con_la_diferencia"] is False
+    assert (await control.post(url, json={"metodo_precio": "por_m2"})).status_code == 422  # sin m²
+    assert [x["folio"][-3:] for x in (await control.get(url)).json()] == ["002", "001"]
+
+    # El cliente responde, una sola vez.
+    resp = f"/api/v1/cotizaciones/{c['id']}/respuesta"
+    assert (await residente.post(resp, json={"aceptada": True})).status_code == 403
+    r = await control.post(resp, json={"aceptada": True, "nota": "De acuerdo"})
+    assert r.status_code == 200 and r.json()["estado"] == "aceptada"
+    assert (await control.post(resp, json={"aceptada": False})).status_code == 409  # una sola vez
+    estado = {x["id"]: x["estado"] for x in (await control.get(url)).json()}
+    assert estado[c["id"]] == "aceptada" and estado[z["id"]] == "enviada"
+    assert (await control.post(f"/api/v1/cotizaciones/{uuid.uuid4()}/respuesta", json={"aceptada": True})).status_code == 404

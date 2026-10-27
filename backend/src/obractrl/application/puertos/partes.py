@@ -57,6 +57,21 @@ class RepositorioPartes(Protocol):
         donde los ensambles componen sus instancias."""
         ...
 
+    async def modificados_netos(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Por actividad modificada: `{actividad_id, descripcion, concepto_clave, delta,
+        precio_unitario}` con el cambio neto desde el prototipo."""
+        ...
+
+    async def crear_cotizacion(self, **datos: Any) -> dict[str, Any]: ...
+
+    async def cotizaciones_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]: ...
+
+    async def responder_cotizacion(
+        self, cotizacion_id: UUID, *, aceptada: bool, usuario_id: UUID, nota: str | None
+    ) -> dict[str, Any] | None:
+        """Registra la respuesta del cliente. `None` si no existe o no se ve."""
+        ...
+
     async def catalogos_base(self) -> list[dict[str, Any]]:
         """Por cada número de plantas (1 y 2) el prototipo de cuya estructura se forma el catálogo
         base: el más completo (más nodos; a igualdad, el más antiguo) de los que no son de un solo

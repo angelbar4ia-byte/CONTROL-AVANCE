@@ -105,7 +105,9 @@ class RepositorioActividadesSQL:
         ).mappings().first()
         return dict(fila) if fila is not None else None
 
-    async def fijar_cantidad_medida(self, actividad_id: UUID, cantidad: Decimal) -> bool:
+    async def fijar_cantidad_medida(
+        self, actividad_id: UUID, cantidad: Decimal
+    ) -> dict[str, Any] | None:
         fila = (
             await self._sesion.execute(
                 text(
@@ -128,7 +130,7 @@ class RepositorioActividadesSQL:
             )
         ).mappings().first()
         if fila is None or not fila["de_una_obra"]:
-            return False
+            return None
         estado = (
             await self._sesion.execute(
                 text("select estado::text from parte_estado where obra_id = :o and clave = :c"),
@@ -136,9 +138,11 @@ class RepositorioActividadesSQL:
             )
         ).scalar_one_or_none()
         if estado == "asignada":
-            return False
+            return None
+        sin_reapertura = {"obra_id": fila["obra_id"], "clave": fila["clave"], "reabierta": False,
+                          "tenia_programa": False}
         if Decimal(str(fila["cant_base"])) == cantidad and fila["modo"] == "medida":
-            return True
+            return sin_reapertura
         # Medir sustituye a lo estimado, pero lo estimado no se pierde: el paramétrico aprende de
         # esa diferencia (propone, no aplica, §8.1).
         await self._sesion.execute(
@@ -157,6 +161,7 @@ class RepositorioActividadesSQL:
         # Una cantidad que cambia ya no es la que se validó: la parte vuelve a cuantificarse
         # (volver es libre hasta asignar, D-571) y su programa, si lo tenía, queda por revisar.
         cambio = Decimal(str(fila["cant_base"])) != cantidad
+        reabierta = False
         if cambio and estado in ("por_validar", "autorizada", "enviada_programa", "programada"):
             await self._sesion.execute(
                 text(
@@ -193,7 +198,12 @@ class RepositorioActividadesSQL:
                     "nota": f"Medición: cambió la cantidad de {fila['descripcion']}",
                 },
             )
-        return True
+            reabierta = True
+        return {
+            **sin_reapertura,
+            "reabierta": reabierta,
+            "tenia_programa": reabierta and estado in ("enviada_programa", "programada"),
+        }
 
     async def obtener_para_captura(self, actividad_id: UUID) -> dict[str, Any] | None:
         """Como `obtener`, pero **bloqueando la fila** hasta el commit.

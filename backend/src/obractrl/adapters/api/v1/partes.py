@@ -23,10 +23,12 @@ from obractrl.adapters.api.casos_uso import (
     ConsultarBitacoraDePartesDep,
     ConsultarCargaDePartesDep,
     ConsultarCatalogosBaseDep,
+    ConsultarCotizacionesDep,
     ConsultarDesfaseDePartesDep,
     ConsultarModificacionesDep,
     ConsultarPartesDep,
     ConsultarValuacionDep,
+    CotizarLoModificadoDep,
     CrearObraDesdeCatalogoBaseDep,
     CrearObraDesdeCeroDep,
     FijarCandadoDeAsignarDep,
@@ -36,9 +38,11 @@ from obractrl.adapters.api.casos_uso import (
     MarcarParteIndependienteDep,
     ModificarActividadDep,
     RedisenarParteDep,
+    ResponderCotizacionDep,
 )
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.adapters.api.idempotencia import Idempotencia
+from obractrl.application.casos_uso.cotizacion_al_cliente import ComandoCotizar
 from obractrl.application.casos_uso.crear_obra_desde_catalogo_base import (
     ComandoCrearObraDesdeCatalogoBase,
     ComandoCrearObraDesdeCero,
@@ -49,6 +53,7 @@ from obractrl.application.casos_uso.gestionar_partes import (
     ComandoModificarActividad,
 )
 from obractrl.application.casos_uso.valuacion_de_partes import ComandoRedisenarParte
+from obractrl.domain.partes.cotizacion import MetodoDePrecio
 from obractrl.domain.partes.estado import Accion, EstadoDeParte
 from obractrl.domain.partes.modificacion import TipoDeModificacion
 from obractrl.domain.shared.diccionario import Rol
@@ -317,6 +322,58 @@ class RedisenoRespuesta(BaseModel):
     conservan_pu: int = Field(description="Renglones de la parte que el ensamble no cubre.")
     forma_despues: str
     porcentaje_parametrico_despues: Decimal
+
+
+class CotizacionPeticion(BaseModel):
+    metodo_precio: Literal["por_diferencia", "por_m2"] = Field(
+        description="`por_diferencia`: lo que entra menos lo que sale entre el factor (0.7). "
+        "`por_m2`: los m² de la ampliación por el precio por m²."
+    )
+    m2_ampliacion: Decimal | None = Field(default=None, gt=0)
+    precio_m2: Decimal | None = Field(default=None, gt=0, description="Si falta, el configurado (17,000).")
+    nota: str | None = None
+
+
+class LineaDeCotizacionRespuesta(BaseModel):
+    bloque: str = Field(description="`entra` o `sale`: las cantidades van positivas y el sistema resta.")
+    actividad_id: UUID
+    descripcion: str
+    concepto_clave: str | None = None
+    cantidad: Decimal
+    precio_unitario: Decimal
+    costo_directo: Decimal
+
+
+class CotizacionRespuesta(BaseModel):
+    id: UUID
+    obra_id: UUID
+    folio: str
+    metodo_precio: str
+    estado: str = Field(description="`enviada` · `aceptada` · `rechazada`.")
+    factor: Decimal
+    costo_entra: Decimal
+    costo_sale: Decimal
+    m2_ampliacion: Decimal | None = None
+    precio_m2: Decimal | None = None
+    precio_por_diferencia: Decimal
+    precio_por_m2: Decimal | None = None
+    precio: Decimal = Field(description="El que se le cobra al cliente, según el método elegido.")
+    por_m2_coincide_con_la_diferencia: bool | None = Field(
+        default=None,
+        description="Por m² y por diferencia no siempre coinciden: no se corrige solo (D-533).",
+    )
+    entra: list[LineaDeCotizacionRespuesta]
+    sale: list[LineaDeCotizacionRespuesta]
+    nota: str | None = None
+    creada_por: UUID
+    creada_por_nombre: str | None = None
+    creada_en: datetime
+    respondida_en: datetime | None = None
+
+
+class RespuestaDelClientePeticion(BaseModel):
+    aceptada: bool
+    nota: str | None = None
 
 
 class ParteSinAutorizarRespuesta(BaseModel):
@@ -676,6 +733,73 @@ async def redisenar_parte(
                 rol=Rol(ctx.rol),
                 aplicar=peticion.aplicar,
             )
+        )
+    )
+
+
+@router.post(
+    "/obras/{obra_id}/cotizaciones",
+    response_model=CotizacionRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Cotizar al cliente lo que la obra modificó",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA)), Idempotencia],
+    responses={**_NO_ENCONTRADO, 422: {"description": "Nada modificado que cotizar, o falta un dato del modo."}},
+)
+async def cotizar_lo_modificado(
+    obra_id: UUID,
+    peticion: CotizacionPeticion,
+    ctx: ContextoActual,
+    caso_uso: CotizarLoModificadoDep,
+) -> CotizacionRespuesta:
+    """Antes de un control de cambio se hace un presupuesto al cliente (D-531). Control de obra
+    cotiza; el factor y el precio por m² son parámetros editables."""
+    return CotizacionRespuesta(
+        **await caso_uso.ejecutar(
+            ComandoCotizar(
+                obra_id=obra_id,
+                metodo=MetodoDePrecio(peticion.metodo_precio),
+                usuario_id=ctx.usuario_id,
+                m2_ampliacion=peticion.m2_ampliacion,
+                precio_m2=peticion.precio_m2,
+                nota=peticion.nota,
+            )
+        )
+    )
+
+
+@router.get(
+    "/obras/{obra_id}/cotizaciones",
+    response_model=list[CotizacionRespuesta],
+    summary="Las cotizaciones al cliente de la obra, la más reciente primero",
+    responses=_NO_ENCONTRADO,
+)
+async def cotizaciones_de_la_obra(
+    obra_id: UUID, caso_uso: ConsultarCotizacionesDep
+) -> list[CotizacionRespuesta]:
+    return [CotizacionRespuesta(**f) for f in await caso_uso.ejecutar(obra_id)]
+
+
+@router.post(
+    "/cotizaciones/{cotizacion_id}/respuesta",
+    response_model=CotizacionRespuesta,
+    summary="Registrar la respuesta del cliente a una cotización",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA)), Idempotencia],
+    responses={
+        **_NO_ENCONTRADO,
+        409: {"description": "El cliente ya respondió esta cotización."},
+    },
+)
+async def responder_cotizacion(
+    cotizacion_id: UUID,
+    peticion: RespuestaDelClientePeticion,
+    ctx: ContextoActual,
+    caso_uso: ResponderCotizacionDep,
+) -> CotizacionRespuesta:
+    """Aceptada o rechazada, una sola vez. Quien debería registrarla —Proyectos y atención al
+    cliente— no es todavía un rol: hoy lo registra Control de obra."""
+    return CotizacionRespuesta(
+        **await caso_uso.ejecutar(
+            cotizacion_id, aceptada=peticion.aceptada, usuario_id=ctx.usuario_id, nota=peticion.nota
         )
     )
 

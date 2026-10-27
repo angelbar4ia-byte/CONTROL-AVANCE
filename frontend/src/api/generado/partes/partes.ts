@@ -34,6 +34,8 @@ import type {
   CandadoPeticion,
   CargaDePartesRespuesta,
   CatalogoBaseRespuesta,
+  CotizacionPeticion,
+  CotizacionRespuesta,
   DesfaseDePartesPeticion,
   DesfaseDePartesRespuesta,
   HTTPValidationError,
@@ -50,6 +52,7 @@ import type {
   RedisenoPeticion,
   RedisenoRespuesta,
   RegistroDeModificacionRespuesta,
+  RespuestaDelClientePeticion,
   TransicionDeParteRespuesta,
   ValuacionDeObraRespuesta,
 } from ".././modelo";
@@ -3952,6 +3955,699 @@ export const useRedisenarParteApiV1ObrasObraIdPartesRedisenoPost = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * Antes de un control de cambio se hace un presupuesto al cliente (D-531). Control de obra
+cotiza; el factor y el precio por m² son parámetros editables.
+ * @summary Cotizar al cliente lo que la obra modificó
+ */
+export const cotizarLoModificadoApiV1ObrasObraIdCotizacionesPost = (
+  obraId: string,
+  cotizacionPeticion: CotizacionPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CotizacionRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/cotizaciones`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: cotizacionPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCotizarLoModificadoApiV1ObrasObraIdCotizacionesPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof cotizarLoModificadoApiV1ObrasObraIdCotizacionesPost>
+      >,
+      TError,
+      { obraId: string; data: CotizacionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof cotizarLoModificadoApiV1ObrasObraIdCotizacionesPost>
+    >,
+    TError,
+    { obraId: string; data: CotizacionPeticion },
+    TContext
+  > => {
+    const mutationKey = ["cotizarLoModificadoApiV1ObrasObraIdCotizacionesPost"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof cotizarLoModificadoApiV1ObrasObraIdCotizacionesPost>
+      >,
+      { obraId: string; data: CotizacionPeticion }
+    > = (props) => {
+      const { obraId, data } = props ?? {};
+
+      return cotizarLoModificadoApiV1ObrasObraIdCotizacionesPost(
+        obraId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CotizarLoModificadoApiV1ObrasObraIdCotizacionesPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof cotizarLoModificadoApiV1ObrasObraIdCotizacionesPost>
+    >
+  >;
+export type CotizarLoModificadoApiV1ObrasObraIdCotizacionesPostMutationBody =
+  CotizacionPeticion;
+export type CotizarLoModificadoApiV1ObrasObraIdCotizacionesPostMutationError =
+  void;
+
+/**
+ * @summary Cotizar al cliente lo que la obra modificó
+ */
+export const useCotizarLoModificadoApiV1ObrasObraIdCotizacionesPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof cotizarLoModificadoApiV1ObrasObraIdCotizacionesPost>
+      >,
+      TError,
+      { obraId: string; data: CotizacionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof cotizarLoModificadoApiV1ObrasObraIdCotizacionesPost>
+  >,
+  TError,
+  { obraId: string; data: CotizacionPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCotizarLoModificadoApiV1ObrasObraIdCotizacionesPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Las cotizaciones al cliente de la obra, la más reciente primero
+ */
+export const cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CotizacionRespuesta[]>(
+    { url: `/api/v1/obras/${obraId}/cotizaciones`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetInfiniteQueryKey =
+  (obraId?: string) => {
+    return ["infinite", `/api/v1/obras/${obraId}/cotizaciones`] as const;
+  };
+
+export const getCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetQueryKey = (
+  obraId?: string,
+) => {
+  return [`/api/v1/obras/${obraId}/cotizaciones`] as const;
+};
+
+export const getCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetInfiniteQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+      >
+    > = ({ signal }) =>
+      cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type CotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+    >
+  >;
+export type CotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las cotizaciones al cliente de la obra, la más reciente primero
+ */
+
+export function useCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetQueryKey(obraId);
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+      >
+    > = ({ signal }) =>
+      cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type CotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+    >
+  >;
+export type CotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetQueryError =
+  void | HTTPValidationError;
+
+export function useCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet<
+  TData = Awaited<
+    ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet<
+  TData = Awaited<
+    ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet<
+  TData = Awaited<
+    ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las cotizaciones al cliente de la obra, la más reciente primero
+ */
+
+export function useCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet<
+  TData = Awaited<
+    ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof cotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getCotizacionesDeLaObraApiV1ObrasObraIdCotizacionesGetQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Aceptada o rechazada, una sola vez. Quien debería registrarla —Proyectos y atención al
+cliente— no es todavía un rol: hoy lo registra Control de obra.
+ * @summary Registrar la respuesta del cliente a una cotización
+ */
+export const responderCotizacionApiV1CotizacionesCotizacionIdRespuestaPost = (
+  cotizacionId: string,
+  respuestaDelClientePeticion: RespuestaDelClientePeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CotizacionRespuesta>(
+    {
+      url: `/api/v1/cotizaciones/${cotizacionId}/respuesta`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: respuestaDelClientePeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getResponderCotizacionApiV1CotizacionesCotizacionIdRespuestaPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof responderCotizacionApiV1CotizacionesCotizacionIdRespuestaPost
+        >
+      >,
+      TError,
+      { cotizacionId: string; data: RespuestaDelClientePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof responderCotizacionApiV1CotizacionesCotizacionIdRespuestaPost
+      >
+    >,
+    TError,
+    { cotizacionId: string; data: RespuestaDelClientePeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "responderCotizacionApiV1CotizacionesCotizacionIdRespuestaPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof responderCotizacionApiV1CotizacionesCotizacionIdRespuestaPost
+        >
+      >,
+      { cotizacionId: string; data: RespuestaDelClientePeticion }
+    > = (props) => {
+      const { cotizacionId, data } = props ?? {};
+
+      return responderCotizacionApiV1CotizacionesCotizacionIdRespuestaPost(
+        cotizacionId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ResponderCotizacionApiV1CotizacionesCotizacionIdRespuestaPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof responderCotizacionApiV1CotizacionesCotizacionIdRespuestaPost
+      >
+    >
+  >;
+export type ResponderCotizacionApiV1CotizacionesCotizacionIdRespuestaPostMutationBody =
+  RespuestaDelClientePeticion;
+export type ResponderCotizacionApiV1CotizacionesCotizacionIdRespuestaPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Registrar la respuesta del cliente a una cotización
+ */
+export const useResponderCotizacionApiV1CotizacionesCotizacionIdRespuestaPost =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof responderCotizacionApiV1CotizacionesCotizacionIdRespuestaPost
+          >
+        >,
+        TError,
+        { cotizacionId: string; data: RespuestaDelClientePeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof responderCotizacionApiV1CotizacionesCotizacionIdRespuestaPost
+      >
+    >,
+    TError,
+    { cotizacionId: string; data: RespuestaDelClientePeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getResponderCotizacionApiV1CotizacionesCotizacionIdRespuestaPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
 /**
  * El requisito «todo validado» de la junta (D-574): qué partes aún no están autorizadas.
 Avisa; lo que impide es asignar, con el candado (por obra).

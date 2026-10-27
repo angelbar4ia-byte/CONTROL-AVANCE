@@ -99,11 +99,13 @@ export default function Presupuesto() {
         </div>
       )}
 
-      {administra && (
+      {(administra || sesion.rol === 'costos') && (
         <div className="row gap-8 mb-8" style={{ flexWrap: 'wrap' }}>
-          <button type="button" className="btn btn--sm" onClick={() => setDialogo('obra')}>
-            Nueva obra
-          </button>
+          {administra && (
+            <button type="button" className="btn btn--sm" onClick={() => setDialogo('obra')}>
+              Nueva obra
+            </button>
+          )}
           <button type="button" className="btn btn--sm" onClick={() => setDialogo('ingenieria')}>
             Cargar ingeniería
           </button>

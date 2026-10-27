@@ -231,6 +231,10 @@ class TestContrato:
             # Rediseñar una parte a paramétrico reescribe cantidades y deja bitácora, y la obra
             # «desde cero» crea obra, prototipo y presupuesto: un reintento no debe repetirlos.
             "POST /api/v1/obras/desde-cero",
+            # Cotizar y registrar la respuesta del cliente escriben un folio consecutivo: un
+            # reintento no debe dejar dos cotizaciones.
+            "POST /api/v1/obras/{obra_id}/cotizaciones",
+            "POST /api/v1/cotizaciones/{cotizacion_id}/respuesta",
             "POST /api/v1/obras/{obra_id}/partes/rediseno",
         }
 
