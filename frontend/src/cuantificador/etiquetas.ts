@@ -10,7 +10,8 @@
 import { areaLocal, longitudLocal, partesDe, type GeometriaGeoJson, type Punto } from './geometria';
 
 export interface EtiquetaDeMedida {
-  readonly tipo: 'vertice' | 'area' | 'hueco' | 'longitud' | 'conteo';
+  /** `punto`: una pieza contada con la herramienta Punto, con su número. Los vértices de un trazo no se cuentan. */
+  readonly tipo: 'punto' | 'area' | 'hueco' | 'longitud';
   readonly punto: Punto;
   readonly texto: string;
 }
@@ -69,26 +70,38 @@ function puntoMedio(a: Punto, b: Punto): Punto {
 }
 
 /**
- * Los puntos numerados de un trazo, su área (con los huecos ya descontados) y cada hueco con lo
- * que resta. `grosorM` es el de una línea con grosor: añade el área que mide.
+ * Lo que se escribe de un trazo: su área (con los huecos ya descontados), cada hueco con lo que
+ * resta y el largo de una línea (`grosorM`, el de una línea con grosor, añade el área que mide).
+ *
+ * **Los vértices no se numeran ni se cuentan.** Los puntos son las piezas que se cuentan con la
+ * herramienta Punto: si este trazo es una de ellas, `numeroDePunto` es su número y es lo único que
+ * se escribe (un punto, o una forma estampada, no lleva área ni largo: se cuenta).
  */
 export function etiquetasDeMedidas(
   geometria: GeometriaGeoJson,
   escala: number | null,
   grosorM: number | null = null,
+  numeroDePunto: number | null = null,
 ): EtiquetaDeMedida[] {
   const { lineal, superficie, k } = unidadesDeEscala(escala);
   const etiquetas: EtiquetaDeMedida[] = [];
   const partes = partesDe(geometria);
+
+  if (numeroDePunto !== null) {
+    const primero = partes[0];
+    if (primero?.tipo === 'punto') {
+      etiquetas.push({ tipo: 'punto', punto: primero.puntos[0] as Punto, texto: String(numeroDePunto) });
+    } else if (primero?.tipo === 'anillo') {
+      etiquetas.push({ tipo: 'punto', punto: centroide(primero.puntos), texto: String(numeroDePunto) });
+    }
+    return etiquetas;
+  }
 
   const exteriores = partes.filter((p) => p.tipo === 'anillo' && !p.hueco);
   const huecos = partes.filter((p) => p.tipo === 'anillo' && p.hueco);
   let nHueco = 0;
 
   for (const anillo of exteriores) {
-    sinCierre(anillo.puntos).forEach((punto, i) => {
-      etiquetas.push({ tipo: 'vertice', punto, texto: String(i + 1) });
-    });
     const menos = huecos
       .filter((h) => h.poligono === anillo.poligono)
       .reduce((s, h) => s + areaLocal(h.puntos), 0);
@@ -108,9 +121,6 @@ export function etiquetasDeMedidas(
     });
   }
   for (const linea of partes.filter((p) => p.tipo === 'linea')) {
-    linea.puntos.forEach((punto, i) => {
-      etiquetas.push({ tipo: 'vertice', punto, texto: String(i + 1) });
-    });
     const largo = longitudLocal(linea.puntos) * k;
     const medio = linea.puntos[Math.floor(linea.puntos.length / 2)] as Punto;
     etiquetas.push({
@@ -121,9 +131,6 @@ export function etiquetasDeMedidas(
           ? `${fmtMedida(largo)} ${lineal} × ${fmtMedida(grosorM)} = ${fmtMedida(largo * grosorM)} ${superficie}`
           : `${fmtMedida(largo)} ${lineal}`,
     });
-  }
-  for (const punto of partes.filter((p) => p.tipo === 'punto')) {
-    etiquetas.push({ tipo: 'conteo', punto: punto.puntos[0] as Punto, texto: '1' });
   }
   return etiquetas;
 }

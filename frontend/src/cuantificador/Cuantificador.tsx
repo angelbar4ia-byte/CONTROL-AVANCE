@@ -805,13 +805,20 @@ export function EspacioDeTrazo({
   const etiquetas = useMemo(
     () =>
       mostrarMedidas
-        ? featuresVisibles.flatMap((f) =>
-            etiquetasDeMedidas(
-              f.geometry,
-              escalaDelPlano,
-              f.properties.grosor_m != null ? Number(f.properties.grosor_m) : null,
-            ),
-          )
+        ? (() => {
+            // Se numeran las piezas contadas con la herramienta Punto (un punto o una forma
+            // estampada), en el orden en que se hicieron; los vértices de un trazo no cuentan.
+            let siguiente = 0;
+            return featuresVisibles.flatMap((f) => {
+              const esPunto = f.geometry.type === 'Point' || f.properties.forma != null;
+              return etiquetasDeMedidas(
+                f.geometry,
+                escalaDelPlano,
+                f.properties.grosor_m != null ? Number(f.properties.grosor_m) : null,
+                esPunto ? (siguiente += 1) : null,
+              );
+            });
+          })()
         : [],
     [mostrarMedidas, featuresVisibles, escalaDelPlano],
   );

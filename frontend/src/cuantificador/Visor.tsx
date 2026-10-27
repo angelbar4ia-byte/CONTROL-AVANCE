@@ -522,8 +522,8 @@ export function Visor({
       {etiquetas.length > 0 && (
         <g className="visor__etiquetas" data-testid="etiquetas" fontSize={11 * px}>
           {etiquetas.map((e, i) =>
-            e.tipo === 'vertice' ? (
-              <g key={i} className="visor__vertice">
+            e.tipo === 'punto' ? (
+              <g key={i} className="visor__vertice" data-testid="punto-numerado">
                 <circle cx={e.punto[0]} cy={e.punto[1]} r={7 * px} />
                 <text x={e.punto[0]} y={e.punto[1]} textAnchor="middle" dominantBaseline="central" fontSize={9 * px}>
                   {e.texto}

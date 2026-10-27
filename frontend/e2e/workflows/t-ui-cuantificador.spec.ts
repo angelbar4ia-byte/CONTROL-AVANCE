@@ -241,7 +241,8 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
     await page.getByRole('button', { name: 'Seleccionar', exact: true }).click();
     await page.getByRole('button', { name: 'Mostrar medidas', exact: true }).click();
     await expect(page.getByTestId('etiquetas')).toBeVisible();
-    await expect(page.getByTestId('etiquetas').locator('.visor__vertice').first()).toBeVisible();
+    // Solo se numeran las piezas de la herramienta Punto (aquí, el castillo): los vértices no.
+    await expect(page.getByTestId('etiquetas').getByTestId('punto-numerado')).toHaveCount(1);
     await expect(page.getByTestId('etiquetas').locator('.visor__etiqueta--area').first()).toContainText('u²');
     await page.getByRole('button', { name: 'Cota', exact: true }).click();
     await expect(page.getByTestId('cotas')).toBeVisible();

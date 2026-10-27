@@ -24,10 +24,10 @@ export function CuadroDeDatos({ resumen, nombreDeNodo, calibrada, onCerrar }: Pr
     ['Trazos en pantalla', String(resumen.trazos)],
     [`Áreas (${resumen.areas.n})`, `${fmtMedida(resumen.areas.total)} ${superficie}`],
     [`Huecos (${resumen.huecos.n})`, resumen.huecos.n === 0 ? `0.00 ${superficie}` : `−${fmtMedida(resumen.huecos.total)} ${superficie}`],
-    [`Formas estampadas (${resumen.formas.n})`, `${fmtMedida(resumen.formas.total)} ${superficie}`],
+    ['Área de las formas estampadas', `${fmtMedida(resumen.formas.total)} ${superficie}`],
     [`Líneas (${resumen.lineas.n})`, `${fmtMedida(resumen.lineas.longitud)} ${lineal}`],
     ['Área de muros (largo × grosor)', `${fmtMedida(resumen.lineas.areaMuros)} ${superficie}`],
-    ['Puntos', String(resumen.puntos)],
+    ['Puntos contados', String(resumen.puntos)],
   ];
   return (
     <section className="datos" aria-label="Cuadro de datos">

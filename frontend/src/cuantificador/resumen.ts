@@ -40,6 +40,7 @@ export interface Resumen {
   readonly areas: { readonly n: number; readonly total: number };
   readonly formas: { readonly n: number; readonly total: number };
   readonly lineas: { readonly n: number; readonly longitud: number; readonly areaMuros: number };
+  /** Piezas contadas con la herramienta Punto: puntos y formas estampadas. Los vértices no cuentan. */
   readonly puntos: number;
   readonly huecos: { readonly n: number; readonly total: number };
   readonly unidades: { readonly lineal: string; readonly superficie: string };
@@ -83,6 +84,8 @@ export function resumenDePantalla(trazos: readonly TrazoParaResumen[], escala: n
     } else if (partes.some((p) => p.tipo === 'punto')) {
       puntos += 1;
     }
+    // Una forma estampada (un castillo, una columna) es también una pieza de la herramienta Punto.
+    if (t.properties.forma && area > 0) puntos += 1;
 
     for (const e of t.properties.enlaces) {
       if (!e.vigente) continue;

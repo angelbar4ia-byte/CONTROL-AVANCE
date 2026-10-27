@@ -14,9 +14,10 @@ const CON_HUECO: GeometriaGeoJson = {
 const LINEA: GeometriaGeoJson = { type: 'LineString', coordinates: [[0, 0], [3, 4], [3, 10]] };
 
 describe('Mostrar medidas', () => {
-  it('numera los vértices sin repetir el que cierra, da el área ya descontada y rotula el hueco', () => {
+  it('no numera los vértices: da el área ya descontada y rotula el hueco', () => {
     const e = etiquetasDeMedidas(CON_HUECO, 1);
-    expect(e.filter((x) => x.tipo === 'vertice').map((x) => x.texto)).toEqual(['1', '2', '3', '4']);
+    expect(e.some((x) => x.tipo === 'punto')).toBe(false);
+    expect(etiquetasDeMedidas(LINEA, 1).some((x) => x.tipo === 'punto')).toBe(false);
     expect(e.find((x) => x.tipo === 'area')?.texto).toBe('96.00 m²');
     expect(e.find((x) => x.tipo === 'hueco')?.texto).toBe('Hueco 1 −4.00 m²');
   });
@@ -38,6 +39,25 @@ describe('Mostrar medidas', () => {
   it('el centroide de un cuadrado es su centro', () => {
     expect(centroide([[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]])).toEqual([5, 5]);
     expect(sinCierre([[0, 0], [1, 0], [0, 0]])).toEqual([[0, 0], [1, 0]]);
+  });
+});
+
+describe('puntos contados', () => {
+  it('un punto o una forma estampada lleva su número y nada más', () => {
+    const punto = etiquetasDeMedidas({ type: 'Point', coordinates: [1, 1] }, 1, null, 3);
+    expect(punto).toEqual([{ tipo: 'punto', punto: [1, 1], texto: '3' }]);
+    const forma = etiquetasDeMedidas(
+      { type: 'Polygon', coordinates: [[[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]]] },
+      1,
+      null,
+      4,
+    );
+    expect(forma).toHaveLength(1); // sin etiqueta de área: se cuenta, no se mide
+    expect(forma[0]).toMatchObject({ tipo: 'punto', texto: '4', punto: [1, 1] });
+  });
+
+  it('un punto sin número (no se pidió contarlo) no escribe nada', () => {
+    expect(etiquetasDeMedidas({ type: 'Point', coordinates: [1, 1] }, 1)).toEqual([]);
   });
 });
 
@@ -104,5 +124,6 @@ describe('Cuadro de datos', () => {
     );
     expect(r.formas).toEqual({ n: 1, total: 1 });
     expect(r.areas.n).toBe(0);
+    expect(r.puntos).toBe(1); // la forma estampada es una pieza de la herramienta Punto
   });
 });
