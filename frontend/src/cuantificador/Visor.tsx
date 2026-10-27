@@ -24,7 +24,8 @@
  *
  * La rueda acerca y aleja (centrada en el cursor), y arrastrar con el botón derecho o el del
  * medio mueve el plano con cualquier herramienta. Con la herramienta Mano, y para un arrastre
- * largo con el izquierdo, también. Con la herramienta Zoom un clic acerca y Mayús/Alt + clic aleja.
+ * largo con el izquierdo, también. En una pantalla táctil, un dedo arrastra el plano y dos dedos
+ * lo acercan o alejan (pellizco) con el punto medio como centro. Con la herramienta Zoom un clic acerca y Mayús/Alt + clic aleja.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -134,6 +135,9 @@ export function Visor({
 }: Props) {
   const svg = useRef<SVGSVGElement>(null);
   const gesto = useRef<Gesto | null>(null);
+  // Dedos sobre la pantalla (o el ratón): con dos, el gesto es un pellizco que acerca y aleja.
+  const punteros = useRef(new Map<number, { x: number; y: number }>());
+  const pinza = useRef<{ d0: number; v0: Vista; p0: Punto; m0: { x: number; y: number } } | null>(null);
   const [vista, setVista] = useState<Vista>(VISTA_VACIA);
   const [imagen, setImagen] = useState<{ ancho: number; alto: number } | null>(null);
   const [fondoRoto, setFondoRoto] = useState(false);
@@ -208,6 +212,20 @@ export function Visor({
   function alPresionar(e: React.PointerEvent<SVGSVGElement>) {
     if (e.button > 2) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    punteros.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (punteros.current.size === 2) {
+      // El segundo dedo convierte el gesto en pellizco: lo que había empezado ya no es un clic.
+      const [a, b] = [...punteros.current.values()] as [{ x: number; y: number }, { x: number; y: number }];
+      const m0 = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      pinza.current = {
+        d0: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+        v0: vista,
+        p0: aPlano(m0.x, m0.y),
+        m0,
+      };
+      if (gesto.current) gesto.current.movido = true;
+      return;
+    }
     gesto.current = {
       pantallaX: e.clientX,
       pantallaY: e.clientY,
@@ -218,6 +236,22 @@ export function Visor({
   }
 
   function alMover(e: React.PointerEvent<SVGSVGElement>) {
+    if (punteros.current.has(e.pointerId)) {
+      punteros.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    const pz = pinza.current;
+    if (pz && punteros.current.size >= 2) {
+      const [a, b] = [...punteros.current.values()] as [{ x: number; y: number }, { x: number; y: number }];
+      const d = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+      const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      vistaTocada.current = true;
+      // Separar los dedos acerca (la vista se hace más chica); el punto que estaba bajo los
+      // dedos al empezar sigue bajo ellos aunque se muevan.
+      const acercada = zoomEn(pz.v0, pz.d0 / d, pz.p0);
+      const k = acercada.ancho / anchoPantalla;
+      setVista(desplazar(acercada, (m.x - pz.m0.x) * k, (m.y - pz.m0.y) * k));
+      return;
+    }
     const g = gesto.current;
     if (!g) {
       onMover?.(aPlano(e.clientX, e.clientY));
@@ -232,7 +266,18 @@ export function Visor({
     setVista(desplazar(g.vista, dx * escala, dy * escala));
   }
 
+  function alSoltarPuntero(e: React.PointerEvent<SVGSVGElement>) {
+    punteros.current.delete(e.pointerId);
+    if (pinza.current) {
+      if (punteros.current.size < 2) pinza.current = null;
+      gesto.current = null; // el dedo que queda no pone un vértice al levantarse
+      return true;
+    }
+    return false;
+  }
+
   function alSoltar(e: React.PointerEvent<SVGSVGElement>) {
+    if (alSoltarPuntero(e)) return;
     const g = gesto.current;
     gesto.current = null;
     if (!g || g.movido || g.soloMueve) return;
@@ -300,6 +345,10 @@ export function Visor({
       onPointerDown={alPresionar}
       onPointerMove={alMover}
       onPointerUp={alSoltar}
+      onPointerCancel={(e) => {
+        alSoltarPuntero(e);
+        gesto.current = null;
+      }}
       onPointerLeave={() => onMover?.(null)}
       onContextMenu={(e) => e.preventDefault()}
       style={{ cursor }}

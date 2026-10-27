@@ -12,6 +12,8 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
  *  7. Una línea con grosor y alineación (un muro) mide largo × grosor.
  *  8. Un punto con forma (un castillo) se estampa como polígono y guarda su forma.
  *  9. «Mostrar medidas», «Cota» y el «Cuadro de datos» escriben sobre el plano y resumen lo visible.
+ * 10. Con el dedo: dos dedos acercan y alejan, uno arrastra.
+ * 11. Los paneles laterales cambian de ancho arrastrando su borde, y lo recuerdan.
  *
  * Es una obra nueva por corrida: no consume obras de la semilla.
  */
@@ -247,5 +249,100 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
     await expect(cuadro).toContainText('Trazos en pantalla');
     await expect(cuadro.getByTestId('dato-Trazos en pantalla')).toHaveText('3');
     await expect(cuadro.getByRole('table', { name: 'Cantidades por concepto' })).toBeVisible();
+  });
+
+  test('pantalla táctil y ancho de los paneles', async ({ page, request, context }) => {
+    const clave = `UI3-${Date.now().toString(36).toUpperCase()}`;
+    const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
+    const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
+    const usuarios = await llamarApi<{ id: string; nombre: string }[]>(request, 'control', 'GET', '/usuarios');
+    const obra = await llamarApi<{ id: string }>(request, 'control', 'POST', '/obras', {
+      cluster_id: clusters.find((c) => c.clave === 'CLU-E2E')!.id,
+      prototipo_id: prototipos.find((p) => p.clave === 'CAS-E2E')!.id,
+      residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
+      clave,
+    });
+    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
+    const plano = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
+      nombre: 'Planta UI 3',
+      archivo_url: 'planos/ui3.dwg',
+    });
+    const actividades = await llamarApi<{ id: string }[]>(request, 'control', 'GET', `/obras/${obra.id}/actividades`);
+    await llamarApi(request, 'control', 'POST', `/planos/${plano.id}/trazos`, {
+      version_plano: 1,
+      fuente: 'dwg',
+      geometria_wkt: 'POLYGON((0 0, 100 0, 100 60, 0 60, 0 0))',
+      enlaces: [{ actividad_id: actividades[0]!.id, medida: 'area', factor: '1' }],
+    });
+    await entrarComo(page, 'control');
+    await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
+    const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
+    await expect(page.locator('.visor__trazo')).toHaveCount(1);
+    const caja = (await lienzo.boundingBox())!;
+    const ancho = async () => Number((await lienzo.getAttribute('viewBox'))!.split(' ')[2]);
+
+    // --- 10. Dos dedos separándose acercan; juntándose alejan; uno arrastra -----------------------------
+    const cdp = await context.newCDPSession(page);
+    const cx = caja.x + caja.width / 2;
+    const cy = caja.y + caja.height / 2;
+    const toque = (type: string, puntos: { x: number; y: number }[]) =>
+      cdp.send('Input.dispatchTouchEvent', { type, touchPoints: puntos.map((p, id) => ({ ...p, id })) });
+    const inicial = await ancho();
+    await toque('touchStart', [{ x: cx - 40, y: cy }, { x: cx + 40, y: cy }]);
+    await toque('touchMove', [{ x: cx - 120, y: cy }, { x: cx + 120, y: cy }]);
+    await toque('touchEnd', []);
+    await expect.poll(ancho).toBeLessThan(inicial * 0.6); // se separaron al triple: acercó
+    const acercado = await ancho();
+    await toque('touchStart', [{ x: cx - 120, y: cy }, { x: cx + 120, y: cy }]);
+    await toque('touchMove', [{ x: cx - 40, y: cy }, { x: cx + 40, y: cy }]);
+    await toque('touchEnd', []);
+    await expect.poll(ancho).toBeGreaterThan(acercado * 1.5);
+
+    const x0 = Number((await lienzo.getAttribute('viewBox'))!.split(' ')[0]);
+    const w0 = await ancho();
+    await toque('touchStart', [{ x: cx, y: cy }]);
+    await toque('touchMove', [{ x: cx + 100, y: cy }]);
+    await toque('touchEnd', []);
+    await expect.poll(async () => Number((await lienzo.getAttribute('viewBox'))!.split(' ')[0])).toBeLessThan(x0);
+    expect(await ancho()).toBeCloseTo(w0, 5); // un dedo no cambia el zoom
+
+    // --- 11. El ancho de los paneles se arrastra y se recuerda ---------------------------------------------
+    const arbol = page.getByRole('complementary', { name: 'Presupuesto' });
+    const antes = (await arbol.boundingBox())!.width;
+    const sep = page.getByRole('separator', { name: 'Ancho del árbol del presupuesto' });
+    const s = (await sep.boundingBox())!;
+    await page.mouse.move(s.x + s.width / 2, s.y + 200);
+    await page.mouse.down();
+    await page.mouse.move(s.x + s.width / 2 + 80, s.y + 200, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(async () => (await arbol.boundingBox())!.width).toBeCloseTo(antes + 80, -1);
+    await sep.press('ArrowLeft');
+    await expect.poll(async () => (await arbol.boundingBox())!.width).toBeCloseTo(antes + 80 - 16, -1);
+
+    const detalle = page.getByRole('complementary', { name: 'Detalle' });
+    const dAntes = (await detalle.boundingBox())!.width;
+    const sepD = page.getByRole('separator', { name: 'Ancho del detalle del trazo' });
+    const sd = (await sepD.boundingBox())!;
+    await page.mouse.move(sd.x + sd.width / 2, sd.y + 200);
+    await page.mouse.down();
+    await page.mouse.move(sd.x + sd.width / 2 - 60, sd.y + 200, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(async () => (await detalle.boundingBox())!.width).toBeCloseTo(dAntes + 60, -1);
+
+    // Recordado: al recargar vuelve con el ancho elegido; doble clic restablece.
+    const ancho1 = (await arbol.boundingBox())!.width;
+    await page.reload();
+    await expect(page.locator('.visor__trazo')).toHaveCount(1);
+    expect((await arbol.boundingBox())!.width).toBeCloseTo(ancho1, -1);
+    await page.getByRole('separator', { name: 'Ancho del árbol del presupuesto' }).dblclick();
+    await expect.poll(async () => (await arbol.boundingBox())!.width).toBeCloseTo(300, -1);
+
+    // El cuadro de datos pone «Por concepto» primero y es translúcido.
+    await page.getByRole('button', { name: 'Cuadro de datos', exact: true }).click();
+    const cuadro = page.getByRole('region', { name: 'Cuadro de datos' });
+    const orden = await cuadro.locator('table').evaluateAll((ts) => ts.map((t) => t.getAttribute('aria-label')));
+    expect(orden).toEqual(['Cantidades por concepto', 'Medidas de la pantalla']);
+    const fondo = await cuadro.evaluate((e) => getComputedStyle(e).backgroundColor);
+    expect(fondo).toMatch(/color\(|rgba|oklab|\//); // con canal alfa: no es un color opaco
   });
 });

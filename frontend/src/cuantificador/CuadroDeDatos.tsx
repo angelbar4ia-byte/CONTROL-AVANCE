@@ -38,29 +38,11 @@ export function CuadroDeDatos({ resumen, nombreDeNodo, calibrada, onCerrar }: Pr
         </button>
       </header>
       <div className="datos__cuerpo">
-        <table className="table datos__tabla" aria-label="Medidas de la pantalla">
-          <tbody>
-            {filas.map(([k, v]) => (
-              <tr key={k}>
-                <th scope="row">{k}</th>
-                <td className="is-num mono" data-testid={`dato-${k.split(' (')[0]}`}>
-                  {v}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!calibrada && (
-          <p className="text-mute text-xs">
-            El plano no está calibrado: las medidas están en unidades de plano, no en metros.
-          </p>
-        )}
-
         <div className="datos__subtitulo">Por concepto</div>
         {resumen.porNodo.length === 0 ? (
           <p className="text-mute text-xs">Ningún trazo en pantalla alimenta un concepto.</p>
         ) : (
-          <table className="table datos__tabla" aria-label="Cantidades por concepto">
+          <table className="table datos__tabla datos__tabla--conceptos" aria-label="Cantidades por concepto">
             <thead>
               <tr>
                 <th>Concepto</th>
@@ -84,6 +66,25 @@ export function CuadroDeDatos({ resumen, nombreDeNodo, calibrada, onCerrar }: Pr
               ))}
             </tbody>
           </table>
+        )}
+
+        <div className="datos__subtitulo datos__subtitulo--menor">En pantalla</div>
+        <table className="table datos__tabla datos__tabla--totales" aria-label="Medidas de la pantalla">
+          <tbody>
+            {filas.map(([k, v]) => (
+              <tr key={k}>
+                <th scope="row">{k}</th>
+                <td className="is-num mono" data-testid={`dato-${k.split(' (')[0]}`}>
+                  {v}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!calibrada && (
+          <p className="text-mute text-xs">
+            El plano no está calibrado: las medidas están en unidades de plano, no en metros.
+          </p>
         )}
       </div>
     </section>

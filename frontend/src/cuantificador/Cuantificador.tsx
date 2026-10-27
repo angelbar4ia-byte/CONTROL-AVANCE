@@ -61,7 +61,8 @@ import { AltaNota } from './AltaNota';
 import { AltaPlano } from './AltaPlano';
 import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
 import { CalibrarEscala } from './CalibrarEscala';
-import { useAjuste } from '@/lib/useAjuste';
+import { useAjuste, useAnchoAjustable } from '@/lib/useAjuste';
+import { SeparadorDeAncho } from './SeparadorDeAncho';
 import { arbolDeCuantificacion, trazosDeConceptos } from './arbol';
 import { ArbolPresupuesto } from './ArbolPresupuesto';
 import { BarraDeHerramientas, type ClaveDeInterruptor, type Interruptor } from './BarraDeHerramientas';
@@ -203,6 +204,9 @@ export function EspacioDeTrazo({
   const [volumenAbierto, setVolumenAbierto] = useState(false);
   const [arbolAbierto, setArbolAbierto] = useAjuste('arbol', !compacto);
   const [detalleAbierto, setDetalleAbierto] = useAjuste('detalle', !compacto);
+  // El ancho de los dos paneles laterales se ajusta arrastrando su borde y se recuerda.
+  const anchoArbol = useAnchoAjustable('ancho-arbol', 300, 200, 560);
+  const anchoDetalle = useAnchoAjustable('ancho-detalle', 320, 240, 640);
 
   const planos = useListarPlanosApiV1ObrasObraIdPlanosGet<
     PlanoDetalleRespuesta[],
@@ -847,8 +851,28 @@ export function EspacioDeTrazo({
         </div>
       )}
 
-      <div className="estacion__cuerpo">
+      <div
+        className="estacion__cuerpo"
+        style={
+          {
+            '--ancho-arbol': `${anchoArbol.ancho}px`,
+            '--ancho-detalle': `${anchoDetalle.ancho}px`,
+          } as React.CSSProperties
+        }
+      >
         {arbolAbierto && panelDelArbol}
+        {arbolAbierto && !compacto && (
+          <SeparadorDeAncho
+            etiqueta="Ancho del árbol del presupuesto"
+            lado="izquierda"
+            ancho={anchoArbol.ancho}
+            minimo={200}
+            maximo={560}
+            onCambio={anchoArbol.fijar}
+            onSoltar={anchoArbol.recordar}
+            onRestablecer={anchoArbol.restablecer}
+          />
+        )}
 
         <div className="estacion__lienzo">
           {plano === undefined ? (
@@ -985,6 +1009,18 @@ export function EspacioDeTrazo({
           )}
         </div>
 
+        {detalleAbierto && !compacto && (
+          <SeparadorDeAncho
+            etiqueta="Ancho del detalle del trazo"
+            lado="derecha"
+            ancho={anchoDetalle.ancho}
+            minimo={240}
+            maximo={640}
+            onCambio={anchoDetalle.fijar}
+            onSoltar={anchoDetalle.recordar}
+            onRestablecer={anchoDetalle.restablecer}
+          />
+        )}
         {detalleAbierto && detalle}
       </div>
 

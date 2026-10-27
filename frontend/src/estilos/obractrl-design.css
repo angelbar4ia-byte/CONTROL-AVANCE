@@ -2569,8 +2569,8 @@ a { color: inherit; text-decoration: none; }
   display: flex; flex-direction: column; min-height: 0; overflow: auto;
   background: var(--c-surface);
 }
-.estacion__arbol { width: 300px; flex: none; border-right: 1px solid var(--c-line); }
-.estacion__detalle { width: 320px; flex: none; border-left: 1px solid var(--c-line); }
+.estacion__arbol { width: var(--ancho-arbol, 300px); flex: none; border-right: 1px solid var(--c-line); }
+.estacion__detalle { width: var(--ancho-detalle, 320px); flex: none; border-left: 1px solid var(--c-line); }
 .estacion__titulo {
   display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; flex: none;
   font-weight: 600; font-size: var(--fs-md); border-bottom: 1px solid var(--c-line);
@@ -2656,9 +2656,6 @@ a { color: inherit; text-decoration: none; }
 .volumen__campo { display: grid; grid-template-columns: 1fr 90px; gap: 6px; align-items: center; color: var(--c-text-soft); }
 .volumen__campo .input { text-align: right; height: 26px; }
 
-@media (max-width: 1100px) {
-  .estacion__arbol, .estacion__detalle { width: 240px; }
-}
 /* La ventana flotante y el teléfono: una columna, el plano arriba y los paneles debajo. */
 .estacion--compacta .estacion__cuerpo,
 .estacion--compacta { flex-direction: column; }
@@ -2725,3 +2722,36 @@ a { color: inherit; text-decoration: none; }
 .datos__tabla thead th:nth-child(1) { width: 42%; }
 .datos__tabla thead th:nth-child(2) { width: 16%; }
 .datos__tabla td.mono { white-space: normal; overflow-wrap: anywhere; }
+
+/* Cuadro de datos: translúcido, con «Por concepto» como lo principal y los totales en chico. */
+.datos {
+  background: color-mix(in oklab, var(--c-surface) 74%, transparent);
+  -webkit-backdrop-filter: blur(8px) saturate(1.1);
+  backdrop-filter: blur(8px) saturate(1.1);
+}
+.datos__cabecera { border-bottom-color: color-mix(in oklab, var(--c-line) 70%, transparent); }
+.datos__tabla--conceptos th { font-size: var(--fs-xs); }
+.datos__tabla--conceptos td { font-size: var(--fs-lg); font-weight: 600; padding: 5px 4px; }
+.datos__tabla--conceptos td.is-num.mono { font-size: var(--fs-md); }
+.datos__subtitulo--menor { margin-top: 10px; }
+.datos__tabla--totales th, .datos__tabla--totales td { font-size: var(--fs-xs); color: var(--c-text-mute); padding: 1px 4px; }
+.datos__tabla--totales th[scope="row"] { color: var(--c-text-mute); }
+
+/* El borde que se arrastra para cambiar el ancho de un panel lateral. */
+.estacion__separador {
+  flex: none; width: 7px; margin: 0 -3px; position: relative; z-index: 5;
+  cursor: col-resize; touch-action: none; background: transparent;
+}
+.estacion__separador::after {
+  content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 1px; background: transparent; transition: background .1s;
+}
+.estacion__separador:hover::after, .estacion__separador:focus-visible::after, .estacion__separador:active::after {
+  background: var(--c-accent); width: 3px; left: 2px;
+}
+.estacion__separador:focus-visible { outline: none; }
+@media (max-width: 760px) { .estacion__separador { display: none; } }
+.datos__tabla--conceptos td { font-size: var(--fs-md); }
+.datos__tabla--conceptos td.datos__concepto { white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
+.datos__tabla--conceptos td.is-num.mono { font-size: var(--fs-md); }
+.datos__tabla--conceptos thead th:nth-child(1) { width: 46%; }
+.datos__tabla--conceptos thead th:nth-child(2) { width: 14%; }
