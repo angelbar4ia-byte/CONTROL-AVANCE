@@ -59,9 +59,24 @@ test.describe('Hojas matriz · medir la matriz dentro del concepto', () => {
     const matrices = control.getByRole('region', { name: 'Matrices de MTZ-LOSA' });
     await expect(matrices).toContainText('MTZ-NERV');
     await expect(matrices).toContainText('MTZ-TRABE');
-    await expect(matrices.getByText('Sin medir')).toHaveCount(2);
-    const filaNerv = matrices.getByRole('row', { name: /MTZ-NERV/ });
+    await expect(matrices.getByText('Sin medir')).toHaveCount(3); // nervaduras, trabes y bastones
+    const filaNerv = matrices.getByRole('treeitem', { name: /MTZ-NERV/ });
     await expect(filaNerv).toContainText('5'); // 10 m² × 0.5 que implica el catálogo
+
+    // Las matrices son carpetas anidadas: los bastones están DENTRO de las nervaduras, y cada una
+    // dice cómo se mide (por su unidad) y cuántas lleva medidas.
+    const bastones = filaNerv.getByRole('treeitem', { name: /MTZ-BAST/ });
+    await expect(bastones).toBeVisible();
+    await expect(bastones).toContainText('15'); // 10 × 0.5 × 3 que implica el catálogo
+    await expect(bastones.getByTestId('tipo-de-matriz')).toHaveText('Lineal');
+    await expect(filaNerv.getByTestId('tipo-de-matriz').first()).toHaveText('Área');
+    await expect(filaNerv).toContainText('0 de 2'); // ella y sus bastones, ninguna medida
+    await expect(matrices.getByRole('treeitem', { name: /MTZ-TRABE/ }).getByRole('treeitem')).toHaveCount(0);
+    // Se contrae la rama y se esconden los bastones.
+    await matrices.getByRole('button', { name: /Contraer MTZ-NERV/ }).click();
+    await expect(bastones).toHaveCount(0);
+    await matrices.getByRole('button', { name: /Expandir MTZ-NERV/ }).click();
+    await expect(bastones).toBeVisible();
 
     // --- 2. Se mide la nervadura: 8 contra 5, y el importe se ajusta ---------------------------------------
     const plano = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
@@ -77,10 +92,35 @@ test.describe('Hojas matriz · medir la matriz dentro del concepto', () => {
     await control.reload();
     await control.getByRole('button', { name: /Matrices de MTZ-LOSA/ }).click();
     const despues = control.getByRole('region', { name: 'Matrices de MTZ-LOSA' });
-    await expect(despues.getByRole('row', { name: /MTZ-NERV/ })).toContainText('8');
-    await expect(despues.getByText('Sin medir')).toHaveCount(1); // solo quedan las trabes
+    await expect(despues.getByRole('treeitem', { name: /MTZ-NERV/ })).toContainText('8');
+    await expect(despues.getByText('Sin medir')).toHaveCount(2); // quedan las trabes y los bastones
     await expect(despues).toContainText('Lo medido ajusta el importe');
     await expect(despues).toContainText('La cantidad de la actividad no cambia');
+
+    // Un clic en una matriz la vuelve lo que se mide: su tipo resalta el bloque de la barra.
+    await despues.getByRole('button', { name: /MTZ-BAST/ }).click();
+    await expect(control.getByTestId('tipo-del-concepto')).toContainText('MTZ-BAST');
+    await expect(control.getByTestId('tipo-del-concepto')).toContainText('Lineal (ml)');
+    await expect(control.getByRole('toolbar', { name: 'Herramientas de trazo' }).locator('[data-bloque="lineal"]')).toHaveClass(
+      /is-resaltado/,
+    );
+    await despues.getByRole('button', { name: /MTZ-BAST/ }).click(); // otro clic la suelta: se vuelve a medir la losa
+    await expect(control.getByTestId('tipo-del-concepto')).not.toContainText('MTZ-BAST');
+    await expect(control.getByTestId('tipo-del-concepto')).toContainText('Área');
+
+    // La matriz que se está midiendo llega elegida al cajón de guardar.
+    const bast = conceptos.find((c) => c.clave === 'MTZ-BAST')!;
+    await despues.getByRole('button', { name: /MTZ-BAST/ }).click();
+    await control.getByRole('toolbar', { name: 'Herramientas de trazo' }).getByRole('button', { name: 'Línea', exact: true }).click();
+    const cabeza = control.locator('.opciones__cabeza[aria-expanded="true"]');
+    if ((await cabeza.count()) > 0) await cabeza.first().click();
+    const lienzo = control.getByRole('img', { name: 'Plano con sus trazos' });
+    const caja = (await lienzo.boundingBox())!;
+    await control.mouse.click(caja.x + caja.width * 0.4, caja.y + caja.height * 0.5);
+    await control.mouse.click(caja.x + caja.width * 0.8, caja.y + caja.height * 0.5);
+    const alta = control.getByRole('dialog', { name: 'Guardar línea' });
+    await expect(alta.locator('#enlace-matriz-0')).toHaveValue(bast.id);
+    await alta.getByRole('button', { name: 'Cancelar' }).click();
 
     const actividades = await llamarApi<{ id: string; cant_base: string }[]>(
       request,

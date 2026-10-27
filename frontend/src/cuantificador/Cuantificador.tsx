@@ -272,6 +272,8 @@ export function EspacioDeTrazo({
   const [modoContorno, setModoContorno] = useState<ModoDeContorno>('recto');
   /** El concepto que se está midiendo (clic en el árbol): manda el tipo de medición y es el que trae el cajón de guardar. */
   const [conceptoActivo, setConceptoActivo] = useState<string | null>(null);
+  /** Si lo que se mide es una matriz interna del concepto activo (nervaduras, trabes…): su id, clave y unidad. */
+  const [matrizActiva, setMatrizActiva] = useState<{ id: string; clave: string; unidad: string | null } | null>(null);
   // El hueco que se está dibujando sobre el área elegida (la ventana de un muro, el cubo de una
   // escalera). Se descuenta del área al cerrarlo con Enter.
   const [huecoEnCurso, setHuecoEnCurso] = useState<readonly Punto[]>([]);
@@ -999,7 +1001,8 @@ export function EspacioDeTrazo({
     : undefined;
   const actividadDeFoco = conceptoEnFoco ? porActividad.get(conceptoEnFoco) : undefined;
   /** El tipo de medición que pide el concepto en foco (por su unidad) y el bloque de herramientas que le toca. */
-  const tipoDelConcepto = tipoDeMedicion(actividadDeFoco?.unidad);
+  const tipoDelConcepto = tipoDeMedicion(matrizActiva ? matrizActiva.unidad : actividadDeFoco?.unidad);
+  const unidadEnFoco = matrizActiva ? matrizActiva.unidad : actividadDeFoco?.unidad;
   const bloqueActivo = bloqueDeTipo(tipoDelConcepto);
 
   const herramientasDisponibles: readonly Herramienta[] = puedeAnotar
@@ -1395,7 +1398,19 @@ export function EspacioDeTrazo({
           elegidos={elegidos}
           onElegir={elegirConceptos}
           actividadFocoId={conceptoEnFoco}
-          onActivar={(id) => setConceptoActivo((actual) => (actual === id ? null : id))}
+          onActivar={(id) => {
+            setMatrizActiva(null);
+            setConceptoActivo((actual) => (actual === id && !matrizActiva ? null : id));
+          }}
+          matrizActivaId={matrizActiva?.id ?? null}
+          onActivarMatriz={(actividadId, m) => {
+            if (matrizActiva?.id === m.id && conceptoActivo === actividadId) {
+              setMatrizActiva(null);
+              return;
+            }
+            setConceptoActivo(actividadId);
+            setMatrizActiva(m);
+          }}
         />
       )}
       </div>
@@ -1872,7 +1887,8 @@ export function EspacioDeTrazo({
           <span>
             {tipoDelConcepto !== null && (
               <span data-testid="tipo-del-concepto" title="El tipo de medición sale de la unidad del concepto elegido">
-                {NOMBRE_DE_TIPO[tipoDelConcepto]} ({actividadDeFoco?.unidad}) ·{' '}
+                {matrizActiva ? `${matrizActiva.clave} · ` : ''}
+                {NOMBRE_DE_TIPO[tipoDelConcepto]} ({unidadEnFoco}) ·{' '}
               </span>
             )}
             {featuresVisibles.length} de {features.length} {features.length === 1 ? 'trazo' : 'trazos'}
@@ -1920,6 +1936,7 @@ export function EspacioDeTrazo({
           forma={formaEstampada}
           actividades={actividades}
           actividadInicial={conceptoEnFoco}
+          matrizInicial={matrizActiva?.id}
           nodosDePrototipo={puedeEnlazarPrototipo ? nodosDePrototipo : null}
           onCerrar={() => {
             setGuardando(false);

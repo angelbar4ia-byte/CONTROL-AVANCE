@@ -71,6 +71,8 @@ interface Props {
   readonly actividades: readonly ActividadRespuesta[];
   /** Actividad con la que arranca el primer enlace (la herramienta puntual, D-532). */
   readonly actividadInicial?: string;
+  /** La matriz interna con la que arranca el primer enlace (la que se está midiendo en el árbol). */
+  readonly matrizInicial?: string;
   /**
    * Nodos del prototipo, o `null` si este rol no puede enlazarlos. Enlazar a un
    * nodo de prototipo es de Control de obra y Super intendente (el servidor lo
@@ -109,6 +111,7 @@ export function AltaTrazo({
   forma = null,
   actividades,
   actividadInicial,
+  matrizInicial,
   nodosDePrototipo,
   onCerrar,
   onGuardado,
@@ -123,7 +126,14 @@ export function AltaTrazo({
   const [fuente, setFuente] = useState<Fuente>('pdf');
   const [capa, setCapa] = useState('');
   const [filas, setFilas] = useState<readonly FilaEnlace[]>([
-    { clave: 0, destino: 'actividad', actividadId: actividadInicial ?? '', medida: medidas[0] as MedidaDeTrazo, factor: '1' },
+    {
+      clave: 0,
+      destino: 'actividad',
+      actividadId: actividadInicial ?? '',
+      ...(actividadInicial && matrizInicial ? { matrizId: matrizInicial } : {}),
+      medida: medidas[0] as MedidaDeTrazo,
+      factor: '1',
+    },
   ]);
   const [siguienteClave, setSiguienteClave] = useState(1);
   const [error, setError] = useState<string | null>(null);

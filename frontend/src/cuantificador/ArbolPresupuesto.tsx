@@ -22,6 +22,9 @@ interface Props {
   readonly actividadFocoId?: string;
   /** Clic en un concepto: es el que se va a medir. Otro clic lo suelta. */
   readonly onActivar?: (id: string) => void;
+  /** La matriz interna que se está midiendo (`concepto_id`), y el clic que activa una. */
+  readonly matrizActivaId?: string | null;
+  readonly onActivarMatriz?: (actividadId: string, matriz: { id: string; clave: string; unidad: string | null }) => void;
 }
 
 const norm = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -53,7 +56,15 @@ function Casilla({
   );
 }
 
-export function ArbolPresupuesto({ arbol, elegidos, onElegir, actividadFocoId, onActivar }: Props) {
+export function ArbolPresupuesto({
+  arbol,
+  elegidos,
+  onElegir,
+  actividadFocoId,
+  onActivar,
+  matrizActivaId,
+  onActivarMatriz,
+}: Props) {
   // Todo abierto al empezar: el árbol de una obra cabe y lo que se busca no debe esconderse.
   const [cerradas, setCerradas] = useState<ReadonlySet<string>>(new Set());
   const [conMatrices, setConMatrices] = useState<ReadonlySet<string>>(new Set());
@@ -214,7 +225,11 @@ export function ArbolPresupuesto({ arbol, elegidos, onElegir, actividadFocoId, o
                                 </div>
                                 {conMatrices.has(hoja.id) && (
                                   <div className="arbol__matrices-cuerpo">
-                                    <MatricesDeActividad actividadId={hoja.id} />
+                                    <MatricesDeActividad
+                                      actividadId={hoja.id}
+                                      matrizActivaId={hoja.id === actividadFocoId ? matrizActivaId : null}
+                                      onActivar={onActivarMatriz ? (m) => onActivarMatriz(hoja.id, m) : undefined}
+                                    />
                                   </div>
                                 )}
                               </li>
