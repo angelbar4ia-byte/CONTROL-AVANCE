@@ -43,6 +43,7 @@ import type {
   ReemplazarEnlacePeticion,
   ResultadoRecalculoRespuesta,
   TrazoAprobadoRespuesta,
+  TrazoEliminadoRespuesta,
   TrazoPeticion,
   TrazoRespuesta,
   TrazosDePlanoRespuesta,
@@ -1063,6 +1064,94 @@ export const useAgregarHuecoApiV1TrazosTrazoIdHuecosPost = <
 > => {
   const mutationOptions =
     getAgregarHuecoApiV1TrazosTrazoIdHuecosPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Cada nodo que el trazo alimentaba se recalcula; si era su último trazo vuelve a «sin
+medir» y no levanta una desviación.
+ * @summary Borrar un trazo (punto, línea o área) con sus enlaces y huecos
+ */
+export const eliminarTrazoApiV1TrazosTrazoIdDelete = (
+  trazoId: string,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<TrazoEliminadoRespuesta>(
+    { url: `/api/v1/trazos/${trazoId}`, method: "DELETE" },
+    options,
+  );
+};
+
+export const getEliminarTrazoApiV1TrazosTrazoIdDeleteMutationOptions = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof eliminarTrazoApiV1TrazosTrazoIdDelete>>,
+    TError,
+    { trazoId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof eliminarTrazoApiV1TrazosTrazoIdDelete>>,
+  TError,
+  { trazoId: string },
+  TContext
+> => {
+  const mutationKey = ["eliminarTrazoApiV1TrazosTrazoIdDelete"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof eliminarTrazoApiV1TrazosTrazoIdDelete>>,
+    { trazoId: string }
+  > = (props) => {
+    const { trazoId } = props ?? {};
+
+    return eliminarTrazoApiV1TrazosTrazoIdDelete(trazoId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EliminarTrazoApiV1TrazosTrazoIdDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof eliminarTrazoApiV1TrazosTrazoIdDelete>>
+>;
+
+export type EliminarTrazoApiV1TrazosTrazoIdDeleteMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Borrar un trazo (punto, línea o área) con sus enlaces y huecos
+ */
+export const useEliminarTrazoApiV1TrazosTrazoIdDelete = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof eliminarTrazoApiV1TrazosTrazoIdDelete>>,
+      TError,
+      { trazoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof eliminarTrazoApiV1TrazosTrazoIdDelete>>,
+  TError,
+  { trazoId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getEliminarTrazoApiV1TrazosTrazoIdDeleteMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };

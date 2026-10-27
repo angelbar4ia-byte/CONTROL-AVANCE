@@ -14,6 +14,8 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
  *  9. «Mostrar medidas», «Cota» y el «Cuadro de datos» escriben sobre el plano y resumen lo visible.
  * 10. Con el dedo: dos dedos acercan y alejan, uno arrastra.
  * 11. Los paneles laterales cambian de ancho arrastrando su borde, y lo recuerdan.
+ * 12. Borrar: con la herramienta Borrar o con Eliminar selección / Supr, pidiendo confirmar; la rueda
+ *     da un zoom suave (una muesca ≈ 6 %).
  *
  * Es una obra nueva por corrida: no consume obras de la semilla.
  */
@@ -344,5 +346,82 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
     expect(orden).toEqual(['Cantidades por concepto', 'Medidas de la pantalla']);
     const fondo = await cuadro.evaluate((e) => getComputedStyle(e).backgroundColor);
     expect(fondo).toMatch(/color\(|rgba|oklab|\//); // con canal alfa: no es un color opaco
+  });
+
+  test('borrar un trazo con la herramienta y con la selección, y una rueda suave', async ({ page, request }) => {
+    const clave = `UI4-${Date.now().toString(36).toUpperCase()}`;
+    const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
+    const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
+    const usuarios = await llamarApi<{ id: string; nombre: string }[]>(request, 'control', 'GET', '/usuarios');
+    const obra = await llamarApi<{ id: string }>(request, 'control', 'POST', '/obras', {
+      cluster_id: clusters.find((c) => c.clave === 'CLU-E2E')!.id,
+      prototipo_id: prototipos.find((p) => p.clave === 'CAS-E2E')!.id,
+      residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
+      clave,
+    });
+    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
+    const actividades = await llamarApi<{ id: string }[]>(request, 'control', 'GET', `/obras/${obra.id}/actividades`);
+    const plano = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
+      nombre: 'Planta UI 4',
+      archivo_url: 'planos/ui4.dwg',
+    });
+    await llamarApi(request, 'control', 'POST', `/planos/${plano.id}/trazos`, {
+      version_plano: 1,
+      fuente: 'dwg',
+      geometria_wkt: 'POLYGON((0 0, 100 0, 100 60, 0 60, 0 0))',
+      enlaces: [{ actividad_id: actividades[0]!.id, medida: 'area', factor: '1' }],
+    });
+    await llamarApi(request, 'control', 'POST', `/planos/${plano.id}/trazos`, {
+      version_plano: 1,
+      fuente: 'dwg',
+      geometria_wkt: 'LINESTRING(120 0, 160 40)',
+      enlaces: [{ actividad_id: actividades[1]!.id, medida: 'longitud', factor: '1' }],
+    });
+    const cuantos = async () =>
+      (await llamarApi<{ features: unknown[] }>(request, 'control', 'GET', `/planos/${plano.id}/trazos`)).features.length;
+
+    await entrarComo(page, 'control');
+    await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
+    const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
+    await expect(page.locator('.visor__trazo')).toHaveCount(2);
+
+    // --- Una muesca de la rueda acerca poco: entre 3 y 10 % ------------------------------------------------
+    const caja = (await lienzo.boundingBox())!;
+    const ancho = async () => Number((await lienzo.getAttribute('viewBox'))!.split(' ')[2]);
+    const w0 = await ancho();
+    await page.mouse.move(caja.x + caja.width / 2, caja.y + caja.height / 2);
+    await page.mouse.wheel(0, -100);
+    await expect.poll(async () => (await ancho()) / w0).toBeLessThan(0.97);
+    expect((await ancho()) / w0).toBeGreaterThan(0.9);
+
+    // --- Eliminar selección está apagado sin selección ------------------------------------------------------
+    const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
+    await expect(barra.getByRole('button', { name: 'Eliminar selección' })).toBeDisabled();
+
+    // --- La herramienta Borrar: un clic sobre un trazo pide confirmar -------------------------------------
+    await barra.getByRole('button', { name: 'Borrar', exact: true }).click();
+    const area = (await page.locator('.visor__trazo path').first().boundingBox())!;
+    await page.mouse.click(area.x + area.width * 0.3, area.y + area.height * 0.5);
+    const dialogo = page.getByRole('dialog', { name: 'Borrar trazo' });
+    await expect(dialogo).toContainText('1 enlace');
+    await dialogo.getByRole('button', { name: 'Cancelar' }).click();
+    expect(await cuantos()).toBe(2);
+
+    await page.mouse.click(area.x + area.width * 0.3, area.y + area.height * 0.5);
+    await dialogo.getByRole('button', { name: 'Borrar trazo' }).click();
+    await expect(page.getByRole('status')).toContainText('Trazo borrado');
+    await expect(page.locator('.visor__trazo')).toHaveCount(1);
+    expect(await cuantos()).toBe(1);
+
+    // --- Seleccionar + Supr (o el botón de la barra) --------------------------------------------------------
+    await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
+    const linea = (await page.locator('.visor__trazo path').first().boundingBox())!;
+    await page.mouse.click(linea.x + linea.width / 2, linea.y + linea.height / 2);
+    await expect(page.getByText('Trazo elegido')).toBeVisible();
+    await page.keyboard.press('Delete');
+    await expect(dialogo).toBeVisible();
+    await dialogo.getByRole('button', { name: 'Borrar trazo' }).click();
+    await expect(page.locator('.visor__trazo')).toHaveCount(0);
+    expect(await cuantos()).toBe(0);
   });
 });

@@ -11,6 +11,7 @@
 import {
   ArrowLeftRight,
   Box,
+  Eraser,
   Eye,
   Hand,
   Hash,
@@ -22,6 +23,7 @@ import {
   SquareMinus,
   StickyNote,
   Table2,
+  Trash2,
   ZoomIn,
   type LucideIcon,
 } from 'lucide-react';
@@ -36,6 +38,7 @@ const ICONOS: Record<Herramienta, LucideIcon> = {
   linea: Spline,
   punto: MapPin,
   hueco: SquareMinus,
+  borrar: Eraser,
   escala: Ruler,
   nota: StickyNote,
 };
@@ -48,6 +51,7 @@ export const ETIQUETAS: Record<Herramienta, string> = {
   linea: 'Línea',
   punto: 'Punto',
   hueco: 'Hueco',
+  borrar: 'Borrar',
   escala: 'Calibrar escala',
   nota: 'Nota',
 };
@@ -60,6 +64,7 @@ export const ATAJOS: Record<Herramienta, string> = {
   linea: 'L',
   punto: 'O',
   hueco: 'U',
+  borrar: 'B',
   escala: 'E',
   nota: 'N',
 };
@@ -67,8 +72,17 @@ export const ATAJOS: Record<Herramienta, string> = {
 const GRUPOS: readonly (readonly Herramienta[])[] = [
   ['seleccionar', 'mano', 'zoom'],
   ['poligono', 'linea', 'punto', 'hueco', 'nota'],
+  ['borrar'],
   ['escala'],
 ];
+
+export interface Accion {
+  readonly clave: 'eliminar';
+  readonly etiqueta: string;
+  readonly deshabilitado: boolean;
+  readonly descripcion: string;
+  readonly onClick: () => void;
+}
 
 export type ClaveDeInterruptor = 'medidas' | 'cotas' | 'soloElegidos' | 'volumen' | 'datos';
 
@@ -96,6 +110,8 @@ interface Props {
   /** Herramientas que ahora no se pueden usar, con la razón (el tooltip). */
   readonly deshabilitadas?: Readonly<Partial<Record<Herramienta, string>>>;
   readonly interruptores: readonly Interruptor[];
+  /** Acciones que se disparan una vez (no se quedan encendidas): eliminar lo elegido. */
+  readonly acciones?: readonly Accion[];
   readonly onAlternar: (clave: ClaveDeInterruptor) => void;
   readonly orientacion?: 'vertical' | 'horizontal';
 }
@@ -136,6 +152,7 @@ export function BarraDeHerramientas({
   onElegir,
   deshabilitadas = {},
   interruptores,
+  acciones = [],
   onAlternar,
   orientacion = 'vertical',
 }: Props) {
@@ -180,6 +197,24 @@ export function BarraDeHerramientas({
           );
         })}
       </div>
+      {acciones.length > 0 && (
+        <div className="barra-iconos__grupo" role="group">
+          <span className="barra-iconos__sep" role="separator" />
+          {acciones.map((a) => (
+            <button
+              key={a.clave}
+              type="button"
+              className="btn-icono btn-icono--peligro"
+              aria-label={a.etiqueta}
+              title={a.descripcion}
+              disabled={a.deshabilitado}
+              onClick={a.onClick}
+            >
+              <Trash2 size={17} strokeWidth={1.7} aria-hidden />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

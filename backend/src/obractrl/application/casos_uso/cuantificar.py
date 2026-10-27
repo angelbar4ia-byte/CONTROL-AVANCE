@@ -96,10 +96,12 @@ __all__ = [
     "CalibrarEscalaDePlano",
     "ComandoAgregarHueco",
     "ComandoCalibrarEscala",
+    "ComandoEliminarTrazo",
     "ComandoReemplazarEnlace",
     "ComandoRegistrarNotaPlano",
     "ComandoRegistrarTrazo",
     "ConsultarCuantificacion",
+    "EliminarTrazo",
     "EnlaceNoEncontrado",
     "ErrorDeCuantificacion",
     "EscalaCalibrada",
@@ -115,6 +117,7 @@ __all__ = [
     "RegistrarPlano",
     "RegistrarTrazoConEnlaces",
     "ResultadoDeRecalculo",
+    "TrazoEliminado",
     "TrazoRegistrado",
 ]
 
@@ -186,6 +189,19 @@ class ComandoAgregarHueco:
     geometria_wkt: str
     autor_id: UUID
     rol: Rol
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoEliminarTrazo:
+    trazo_id: UUID
+    usuario_id: UUID
+    rol: Rol
+
+
+@dataclass(frozen=True, slots=True)
+class TrazoEliminado:
+    trazo_id: UUID
+    recalculos: tuple[ResultadoDeRecalculo, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True, slots=True)
@@ -314,6 +330,7 @@ async def _recalcular_nodo(
     umbral: Decimal = UMBRAL_DESVIACION,
     matriz_concepto_id: UUID | None = None,
     matrices: RepositorioMatrices | None = None,
+    proponer_desviacion: bool = True,
 ) -> ResultadoDeRecalculo:
     """Suma la cantidad vigente del nodo y aplica la consecuencia que le
     toca (ver docstring del módulo) — compartido por
@@ -373,6 +390,11 @@ async def _recalcular_nodo(
         # `concepto_id`, §3.3 lo resuelve el borde— así que no se levanta
         # ningún error: simplemente no hay nada que proponer todavía.
         if actividad is None or actividad.get("concepto_id") is None:
+            return ResultadoDeRecalculo(cantidad_total=cantidad_total)
+
+        # Al borrar el último trazo del nodo la cantidad vuelve a «sin medir»: eso no es una
+        # desviación de -100 %, es que ya no hay medida con qué comparar.
+        if not proponer_desviacion:
             return ResultadoDeRecalculo(cantidad_total=cantidad_total)
 
         cant_base = Decimal(str(actividad["cant_base"]))
@@ -901,6 +923,96 @@ class AgregarHuecoATrazo:
 
         await _avisar_reaperturas(self._eventos, recalculos, cmd.autor_id)
         return HuecoAgregado(hueco_id=hueco_id, recalculos=recalculos)
+
+
+class EliminarTrazo:
+    """Borra un trazo (un punto, una línea, un área) con sus enlaces y sus huecos.
+
+    Quien lo borra: Control de obra y Super intendente cualquiera; los demás roles, solo uno
+    suyo que aún no esté aprobado (aprobar deja constancia de una revisión que no se desharía
+    en silencio). Si el trazo alimenta un `prototipo_nodo`, tiene el mismo gobierno que
+    enlazarlo. Cada nodo que alimentaba se **recalcula**; si era su último trazo vuelve a «sin
+    medir» y no levanta una desviación.
+    """
+
+    def __init__(
+        self,
+        *,
+        trazos: RepositorioTrazos,
+        enlaces: RepositorioEnlacesCuantificacion,
+        actividades: RepositorioActividades,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        desviaciones: RepositorioDesviaciones,
+        uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
+        matrices: RepositorioMatrices | None = None,
+    ) -> None:
+        self._trazos = trazos
+        self._enlaces = enlaces
+        self._actividades = actividades
+        self._prototipo_nodos = prototipo_nodos
+        self._desviaciones = desviaciones
+        self._uow = uow
+        self._eventos = eventos
+        self._matrices = matrices
+
+    async def ejecutar(
+        self, cmd: ComandoEliminarTrazo, *, detectada_en: datetime
+    ) -> TrazoEliminado:
+        trazo = await self._trazos.obtener(cmd.trazo_id)
+        if trazo is None or trazo.get("hueco_de") is not None:
+            raise TrazoNoEncontrado(f"El trazo {cmd.trazo_id} no existe o no está en tu alcance.")
+
+        if cmd.rol not in _ROLES_QUE_TOCAN_PROTOTIPO and (
+            trazo.get("autor_id") != cmd.usuario_id or trazo.get("aprobado_por") is not None
+        ):
+            raise GobiernoDeCuantificacionInvalido(
+                "Solo puedes borrar un trazo tuyo que todavía no esté aprobado; "
+                "Control de obra y Super intendente borran cualquiera."
+            )
+
+        nodos = await self._enlaces.nodos_vigentes_de_trazo(cmd.trazo_id)
+        if (
+            any(n["tipo_nodo"] == TipoNodoCuantificacion.PROTOTIPO_NODO.value for n in nodos)
+            and cmd.rol not in _ROLES_QUE_TOCAN_PROTOTIPO
+        ):
+            permitidos = ", ".join(r.value for r in _ROLES_QUE_TOCAN_PROTOTIPO)
+            raise GobiernoDeCuantificacionInvalido(
+                f"Este trazo alimenta la cantidad de un prototipo_nodo: borrarlo la cambia, "
+                f"y eso exige {permitidos}; el rol {cmd.rol.value!r} no puede."
+            )
+
+        async with self._uow:
+            await self._trazos.eliminar(cmd.trazo_id)
+            recalculos: list[ResultadoDeRecalculo] = []
+            for n in nodos:
+                tipo = TipoNodoCuantificacion(str(n["tipo_nodo"]))
+                quedan = await self._enlaces.enlaces_de_nodo(
+                    tipo_nodo=tipo.value,
+                    actividad_id=n["actividad_id"],
+                    prototipo_nodo_id=n["prototipo_nodo_id"],
+                    matriz_concepto_id=n.get("matriz_concepto_id"),
+                )
+                recalculos.append(
+                    await _recalcular_nodo(
+                        tipo_nodo=tipo,
+                        actividad_id=n["actividad_id"],
+                        prototipo_nodo_id=n["prototipo_nodo_id"],
+                        matriz_concepto_id=n.get("matriz_concepto_id"),
+                        enlaces=self._enlaces,
+                        actividades=self._actividades,
+                        prototipo_nodos=self._prototipo_nodos,
+                        desviaciones=self._desviaciones,
+                        detectada_en=detectada_en,
+                        matrices=self._matrices,
+                        proponer_desviacion=any(bool(f["vigente"]) for f in quedan),
+                    )
+                )
+            await self._uow.commit()
+
+        resultado = tuple(recalculos)
+        await _avisar_reaperturas(self._eventos, resultado, cmd.usuario_id)
+        return TrazoEliminado(trazo_id=cmd.trazo_id, recalculos=resultado)
 
 
 class RegistrarNotaPlano:

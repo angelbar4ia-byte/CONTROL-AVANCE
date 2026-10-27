@@ -946,6 +946,7 @@ export type * from "./transicionDeParteRespuesta";
 export type * from "./transicionDeParteRespuestaNota";
 export type * from "./transicionDeParteRespuestaUsuarioNombre";
 export type * from "./trazoAprobadoRespuesta";
+export type * from "./trazoEliminadoRespuesta";
 export type * from "./trazoFeature";
 export type * from "./trazoFeatureGeometry";
 export type * from "./trazoPeticion";

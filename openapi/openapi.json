@@ -9574,6 +9574,61 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}": {
+      "delete": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Borrar un trazo (punto, línea o área) con sus enlaces y huecos",
+        "description": "Cada nodo que el trazo alimentaba se recalcula; si era su último trazo vuelve a «sin\nmedir» y no levanta una desviación.",
+        "operationId": "eliminar_trazo_api_v1_trazos__trazo_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrazoEliminadoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No es un trazo tuyo sin aprobar (Control de obra y Super intendente borran cualquiera), o alimenta un prototipo_nodo y el rol no puede tocarlo."
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/escala": {
       "put": {
         "tags": [
@@ -28317,6 +28372,28 @@
           "ya_estaba_aprobado"
         ],
         "title": "TrazoAprobadoRespuesta"
+      },
+      "TrazoEliminadoRespuesta": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "recalculos": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+            },
+            "type": "array",
+            "title": "Recalculos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "recalculos"
+        ],
+        "title": "TrazoEliminadoRespuesta"
       },
       "TrazoFeature": {
         "properties": {

@@ -177,3 +177,59 @@ async def test_un_punto_con_forma_guarda_la_forma(control, escenario: Escenario)
 
     en_linea = await _trazo(control, escenario, plano, "LINESTRING(0 0, 1 0)", "longitud", forma=forma)
     assert en_linea.status_code == 422
+
+
+@pytest.fixture
+async def residente(contexto_residente: ContextoSesion) -> AsyncIterator[httpx.AsyncClient]:
+    async with _cliente(contexto_residente) as c:
+        yield c
+
+
+async def test_borrar_un_trazo_recalcula_y_el_ultimo_vuelve_a_sin_medir(control, escenario: Escenario) -> None:
+    plano = await _plano(control, escenario)
+    a = (await _trazo(control, escenario, plano, "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))", "area")).json()
+    b = (await _trazo(control, escenario, plano, "POLYGON((20 0, 25 0, 25 4, 20 4, 20 0))", "area")).json()
+    assert Decimal(b["recalculos"][0]["cantidad_total"]) == 120
+    await control.post(
+        f"/api/v1/trazos/{a['trazo_id']}/huecos", json={"geometria_wkt": "POLYGON((2 2, 4 2, 4 4, 2 4, 2 2))"}
+    )
+
+    # Borrar el primero (con su hueco) deja solo lo del segundo.
+    r = await control.delete(f"/api/v1/trazos/{a['trazo_id']}")
+    assert r.status_code == 200, r.text
+    assert Decimal(r.json()["recalculos"][0]["cantidad_total"]) == 20
+    assert len(await _features(control, plano)) == 1
+
+    # Y borrar el último vuelve la cantidad a cero sin levantar una desviación.
+    r2 = await control.delete(f"/api/v1/trazos/{b['trazo_id']}")
+    assert r2.status_code == 200, r2.text
+    assert Decimal(r2.json()["recalculos"][0]["cantidad_total"]) == 0
+    assert r2.json()["recalculos"][0]["desviacion_id"] is None
+    assert await _features(control, plano) == []
+
+    # Ya no existe.
+    assert (await control.delete(f"/api/v1/trazos/{b['trazo_id']}")).status_code == 404
+
+
+async def test_quien_borra_un_trazo(control, residente, escenario: Escenario) -> None:
+    plano = await _plano(control, escenario)
+    del_control = (await _trazo(control, escenario, plano, "LINESTRING(0 0, 5 0)", "longitud")).json()
+    # El residente traza el suyo sobre el mismo plano.
+    mio = await residente.post(
+        f"/api/v1/planos/{plano}/trazos",
+        json={
+            "version_plano": 1,
+            "geometria_wkt": "LINESTRING(0 1, 5 1)",
+            "fuente": "pdf",
+            "enlaces": [{"actividad_id": str(escenario.actividad_id), "medida": "longitud", "factor": "1"}],
+        },
+    )
+    assert mio.status_code == 201, mio.text
+
+    # Lo de Control no es suyo: 403. Lo suyo sin aprobar sí.
+    assert (await residente.delete(f"/api/v1/trazos/{del_control['trazo_id']}")).status_code == 403
+    assert (await residente.delete(f"/api/v1/trazos/{mio.json()['trazo_id']}")).status_code == 200
+
+    # Control aprueba el suyo; ya aprobado, solo Control o Super intendente lo borran.
+    assert (await control.post(f"/api/v1/trazos/{del_control['trazo_id']}/aprobar")).status_code == 200
+    assert (await control.delete(f"/api/v1/trazos/{del_control['trazo_id']}")).status_code == 200

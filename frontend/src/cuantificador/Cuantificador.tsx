@@ -30,6 +30,7 @@ import {
   getNotasDePlanoApiV1PlanosPlanoIdNotasGetQueryKey,
   getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey,
   useAgregarHuecoApiV1TrazosTrazoIdHuecosPost,
+  useEliminarTrazoApiV1TrazosTrazoIdDelete,
   useAprobarTrazoApiV1TrazosTrazoIdAprobarPost,
   useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet,
   useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet,
@@ -65,6 +66,7 @@ import { useAjuste, useAnchoAjustable } from '@/lib/useAjuste';
 import { SeparadorDeAncho } from './SeparadorDeAncho';
 import { arbolDeCuantificacion, trazosDeConceptos } from './arbol';
 import { ArbolPresupuesto } from './ArbolPresupuesto';
+import { Modal } from '@/lib/Modal';
 import { BarraDeHerramientas, type ClaveDeInterruptor, type Interruptor } from './BarraDeHerramientas';
 import { CuadroDeDatos } from './CuadroDeDatos';
 import { cotasDe, etiquetasDeMedidas, sinCierre } from './etiquetas';
@@ -104,6 +106,7 @@ const HERRAMIENTAS: readonly Herramienta[] = [
   'linea',
   'punto',
   'hueco',
+  'borrar',
   'escala',
 ];
 
@@ -117,6 +120,7 @@ const ATAJOS: Readonly<Record<string, Herramienta>> = {
   h: 'mano',
   z: 'zoom',
   u: 'hueco',
+  b: 'borrar',
   p: 'poligono',
   l: 'linea',
   o: 'punto',
@@ -189,6 +193,8 @@ export function EspacioDeTrazo({
   /** La forma con la que se está guardando el trazo (solo cuando nació de un punto con forma). */
   const [formaEstampada, setFormaEstampada] = useState<Forma | null>(null);
   const [cursor, setCursor] = useState<Punto | null>(null);
+  /** El trazo que se está por borrar, a la espera de que se confirme. */
+  const [porBorrar, setPorBorrar] = useState<string | null>(null);
   const [mostrarMedidas, setMostrarMedidas] = useState(false);
   const [mostrarCotas, setMostrarCotas] = useState(false);
   const [datosAbiertos, setDatosAbiertos] = useState(false);
@@ -342,6 +348,46 @@ export function EspacioDeTrazo({
     seleccionado !== null && areaDeGeometria(seleccionado.geometry) > 0 ? seleccionado : null;
 
   const agregarHueco = useAgregarHuecoApiV1TrazosTrazoIdHuecosPost<ErrorApi>();
+  const eliminar = useEliminarTrazoApiV1TrazosTrazoIdDelete<ErrorApi>();
+
+  /** Con la herramienta Borrar, un clic sobre un trazo pide confirmar su borrado; sobre nada, no hace nada. */
+  function alElegirEnElPlano(elegido: Seleccion | null) {
+    if (herramienta === 'borrar') {
+      if (elegido?.tipo === 'trazo') {
+        setSeleccion(elegido);
+        setPorBorrar(elegido.id);
+      }
+      return;
+    }
+    setSeleccion(elegido);
+  }
+
+  async function confirmarBorrado() {
+    if (porBorrar === null) return;
+    const id = porBorrar;
+    setPorBorrar(null);
+    try {
+      const r = await eliminar.mutateAsync({ trazoId: id });
+      setSeleccion(null);
+      const total = r.recalculos[0]?.cantidad_total;
+      setAviso(
+        total === undefined
+          ? 'Trazo borrado.'
+          : `Trazo borrado. Cantidad medida del nodo: ${fmtNum(total)}.`,
+      );
+      void queryClient.invalidateQueries({
+        queryKey: getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey(planoElegido),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId),
+      });
+    } catch (err) {
+      setAviso(err instanceof Error ? err.message : 'No se pudo borrar el trazo.');
+    }
+  }
 
   function limpiarDibujo() {
     setBorrador([]);
@@ -358,7 +404,7 @@ export function EspacioDeTrazo({
     limpiarDibujo();
     setAviso(null);
     // Moverse, acercar y abrir un hueco no sueltan lo elegido: el hueco se abre sobre ello.
-    if (nueva !== 'seleccionar' && nueva !== 'mano' && nueva !== 'zoom' && nueva !== 'hueco') {
+    if (nueva !== 'seleccionar' && nueva !== 'mano' && nueva !== 'zoom' && nueva !== 'hueco' && nueva !== 'borrar') {
       setSeleccion(null);
     }
   }
@@ -575,7 +621,8 @@ export function EspacioDeTrazo({
 
   // Atajos de herramienta (V, P, L, O, E, N). Se ignoran con un campo enfocado o un
   // cajón abierto, igual que los del dibujo: escribir «0.5» no debe cambiar de herramienta.
-  const hayCajon = guardando || subiendoPlano || notaPunto !== null || reemplazando !== null || calibrando;
+  const hayCajon =
+    guardando || subiendoPlano || notaPunto !== null || reemplazando !== null || calibrando || porBorrar !== null;
   useEffect(() => {
     if (hayCajon) return;
     function alTeclear(e: KeyboardEvent) {
@@ -583,6 +630,11 @@ export function EspacioDeTrazo({
       const destino = e.target as HTMLElement | null;
       if (destino && /^(INPUT|SELECT|TEXTAREA)$/.test(destino.tagName)) return;
       if (destino?.isContentEditable) return;
+      if ((e.key === 'Delete' || e.key === 'Backspace') && seleccionado && herramienta !== 'poligono' && herramienta !== 'linea' && herramienta !== 'hueco') {
+        e.preventDefault();
+        setPorBorrar(seleccionado.id);
+        return;
+      }
       const tecla = e.key.toLowerCase();
       if (tecla === 'm') return setMostrarMedidas((v) => !v);
       if (tecla === 'c') return setMostrarCotas((v) => !v);
@@ -594,7 +646,7 @@ export function EspacioDeTrazo({
     return () => window.removeEventListener('keydown', alTeclear);
     // `cambiarHerramienta` lee estado del render: se rearma con él.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hayCajon, puedeAnotar, borrador, areaElegida, herramienta, mostrarMedidas, mostrarCotas, datosAbiertos]);
+  }, [hayCajon, puedeAnotar, borrador, areaElegida, seleccionado, herramienta, mostrarMedidas, mostrarCotas, datosAbiertos]);
 
   const nombreDelTrazo = seleccionado
     ? (seleccionado.properties.enlaces.find((e) => e.vigente)
@@ -896,6 +948,18 @@ export function EspacioDeTrazo({
                     : {}
                 }
                 interruptores={interruptores}
+                acciones={[
+                  {
+                    clave: 'eliminar',
+                    etiqueta: 'Eliminar selección',
+                    deshabilitado: seleccionado === null,
+                    descripcion:
+                      seleccionado === null
+                        ? 'Elige un trazo con Seleccionar para poder eliminarlo'
+                        : 'Eliminar el trazo elegido (Supr)',
+                    onClick: () => seleccionado && setPorBorrar(seleccionado.id),
+                  },
+                ]}
                 onAlternar={alternar}
                 orientacion={compacto ? 'horizontal' : 'vertical'}
               />
@@ -971,7 +1035,7 @@ export function EspacioDeTrazo({
                 cotas={cotas}
                 onMover={forma === 'punto' && formaPunto !== null ? setCursor : undefined}
                 onPunto={alPunto}
-                onSeleccionar={setSeleccion}
+                onSeleccionar={alElegirEnElPlano}
               />
 
               <div className="estacion__mensajes">
@@ -1081,6 +1145,29 @@ export function EspacioDeTrazo({
             {listaDeNotas.length} {listaDeNotas.length === 1 ? 'nota' : 'notas'}
           </span>
         </div>
+      )}
+
+      {porBorrar !== null && (
+        <Modal titulo="Borrar trazo" onCerrar={() => setPorBorrar(null)}>
+          <div className="sheet__body col gap-12">
+            <p className="text-sm">
+              Vas a borrar <strong>{nombreDelTrazo || 'el trazo elegido'}</strong>
+              {seleccionado && seleccionado.properties.enlaces.length > 0
+                ? ` y sus ${seleccionado.properties.enlaces.length} ${seleccionado.properties.enlaces.length === 1 ? 'enlace' : 'enlaces'}`
+                : ''}
+              {seleccionado && seleccionado.properties.n_huecos ? ` y sus ${seleccionado.properties.n_huecos} huecos` : ''}.
+              La cantidad de cada concepto que alimentaba se recalcula. No se puede deshacer.
+            </p>
+            <div className="row" style={{ justifyContent: 'flex-end' }}>
+              <button type="button" className="btn" onClick={() => setPorBorrar(null)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn btn--danger" onClick={() => void confirmarBorrado()}>
+                Borrar trazo
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {guardando && plano && forma && (

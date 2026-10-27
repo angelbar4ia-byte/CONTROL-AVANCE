@@ -103,6 +103,10 @@ class RepositorioTrazos(Protocol):
         """Por qué ese WKT no puede ser un hueco del trazo, o `None` si puede."""
         ...
 
+    async def eliminar(self, trazo_id: UUID) -> None:
+        """Borra el trazo con sus enlaces y huecos (cascada)."""
+        ...
+
     async def crear_hueco(self, *, trazo_id: UUID, geometria_wkt: str, autor_id: UUID) -> UUID:
         """Un hueco es un trazo hijo (`hueco_de`) que resta del área del padre; sin enlaces."""
         ...

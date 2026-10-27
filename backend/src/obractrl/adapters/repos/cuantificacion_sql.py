@@ -280,6 +280,10 @@ class RepositorioTrazosSQL:
             return "El hueco tiene que quedar dentro del área, sin salirse ni cubrir otro hueco."
         return None
 
+    async def eliminar(self, trazo_id: UUID) -> None:
+        """Borra el trazo; sus enlaces y sus huecos se van con él (`on delete cascade`)."""
+        await self._sesion.execute(text("delete from trazo where id = :id"), {"id": str(trazo_id)})
+
     async def crear_hueco(
         self, *, trazo_id: UUID, geometria_wkt: str, autor_id: UUID
     ) -> UUID:

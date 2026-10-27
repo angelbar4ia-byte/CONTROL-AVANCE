@@ -2755,3 +2755,5 @@ a { color: inherit; text-decoration: none; }
 .datos__tabla--conceptos td.is-num.mono { font-size: var(--fs-md); }
 .datos__tabla--conceptos thead th:nth-child(1) { width: 46%; }
 .datos__tabla--conceptos thead th:nth-child(2) { width: 14%; }
+
+.btn-icono--peligro:hover:not(:disabled) { background: var(--c-danger-soft); color: var(--c-danger); }

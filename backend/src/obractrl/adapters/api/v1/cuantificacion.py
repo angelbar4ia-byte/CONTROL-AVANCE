@@ -52,6 +52,7 @@ from obractrl.adapters.api.casos_uso import (
     CalibrarEscalaDePlanoDep,
     ConsultarCuantificacionDep,
     ConsultarMatricesDep,
+    EliminarTrazoDep,
     ReemplazarEnlaceDep,
     RegistrarNotaPlanoDep,
     RegistrarPlanoDep,
@@ -62,6 +63,7 @@ from obractrl.application.casos_uso.cuantificar import (
     ComandoAgregarHueco,
     ComandoAprobarTrazo,
     ComandoCalibrarEscala,
+    ComandoEliminarTrazo,
     ComandoReemplazarEnlace,
     ComandoRegistrarNotaPlano,
     ComandoRegistrarTrazo,
@@ -222,6 +224,11 @@ class HuecoPeticion(BaseModel):
     geometria_wkt: str = Field(
         min_length=1, description="`POLYGON((...))` en coordenadas de plano, dentro del área."
     )
+
+
+class TrazoEliminadoRespuesta(BaseModel):
+    trazo_id: UUID
+    recalculos: list[ResultadoRecalculoRespuesta]
 
 
 class HuecoRespuesta(BaseModel):
@@ -399,6 +406,36 @@ async def agregar_hueco(
     )
     return HuecoRespuesta(
         hueco_id=resultado.hueco_id,
+        recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos],
+    )
+
+
+@router.delete(
+    "/trazos/{trazo_id}",
+    response_model=TrazoEliminadoRespuesta,
+    summary="Borrar un trazo (punto, línea o área) con sus enlaces y huecos",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        403: {
+            "description": (
+                "No es un trazo tuyo sin aprobar (Control de obra y Super intendente borran "
+                "cualquiera), o alimenta un prototipo_nodo y el rol no puede tocarlo."
+            )
+        },
+        404: {"description": "El trazo no existe o está fuera de tu alcance."},
+    },
+)
+async def eliminar_trazo(
+    trazo_id: UUID, ctx: ContextoActual, caso_uso: EliminarTrazoDep
+) -> TrazoEliminadoRespuesta:
+    """Cada nodo que el trazo alimentaba se recalcula; si era su último trazo vuelve a «sin
+    medir» y no levanta una desviación."""
+    resultado = await caso_uso.ejecutar(
+        ComandoEliminarTrazo(trazo_id=trazo_id, usuario_id=ctx.usuario_id, rol=Rol(ctx.rol)),
+        detectada_en=datetime.now(UTC),
+    )
+    return TrazoEliminadoRespuesta(
+        trazo_id=resultado.trazo_id,
         recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos],
     )
 

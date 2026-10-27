@@ -50,6 +50,10 @@ import {
 } from './geometria';
 
 const UMBRAL_ARRASTRE = 4;
+/** Cuánto zoom da cada píxel de rueda: una muesca (100) ≈ 6 %. Antes era un 15 % fijo por evento. */
+const SENSIBILIDAD_RUEDA = 0.0006;
+const SENSIBILIDAD_PELLIZCO = 0.01;
+const MAXIMO_POR_EVENTO = 250;
 /** Radio de captura del clic, en píxeles de pantalla. */
 const TOLERANCIA_PX = 8;
 
@@ -289,7 +293,7 @@ export function Visor({
       setVista((v) => zoomEn(v, factor, p));
       return;
     }
-    if (herramienta === 'seleccionar') {
+    if (herramienta === 'seleccionar' || herramienta === 'borrar') {
       const tolerancia = TOLERANCIA_PX * porPixel;
       // Una nota es un punto diminuto sobre trazos que suelen ser polígonos
       // grandes: si se probara el trazo primero, dentro de un polígono siempre
@@ -317,7 +321,13 @@ export function Visor({
     function alRodar(e: WheelEvent) {
       e.preventDefault();
       vistaTocada.current = true;
-      const factor = e.deltaY > 0 ? 1.15 : 1 / 1.15;
+      // El zoom sigue a lo que se rueda, no a cuántos eventos llegan: una muesca del ratón
+      // (deltaY ≈ 100) acerca o aleja ~6 %, y un trackpad, que manda muchos eventos chicos,
+      // se siente continuo. El pellizco del trackpad llega como Ctrl + rueda, con deltas más
+      // chicos todavía, y se amplifica.
+      const pixeles = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      const sensibilidad = e.ctrlKey ? SENSIBILIDAD_PELLIZCO : SENSIBILIDAD_RUEDA;
+      const factor = Math.exp(Math.max(-MAXIMO_POR_EVENTO, Math.min(MAXIMO_POR_EVENTO, pixeles)) * sensibilidad);
       setVista((v) => zoomEn(v, factor, aPlano(e.clientX, e.clientY)));
     }
     el.addEventListener('wheel', alRodar, { passive: false });
@@ -330,7 +340,9 @@ export function Visor({
       ? 'grab'
       : herramienta === 'zoom'
         ? 'zoom-in'
-        : 'crosshair'; // el resto captura un punto con el clic (incluida la nota)
+        : herramienta === 'borrar'
+          ? 'pointer'
+          : 'crosshair'; // el resto captura un punto con el clic (incluida la nota)
   const px = porPixel;
 
   return (

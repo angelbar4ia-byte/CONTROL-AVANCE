@@ -22,17 +22,19 @@ export type Herramienta =
   | 'linea'
   | 'punto'
   | 'hueco'
+  | 'borrar'
   | 'nota'
   | 'escala';
 
 /**
  * Herramientas que dibujan una geometría que alimenta cantidades. No lo son: `seleccionar`,
- * `mano` y `zoom` (mueven o eligen), `hueco` (resta de un área ya trazada), `nota` ni `escala`
+ * `mano` y `zoom` (mueven o eligen), `hueco` (resta de un área ya trazada), `borrar` (quita un
+ * trazo), `nota` ni `escala`
  * (marca dos puntos de referencia, no un trazo).
  */
 export type HerramientaDeTrazo = Exclude<
   Herramienta,
-  'seleccionar' | 'mano' | 'zoom' | 'hueco' | 'nota' | 'escala'
+  'seleccionar' | 'mano' | 'zoom' | 'hueco' | 'borrar' | 'nota' | 'escala'
 >;
 
 export type MedidaDeTrazo = 'area' | 'perimetro' | 'longitud' | 'conteo';
