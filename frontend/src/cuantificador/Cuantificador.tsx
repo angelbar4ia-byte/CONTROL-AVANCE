@@ -95,6 +95,7 @@ import {
   type Alineacion,
   type Forma,
 } from './formas';
+import { NavegadorDePlanos } from './NavegadorDePlanos';
 import { OpcionesDeHerramienta } from './OpcionesDeHerramienta';
 import { PanelVolumen } from './PanelVolumen';
 import { resumenDePantalla, type TrazoParaResumen } from './resumen';
@@ -267,6 +268,8 @@ export function EspacioDeTrazo({
   const [soloElegidos, setSoloElegidos] = useState(false);
   const [volumenAbierto, setVolumenAbierto] = useState(false);
   const [arbolAbierto, setArbolAbierto] = useAjuste('arbol', !compacto);
+  // La segunda pestaña del panel lateral: el navegador de planos (el presupuesto es la primera).
+  const [verPlanos, setVerPlanos] = useState(false);
   const [detalleAbierto, setDetalleAbierto] = useAjuste('detalle', !compacto);
   // El ancho de los dos paneles laterales se ajusta arrastrando su borde y se recuerda.
   const anchoArbol = useAnchoAjustable('ancho-arbol', 300, 200, 560);
@@ -1078,8 +1081,47 @@ export function EspacioDeTrazo({
 
   const panelDelArbol = (
     <aside className="estacion__arbol" aria-label="Presupuesto">
-      <div className="estacion__titulo">
-        Presupuesto
+      <div className="estacion__pestanas" role="tablist" aria-label="Panel lateral">
+        <button
+          type="button"
+          role="tab"
+          id="pestana-presupuesto"
+          aria-selected={!verPlanos}
+          aria-controls="panel-presupuesto"
+          className={!verPlanos ? 'estacion__pestana is-activa' : 'estacion__pestana'}
+          onClick={() => setVerPlanos(false)}
+        >
+          Presupuesto
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="pestana-planos"
+          aria-selected={verPlanos}
+          aria-controls="panel-planos"
+          className={verPlanos ? 'estacion__pestana is-activa' : 'estacion__pestana'}
+          onClick={() => setVerPlanos(true)}
+        >
+          Planos <span className="estacion__contador">{listaDePlanos.length}</span>
+        </button>
+      </div>
+      {verPlanos ? (
+        <div role="tabpanel" id="panel-planos" aria-labelledby="pestana-planos" className="estacion__panel-pestana">
+          <NavegadorDePlanos
+            planos={listaDePlanos}
+            cargando={planos.isLoading}
+            activoId={planoElegido}
+            onElegir={(id) => {
+              setPlanoElegido(id);
+              setBorrador([]);
+              setSeleccion(null);
+            }}
+            onSubir={() => setSubiendoPlano(true)}
+          />
+        </div>
+      ) : (
+      <div role="tabpanel" id="panel-presupuesto" aria-labelledby="pestana-presupuesto" className="estacion__panel-pestana">
+      <div className="estacion__subencabezado">
         <span className="estacion__subtitulo">
           {elegidos.size === 0
             ? 'Medido contra la base'
@@ -1114,6 +1156,8 @@ export function EspacioDeTrazo({
           onElegir={elegirConceptos}
           actividadFocoId={actividadFocoId}
         />
+      )}
+      </div>
       )}
     </aside>
   );

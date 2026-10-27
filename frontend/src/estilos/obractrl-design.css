@@ -2773,3 +2773,33 @@ a { color: inherit; text-decoration: none; }
 .estado-pastilla.is-activa { background: var(--c-accent-soft); border-color: var(--c-accent); color: var(--c-accent-strong); }
 .estado-pastilla:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 1px; }
 .estacion__ayudas { position: absolute; right: 10px; top: 46px; z-index: 4; }
+
+/* Pestañas del panel lateral (Presupuesto · Planos) y el navegador de planos. */
+.estacion__pestanas { display: flex; flex: none; border-bottom: 1px solid var(--c-line); }
+.estacion__pestana {
+  flex: 1; height: 32px; display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: transparent; border: 0; border-bottom: 2px solid transparent; cursor: pointer;
+  color: var(--c-text-mute); font-weight: 600; font-size: var(--fs-md);
+}
+.estacion__pestana:hover { color: var(--c-text); background: var(--c-elev); }
+.estacion__pestana.is-activa { color: var(--c-accent-strong); border-bottom-color: var(--c-accent); }
+.estacion__pestana:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -2px; }
+.estacion__contador { font-family: var(--f-mono); font-size: var(--fs-xs); font-weight: 400; background: var(--c-elev); border-radius: 99px; padding: 0 6px; }
+.estacion__panel-pestana { display: flex; flex-direction: column; min-height: 0; flex: 1; overflow: auto; }
+.estacion__subencabezado { display: flex; align-items: center; padding: 6px 10px 0; flex: none; }
+.planos { display: flex; flex-direction: column; min-height: 0; }
+.planos__lista, .planos__lista ul { list-style: none; margin: 0; padding: 0; }
+.planos__lista { padding: 0 6px 10px; display: grid; gap: 6px; }
+.planos__nombre { font-weight: 600; font-size: var(--fs-sm); padding: 4px 6px 2px; }
+.planos__plano {
+  width: 100%; display: grid; gap: 3px; text-align: left; padding: 7px 8px; cursor: pointer;
+  background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-md);
+}
+.planos__plano:hover { border-color: var(--c-line-strong); background: var(--c-elev); }
+.planos__plano.is-activo { border-color: var(--c-accent); background: var(--c-accent-soft); }
+.planos__plano:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 1px; }
+.planos__titulo { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: var(--fs-md); }
+.planos__datos { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: var(--fs-xs); color: var(--c-text-mute); }
+.planos__escala { display: inline-flex; align-items: center; gap: 3px; }
+.planos__escala.is-ok { color: var(--c-ok); }
+.planos__escala.is-sin { color: var(--c-warn); }

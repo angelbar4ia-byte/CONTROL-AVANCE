@@ -424,4 +424,64 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
     await expect(page.locator('.visor__trazo')).toHaveCount(0);
     expect(await cuantos()).toBe(0);
   });
+
+  test('segunda pestaña del panel: el navegador de planos', async ({ page, request }) => {
+    const clave = `NP-${Date.now().toString(36).toUpperCase()}`;
+    const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
+    const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
+    const usuarios = await llamarApi<{ id: string; nombre: string }[]>(request, 'control', 'GET', '/usuarios');
+    const obra = await llamarApi<{ id: string }>(request, 'control', 'POST', '/obras', {
+      cluster_id: clusters.find((c) => c.clave === 'CLU-E2E')!.id,
+      prototipo_id: prototipos.find((p) => p.clave === 'CAS-E2E')!.id,
+      residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
+      clave,
+    });
+    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
+    const planoA = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
+      nombre: 'Planta baja',
+      archivo_url: 'planos/baja.dwg',
+    });
+    const planoB = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
+      nombre: 'Azotea',
+      archivo_url: 'planos/azotea.dwg',
+    });
+    await llamarApi(request, 'control', 'POST', `/planos/${planoA.id}/trazos`, {
+      version_plano: 1,
+      fuente: 'dwg',
+      geometria_wkt: 'POLYGON((0 0, 4 0, 4 4, 0 4, 0 0))',
+      enlaces: [],
+    });
+
+    await entrarComo(page, 'control');
+    await page.goto(`/cuantificador?obra=${obra.id}&plano=${planoA.id}`);
+    await expect(page.locator('.visor__trazo')).toHaveCount(1);
+
+    const panel = page.getByRole('complementary', { name: 'Presupuesto' });
+    const pestanas = panel.getByRole('tablist', { name: 'Panel lateral' });
+    await expect(pestanas.getByRole('tab', { name: /Presupuesto/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(panel.getByRole('tree', { name: 'Árbol de la cuantificación' })).toBeVisible();
+
+    await pestanas.getByRole('tab', { name: /Planos/ }).click();
+    await expect(panel.getByRole('tree')).toHaveCount(0);
+    const lista = panel.getByRole('list', { name: 'Planos de la obra' });
+    await expect(lista.getByRole('button', { name: /Planta baja/ })).toHaveAttribute('aria-current', 'true');
+    await expect(lista.getByRole('button', { name: /Azotea/ })).toBeVisible();
+
+    // Buscar filtra la lista.
+    await panel.getByLabel('Buscar un plano').fill('azo');
+    await expect(lista.getByRole('button', { name: /Planta baja/ })).toHaveCount(0);
+    await panel.getByLabel('Buscar un plano').fill('');
+
+    // Elegir otro plano cambia lo que se ve en el visor.
+    await lista.getByRole('button', { name: /Azotea/ }).click();
+    await expect(lista.getByRole('button', { name: /Azotea/ })).toHaveAttribute('aria-current', 'true');
+    await expect(page.locator('.visor__trazo')).toHaveCount(0);
+    await lista.getByRole('button', { name: /Planta baja/ }).click();
+    await expect(page.locator('.visor__trazo')).toHaveCount(1);
+
+    // De vuelta a Presupuesto.
+    await pestanas.getByRole('tab', { name: /Presupuesto/ }).click();
+    await expect(panel.getByRole('tree', { name: 'Árbol de la cuantificación' })).toBeVisible();
+    void planoB;
+  });
 });
