@@ -9920,6 +9920,58 @@
         }
       }
     },
+    "/api/v1/actividades/{actividad_id}/matrices": {
+      "get": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Las matrices internas de una actividad y lo medido de cada una",
+        "description": "El concepto es la matriz madre; un insumo puede ser otra matriz (nervaduras, trabes,\nbastones), a cualquier profundidad (D-583). Medirlas ajusta el importe de la actividad sin\ntocar su cantidad base ni el catálogo.",
+        "operationId": "matrices_de_la_actividad_api_v1_actividades__actividad_id__matrices_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatricesDeActividadRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/desviaciones": {
       "get": {
         "tags": [
@@ -18434,6 +18486,19 @@
             "title": "Nodo Id",
             "description": "`actividad_id` o `prototipo_nodo_id`, según `tipo_nodo`."
           },
+          "matriz_concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matriz Concepto Id",
+            "description": "La matriz interna de la actividad que mide este enlace (D-583)."
+          },
           "medida": {
             "type": "string",
             "title": "Medida"
@@ -21166,6 +21231,19 @@
               }
             ],
             "title": "Prototipo Nodo Id"
+          },
+          "matriz_concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matriz Concepto Id",
+            "description": "Si lo que se mide es una matriz interna de la actividad (nervaduras, trabes…) y no la actividad entera (D-583). Solo con `actividad_id`."
           }
         },
         "type": "object",
@@ -21965,6 +22043,167 @@
         ],
         "title": "LoteRespuesta",
         "description": "Estado de un lote ya registrado (§9.4)."
+      },
+      "MatricesDeActividadRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "cant_base": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Base"
+          },
+          "importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe"
+          },
+          "importe_ajuste": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe Ajuste",
+            "description": "Lo que cambia el importe por lo medido en las matrices internas."
+          },
+          "importe_ajustado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe Ajustado"
+          },
+          "medidas": {
+            "type": "integer",
+            "title": "Medidas"
+          },
+          "matrices": {
+            "items": {
+              "$ref": "#/components/schemas/MatrizRespuesta"
+            },
+            "type": "array",
+            "title": "Matrices"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "descripcion",
+          "cant_base",
+          "importe",
+          "importe_ajuste",
+          "importe_ajustado",
+          "medidas",
+          "matrices"
+        ],
+        "title": "MatricesDeActividadRespuesta"
+      },
+      "MatrizRespuesta": {
+        "properties": {
+          "concepto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Concepto Id"
+          },
+          "padre_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Padre Id",
+            "description": "La matriz de la que es insumo (la madre es el concepto)."
+          },
+          "nivel": {
+            "type": "integer",
+            "title": "Nivel",
+            "description": "1 = insumo directo de la madre; 2 = dentro de una matriz…"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "cantidad_unitaria": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Unitaria",
+            "description": "Por unidad de su matriz madre inmediata."
+          },
+          "cantidad_catalogo": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Catalogo",
+            "description": "Lo que el catálogo implica para esta actividad."
+          },
+          "precio_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Unitario"
+          },
+          "cantidad_medida": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Medida",
+            "description": "Lo medido en esta obra; no reescribe el catálogo."
+          },
+          "diferencia": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diferencia"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto_id",
+          "padre_id",
+          "nivel",
+          "clave",
+          "descripcion",
+          "cantidad_unitaria",
+          "cantidad_catalogo",
+          "precio_unitario"
+        ],
+        "title": "MatrizRespuesta"
       },
       "MedidaCuantificacion": {
         "type": "string",

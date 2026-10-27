@@ -139,6 +139,9 @@ _REFERENCIAS_EXTERNAS: tuple[tuple[str, str, str], ...] = (
     ("actividad", "concepto_id", "concepto"),
     ("estimacion_concepto", "concepto_id", "concepto"),
     ("explosion", "concepto_hijo_id", "concepto"),
+    # Las matrices internas que se miden en una obra apuntan al concepto (0085).
+    ("actividad_matriz", "concepto_id", "concepto"),
+    ("enlace_cuantificacion", "matriz_concepto_id", "concepto"),
     ("partida_presupuesto", "concepto_id", "concepto"),
     ("prototipo_nodo", "concepto_id", "concepto"),
     ("ensamble", "divisor_concepto_id", "concepto"),

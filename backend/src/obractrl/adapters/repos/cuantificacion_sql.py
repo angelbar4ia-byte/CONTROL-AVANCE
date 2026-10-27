@@ -320,8 +320,8 @@ class RepositorioTrazosSQL:
                 text(
                     f"""
                     select e.id, e.trazo_id, e.tipo_nodo, e.actividad_id,
-                           e.prototipo_nodo_id, e.medida, e.factor, e.vigente,
-                           {_MEDIDA_VALOR_SQL} as medida_valor
+                           e.prototipo_nodo_id, e.matriz_concepto_id, e.medida, e.factor,
+                           e.vigente, {_MEDIDA_VALOR_SQL} as medida_valor
                       from enlace_cuantificacion e
                       join trazo t on t.id = e.trazo_id
                       join plano p on p.id = t.plano_id
@@ -360,6 +360,7 @@ class RepositorioEnlacesCuantificacionSQL:
         medida: str,
         factor: Decimal,
         vigente: bool = True,
+        matriz_concepto_id: UUID | None = None,
     ) -> UUID:
         """`tipo_nodo` no se pide: se deriva de cuál de
         `actividad_id`/`prototipo_nodo_id` llegó lleno, igual que
@@ -373,14 +374,14 @@ class RepositorioEnlacesCuantificacionSQL:
                     """
                     insert into enlace_cuantificacion
                         (org_id, trazo_id, tipo_nodo, actividad_id,
-                         prototipo_nodo_id, medida, factor, vigente)
+                         prototipo_nodo_id, medida, factor, vigente, matriz_concepto_id)
                     values
                         (cast(current_setting('app.org_id') as uuid),
                          :trazo_id, cast(:tipo_nodo as tipo_nodo_cuantificacion),
                          cast(:actividad_id as uuid),
                          cast(:prototipo_nodo_id as uuid),
                          cast(:medida as medida_cuantificacion),
-                         :factor, :vigente)
+                         :factor, :vigente, cast(:matriz_concepto_id as uuid))
                     returning id
                     """
                 ),
@@ -394,6 +395,7 @@ class RepositorioEnlacesCuantificacionSQL:
                     "medida": medida,
                     "factor": factor,
                     "vigente": vigente,
+                    "matriz_concepto_id": str(matriz_concepto_id) if matriz_concepto_id else None,
                 },
             )
         ).scalar_one()
@@ -405,7 +407,7 @@ class RepositorioEnlacesCuantificacionSQL:
                 text(
                     """
                     select id, trazo_id, tipo_nodo, actividad_id,
-                           prototipo_nodo_id, medida, factor, vigente,
+                           prototipo_nodo_id, matriz_concepto_id, medida, factor, vigente,
                            created_at
                       from enlace_cuantificacion
                      where id = :id
@@ -428,6 +430,7 @@ class RepositorioEnlacesCuantificacionSQL:
         tipo_nodo: str,
         actividad_id: UUID | None,
         prototipo_nodo_id: UUID | None,
+        matriz_concepto_id: UUID | None = None,
     ) -> list[dict[str, Any]]:
         filas = (
             await self._sesion.execute(
@@ -445,9 +448,12 @@ class RepositorioEnlacesCuantificacionSQL:
                          or (cast(:prototipo_nodo_id as uuid) is not null
                              and e.prototipo_nodo_id = cast(:prototipo_nodo_id as uuid))
                        )
+                       -- La actividad entera no suma sus matrices internas, ni al revés.
+                       and e.matriz_concepto_id is not distinct from cast(:matriz_concepto_id as uuid)
                     """
                 ),
                 {
+                    "matriz_concepto_id": str(matriz_concepto_id) if matriz_concepto_id else None,
                     "tipo_nodo": tipo_nodo,
                     "actividad_id": str(actividad_id) if actividad_id else None,
                     "prototipo_nodo_id": (
@@ -465,11 +471,13 @@ class RepositorioEnlacesCuantificacionSQL:
             await self._sesion.execute(
                 text(
                     """
-                    select distinct e.tipo_nodo, e.actividad_id, e.prototipo_nodo_id
+                    select distinct e.tipo_nodo, e.actividad_id, e.prototipo_nodo_id,
+                                    e.matriz_concepto_id
                       from enlace_cuantificacion e
                       join trazo t on t.id = e.trazo_id
                      where t.plano_id = :plano_id and e.vigente
-                     order by e.tipo_nodo, e.actividad_id, e.prototipo_nodo_id
+                     order by e.tipo_nodo, e.actividad_id, e.prototipo_nodo_id,
+                              e.matriz_concepto_id
                     """
                 ),
                 {"plano_id": str(plano_id)},
@@ -483,7 +491,7 @@ class RepositorioEnlacesCuantificacionSQL:
                 text(
                     f"""
                     select e.id, e.tipo_nodo, e.actividad_id,
-                           e.prototipo_nodo_id, e.medida, e.factor, e.vigente,
+                           e.prototipo_nodo_id, e.matriz_concepto_id, e.medida, e.factor, e.vigente,
                            {_MEDIDA_VALOR_SQL} as medida_valor,
                            (t.version_plano < p.version) as por_revisar,
                            coalesce(a.descripcion, pn.nombre) as descripcion,
@@ -571,3 +579,92 @@ class RepositorioNotasPlanoSQL:
             }
             for fila in filas
         ]
+
+
+class RepositorioMatricesSQL:
+    """Las matrices internas de una actividad y su cantidad medida (migración 0085, D-583)."""
+
+    def __init__(self, sesion: AsyncSession) -> None:
+        self._sesion = sesion
+
+    async def fijar_cantidad(
+        self, *, actividad_id: UUID, concepto_id: UUID, cantidad: Decimal | None
+    ) -> None:
+        if cantidad is None:
+            await self._sesion.execute(
+                text("delete from actividad_matriz where actividad_id = :a and concepto_id = :c"),
+                {"a": str(actividad_id), "c": str(concepto_id)},
+            )
+            return
+        await self._sesion.execute(
+            text(
+                """
+                insert into actividad_matriz (org_id, obra_id, actividad_id, concepto_id, cantidad_medida)
+                select a.org_id, a.obra_id, a.id, cast(:concepto as uuid), :cantidad
+                  from actividad a where a.id = :actividad
+                on conflict (actividad_id, concepto_id) do update
+                   set cantidad_medida = excluded.cantidad_medida, actualizada_en = now()
+                """
+            ),
+            {"actividad": str(actividad_id), "concepto": str(concepto_id), "cantidad": cantidad},
+        )
+
+    async def arbol_de_actividad(self, actividad_id: UUID) -> dict[str, Any] | None:
+        act = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select a.id, a.concepto_id, a.cant_base, a.precio_unitario, c.clave as concepto_clave,
+                           coalesce(a.descripcion, c.descripcion, '') as descripcion
+                      from actividad a left join concepto c on c.id = a.concepto_id
+                     where a.id = :id
+                    """
+                ),
+                {"id": str(actividad_id)},
+            )
+        ).mappings().first()
+        if act is None:
+            return None
+        matrices: list[dict[str, Any]] = []
+        if act["concepto_id"] is not None:
+            filas = (
+                await self._sesion.execute(
+                    text(
+                        """
+                        with recursive arbol as (
+                            select e.concepto_hijo_id as concepto_id, e.concepto_id as padre_id,
+                                   1 as nivel, e.cantidad::numeric as unitaria, e.cantidad::numeric as acumulada,
+                                   array[e.concepto_id, e.concepto_hijo_id] as ruta, e.orden
+                              from explosion e
+                             where e.concepto_id = :raiz and e.tipo_hijo = 'concepto'
+                               and (e.cpu_id is null
+                                    or exists (select 1 from cpu k where k.id = e.cpu_id and k.vigente))
+                            union all
+                            select e.concepto_hijo_id, e.concepto_id, ar.nivel + 1, e.cantidad::numeric,
+                                   ar.acumulada * e.cantidad, ar.ruta || e.concepto_hijo_id, e.orden
+                              from arbol ar
+                              join explosion e on e.concepto_id = ar.concepto_id
+                             where e.tipo_hijo = 'concepto' and ar.nivel < 8
+                               and not e.concepto_hijo_id = any(ar.ruta)
+                               and (e.cpu_id is null
+                                    or exists (select 1 from cpu k where k.id = e.cpu_id and k.vigente))
+                        )
+                        select ar.concepto_id, ar.padre_id, ar.nivel, ar.unitaria, ar.acumulada,
+                               ar.ruta, c.clave, c.descripcion, u.clave as unidad,
+                               coalesce((select k.precio_unitario from cpu k
+                                          where k.concepto_id = ar.concepto_id and k.vigente
+                                          order by k.version desc limit 1), 0) as precio_unitario,
+                               m.cantidad_medida
+                          from arbol ar
+                          join concepto c on c.id = ar.concepto_id
+                          left join unidad u on u.id = c.unidad_id
+                          left join actividad_matriz m
+                                 on m.actividad_id = :actividad and m.concepto_id = ar.concepto_id
+                         order by ar.ruta, ar.orden
+                        """
+                    ),
+                    {"raiz": str(act["concepto_id"]), "actividad": str(actividad_id)},
+                )
+            ).mappings().all()
+            matrices = [dict(f) for f in filas]
+        return {**dict(act), "matrices": matrices}

@@ -132,6 +132,7 @@ class RepositorioEnlacesCuantificacion(Protocol):
         medida: str,
         factor: Decimal,
         vigente: bool = True,
+        matriz_concepto_id: UUID | None = None,
     ) -> UUID: ...
 
     async def obtener(self, enlace_id: UUID) -> dict[str, Any] | None: ...
@@ -149,8 +150,10 @@ class RepositorioEnlacesCuantificacion(Protocol):
         tipo_nodo: str,
         actividad_id: UUID | None,
         prototipo_nodo_id: UUID | None,
+        matriz_concepto_id: UUID | None = None,
     ) -> list[dict[str, Any]]:
-        """Todos los enlaces —vigentes y no vigentes— de un mismo nodo, con
+        """Todos los enlaces —vigentes y no vigentes— de un mismo nodo (con `matriz_concepto_id`,
+        solo los de esa matriz interna de la actividad; sin él, solo los de la actividad entera), con
         su `medida_valor` ya calculado (`ST_Area`/`ST_Perimeter`/
         `ST_Length` sobre `trazo.geometria`, o `1` si `medida == 'conteo'`)
         y su `factor`, para que
@@ -190,3 +193,23 @@ class RepositorioNotasPlano(Protocol):
     ) -> UUID: ...
 
     async def de_plano(self, plano_id: UUID) -> list[dict[str, Any]]: ...
+
+
+@runtime_checkable
+class RepositorioMatrices(Protocol):
+    """Las matrices internas de una actividad —un insumo de la receta que es otra matriz— y su
+    cantidad medida en esa obra (migración 0085; cerebro D-583)."""
+
+    async def fijar_cantidad(
+        self, *, actividad_id: UUID, concepto_id: UUID, cantidad: Decimal | None
+    ) -> None:
+        """Escribe la cantidad medida (derivada de los enlaces vigentes) de una matriz; `None`
+        la deja sin medir."""
+        ...
+
+    async def arbol_de_actividad(self, actividad_id: UUID) -> dict[str, Any] | None:
+        """`{actividad_id, concepto_clave, cant_base, precio_unitario, matrices: [...]}` con las
+        matrices internas del concepto de la actividad, a cualquier profundidad, o `None` si no se
+        ve. Cada matriz: `{concepto_id, padre_id, nivel, clave, descripcion, unidad, ruta,
+        cantidad_unitaria, acumulada, precio_unitario, cantidad_medida}`."""
+        ...

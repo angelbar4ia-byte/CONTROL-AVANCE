@@ -67,8 +67,15 @@ class EnlaceCuantificacion:
     medida: MedidaCuantificacion
     factor: Decimal
     vigente: bool = True
+    matriz_concepto_id: str | None = None
+    """La matriz interna de la actividad que se mide (D-583); solo con `actividad_id`."""
 
     def __post_init__(self) -> None:
+        if self.matriz_concepto_id is not None and self.actividad_id is None:
+            raise ErrorDeCuantificacion(
+                "Una matriz interna se mide dentro de una actividad: sin actividad no hay "
+                "matriz que cuantificar (0085, D-583)."
+            )
         tiene_actividad = self.actividad_id is not None
         tiene_prototipo = self.prototipo_nodo_id is not None
         if tiene_actividad == tiene_prototipo:

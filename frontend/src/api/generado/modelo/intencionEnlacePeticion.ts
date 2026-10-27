@@ -9,6 +9,7 @@ import type { MedidaCuantificacion } from "./medidaCuantificacion";
 import type { IntencionEnlacePeticionFactor } from "./intencionEnlacePeticionFactor";
 import type { IntencionEnlacePeticionActividadId } from "./intencionEnlacePeticionActividadId";
 import type { IntencionEnlacePeticionPrototipoNodoId } from "./intencionEnlacePeticionPrototipoNodoId";
+import type { IntencionEnlacePeticionMatrizConceptoId } from "./intencionEnlacePeticionMatrizConceptoId";
 
 /**
  * Un enlace querido, dentro del mismo alta de trazo (MODELO.md §1b,
@@ -21,4 +22,6 @@ export interface IntencionEnlacePeticion {
   factor: IntencionEnlacePeticionFactor;
   actividad_id?: IntencionEnlacePeticionActividadId;
   prototipo_nodo_id?: IntencionEnlacePeticionPrototipoNodoId;
+  /** Si lo que se mide es una matriz interna de la actividad (nervaduras, trabes…) y no la actividad entera (D-583). Solo con `actividad_id`. */
+  matriz_concepto_id?: IntencionEnlacePeticionMatrizConceptoId;
 }
