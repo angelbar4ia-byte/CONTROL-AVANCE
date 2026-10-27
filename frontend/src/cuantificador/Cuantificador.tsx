@@ -63,7 +63,9 @@ import { fmtFecha, fmtNum } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { SelectorObra } from '@/lib/SelectorObra';
 import { AltaNota } from './AltaNota';
+import { OpcionesDeContorno } from './OpcionesDeContorno';
 import { OpcionesDeNota, type ClaseDeNota } from './OpcionesDeNota';
+import { bloqueDeTipo, NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
 import { girar, rotacionValida, type VistaDelPlano } from './vista';
 import { AltaPlano } from './AltaPlano';
 import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
@@ -79,6 +81,10 @@ import { crearHistorial } from './historial';
 import { AyudasDeDibujo } from './AyudasDeDibujo';
 import {
   CLICS_DE_FORMA,
+  contornoCerrado,
+  siguienteTramo,
+  type ModoDeContorno,
+  type TramoDeContorno,
   GEOMETRIA_DE,
   ajustarAngulo,
   formaDe,
@@ -133,6 +139,10 @@ const HERRAMIENTAS: readonly Herramienta[] = [
   'rectangulo',
   'circulo',
   'elipse',
+  'contorno',
+  'rectangulo_l',
+  'circulo_l',
+  'elipse_l',
   'punto',
   'copiar',
   'hueco',
@@ -153,6 +163,10 @@ const PASOS_DE_LA_FORMA: Readonly<Record<HerramientaDeDibujo, string>> = {
   arco: 'Clic en el inicio, en un punto del arco y en el final',
   polilinea: '',
   poligono: '',
+  contorno: '',
+  rectangulo_l: 'Clic en una esquina y en la opuesta (recorrido cerrado)',
+  circulo_l: 'Clic en el centro y en un punto del borde (recorrido cerrado)',
+  elipse_l: 'Clic en el centro, en el extremo de un eje y en un punto del otro (recorrido cerrado)',
 };
 
 /** Atajo de teclado de cada herramienta de la barra. */
@@ -169,6 +183,7 @@ const ATAJOS: Readonly<Record<string, Herramienta>> = {
   r: 'rectangulo',
   i: 'circulo',
   j: 'elipse',
+  w: 'contorno',
   o: 'punto',
   k: 'copiar',
   e: 'escala',
@@ -252,6 +267,11 @@ export function EspacioDeTrazo({
   const [planoElegido, setPlanoElegido] = useState(planoInicial ?? '');
   const [herramienta, setHerramienta] = useState<Herramienta>('seleccionar');
   const [borrador, setBorrador] = useState<readonly Punto[]>([]);
+  // El contorno mezcla tramos rectos y arcos: cómo se llegó a cada clic después del primero, y cómo es el siguiente.
+  const [tramosContorno, setTramosContorno] = useState<readonly TramoDeContorno[]>([]);
+  const [modoContorno, setModoContorno] = useState<ModoDeContorno>('recto');
+  /** El concepto que se está midiendo (clic en el árbol): manda el tipo de medición y es el que trae el cajón de guardar. */
+  const [conceptoActivo, setConceptoActivo] = useState<string | null>(null);
   // El hueco que se está dibujando sobre el área elegida (la ventana de un muro, el cubo de una
   // escalera). Se descuenta del área al cerrarlo con Enter.
   const [huecoEnCurso, setHuecoEnCurso] = useState<readonly Punto[]>([]);
@@ -482,6 +502,10 @@ export function EspacioDeTrazo({
     'rectangulo',
     'circulo',
     'elipse',
+    'contorno',
+    'rectangulo_l',
+    'circulo_l',
+    'elipse_l',
     'arco',
     'linea',
     'polilinea',
@@ -498,7 +522,9 @@ export function EspacioDeTrazo({
     herramienta === 'poligono' ||
     herramienta === 'polilinea' ||
     herramienta === 'linea' ||
-    herramienta === 'hueco';
+    herramienta === 'hueco' ||
+    // El contorno solo alinea sus tramos rectos, no el punto por donde pasa un arco.
+    (herramienta === 'contorno' && modoContorno === 'recto' && tramosContorno[tramosContorno.length - 1] !== 'am');
 
   /** Un hueco solo se abre sobre un área (un polígono trazado, no una línea con grosor). */
   const areaElegida =
@@ -702,6 +728,7 @@ export function EspacioDeTrazo({
 
   function limpiarDibujo() {
     setBorrador([]);
+    setTramosContorno([]);
     setHuecoEnCurso([]);
     setFormaEstampada(null);
     setAGuardar(null);
@@ -771,6 +798,22 @@ export function EspacioDeTrazo({
       setGuardando(true);
       return;
     }
+    if (forma === 'contorno') {
+      // Un clic sobre el primer vértice (la referencia a objetos lo pega exacto) cierra el contorno.
+      const primero = borrador[0];
+      if (
+        primero &&
+        borrador.length >= 3 &&
+        tramosContorno[tramosContorno.length - 1] !== 'am' &&
+        Math.hypot(p[0] - primero[0], p[1] - primero[1]) < 1e-9
+      ) {
+        cerrarContorno();
+        return;
+      }
+      if (borrador.length > 0) setTramosContorno([...tramosContorno, siguienteTramo(tramosContorno, modoContorno)]);
+      setBorrador([...borrador, p]);
+      return;
+    }
     const clics = [...borrador, p];
     if (clicsDeLaForma !== undefined && clics.length >= clicsDeLaForma) {
       // Rectángulo, círculo, elipse, arco y línea terminan con su último clic.
@@ -785,7 +828,25 @@ export function EspacioDeTrazo({
     setBorrador(clics);
   }
 
+  /** Cierra el contorno: el último vértice se une al primero y lo dibujado es un área. */
+  function cerrarContorno() {
+    const anillo = contornoCerrado(borrador, tramosContorno);
+    if (anillo) {
+      setAGuardar({ tipo: 'poligono', puntos: anillo });
+      setGuardando(true);
+    }
+  }
+
+  function quitarUltimoClic() {
+    setBorrador((a) => a.slice(0, -1));
+    setTramosContorno((t) => t.slice(0, -1));
+  }
+
   function terminar() {
+    if (forma === 'contorno') {
+      cerrarContorno();
+      return;
+    }
     if (forma && forma !== 'punto' && trazoCompleto(GEOMETRIA_DE[forma as HerramientaDeDibujo], borrador)) {
       setAGuardar({ tipo: GEOMETRIA_DE[forma as HerramientaDeDibujo], puntos: borrador });
       setGuardando(true);
@@ -871,7 +932,9 @@ export function EspacioDeTrazo({
       } else if (e.key === 'Backspace') {
         e.preventDefault();
         if (herramienta === 'hueco') setHuecoEnCurso((actual) => actual.slice(0, -1));
-        else setBorrador((actual) => actual.slice(0, -1));
+        else quitarUltimoClic();
+      } else if (e.key.toLowerCase() === 't' && herramienta === 'contorno') {
+        setModoContorno((m) => (m === 'recto' ? 'arco' : 'recto'));
       } else if (e.key === 'Escape') {
         if (herramienta === 'copiar') cambiarHerramienta('seleccionar');
         else limpiarDibujo();
@@ -930,10 +993,14 @@ export function EspacioDeTrazo({
     [actividades, estado.data],
   );
 
-  const filaDeFoco = actividadFocoId
-    ? (estado.data ?? []).find((n) => n.nodo_id === actividadFocoId)
+  const conceptoEnFoco = conceptoActivo ?? actividadFocoId;
+  const filaDeFoco = conceptoEnFoco
+    ? (estado.data ?? []).find((n) => n.nodo_id === conceptoEnFoco)
     : undefined;
-  const actividadDeFoco = actividadFocoId ? porActividad.get(actividadFocoId) : undefined;
+  const actividadDeFoco = conceptoEnFoco ? porActividad.get(conceptoEnFoco) : undefined;
+  /** El tipo de medición que pide el concepto en foco (por su unidad) y el bloque de herramientas que le toca. */
+  const tipoDelConcepto = tipoDeMedicion(actividadDeFoco?.unidad);
+  const bloqueActivo = bloqueDeTipo(tipoDelConcepto);
 
   const herramientasDisponibles: readonly Herramienta[] = puedeAnotar
     ? [...HERRAMIENTAS, HERRAMIENTA_NOTA]
@@ -996,7 +1063,7 @@ export function EspacioDeTrazo({
   const polilineaEnCurso = forma === 'poligono' || forma === 'polilinea' || forma === 'linea';
   const previa =
     forma && forma !== 'punto' && borrador.length > 0
-      ? formaDe(forma as HerramientaDeDibujo, borrador, cursor, baseGrados)
+      ? formaDe(forma as HerramientaDeDibujo, borrador, cursor, baseGrados, tramosContorno)
       : null;
   const bandaEnCurso =
     (forma === 'linea' || forma === 'polilinea') && grosorM !== null && previa && previa.puntos.length >= 2
@@ -1088,7 +1155,7 @@ export function EspacioDeTrazo({
       if (tecla === 'z' && !e.shiftKey) {
         e.preventDefault();
         if (herramienta === 'hueco' && huecoEnCurso.length > 0) setHuecoEnCurso((a) => a.slice(0, -1));
-        else if (forma && borrador.length > 0) setBorrador((a) => a.slice(0, -1));
+        else if (forma && borrador.length > 0) quitarUltimoClic();
         else void deshacerUltimo();
       } else if (tecla === 'y' || (tecla === 'z' && e.shiftKey)) {
         e.preventDefault();
@@ -1327,7 +1394,8 @@ export function EspacioDeTrazo({
           arbol={arbol}
           elegidos={elegidos}
           onElegir={elegirConceptos}
-          actividadFocoId={actividadFocoId}
+          actividadFocoId={conceptoEnFoco}
+          onActivar={(id) => setConceptoActivo((actual) => (actual === id ? null : id))}
         />
       )}
       </div>
@@ -1403,12 +1471,12 @@ export function EspacioDeTrazo({
         </button>
       </div>
 
-      {actividadFocoId && (
+      {conceptoEnFoco && (
         <div className="cuant__renglon" data-testid="renglon-foco">
           <div>
             <div className="text-xs text-mute">Actividad</div>
             <div className="text-sm">
-              <strong>{etiquetaActividad(actividadDeFoco, actividadFocoId)}</strong>
+              <strong>{etiquetaActividad(actividadDeFoco, conceptoEnFoco)}</strong>
               {actividadDeFoco?.descripcion ? ` · ${actividadDeFoco.descripcion}` : ''}
             </div>
           </div>
@@ -1477,6 +1545,7 @@ export function EspacioDeTrazo({
                     : {}),
                 }}
                 interruptores={interruptores}
+                bloqueActivo={bloqueActivo}
                 historial={[
                   {
                     clave: 'deshacer',
@@ -1559,7 +1628,13 @@ export function EspacioDeTrazo({
               </div>
 
               <div className="estacion__paneles">
-                {(herramienta === 'linea' || herramienta === 'polilinea' || herramienta === 'arco' || herramienta === 'punto') && (
+                {(herramienta === 'linea' ||
+                  herramienta === 'polilinea' ||
+                  herramienta === 'arco' ||
+                  herramienta === 'rectangulo_l' ||
+                  herramienta === 'circulo_l' ||
+                  herramienta === 'elipse_l' ||
+                  herramienta === 'punto') && (
                   <OpcionesDeHerramienta
                     herramienta={herramienta === 'punto' ? 'punto' : 'linea'}
                     grosorM={grosorM}
@@ -1573,6 +1648,7 @@ export function EspacioDeTrazo({
                     contornoElegido={contornoElegido}
                   />
                 )}
+                {herramienta === 'contorno' && <OpcionesDeContorno modo={modoContorno} onModo={setModoContorno} />}
                 {herramienta === 'nota' && (
                   <OpcionesDeNota
                     clase={claseDeNota}
@@ -1732,15 +1808,21 @@ export function EspacioDeTrazo({
               {forma && forma !== 'punto' && clicsDeLaForma === undefined && (
                 <>
                   <span className="text-mute text-xs">
-                    {`${borrador.length} vértices · Enter cierra · Retroceso quita · Esc descarta`}
+                    {forma === 'contorno'
+                      ? `${borrador.length} clics · modo ${modoContorno === 'arco' ? 'arco' : 'recto'} (T) · Enter cierra el contorno · Retroceso quita · Esc descarta`
+                      : `${borrador.length} vértices · Enter cierra · Retroceso quita · Esc descarta`}
                   </span>
                   <button
                     type="button"
                     className="btn btn--accent btn--sm"
-                    disabled={!trazoCompleto(GEOMETRIA_DE[forma as HerramientaDeDibujo], borrador)}
+                    disabled={
+                      forma === 'contorno'
+                        ? contornoCerrado(borrador, tramosContorno) === null
+                        : !trazoCompleto(GEOMETRIA_DE[forma as HerramientaDeDibujo], borrador)
+                    }
                     onClick={terminar}
                   >
-                    Terminar trazo
+                    {forma === 'contorno' ? 'Cerrar contorno' : 'Terminar trazo'}
                   </button>
                 </>
               )}
@@ -1788,6 +1870,11 @@ export function EspacioDeTrazo({
             REF
           </button>
           <span>
+            {tipoDelConcepto !== null && (
+              <span data-testid="tipo-del-concepto" title="El tipo de medición sale de la unidad del concepto elegido">
+                {NOMBRE_DE_TIPO[tipoDelConcepto]} ({actividadDeFoco?.unidad}) ·{' '}
+              </span>
+            )}
             {featuresVisibles.length} de {features.length} {features.length === 1 ? 'trazo' : 'trazos'}
             {filtrando ? ' (filtrados)' : ''}
           </span>
@@ -1832,7 +1919,7 @@ export function EspacioDeTrazo({
           pendientePct={aGuardar.tipo === 'linea' ? pendientePct : null}
           forma={formaEstampada}
           actividades={actividades}
-          actividadInicial={actividadFocoId}
+          actividadInicial={conceptoEnFoco}
           nodosDePrototipo={puedeEnlazarPrototipo ? nodosDePrototipo : null}
           onCerrar={() => {
             setGuardando(false);

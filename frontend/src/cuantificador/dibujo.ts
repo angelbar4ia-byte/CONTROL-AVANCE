@@ -131,6 +131,78 @@ export function arco(inicio: Punto, medio: Punto, fin: Punto): Punto[] {
   });
 }
 
+// ── Contorno: línea y arco que se cierran en un área ──────────────────────
+
+/**
+ * Cómo se llegó a cada clic después del primero: `r` un tramo recto desde el vértice anterior; `am`
+ * el punto por donde pasa un arco y `af` donde termina (un arco son dos clics).
+ */
+export type TramoDeContorno = 'r' | 'am' | 'af';
+export type ModoDeContorno = 'recto' | 'arco';
+
+/** El tramo que corresponde al siguiente clic: con un arco a medias, el que lo termina. */
+export function siguienteTramo(tramos: readonly TramoDeContorno[], modo: ModoDeContorno): TramoDeContorno {
+  if (tramos[tramos.length - 1] === 'am') return 'af';
+  return modo === 'arco' ? 'am' : 'r';
+}
+
+/**
+ * El camino que hacen los clics: tramos rectos y arcos. Con `cursor`, además, lo que quedaría si el
+ * siguiente clic fuera ahí (vista previa).
+ */
+export function contornoDe(
+  clics: readonly Punto[],
+  tramos: readonly TramoDeContorno[],
+  cursor: Punto | null,
+): Punto[] {
+  if (clics.length === 0) return [];
+  const camino: Punto[] = [clics[0] as Punto];
+  let i = 1;
+  while (i < clics.length) {
+    const t = tramos[i - 1] ?? 'r';
+    const ultimo = camino[camino.length - 1] as Punto;
+    if (t === 'r') {
+      camino.push(clics[i] as Punto);
+      i += 1;
+    } else if (t === 'am') {
+      if (i + 1 < clics.length) {
+        camino.push(...arco(ultimo, clics[i] as Punto, clics[i + 1] as Punto).slice(1));
+        i += 2;
+      } else {
+        // El arco quedó a medias: pasa por el último clic y termina en el cursor.
+        if (cursor) camino.push(...arco(ultimo, clics[i] as Punto, cursor).slice(1));
+        else camino.push(clics[i] as Punto);
+        return camino;
+      }
+    } else {
+      i += 1; // un `af` suelto no debería existir; se ignora
+    }
+  }
+  if (cursor) camino.push(cursor);
+  return camino;
+}
+
+/**
+ * Los vértices del área en que se convierte el contorno al cerrarlo (el último vértice se une al
+ * primero con un tramo recto), **sin repetir el primero al final**: el WKT de un polígono lo cierra
+ * solo. `null` si no alcanza para un área o hay un arco a medias.
+ */
+export function contornoCerrado(clics: readonly Punto[], tramos: readonly TramoDeContorno[]): Punto[] | null {
+  if (tramos[tramos.length - 1] === 'am') return null;
+  const camino = contornoDe(clics, tramos, null);
+  if (camino.length < 3) return null;
+  const primero = camino[0] as Punto;
+  const ultimo = camino[camino.length - 1] as Punto;
+  const yaCierra = Math.hypot(primero[0] - ultimo[0], primero[1] - ultimo[1]) < 1e-9;
+  const anillo = yaCierra ? camino.slice(0, -1) : camino;
+  return anillo.length >= 3 ? anillo : null;
+}
+
+/** Un anillo abierto, cerrado: el primer punto al final. */
+function cerrar(puntos: readonly Punto[]): Punto[] {
+  return puntos.length > 0 ? [...puntos, puntos[0] as Punto] : [];
+}
+
 // ── Lo que se ve mientras se dibuja, y lo que se guarda ───────────────────
 
 export type HerramientaDeDibujo = Exclude<HerramientaDeTrazo, 'punto'>;
@@ -142,6 +214,9 @@ export const CLICS_DE_FORMA: Readonly<Partial<Record<HerramientaDeTrazo, number>
   circulo: 2,
   elipse: 3,
   arco: 3,
+  rectangulo_l: 2,
+  circulo_l: 2,
+  elipse_l: 3,
 };
 
 /** Qué geometría guarda cada herramienta: un anillo (polígono) o una línea. */
@@ -150,6 +225,12 @@ export const GEOMETRIA_DE: Record<HerramientaDeDibujo, 'poligono' | 'linea'> = {
   rectangulo: 'poligono',
   circulo: 'poligono',
   elipse: 'poligono',
+  // Contorno: línea y arco que, al cerrarse, son un área; nunca queda abierto.
+  contorno: 'poligono',
+  // Recorridos: la misma forma, pero como línea cerrada que mide su longitud (cadenas, trabes, muros).
+  rectangulo_l: 'linea',
+  circulo_l: 'linea',
+  elipse_l: 'linea',
   linea: 'linea',
   polilinea: 'linea',
   arco: 'linea',
@@ -170,6 +251,7 @@ export function formaDe(
   clics: readonly Punto[],
   cursor: Punto | null,
   baseGrados = 0,
+  tramos: readonly TramoDeContorno[] = [],
 ): Forma | null {
   const faltan = (CLICS_DE_FORMA[herramienta] ?? Infinity) - clics.length;
   const puntos = cursor !== null && faltan > 0 ? [...clics, cursor] : [...clics];
@@ -179,14 +261,29 @@ export function formaDe(
     case 'rectangulo':
       if (puntos.length >= 2) resultado = rectangulo(puntos[0] as Punto, puntos[1] as Punto, baseGrados);
       break;
+    case 'rectangulo_l':
+      if (puntos.length >= 2) resultado = cerrar(rectangulo(puntos[0] as Punto, puntos[1] as Punto, baseGrados));
+      break;
     case 'circulo':
       if (puntos.length >= 2) resultado = circulo(puntos[0] as Punto, puntos[1] as Punto);
+      break;
+    case 'circulo_l':
+      if (puntos.length >= 2) resultado = cerrar(circulo(puntos[0] as Punto, puntos[1] as Punto));
       break;
     case 'elipse':
       // Con dos puntos todavía no hay ancho: se ve el eje; con tres, la elipse.
       if (puntos.length === 2) return { tipo: 'linea', puntos };
       if (puntos.length >= 3) resultado = elipse(puntos[0] as Punto, puntos[1] as Punto, puntos[2] as Punto);
       break;
+    case 'elipse_l':
+      if (puntos.length === 2) return { tipo: 'linea', puntos };
+      if (puntos.length >= 3) resultado = cerrar(elipse(puntos[0] as Punto, puntos[1] as Punto, puntos[2] as Punto));
+      break;
+    case 'contorno': {
+      const v = contornoDe(clics, tramos, cursor);
+      // Con tres vértices o más ya se ve como el área que quedaría al cerrarlo.
+      return v.length >= 3 ? { tipo: 'poligono', puntos: v } : v.length === 2 ? { tipo: 'linea', puntos: v } : null;
+    }
     case 'arco':
       if (puntos.length === 2) return { tipo: 'linea', puntos };
       if (puntos.length >= 3) resultado = arco(puntos[0] as Punto, puntos[1] as Punto, puntos[2] as Punto);

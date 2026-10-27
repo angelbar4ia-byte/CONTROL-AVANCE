@@ -58,8 +58,16 @@ function IconoArco({ size = 24, strokeWidth = 2 }: { size?: number | string; str
   );
 }
 
+function IconoContorno({ size = 24, strokeWidth = 2 }: { size?: number | string; strokeWidth?: number | string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 19V8l6-4h4a6 6 0 0 1 6 6v9z" />
+    </svg>
+  );
+}
+
 /** Un icono: los de lucide y los pocos que ahí no hay (elipse, arco). */
-type Icono = LucideIcon | typeof IconoElipse;
+type Icono = LucideIcon | typeof IconoElipse | typeof IconoContorno;
 
 const ICONOS: Record<Herramienta, Icono> = {
   seleccionar: MousePointer,
@@ -72,6 +80,10 @@ const ICONOS: Record<Herramienta, Icono> = {
   rectangulo: RectangleHorizontal,
   circulo: Circle,
   elipse: IconoElipse,
+  contorno: IconoContorno,
+  rectangulo_l: RectangleHorizontal,
+  circulo_l: Circle,
+  elipse_l: IconoElipse,
   punto: MapPin,
   copiar: CopyPlus,
   hueco: SquareMinus,
@@ -91,6 +103,10 @@ export const ETIQUETAS: Record<Herramienta, string> = {
   rectangulo: 'Rectángulo',
   circulo: 'Círculo',
   elipse: 'Elipse',
+  contorno: 'Contorno (línea y arco)',
+  rectangulo_l: 'Rectángulo (recorrido)',
+  circulo_l: 'Círculo (recorrido)',
+  elipse_l: 'Elipse (recorrido)',
   punto: 'Punto',
   copiar: 'Copiar en lote',
   hueco: 'Hueco',
@@ -110,6 +126,10 @@ export const ATAJOS: Record<Herramienta, string> = {
   rectangulo: 'R',
   circulo: 'I',
   elipse: 'J',
+  contorno: 'W',
+  rectangulo_l: '',
+  circulo_l: '',
+  elipse_l: '',
   punto: 'O',
   copiar: 'K',
   hueco: 'U',
@@ -118,11 +138,20 @@ export const ATAJOS: Record<Herramienta, string> = {
   nota: 'N',
 };
 
-const GRUPOS: readonly (readonly Herramienta[])[] = [
-  ['seleccionar', 'mano', 'zoom'],
-  ['linea', 'polilinea', 'arco', 'poligono', 'rectangulo', 'circulo', 'elipse'],
-  ['punto', 'copiar', 'hueco', 'nota', 'borrar'],
-  ['escala'],
+/**
+ * Las herramientas van en bloques por el tipo de medición que hacen: **Área** (siempre cerrada: lo que
+ * se cierra se vuelve área), **Lineal** (largos; el rectángulo, el círculo y la elipse son aquí
+ * recorridos cerrados que miden su longitud) y **Conteo**. El resto —moverse, anotar, borrar,
+ * calibrar— no mide nada y no depende del tipo.
+ */
+export type BloqueDeBarra = 'vista' | 'area' | 'lineal' | 'conteo' | 'otros';
+
+const BLOQUES: readonly { readonly clave: BloqueDeBarra; readonly titulo?: string; readonly herramientas: readonly Herramienta[] }[] = [
+  { clave: 'vista', herramientas: ['seleccionar', 'mano', 'zoom'] },
+  { clave: 'area', titulo: 'Área', herramientas: ['poligono', 'rectangulo', 'circulo', 'elipse', 'contorno', 'hueco'] },
+  { clave: 'lineal', titulo: 'Lineal', herramientas: ['linea', 'polilinea', 'arco', 'rectangulo_l', 'circulo_l', 'elipse_l'] },
+  { clave: 'conteo', titulo: 'Conteo', herramientas: ['punto', 'copiar'] },
+  { clave: 'otros', herramientas: ['nota', 'borrar', 'escala'] },
 ];
 
 export interface Accion {
@@ -185,6 +214,8 @@ interface Props {
   readonly vista?: readonly AccionDeVista[];
   readonly onAlternar: (clave: ClaveDeInterruptor) => void;
   readonly orientacion?: 'vertical' | 'horizontal';
+  /** El tipo del concepto elegido: su bloque se resalta y los otros se atenúan (siguen usables). */
+  readonly bloqueActivo?: 'area' | 'lineal' | 'conteo' | null;
 }
 
 function Boton({
@@ -194,6 +225,7 @@ function Boton({
   onClick,
   deshabilitado,
   titulo,
+  recorrido = false,
 }: {
   readonly etiqueta: string;
   readonly Icono: Icono;
@@ -201,10 +233,13 @@ function Boton({
   readonly onClick: () => void;
   readonly deshabilitado?: boolean;
   readonly titulo: string;
+  /** Un recorrido cerrado (rectángulo, círculo o elipse que miden longitud): se dibuja punteado. */
+  readonly recorrido?: boolean;
 }) {
   return (
     <button
       type="button"
+      data-recorrido={recorrido ? '' : undefined}
       className={activo ? 'btn-icono is-activo' : 'btn-icono'}
       aria-label={etiqueta}
       aria-pressed={activo}
@@ -228,8 +263,11 @@ export function BarraDeHerramientas({
   vista = [],
   onAlternar,
   orientacion = 'vertical',
+  bloqueActivo = null,
 }: Props) {
-  const grupos = GRUPOS.map((g) => g.filter((h) => herramientas.includes(h))).filter((g) => g.length > 0);
+  const grupos = BLOQUES.map((b) => ({ ...b, herramientas: b.herramientas.filter((h) => herramientas.includes(h)) })).filter(
+    (b) => b.herramientas.length > 0,
+  );
   return (
     <div
       className={`barra-iconos barra-iconos--${orientacion}`}
@@ -254,22 +292,38 @@ export function BarraDeHerramientas({
           ))}
         </div>
       )}
-      {grupos.map((grupo, i) => (
-        <div key={i} className="barra-iconos__grupo" role="group">
-          {(i > 0 || historial.length > 0) && <span className="barra-iconos__sep" role="separator" />}
-          {grupo.map((h) => (
-            <Boton
-              key={h}
-              etiqueta={ETIQUETAS[h]}
-              Icono={ICONOS[h]}
-              activo={activa === h}
-              deshabilitado={deshabilitadas[h] !== undefined}
-              titulo={deshabilitadas[h] ?? `${ETIQUETAS[h]} (${ATAJOS[h]})`}
-              onClick={() => onElegir(h)}
-            />
-          ))}
-        </div>
-      ))}
+      {grupos.map((grupo, i) => {
+        const esDeTipo = grupo.clave === 'area' || grupo.clave === 'lineal' || grupo.clave === 'conteo';
+        const clase = [
+          'barra-iconos__grupo',
+          esDeTipo && bloqueActivo === grupo.clave && 'is-resaltado',
+          esDeTipo && bloqueActivo !== null && bloqueActivo !== grupo.clave && 'is-atenuado',
+        ]
+          .filter(Boolean)
+          .join(' ');
+        return (
+          <div key={grupo.clave} className={clase} role="group" aria-label={grupo.titulo} data-bloque={grupo.clave}>
+            {(i > 0 || historial.length > 0) && <span className="barra-iconos__sep" role="separator" />}
+            {grupo.titulo && (
+              <span className="barra-iconos__rotulo" aria-hidden="true">
+                {grupo.titulo}
+              </span>
+            )}
+            {grupo.herramientas.map((h) => (
+              <Boton
+                key={h}
+                etiqueta={ETIQUETAS[h]}
+                Icono={ICONOS[h]}
+                activo={activa === h}
+                deshabilitado={deshabilitadas[h] !== undefined}
+                titulo={deshabilitadas[h] ?? (ATAJOS[h] ? `${ETIQUETAS[h]} (${ATAJOS[h]})` : ETIQUETAS[h])}
+                recorrido={h.endsWith('_l')}
+                onClick={() => onElegir(h)}
+              />
+            ))}
+          </div>
+        );
+      })}
       <div className="barra-iconos__grupo" role="group">
         <span className="barra-iconos__sep" role="separator" />
         {interruptores.map((i) => {

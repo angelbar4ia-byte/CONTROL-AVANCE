@@ -20,6 +20,8 @@ interface Props {
   readonly elegidos: ReadonlySet<string>;
   readonly onElegir: (ids: readonly string[], marcar: boolean) => void;
   readonly actividadFocoId?: string;
+  /** Clic en un concepto: es el que se va a medir. Otro clic lo suelta. */
+  readonly onActivar?: (id: string) => void;
 }
 
 const norm = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -51,7 +53,7 @@ function Casilla({
   );
 }
 
-export function ArbolPresupuesto({ arbol, elegidos, onElegir, actividadFocoId }: Props) {
+export function ArbolPresupuesto({ arbol, elegidos, onElegir, actividadFocoId, onActivar }: Props) {
   // Todo abierto al empezar: el árbol de una obra cabe y lo que se busca no debe esconderse.
   const [cerradas, setCerradas] = useState<ReadonlySet<string>>(new Set());
   const [conMatrices, setConMatrices] = useState<ReadonlySet<string>>(new Set());
@@ -162,9 +164,21 @@ export function ArbolPresupuesto({ arbol, elegidos, onElegir, actividadFocoId }:
                                 >
                                   <span className="arbol__giro" aria-hidden />
                                   <Casilla ids={[hoja.id]} elegidos={elegidos} etiqueta={hoja.etiqueta} onElegir={onElegir} />
-                                  <span className="arbol__texto" title={hoja.etiqueta}>
-                                    {hoja.etiqueta}
-                                  </span>
+                                  {onActivar ? (
+                                    <button
+                                      type="button"
+                                      className="arbol__texto arbol__activar"
+                                      title={hoja.etiqueta}
+                                      aria-pressed={hoja.id === actividadFocoId}
+                                      onClick={() => onActivar(hoja.id)}
+                                    >
+                                      {hoja.etiqueta}
+                                    </button>
+                                  ) : (
+                                    <span className="arbol__texto" title={hoja.etiqueta}>
+                                      {hoja.etiqueta}
+                                    </span>
+                                  )}
                                   <span className="arbol__meta">
                                   {!hoja.medido && <span className="badge badge--outline">Sin medir</span>}
                                   {hoja.porRevisar > 0 && (
