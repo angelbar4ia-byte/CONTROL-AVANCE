@@ -7,6 +7,7 @@
  */
 import type { MedicionRespuestaParentId } from "./medicionRespuestaParentId";
 import type { MedicionRespuestaTipo } from "./medicionRespuestaTipo";
+import type { MedicionRespuestaElemento } from "./medicionRespuestaElemento";
 import type { AsignacionRespuesta } from "./asignacionRespuesta";
 
 export interface MedicionRespuesta {
@@ -23,5 +24,7 @@ export interface MedicionRespuesta {
    */
   valor: string;
   unidad: string;
+  /** El elemento con peso de esta medición (0089); alimenta conceptos en kg o ton. */
+  elemento?: MedicionRespuestaElemento;
   asignaciones: AsignacionRespuesta[];
 }

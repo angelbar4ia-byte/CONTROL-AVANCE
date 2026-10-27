@@ -18,4 +18,6 @@ export interface AsignacionRespuesta {
   medida: string;
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   factor: string;
+  /** El factor es el peso del elemento de la medición (kg o ton). */
+  usa_peso?: boolean;
 }

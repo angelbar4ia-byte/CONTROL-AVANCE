@@ -14,4 +14,6 @@ export interface AsignacionPeticion {
   matriz_concepto_id?: AsignacionPeticionMatrizConceptoId;
   medida: AsignacionPeticionMedida;
   factor?: AsignacionPeticionFactor;
+  /** El factor es el peso del elemento de la medición, convertido a la unidad del concepto (kg o ton): la medición derivada. Si cambia el peso, la asignación se rehace sola. */
+  usar_peso?: boolean;
 }

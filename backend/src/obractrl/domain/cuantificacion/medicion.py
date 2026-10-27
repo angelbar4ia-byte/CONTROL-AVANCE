@@ -8,12 +8,16 @@ nombre. Nada de SQL ni de PostGIS (§12.11).
 
 from __future__ import annotations
 
+from decimal import ROUND_HALF_UP, Decimal
+
 from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 
 __all__ = [
     "MEDIDAS_POR_TIPO",
+    "MEDIDA_BASE_DEL_PESO",
     "TIPOS_DE_MEDICION",
     "admite_geometria",
+    "factor_por_peso",
     "medida_admitida",
     "motivo_de_incompatibilidad",
     "normalizar_nombre",
@@ -72,3 +76,25 @@ def motivo_de_incompatibilidad(tipo: str, geometria: str, tiene_forma: bool) -> 
         f"Una medición {_NOMBRE_DE_TIPO.get(tipo, tipo)} no admite {que}: "
         "área admite áreas, lineal admite líneas y conteo admite puntos y piezas estampadas."
     )
+
+
+#: La medida cuya unidad es la del peso de un elemento: kg por pieza → conteo; por metro → longitud;
+#: por m² → área.
+MEDIDA_BASE_DEL_PESO = {"conteo": "conteo", "lineal": "longitud", "area": "area"}
+
+_UNIDADES_DE_PESO = {"kg": Decimal(1), "ton": Decimal("0.001")}
+
+
+def factor_por_peso(peso_kg: Decimal, unidad: str | None) -> Decimal:
+    """El factor del enlace que convierte la medición de un elemento al concepto en kg o ton: el peso
+    del elemento, ÷ 1000 si el concepto es en toneladas. Seis decimales, como la columna."""
+    clave = (unidad or "").strip().lower()
+    if clave not in _UNIDADES_DE_PESO:
+        raise ErrorDeCuantificacion(
+            "El peso de un elemento solo alimenta conceptos en kg o ton; este concepto es en "
+            f"«{unidad or 'sin unidad'}»."
+        )
+    factor = (Decimal(peso_kg) * _UNIDADES_DE_PESO[clave]).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+    if factor <= 0:
+        raise ErrorDeCuantificacion("Ese peso en toneladas es demasiado chico: redondea a cero.")
+    return factor

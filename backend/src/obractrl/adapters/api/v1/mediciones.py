@@ -15,16 +15,18 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 
-from obractrl.adapters.api.casos_uso import GestionarMedicionesDep
+from obractrl.adapters.api.casos_uso import GestionarElementosDep, GestionarMedicionesDep
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.adapters.api.v1.cuantificacion import (
     ROLES_QUE_TRAZAN,
     ResultadoRecalculoRespuesta,
 )
+from obractrl.application.casos_uso.elementos import ComandoCrearElemento
 from obractrl.application.casos_uso.mediciones import (
     ComandoCrearAsignacion,
     ComandoCrearMedicion,
 )
+from obractrl.domain.shared.diccionario import Rol
 
 router = APIRouter(tags=["mediciones"])
 
@@ -43,6 +45,13 @@ class AsignacionRespuesta(BaseModel):
     matriz_clave: str | None = None
     medida: str
     factor: Decimal
+    usa_peso: bool = Field(default=False, description="El factor es el peso del elemento de la medición (kg o ton).")
+
+
+class ElementoDeMedicion(BaseModel):
+    id: UUID
+    nombre: str
+    peso_kg: Decimal
 
 
 class MedicionRespuesta(BaseModel):
@@ -56,6 +65,9 @@ class MedicionRespuesta(BaseModel):
         description="Lo que miden esos trazos: m² (área), m (lineal) o piezas (conteo), ya con la escala del plano."
     )
     unidad: str
+    elemento: ElementoDeMedicion | None = Field(
+        default=None, description="El elemento con peso de esta medición (0089); alimenta conceptos en kg o ton."
+    )
     asignaciones: list[AsignacionRespuesta]
 
 
@@ -80,6 +92,13 @@ class AsignacionPeticion(BaseModel):
     matriz_concepto_id: UUID | None = None
     medida: MedidaDeAsignacion
     factor: Decimal = Field(default=Decimal(1), gt=0)
+    usar_peso: bool = Field(
+        default=False,
+        description=(
+            "El factor es el peso del elemento de la medición, convertido a la unidad del concepto (kg o "
+            "ton): la medición derivada. Si cambia el peso, la asignación se rehace sola."
+        ),
+    )
 
 
 class AsignacionCreada(BaseModel):
@@ -114,6 +133,11 @@ async def listar_mediciones(plano_id: UUID, caso_uso: GestionarMedicionesDep) ->
             n_trazos=int(f["n_trazos"]),
             valor=Decimal(str(f["valor"])),
             unidad=_UNIDAD[f["tipo"]],
+            elemento=(
+                ElementoDeMedicion(id=f["elemento_id"], nombre=f["elemento_nombre"], peso_kg=f["elemento_peso_kg"])
+                if f["elemento_id"]
+                else None
+            ),
             asignaciones=[
                 AsignacionRespuesta(
                     id=a["id"],
@@ -124,6 +148,7 @@ async def listar_mediciones(plano_id: UUID, caso_uso: GestionarMedicionesDep) ->
                     matriz_clave=a["matriz_clave"],
                     medida=a["medida"],
                     factor=a["factor"],
+                    usa_peso=a["usa_peso"],
                 )
                 for a in f["asignaciones"]
             ],
@@ -173,16 +198,20 @@ async def renombrar_medicion(
 
 @router.delete(
     "/mediciones/{medicion_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Borrar una medición sin asignaciones ni submediciones (sus trazos quedan sueltos)",
+    response_model=TrazoEnMedicionRespuesta,
+    summary="Borrar una medición y sus asignaciones (sus trazos quedan sueltos)",
     dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
     responses={
         404: {"description": "La medición no existe o está fuera de tu alcance."},
-        422: {"description": "Alimenta conceptos o tiene submediciones."},
+        422: {"description": "Tiene submediciones."},
     },
 )
-async def eliminar_medicion(medicion_id: UUID, caso_uso: GestionarMedicionesDep) -> None:
-    await caso_uso.eliminar(medicion_id)
+async def eliminar_medicion(
+    medicion_id: UUID, ctx: ContextoActual, caso_uso: GestionarMedicionesDep
+) -> TrazoEnMedicionRespuesta:
+    """Los enlaces de sus asignaciones quedan como evidencia (no vigentes) y los conceptos se recalculan."""
+    recalculos = await caso_uso.eliminar(medicion_id, usuario_id=ctx.usuario_id, detectada_en=datetime.now(UTC))
+    return TrazoEnMedicionRespuesta(recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in recalculos])
 
 
 @router.put(
@@ -240,6 +269,7 @@ async def asignar_medicion(
             matriz_concepto_id=peticion.matriz_concepto_id,
             medida=peticion.medida,
             factor=peticion.factor,
+            usar_peso=peticion.usar_peso,
             autor_id=ctx.usuario_id,
         ),
         detectada_en=datetime.now(UTC),
@@ -270,3 +300,130 @@ async def quitar_asignacion(
         trazos_enlazados=resultado.trazos_enlazados,
         recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos],
     )
+
+
+# --- Elementos con peso (migración 0089) -----------------------------------------------------------------
+
+ROLES_QUE_PONEN_PESO = (Rol.CONTROL_OBRA, Rol.COSTOS)
+"""El peso de un elemento cambia cantidades de presupuesto (kg y ton): lo ponen Control de obra y Costos."""
+
+
+class ElementoRespuesta(BaseModel):
+    id: UUID
+    nombre: str
+    tipo: TipoDeMedicion
+    peso_kg: Decimal = Field(description="kg por pieza (conteo), por metro (lineal) o por m² (área).")
+    n_mediciones: int = Field(description="Mediciones que lo usan.")
+
+
+class ElementoPeticion(BaseModel):
+    nombre: str = Field(min_length=1, max_length=80)
+    tipo: TipoDeMedicion
+    peso_kg: Decimal = Field(gt=0)
+
+
+class ElementoCambio(BaseModel):
+    nombre: str | None = Field(default=None, min_length=1, max_length=80)
+    peso_kg: Decimal | None = Field(default=None, gt=0)
+
+
+class ElementoPuestoEnMedicion(BaseModel):
+    elemento_id: UUID | None = Field(default=None, description="`null` le quita el elemento a la medición.")
+
+
+@router.get(
+    "/elementos",
+    response_model=list[ElementoRespuesta],
+    summary="Los elementos con peso de la organización (K1, varilla 3/8…)",
+)
+async def listar_elementos(caso_uso: GestionarElementosDep) -> list[ElementoRespuesta]:
+    return [
+        ElementoRespuesta(
+            id=f["id"], nombre=f["nombre"], tipo=f["tipo"], peso_kg=f["peso_kg"], n_mediciones=int(f["n_mediciones"])
+        )
+        for f in await caso_uso.listar()
+    ]
+
+
+@router.post(
+    "/elementos",
+    response_model=MedicionCreada,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear un elemento con peso",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_PONEN_PESO))],
+    responses={
+        403: {"description": "El peso lo ponen Control de obra y Costos."},
+        422: {"description": "Nombre repetido, vacío o peso no positivo."},
+    },
+)
+async def crear_elemento(
+    peticion: ElementoPeticion, ctx: ContextoActual, caso_uso: GestionarElementosDep
+) -> MedicionCreada:
+    elemento_id = await caso_uso.crear(
+        ComandoCrearElemento(
+            nombre=peticion.nombre, tipo=peticion.tipo, peso_kg=peticion.peso_kg, autor_id=ctx.usuario_id
+        )
+    )
+    return MedicionCreada(id=elemento_id)
+
+
+@router.patch(
+    "/elementos/{elemento_id}",
+    response_model=TrazoEnMedicionRespuesta,
+    summary="Cambiar el nombre o el peso de un elemento (rehace las asignaciones que lo usan)",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_PONEN_PESO))],
+    responses={
+        403: {"description": "El peso lo ponen Control de obra y Costos."},
+        404: {"description": "El elemento no existe o está fuera de tu alcance."},
+    },
+)
+async def actualizar_elemento(
+    elemento_id: UUID, peticion: ElementoCambio, ctx: ContextoActual, caso_uso: GestionarElementosDep
+) -> TrazoEnMedicionRespuesta:
+    """Un peso nuevo rehace de inmediato las asignaciones por peso: sus enlaces quedan como evidencia y
+    los nuevos llevan el factor al día; los conceptos en kg o ton se recalculan."""
+    recalculos = await caso_uso.actualizar(
+        elemento_id,
+        nombre=peticion.nombre,
+        peso_kg=peticion.peso_kg,
+        usuario_id=ctx.usuario_id,
+        detectada_en=datetime.now(UTC),
+    )
+    return TrazoEnMedicionRespuesta(recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in recalculos])
+
+
+@router.delete(
+    "/elementos/{elemento_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Borrar un elemento que ningún concepto usa por su peso",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_PONEN_PESO))],
+    responses={
+        403: {"description": "El peso lo ponen Control de obra y Costos."},
+        404: {"description": "El elemento no existe o está fuera de tu alcance."},
+        422: {"description": "Hay conceptos que reciben cantidad con su peso."},
+    },
+)
+async def eliminar_elemento(elemento_id: UUID, caso_uso: GestionarElementosDep) -> None:
+    await caso_uso.eliminar(elemento_id)
+
+
+@router.put(
+    "/mediciones/{medicion_id}/elemento",
+    response_model=TrazoEnMedicionRespuesta,
+    summary="Darle a una medición un elemento con peso, o quitárselo",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        404: {"description": "La medición o el elemento no existen o están fuera de tu alcance."},
+        422: {"description": "El elemento es de otro tipo, o la medición alimenta conceptos con su peso."},
+    },
+)
+async def poner_elemento_en_medicion(
+    medicion_id: UUID,
+    peticion: ElementoPuestoEnMedicion,
+    ctx: ContextoActual,
+    caso_uso: GestionarMedicionesDep,
+) -> TrazoEnMedicionRespuesta:
+    recalculos = await caso_uso.poner_elemento(
+        medicion_id, peticion.elemento_id, usuario_id=ctx.usuario_id, detectada_en=datetime.now(UTC)
+    )
+    return TrazoEnMedicionRespuesta(recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in recalculos])

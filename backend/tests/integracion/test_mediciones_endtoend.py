@@ -183,25 +183,24 @@ async def test_asignar_una_medicion_enlaza_sus_trazos_y_los_de_sus_submediciones
     assert not any(e["vigente"] for e in nuevo["properties"]["enlaces"])
     assert await _cantidad(control, escenario) == 156
 
-    # Quitar la asignación deja el concepto sin esa cantidad, y la medición ya se puede borrar.
-    assert (await control.delete(f"/api/v1/mediciones/{losa}")).status_code == 422  # alimenta un concepto
+    # Quitar la asignación deja el concepto sin esa cantidad.
     q = await control.delete(f"/api/v1/asignaciones-de-medicion/{asignacion}")
     assert q.status_code == 200, q.text
     assert q.json()["trazos_enlazados"] == 2
     assert await _cantidad(control, escenario) == 40  # queda el perímetro de la recámara 1
-    assert (await control.delete(f"/api/v1/mediciones/{losa}")).status_code == 422  # todavía tiene recámaras
-    for hija in (r1, r2):
-        for a in next(m for m in (await control.get(f"/api/v1/planos/{plano}/mediciones")).json() if m["id"] == hija)[
-            "asignaciones"
-        ]:
-            assert (await control.delete(f"/api/v1/asignaciones-de-medicion/{a['id']}")).status_code == 200
-        assert (await control.delete(f"/api/v1/mediciones/{hija}")).status_code == 204
-    assert await _cantidad(control, escenario) == 0
-    assert (await control.delete(f"/api/v1/mediciones/{losa}")).status_code == 204
+
+    # Una medición con submediciones no se borra; sin ellas, sí, y **con sus asignaciones**.
+    assert (await control.delete(f"/api/v1/mediciones/{losa}")).status_code == 422
+    borrada = await control.delete(f"/api/v1/mediciones/{r1}")  # tenía la asignación del perímetro
+    assert borrada.status_code == 200, borrada.text
+    assert await _cantidad(control, escenario) == 0  # su asignación se fue con ella
+    assert (await control.delete(f"/api/v1/mediciones/{r2}")).status_code == 200
+    assert (await control.delete(f"/api/v1/mediciones/{losa}")).status_code == 200
     # Los trazos de las recámaras borradas quedan sueltos, no desaparecen.
     trazos = (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"]
     assert {f["id"] for f in trazos} >= {t1, t2}
     assert all(f["properties"]["medicion_id"] is None for f in trazos)
+    assert not any(e["vigente"] for f in trazos for e in f["properties"]["enlaces"])
 
 
 async def test_un_trazo_nuevo_en_una_medicion_de_otro_tipo_se_rechaza_sin_guardarlo(

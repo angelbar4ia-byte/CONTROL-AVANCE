@@ -492,6 +492,7 @@ async def aplicar_asignaciones_a_trazo(
             medida=MedidaCuantificacion(a["medida"]),
             factor=Decimal(str(a["factor"])),
             matriz_concepto_id=str(a["matriz_concepto_id"]) if a["matriz_concepto_id"] else None,
+            derivado=bool(a.get("usa_peso")),
         )
         await enlaces.crear(
             trazo_id=trazo_id,

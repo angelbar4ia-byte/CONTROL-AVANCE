@@ -10376,7 +10376,8 @@
         "tags": [
           "mediciones"
         ],
-        "summary": "Borrar una medición sin asignaciones ni submediciones (sus trazos quedan sueltos)",
+        "summary": "Borrar una medición y sus asignaciones (sus trazos quedan sueltos)",
+        "description": "Los enlaces de sus asignaciones quedan como evidencia (no vigentes) y los conceptos se recalculan.",
         "operationId": "eliminar_medicion_api_v1_mediciones__medicion_id__delete",
         "security": [
           {
@@ -10396,14 +10397,21 @@
           }
         ],
         "responses": {
-          "204": {
-            "description": "Successful Response"
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrazoEnMedicionRespuesta"
+                }
+              }
+            }
           },
           "404": {
             "description": "La medición no existe o está fuera de tu alcance."
           },
           "422": {
-            "description": "Alimenta conceptos o tiene submediciones."
+            "description": "Tiene submediciones."
           }
         }
       }
@@ -10566,6 +10574,233 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/elementos": {
+      "get": {
+        "tags": [
+          "mediciones"
+        ],
+        "summary": "Los elementos con peso de la organización (K1, varilla 3/8…)",
+        "operationId": "listar_elementos_api_v1_elementos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ElementoRespuesta"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Elementos Api V1 Elementos Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "mediciones"
+        ],
+        "summary": "Crear un elemento con peso",
+        "operationId": "crear_elemento_api_v1_elementos_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementoPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicionCreada"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El peso lo ponen Control de obra y Costos."
+          },
+          "422": {
+            "description": "Nombre repetido, vacío o peso no positivo."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/elementos/{elemento_id}": {
+      "patch": {
+        "tags": [
+          "mediciones"
+        ],
+        "summary": "Cambiar el nombre o el peso de un elemento (rehace las asignaciones que lo usan)",
+        "description": "Un peso nuevo rehace de inmediato las asignaciones por peso: sus enlaces quedan como evidencia y\nlos nuevos llevan el factor al día; los conceptos en kg o ton se recalculan.",
+        "operationId": "actualizar_elemento_api_v1_elementos__elemento_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementoCambio"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrazoEnMedicionRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El peso lo ponen Control de obra y Costos."
+          },
+          "404": {
+            "description": "El elemento no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "mediciones"
+        ],
+        "summary": "Borrar un elemento que ningún concepto usa por su peso",
+        "operationId": "eliminar_elemento_api_v1_elementos__elemento_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "El peso lo ponen Control de obra y Costos."
+          },
+          "404": {
+            "description": "El elemento no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Hay conceptos que reciben cantidad con su peso."
+          }
+        }
+      }
+    },
+    "/api/v1/mediciones/{medicion_id}/elemento": {
+      "put": {
+        "tags": [
+          "mediciones"
+        ],
+        "summary": "Darle a una medición un elemento con peso, o quitárselo",
+        "operationId": "poner_elemento_en_medicion_api_v1_mediciones__medicion_id__elemento_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "medicion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Medicion Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementoPuestoEnMedicion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrazoEnMedicionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La medición o el elemento no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El elemento es de otro tipo, o la medición alimenta conceptos con su peso."
           }
         }
       }
@@ -15131,6 +15366,12 @@
             ],
             "title": "Factor",
             "default": "1"
+          },
+          "usar_peso": {
+            "type": "boolean",
+            "title": "Usar Peso",
+            "description": "El factor es el peso del elemento de la medición, convertido a la unidad del concepto (kg o ton): la medición derivada. Si cambia el peso, la asignación se rehace sola.",
+            "default": false
           }
         },
         "type": "object",
@@ -15191,6 +15432,12 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Factor"
+          },
+          "usa_peso": {
+            "type": "boolean",
+            "title": "Usa Peso",
+            "description": "El factor es el peso del elemento de la medición (kg o ton).",
+            "default": false
           }
         },
         "type": "object",
@@ -19217,6 +19464,166 @@
         "title": "EfectoRespuesta",
         "description": "Qué cambió en la obra al autorizar."
       },
+      "ElementoCambio": {
+        "properties": {
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "peso_kg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peso Kg"
+          }
+        },
+        "type": "object",
+        "title": "ElementoCambio"
+      },
+      "ElementoDeMedicion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "peso_kg": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Peso Kg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nombre",
+          "peso_kg"
+        ],
+        "title": "ElementoDeMedicion"
+      },
+      "ElementoPeticion": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "area",
+              "lineal",
+              "conteo"
+            ],
+            "title": "Tipo"
+          },
+          "peso_kg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Peso Kg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nombre",
+          "tipo",
+          "peso_kg"
+        ],
+        "title": "ElementoPeticion"
+      },
+      "ElementoPuestoEnMedicion": {
+        "properties": {
+          "elemento_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento Id",
+            "description": "`null` le quita el elemento a la medición."
+          }
+        },
+        "type": "object",
+        "title": "ElementoPuestoEnMedicion"
+      },
+      "ElementoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "area",
+              "lineal",
+              "conteo"
+            ],
+            "title": "Tipo"
+          },
+          "peso_kg": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Peso Kg",
+            "description": "kg por pieza (conteo), por metro (lineal) o por m² (área)."
+          },
+          "n_mediciones": {
+            "type": "integer",
+            "title": "N Mediciones",
+            "description": "Mediciones que lo usan."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nombre",
+          "tipo",
+          "peso_kg",
+          "n_mediciones"
+        ],
+        "title": "ElementoRespuesta"
+      },
       "EnlaceDeTrazoRespuesta": {
         "properties": {
           "enlace_id": {
@@ -23199,6 +23606,17 @@
           "unidad": {
             "type": "string",
             "title": "Unidad"
+          },
+          "elemento": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ElementoDeMedicion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "El elemento con peso de esta medición (0089); alimenta conceptos en kg o ton."
           },
           "asignaciones": {
             "items": {

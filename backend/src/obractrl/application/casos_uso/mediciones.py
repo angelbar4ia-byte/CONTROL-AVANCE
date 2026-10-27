@@ -26,6 +26,7 @@ from obractrl.application.casos_uso.cuantificar import (
 )
 from obractrl.application.eventos import PublicadorEventos
 from obractrl.application.puertos.cuantificacion import (
+    RepositorioElementos,
     RepositorioEnlacesCuantificacion,
     RepositorioMatrices,
     RepositorioMediciones,
@@ -38,7 +39,9 @@ from obractrl.application.puertos.repositorios import (
     UnidadDeTrabajo,
 )
 from obractrl.domain.cuantificacion.medicion import (
+    MEDIDA_BASE_DEL_PESO,
     TIPOS_DE_MEDICION,
+    factor_por_peso,
     medida_admitida,
     motivo_de_incompatibilidad,
     normalizar_nombre,
@@ -58,6 +61,7 @@ __all__ = [
     "GestionarMediciones",
     "MedicionNoEncontrada",
     "ResultadoDeAsignacion",
+    "rehacer_factores_por_peso",
 ]
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +73,46 @@ class ComandoCrearMedicion:
     parent_id: UUID | None = None
 
 
+async def rehacer_factores_por_peso(
+    *,
+    asignaciones: list[dict],
+    peso_kg: Decimal,
+    mediciones: RepositorioMediciones,
+    enlaces: RepositorioEnlacesCuantificacion,
+) -> set[NodoActividad]:
+    """Cuando cambia el peso de un elemento, las asignaciones que lo usan cambian de factor: sus
+    enlaces vigentes quedan como evidencia y se crean los nuevos con el factor al día. Devuelve los
+    nodos que hay que recalcular."""
+    tocados: set[NodoActividad] = set()
+    for a in asignaciones:
+        factor = factor_por_peso(peso_kg, a.get("unidad"))
+        if factor == Decimal(str(a["factor"])):
+            continue
+        for e in await mediciones.enlaces_de_asignacion(a["id"]):
+            await enlaces.marcar_no_vigente(e["id"])
+            nuevo = EnlaceCuantificacion(
+                trazo_id=str(e["trazo_id"]),
+                actividad_id=str(a["actividad_id"]),
+                prototipo_nodo_id=None,
+                medida=MedidaCuantificacion(a["medida"]),
+                factor=factor,
+                matriz_concepto_id=str(a["matriz_concepto_id"]) if a["matriz_concepto_id"] else None,
+                derivado=True,
+            )
+            await enlaces.crear(
+                trazo_id=e["trazo_id"],
+                actividad_id=a["actividad_id"],
+                prototipo_nodo_id=None,
+                matriz_concepto_id=a["matriz_concepto_id"],
+                medida=nuevo.medida.value,
+                factor=nuevo.factor,
+                asignacion_id=a["id"],
+            )
+        await mediciones.fijar_factor_asignacion(a["id"], factor)
+        tocados.add((a["actividad_id"], a["matriz_concepto_id"]))
+    return tocados
+
+
 @dataclass(frozen=True, slots=True)
 class ComandoCrearAsignacion:
     medicion_id: UUID
@@ -77,6 +121,8 @@ class ComandoCrearAsignacion:
     factor: Decimal
     autor_id: UUID
     matriz_concepto_id: UUID | None = None
+    usar_peso: bool = False
+    """El factor es el peso del elemento de la medición (concepto en kg o ton): la derivada."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,7 +147,9 @@ class GestionarMediciones:
         uow: UnidadDeTrabajo,
         eventos: PublicadorEventos | None = None,
         matrices: RepositorioMatrices | None = None,
+        elementos: RepositorioElementos | None = None,
     ) -> None:
+        self._elementos = elementos
         self._mediciones = mediciones
         self._planos = planos
         self._enlaces = enlaces
@@ -163,20 +211,70 @@ class GestionarMediciones:
             await self._mediciones.renombrar(medicion_id, nuevo)
             await self._uow.commit()
 
-    async def eliminar(self, medicion_id: UUID) -> None:
-        """Solo se borra una medición sin asignaciones ni submediciones; sus trazos quedan sueltos."""
+    async def eliminar(self, medicion_id: UUID, *, usuario_id: UUID, detectada_en: datetime) -> tuple:
+        """Borra la medición y **sus asignaciones** (los enlaces que dieron quedan como evidencia, no
+        vigentes, y los conceptos se recalculan); sus trazos quedan sueltos. Con submediciones no se
+        borra: se borran o se mueven primero."""
         if await self._mediciones.obtener(medicion_id) is None:
             raise MedicionNoEncontrada(f"La medición {medicion_id} no existe o está fuera de tu alcance.")
-        dep = await self._mediciones.dependencias(medicion_id)
-        if dep["asignaciones"] > 0:
-            raise ErrorDeCuantificacion(
-                "Esta medición alimenta conceptos: quita primero sus asignaciones y después bórrala."
-            )
-        if dep["hijas"] > 0:
+        if (await self._mediciones.dependencias(medicion_id))["hijas"] > 0:
             raise ErrorDeCuantificacion("Esta medición tiene submediciones: bórralas o muévelas primero.")
+        tocados: set[NodoActividad] = set()
         async with self._uow:
+            for a in await self._mediciones.asignaciones_de([medicion_id]):
+                for e in await self._mediciones.enlaces_de_asignacion(a["id"]):
+                    await self._enlaces.marcar_no_vigente(e["id"])
+                await self._mediciones.eliminar_asignacion(a["id"])
+                tocados.add((a["actividad_id"], a["matriz_concepto_id"]))
             await self._mediciones.eliminar(medicion_id)
+            recalculos = await self._recalcular(tocados, detectada_en)
             await self._uow.commit()
+        await _avisar_reaperturas(self._eventos, recalculos, usuario_id)
+        return recalculos
+
+    async def poner_elemento(
+        self, medicion_id: UUID, elemento_id: UUID | None, *, usuario_id: UUID, detectada_en: datetime
+    ) -> tuple:
+        """Le da a una medición un elemento con peso (o se lo quita). Es del mismo tipo que ella; si ya
+        alimenta conceptos por peso, esos se rehacen con el peso del nuevo elemento."""
+        m = await self._mediciones.obtener(medicion_id)
+        if m is None:
+            raise MedicionNoEncontrada(f"La medición {medicion_id} no existe o está fuera de tu alcance.")
+        if self._elementos is None:
+            raise ErrorDeCuantificacion("Los elementos no están disponibles.")
+        elemento = None
+        if elemento_id is not None:
+            elemento = await self._elementos.obtener(elemento_id)
+            if elemento is None:
+                raise MedicionNoEncontrada(f"El elemento {elemento_id} no existe o está fuera de tu alcance.")
+            if elemento["tipo"] != m["tipo"]:
+                raise ErrorDeCuantificacion(
+                    f"El elemento «{elemento['nombre']}» se cuenta por {elemento['tipo']}; esta medición es {m['tipo']}."
+                )
+        con_peso = [a for a in await self._mediciones.asignaciones_de([medicion_id]) if a["usa_peso"]]
+        if elemento is None and con_peso:
+            raise ErrorDeCuantificacion(
+                "Esta medición alimenta conceptos con el peso de su elemento: quita primero esas asignaciones."
+            )
+        async with self._uow:
+            await self._mediciones.poner_elemento(medicion_id, elemento_id)
+            tocados: set[NodoActividad] = set()
+            if elemento is not None and con_peso:
+                detalle = [x for x in await self._mediciones.asignaciones_con_peso(elemento["id"]) if x["id"] in {a["id"] for a in con_peso}]
+                # Las que usaban el peso del elemento anterior: su unidad se lee ahora que ya cambió.
+                for a in con_peso:
+                    if all(d["id"] != a["id"] for d in detalle):
+                        detalle.append({**a, "unidad": await self._mediciones.unidad_de_actividad(a["actividad_id"])})
+                tocados = await rehacer_factores_por_peso(
+                    asignaciones=detalle,
+                    peso_kg=Decimal(str(elemento["peso_kg"])),
+                    mediciones=self._mediciones,
+                    enlaces=self._enlaces,
+                )
+            recalculos = await self._recalcular(tocados, detectada_en)
+            await self._uow.commit()
+        await _avisar_reaperturas(self._eventos, recalculos, usuario_id)
+        return recalculos
 
     # --- trazos dentro de la medición ------------------------------------------------------------
 
@@ -247,10 +345,28 @@ class GestionarMediciones:
             raise ErrorDeCuantificacion(
                 f"Una medición de tipo {m['tipo']} no se asigna con la medida «{cmd.medida}»."
             )
-        if cmd.factor <= 0:
-            raise ErrorDeCuantificacion("El factor debe ser un número mayor que cero.")
-        if cmd.medida == "conteo" and cmd.factor != cmd.factor.to_integral_value():
-            raise ErrorDeCuantificacion("Un enlace de conteo lleva un factor entero: ya cuenta instancias.")
+        factor = cmd.factor
+        if cmd.usar_peso:
+            # La derivada: el factor es el peso del elemento de la medición (kg, o ton ÷ 1000).
+            if m["elemento_id"] is None or self._elementos is None:
+                raise ErrorDeCuantificacion("Esta medición no tiene un elemento con peso: elige uno primero.")
+            elemento = await self._elementos.obtener(m["elemento_id"])
+            if elemento is None:
+                raise ErrorDeCuantificacion("Esta medición no tiene un elemento con peso: elige uno primero.")
+            base = MEDIDA_BASE_DEL_PESO[m["tipo"]]
+            if cmd.medida != base:
+                raise ErrorDeCuantificacion(
+                    f"El peso de «{elemento['nombre']}» es por {'pieza' if base == 'conteo' else 'metro' if base == 'longitud' else 'm²'}: "
+                    f"se asigna con la medida «{base}»."
+                )
+            factor = factor_por_peso(
+                Decimal(str(elemento["peso_kg"])), await self._mediciones.unidad_de_actividad(cmd.actividad_id)
+            )
+        else:
+            if cmd.factor <= 0:
+                raise ErrorDeCuantificacion("El factor debe ser un número mayor que cero.")
+            if cmd.medida == "conteo" and cmd.factor != cmd.factor.to_integral_value():
+                raise ErrorDeCuantificacion("Un enlace de conteo lleva un factor entero: ya cuenta instancias.")
         if not await self._mediciones.actividad_de_la_obra(cmd.actividad_id, m["plano_id"]):
             raise ErrorDeCuantificacion("Ese concepto no es de la obra de este plano.")
         if cmd.matriz_concepto_id is not None and self._matrices is not None:
@@ -283,8 +399,9 @@ class GestionarMediciones:
                 actividad_id=cmd.actividad_id,
                 matriz_concepto_id=cmd.matriz_concepto_id,
                 medida=cmd.medida,
-                factor=cmd.factor,
+                factor=factor,
                 autor_id=cmd.autor_id,
+                usa_peso=cmd.usar_peso,
             )
             trazos = await self._mediciones.trazos_de(await self._mediciones.con_descendientes(cmd.medicion_id))
             for trazo_id in trazos:
@@ -300,8 +417,9 @@ class GestionarMediciones:
                     actividad_id=str(cmd.actividad_id),
                     prototipo_nodo_id=None,
                     medida=MedidaCuantificacion(cmd.medida),
-                    factor=cmd.factor,
+                    factor=factor,
                     matriz_concepto_id=str(cmd.matriz_concepto_id) if cmd.matriz_concepto_id else None,
+                    derivado=cmd.usar_peso,
                 )
                 await self._enlaces.crear(
                     trazo_id=trazo_id,

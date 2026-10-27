@@ -858,7 +858,7 @@ class RepositorioMedicionesSQL:
     async def obtener(self, medicion_id: UUID) -> dict[str, Any] | None:
         fila = (
             await self._sesion.execute(
-                text("select id, plano_id, parent_id, nombre, tipo from medicion where id = :id"),
+                text("select id, plano_id, parent_id, nombre, tipo, elemento_id from medicion where id = :id"),
                 {"id": str(medicion_id)},
             )
         ).mappings().first()
@@ -985,7 +985,7 @@ class RepositorioMedicionesSQL:
             await self._sesion.execute(
                 text(
                     """
-                    select id, medicion_id, actividad_id, matriz_concepto_id, medida::text as medida, factor
+                    select id, medicion_id, actividad_id, matriz_concepto_id, medida::text as medida, factor, usa_peso
                       from medicion_asignacion where medicion_id = any(:ids) order by created_at, id
                     """
                 ),
@@ -1003,15 +1003,16 @@ class RepositorioMedicionesSQL:
         medida: str,
         factor: Decimal,
         autor_id: UUID,
+        usa_peso: bool = False,
     ) -> UUID:
         return (
             await self._sesion.execute(
                 text(
                     """
                     insert into medicion_asignacion
-                        (org_id, medicion_id, actividad_id, matriz_concepto_id, medida, factor, autor_id)
+                        (org_id, medicion_id, actividad_id, matriz_concepto_id, medida, factor, autor_id, usa_peso)
                     values (cast(current_setting('app.org_id') as uuid), :medicion, :actividad,
-                            cast(:matriz as uuid), cast(:medida as medida_cuantificacion), :factor, :autor)
+                            cast(:matriz as uuid), cast(:medida as medida_cuantificacion), :factor, :autor, :usa_peso)
                     returning id
                     """
                 ),
@@ -1022,6 +1023,7 @@ class RepositorioMedicionesSQL:
                     "medida": medida,
                     "factor": factor,
                     "autor": str(autor_id),
+                    "usa_peso": usa_peso,
                 },
             )
         ).scalar_one()
@@ -1031,7 +1033,7 @@ class RepositorioMedicionesSQL:
             await self._sesion.execute(
                 text(
                     """
-                    select id, medicion_id, actividad_id, matriz_concepto_id, medida::text as medida, factor
+                    select id, medicion_id, actividad_id, matriz_concepto_id, medida::text as medida, factor, usa_peso
                       from medicion_asignacion where id = :id
                     """
                 ),
@@ -1043,6 +1045,54 @@ class RepositorioMedicionesSQL:
     async def eliminar_asignacion(self, asignacion_id: UUID) -> None:
         await self._sesion.execute(
             text("delete from medicion_asignacion where id = :id"), {"id": str(asignacion_id)}
+        )
+
+    async def poner_elemento(self, medicion_id: UUID, elemento_id: UUID | None) -> None:
+        await self._sesion.execute(
+            text("update medicion set elemento_id = cast(:e as uuid) where id = :id"),
+            {"id": str(medicion_id), "e": str(elemento_id) if elemento_id else None},
+        )
+
+    async def unidad_de_actividad(self, actividad_id: UUID) -> str | None:
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    select u.clave from actividad a
+                      left join concepto c on c.id = a.concepto_id
+                      left join unidad u on u.id = c.unidad_id
+                     where a.id = :id
+                    """
+                ),
+                {"id": str(actividad_id)},
+            )
+        ).scalar_one_or_none()
+
+    async def asignaciones_con_peso(self, elemento_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select a.id, a.medicion_id, a.actividad_id, a.matriz_concepto_id,
+                           a.medida::text as medida, a.factor, u.clave as unidad
+                      from medicion_asignacion a
+                      join medicion m on m.id = a.medicion_id
+                      join actividad act on act.id = a.actividad_id
+                      left join concepto c on c.id = act.concepto_id
+                      left join unidad u on u.id = c.unidad_id
+                     where m.elemento_id = :e and a.usa_peso
+                     order by a.created_at, a.id
+                    """
+                ),
+                {"e": str(elemento_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def fijar_factor_asignacion(self, asignacion_id: UUID, factor: Decimal) -> None:
+        await self._sesion.execute(
+            text("update medicion_asignacion set factor = :f where id = :id"),
+            {"id": str(asignacion_id), "f": factor},
         )
 
     async def enlaces_de_asignacion(self, asignacion_id: UUID) -> list[dict[str, Any]]:
@@ -1140,6 +1190,7 @@ class RepositorioMedicionesSQL:
                       select s.raiz, h.id from sub s join medicion h on h.parent_id = s.id
                     )
                     select m.id, m.parent_id, m.nombre, m.tipo, m.orden,
+                           e.id as elemento_id, e.nombre as elemento_nombre, e.peso_kg as elemento_peso_kg,
                            count(t.id) as n_trazos,
                            coalesce(sum(
                              case m.tipo
@@ -1152,10 +1203,11 @@ class RepositorioMedicionesSQL:
                              end), 0) as valor
                       from medicion m
                       join plano p on p.id = m.plano_id
+                      left join elemento e on e.id = m.elemento_id
                       left join sub s on s.raiz = m.id
                       left join trazo t on t.medicion_id = s.id and t.hueco_de is null
                      where m.plano_id = :plano
-                     group by m.id, p.escala_m_por_unidad
+                     group by m.id, p.escala_m_por_unidad, e.id
                      order by m.orden, m.created_at, m.id
                     """
                 ),
@@ -1167,7 +1219,7 @@ class RepositorioMedicionesSQL:
                 text(
                     """
                     select a.id, a.medicion_id, a.actividad_id, a.matriz_concepto_id,
-                           a.medida::text as medida, a.factor,
+                           a.medida::text as medida, a.factor, a.usa_peso,
                            coalesce(c.clave, '') as concepto_clave,
                            coalesce(act.descripcion, c.descripcion, '') as descripcion,
                            mc.clave as matriz_clave
@@ -1187,3 +1239,91 @@ class RepositorioMedicionesSQL:
         for a in asignaciones:
             por_medicion.setdefault(a["medicion_id"], []).append(dict(a))
         return [{**dict(f), "asignaciones": por_medicion.get(f["id"], [])} for f in filas]
+
+
+class RepositorioElementosSQL:
+    """`elemento` (migración 0089): elementos de obra con peso, catálogo de la organización."""
+
+    def __init__(self, sesion: AsyncSession) -> None:
+        self._sesion = sesion
+
+    async def crear(self, *, nombre: str, tipo: str, peso_kg: Decimal, autor_id: UUID) -> UUID:
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into elemento (org_id, nombre, tipo, peso_kg, autor_id)
+                    values (cast(current_setting('app.org_id') as uuid), :nombre, :tipo, :peso, :autor)
+                    returning id
+                    """
+                ),
+                {"nombre": nombre, "tipo": tipo, "peso": peso_kg, "autor": str(autor_id)},
+            )
+        ).scalar_one()
+
+    async def obtener(self, elemento_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text("select id, nombre, tipo, peso_kg from elemento where id = :id"), {"id": str(elemento_id)}
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def listar(self) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select e.id, e.nombre, e.tipo, e.peso_kg,
+                           (select count(*) from medicion m where m.elemento_id = e.id) as n_mediciones
+                      from elemento e order by lower(e.nombre), e.id
+                    """
+                )
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def existe_nombre(self, nombre: str, excepto: UUID | None = None) -> bool:
+        return bool(
+            (
+                await self._sesion.execute(
+                    text(
+                        """
+                        select exists (select 1 from elemento
+                                        where lower(btrim(nombre)) = lower(btrim(:n))
+                                          and (cast(:x as uuid) is null or id <> cast(:x as uuid)))
+                        """
+                    ),
+                    {"n": nombre, "x": str(excepto) if excepto else None},
+                )
+            ).scalar_one()
+        )
+
+    async def actualizar(self, elemento_id: UUID, *, nombre: str | None, peso_kg: Decimal | None) -> None:
+        await self._sesion.execute(
+            text(
+                """
+                update elemento set nombre = coalesce(:nombre, nombre), peso_kg = coalesce(:peso, peso_kg)
+                 where id = :id
+                """
+            ),
+            {"id": str(elemento_id), "nombre": nombre, "peso": peso_kg},
+        )
+
+    async def eliminar(self, elemento_id: UUID) -> None:
+        await self._sesion.execute(text("delete from elemento where id = :id"), {"id": str(elemento_id)})
+
+    async def uso(self, elemento_id: UUID) -> dict[str, int]:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select (select count(*) from medicion where elemento_id = :id) as mediciones,
+                           (select count(*) from medicion_asignacion a join medicion m on m.id = a.medicion_id
+                             where m.elemento_id = :id and a.usa_peso) as asignaciones_con_peso
+                    """
+                ),
+                {"id": str(elemento_id)},
+            )
+        ).mappings().one()
+        return {"mediciones": int(fila["mediciones"]), "asignaciones_con_peso": int(fila["asignaciones_con_peso"])}

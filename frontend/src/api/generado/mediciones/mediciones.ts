@@ -28,6 +28,10 @@ import type {
 import type {
   AsignacionCreada,
   AsignacionPeticion,
+  ElementoCambio,
+  ElementoPeticion,
+  ElementoPuestoEnMedicion,
+  ElementoRespuesta,
   HTTPValidationError,
   MedicionCreada,
   MedicionPeticion,
@@ -659,13 +663,14 @@ export const useRenombrarMedicionApiV1MedicionesMedicionIdPatch = <
   return useMutation(mutationOptions, queryClient);
 };
 /**
- * @summary Borrar una medición sin asignaciones ni submediciones (sus trazos quedan sueltos)
+ * Los enlaces de sus asignaciones quedan como evidencia (no vigentes) y los conceptos se recalculan.
+ * @summary Borrar una medición y sus asignaciones (sus trazos quedan sueltos)
  */
 export const eliminarMedicionApiV1MedicionesMedicionIdDelete = (
   medicionId: string,
   options?: SecondParameter<typeof peticion>,
 ) => {
-  return peticion<void>(
+  return peticion<TrazoEnMedicionRespuesta>(
     { url: `/api/v1/mediciones/${medicionId}`, method: "DELETE" },
     options,
   );
@@ -722,7 +727,7 @@ export type EliminarMedicionApiV1MedicionesMedicionIdDeleteMutationResult =
 export type EliminarMedicionApiV1MedicionesMedicionIdDeleteMutationError = void;
 
 /**
- * @summary Borrar una medición sin asignaciones ni submediciones (sus trazos quedan sueltos)
+ * @summary Borrar una medición y sus asignaciones (sus trazos quedan sueltos)
  */
 export const useEliminarMedicionApiV1MedicionesMedicionIdDelete = <
   TError = void,
@@ -1105,3 +1110,727 @@ export const useQuitarAsignacionApiV1AsignacionesDeMedicionAsignacionIdDelete =
 
     return useMutation(mutationOptions, queryClient);
   };
+/**
+ * @summary Los elementos con peso de la organización (K1, varilla 3/8…)
+ */
+export const listarElementosApiV1ElementosGet = (
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ElementoRespuesta[]>(
+    { url: `/api/v1/elementos`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getListarElementosApiV1ElementosGetInfiniteQueryKey = () => {
+  return ["infinite", `/api/v1/elementos`] as const;
+};
+
+export const getListarElementosApiV1ElementosGetQueryKey = () => {
+  return [`/api/v1/elementos`] as const;
+};
+
+export const getListarElementosApiV1ElementosGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>
+  >,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarElementosApiV1ElementosGetInfiniteQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>
+  > = ({ signal }) => listarElementosApiV1ElementosGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListarElementosApiV1ElementosGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>
+>;
+export type ListarElementosApiV1ElementosGetInfiniteQueryError = unknown;
+
+export function useListarElementosApiV1ElementosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>
+  >,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarElementosApiV1ElementosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarElementosApiV1ElementosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los elementos con peso de la organización (K1, varilla 3/8…)
+ */
+
+export function useListarElementosApiV1ElementosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>
+  >,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarElementosApiV1ElementosGetInfiniteQueryOptions(options);
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getListarElementosApiV1ElementosGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<
+      Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+      TError,
+      TData
+    >
+  >;
+  request?: SecondParameter<typeof peticion>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListarElementosApiV1ElementosGetQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>
+  > = ({ signal }) => listarElementosApiV1ElementosGet(requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListarElementosApiV1ElementosGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>
+>;
+export type ListarElementosApiV1ElementosGetQueryError = unknown;
+
+export function useListarElementosApiV1ElementosGet<
+  TData = Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarElementosApiV1ElementosGet<
+  TData = Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarElementosApiV1ElementosGet<
+  TData = Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los elementos con peso de la organización (K1, varilla 3/8…)
+ */
+
+export function useListarElementosApiV1ElementosGet<
+  TData = Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarElementosApiV1ElementosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarElementosApiV1ElementosGetQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Crear un elemento con peso
+ */
+export const crearElementoApiV1ElementosPost = (
+  elementoPeticion: ElementoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<MedicionCreada>(
+    {
+      url: `/api/v1/elementos`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: elementoPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCrearElementoApiV1ElementosPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof crearElementoApiV1ElementosPost>>,
+    TError,
+    { data: ElementoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof crearElementoApiV1ElementosPost>>,
+  TError,
+  { data: ElementoPeticion },
+  TContext
+> => {
+  const mutationKey = ["crearElementoApiV1ElementosPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof crearElementoApiV1ElementosPost>>,
+    { data: ElementoPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return crearElementoApiV1ElementosPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CrearElementoApiV1ElementosPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof crearElementoApiV1ElementosPost>>
+>;
+export type CrearElementoApiV1ElementosPostMutationBody = ElementoPeticion;
+export type CrearElementoApiV1ElementosPostMutationError = void;
+
+/**
+ * @summary Crear un elemento con peso
+ */
+export const useCrearElementoApiV1ElementosPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof crearElementoApiV1ElementosPost>>,
+      TError,
+      { data: ElementoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof crearElementoApiV1ElementosPost>>,
+  TError,
+  { data: ElementoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearElementoApiV1ElementosPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Un peso nuevo rehace de inmediato las asignaciones por peso: sus enlaces quedan como evidencia y
+los nuevos llevan el factor al día; los conceptos en kg o ton se recalculan.
+ * @summary Cambiar el nombre o el peso de un elemento (rehace las asignaciones que lo usan)
+ */
+export const actualizarElementoApiV1ElementosElementoIdPatch = (
+  elementoId: string,
+  elementoCambio: ElementoCambio,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<TrazoEnMedicionRespuesta>(
+    {
+      url: `/api/v1/elementos/${elementoId}`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: elementoCambio,
+    },
+    options,
+  );
+};
+
+export const getActualizarElementoApiV1ElementosElementoIdPatchMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof actualizarElementoApiV1ElementosElementoIdPatch>
+      >,
+      TError,
+      { elementoId: string; data: ElementoCambio },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<ReturnType<typeof actualizarElementoApiV1ElementosElementoIdPatch>>,
+    TError,
+    { elementoId: string; data: ElementoCambio },
+    TContext
+  > => {
+    const mutationKey = ["actualizarElementoApiV1ElementosElementoIdPatch"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof actualizarElementoApiV1ElementosElementoIdPatch>
+      >,
+      { elementoId: string; data: ElementoCambio }
+    > = (props) => {
+      const { elementoId, data } = props ?? {};
+
+      return actualizarElementoApiV1ElementosElementoIdPatch(
+        elementoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ActualizarElementoApiV1ElementosElementoIdPatchMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof actualizarElementoApiV1ElementosElementoIdPatch>>
+  >;
+export type ActualizarElementoApiV1ElementosElementoIdPatchMutationBody =
+  ElementoCambio;
+export type ActualizarElementoApiV1ElementosElementoIdPatchMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Cambiar el nombre o el peso de un elemento (rehace las asignaciones que lo usan)
+ */
+export const useActualizarElementoApiV1ElementosElementoIdPatch = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof actualizarElementoApiV1ElementosElementoIdPatch>
+      >,
+      TError,
+      { elementoId: string; data: ElementoCambio },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof actualizarElementoApiV1ElementosElementoIdPatch>>,
+  TError,
+  { elementoId: string; data: ElementoCambio },
+  TContext
+> => {
+  const mutationOptions =
+    getActualizarElementoApiV1ElementosElementoIdPatchMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Borrar un elemento que ningún concepto usa por su peso
+ */
+export const eliminarElementoApiV1ElementosElementoIdDelete = (
+  elementoId: string,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    { url: `/api/v1/elementos/${elementoId}`, method: "DELETE" },
+    options,
+  );
+};
+
+export const getEliminarElementoApiV1ElementosElementoIdDeleteMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof eliminarElementoApiV1ElementosElementoIdDelete>
+      >,
+      TError,
+      { elementoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<ReturnType<typeof eliminarElementoApiV1ElementosElementoIdDelete>>,
+    TError,
+    { elementoId: string },
+    TContext
+  > => {
+    const mutationKey = ["eliminarElementoApiV1ElementosElementoIdDelete"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof eliminarElementoApiV1ElementosElementoIdDelete>
+      >,
+      { elementoId: string }
+    > = (props) => {
+      const { elementoId } = props ?? {};
+
+      return eliminarElementoApiV1ElementosElementoIdDelete(
+        elementoId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type EliminarElementoApiV1ElementosElementoIdDeleteMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof eliminarElementoApiV1ElementosElementoIdDelete>>
+  >;
+
+export type EliminarElementoApiV1ElementosElementoIdDeleteMutationError = void;
+
+/**
+ * @summary Borrar un elemento que ningún concepto usa por su peso
+ */
+export const useEliminarElementoApiV1ElementosElementoIdDelete = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof eliminarElementoApiV1ElementosElementoIdDelete>
+      >,
+      TError,
+      { elementoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof eliminarElementoApiV1ElementosElementoIdDelete>>,
+  TError,
+  { elementoId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getEliminarElementoApiV1ElementosElementoIdDeleteMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Darle a una medición un elemento con peso, o quitárselo
+ */
+export const ponerElementoEnMedicionApiV1MedicionesMedicionIdElementoPut = (
+  medicionId: string,
+  elementoPuestoEnMedicion: ElementoPuestoEnMedicion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<TrazoEnMedicionRespuesta>(
+    {
+      url: `/api/v1/mediciones/${medicionId}/elemento`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: elementoPuestoEnMedicion,
+    },
+    options,
+  );
+};
+
+export const getPonerElementoEnMedicionApiV1MedicionesMedicionIdElementoPutMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof ponerElementoEnMedicionApiV1MedicionesMedicionIdElementoPut
+        >
+      >,
+      TError,
+      { medicionId: string; data: ElementoPuestoEnMedicion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof ponerElementoEnMedicionApiV1MedicionesMedicionIdElementoPut
+      >
+    >,
+    TError,
+    { medicionId: string; data: ElementoPuestoEnMedicion },
+    TContext
+  > => {
+    const mutationKey = [
+      "ponerElementoEnMedicionApiV1MedicionesMedicionIdElementoPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof ponerElementoEnMedicionApiV1MedicionesMedicionIdElementoPut
+        >
+      >,
+      { medicionId: string; data: ElementoPuestoEnMedicion }
+    > = (props) => {
+      const { medicionId, data } = props ?? {};
+
+      return ponerElementoEnMedicionApiV1MedicionesMedicionIdElementoPut(
+        medicionId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type PonerElementoEnMedicionApiV1MedicionesMedicionIdElementoPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof ponerElementoEnMedicionApiV1MedicionesMedicionIdElementoPut
+      >
+    >
+  >;
+export type PonerElementoEnMedicionApiV1MedicionesMedicionIdElementoPutMutationBody =
+  ElementoPuestoEnMedicion;
+export type PonerElementoEnMedicionApiV1MedicionesMedicionIdElementoPutMutationError =
+  void;
+
+/**
+ * @summary Darle a una medición un elemento con peso, o quitárselo
+ */
+export const usePonerElementoEnMedicionApiV1MedicionesMedicionIdElementoPut = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof ponerElementoEnMedicionApiV1MedicionesMedicionIdElementoPut
+        >
+      >,
+      TError,
+      { medicionId: string; data: ElementoPuestoEnMedicion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<
+      typeof ponerElementoEnMedicionApiV1MedicionesMedicionIdElementoPut
+    >
+  >,
+  TError,
+  { medicionId: string; data: ElementoPuestoEnMedicion },
+  TContext
+> => {
+  const mutationOptions =
+    getPonerElementoEnMedicionApiV1MedicionesMedicionIdElementoPutMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};

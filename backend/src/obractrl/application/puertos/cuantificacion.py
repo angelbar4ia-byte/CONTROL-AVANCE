@@ -306,11 +306,24 @@ class RepositorioMediciones(Protocol):
         medida: str,
         factor: Decimal,
         autor_id: UUID,
+        usa_peso: bool = False,
     ) -> UUID: ...
 
     async def obtener_asignacion(self, asignacion_id: UUID) -> dict[str, Any] | None: ...
 
     async def eliminar_asignacion(self, asignacion_id: UUID) -> None: ...
+
+    async def poner_elemento(self, medicion_id: UUID, elemento_id: UUID | None) -> None: ...
+
+    async def unidad_de_actividad(self, actividad_id: UUID) -> str | None:
+        """La unidad (`kg`, `m2`…) del concepto de una actividad."""
+        ...
+
+    async def asignaciones_con_peso(self, elemento_id: UUID) -> list[dict[str, Any]]:
+        """Las asignaciones que usan el peso de ese elemento, con la unidad de su concepto."""
+        ...
+
+    async def fijar_factor_asignacion(self, asignacion_id: UUID, factor: Decimal) -> None: ...
 
     async def enlaces_de_asignacion(self, asignacion_id: UUID) -> list[dict[str, Any]]:
         """Los enlaces vigentes que nacieron de esa asignación: `{id, trazo_id}`."""
@@ -342,4 +355,27 @@ class RepositorioMediciones(Protocol):
 
     async def de_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
         """Las mediciones de un plano con sus asignaciones y lo que miden (ella y sus submediciones)."""
+        ...
+
+
+@runtime_checkable
+class RepositorioElementos(Protocol):
+    """`elemento` (migración 0089): un elemento de obra con peso (K1)."""
+
+    async def crear(self, *, nombre: str, tipo: str, peso_kg: Decimal, autor_id: UUID) -> UUID: ...
+
+    async def obtener(self, elemento_id: UUID) -> dict[str, Any] | None: ...
+
+    async def listar(self) -> list[dict[str, Any]]:
+        """Con cuántas mediciones lo usan: `n_mediciones`."""
+        ...
+
+    async def existe_nombre(self, nombre: str, excepto: UUID | None = None) -> bool: ...
+
+    async def actualizar(self, elemento_id: UUID, *, nombre: str | None, peso_kg: Decimal | None) -> None: ...
+
+    async def eliminar(self, elemento_id: UUID) -> None: ...
+
+    async def uso(self, elemento_id: UUID) -> dict[str, int]:
+        """`{mediciones, asignaciones_con_peso}`: lo que impide borrarlo."""
         ...

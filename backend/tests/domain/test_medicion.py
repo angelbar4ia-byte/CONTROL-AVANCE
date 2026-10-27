@@ -50,3 +50,49 @@ def test_el_nombre_se_limpia_y_no_puede_quedar_vacio_ni_pasar_de_120() -> None:
         normalizar_nombre("   ")
     with pytest.raises(ErrorDeCuantificacion):
         normalizar_nombre("x" * 121)
+
+
+def test_el_factor_por_peso_es_el_peso_en_kg_y_entre_mil_en_toneladas() -> None:
+    from decimal import Decimal
+
+    from obractrl.domain.cuantificacion.medicion import (
+        MEDIDA_BASE_DEL_PESO,
+        factor_por_peso,
+    )
+
+    assert factor_por_peso(Decimal("38"), "kg") == Decimal("38.000000")
+    assert factor_por_peso(Decimal("38"), "KG ") == Decimal("38.000000")
+    assert factor_por_peso(Decimal("38"), "ton") == Decimal("0.038000")
+    assert factor_por_peso(Decimal("0.56"), "ton") == Decimal("0.000560")
+    assert MEDIDA_BASE_DEL_PESO == {"conteo": "conteo", "lineal": "longitud", "area": "area"}
+
+
+@pytest.mark.parametrize("unidad", ["m2", "pza", "", None])
+def test_el_peso_solo_alimenta_conceptos_en_kg_o_ton(unidad: str | None) -> None:
+    from decimal import Decimal
+
+    from obractrl.domain.cuantificacion.medicion import factor_por_peso
+
+    with pytest.raises(ErrorDeCuantificacion):
+        factor_por_peso(Decimal("38"), unidad)
+
+
+def test_un_peso_demasiado_chico_en_toneladas_no_redondea_a_cero_en_silencio() -> None:
+    from decimal import Decimal
+
+    from obractrl.domain.cuantificacion.medicion import factor_por_peso
+
+    with pytest.raises(ErrorDeCuantificacion):
+        factor_por_peso(Decimal("0.0004"), "ton")
+
+
+def test_un_enlace_derivado_admite_factor_fraccionario_con_conteo_y_uno_normal_no() -> None:
+    from decimal import Decimal
+
+    from obractrl.domain.cuantificacion.reglas import EnlaceCuantificacion
+    from obractrl.domain.shared.diccionario import MedidaCuantificacion
+
+    comun = {"trazo_id": "t", "actividad_id": "a", "prototipo_nodo_id": None, "medida": MedidaCuantificacion.CONTEO}
+    EnlaceCuantificacion(**comun, factor=Decimal("38.5"), derivado=True)
+    with pytest.raises(ErrorDeCuantificacion):
+        EnlaceCuantificacion(**comun, factor=Decimal("38.5"))
