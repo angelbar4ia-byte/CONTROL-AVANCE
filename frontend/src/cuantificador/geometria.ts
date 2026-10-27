@@ -26,6 +26,7 @@ export type Herramienta =
   | 'linea'
   | 'polilinea'
   | 'punto'
+  | 'copiar'
   | 'hueco'
   | 'borrar'
   | 'nota'
@@ -39,7 +40,7 @@ export type Herramienta =
  */
 export type HerramientaDeTrazo = Exclude<
   Herramienta,
-  'seleccionar' | 'mano' | 'zoom' | 'hueco' | 'borrar' | 'nota' | 'escala'
+  'seleccionar' | 'mano' | 'zoom' | 'copiar' | 'hueco' | 'borrar' | 'nota' | 'escala'
 >;
 
 /** La geometría que se guarda: lo que el servidor mide. Las herramientas de dibujo desembocan en una de estas. */
@@ -141,6 +142,16 @@ export function aWkt(
       return `POLYGON(${[puntos, ...huecos].map(cerrado).join(', ')})`;
     }
   }
+}
+
+/**
+ * Cuánto más mide una línea inclinada que su proyección en planta: √(1 + (p/100)²), con `p` la
+ * pendiente en % (desnivel / recorrido × 100). Sin pendiente (o `null`), 1. Es la misma fórmula
+ * con que el servidor mide (migración 0087).
+ */
+export function factorDePendiente(pendientePct: number | string | null | undefined): number {
+  const p = Number(pendientePct ?? 0);
+  return p > 0 ? Math.sqrt(1 + (p / 100) ** 2) : 1;
 }
 
 export function longitudLocal(puntos: readonly Punto[]): number {
@@ -441,14 +452,17 @@ export function herramientaDeGeometria(geometria: GeometriaGeoJson): GeometriaBa
  * (la más reciente, que es la que quedó dibujada encima).
  */
 export function notaEnPunto(
-  notas: readonly { readonly id: string; readonly punto: Punto }[],
+  notas: readonly { readonly id: string; readonly punto: Punto; readonly destino?: Punto | null }[],
   p: Punto,
   tolerancia: number,
 ): string | null {
   let elegida: string | null = null;
   let mejor = Infinity;
   for (const nota of notas) {
-    const d = Math.hypot(p[0] - nota.punto[0], p[1] - nota.punto[1]);
+    // Una flecha o una llamada se elige también por su cuerpo, no solo por donde nace.
+    const d = nota.destino
+      ? distanciaASegmento(p, nota.punto, nota.destino)
+      : Math.hypot(p[0] - nota.punto[0], p[1] - nota.punto[1]);
     if (d <= tolerancia && d <= mejor) {
       elegida = nota.id;
       mejor = d;

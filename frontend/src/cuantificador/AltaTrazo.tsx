@@ -23,6 +23,7 @@ import { Sheet } from '@/lib/Sheet';
 import {
   MEDIDAS_POR_HERRAMIENTA,
   aWkt,
+  factorDePendiente,
   longitudLocal,
   medidaLocal,
   type GeometriaBase,
@@ -63,6 +64,8 @@ interface Props {
   readonly alineacion?: Alineacion | null;
   /** Grosor en unidades de plano, para la vista previa del área de un muro. */
   readonly grosorU?: number | null;
+  /** Pendiente en % de una línea inclinada: su longitud real es la de la planta × √(1 + p²). */
+  readonly pendientePct?: number | null;
   /** La forma con la que se estampó el polígono (castillo, columna...), si nació de un punto con forma. */
   readonly forma?: Forma | null;
   readonly actividades: readonly ActividadRespuesta[];
@@ -102,6 +105,7 @@ export function AltaTrazo({
   grosorM = null,
   alineacion = null,
   grosorU = null,
+  pendientePct = null,
   forma = null,
   actividades,
   actividadInicial,
@@ -169,6 +173,7 @@ export function AltaTrazo({
           capa: capa.trim() === '' ? null : capa.trim(),
           geometria_wkt: aWkt(herramienta, puntos),
           ...(conGrosor && alineacion !== null ? { grosor_m: String(grosorM), alineacion } : {}),
+          ...(herramienta === 'linea' && pendientePct !== null ? { pendiente_pct: String(pendientePct) } : {}),
           ...(forma !== null
             ? {
                 forma: {
@@ -210,6 +215,13 @@ export function AltaTrazo({
       <form onSubmit={(e) => void alEnviar(e)}>
         <div className="sheet__body col gap-12">
           {error && <ErrorBanner mensaje={error} />}
+
+          {herramienta === 'linea' && pendientePct !== null && (
+            <div className="text-sm" data-testid="aviso-pendiente">
+              Tramo inclinado, pendiente de <strong>{pendientePct} %</strong>: la longitud real es la de la
+              planta × {factorDePendiente(pendientePct).toFixed(4)}.
+            </div>
+          )}
 
           {conGrosor && (
             <div className="text-sm" data-testid="aviso-grosor">
@@ -259,10 +271,12 @@ export function AltaTrazo({
           <div className="col">
             <div className="field__label">Enlaces a actividades</div>
             {filas.map((f, i) => {
+              const inclinada = herramienta === 'linea' ? factorDePendiente(pendientePct) : 1;
               const local =
-                conGrosor && f.medida === 'area' && grosorU !== null
+                (conGrosor && f.medida === 'area' && grosorU !== null
                   ? longitudLocal(puntos) * grosorU
-                  : medidaLocal(herramienta, f.medida, puntos);
+                  : medidaLocal(herramienta, f.medida, puntos)) *
+                (f.medida === 'area' || f.medida === 'longitud' ? inclinada : 1);
               return (
                 <div key={f.clave} className="card">
                   <div className="card__body col">

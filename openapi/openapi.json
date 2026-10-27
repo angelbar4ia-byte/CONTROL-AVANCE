@@ -9752,6 +9752,68 @@
         }
       }
     },
+    "/api/v1/planos/{plano_id}/vista": {
+      "put": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Girar o voltear el plano al verlo",
+        "description": "La rotación y el espejo se guardan con el plano para que todos lo vean igual. No tocan\nla geometría de los trazos ni las cantidades.",
+        "operationId": "fijar_vista_api_v1_planos__plano_id__vista_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VistaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VistaPeticion"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El plano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/enlaces-cuantificacion/{enlace_id}/reemplazar": {
       "post": {
         "tags": [
@@ -23164,6 +23226,30 @@
             "type": "object",
             "title": "Ubicacion",
             "description": "`Point` GeoJSON en **coordenadas de plano** (SRID 0), no lon/lat."
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "nota",
+              "texto",
+              "flecha",
+              "llamada"
+            ],
+            "title": "Tipo",
+            "default": "nota"
+          },
+          "destino": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destino",
+            "description": "`Point` GeoJSON al que apunta una flecha o una llamada."
           }
         },
         "type": "object",
@@ -23194,8 +23280,9 @@
           },
           "texto": {
             "type": "string",
-            "minLength": 1,
-            "title": "Texto"
+            "title": "Texto",
+            "description": "Vacío solo en una flecha.",
+            "default": ""
           },
           "actividad_id": {
             "anyOf": [
@@ -23208,13 +23295,36 @@
               }
             ],
             "title": "Actividad Id"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "nota",
+              "texto",
+              "flecha",
+              "llamada"
+            ],
+            "title": "Tipo",
+            "description": "`nota` (rombo con texto), `texto` (rótulo suelto), `flecha` (señala `destino_wkt`) o `llamada` (texto con una flecha a `destino_wkt`). Ninguna produce cantidad.",
+            "default": "nota"
+          },
+          "destino_wkt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Destino Wkt",
+            "description": "WKT de un punto: a dónde apunta una flecha o una llamada."
           }
         },
         "type": "object",
         "required": [
           "version_plano",
-          "ubicacion_wkt",
-          "texto"
+          "ubicacion_wkt"
         ],
         "title": "NotaPlanoPeticion"
       },
@@ -24700,6 +24810,22 @@
               }
             ],
             "title": "Escala Calibrada En"
+          },
+          "rotacion_grados": {
+            "type": "integer",
+            "title": "Rotacion Grados",
+            "description": "Cuánto se gira el plano al verlo: 0, 90, 180 o 270 (0087).",
+            "default": 0
+          },
+          "volteo_horizontal": {
+            "type": "boolean",
+            "title": "Volteo Horizontal",
+            "default": false
+          },
+          "volteo_vertical": {
+            "type": "boolean",
+            "title": "Volteo Vertical",
+            "default": false
           }
         },
         "type": "object",
@@ -28570,6 +28696,24 @@
               }
             ],
             "description": "Plantilla con la que se estampó un polígono que nació de un punto con forma."
+          },
+          "pendiente_pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendiente Pct",
+            "description": "Pendiente en % de una **línea** inclinada (desnivel / recorrido × 100): su longitud real es la de la planta × √(1 + p²). Solo de una línea."
           }
         },
         "type": "object",
@@ -28676,6 +28820,19 @@
               }
             ],
             "title": "Alineacion"
+          },
+          "pendiente_pct": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pendiente Pct",
+            "description": "Pendiente en % de una línea inclinada; `null` = horizontal."
           },
           "forma": {
             "anyOf": [
@@ -29368,6 +29525,34 @@
         ],
         "title": "VersionSoportadaRespuesta",
         "description": "Lo que la app necesita para decidir entre bloquear, sugerir o callarse."
+      },
+      "VistaPeticion": {
+        "properties": {
+          "rotacion_grados": {
+            "type": "integer",
+            "enum": [
+              0,
+              90,
+              180,
+              270
+            ],
+            "title": "Rotacion Grados",
+            "default": 0
+          },
+          "volteo_horizontal": {
+            "type": "boolean",
+            "title": "Volteo Horizontal",
+            "default": false
+          },
+          "volteo_vertical": {
+            "type": "boolean",
+            "title": "Volteo Vertical",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "VistaPeticion",
+        "description": "Cómo se ve el plano (migración 0087). Solo presentación: ninguna cantidad cambia."
       },
       "obractrl__adapters__api__v1__insumos__PeriodoRespuesta": {
         "properties": {

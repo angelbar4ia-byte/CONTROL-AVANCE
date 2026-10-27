@@ -53,6 +53,7 @@ from obractrl.adapters.api.casos_uso import (
     ConsultarCuantificacionDep,
     ConsultarMatricesDep,
     EliminarTrazoDep,
+    FijarVistaDePlanoDep,
     QuitarHuecoDep,
     ReemplazarEnlaceDep,
     RegistrarNotaPlanoDep,
@@ -65,6 +66,7 @@ from obractrl.application.casos_uso.cuantificar import (
     ComandoAprobarTrazo,
     ComandoCalibrarEscala,
     ComandoEliminarTrazo,
+    ComandoFijarVistaDePlano,
     ComandoReemplazarEnlace,
     ComandoRegistrarNotaPlano,
     ComandoRegistrarTrazo,
@@ -211,6 +213,15 @@ class TrazoPeticion(BaseModel):
         default=None,
         description="Plantilla con la que se estampó un polígono que nació de un punto con forma.",
     )
+    pendiente_pct: Decimal | None = Field(
+        default=None,
+        gt=0,
+        le=1000,
+        description=(
+            "Pendiente en % de una **línea** inclinada (desnivel / recorrido × 100): su longitud "
+            "real es la de la planta × √(1 + p²). Solo de una línea."
+        ),
+    )
 
     @model_validator(mode="after")
     def _grosor_y_alineacion_juntos(self) -> TrazoPeticion:
@@ -273,8 +284,18 @@ class ReemplazarEnlacePeticion(BaseModel):
 class NotaPlanoPeticion(BaseModel):
     version_plano: int = Field(gt=0)
     ubicacion_wkt: str = Field(min_length=1, description="WKT de un punto, SRID 0.")
-    texto: str = Field(min_length=1)
+    texto: str = Field(default="", description="Vacío solo en una flecha.")
     actividad_id: UUID | None = None
+    tipo: Literal["nota", "texto", "flecha", "llamada"] = Field(
+        default="nota",
+        description=(
+            "`nota` (rombo con texto), `texto` (rótulo suelto), `flecha` (señala `destino_wkt`) "
+            "o `llamada` (texto con una flecha a `destino_wkt`). Ninguna produce cantidad."
+        ),
+    )
+    destino_wkt: str | None = Field(
+        default=None, description="WKT de un punto: a dónde apunta una flecha o una llamada."
+    )
 
 
 class NotaPlanoRespuesta(BaseModel):
@@ -354,6 +375,7 @@ async def registrar_trazo(
             grosor_m=peticion.grosor_m,
             alineacion=peticion.alineacion,
             forma=peticion.forma.model_dump(mode="json") if peticion.forma else None,
+            pendiente_pct=peticion.pendiente_pct,
             enlaces=tuple(
                 IntencionEnlace(
                     medida=e.medida,
@@ -534,6 +556,39 @@ async def calibrar_escala(
     )
 
 
+class VistaPeticion(BaseModel):
+    """Cómo se ve el plano (migración 0087). Solo presentación: ninguna cantidad cambia."""
+
+    rotacion_grados: Literal[0, 90, 180, 270] = 0
+    volteo_horizontal: bool = False
+    volteo_vertical: bool = False
+
+
+@router.put(
+    "/planos/{plano_id}/vista",
+    response_model=VistaPeticion,
+    summary="Girar o voltear el plano al verlo",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={404: {"description": "El plano no existe o está fuera de tu alcance."}},
+)
+async def fijar_vista(
+    plano_id: UUID,
+    peticion: VistaPeticion,
+    caso_uso: FijarVistaDePlanoDep,
+) -> VistaPeticion:
+    """La rotación y el espejo se guardan con el plano para que todos lo vean igual. No tocan
+    la geometría de los trazos ni las cantidades."""
+    await caso_uso.ejecutar(
+        ComandoFijarVistaDePlano(
+            plano_id=plano_id,
+            rotacion_grados=peticion.rotacion_grados,
+            volteo_horizontal=peticion.volteo_horizontal,
+            volteo_vertical=peticion.volteo_vertical,
+        )
+    )
+    return peticion
+
+
 @router.post(
     "/enlaces-cuantificacion/{enlace_id}/reemplazar",
     response_model=ResultadoRecalculoRespuesta,
@@ -643,6 +698,8 @@ async def registrar_nota_plano(
             autor_id=ctx.usuario_id,
             texto=peticion.texto,
             actividad_id=peticion.actividad_id,
+            tipo=peticion.tipo,
+            destino_wkt=peticion.destino_wkt,
         )
     )
     return NotaPlanoRespuesta(id=resultado.nota_id)
@@ -683,6 +740,11 @@ class PlanoDetalleRespuesta(BaseModel):
         description="Los dos puntos y la distancia real con que se calibró.",
     )
     escala_calibrada_en: datetime | None = None
+    rotacion_grados: int = Field(
+        default=0, description="Cuánto se gira el plano al verlo: 0, 90, 180 o 270 (0087)."
+    )
+    volteo_horizontal: bool = False
+    volteo_vertical: bool = False
 
 
 class EnlaceDeTrazoRespuesta(BaseModel):
@@ -718,6 +780,9 @@ class TrazoPropiedades(BaseModel):
         default=None, description="Grosor en metros de una línea (un muro); `null` si no tiene."
     )
     alineacion: Literal["centro", "izquierda", "derecha"] | None = None
+    pendiente_pct: Decimal | None = Field(
+        default=None, description="Pendiente en % de una línea inclinada; `null` = horizontal."
+    )
     forma: dict[str, Any] | None = Field(
         default=None, description="Plantilla con la que se estampó un punto con forma."
     )
@@ -850,6 +915,7 @@ async def trazos_de_plano(
                     aprobado_en=trazo["aprobado_en"],
                     grosor_m=trazo.get("grosor_m"),
                     alineacion=trazo.get("alineacion"),
+                    pendiente_pct=trazo.get("pendiente_pct"),
                     forma=trazo.get("forma"),
                     n_huecos=int(trazo.get("n_huecos") or 0),
                     nodo_ids=list(dict.fromkeys(e.nodo_id for e in enlaces if e.vigente)),
@@ -879,6 +945,10 @@ class NotaPlanoDetalleRespuesta(BaseModel):
     )
     ubicacion: dict[str, Any] = Field(
         description="`Point` GeoJSON en **coordenadas de plano** (SRID 0), no lon/lat."
+    )
+    tipo: Literal["nota", "texto", "flecha", "llamada"] = "nota"
+    destino: dict[str, Any] | None = Field(
+        default=None, description="`Point` GeoJSON al que apunta una flecha o una llamada."
     )
 
 

@@ -12,14 +12,19 @@ import {
   ArrowLeftRight,
   Box,
   Circle,
+  CopyPlus,
   Eraser,
   Eye,
+  FlipHorizontal2,
+  FlipVertical2,
   Hand,
   Hash,
   MapPin,
   MousePointer,
   Pentagon,
   Redo2,
+  RotateCcw,
+  RotateCw,
   RectangleHorizontal,
   Ruler,
   Spline,
@@ -68,6 +73,7 @@ const ICONOS: Record<Herramienta, Icono> = {
   circulo: Circle,
   elipse: IconoElipse,
   punto: MapPin,
+  copiar: CopyPlus,
   hueco: SquareMinus,
   borrar: Eraser,
   escala: Ruler,
@@ -86,6 +92,7 @@ export const ETIQUETAS: Record<Herramienta, string> = {
   circulo: 'Círculo',
   elipse: 'Elipse',
   punto: 'Punto',
+  copiar: 'Copiar en lote',
   hueco: 'Hueco',
   borrar: 'Borrar',
   escala: 'Calibrar escala',
@@ -104,6 +111,7 @@ export const ATAJOS: Record<Herramienta, string> = {
   circulo: 'I',
   elipse: 'J',
   punto: 'O',
+  copiar: 'K',
   hueco: 'U',
   borrar: 'B',
   escala: 'E',
@@ -113,7 +121,7 @@ export const ATAJOS: Record<Herramienta, string> = {
 const GRUPOS: readonly (readonly Herramienta[])[] = [
   ['seleccionar', 'mano', 'zoom'],
   ['linea', 'polilinea', 'arco', 'poligono', 'rectangulo', 'circulo', 'elipse'],
-  ['punto', 'hueco', 'nota', 'borrar'],
+  ['punto', 'copiar', 'hueco', 'nota', 'borrar'],
   ['escala'],
 ];
 
@@ -124,6 +132,24 @@ export interface Accion {
   readonly descripcion: string;
   readonly onClick: () => void;
 }
+
+/** Cómo se ve el plano: girar a un lado u otro y voltearlo en espejo. Solo presentación. */
+export interface AccionDeVista {
+  readonly clave: 'girarIzquierda' | 'girarDerecha' | 'voltearH' | 'voltearV';
+  readonly etiqueta: string;
+  /** Los espejos quedan encendidos mientras el plano está volteado. */
+  readonly activo?: boolean;
+  readonly deshabilitado?: boolean;
+  readonly descripcion: string;
+  readonly onClick: () => void;
+}
+
+const ICONOS_DE_VISTA: Record<AccionDeVista['clave'], Icono> = {
+  girarIzquierda: RotateCcw,
+  girarDerecha: RotateCw,
+  voltearH: FlipHorizontal2,
+  voltearV: FlipVertical2,
+};
 
 export type ClaveDeInterruptor = 'medidas' | 'cotas' | 'soloElegidos' | 'volumen' | 'datos';
 
@@ -155,6 +181,8 @@ interface Props {
   readonly historial?: readonly Accion[];
   /** Acciones que se disparan una vez (no se quedan encendidas): eliminar lo elegido. */
   readonly acciones?: readonly Accion[];
+  /** Girar y voltear el plano al verlo. */
+  readonly vista?: readonly AccionDeVista[];
   readonly onAlternar: (clave: ClaveDeInterruptor) => void;
   readonly orientacion?: 'vertical' | 'horizontal';
 }
@@ -197,6 +225,7 @@ export function BarraDeHerramientas({
   interruptores,
   historial = [],
   acciones = [],
+  vista = [],
   onAlternar,
   orientacion = 'vertical',
 }: Props) {
@@ -258,6 +287,22 @@ export function BarraDeHerramientas({
           );
         })}
       </div>
+      {vista.length > 0 && (
+        <div className="barra-iconos__grupo" role="group" aria-label="Vista del plano">
+          <span className="barra-iconos__sep" role="separator" />
+          {vista.map((a) => (
+            <Boton
+              key={a.clave}
+              etiqueta={a.etiqueta}
+              Icono={ICONOS_DE_VISTA[a.clave]}
+              activo={a.activo ?? false}
+              deshabilitado={a.deshabilitado}
+              titulo={a.descripcion}
+              onClick={a.onClick}
+            />
+          ))}
+        </div>
+      )}
       {acciones.length > 0 && (
         <div className="barra-iconos__grupo" role="group">
           <span className="barra-iconos__sep" role="separator" />

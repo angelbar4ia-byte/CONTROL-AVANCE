@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { NotaPlanoPeticionActividadId } from "./notaPlanoPeticionActividadId";
+import type { NotaPlanoPeticionTipo } from "./notaPlanoPeticionTipo";
+import type { NotaPlanoPeticionDestinoWkt } from "./notaPlanoPeticionDestinoWkt";
 
 export interface NotaPlanoPeticion {
   /** */
@@ -15,7 +17,11 @@ export interface NotaPlanoPeticion {
    * @minLength 1
    */
   ubicacion_wkt: string;
-  /** @minLength 1 */
-  texto: string;
+  /** Vacío solo en una flecha. */
+  texto?: string;
   actividad_id?: NotaPlanoPeticionActividadId;
+  /** `nota` (rombo con texto), `texto` (rótulo suelto), `flecha` (señala `destino_wkt`) o `llamada` (texto con una flecha a `destino_wkt`). Ninguna produce cantidad. */
+  tipo?: NotaPlanoPeticionTipo;
+  /** WKT de un punto: a dónde apunta una flecha o una llamada. */
+  destino_wkt?: NotaPlanoPeticionDestinoWkt;
 }

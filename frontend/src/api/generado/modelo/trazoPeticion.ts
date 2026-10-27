@@ -11,6 +11,7 @@ import type { IntencionEnlacePeticion } from "./intencionEnlacePeticion";
 import type { TrazoPeticionGrosorM } from "./trazoPeticionGrosorM";
 import type { TrazoPeticionAlineacion } from "./trazoPeticionAlineacion";
 import type { TrazoPeticionForma } from "./trazoPeticionForma";
+import type { TrazoPeticionPendientePct } from "./trazoPeticionPendientePct";
 
 /**
  * Alta de un trazo con sus enlaces (MODELO.md §1b, Decisión 3 de 3:
@@ -33,4 +34,6 @@ export interface TrazoPeticion {
   alineacion?: TrazoPeticionAlineacion;
   /** Plantilla con la que se estampó un polígono que nació de un punto con forma. */
   forma?: TrazoPeticionForma;
+  /** Pendiente en % de una **línea** inclinada (desnivel / recorrido × 100): su longitud real es la de la planta × √(1 + p²). Solo de una línea. */
+  pendiente_pct?: TrazoPeticionPendientePct;
 }

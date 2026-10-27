@@ -49,15 +49,17 @@ _ESCALA_SQL = "coalesce(p.escala_m_por_unidad, 1)"
 # La geometría que se mide es la **efectiva** (0086): la del trazo menos sus huecos. Y el
 # área de una línea con grosor es largo × grosor (un muro), no el área de un segmento.
 _GEOMETRIA_SQL = "app.geometria_efectiva(t.id, t.geometria)"
+# Una línea inclinada mide más que su proyección en planta: × √(1 + (pendiente/100)²) (0087).
+_PENDIENTE_SQL = "sqrt(1 + power(coalesce(t.pendiente_pct, 0) / 100.0, 2))"
 _MEDIDA_VALOR_SQL = f"""
     case e.medida
       when 'area'      then case
                               when t.grosor_m is not null
-                                then ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * t.grosor_m
+                                then ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * t.grosor_m * {_PENDIENTE_SQL}
                               else ST_Area({_GEOMETRIA_SQL}) * power({_ESCALA_SQL}, 2)
                             end
       when 'perimetro'  then ST_Perimeter({_GEOMETRIA_SQL}) * {_ESCALA_SQL}
-      when 'longitud'   then ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL}
+      when 'longitud'   then ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * {_PENDIENTE_SQL}
       when 'conteo'     then 1
     end
 """
@@ -110,7 +112,8 @@ class RepositorioPlanosSQL:
                     """
                     select id, obra_id, nombre, archivo_url, version, capas,
                            subido_por, created_at, escala_m_por_unidad,
-                           escala_referencia, escala_calibrada_en
+                           escala_referencia, escala_calibrada_en,
+                           rotacion_grados, volteo_horizontal, volteo_vertical
                       from plano
                      where id = :id
                     """
@@ -159,6 +162,33 @@ class RepositorioPlanosSQL:
             },
         )
 
+    async def fijar_vista(
+        self,
+        plano_id: UUID,
+        *,
+        rotacion_grados: int,
+        volteo_horizontal: bool,
+        volteo_vertical: bool,
+    ) -> None:
+        """Cómo se ve el plano (0087). Presentación: no toca geometría ni cantidades."""
+        await self._sesion.execute(
+            text(
+                """
+                update plano
+                   set rotacion_grados   = :rot,
+                       volteo_horizontal = :vh,
+                       volteo_vertical   = :vv
+                 where id = :id
+                """
+            ),
+            {
+                "id": str(plano_id),
+                "rot": rotacion_grados,
+                "vh": volteo_horizontal,
+                "vv": volteo_vertical,
+            },
+        )
+
     async def listar_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
         filas = (
             await self._sesion.execute(
@@ -168,6 +198,7 @@ class RepositorioPlanosSQL:
                            p.capas, p.subido_por, p.created_at,
                            p.escala_m_por_unidad, p.escala_referencia,
                            p.escala_calibrada_en,
+                           p.rotacion_grados, p.volteo_horizontal, p.volteo_vertical,
                            count(t.id) as n_trazos,
                            -- Trazados sobre una versión anterior del plano:
                            -- quedan marcados para revisión, no se recalculan
@@ -204,6 +235,7 @@ class RepositorioTrazosSQL:
         grosor_m: Decimal | None = None,
         alineacion: str | None = None,
         forma: dict[str, Any] | None = None,
+        pendiente_pct: Decimal | None = None,
     ) -> UUID:
         fila = (
             await self._sesion.execute(
@@ -211,7 +243,7 @@ class RepositorioTrazosSQL:
                     """
                     insert into trazo
                         (org_id, plano_id, version_plano, capa, geometria,
-                         fuente, autor_id, grosor_m, alineacion, forma)
+                         fuente, autor_id, grosor_m, alineacion, forma, pendiente_pct)
                     values
                         (cast(current_setting('app.org_id') as uuid),
                          :plano_id, :version_plano, :capa,
@@ -220,7 +252,7 @@ class RepositorioTrazosSQL:
                          -- coordenadas de plano, no geográficas.
                          ST_GeomFromText(:geometria_wkt, 0),
                          cast(:fuente as fuente_trazo), :autor_id,
-                         :grosor_m, :alineacion, cast(:forma as jsonb))
+                         :grosor_m, :alineacion, cast(:forma as jsonb), :pendiente_pct)
                     returning id
                     """
                 ),
@@ -234,6 +266,7 @@ class RepositorioTrazosSQL:
                     "grosor_m": grosor_m,
                     "alineacion": alineacion,
                     "forma": json.dumps(forma) if forma is not None else None,
+                    "pendiente_pct": pendiente_pct,
                 },
             )
         ).scalar_one()
@@ -385,7 +418,7 @@ class RepositorioTrazosSQL:
                     """
                     select t.id, t.version_plano, t.capa, t.fuente, t.autor_id,
                            t.aprobado_por, t.aprobado_en, t.created_at,
-                           t.grosor_m, t.alineacion, t.forma,
+                           t.grosor_m, t.alineacion, t.forma, t.pendiente_pct,
                            (select count(*) from trazo h where h.hueco_de = t.id) as n_huecos,
                            (t.version_plano < p.version) as por_revisar,
                            -- La geometría que se dibuja y se mide es la efectiva: con sus huecos.
@@ -629,6 +662,8 @@ class RepositorioNotasPlanoSQL:
         autor_id: UUID,
         texto: str,
         actividad_id: UUID | None,
+        tipo: str = "nota",
+        destino_wkt: str | None = None,
     ) -> UUID:
         fila = (
             await self._sesion.execute(
@@ -636,12 +671,14 @@ class RepositorioNotasPlanoSQL:
                     """
                     insert into nota_plano
                         (org_id, plano_id, version_plano, ubicacion,
-                         autor_id, texto, actividad_id)
+                         autor_id, texto, actividad_id, tipo, destino)
                     values
                         (cast(current_setting('app.org_id') as uuid),
                          :plano_id, :version_plano,
                          ST_GeomFromText(:ubicacion_wkt, 0),
-                         :autor_id, :texto, cast(:actividad_id as uuid))
+                         :autor_id, :texto, cast(:actividad_id as uuid), :tipo,
+                         case when cast(:destino_wkt as text) is null then null
+                              else ST_GeomFromText(:destino_wkt, 0) end)
                     returning id
                     """
                 ),
@@ -652,6 +689,8 @@ class RepositorioNotasPlanoSQL:
                     "autor_id": str(autor_id),
                     "texto": texto,
                     "actividad_id": str(actividad_id) if actividad_id else None,
+                    "tipo": tipo,
+                    "destino_wkt": destino_wkt,
                 },
             )
         ).scalar_one()
@@ -665,9 +704,10 @@ class RepositorioNotasPlanoSQL:
                 text(
                     """
                     select n.id, n.version_plano, n.autor_id, n.texto,
-                           n.actividad_id, n.created_at,
+                           n.actividad_id, n.created_at, n.tipo,
                            (n.version_plano < p.version) as por_revisar,
-                           ST_AsGeoJSON(n.ubicacion, 9, 0) as geojson
+                           ST_AsGeoJSON(n.ubicacion, 9, 0) as geojson,
+                           ST_AsGeoJSON(n.destino, 9, 0) as geojson_destino
                       from nota_plano n
                       join plano p on p.id = n.plano_id
                      where n.plano_id = :plano_id
@@ -679,8 +719,9 @@ class RepositorioNotasPlanoSQL:
         ).mappings().all()
         return [
             {
-                **{k: v for k, v in fila.items() if k != "geojson"},
+                **{k: v for k, v in fila.items() if k not in ("geojson", "geojson_destino")},
                 "ubicacion": json.loads(fila["geojson"]),
+                "destino": json.loads(fila["geojson_destino"]) if fila["geojson_destino"] else None,
             }
             for fila in filas
         ]

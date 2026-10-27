@@ -47,6 +47,7 @@ import type {
   TrazoPeticion,
   TrazoRespuesta,
   TrazosDePlanoRespuesta,
+  VistaPeticion,
 } from ".././modelo";
 
 import { peticion } from "../../cliente";
@@ -1352,6 +1353,100 @@ export const useCalibrarEscalaApiV1PlanosPlanoIdEscalaPut = <
 > => {
   const mutationOptions =
     getCalibrarEscalaApiV1PlanosPlanoIdEscalaPutMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * La rotación y el espejo se guardan con el plano para que todos lo vean igual. No tocan
+la geometría de los trazos ni las cantidades.
+ * @summary Girar o voltear el plano al verlo
+ */
+export const fijarVistaApiV1PlanosPlanoIdVistaPut = (
+  planoId: string,
+  vistaPeticion: VistaPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<VistaPeticion>(
+    {
+      url: `/api/v1/planos/${planoId}/vista`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: vistaPeticion,
+    },
+    options,
+  );
+};
+
+export const getFijarVistaApiV1PlanosPlanoIdVistaPutMutationOptions = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof fijarVistaApiV1PlanosPlanoIdVistaPut>>,
+    TError,
+    { planoId: string; data: VistaPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof fijarVistaApiV1PlanosPlanoIdVistaPut>>,
+  TError,
+  { planoId: string; data: VistaPeticion },
+  TContext
+> => {
+  const mutationKey = ["fijarVistaApiV1PlanosPlanoIdVistaPut"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof fijarVistaApiV1PlanosPlanoIdVistaPut>>,
+    { planoId: string; data: VistaPeticion }
+  > = (props) => {
+    const { planoId, data } = props ?? {};
+
+    return fijarVistaApiV1PlanosPlanoIdVistaPut(planoId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type FijarVistaApiV1PlanosPlanoIdVistaPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof fijarVistaApiV1PlanosPlanoIdVistaPut>>
+>;
+export type FijarVistaApiV1PlanosPlanoIdVistaPutMutationBody = VistaPeticion;
+export type FijarVistaApiV1PlanosPlanoIdVistaPutMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Girar o voltear el plano al verlo
+ */
+export const useFijarVistaApiV1PlanosPlanoIdVistaPut = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof fijarVistaApiV1PlanosPlanoIdVistaPut>>,
+      TError,
+      { planoId: string; data: VistaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof fijarVistaApiV1PlanosPlanoIdVistaPut>>,
+  TError,
+  { planoId: string; data: VistaPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getFijarVistaApiV1PlanosPlanoIdVistaPutMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };

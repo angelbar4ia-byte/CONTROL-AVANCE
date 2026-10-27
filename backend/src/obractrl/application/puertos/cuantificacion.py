@@ -57,6 +57,17 @@ class RepositorioPlanos(Protocol):
         trazos no se toca: la escala se aplica al leer la medida."""
         ...
 
+    async def fijar_vista(
+        self,
+        plano_id: UUID,
+        *,
+        rotacion_grados: int,
+        volteo_horizontal: bool,
+        volteo_vertical: bool,
+    ) -> None:
+        """Cómo se ve el plano (migración 0087): rotación y espejo. Solo presentación."""
+        ...
+
     async def obra_visible(self, obra_id: UUID) -> bool:
         """¿La obra existe y entra en el alcance de quien consulta (RLS)?
         Para responder 404 en vez de una lista vacía que se confunde con "esta
@@ -93,6 +104,7 @@ class RepositorioTrazos(Protocol):
         grosor_m: Decimal | None = None,
         alineacion: str | None = None,
         forma: dict[str, Any] | None = None,
+        pendiente_pct: Decimal | None = None,
     ) -> UUID: ...
 
     async def tipo_de_geometria(self, geometria_wkt: str) -> str:
@@ -213,6 +225,8 @@ class RepositorioNotasPlano(Protocol):
         autor_id: UUID,
         texto: str,
         actividad_id: UUID | None,
+        tipo: str = "nota",
+        destino_wkt: str | None = None,
     ) -> UUID: ...
 
     async def de_plano(self, plano_id: UUID) -> list[dict[str, Any]]: ...

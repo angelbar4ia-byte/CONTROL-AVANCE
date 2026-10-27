@@ -97,6 +97,7 @@ __all__ = [
     "ComandoAgregarHueco",
     "ComandoCalibrarEscala",
     "ComandoEliminarTrazo",
+    "ComandoFijarVistaDePlano",
     "ComandoReemplazarEnlace",
     "ComandoRegistrarNotaPlano",
     "ComandoRegistrarTrazo",
@@ -105,6 +106,7 @@ __all__ = [
     "EnlaceNoEncontrado",
     "ErrorDeCuantificacion",
     "EscalaCalibrada",
+    "FijarVistaDePlano",
     "GobiernoDeCuantificacionInvalido",
     "HuecoAgregado",
     "IntencionEnlace",
@@ -182,6 +184,8 @@ class ComandoRegistrarTrazo:
     """De qué lado del eje queda el cuerpo de la línea: centro, izquierda o derecha."""
     forma: dict[str, Any] | None = None
     """Plantilla con la que se estampó un **polígono** que nació de un punto con forma."""
+    pendiente_pct: Decimal | None = None
+    """Pendiente en % de una **línea** inclinada: su longitud real es la de la planta × √(1 + p²) (0087)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -259,6 +263,10 @@ class ComandoRegistrarNotaPlano:
     autor_id: UUID
     texto: str
     actividad_id: UUID | None = None
+    tipo: str = "nota"
+    """`nota`, `texto`, `flecha` o `llamada` (0087)."""
+    destino_wkt: str | None = None
+    """A dónde apunta una `flecha` o una `llamada`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -491,6 +499,11 @@ class RegistrarTrazoConEnlaces:
             raise ErrorDeCuantificacion("El grosor y la alineación van juntos.")
         if cmd.forma is not None and tipo != "ST_Polygon":
             raise ErrorDeCuantificacion("La forma es de un trazo cerrado (un polígono).")
+        if cmd.pendiente_pct is not None:
+            if tipo != "ST_LineString":
+                raise ErrorDeCuantificacion("La pendiente es de una línea (un tramo inclinado).")
+            if cmd.pendiente_pct <= 0:
+                raise ErrorDeCuantificacion("La pendiente debe ser mayor que cero.")
 
         async with self._uow:
             trazo_id = await self._trazos.crear(
@@ -503,6 +516,7 @@ class RegistrarTrazoConEnlaces:
                 grosor_m=cmd.grosor_m,
                 alineacion=cmd.alineacion,
                 forma=cmd.forma,
+                pendiente_pct=cmd.pendiente_pct,
             )
 
             enlace_ids: list[UUID] = []
@@ -1089,6 +1103,44 @@ class QuitarHueco:
         return TrazoEliminado(trazo_id=trazo_id, recalculos=recalculos)
 
 
+_TIPOS_DE_ANOTACION = ("nota", "texto", "flecha", "llamada")
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoFijarVistaDePlano:
+    plano_id: UUID
+    rotacion_grados: int
+    volteo_horizontal: bool
+    volteo_vertical: bool
+
+
+class FijarVistaDePlano:
+    """`PUT /planos/{id}/vista`: cómo se ve el plano —girado y/o en espejo— (migración 0087).
+
+    Es presentación: no toca la geometría de los trazos ni ninguna cantidad, así que no recalcula
+    nada y no pide más gobierno que poder trazar sobre el plano."""
+
+    def __init__(self, *, planos: RepositorioPlanos, uow: UnidadDeTrabajo) -> None:
+        self._planos = planos
+        self._uow = uow
+
+    async def ejecutar(self, cmd: ComandoFijarVistaDePlano) -> None:
+        if cmd.rotacion_grados not in (0, 90, 180, 270):
+            raise ErrorDeCuantificacion("El plano solo gira de 90 en 90 grados.")
+        if await self._planos.obtener(cmd.plano_id) is None:
+            raise PlanoNoEncontrado(
+                f"El plano {cmd.plano_id} no existe o está fuera de tu alcance."
+            )
+        async with self._uow:
+            await self._planos.fijar_vista(
+                cmd.plano_id,
+                rotacion_grados=cmd.rotacion_grados,
+                volteo_horizontal=cmd.volteo_horizontal,
+                volteo_vertical=cmd.volteo_vertical,
+            )
+            await self._uow.commit()
+
+
 class RegistrarNotaPlano:
     """Alta simple de una anotación sobre el plano (MODELO.md §1b): nunca
     produce cantidad, nunca tiene enlace."""
@@ -1099,10 +1151,17 @@ class RegistrarNotaPlano:
 
     async def ejecutar(self, cmd: ComandoRegistrarNotaPlano) -> NotaPlanoRegistrada:
         texto = cmd.texto.strip()
-        if not texto:
+        if cmd.tipo not in _TIPOS_DE_ANOTACION:
+            raise ErrorDeCuantificacion(f"Tipo de anotación desconocido: {cmd.tipo!r}.")
+        # Una flecha puede ir sin palabras; todo lo demás necesita texto.
+        if not texto and cmd.tipo != "flecha":
             raise ErrorDeCuantificacion(
-                "La nota necesita texto: nota_plano.texto es not null "
+                "La anotación necesita texto: nota_plano.texto es not null "
                 "(MODELO.md §1b)."
+            )
+        if (cmd.tipo in ("flecha", "llamada")) != (cmd.destino_wkt is not None):
+            raise ErrorDeCuantificacion(
+                "Solo una flecha o una llamada apuntan a un destino, y las dos lo necesitan."
             )
 
         async with self._uow:
@@ -1113,6 +1172,8 @@ class RegistrarNotaPlano:
                 autor_id=cmd.autor_id,
                 texto=texto,
                 actividad_id=cmd.actividad_id,
+                tipo=cmd.tipo,
+                destino_wkt=cmd.destino_wkt,
             )
             await self._uow.commit()
 

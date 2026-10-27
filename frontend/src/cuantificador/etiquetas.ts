@@ -7,7 +7,7 @@
  * visor y la escala del plano; la cantidad que cuenta es la que calcula el servidor.
  */
 
-import { areaLocal, longitudLocal, partesDe, type GeometriaGeoJson, type Punto } from './geometria';
+import { areaLocal, factorDePendiente, longitudLocal, partesDe, type GeometriaGeoJson, type Punto } from './geometria';
 
 export interface EtiquetaDeMedida {
   /** `punto`: una pieza contada con la herramienta Punto, con su número. Los vértices de un trazo no se cuentan. */
@@ -82,6 +82,7 @@ export function etiquetasDeMedidas(
   escala: number | null,
   grosorM: number | null = null,
   numeroDePunto: number | null = null,
+  pendientePct: number | string | null = null,
 ): EtiquetaDeMedida[] {
   const { lineal, superficie, k } = unidadesDeEscala(escala);
   const etiquetas: EtiquetaDeMedida[] = [];
@@ -121,7 +122,7 @@ export function etiquetasDeMedidas(
     });
   }
   for (const linea of partes.filter((p) => p.tipo === 'linea')) {
-    const largo = longitudLocal(linea.puntos) * k;
+    const largo = longitudLocal(linea.puntos) * k * factorDePendiente(pendientePct);
     const medio = linea.puntos[Math.floor(linea.puntos.length / 2)] as Punto;
     etiquetas.push({
       tipo: 'longitud',
@@ -129,14 +130,18 @@ export function etiquetasDeMedidas(
       texto:
         grosorM !== null && escala !== null
           ? `${fmtMedida(largo)} ${lineal} × ${fmtMedida(grosorM)} = ${fmtMedida(largo * grosorM)} ${superficie}`
-          : `${fmtMedida(largo)} ${lineal}`,
+          : `${fmtMedida(largo)} ${lineal}${Number(pendientePct ?? 0) > 0 ? ` ↗ ${Number(pendientePct)} %` : ''}`,
     });
   }
   return etiquetas;
 }
 
 /** Una cota por tramo de cada línea y de cada borde (exterior y de huecos). */
-export function cotasDe(geometria: GeometriaGeoJson, escala: number | null): Cota[] {
+export function cotasDe(
+  geometria: GeometriaGeoJson,
+  escala: number | null,
+  pendientePct: number | string | null = null,
+): Cota[] {
   const { lineal, k } = unidadesDeEscala(escala);
   const cotas: Cota[] = [];
   for (const parte of partesDe(geometria)) {
@@ -145,7 +150,7 @@ export function cotasDe(geometria: GeometriaGeoJson, escala: number | null): Cot
     for (let i = 1; i < puntos.length; i += 1) {
       const a = puntos[i - 1] as Punto;
       const b = puntos[i] as Punto;
-      const largo = Math.hypot(b[0] - a[0], b[1] - a[1]) * k;
+      const largo = Math.hypot(b[0] - a[0], b[1] - a[1]) * k * factorDePendiente(pendientePct);
       if (largo > 0) cotas.push({ a, b, texto: `${fmtMedida(largo)} ${lineal}` });
     }
   }

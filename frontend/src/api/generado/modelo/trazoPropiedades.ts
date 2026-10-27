@@ -11,6 +11,7 @@ import type { TrazoPropiedadesAprobadoPor } from "./trazoPropiedadesAprobadoPor"
 import type { TrazoPropiedadesAprobadoEn } from "./trazoPropiedadesAprobadoEn";
 import type { TrazoPropiedadesGrosorM } from "./trazoPropiedadesGrosorM";
 import type { TrazoPropiedadesAlineacion } from "./trazoPropiedadesAlineacion";
+import type { TrazoPropiedadesPendientePct } from "./trazoPropiedadesPendientePct";
 import type { TrazoPropiedadesForma } from "./trazoPropiedadesForma";
 import type { EnlaceDeTrazoRespuesta } from "./enlaceDeTrazoRespuesta";
 
@@ -27,6 +28,8 @@ export interface TrazoPropiedades {
   /** Grosor en metros de una línea (un muro); `null` si no tiene. */
   grosor_m?: TrazoPropiedadesGrosorM;
   alineacion?: TrazoPropiedadesAlineacion;
+  /** Pendiente en % de una línea inclinada; `null` = horizontal. */
+  pendiente_pct?: TrazoPropiedadesPendientePct;
   /** Plantilla con la que se estampó un punto con forma. */
   forma?: TrazoPropiedadesForma;
   /** Huecos que tiene el área. Su geometría ya viene restada en `geometry`. */

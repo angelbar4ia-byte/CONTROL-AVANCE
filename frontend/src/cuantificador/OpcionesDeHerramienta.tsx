@@ -20,9 +20,12 @@ import {
   type TipoDeForma,
 } from './formas';
 import type { Punto } from './geometria';
+import { PanelDeOpciones } from './PanelDeOpciones';
 import { numeroTecleado } from './volumen';
 
 const GROSORES_USUALES = [0.1, 0.15, 0.2, 0.3] as const;
+/** Pendientes de uso común en techumbres, drenajes y rampas (en %). */
+const PENDIENTES_USUALES = [2, 5, 10, 33] as const;
 const TIPOS: readonly TipoDeForma[] = ['circulo', 'cuadrado', 'rectangulo', 'triangulo', 'hexagono', 'libre'];
 
 const ALINEACIONES: readonly { clave: Alineacion; etiqueta: string }[] = [
@@ -82,6 +85,9 @@ interface Props {
   readonly herramienta: 'linea' | 'punto';
   readonly grosorM: number | null;
   readonly onGrosor: (m: number | null) => void;
+  /** Pendiente en % de un tramo inclinado, o `null` si es horizontal. */
+  readonly pendientePct: number | null;
+  readonly onPendiente: (p: number | null) => void;
   readonly alineacion: Alineacion;
   readonly onAlineacion: (a: Alineacion) => void;
   /** `null` = punto simple, sin forma. */
@@ -95,6 +101,8 @@ export function OpcionesDeHerramienta({
   herramienta,
   grosorM,
   onGrosor,
+  pendientePct,
+  onPendiente,
   alineacion,
   onAlineacion,
   forma,
@@ -102,10 +110,11 @@ export function OpcionesDeHerramienta({
   contornoElegido,
 }: Props) {
   const [grosorTecleado, setGrosorTecleado] = useState('');
+  const [pendienteTecleada, setPendienteTecleada] = useState('');
 
   if (herramienta === 'linea') {
     return (
-      <section className="opciones" aria-label="Opciones de la línea">
+      <PanelDeOpciones etiqueta="Opciones de la línea" titulo="Línea">
         <div className="opciones__titulo">Grosor</div>
         <div className="opciones__fila">
           <button
@@ -159,18 +168,63 @@ export function OpcionesDeHerramienta({
             </button>
           ))}
         </div>
+        <div className="opciones__titulo">Pendiente</div>
+        <div className="opciones__fila" role="group" aria-label="Pendiente">
+          <button
+            type="button"
+            className={pendientePct === null ? 'chip is-active' : 'chip'}
+            aria-pressed={pendientePct === null}
+            onClick={() => {
+              onPendiente(null);
+              setPendienteTecleada('');
+            }}
+          >
+            Horizontal
+          </button>
+          {PENDIENTES_USUALES.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={pendientePct === p ? 'chip is-active' : 'chip'}
+              aria-pressed={pendientePct === p}
+              onClick={() => onPendiente(p)}
+            >
+              {p} %
+            </button>
+          ))}
+        </div>
+        <label className="opciones__campo" htmlFor="opc-pendiente">
+          <span>Otra pendiente (%)</span>
+          <input
+            id="opc-pendiente"
+            className="input"
+            inputMode="decimal"
+            placeholder="12"
+            value={pendienteTecleada}
+            onChange={(e) => {
+              setPendienteTecleada(e.target.value);
+              const n = numeroTecleado(e.target.value);
+              onPendiente(n > 0 ? n : null);
+            }}
+          />
+        </label>
+        <p className="text-mute text-xs">
+          {pendientePct === null
+            ? 'La línea es horizontal: mide lo que se ve en planta.'
+            : 'Un tramo inclinado mide más que su proyección en planta: largo × √(1 + pendiente²).'}
+        </p>
         <p className="text-mute text-xs">
           {grosorM === null
             ? 'Sin grosor la línea mide su largo. Con grosor mide también largo × grosor (el área de un muro).'
             : 'El eje es la línea que dibujas; el cuerpo del muro queda del lado que elijas.'}
         </p>
-      </section>
+      </PanelDeOpciones>
     );
   }
 
   const cambiar = (cambios: Partial<Forma>) => forma && onForma({ ...forma, ...cambios });
   return (
-    <section className="opciones" aria-label="Opciones del punto">
+    <PanelDeOpciones etiqueta="Opciones del punto" titulo="Punto">
       <div className="opciones__titulo">Forma</div>
       <div className="opciones__fila">
         <button
@@ -294,6 +348,6 @@ export function OpcionesDeHerramienta({
           ? 'Un punto cuenta una instancia.'
           : 'Haz clic en el plano para estampar la forma, centrada donde hagas clic.'}
       </p>
-    </section>
+    </PanelDeOpciones>
   );
 }

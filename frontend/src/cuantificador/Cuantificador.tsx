@@ -37,6 +37,7 @@ import {
   useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet,
   useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet,
   useListarPlanosApiV1ObrasObraIdPlanosGet,
+  useFijarVistaApiV1PlanosPlanoIdVistaPut,
   useNotasDePlanoApiV1PlanosPlanoIdNotasGet,
   useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet,
 } from '@/api/generado/cuantificacion/cuantificacion';
@@ -62,6 +63,8 @@ import { fmtFecha, fmtNum } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { SelectorObra } from '@/lib/SelectorObra';
 import { AltaNota } from './AltaNota';
+import { OpcionesDeNota, type ClaseDeNota } from './OpcionesDeNota';
+import { girar, rotacionValida, type VistaDelPlano } from './vista';
 import { AltaPlano } from './AltaPlano';
 import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
 import { CalibrarEscala } from './CalibrarEscala';
@@ -81,7 +84,7 @@ import {
   formaDe,
   type HerramientaDeDibujo,
 } from './dibujo';
-import { cotasDe, etiquetasDeMedidas, sinCierre } from './etiquetas';
+import { centroide, cotasDe, etiquetasDeMedidas, sinCierre } from './etiquetas';
 import {
   REFERENCIAS_POR_DEFECTO,
   buscarReferencia,
@@ -109,6 +112,7 @@ import {
   areaDeGeometria,
   type GeometriaBase,
   partesDe,
+  type GeometriaGeoJson,
   puntosDe,
   trazoCompleto,
   type Herramienta,
@@ -130,6 +134,7 @@ const HERRAMIENTAS: readonly Herramienta[] = [
   'circulo',
   'elipse',
   'punto',
+  'copiar',
   'hueco',
   'borrar',
   'escala',
@@ -165,9 +170,32 @@ const ATAJOS: Readonly<Record<string, Herramienta>> = {
   i: 'circulo',
   j: 'elipse',
   o: 'punto',
+  k: 'copiar',
   e: 'escala',
   n: 'nota',
 };
+
+const NOMBRE_DE_ANOTACION: Readonly<Record<ClaseDeNota, string>> = {
+  nota: 'Nota',
+  texto: 'Texto',
+  flecha: 'Flecha',
+  llamada: 'Llamada',
+};
+
+/** Un `Point` GeoJSON como punto de plano, o `null`. */
+function puntoDeGeoJson(g: { coordinates?: unknown } | null | undefined): Punto | null {
+  const c = g?.coordinates;
+  return Array.isArray(c) && typeof c[0] === 'number' && typeof c[1] === 'number' ? ([c[0], c[1]] as Punto) : null;
+}
+
+/** El centro de una pieza (un punto, o el contorno de una forma estampada). */
+function centroDeLaPieza(geometria: GeometriaGeoJson): Punto | null {
+  const primero = partesDe(geometria)[0];
+  if (!primero) return null;
+  if (primero.tipo === 'punto') return primero.puntos[0] as Punto;
+  if (primero.tipo === 'anillo') return centroide(primero.puntos);
+  return null;
+}
 
 const ES_IMAGEN = /\.(png|jpe?g|webp)$/i;
 const ES_PDF = /\.pdf$/i;
@@ -229,6 +257,8 @@ export function EspacioDeTrazo({
   const [huecoEnCurso, setHuecoEnCurso] = useState<readonly Punto[]>([]);
   // Opciones de las herramientas: el grosor y la alineación de una línea, la forma de un punto.
   const [grosorM, setGrosorM] = useState<number | null>(null);
+  /** Pendiente en % de la línea que se traza (un tramo inclinado); `null` = horizontal. */
+  const [pendientePct, setPendientePct] = useState<number | null>(null);
   const [alineacion, setAlineacion] = useState<Alineacion>('centro');
   const [formaPunto, setFormaPunto] = useState<Forma | null>(null);
   /** La forma con la que se está guardando el trazo (solo cuando nació de un punto con forma). */
@@ -242,6 +272,8 @@ export function EspacioDeTrazo({
   const [referencias, setReferencias] = useState<ReferenciasActivas>(REFERENCIAS_POR_DEFECTO);
   /** Mayús apretada: invierte el ortogonal mientras se mantiene. */
   const mayus = useRef(false);
+  /** Cuántas copias lleva la pieza que se repite con «Copiar en lote». */
+  const copias = useRef(0);
   const [ayudasAbiertas, setAyudasAbiertas] = useState(false);
   // Deshacer y rehacer: la pila vive en esta sesión y se vacía al cambiar de plano. Un trazo que se
   // recrea (deshacer un borrado, rehacer un trazo) nace con id nuevo: `alias` lleva del viejo al nuevo
@@ -261,6 +293,9 @@ export function EspacioDeTrazo({
   const [subiendoPlano, setSubiendoPlano] = useState(false);
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
   const [notaPunto, setNotaPunto] = useState<Punto | null>(null);
+  /** Qué se anota con la herramienta Nota, y a dónde apunta si es una flecha o una llamada. */
+  const [claseDeNota, setClaseDeNota] = useState<ClaseDeNota>('nota');
+  const [notaDestino, setNotaDestino] = useState<Punto | null>(null);
   const [reemplazando, setReemplazando] = useState<string | null>(null);
   const [calibrando, setCalibrando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -291,6 +326,39 @@ export function EspacioDeTrazo({
   }, [planoElegido, onPlanoCambiado]);
 
   const plano = listaDePlanos.find((p) => p.id === planoElegido);
+
+  // Cómo se ve el plano (girado, en espejo). Se guarda con el plano; mientras llega la respuesta se
+  // muestra lo que se acaba de pedir.
+  const fijarVista = useFijarVistaApiV1PlanosPlanoIdVistaPut<ErrorApi>();
+  const [vistaPedida, setVistaPedida] = useState<{ planoId: string; vista: VistaDelPlano } | null>(null);
+  const vistaGuardada: VistaDelPlano = {
+    rotacionGrados: rotacionValida(plano?.rotacion_grados),
+    volteoH: plano?.volteo_horizontal ?? false,
+    volteoV: plano?.volteo_vertical ?? false,
+  };
+  const vistaDelPlano = vistaPedida && vistaPedida.planoId === planoElegido ? vistaPedida.vista : vistaGuardada;
+  function cambiarVista(nueva: VistaDelPlano) {
+    setVistaPedida({ planoId: planoElegido, vista: nueva });
+    fijarVista.mutate(
+      {
+        planoId: planoElegido,
+        data: {
+          rotacion_grados: nueva.rotacionGrados,
+          volteo_horizontal: nueva.volteoH,
+          volteo_vertical: nueva.volteoV,
+        },
+      },
+      {
+        onSuccess: () => {
+          void queryClient.invalidateQueries({ queryKey: getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId) });
+        },
+        onError: (err) => {
+          setVistaPedida(null);
+          setAviso(`No se pudo cambiar la vista del plano: ${err.message}`);
+        },
+      },
+    );
+  }
   const esImagen = plano !== undefined && ES_IMAGEN.test(plano.archivo_url);
   const esPdf = plano !== undefined && ES_PDF.test(plano.archivo_url);
 
@@ -376,7 +444,16 @@ export function EspacioDeTrazo({
       listaDeNotas.flatMap((n) => {
         const c = n.ubicacion.coordinates;
         return Array.isArray(c) && typeof c[0] === 'number' && typeof c[1] === 'number'
-          ? [{ id: n.id, punto: [c[0], c[1]] as Punto, texto: n.texto, porRevisar: n.por_revisar }]
+          ? [
+              {
+                id: n.id,
+                punto: [c[0], c[1]] as Punto,
+                texto: n.texto,
+                porRevisar: n.por_revisar,
+                tipo: n.tipo,
+                destino: puntoDeGeoJson(n.destino),
+              },
+            ]
           : [];
       }),
     [listaDeNotas],
@@ -415,7 +492,7 @@ export function EspacioDeTrazo({
   /** Las que se cierran solas al dar el último clic; las demás terminan con Enter. */
   const clicsDeLaForma = forma && forma !== 'punto' ? CLICS_DE_FORMA[forma] : undefined;
   /** Dónde funcionan las ayudas: al dibujar, abrir un hueco, estampar un punto y calibrar. */
-  const asistida = forma !== null || herramienta === 'hueco' || herramienta === 'escala';
+  const asistida = forma !== null || herramienta === 'hueco' || herramienta === 'escala' || herramienta === 'copiar';
   /** Solo los tramos rectos se alinean a un ángulo (no las curvas ni los rectángulos, ni la calibración, que mide una distancia cualquiera). */
   const usaOrtogonal =
     herramienta === 'poligono' ||
@@ -426,6 +503,17 @@ export function EspacioDeTrazo({
   /** Un hueco solo se abre sobre un área (un polígono trazado, no una línea con grosor). */
   const areaElegida =
     seleccionado !== null && areaDeGeometria(seleccionado.geometry) > 0 ? seleccionado : null;
+
+  /**
+   * La pieza que se repite con «Copiar en lote»: un punto, o una forma estampada (un castillo, una
+   * columna). Es lo que se cuenta, y lo que se quiere poner en muchos lugares sin volver a llenar
+   * sus enlaces.
+   */
+  const piezaElegida =
+    seleccionado !== null &&
+    (seleccionado.geometry.type === 'Point' || seleccionado.properties.forma != null)
+      ? seleccionado
+      : null;
 
   const agregarHueco = useAgregarHuecoApiV1TrazosTrazoIdHuecosPost<ErrorApi>();
   const eliminar = useEliminarTrazoApiV1TrazosTrazoIdDelete<ErrorApi>();
@@ -502,6 +590,29 @@ export function EspacioDeTrazo({
     setSeleccion(elegido);
   }
 
+  /** Lo que hace falta para volver a crear un trazo igual (deshacer un borrado, copiar una pieza): enlaces vigentes, grosor, pendiente y forma. */
+  function datosParaRecrear(feature: (typeof features)[number], wkt: string): TrazoPeticion {
+    const p = feature.properties;
+    return {
+      version_plano: p.version_plano,
+      fuente: p.fuente,
+      capa: p.capa ?? null,
+      geometria_wkt: wkt,
+      enlaces: p.enlaces
+        .filter((e) => e.vigente)
+        .map((e) => ({
+          medida: e.medida,
+          factor: e.factor,
+          ...(e.tipo_nodo === 'actividad'
+            ? { actividad_id: e.nodo_id, ...(e.matriz_concepto_id ? { matriz_concepto_id: e.matriz_concepto_id } : {}) }
+            : { prototipo_nodo_id: e.nodo_id }),
+        })),
+      ...(p.grosor_m != null && p.alineacion ? { grosor_m: String(p.grosor_m), alineacion: p.alineacion } : {}),
+      ...(p.forma ? { forma: p.forma } : {}),
+      ...(p.pendiente_pct != null ? { pendiente_pct: String(p.pendiente_pct) } : {}),
+    } as TrazoPeticion;
+  }
+
   async function confirmarBorrado() {
     if (porBorrar === null) return;
     const id = porBorrar;
@@ -514,24 +625,7 @@ export function EspacioDeTrazo({
       // enlaces vigentes, su grosor y su forma. La aprobación no vuelve: el trazo recreado es nuevo.
       const wkt = feature ? geojsonAWkt(feature.geometry) : null;
       if (feature && wkt) {
-        const p = feature.properties;
-        const data = {
-          version_plano: p.version_plano,
-          fuente: p.fuente,
-          capa: p.capa ?? null,
-          geometria_wkt: wkt,
-          enlaces: p.enlaces
-            .filter((e) => e.vigente)
-            .map((e) => ({
-              medida: e.medida,
-              factor: e.factor,
-              ...(e.tipo_nodo === 'actividad'
-                ? { actividad_id: e.nodo_id, ...(e.matriz_concepto_id ? { matriz_concepto_id: e.matriz_concepto_id } : {}) }
-                : { prototipo_nodo_id: e.nodo_id }),
-            })),
-          ...(p.grosor_m != null && p.alineacion ? { grosor_m: String(p.grosor_m), alineacion: p.alineacion } : {}),
-          ...(p.forma ? { forma: p.forma } : {}),
-        } as TrazoPeticion;
+        const data = datosParaRecrear(feature, wkt);
         historial.registrar({
           etiqueta: 'trazo borrado',
           deshacer: () => recrear(id, planoDelTrazo, data),
@@ -562,6 +656,50 @@ export function EspacioDeTrazo({
     }
   }
 
+  /** Una copia de la pieza elegida centrada en `p`: mismos enlaces, misma forma, sin abrir el cajón. */
+  async function copiarPieza(p: Punto) {
+    if (piezaElegida === null) return;
+    const centro = centroDeLaPieza(piezaElegida.geometry);
+    if (centro === null) return;
+    const dx = p[0] - centro[0];
+    const dy = p[1] - centro[1];
+    const partes = partesDe(piezaElegida.geometry);
+    const exterior = partes.find((x) => x.tipo === 'anillo' && !x.hueco);
+    const wkt =
+      piezaElegida.geometry.type === 'Point'
+        ? aWkt('punto', [p])
+        : exterior
+          ? aWkt(
+              'poligono',
+              sinCierre(exterior.puntos).map((v) => [v[0] + dx, v[1] + dy] as Punto),
+            )
+          : null;
+    if (wkt === null) return;
+    const data = datosParaRecrear(piezaElegida, wkt);
+    const planoId = planoElegido;
+    try {
+      const r = await registrarTrazo.mutateAsync({ planoId, data });
+      copias.current += 1;
+      let nuevoId = r.trazo_id;
+      historial.registrar({
+        etiqueta: 'copia de la pieza',
+        deshacer: async () => {
+          await eliminar.mutateAsync({ trazoId: vigente(nuevoId) });
+        },
+        rehacer: async () => {
+          const otra = await registrarTrazo.mutateAsync({ planoId, data });
+          alias.current.set(vigente(nuevoId), otra.trazo_id);
+          nuevoId = otra.trazo_id;
+        },
+      });
+      refrescarHistorial();
+      setAviso(`Copia ${copias.current} hecha. Sigue dando clic para repetirla; Esc termina.`);
+      invalidarTrazos();
+    } catch (err) {
+      setAviso(`No se pudo copiar la pieza: ${err instanceof Error ? err.message : 'error'}`);
+    }
+  }
+
   function limpiarDibujo() {
     setBorrador([]);
     setHuecoEnCurso([]);
@@ -574,12 +712,17 @@ export function EspacioDeTrazo({
       setAviso('Para abrir un hueco, primero elige el área con la herramienta Seleccionar.');
       return;
     }
+    if (nueva === 'copiar' && piezaElegida === null) {
+      setAviso('Para copiar en lote, primero elige con Seleccionar el punto o la pieza que quieres repetir.');
+      return;
+    }
+    copias.current = 0;
     setHerramienta(nueva);
     limpiarDibujo();
     setCursor(null);
     setAviso(null);
     // Moverse, acercar y abrir un hueco no sueltan lo elegido: el hueco se abre sobre ello.
-    if (nueva !== 'seleccionar' && nueva !== 'mano' && nueva !== 'zoom' && nueva !== 'hueco' && nueva !== 'borrar') {
+    if (nueva !== 'seleccionar' && nueva !== 'mano' && nueva !== 'zoom' && nueva !== 'hueco' && nueva !== 'copiar' && nueva !== 'borrar') {
       setSeleccion(null);
     }
   }
@@ -587,7 +730,21 @@ export function EspacioDeTrazo({
   function alPunto(p: Punto) {
     setAviso(null);
     if (herramienta === 'nota') {
-      setNotaPunto(p);
+      if (claseDeNota === 'nota' || claseDeNota === 'texto') {
+        setNotaPunto(p);
+      } else if (borrador.length === 0) {
+        setBorrador([p]); // el primer clic: el inicio de la flecha, o lo que señala la llamada
+      } else if (claseDeNota === 'flecha') {
+        setNotaPunto(borrador[0] as Punto);
+        setNotaDestino(p);
+      } else {
+        setNotaPunto(p);
+        setNotaDestino(borrador[0] as Punto);
+      }
+      return;
+    }
+    if (herramienta === 'copiar') {
+      void copiarPieza(p);
       return;
     }
     if (herramienta === 'escala') {
@@ -702,7 +859,7 @@ export function EspacioDeTrazo({
   // Atajos mientras se dibuja. El efecto se rearma con cada cambio del borrador:
   // los manejadores leen el estado de este render, no uno viejo.
   useEffect(() => {
-    const dibujando = forma !== null || herramienta === 'hueco';
+    const dibujando = forma !== null || herramienta === 'hueco' || herramienta === 'copiar' || herramienta === 'nota';
     if (!dibujando || guardando || subiendoPlano || notaPunto !== null || reemplazando !== null) return;
     function alTeclear(e: KeyboardEvent) {
       const destino = e.target as HTMLElement | null;
@@ -716,7 +873,8 @@ export function EspacioDeTrazo({
         if (herramienta === 'hueco') setHuecoEnCurso((actual) => actual.slice(0, -1));
         else setBorrador((actual) => actual.slice(0, -1));
       } else if (e.key === 'Escape') {
-        limpiarDibujo();
+        if (herramienta === 'copiar') cambiarHerramienta('seleccionar');
+        else limpiarDibujo();
       }
     }
     window.addEventListener('keydown', alTeclear);
@@ -819,6 +977,7 @@ export function EspacioDeTrazo({
                 escalaDelPlano,
                 f.properties.grosor_m != null ? Number(f.properties.grosor_m) : null,
                 esPunto ? (siguiente += 1) : null,
+                f.properties.pendiente_pct,
               );
             });
           })()
@@ -826,7 +985,7 @@ export function EspacioDeTrazo({
     [mostrarMedidas, featuresVisibles, escalaDelPlano],
   );
   const cotas = useMemo(
-    () => (mostrarCotas ? featuresVisibles.flatMap((f) => cotasDe(f.geometry, escalaDelPlano)) : []),
+    () => (mostrarCotas ? featuresVisibles.flatMap((f) => cotasDe(f.geometry, escalaDelPlano, f.properties.pendiente_pct)) : []),
     [mostrarCotas, featuresVisibles, escalaDelPlano],
   );
   const resumen = useMemo(
@@ -843,10 +1002,20 @@ export function EspacioDeTrazo({
     (forma === 'linea' || forma === 'polilinea') && grosorM !== null && previa && previa.puntos.length >= 2
       ? bandaDeLinea(previa.puntos, grosorM * unidadesPorMetro, alineacion)
       : [];
-  const fantasma =
-    forma === 'punto' && formaPunto !== null && cursor !== null
-      ? poligonoDeForma(cursor, formaPunto, unidadesPorMetro)
-      : [];
+  const fantasma = (() => {
+    if (forma === 'punto' && formaPunto !== null && cursor !== null) {
+      return poligonoDeForma(cursor, formaPunto, unidadesPorMetro);
+    }
+    // Copiar en lote: el contorno de la pieza elegida, siguiendo al cursor.
+    if (herramienta === 'copiar' && piezaElegida !== null && cursor !== null) {
+      const centro = centroDeLaPieza(piezaElegida.geometry);
+      const anillo = partesDe(piezaElegida.geometry).find((x) => x.tipo === 'anillo' && !x.hueco);
+      if (centro && anillo) {
+        return sinCierre(anillo.puntos).map((v) => [v[0] + cursor[0] - centro[0], v[1] + cursor[1] - centro[1]] as Punto);
+      }
+    }
+    return [];
+  })();
   // El contorno del área elegida, para estampar su forma en otro lugar.
   const contornoElegido = (() => {
     if (!areaElegida) return null;
@@ -972,7 +1141,11 @@ export function EspacioDeTrazo({
   const detalle = (
     <aside className="estacion__detalle" aria-label="Detalle">
       <div className="estacion__titulo">
-        {seleccionado ? 'Trazo elegido' : notaElegida ? 'Nota elegida' : 'Trazos del plano'}
+        {seleccionado
+          ? 'Trazo elegido'
+          : notaElegida
+            ? `${NOMBRE_DE_ANOTACION[notaElegida.tipo ?? 'nota']} elegida`
+            : 'Trazos del plano'}
       </div>
       <div className="estacion__detalle-cuerpo col">
         {notaElegida ? (
@@ -1295,11 +1468,14 @@ export function EspacioDeTrazo({
                 herramientas={herramientasDisponibles}
                 activa={herramienta}
                 onElegir={cambiarHerramienta}
-                deshabilitadas={
-                  areaElegida === null
+                deshabilitadas={{
+                  ...(areaElegida === null
                     ? { hueco: 'Para abrir un hueco, primero elige el área con Seleccionar' }
-                    : {}
-                }
+                    : {}),
+                  ...(piezaElegida === null
+                    ? { copiar: 'Para copiar en lote, primero elige con Seleccionar el punto o la pieza que quieres repetir' }
+                    : {}),
+                }}
                 interruptores={interruptores}
                 historial={[
                   {
@@ -1333,6 +1509,34 @@ export function EspacioDeTrazo({
                     onClick: () => seleccionado && setPorBorrar(seleccionado.id),
                   },
                 ]}
+                vista={[
+                  {
+                    clave: 'girarIzquierda',
+                    etiqueta: 'Girar el plano a la izquierda',
+                    descripcion: 'Girar el plano 90° a la izquierda (solo la vista)',
+                    onClick: () => cambiarVista(girar(vistaDelPlano, false)),
+                  },
+                  {
+                    clave: 'girarDerecha',
+                    etiqueta: 'Girar el plano a la derecha',
+                    descripcion: 'Girar el plano 90° a la derecha (solo la vista)',
+                    onClick: () => cambiarVista(girar(vistaDelPlano, true)),
+                  },
+                  {
+                    clave: 'voltearH',
+                    etiqueta: 'Voltear el plano de izquierda a derecha',
+                    activo: vistaDelPlano.volteoH,
+                    descripcion: 'Voltear el plano en espejo, de izquierda a derecha (solo la vista)',
+                    onClick: () => cambiarVista({ ...vistaDelPlano, volteoH: !vistaDelPlano.volteoH }),
+                  },
+                  {
+                    clave: 'voltearV',
+                    etiqueta: 'Voltear el plano de arriba abajo',
+                    activo: vistaDelPlano.volteoV,
+                    descripcion: 'Voltear el plano en espejo, de arriba abajo (solo la vista)',
+                    onClick: () => cambiarVista({ ...vistaDelPlano, volteoV: !vistaDelPlano.volteoV }),
+                  },
+                ]}
                 onAlternar={alternar}
                 orientacion={compacto ? 'horizontal' : 'vertical'}
               />
@@ -1360,11 +1564,22 @@ export function EspacioDeTrazo({
                     herramienta={herramienta === 'punto' ? 'punto' : 'linea'}
                     grosorM={grosorM}
                     onGrosor={setGrosorM}
+                    pendientePct={pendientePct}
+                    onPendiente={setPendientePct}
                     alineacion={alineacion}
                     onAlineacion={setAlineacion}
                     forma={formaPunto}
                     onForma={setFormaPunto}
                     contornoElegido={contornoElegido}
+                  />
+                )}
+                {herramienta === 'nota' && (
+                  <OpcionesDeNota
+                    clase={claseDeNota}
+                    onClase={(c) => {
+                      setClaseDeNota(c);
+                      setBorrador([]);
+                    }}
                   />
                 )}
                 {volumenAbierto && (
@@ -1412,6 +1627,7 @@ export function EspacioDeTrazo({
 
               <Visor
                 claveDePlano={planoElegido}
+                vistaDelPlano={vistaDelPlano}
                 fondoUrl={fondoUrl}
                 trazos={trazosVisibles}
                 notas={notasVisibles}
@@ -1483,8 +1699,14 @@ export function EspacioDeTrazo({
 
       {plano !== undefined && (
         <div className="estacion__estado" aria-label="Estado del plano">
-          {(forma || herramienta === 'hueco' || herramienta === 'escala') && (
+          {(forma || herramienta === 'hueco' || herramienta === 'escala' || herramienta === 'copiar') && (
             <div className="estacion__dibujo row" role="group" aria-label="Trazo en curso">
+              {herramienta === 'copiar' && (
+                <span className="text-mute text-xs">
+                  Copiar en lote: clic donde va cada copia · {copias.current}{' '}
+                  {copias.current === 1 ? 'copia' : 'copias'} · Esc termina
+                </span>
+              )}
               {herramienta === 'escala' && (
                 <span className="text-mute text-xs">
                   {borrador.length === 0
@@ -1607,6 +1829,7 @@ export function EspacioDeTrazo({
           grosorM={aGuardar.tipo === 'linea' ? grosorM : null}
           alineacion={aGuardar.tipo === 'linea' && grosorM !== null ? alineacion : null}
           grosorU={grosorM !== null ? grosorM * unidadesPorMetro : null}
+          pendientePct={aGuardar.tipo === 'linea' ? pendientePct : null}
           forma={formaEstampada}
           actividades={actividades}
           actividadInicial={actividadFocoId}
@@ -1661,11 +1884,19 @@ export function EspacioDeTrazo({
           planoId={plano.id}
           versionPlano={plano.version}
           punto={notaPunto}
+          tipo={claseDeNota}
+          destino={notaDestino}
           actividades={actividades}
-          onCerrar={() => setNotaPunto(null)}
+          onCerrar={() => {
+            setNotaPunto(null);
+            setNotaDestino(null);
+            setBorrador([]);
+          }}
           onGuardada={() => {
             setNotaPunto(null);
-            setAviso('Nota guardada.');
+            setNotaDestino(null);
+            setBorrador([]);
+            setAviso(`${NOMBRE_DE_ANOTACION[claseDeNota]} guardada.`);
             void queryClient.invalidateQueries({
               queryKey: getNotasDePlanoApiV1PlanosPlanoIdNotasGetQueryKey(planoElegido),
             });

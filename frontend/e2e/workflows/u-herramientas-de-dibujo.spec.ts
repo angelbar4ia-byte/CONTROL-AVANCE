@@ -71,6 +71,12 @@ test.describe('Cuantificador · herramientas de dibujo', () => {
       const p = await en(fx, fy);
       await page.mouse.click(p.x, p.y);
     };
+    // Las opciones de la línea flotan sobre el plano; se pliegan a su cabecera (y se recuerda) para
+    // que los clics del dibujo no caigan sobre ellas.
+    const plegar = async () => {
+      const cabeza = page.locator('.opciones__cabeza[aria-expanded="true"]');
+      if ((await cabeza.count()) > 0) await cabeza.first().click();
+    };
     const guardar = async (nombre: string, medida: string) => {
       const alta = page.getByRole('dialog', { name: nombre });
       const valor = await alta.locator('#enlace-actividad-0 option').nth(1).getAttribute('value');
@@ -129,6 +135,7 @@ test.describe('Cuantificador · herramientas de dibujo', () => {
     const pArc = await planoNuevo('arc');
     await abrir(pArc.id);
     await barra.getByRole('button', { name: 'Arco', exact: true }).click();
+    await plegar();
     await clic(0.3, 0.85);
     await clic(0.5, 0.55);
     await clic(0.7, 0.85);
@@ -145,6 +152,7 @@ test.describe('Cuantificador · herramientas de dibujo', () => {
     const pPol = await planoNuevo('pol');
     await abrir(pPol.id);
     await barra.getByRole('button', { name: 'Polilínea', exact: true }).click();
+    await plegar();
     const orto = page.getByRole('button', { name: /^ORTO/ });
     await expect(orto).toHaveAttribute('aria-pressed', 'true');
     await expect(orto).toContainText('90°');

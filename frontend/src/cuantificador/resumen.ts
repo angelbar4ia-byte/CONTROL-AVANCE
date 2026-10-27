@@ -6,7 +6,7 @@
  * previa; los de por concepto son las cantidades que cuentan.
  */
 
-import { areaDeGeometria, longitudDeGeometria, partesDe, type GeometriaGeoJson } from './geometria';
+import { areaDeGeometria, factorDePendiente, longitudDeGeometria, partesDe, type GeometriaGeoJson } from './geometria';
 import { unidadesDeEscala } from './etiquetas';
 
 export interface TrazoParaResumen {
@@ -14,6 +14,7 @@ export interface TrazoParaResumen {
   readonly geometry: GeometriaGeoJson;
   readonly properties: {
     readonly grosor_m?: number | string | null;
+    readonly pendiente_pct?: number | string | null;
     readonly forma?: unknown;
     readonly n_huecos?: number;
     readonly enlaces: readonly {
@@ -64,7 +65,7 @@ export function resumenDePantalla(trazos: readonly TrazoParaResumen[], escala: n
   for (const t of trazos) {
     const partes = partesDe(t.geometry);
     const area = areaDeGeometria(t.geometry) * k * k;
-    const largo = longitudDeGeometria(t.geometry) * k;
+    const largo = longitudDeGeometria(t.geometry) * k * factorDePendiente(t.properties.pendiente_pct);
     const huecos = partes.filter((p) => p.tipo === 'anillo' && p.hueco);
     if (area > 0) {
       if (t.properties.forma) {

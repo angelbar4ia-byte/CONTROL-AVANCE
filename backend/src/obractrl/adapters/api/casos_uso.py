@@ -138,6 +138,7 @@ from obractrl.application.casos_uso.cuantificar import (
     ConsultarCuantificacion,
     ConsultarMatrices,
     EliminarTrazo,
+    FijarVistaDePlano,
     QuitarHueco,
     ReemplazarEnlace,
     RegistrarNotaPlano,
@@ -391,6 +392,7 @@ __all__ = [
     "FijarDesfaseDePartesDep",
     "FijarPlantasDeObraDep",
     "FijarPlantasDePrototipoDep",
+    "FijarVistaDePlanoDep",
     "GenerarDesdeEnsambleDep",
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
@@ -826,6 +828,10 @@ def obtener_calibrar_escala(sesion: SesionRLS, ctx: ContextoActual) -> CalibrarE
     )
 
 
+def obtener_fijar_vista(sesion: SesionRLS) -> FijarVistaDePlano:
+    return FijarVistaDePlano(planos=RepositorioPlanosSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
+
+
 def obtener_reemplazar_enlace(sesion: SesionRLS, ctx: ContextoActual) -> ReemplazarEnlace:
     return ReemplazarEnlace(
         enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
@@ -952,6 +958,7 @@ ReemplazarEnlaceDep = Annotated[ReemplazarEnlace, Depends(obtener_reemplazar_enl
 CalibrarEscalaDePlanoDep = Annotated[
     CalibrarEscalaDePlano, Depends(obtener_calibrar_escala)
 ]
+FijarVistaDePlanoDep = Annotated[FijarVistaDePlano, Depends(obtener_fijar_vista)]
 RegistrarNotaPlanoDep = Annotated[
     RegistrarNotaPlano, Depends(obtener_registrar_nota_plano)
 ]

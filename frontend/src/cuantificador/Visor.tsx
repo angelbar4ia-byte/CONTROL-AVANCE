@@ -33,6 +33,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Cota, EtiquetaDeMedida } from './etiquetas';
 import type { Forma as FormaPrevia } from './dibujo';
 import { NOMBRE_DE_REFERENCIA, type Referencia } from './referencias';
+import { cajaTransformada, transformacionDeVista, VISTA_NORMAL, vistaDeCaja, type VistaDelPlano } from './vista';
 
 import {
   VISTA_VACIA,
@@ -75,6 +76,9 @@ export interface NotaVisible {
   readonly punto: Punto;
   readonly texto: string;
   readonly porRevisar: boolean;
+  /** `nota` es el rombo; `texto` un rótulo; `flecha` y `llamada` apuntan a `destino`. */
+  readonly tipo?: 'nota' | 'texto' | 'flecha' | 'llamada';
+  readonly destino?: Punto | null;
 }
 
 /** Lo elegido en el plano: un trazo o una nota, nunca los dos. */
@@ -120,6 +124,16 @@ interface Props {
   readonly marcas?: readonly Punto[];
   /** Cambia cuando hay que volver a encuadrar (otro plano). */
   readonly claveDePlano: string;
+  /** Cómo se ve el plano: girado y/o en espejo. Solo presentación. */
+  readonly vistaDelPlano?: VistaDelPlano;
+}
+
+/** El trazo de una flecha de `desde` a `hasta`: el cuerpo y la cabeza (de `cabeza` unidades de largo). */
+function flechaHacia(desde: Punto, hasta: Punto, cabeza: number): string {
+  const ang = Math.atan2(hasta[1] - desde[1], hasta[0] - desde[0]);
+  const lado = (delta: number): string =>
+    `L${hasta[0] - cabeza * Math.cos(ang + delta)} ${hasta[1] - cabeza * Math.sin(ang + delta)}`;
+  return `M${desde[0]} ${desde[1]}L${hasta[0]} ${hasta[1]}${lado(0.45)}M${hasta[0]} ${hasta[1]}${lado(-0.45)}`;
 }
 
 interface Gesto {
@@ -151,6 +165,7 @@ export function Visor({
   previa = null,
   marcas = [],
   claveDePlano,
+  vistaDelPlano = VISTA_NORMAL,
 }: Props) {
   const svg = useRef<SVGSVGElement>(null);
   const gesto = useRef<Gesto | null>(null);
@@ -166,11 +181,22 @@ export function Visor({
 
   // El fondo manda en el encuadre: si hay imagen, el plano *es* la imagen. Sin
   // ella (PDF, o R2 sin configurar) se encuadran los trazos.
+  const { rotacionGrados, volteoH, volteoV } = vistaDelPlano;
+  const T = useMemo(
+    () => transformacionDeVista({ rotacionGrados, volteoH, volteoV }),
+    [rotacionGrados, volteoH, volteoV],
+  );
   const encuadre = useMemo<Vista>(() => {
-    if (imagen) return { x: 0, y: 0, ancho: imagen.ancho, alto: imagen.alto };
+    if (imagen) {
+      return vistaDeCaja(cajaTransformada({ minX: 0, minY: 0, maxX: imagen.ancho, maxY: imagen.alto }, T));
+    }
     const caja = cajaDePuntos(trazos.flatMap((t) => puntosDe(t.geometry)));
-    return caja ? vistaQueEncuadra(caja) : VISTA_VACIA;
-  }, [imagen, trazos]);
+    if (!caja) return VISTA_VACIA;
+    const v = vistaQueEncuadra(caja);
+    return vistaDeCaja(
+      cajaTransformada({ minX: v.x, minY: v.y, maxX: v.x + v.ancho, maxY: v.y + v.alto }, T),
+    );
+  }, [imagen, trazos, T]);
 
   // Re-encuadrar al cambiar de plano y cuando llega lo que define el encuadre
   // (la imagen, o los primeros trazos: al abrir un plano los trazos llegan *después*
@@ -183,10 +209,10 @@ export function Visor({
   const hayTrazos = trazos.length > 0;
   useEffect(() => {
     vistaTocada.current = false;
-  }, [claveDePlano]);
+  }, [claveDePlano, rotacionGrados, volteoH, volteoV]);
   useEffect(() => {
     if (!vistaTocada.current) setVista(encuadreActual.current);
-  }, [claveDePlano, imagen, hayTrazos]);
+  }, [claveDePlano, imagen, hayTrazos, rotacionGrados, volteoH, volteoV]);
 
   useEffect(() => {
     setImagen(null);
@@ -214,8 +240,8 @@ export function Visor({
     return () => obs.disconnect();
   }, []);
 
-  /** Pantalla → coordenadas de plano. */
-  const aPlano = useCallback((clientX: number, clientY: number): Punto => {
+  /** Pantalla → coordenadas del `viewBox` (la vista, ya girada si el plano lo está). */
+  const aVista = useCallback((clientX: number, clientY: number): Punto => {
     const el = svg.current;
     const matriz = el?.getScreenCTM();
     if (!el || !matriz) return [0, 0];
@@ -225,6 +251,11 @@ export function Visor({
     const p = punto.matrixTransform(matriz.inverse());
     return [p.x, p.y];
   }, []);
+  /** Pantalla → coordenadas de plano: la vista, deshecho el giro y el espejo. */
+  const aPlano = useCallback(
+    (clientX: number, clientY: number): Punto => T.invertir(aVista(clientX, clientY)),
+    [aVista, T],
+  );
 
   // Unidades de plano por píxel de pantalla: lo que mantiene los marcadores y la
   // tolerancia del clic del mismo tamaño visual a cualquier zoom.
@@ -241,7 +272,7 @@ export function Visor({
       pinza.current = {
         d0: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
         v0: vista,
-        p0: aPlano(m0.x, m0.y),
+        p0: aVista(m0.x, m0.y),
         m0,
       };
       if (gesto.current) gesto.current.movido = true;
@@ -319,7 +350,7 @@ export function Visor({
     if (herramienta === 'zoom') {
       vistaTocada.current = true;
       const factor = e.shiftKey || e.altKey ? 1.5 : 1 / 1.5;
-      setVista((v) => zoomEn(v, factor, p));
+      setVista((v) => zoomEn(v, factor, T.aplicar(p)));
       return;
     }
     if (herramienta === 'seleccionar' || herramienta === 'borrar') {
@@ -357,11 +388,11 @@ export function Visor({
       const pixeles = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
       const sensibilidad = e.ctrlKey ? SENSIBILIDAD_PELLIZCO : SENSIBILIDAD_RUEDA;
       const factor = Math.exp(Math.max(-MAXIMO_POR_EVENTO, Math.min(MAXIMO_POR_EVENTO, pixeles)) * sensibilidad);
-      setVista((v) => zoomEn(v, factor, aPlano(e.clientX, e.clientY)));
+      setVista((v) => zoomEn(v, factor, aVista(e.clientX, e.clientY)));
     }
     el.addEventListener('wheel', alRodar, { passive: false });
     return () => el.removeEventListener('wheel', alRodar);
-  }, [aPlano]);
+  }, [aVista]);
 
   const radio = 5 * porPixel;
   const cursor =
@@ -397,6 +428,7 @@ export function Visor({
       onContextMenu={(e) => e.preventDefault()}
       style={{ cursor }}
     >
+      <g transform={T.svg} data-testid="plano-girado" data-rotacion={rotacionGrados} data-volteo={`${volteoH ? 'h' : ''}${volteoV ? 'v' : ''}`}>
       {fondoUrl && imagen && !fondoRoto && (
         <image href={fondoUrl} x={0} y={0} width={imagen.ancho} height={imagen.alto} />
       )}
@@ -437,6 +469,21 @@ export function Visor({
           .filter(Boolean)
           .join(' ');
         const r = radio * 1.6;
+        const tipo = n.tipo ?? 'nota';
+        if (tipo !== 'nota') {
+          const cuerpo = n.destino ? flechaHacia(n.punto, n.destino, 11 * px) : null;
+          return (
+            <g key={n.id} className={`${clase} visor__anotacion`} data-nota-id={n.id} data-tipo={tipo}>
+              <title>{n.texto || 'Flecha'}</title>
+              {cuerpo && <path d={cuerpo} className="visor__flecha" />}
+              {tipo !== 'flecha' && n.texto && (
+                <text x={n.punto[0]} y={n.punto[1]} fontSize={13 * px} className="visor__rotulo" transform={T.contragiro(n.punto[0], n.punto[1])}>
+                  {n.texto}
+                </text>
+              )}
+            </g>
+          );
+        }
         return (
           <g key={n.id} className={clase} data-nota-id={n.id}>
             <title>{n.texto}</title>
@@ -499,9 +546,7 @@ export function Visor({
             const b = [c.b[0] + nx, c.b[1] + ny];
             const mx = (a[0]! + b[0]!) / 2;
             const my = (a[1]! + b[1]!) / 2;
-            let ang = (Math.atan2(dy, dx) * 180) / Math.PI;
-            if (ang > 90) ang -= 180;
-            if (ang < -90) ang += 180;
+            const ang = T.anguloEnPantalla(c.a, c.b);
             const demasiadoCorta = largo < 28 * px;
             return (
               <g key={i}>
@@ -509,7 +554,7 @@ export function Visor({
                 <line x1={c.b[0]} y1={c.b[1]} x2={b[0]} y2={b[1]} vectorEffect="non-scaling-stroke" />
                 <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} vectorEffect="non-scaling-stroke" />
                 {!demasiadoCorta && (
-                  <text x={mx} y={my} textAnchor="middle" dy={-3 * px} transform={`rotate(${ang} ${mx} ${my})`}>
+                  <text x={mx} y={my} textAnchor="middle" dy={-3 * px} transform={T.contragiro(mx!, my!, ang)}>
                     {c.texto}
                   </text>
                 )}
@@ -525,7 +570,7 @@ export function Visor({
             e.tipo === 'punto' ? (
               <g key={i} className="visor__vertice" data-testid="punto-numerado">
                 <circle cx={e.punto[0]} cy={e.punto[1]} r={7 * px} />
-                <text x={e.punto[0]} y={e.punto[1]} textAnchor="middle" dominantBaseline="central" fontSize={9 * px}>
+                <text x={e.punto[0]} y={e.punto[1]} textAnchor="middle" dominantBaseline="central" fontSize={9 * px} transform={T.contragiro(e.punto[0], e.punto[1])}>
                   {e.texto}
                 </text>
               </g>
@@ -538,6 +583,7 @@ export function Visor({
                 textAnchor="middle"
                 dominantBaseline="central"
                 style={{ strokeWidth: 3 * px }}
+                transform={T.contragiro(e.punto[0], e.punto[1])}
               >
                 {e.texto}
               </text>
@@ -567,7 +613,7 @@ export function Visor({
       {referencia && (
         <g className="visor__referencia" data-testid="referencia" data-tipo={referencia.tipo}>
           {marcaDeReferencia(referencia, 7 * porPixel)}
-          <text x={referencia.punto[0] + 10 * porPixel} y={referencia.punto[1] - 10 * porPixel} fontSize={11 * porPixel} style={{ strokeWidth: 3 * porPixel }}>
+          <text x={referencia.punto[0] + 10 * porPixel} y={referencia.punto[1] - 10 * porPixel} fontSize={11 * porPixel} style={{ strokeWidth: 3 * porPixel }} transform={T.contragiro(referencia.punto[0] + 10 * porPixel, referencia.punto[1] - 10 * porPixel)}>
             {NOMBRE_DE_REFERENCIA[referencia.tipo]}
           </text>
         </g>
@@ -584,6 +630,7 @@ export function Visor({
           ))}
         </g>
       )}
+      </g>
     </svg>
   );
 }

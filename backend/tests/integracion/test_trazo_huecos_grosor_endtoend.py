@@ -254,3 +254,99 @@ async def test_quitar_un_hueco_devuelve_el_area(control, escenario: Escenario) -
     # Ya no está; y un hueco de otro trazo no se quita por éste.
     assert (await control.delete(f"/api/v1/trazos/{area_['trazo_id']}/huecos/{h['hueco_id']}")).status_code == 404
     assert (await control.delete(f"/api/v1/trazos/{area_['trazo_id']}/huecos/{uuid.uuid4()}")).status_code == 404
+
+
+# --- 0087: pendiente, anotaciones y vista -----------------------------------------------------
+
+
+async def test_una_linea_inclinada_mide_mas_que_su_planta(
+    control: httpx.AsyncClient, escenario: Escenario
+) -> None:
+    """Pendiente 100 % (45°): la longitud real es la de la planta × √2; con grosor, el área también."""
+    plano = await _plano(control, escenario)
+    r = await _trazo(control, escenario, plano, "LINESTRING(0 0, 10 0)", "longitud", pendiente_pct="100")
+    assert r.status_code == 201, r.text
+    trazos = (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"]
+    enlace = trazos[0]["properties"]["enlaces"][0]
+    assert Decimal(str(enlace["medida_valor"])) == pytest.approx(Decimal("14.1421356"), abs=Decimal("0.0001"))
+    assert Decimal(str(trazos[0]["properties"]["pendiente_pct"])) == Decimal("100")
+
+    r = await _trazo(
+        control, escenario, plano, "LINESTRING(0 5, 10 5)", "area",
+        pendiente_pct="100", grosor_m="0.2", alineacion="centro",
+    )
+    assert r.status_code == 201, r.text
+    nuevo = (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"][-1]
+    assert Decimal(str(nuevo["properties"]["enlaces"][0]["medida_valor"])) == pytest.approx(
+        Decimal("2.8284271"), abs=Decimal("0.0001")
+    )
+
+
+async def test_la_pendiente_solo_es_de_una_linea(
+    control: httpx.AsyncClient, escenario: Escenario
+) -> None:
+    plano = await _plano(control, escenario)
+    r = await _trazo(
+        control, escenario, plano, "POLYGON((0 0, 4 0, 4 4, 0 4, 0 0))", "area", pendiente_pct="10"
+    )
+    assert r.status_code == 422
+    assert "línea" in r.text
+    r = await _trazo(control, escenario, plano, "LINESTRING(0 0, 4 0)", "longitud", pendiente_pct="0")
+    assert r.status_code == 422
+
+
+async def test_anotaciones_de_cada_clase_y_su_destino(
+    control: httpx.AsyncClient, residente: httpx.AsyncClient, escenario: Escenario
+) -> None:
+    """Solo anota el residente (0057). Una flecha va sin texto pero con destino; una llamada,
+    con los dos; un texto suelto no apunta a nada."""
+    plano = await _plano(control, escenario)
+    url = f"/api/v1/planos/{plano}/notas"
+    base = {"version_plano": 1, "ubicacion_wkt": "POINT(1 1)"}
+
+    assert (await residente.post(url, json={**base, "tipo": "texto", "texto": "Eje A"})).status_code == 201
+    assert (
+        await residente.post(url, json={**base, "tipo": "flecha", "destino_wkt": "POINT(5 5)"})
+    ).status_code == 201
+    assert (
+        await residente.post(
+            url, json={**base, "tipo": "llamada", "texto": "Registro", "destino_wkt": "POINT(8 2)"}
+        )
+    ).status_code == 201
+
+    # Una flecha sin destino, una llamada sin texto y un texto con destino se rechazan.
+    assert (await residente.post(url, json={**base, "tipo": "flecha"})).status_code == 422
+    assert (
+        await residente.post(url, json={**base, "tipo": "llamada", "destino_wkt": "POINT(8 2)"})
+    ).status_code == 422
+    assert (
+        await residente.post(url, json={**base, "tipo": "texto", "texto": "x", "destino_wkt": "POINT(1 2)"})
+    ).status_code == 422
+
+    notas = (await control.get(url)).json()
+    assert [n["tipo"] for n in notas] == ["texto", "flecha", "llamada"]
+    assert notas[0]["destino"] is None
+    assert notas[2]["destino"]["coordinates"] == [8, 2]
+    assert notas[1]["texto"] == ""
+
+
+async def test_la_vista_del_plano_se_guarda_y_no_toca_cantidades(
+    control: httpx.AsyncClient, escenario: Escenario
+) -> None:
+    plano = await _plano(control, escenario)
+    assert (await _trazo(control, escenario, plano, "LINESTRING(0 0, 10 0)", "longitud")).status_code == 201
+    antes = (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"][0]["properties"]["enlaces"]
+
+    r = await control.put(
+        f"/api/v1/planos/{plano}/vista",
+        json={"rotacion_grados": 90, "volteo_horizontal": True, "volteo_vertical": False},
+    )
+    assert r.status_code == 200, r.text
+    planos = (await control.get(f"/api/v1/obras/{escenario.obra_id}/planos")).json()
+    este = next(p for p in planos if p["id"] == plano)
+    assert (este["rotacion_grados"], este["volteo_horizontal"], este["volteo_vertical"]) == (90, True, False)
+
+    despues = (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"][0]["properties"]["enlaces"]
+    assert antes[0]["medida_valor"] == despues[0]["medida_valor"]
+
+    assert (await control.put(f"/api/v1/planos/{plano}/vista", json={"rotacion_grados": 45})).status_code == 422
