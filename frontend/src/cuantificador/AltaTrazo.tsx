@@ -16,7 +16,7 @@ import { useState, type FormEvent } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import { useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost } from '@/api/generado/cuantificacion/cuantificacion';
-import type { ActividadRespuesta, TrazoRespuesta } from '@/api/generado/modelo';
+import type { ActividadRespuesta, TrazoPeticion, TrazoRespuesta } from '@/api/generado/modelo';
 import { OpcionesDeMatriz } from './MatricesDeActividad';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Sheet } from '@/lib/Sheet';
@@ -75,7 +75,11 @@ interface Props {
    */
   readonly nodosDePrototipo: readonly NodoDePrototipo[] | null;
   readonly onCerrar: () => void;
-  readonly onGuardado: (resultado: TrazoRespuesta) => void;
+  /** Lo que se guardó y lo que se mandó: con eso se puede volver a registrar el mismo trazo (rehacer). */
+  readonly onGuardado: (
+    resultado: TrazoRespuesta,
+    solicitud: { readonly planoId: string; readonly data: TrazoPeticion },
+  ) => void;
 }
 
 const NOMBRE_FORMA: Record<GeometriaBase, string> = {
@@ -159,9 +163,7 @@ export function AltaTrazo({
     }
 
     try {
-      const resultado = await registrar.mutateAsync({
-        planoId,
-        data: {
+      const data: TrazoPeticion = {
           version_plano: versionPlano,
           fuente,
           capa: capa.trim() === '' ? null : capa.trim(),
@@ -191,9 +193,9 @@ export function AltaTrazo({
                 }
               : { prototipo_nodo_id: f.actividadId }),
           })),
-        },
-      });
-      onGuardado(resultado);
+      };
+      const resultado = await registrar.mutateAsync({ planoId, data });
+      onGuardado(resultado, { planoId, data });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar el trazo.');
     }

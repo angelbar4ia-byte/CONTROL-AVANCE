@@ -496,3 +496,47 @@ export function longitudDeGeometria(geometria: GeometriaGeoJson): number {
     .filter((p) => p.tipo === 'linea')
     .reduce((suma, p) => suma + longitudLocal(p.puntos), 0);
 }
+
+// ── GeoJSON → WKT ─────────────────────────────────────────────────────────
+
+/**
+ * El WKT de una geometría GeoJSON del servidor, para volver a registrarla (rehacer un trazo que se
+ * borró). Cubre lo que el cuantificador guarda: puntos, líneas y polígonos con huecos, y los
+ * multipolígonos que salen de un hueco que parte un área. `null` si no la reconoce.
+ */
+export function geojsonAWkt(geometria: GeometriaGeoJson): string | null {
+  const par = (p: unknown): string | null =>
+    Array.isArray(p) && typeof p[0] === 'number' && typeof p[1] === 'number' ? `${p[0]} ${p[1]}` : null;
+  const lista = (ps: unknown): string | null => {
+    if (!Array.isArray(ps)) return null;
+    const partes = ps.map(par);
+    return partes.every((x) => x !== null) ? `(${partes.join(', ')})` : null;
+  };
+  const poligono = (anillos: unknown): string | null => {
+    if (!Array.isArray(anillos)) return null;
+    const partes = anillos.map(lista);
+    return partes.every((x) => x !== null) ? `(${partes.join(', ')})` : null;
+  };
+  const c = geometria.coordinates;
+  switch (geometria.type) {
+    case 'Point': {
+      const p = par(c);
+      return p === null ? null : `POINT(${p})`;
+    }
+    case 'LineString': {
+      const l = lista(c);
+      return l === null ? null : `LINESTRING${l}`;
+    }
+    case 'Polygon': {
+      const pg = poligono(c);
+      return pg === null ? null : `POLYGON${pg}`;
+    }
+    case 'MultiPolygon': {
+      if (!Array.isArray(c)) return null;
+      const partes = c.map(poligono);
+      return partes.every((x) => x !== null) ? `MULTIPOLYGON(${partes.join(', ')})` : null;
+    }
+    default:
+      return null;
+  }
+}

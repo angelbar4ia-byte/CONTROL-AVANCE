@@ -9629,6 +9629,71 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/huecos/{hueco_id}": {
+      "delete": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Quitar un hueco de un área",
+        "description": "El área vuelve a medir lo que medía sin ese hueco; sus nodos se recalculan.",
+        "operationId": "quitar_hueco_api_v1_trazos__trazo_id__huecos__hueco_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          },
+          {
+            "name": "hueco_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Hueco Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrazoEliminadoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No es un trazo tuyo sin aprobar, o alimenta un prototipo_nodo."
+          },
+          "404": {
+            "description": "El trazo o su hueco no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/escala": {
       "put": {
         "tags": [

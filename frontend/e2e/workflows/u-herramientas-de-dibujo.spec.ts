@@ -5,6 +5,10 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
  * con el ortogonal (90° por defecto, Mayús para invertirlo, ángulo de trabajo editable) y la
  * referencia a objetos (el cursor se pega a los extremos de lo que ya hay).
  *
+ * Con el plano calibrado, lo dibujado, lo estampado y lo escrito (medidas y cotas) respetan la escala.
+ * También deshacer y rehacer (Ctrl+Z, Ctrl+Y y los botones de la barra), que valen para guardar un
+ * trazo, borrarlo y abrir un hueco.
+ *
  * Es una obra nueva por corrida: no consume obras de la semilla.
  */
 
@@ -240,5 +244,175 @@ test.describe('Cuantificador · herramientas de dibujo', () => {
     await page.mouse.move(caja.x + caja.width - 4, caja.y + 5);
     await expect(page.getByTestId('referencia')).toHaveCount(0);
     await expect(lienzo).toBeVisible();
+  });
+
+  test('deshacer y rehacer: guardar, borrar y abrir un hueco', async ({ page, request }) => {
+    const clave = `UND-${Date.now().toString(36).toUpperCase()}`;
+    const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
+    const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
+    const usuarios = await llamarApi<{ id: string; nombre: string }[]>(request, 'control', 'GET', '/usuarios');
+    const obra = await llamarApi<{ id: string }>(request, 'control', 'POST', '/obras', {
+      cluster_id: clusters.find((c) => c.clave === 'CLU-E2E')!.id,
+      prototipo_id: prototipos.find((p) => p.clave === 'CAS-E2E')!.id,
+      residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
+      clave,
+    });
+    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
+    const plano = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
+      nombre: 'undo',
+      archivo_url: 'planos/undo.dwg',
+    });
+    const trazosDe = async () =>
+      (await llamarApi<{ features: Feature[] }>(request, 'control', 'GET', `/planos/${plano.id}/trazos`)).features;
+
+    await entrarComo(page, 'control');
+    await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
+    const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
+    await expect(lienzo).toBeVisible();
+    const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
+    const deshacer = barra.getByRole('button', { name: 'Deshacer' });
+    const rehacer = barra.getByRole('button', { name: 'Rehacer' });
+    await expect(deshacer).toBeDisabled();
+    await expect(rehacer).toBeDisabled();
+
+    // --- Guardar un trazo y deshacerlo / rehacerlo ---------------------------------------------------------
+    await barra.getByRole('button', { name: 'Rectángulo', exact: true }).click();
+    const c = (await lienzo.boundingBox())!;
+    await page.mouse.click(c.x + c.width * 0.45, c.y + c.height * 0.5);
+    await page.mouse.click(c.x + c.width * 0.8, c.y + c.height * 0.85);
+    const alta = page.getByRole('dialog', { name: 'Guardar polígono' });
+    const valor = await alta.locator('#enlace-actividad-0 option').nth(1).getAttribute('value');
+    await alta.getByLabel('Actividad 1').selectOption(valor!);
+    await alta.getByLabel('Medida').selectOption('area');
+    await alta.getByRole('button', { name: 'Guardar trazo' }).click();
+    await expect(page.getByRole('status')).toContainText('Trazo guardado');
+    expect(await trazosDe()).toHaveLength(1);
+    const cantidad = Number((await trazosDe())[0]!.properties.enlaces[0]!.cantidad);
+    await expect(deshacer).toBeEnabled();
+
+    await deshacer.click();
+    await expect(page.getByRole('status')).toContainText('Deshecho: trazo guardado');
+    await expect(page.locator('.visor__trazo')).toHaveCount(0);
+    expect(await trazosDe()).toHaveLength(0);
+    await expect(rehacer).toBeEnabled();
+
+    await page.keyboard.press('Control+y'); // también con el teclado
+    await expect(page.locator('.visor__trazo')).toHaveCount(1);
+    expect(Number((await trazosDe())[0]!.properties.enlaces[0]!.cantidad)).toBeCloseTo(cantidad, 6); // mide igual
+
+    // --- Borrar y deshacer: vuelve con sus enlaces ---------------------------------------------------------
+    await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
+    const caja = (await page.locator('.visor__trazo path').first().boundingBox())!;
+    await page.mouse.click(caja.x + caja.width / 2, caja.y + caja.height / 2);
+    await page.keyboard.press('Delete');
+    await page.getByRole('dialog', { name: 'Borrar trazo' }).getByRole('button', { name: 'Borrar trazo' }).click();
+    await expect(page.locator('.visor__trazo')).toHaveCount(0);
+    await page.keyboard.press('Control+z');
+    await expect(page.getByRole('status')).toContainText('Deshecho: trazo borrado');
+    await expect(page.locator('.visor__trazo')).toHaveCount(1);
+    const vuelta = (await trazosDe())[0]!;
+    expect(vuelta.properties.enlaces).toHaveLength(1);
+    expect(Number(vuelta.properties.enlaces[0]!.cantidad)).toBeCloseTo(cantidad, 6);
+
+    // --- Abrir un hueco y deshacerlo ---------------------------------------------------------------------
+    const caja2 = (await page.locator('.visor__trazo path').first().boundingBox())!;
+    await page.mouse.click(caja2.x + caja2.width / 2, caja2.y + caja2.height / 2); // elegir el área
+    await barra.getByRole('button', { name: 'Hueco', exact: true }).click();
+    for (const [fx, fy] of [[0.3, 0.3], [0.6, 0.3], [0.6, 0.6], [0.3, 0.6]] as const) {
+      await page.mouse.click(caja2.x + caja2.width * fx, caja2.y + caja2.height * fy);
+    }
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('status')).toContainText('Hueco abierto');
+    expect(Number((await trazosDe())[0]!.properties.enlaces[0]!.cantidad)).toBeLessThan(cantidad);
+    await deshacer.click();
+    await expect(page.getByRole('status')).toContainText('Deshecho: hueco abierto');
+    await expect.poll(async () => Number((await trazosDe())[0]!.properties.enlaces[0]!.cantidad)).toBeCloseTo(cantidad, 6);
+
+    // --- Con un trazo a medias, Ctrl+Z quita el último vértice y no toca lo guardado --------------------------
+    await barra.getByRole('button', { name: 'Polilínea', exact: true }).click();
+    await page.mouse.click(c.x + c.width * 0.2, c.y + c.height * 0.9);
+    await page.mouse.click(c.x + c.width * 0.35, c.y + c.height * 0.9);
+    await expect(page.getByText('2 vértices')).toBeVisible();
+    await page.keyboard.press('Control+z');
+    await expect(page.getByText('1 vértices')).toBeVisible();
+    expect(await trazosDe()).toHaveLength(1);
+  });
+
+  test('con el plano calibrado: lo dibujado, lo estampado y lo escrito respetan la escala', async ({ page, request }) => {
+    const clave = `ESC-${Date.now().toString(36).toUpperCase()}`;
+    const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
+    const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
+    const usuarios = await llamarApi<{ id: string; nombre: string }[]>(request, 'control', 'GET', '/usuarios');
+    const obra = await llamarApi<{ id: string }>(request, 'control', 'POST', '/obras', {
+      cluster_id: clusters.find((c) => c.clave === 'CLU-E2E')!.id,
+      prototipo_id: prototipos.find((p) => p.clave === 'CAS-E2E')!.id,
+      residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
+      clave,
+    });
+    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
+    const plano = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
+      nombre: 'escala',
+      archivo_url: 'planos/escala.dwg',
+    });
+    // 100 unidades de plano son 50 m: 0.5 m por unidad.
+    await llamarApi(request, 'control', 'PUT', `/planos/${plano.id}/escala`, {
+      punto_a: [0, 0],
+      punto_b: [100, 0],
+      distancia_m: '50',
+    });
+
+    await entrarComo(page, 'control');
+    await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
+    const lienzo = page.getByRole('img', { name: 'Plano con sus trazos' });
+    await expect(lienzo).toBeVisible();
+    await expect(page.getByText(/Escala 1 u = 0\.5000 m/)).toBeVisible();
+    const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
+    const c = (await lienzo.boundingBox())!;
+    const guardar = async (nombre: string, medida: string) => {
+      const alta = page.getByRole('dialog', { name: nombre });
+      const valor = await alta.locator('#enlace-actividad-0 option').nth(1).getAttribute('value');
+      await alta.getByLabel('Actividad 1').selectOption(valor!);
+      await alta.getByLabel('Medida').selectOption(medida);
+      await alta.getByRole('button', { name: 'Guardar trazo' }).click();
+      await expect(page.getByRole('status')).toContainText('Trazo guardado');
+    };
+    const trazos = async () =>
+      (
+        await llamarApi<{ escala_m_por_unidad: string; features: Feature[] }>(
+          request,
+          'control',
+          'GET',
+          `/planos/${plano.id}/trazos`,
+        )
+      ).features;
+
+    // Un rectángulo: el servidor mide el área ya escalada (u² × 0.25).
+    await barra.getByRole('button', { name: 'Rectángulo', exact: true }).click();
+    await page.mouse.click(c.x + c.width * 0.4, c.y + c.height * 0.4);
+    await page.mouse.click(c.x + c.width * 0.8, c.y + c.height * 0.8);
+    await guardar('Guardar polígono', 'area');
+    const rect = (await trazos())[0]!;
+    const anillo = (rect.geometry.coordinates as [number, number][][])[0]!;
+    expect(Number(rect.properties.enlaces[0]!.cantidad)).toBeCloseTo(area(anillo) * 0.25, 4);
+
+    // Mostrar medidas escribe lo mismo que el servidor midió, en metros.
+    await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
+    await barra.getByRole('button', { name: 'Mostrar medidas', exact: true }).click();
+    const etiqueta = page.getByTestId('etiquetas').locator('.visor__etiqueta--area').first();
+    await expect(etiqueta).toContainText('m²');
+    const escrito = Number((await etiqueta.textContent())!.replace(/[^0-9.]/g, ''));
+    expect(escrito).toBeCloseTo(Number(rect.properties.enlaces[0]!.cantidad), 1);
+    // La cota de un lado: su largo en metros, el de las unidades por la escala.
+    await barra.getByRole('button', { name: 'Cota', exact: true }).click();
+    const lado = Math.abs(anillo[1]![0] - anillo[0]![0]) || Math.abs(anillo[1]![1] - anillo[0]![1]);
+    await expect(page.getByTestId('cotas')).toContainText(`${(lado * 0.5).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`);
+
+    // Un castillo de 0.15 m estampado: 0.0225 m² en el servidor, sea cual sea el zoom o la escala.
+    await barra.getByRole('button', { name: 'Punto', exact: true }).click();
+    await page.getByRole('region', { name: 'Opciones del punto' }).getByRole('button', { name: 'Castillo' }).click();
+    await page.mouse.click(c.x + c.width * 0.2, c.y + c.height * 0.85);
+    await guardar('Guardar polígono', 'area');
+    const castillo = (await trazos()).find((f) => (f.properties as { forma?: unknown }).forma)!;
+    expect(Number(castillo.properties.enlaces[0]!.cantidad)).toBeCloseTo(0.0225, 4);
   });
 });

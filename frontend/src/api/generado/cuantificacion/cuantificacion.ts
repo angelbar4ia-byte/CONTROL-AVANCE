@@ -1156,6 +1156,105 @@ export const useEliminarTrazoApiV1TrazosTrazoIdDelete = <
   return useMutation(mutationOptions, queryClient);
 };
 /**
+ * El área vuelve a medir lo que medía sin ese hueco; sus nodos se recalculan.
+ * @summary Quitar un hueco de un área
+ */
+export const quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete = (
+  trazoId: string,
+  huecoId: string,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<TrazoEliminadoRespuesta>(
+    { url: `/api/v1/trazos/${trazoId}/huecos/${huecoId}`, method: "DELETE" },
+    options,
+  );
+};
+
+export const getQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDeleteMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete>
+      >,
+      TError,
+      { trazoId: string; huecoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete>
+    >,
+    TError,
+    { trazoId: string; huecoId: string },
+    TContext
+  > => {
+    const mutationKey = ["quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete>
+      >,
+      { trazoId: string; huecoId: string }
+    > = (props) => {
+      const { trazoId, huecoId } = props ?? {};
+
+      return quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete(
+        trazoId,
+        huecoId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type QuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDeleteMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete>>
+  >;
+
+export type QuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDeleteMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Quitar un hueco de un área
+ */
+export const useQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete>
+      >,
+      TError,
+      { trazoId: string; huecoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete>>,
+  TError,
+  { trazoId: string; huecoId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDeleteMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Sin escala, lo que se mide está en unidades de plano —píxeles del visor— y
 no se puede comparar con el presupuesto. Calibrar corrige todos los trazos del
 plano de golpe (la medida se lee ya escalada) y recalcula lo que alimentan.

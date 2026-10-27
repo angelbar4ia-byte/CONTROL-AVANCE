@@ -30,6 +30,8 @@ import {
   getNotasDePlanoApiV1PlanosPlanoIdNotasGetQueryKey,
   getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey,
   useAgregarHuecoApiV1TrazosTrazoIdHuecosPost,
+  useQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete,
+  useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost,
   useEliminarTrazoApiV1TrazosTrazoIdDelete,
   useAprobarTrazoApiV1TrazosTrazoIdAprobarPost,
   useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet,
@@ -39,6 +41,7 @@ import {
   useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet,
 } from '@/api/generado/cuantificacion/cuantificacion';
 import type {
+  TrazoPeticion,
   ActividadRespuesta,
   ArchivoDePlanoRespuesta,
   EscalaRespuesta,
@@ -69,6 +72,7 @@ import { ArbolPresupuesto } from './ArbolPresupuesto';
 import { Modal } from '@/lib/Modal';
 import { BarraDeHerramientas, type ClaveDeInterruptor, type Interruptor } from './BarraDeHerramientas';
 import { CuadroDeDatos } from './CuadroDeDatos';
+import { crearHistorial } from './historial';
 import { AyudasDeDibujo } from './AyudasDeDibujo';
 import {
   CLICS_DE_FORMA,
@@ -100,6 +104,7 @@ import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Vi
 import {
   PUNTOS_MINIMOS_DE_HUECO,
   aWkt,
+  geojsonAWkt,
   areaDeGeometria,
   type GeometriaBase,
   partesDe,
@@ -237,6 +242,13 @@ export function EspacioDeTrazo({
   /** Mayús apretada: invierte el ortogonal mientras se mantiene. */
   const mayus = useRef(false);
   const [ayudasAbiertas, setAyudasAbiertas] = useState(false);
+  // Deshacer y rehacer: la pila vive en esta sesión y se vacía al cambiar de plano. Un trazo que se
+  // recrea (deshacer un borrado, rehacer un trazo) nace con id nuevo: `alias` lleva del viejo al nuevo
+  // para que las acciones anteriores sigan encontrándolo.
+  const [historial] = useState(() => crearHistorial());
+  const [, setVersionHistorial] = useState(0);
+  const [trabajandoHistorial, setTrabajandoHistorial] = useState(false);
+  const alias = useRef(new Map<string, string>());
   /** Lo que se está por guardar: la geometría final (un círculo ya es un polígono de muchos lados). */
   const [aGuardar, setAGuardar] = useState<{ tipo: GeometriaBase; puntos: readonly Punto[] } | null>(null);
   /** El trazo que se está por borrar, a la espera de que se confirme. */
@@ -401,13 +413,12 @@ export function EspacioDeTrazo({
   const clicsDeLaForma = forma && forma !== 'punto' ? CLICS_DE_FORMA[forma] : undefined;
   /** Dónde funcionan las ayudas: al dibujar, abrir un hueco, estampar un punto y calibrar. */
   const asistida = forma !== null || herramienta === 'hueco' || herramienta === 'escala';
-  /** Solo los tramos rectos se alinean a un ángulo (no las curvas ni los rectángulos). */
+  /** Solo los tramos rectos se alinean a un ángulo (no las curvas ni los rectángulos, ni la calibración, que mide una distancia cualquiera). */
   const usaOrtogonal =
     herramienta === 'poligono' ||
     herramienta === 'polilinea' ||
     herramienta === 'linea' ||
-    herramienta === 'hueco' ||
-    herramienta === 'escala';
+    herramienta === 'hueco';
 
   /** Un hueco solo se abre sobre un área (un polígono trazado, no una línea con grosor). */
   const areaElegida =
@@ -415,6 +426,66 @@ export function EspacioDeTrazo({
 
   const agregarHueco = useAgregarHuecoApiV1TrazosTrazoIdHuecosPost<ErrorApi>();
   const eliminar = useEliminarTrazoApiV1TrazosTrazoIdDelete<ErrorApi>();
+  const registrarTrazo = useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost<ErrorApi>();
+  const quitarHueco = useQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete<ErrorApi>();
+
+  const refrescarHistorial = () => setVersionHistorial((v) => v + 1);
+  /** El id con el que existe hoy un trazo, si se recreó una o varias veces al deshacer y rehacer. */
+  const vigente = (id: string): string => {
+    let actual = id;
+    while (alias.current.has(actual)) actual = alias.current.get(actual) as string;
+    return actual;
+  };
+  function invalidarTrazos() {
+    void queryClient.invalidateQueries({
+      queryKey: getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey(planoElegido),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId),
+    });
+  }
+  /** Vuelve a registrar un trazo con el mismo cuerpo; el viejo `id` pasa a apuntar al nuevo. */
+  async function recrear(original: string, planoId: string, data: TrazoPeticion) {
+    const r = await registrarTrazo.mutateAsync({ planoId, data });
+    alias.current.set(vigente(original), r.trazo_id);
+  }
+  async function deshacerUltimo() {
+    if (trabajandoHistorial) return;
+    setTrabajandoHistorial(true);
+    try {
+      const a = await historial.deshacer();
+      if (a) {
+        setSeleccion(null);
+        setAviso(`Deshecho: ${a.etiqueta}.`);
+        invalidarTrazos();
+      }
+    } catch (err) {
+      setAviso(`No se pudo deshacer: ${err instanceof Error ? err.message : 'error'}`);
+    } finally {
+      setTrabajandoHistorial(false);
+      refrescarHistorial();
+    }
+  }
+  async function rehacerUltimo() {
+    if (trabajandoHistorial) return;
+    setTrabajandoHistorial(true);
+    try {
+      const a = await historial.rehacer();
+      if (a) {
+        setSeleccion(null);
+        setAviso(`Rehecho: ${a.etiqueta}.`);
+        invalidarTrazos();
+      }
+    } catch (err) {
+      setAviso(`No se pudo rehacer: ${err instanceof Error ? err.message : 'error'}`);
+    } finally {
+      setTrabajandoHistorial(false);
+      refrescarHistorial();
+    }
+  }
 
   /** Con la herramienta Borrar, un clic sobre un trazo pide confirmar su borrado; sobre nada, no hace nada. */
   function alElegirEnElPlano(elegido: Seleccion | null) {
@@ -432,8 +503,41 @@ export function EspacioDeTrazo({
     if (porBorrar === null) return;
     const id = porBorrar;
     setPorBorrar(null);
+    const feature = features.find((f) => f.id === id);
+    const planoDelTrazo = planoElegido;
     try {
       const r = await eliminar.mutateAsync({ trazoId: id });
+      // Con lo que tenía el trazo se puede volver a crear (deshacer); recupera su geometría, sus
+      // enlaces vigentes, su grosor y su forma. La aprobación no vuelve: el trazo recreado es nuevo.
+      const wkt = feature ? geojsonAWkt(feature.geometry) : null;
+      if (feature && wkt) {
+        const p = feature.properties;
+        const data = {
+          version_plano: p.version_plano,
+          fuente: p.fuente,
+          capa: p.capa ?? null,
+          geometria_wkt: wkt,
+          enlaces: p.enlaces
+            .filter((e) => e.vigente)
+            .map((e) => ({
+              medida: e.medida,
+              factor: e.factor,
+              ...(e.tipo_nodo === 'actividad'
+                ? { actividad_id: e.nodo_id, ...(e.matriz_concepto_id ? { matriz_concepto_id: e.matriz_concepto_id } : {}) }
+                : { prototipo_nodo_id: e.nodo_id }),
+            })),
+          ...(p.grosor_m != null && p.alineacion ? { grosor_m: String(p.grosor_m), alineacion: p.alineacion } : {}),
+          ...(p.forma ? { forma: p.forma } : {}),
+        } as TrazoPeticion;
+        historial.registrar({
+          etiqueta: 'trazo borrado',
+          deshacer: () => recrear(id, planoDelTrazo, data),
+          rehacer: async () => {
+            await eliminar.mutateAsync({ trazoId: vigente(id) });
+          },
+        });
+        refrescarHistorial();
+      }
       setSeleccion(null);
       const total = r.recalculos[0]?.cantidad_total;
       setAviso(
@@ -561,6 +665,20 @@ export function EspacioDeTrazo({
         data: { geometria_wkt: aWkt('poligono', huecoEnCurso) },
       });
       setHuecoEnCurso([]);
+      const areaId = areaElegida.id;
+      const wkt = aWkt('poligono', huecoEnCurso);
+      let huecoId = r.hueco_id;
+      historial.registrar({
+        etiqueta: 'hueco abierto',
+        deshacer: async () => {
+          await quitarHueco.mutateAsync({ trazoId: vigente(areaId), huecoId });
+        },
+        rehacer: async () => {
+          const nuevo = await agregarHueco.mutateAsync({ trazoId: vigente(areaId), data: { geometria_wkt: wkt } });
+          huecoId = nuevo.hueco_id;
+        },
+      });
+      refrescarHistorial();
       const total = r.recalculos[0]?.cantidad_total;
       setAviso(
         total === undefined
@@ -604,7 +722,19 @@ export function EspacioDeTrazo({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [forma, herramienta, borrador, huecoEnCurso, guardando, subiendoPlano, notaPunto, reemplazando, areaElegida]);
 
-  function alGuardar(resultado: TrazoRespuesta) {
+  function alGuardar(
+    resultado: TrazoRespuesta,
+    solicitud: { readonly planoId: string; readonly data: TrazoPeticion },
+  ) {
+    const original = resultado.trazo_id;
+    historial.registrar({
+      etiqueta: 'trazo guardado',
+      deshacer: async () => {
+        await eliminar.mutateAsync({ trazoId: vigente(original) });
+      },
+      rehacer: () => recrear(original, solicitud.planoId, solicitud.data),
+    });
+    refrescarHistorial();
     setGuardando(false);
     limpiarDibujo();
     const total = resultado.recalculos[0]?.cantidad_total;
@@ -759,6 +889,38 @@ export function EspacioDeTrazo({
     // `cambiarHerramienta` lee estado del render: se rearma con él.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hayCajon, puedeAnotar, borrador, areaElegida, seleccionado, herramienta, mostrarMedidas, mostrarCotas, datosAbiertos]);
+
+  // Al cambiar de plano se olvida lo que se podía deshacer: ya no es lo que se está viendo.
+  useEffect(() => {
+    historial.limpiar();
+    alias.current.clear();
+    refrescarHistorial();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planoElegido]);
+
+  // Ctrl+Z deshace (con un trazo a medias, quita su último vértice); Ctrl+Y o Ctrl+Mayús+Z rehace.
+  useEffect(() => {
+    function alTeclear(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const destino = e.target as HTMLElement | null;
+      if (destino && /^(INPUT|SELECT|TEXTAREA)$/.test(destino.tagName)) return;
+      if (hayCajon) return;
+      const tecla = e.key.toLowerCase();
+      if (tecla === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        if (herramienta === 'hueco' && huecoEnCurso.length > 0) setHuecoEnCurso((a) => a.slice(0, -1));
+        else if (forma && borrador.length > 0) setBorrador((a) => a.slice(0, -1));
+        else void deshacerUltimo();
+      } else if (tecla === 'y' || (tecla === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        void rehacerUltimo();
+      }
+    }
+    window.addEventListener('keydown', alTeclear);
+    return () => window.removeEventListener('keydown', alTeclear);
+    // Los manejadores leen el estado de este render: se rearma con él.
+     
+  });
 
   // Mayús invierte el ortogonal mientras se mantiene; F8 y F3 encienden y apagan ortogonal y referencia.
   useEffect(() => {
@@ -1088,6 +1250,26 @@ export function EspacioDeTrazo({
                     : {}
                 }
                 interruptores={interruptores}
+                historial={[
+                  {
+                    clave: 'deshacer',
+                    etiqueta: 'Deshacer',
+                    deshabilitado: historial.siguienteAdeshacer() === null || trabajandoHistorial,
+                    descripcion: historial.siguienteAdeshacer()
+                      ? `Deshacer: ${historial.siguienteAdeshacer()?.etiqueta} (Ctrl+Z)`
+                      : 'Nada que deshacer',
+                    onClick: () => void deshacerUltimo(),
+                  },
+                  {
+                    clave: 'rehacer',
+                    etiqueta: 'Rehacer',
+                    deshabilitado: historial.siguienteArehacer() === null || trabajandoHistorial,
+                    descripcion: historial.siguienteArehacer()
+                      ? `Rehacer: ${historial.siguienteArehacer()?.etiqueta} (Ctrl+Y)`
+                      : 'Nada que rehacer',
+                    onClick: () => void rehacerUltimo(),
+                  },
+                ]}
                 acciones={[
                   {
                     clave: 'eliminar',

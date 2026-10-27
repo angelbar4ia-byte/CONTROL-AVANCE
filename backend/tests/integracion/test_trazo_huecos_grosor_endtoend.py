@@ -233,3 +233,24 @@ async def test_quien_borra_un_trazo(control, residente, escenario: Escenario) ->
     # Control aprueba el suyo; ya aprobado, solo Control o Super intendente lo borran.
     assert (await control.post(f"/api/v1/trazos/{del_control['trazo_id']}/aprobar")).status_code == 200
     assert (await control.delete(f"/api/v1/trazos/{del_control['trazo_id']}")).status_code == 200
+
+
+async def test_quitar_un_hueco_devuelve_el_area(control, escenario: Escenario) -> None:
+    plano = await _plano(control, escenario)
+    area_ = (await _trazo(control, escenario, plano, "POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))", "area")).json()
+    h = (
+        await control.post(
+            f"/api/v1/trazos/{area_['trazo_id']}/huecos", json={"geometria_wkt": "POLYGON((2 2, 4 2, 4 4, 2 4, 2 2))"}
+        )
+    ).json()
+    assert Decimal(h["recalculos"][0]["cantidad_total"]) == 96
+
+    r = await control.delete(f"/api/v1/trazos/{area_['trazo_id']}/huecos/{h['hueco_id']}")
+    assert r.status_code == 200, r.text
+    assert Decimal(r.json()["recalculos"][0]["cantidad_total"]) == 100
+    feats = await _features(control, plano)
+    assert len(feats) == 1 and feats[0]["properties"]["n_huecos"] == 0
+
+    # Ya no está; y un hueco de otro trazo no se quita por éste.
+    assert (await control.delete(f"/api/v1/trazos/{area_['trazo_id']}/huecos/{h['hueco_id']}")).status_code == 404
+    assert (await control.delete(f"/api/v1/trazos/{area_['trazo_id']}/huecos/{uuid.uuid4()}")).status_code == 404

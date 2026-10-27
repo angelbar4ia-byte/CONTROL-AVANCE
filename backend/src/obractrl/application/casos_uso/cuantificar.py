@@ -112,6 +112,7 @@ __all__ = [
     "NotaPlanoRegistrada",
     "NuevoEnlace",
     "PlanoNoEncontrado",
+    "QuitarHueco",
     "ReemplazarEnlace",
     "RegistrarNotaPlano",
     "RegistrarPlano",
@@ -1013,6 +1014,79 @@ class EliminarTrazo:
         resultado = tuple(recalculos)
         await _avisar_reaperturas(self._eventos, resultado, cmd.usuario_id)
         return TrazoEliminado(trazo_id=cmd.trazo_id, recalculos=resultado)
+
+
+class QuitarHueco:
+    """Quita un hueco de un área (deshacer abrirlo, o corregirlo): el área vuelve a medir lo que medía.
+    Mismo gobierno que borrar el trazo, y los nodos que el área alimenta se recalculan."""
+
+    def __init__(
+        self,
+        *,
+        trazos: RepositorioTrazos,
+        enlaces: RepositorioEnlacesCuantificacion,
+        actividades: RepositorioActividades,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        desviaciones: RepositorioDesviaciones,
+        uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
+        matrices: RepositorioMatrices | None = None,
+    ) -> None:
+        self._trazos = trazos
+        self._enlaces = enlaces
+        self._actividades = actividades
+        self._prototipo_nodos = prototipo_nodos
+        self._desviaciones = desviaciones
+        self._uow = uow
+        self._eventos = eventos
+        self._matrices = matrices
+
+    async def ejecutar(
+        self, *, trazo_id: UUID, hueco_id: UUID, usuario_id: UUID, rol: Rol, detectada_en: datetime
+    ) -> TrazoEliminado:
+        padre = await self._trazos.obtener(trazo_id)
+        hueco = await self._trazos.obtener(hueco_id)
+        if padre is None or hueco is None or hueco.get("hueco_de") != trazo_id:
+            raise TrazoNoEncontrado(f"El hueco {hueco_id} no existe en el trazo {trazo_id}.")
+        if rol not in _ROLES_QUE_TOCAN_PROTOTIPO and (
+            padre.get("autor_id") != usuario_id or padre.get("aprobado_por") is not None
+        ):
+            raise GobiernoDeCuantificacionInvalido(
+                "Solo puedes cambiar un trazo tuyo que todavía no esté aprobado; "
+                "Control de obra y Super intendente cambian cualquiera."
+            )
+        nodos = await self._enlaces.nodos_vigentes_de_trazo(trazo_id)
+        if (
+            any(n["tipo_nodo"] == TipoNodoCuantificacion.PROTOTIPO_NODO.value for n in nodos)
+            and rol not in _ROLES_QUE_TOCAN_PROTOTIPO
+        ):
+            permitidos = ", ".join(r.value for r in _ROLES_QUE_TOCAN_PROTOTIPO)
+            raise GobiernoDeCuantificacionInvalido(
+                f"Esta área alimenta la cantidad de un prototipo_nodo: cambiarla exige "
+                f"{permitidos}; el rol {rol.value!r} no puede."
+            )
+        async with self._uow:
+            await self._trazos.eliminar(hueco_id)
+            recalculos = tuple(
+                [
+                    await _recalcular_nodo(
+                        tipo_nodo=TipoNodoCuantificacion(str(n["tipo_nodo"])),
+                        actividad_id=n["actividad_id"],
+                        prototipo_nodo_id=n["prototipo_nodo_id"],
+                        matriz_concepto_id=n.get("matriz_concepto_id"),
+                        enlaces=self._enlaces,
+                        actividades=self._actividades,
+                        prototipo_nodos=self._prototipo_nodos,
+                        desviaciones=self._desviaciones,
+                        detectada_en=detectada_en,
+                        matrices=self._matrices,
+                    )
+                    for n in nodos
+                ]
+            )
+            await self._uow.commit()
+        await _avisar_reaperturas(self._eventos, recalculos, usuario_id)
+        return TrazoEliminado(trazo_id=trazo_id, recalculos=recalculos)
 
 
 class RegistrarNotaPlano:

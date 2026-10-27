@@ -53,6 +53,7 @@ from obractrl.adapters.api.casos_uso import (
     ConsultarCuantificacionDep,
     ConsultarMatricesDep,
     EliminarTrazoDep,
+    QuitarHuecoDep,
     ReemplazarEnlaceDep,
     RegistrarNotaPlanoDep,
     RegistrarPlanoDep,
@@ -432,6 +433,33 @@ async def eliminar_trazo(
     medir» y no levanta una desviación."""
     resultado = await caso_uso.ejecutar(
         ComandoEliminarTrazo(trazo_id=trazo_id, usuario_id=ctx.usuario_id, rol=Rol(ctx.rol)),
+        detectada_en=datetime.now(UTC),
+    )
+    return TrazoEliminadoRespuesta(
+        trazo_id=resultado.trazo_id,
+        recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos],
+    )
+
+
+@router.delete(
+    "/trazos/{trazo_id}/huecos/{hueco_id}",
+    response_model=TrazoEliminadoRespuesta,
+    summary="Quitar un hueco de un área",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        403: {"description": "No es un trazo tuyo sin aprobar, o alimenta un prototipo_nodo."},
+        404: {"description": "El trazo o su hueco no existen o están fuera de tu alcance."},
+    },
+)
+async def quitar_hueco(
+    trazo_id: UUID, hueco_id: UUID, ctx: ContextoActual, caso_uso: QuitarHuecoDep
+) -> TrazoEliminadoRespuesta:
+    """El área vuelve a medir lo que medía sin ese hueco; sus nodos se recalculan."""
+    resultado = await caso_uso.ejecutar(
+        trazo_id=trazo_id,
+        hueco_id=hueco_id,
+        usuario_id=ctx.usuario_id,
+        rol=Rol(ctx.rol),
         detectada_en=datetime.now(UTC),
     )
     return TrazoEliminadoRespuesta(

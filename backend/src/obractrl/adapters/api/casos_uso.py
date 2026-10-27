@@ -138,6 +138,7 @@ from obractrl.application.casos_uso.cuantificar import (
     ConsultarCuantificacion,
     ConsultarMatrices,
     EliminarTrazo,
+    QuitarHueco,
     ReemplazarEnlace,
     RegistrarNotaPlano,
     RegistrarPlano,
@@ -404,6 +405,7 @@ __all__ = [
     "ProgramarNodoDelArbolDep",
     "ProponerReprogramacionDep",
     "PublicarVersionCPUDep",
+    "QuitarHuecoDep",
     "RecalcularRutaCriticaDep",
     "RechazarCierreDeFrenteDep",
     "RechazarCierreDep",
@@ -798,6 +800,19 @@ def obtener_eliminar_trazo(sesion: SesionRLS, ctx: ContextoActual) -> EliminarTr
     )
 
 
+def obtener_quitar_hueco(sesion: SesionRLS, ctx: ContextoActual) -> QuitarHueco:
+    return QuitarHueco(
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
 def obtener_calibrar_escala(sesion: SesionRLS, ctx: ContextoActual) -> CalibrarEscalaDePlano:
     return CalibrarEscalaDePlano(
         planos=RepositorioPlanosSQL(sesion),
@@ -924,6 +939,7 @@ DeclararPerdidaDeExcedenteDep = Annotated[
 AprobarTrazoDep = Annotated[AprobarTrazo, Depends(obtener_aprobar_trazo)]
 AgregarHuecoDep = Annotated[AgregarHuecoATrazo, Depends(obtener_agregar_hueco)]
 EliminarTrazoDep = Annotated[EliminarTrazo, Depends(obtener_eliminar_trazo)]
+QuitarHuecoDep = Annotated[QuitarHueco, Depends(obtener_quitar_hueco)]
 ConsultarMatricesDep = Annotated[ConsultarMatrices, Depends(obtener_consultar_matrices)]
 ConsultarCuantificacionDep = Annotated[
     ConsultarCuantificacion, Depends(obtener_consultar_cuantificacion)
