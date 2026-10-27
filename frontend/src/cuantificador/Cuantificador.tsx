@@ -29,6 +29,7 @@ import {
   getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey,
   getNotasDePlanoApiV1PlanosPlanoIdNotasGetQueryKey,
   getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey,
+  useAgregarHuecoApiV1TrazosTrazoIdHuecosPost,
   useAprobarTrazoApiV1TrazosTrazoIdAprobarPost,
   useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet,
   useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet,
@@ -63,13 +64,29 @@ import { CalibrarEscala } from './CalibrarEscala';
 import { useAjuste } from '@/lib/useAjuste';
 import { arbolDeCuantificacion, trazosDeConceptos } from './arbol';
 import { ArbolPresupuesto } from './ArbolPresupuesto';
-import { BarraDeHerramientas } from './BarraDeHerramientas';
+import { BarraDeHerramientas, type ClaveDeInterruptor, type Interruptor } from './BarraDeHerramientas';
+import { CuadroDeDatos } from './CuadroDeDatos';
+import { cotasDe, etiquetasDeMedidas, sinCierre } from './etiquetas';
+import {
+  bandaDeLinea,
+  poligonoDeForma,
+  normalizarContorno,
+  NOMBRE_DE_FORMA,
+  type Alineacion,
+  type Forma,
+} from './formas';
+import { OpcionesDeHerramienta } from './OpcionesDeHerramienta';
 import { PanelVolumen } from './PanelVolumen';
+import { resumenDePantalla, type TrazoParaResumen } from './resumen';
 import { NuevaObra } from './NuevaObra';
 import { ReemplazarEnlace } from './ReemplazarEnlace';
 import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Visor';
 import {
   PUNTOS_MINIMOS_DE_HUECO,
+  aWkt,
+  areaDeGeometria,
+  partesDe,
+  puntosDe,
   trazoCompleto,
   type Herramienta,
   type HerramientaDeTrazo,
@@ -78,7 +95,16 @@ import {
 import { useImagenDePdf } from './pdf';
 import { etiquetaMedida } from './reglas';
 
-const HERRAMIENTAS: readonly Herramienta[] = ['seleccionar', 'poligono', 'linea', 'punto', 'escala'];
+const HERRAMIENTAS: readonly Herramienta[] = [
+  'seleccionar',
+  'mano',
+  'zoom',
+  'poligono',
+  'linea',
+  'punto',
+  'hueco',
+  'escala',
+];
 
 /** Anotar el plano es solo de Residente y Supervisor (MODELO.md §1b); el
  *  servidor lo impone con 403, esto solo evita ofrecer un botón que fallaría. */
@@ -87,6 +113,9 @@ const HERRAMIENTA_NOTA: Herramienta = 'nota';
 /** Atajo de teclado de cada herramienta de la barra. */
 const ATAJOS: Readonly<Record<string, Herramienta>> = {
   v: 'seleccionar',
+  h: 'mano',
+  z: 'zoom',
+  u: 'hueco',
   p: 'poligono',
   l: 'linea',
   o: 'punto',
@@ -149,12 +178,19 @@ export function EspacioDeTrazo({
   const [planoElegido, setPlanoElegido] = useState(planoInicial ?? '');
   const [herramienta, setHerramienta] = useState<Herramienta>('seleccionar');
   const [borrador, setBorrador] = useState<readonly Punto[]>([]);
-  // Huecos del polígono en curso (la ventana de un muro, el cubo de una escalera):
-  // anillos interiores que se **descuentan**. `huecoEnCurso` es el que se está
-  // dibujando ahora; al cerrarlo pasa a `huecos`.
-  const [huecos, setHuecos] = useState<readonly (readonly Punto[])[]>([]);
+  // El hueco que se está dibujando sobre el área elegida (la ventana de un muro, el cubo de una
+  // escalera). Se descuenta del área al cerrarlo con Enter.
   const [huecoEnCurso, setHuecoEnCurso] = useState<readonly Punto[]>([]);
-  const [dibujandoHueco, setDibujandoHueco] = useState(false);
+  // Opciones de las herramientas: el grosor y la alineación de una línea, la forma de un punto.
+  const [grosorM, setGrosorM] = useState<number | null>(null);
+  const [alineacion, setAlineacion] = useState<Alineacion>('centro');
+  const [formaPunto, setFormaPunto] = useState<Forma | null>(null);
+  /** La forma con la que se está guardando el trazo (solo cuando nació de un punto con forma). */
+  const [formaEstampada, setFormaEstampada] = useState<Forma | null>(null);
+  const [cursor, setCursor] = useState<Punto | null>(null);
+  const [mostrarMedidas, setMostrarMedidas] = useState(false);
+  const [mostrarCotas, setMostrarCotas] = useState(false);
+  const [datosAbiertos, setDatosAbiertos] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [subiendoPlano, setSubiendoPlano] = useState(false);
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
@@ -231,6 +267,9 @@ export function EspacioDeTrazo({
   const features = useMemo(() => trazosConsulta.data?.features ?? [], [trazosConsulta.data]);
   // «Solo los trazos de los conceptos elegidos»: sin conceptos elegidos no hay nada
   // que filtrar, y se ve todo.
+  const escalaDelPlano = plano?.escala_m_por_unidad != null ? Number(plano.escala_m_por_unidad) : null;
+  /** Unidades de plano por metro: lo que convierte un grosor o un tamaño en metros a coordenadas. */
+  const unidadesPorMetro = escalaDelPlano !== null && escalaDelPlano > 0 ? 1 / escalaDelPlano : 1;
   const filtrando = soloElegidos && elegidos.size > 0;
   const featuresVisibles = useMemo(
     () => (filtrando ? trazosDeConceptos(features, elegidos) : features),
@@ -243,8 +282,17 @@ export function EspacioDeTrazo({
         geometry: f.geometry,
         porRevisar: f.properties.por_revisar,
         aprobado: f.properties.aprobado_en != null,
+        // El cuerpo de una línea con grosor (un muro), pintado con su alineación.
+        banda:
+          f.properties.grosor_m != null && f.properties.alineacion
+            ? bandaDeLinea(
+                puntosDe(f.geometry),
+                Number(f.properties.grosor_m) * unidadesPorMetro,
+                f.properties.alineacion,
+              )
+            : undefined,
       })),
-    [featuresVisibles],
+    [featuresVisibles, unidadesPorMetro],
   );
   const notasConsulta = useNotasDePlanoApiV1PlanosPlanoIdNotasGet<
     NotaPlanoDetalleRespuesta[],
@@ -281,31 +329,34 @@ export function EspacioDeTrazo({
   });
 
   const forma: HerramientaDeTrazo | null =
-    herramienta === 'seleccionar' || herramienta === 'nota' || herramienta === 'escala'
-      ? null
-      : herramienta;
-  const escalaDelPlano = plano?.escala_m_por_unidad != null ? Number(plano.escala_m_por_unidad) : null;
+    herramienta === 'poligono' || herramienta === 'linea' || herramienta === 'punto'
+      ? herramienta
+      : null;
+
+  /** Un hueco solo se abre sobre un área (un polígono trazado, no una línea con grosor). */
+  const areaElegida =
+    seleccionado !== null && areaDeGeometria(seleccionado.geometry) > 0 ? seleccionado : null;
+
+  const agregarHueco = useAgregarHuecoApiV1TrazosTrazoIdHuecosPost<ErrorApi>();
 
   function limpiarDibujo() {
     setBorrador([]);
-    setHuecos([]);
     setHuecoEnCurso([]);
-    setDibujandoHueco(false);
-  }
-
-  /** Cierra el hueco en curso (si ya tiene sus vértices) y vuelve al exterior. */
-  function cerrarHueco() {
-    if (huecoEnCurso.length < PUNTOS_MINIMOS_DE_HUECO) return;
-    setHuecos((actuales) => [...actuales, huecoEnCurso]);
-    setHuecoEnCurso([]);
-    setDibujandoHueco(false);
+    setFormaEstampada(null);
   }
 
   function cambiarHerramienta(nueva: Herramienta) {
+    if (nueva === 'hueco' && areaElegida === null) {
+      setAviso('Para abrir un hueco, primero elige el área con la herramienta Seleccionar.');
+      return;
+    }
     setHerramienta(nueva);
     limpiarDibujo();
     setAviso(null);
-    if (nueva !== 'seleccionar') setSeleccion(null);
+    // Moverse, acercar y abrir un hueco no sueltan lo elegido: el hueco se abre sobre ello.
+    if (nueva !== 'seleccionar' && nueva !== 'mano' && nueva !== 'zoom' && nueva !== 'hueco') {
+      setSeleccion(null);
+    }
   }
 
   function alPunto(p: Punto) {
@@ -322,14 +373,20 @@ export function EspacioDeTrazo({
       if (siguiente.length === 2) setCalibrando(true);
       return;
     }
-    if (!forma) return;
-    if (forma === 'punto') {
-      setBorrador([p]);
-      setGuardando(true);
+    if (herramienta === 'hueco') {
+      setHuecoEnCurso((actual) => [...actual, p]);
       return;
     }
-    if (dibujandoHueco) {
-      setHuecoEnCurso((actual) => [...actual, p]);
+    if (!forma) return;
+    if (forma === 'punto') {
+      if (formaPunto !== null) {
+        // Un punto con forma: el polígono de la forma, centrado donde se hizo clic.
+        setBorrador(poligonoDeForma(p, formaPunto, unidadesPorMetro));
+        setFormaEstampada(formaPunto);
+      } else {
+        setBorrador([p]);
+      }
+      setGuardando(true);
       return;
     }
     setBorrador((actual) => [...actual, p]);
@@ -339,36 +396,57 @@ export function EspacioDeTrazo({
     if (forma && trazoCompleto(forma, borrador)) setGuardando(true);
   }
 
+  /** Cierra el hueco en curso: lo manda al servidor, que lo resta del área y recalcula. */
+  async function cerrarHueco() {
+    if (!areaElegida || huecoEnCurso.length < PUNTOS_MINIMOS_DE_HUECO) return;
+    try {
+      const r = await agregarHueco.mutateAsync({
+        trazoId: areaElegida.id,
+        data: { geometria_wkt: aWkt('poligono', huecoEnCurso) },
+      });
+      setHuecoEnCurso([]);
+      const total = r.recalculos[0]?.cantidad_total;
+      setAviso(
+        total === undefined
+          ? 'Hueco abierto: el área ya lo descuenta.'
+          : `Hueco abierto. Cantidad medida del nodo: ${fmtNum(total)}.`,
+      );
+      void queryClient.invalidateQueries({
+        queryKey: getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey(planoElegido),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId),
+      });
+    } catch (err) {
+      setAviso(err instanceof Error ? err.message : 'No se pudo abrir el hueco.');
+    }
+  }
+
   // Atajos mientras se dibuja. El efecto se rearma con cada cambio del borrador:
   // los manejadores leen el estado de este render, no uno viejo.
   useEffect(() => {
-    if (!forma || guardando || subiendoPlano || notaPunto !== null || reemplazando !== null) return;
+    const dibujando = forma !== null || herramienta === 'hueco';
+    if (!dibujando || guardando || subiendoPlano || notaPunto !== null || reemplazando !== null) return;
     function alTeclear(e: KeyboardEvent) {
       const destino = e.target as HTMLElement | null;
       if (destino && /^(INPUT|SELECT|TEXTAREA)$/.test(destino.tagName)) return;
       if (e.key === 'Enter') {
         e.preventDefault();
-        if (dibujandoHueco) cerrarHueco();
+        if (herramienta === 'hueco') void cerrarHueco();
         else if (forma && trazoCompleto(forma, borrador)) setGuardando(true);
       } else if (e.key === 'Backspace') {
         e.preventDefault();
-        if (dibujandoHueco) setHuecoEnCurso((actual) => actual.slice(0, -1));
+        if (herramienta === 'hueco') setHuecoEnCurso((actual) => actual.slice(0, -1));
         else setBorrador((actual) => actual.slice(0, -1));
       } else if (e.key === 'Escape') {
-        // Esc descarta lo que se está dibujando: el hueco en curso, o todo.
-        if (dibujandoHueco) {
-          setHuecoEnCurso([]);
-          setDibujandoHueco(false);
-        } else {
-          limpiarDibujo();
-        }
+        limpiarDibujo();
       }
     }
     window.addEventListener('keydown', alTeclear);
     return () => window.removeEventListener('keydown', alTeclear);
     // `cerrarHueco` y `limpiarDibujo` leen estado del render: se rearma con él.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [forma, borrador, huecos, huecoEnCurso, dibujandoHueco, guardando, subiendoPlano, notaPunto, reemplazando]);
+  }, [forma, herramienta, borrador, huecoEnCurso, guardando, subiendoPlano, notaPunto, reemplazando, areaElegida]);
 
   function alGuardar(resultado: TrazoRespuesta) {
     setGuardando(false);
@@ -414,6 +492,66 @@ export function EspacioDeTrazo({
     ? [...HERRAMIENTAS, HERRAMIENTA_NOTA]
     : HERRAMIENTAS;
 
+  function alternar(clave: ClaveDeInterruptor) {
+    if (clave === 'medidas') setMostrarMedidas(!mostrarMedidas);
+    else if (clave === 'cotas') setMostrarCotas(!mostrarCotas);
+    else if (clave === 'datos') setDatosAbiertos(!datosAbiertos);
+    else if (clave === 'volumen') abrirVolumen();
+    else if (elegidos.size > 0 || soloElegidos) setSoloElegidos(!soloElegidos);
+  }
+
+  const interruptores: readonly Interruptor[] = [
+    { clave: 'medidas', activo: mostrarMedidas, atajo: 'M', descripcion: 'Mostrar medidas: puntos numerados, áreas y huecos (M)' },
+    { clave: 'cotas', activo: mostrarCotas, atajo: 'C', descripcion: 'Cota: la longitud de cada tramo (C)' },
+    {
+      clave: 'soloElegidos',
+      activo: soloElegidos,
+      deshabilitado: elegidos.size === 0 && !soloElegidos,
+      descripcion:
+        elegidos.size > 0 || soloElegidos
+          ? 'Ver solo los trazos de los conceptos elegidos en el árbol'
+          : 'Elige conceptos en el árbol para ver solo sus trazos',
+    },
+    { clave: 'volumen', activo: volumenAbierto, descripcion: 'Calcular volumen del trazo elegido' },
+    { clave: 'datos', activo: datosAbiertos, atajo: 'D', descripcion: 'Cuadro de datos: resumen de las medidas en pantalla (D)' },
+  ];
+
+  const etiquetas = useMemo(
+    () =>
+      mostrarMedidas
+        ? featuresVisibles.flatMap((f) =>
+            etiquetasDeMedidas(
+              f.geometry,
+              escalaDelPlano,
+              f.properties.grosor_m != null ? Number(f.properties.grosor_m) : null,
+            ),
+          )
+        : [],
+    [mostrarMedidas, featuresVisibles, escalaDelPlano],
+  );
+  const cotas = useMemo(
+    () => (mostrarCotas ? featuresVisibles.flatMap((f) => cotasDe(f.geometry, escalaDelPlano)) : []),
+    [mostrarCotas, featuresVisibles, escalaDelPlano],
+  );
+  const resumen = useMemo(
+    () => resumenDePantalla(featuresVisibles as unknown as readonly TrazoParaResumen[], escalaDelPlano),
+    [featuresVisibles, escalaDelPlano],
+  );
+  const bandaEnCurso =
+    forma === 'linea' && grosorM !== null && borrador.length >= 2
+      ? bandaDeLinea(borrador, grosorM * unidadesPorMetro, alineacion)
+      : [];
+  const fantasma =
+    forma === 'punto' && formaPunto !== null && cursor !== null
+      ? poligonoDeForma(cursor, formaPunto, unidadesPorMetro)
+      : [];
+  // El contorno del área elegida, para estampar su forma en otro lugar.
+  const contornoElegido = (() => {
+    if (!areaElegida) return null;
+    const exterior = partesDe(areaElegida.geometry).find((p) => p.tipo === 'anillo' && !p.hueco);
+    return exterior ? normalizarContorno(sinCierre(exterior.puntos)) : null;
+  })();
+
   function elegirConceptos(ids: readonly string[], marcar: boolean) {
     const siguiente = new Set(elegidos);
     for (const id of ids) {
@@ -441,14 +579,18 @@ export function EspacioDeTrazo({
       const destino = e.target as HTMLElement | null;
       if (destino && /^(INPUT|SELECT|TEXTAREA)$/.test(destino.tagName)) return;
       if (destino?.isContentEditable) return;
-      const h = ATAJOS[e.key.toLowerCase()];
+      const tecla = e.key.toLowerCase();
+      if (tecla === 'm') return setMostrarMedidas((v) => !v);
+      if (tecla === 'c') return setMostrarCotas((v) => !v);
+      if (tecla === 'd') return setDatosAbiertos((v) => !v);
+      const h = ATAJOS[tecla];
       if (h && herramientasDisponibles.includes(h)) cambiarHerramienta(h);
     }
     window.addEventListener('keydown', alTeclear);
     return () => window.removeEventListener('keydown', alTeclear);
     // `cambiarHerramienta` lee estado del render: se rearma con él.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hayCajon, puedeAnotar, borrador, huecos]);
+  }, [hayCajon, puedeAnotar, borrador, areaElegida, herramienta, mostrarMedidas, mostrarCotas, datosAbiertos]);
 
   const nombreDelTrazo = seleccionado
     ? (seleccionado.properties.enlaces.find((e) => e.vigente)
@@ -724,13 +866,51 @@ export function EspacioDeTrazo({
                 herramientas={herramientasDisponibles}
                 activa={herramienta}
                 onElegir={cambiarHerramienta}
-                soloElegidos={soloElegidos}
-                hayElegidos={elegidos.size > 0}
-                onAlternarSoloElegidos={() => setSoloElegidos(!soloElegidos)}
-                volumenAbierto={volumenAbierto}
-                onAlternarVolumen={abrirVolumen}
+                deshabilitadas={
+                  areaElegida === null
+                    ? { hueco: 'Para abrir un hueco, primero elige el área con Seleccionar' }
+                    : {}
+                }
+                interruptores={interruptores}
+                onAlternar={alternar}
                 orientacion={compacto ? 'horizontal' : 'vertical'}
               />
+
+              <div className="estacion__paneles">
+                {(herramienta === 'linea' || herramienta === 'punto') && (
+                  <OpcionesDeHerramienta
+                    herramienta={herramienta}
+                    grosorM={grosorM}
+                    onGrosor={setGrosorM}
+                    alineacion={alineacion}
+                    onAlineacion={setAlineacion}
+                    forma={formaPunto}
+                    onForma={setFormaPunto}
+                    contornoElegido={contornoElegido}
+                  />
+                )}
+                {volumenAbierto && (
+                  <PanelVolumen
+                    key={seleccionado?.id ?? 'sin-trazo'}
+                    trazo={
+                      seleccionado
+                        ? { id: seleccionado.id, geometry: seleccionado.geometry, nombre: nombreDelTrazo }
+                        : null
+                    }
+                    escalaMPorUnidad={escalaDelPlano}
+                    onCerrar={() => setVolumenAbierto(false)}
+                  />
+                )}
+              </div>
+
+              {datosAbiertos && (
+                <CuadroDeDatos
+                  resumen={resumen}
+                  nombreDeNodo={nombreDeNodo}
+                  calibrada={escalaDelPlano !== null}
+                  onCerrar={() => setDatosAbiertos(false)}
+                />
+              )}
 
               <div className="estacion__hud">
                 <span
@@ -752,19 +932,6 @@ export function EspacioDeTrazo({
                 )}
               </div>
 
-              {volumenAbierto && (
-                <PanelVolumen
-                  key={seleccionado?.id ?? 'sin-trazo'}
-                  trazo={
-                    seleccionado
-                      ? { id: seleccionado.id, geometry: seleccionado.geometry, nombre: nombreDelTrazo }
-                      : null
-                  }
-                  escalaMPorUnidad={escalaDelPlano}
-                  onCerrar={() => setVolumenAbierto(false)}
-                />
-              )}
-
               <Visor
                 claveDePlano={planoElegido}
                 fondoUrl={fondoUrl}
@@ -773,8 +940,12 @@ export function EspacioDeTrazo({
                 seleccion={seleccion}
                 herramienta={herramienta}
                 borrador={borrador}
-                huecos={huecos}
                 huecoEnCurso={huecoEnCurso}
+                bandaEnCurso={bandaEnCurso}
+                fantasma={fantasma}
+                etiquetas={etiquetas}
+                cotas={cotas}
+                onMover={forma === 'punto' && formaPunto !== null ? setCursor : undefined}
                 onPunto={alPunto}
                 onSeleccionar={setSeleccion}
               />
@@ -819,68 +990,53 @@ export function EspacioDeTrazo({
 
       {plano !== undefined && (
         <div className="estacion__estado" aria-label="Estado del plano">
-      {(forma || herramienta === 'escala') && (
-        <div className="estacion__dibujo row" role="group" aria-label="Trazo en curso">
-          {herramienta === 'escala' && (
-            <span className="text-mute text-xs">
-              {borrador.length === 0
-                ? 'Marca el primer punto de una distancia conocida (una cota, un eje)'
-                : 'Marca el segundo punto'}
-            </span>
-          )}
-          {forma && forma !== 'punto' && (
-            <>
-              <span className="text-mute text-xs">
-                {dibujandoHueco
-                  ? `Hueco: ${huecoEnCurso.length} vértices · Enter lo cierra · Retroceso quita · Esc lo descarta`
-                  : `${borrador.length} vértices · Enter cierra · Retroceso quita · Esc descarta`}
-                {huecos.length > 0 && ` · ${huecos.length} ${huecos.length === 1 ? 'hueco' : 'huecos'}`}
-              </span>
-              {forma === 'poligono' && trazoCompleto(forma, borrador) && !dibujandoHueco && (
-                <button
-                  type="button"
-                  className="btn btn--sm"
-                  title="Dibuja dentro del polígono lo que se descuenta: una ventana, un cubo de escalera"
-                  onClick={() => setDibujandoHueco(true)}
-                >
-                  Agregar hueco
-                </button>
+          {(forma || herramienta === 'hueco' || herramienta === 'escala') && (
+            <div className="estacion__dibujo row" role="group" aria-label="Trazo en curso">
+              {herramienta === 'escala' && (
+                <span className="text-mute text-xs">
+                  {borrador.length === 0
+                    ? 'Marca el primer punto de una distancia conocida (una cota, un eje)'
+                    : 'Marca el segundo punto'}
+                </span>
               )}
-              {dibujandoHueco && (
+              {herramienta === 'hueco' && (
                 <>
+                  <span className="text-mute text-xs">
+                    Hueco: {huecoEnCurso.length} vértices · Enter lo cierra · Retroceso quita · Esc lo descarta
+                  </span>
                   <button
                     type="button"
-                    className="btn btn--sm"
-                    disabled={huecoEnCurso.length < PUNTOS_MINIMOS_DE_HUECO}
-                    onClick={cerrarHueco}
+                    className="btn btn--accent btn--sm"
+                    disabled={huecoEnCurso.length < PUNTOS_MINIMOS_DE_HUECO || agregarHueco.isPending}
+                    onClick={() => void cerrarHueco()}
                   >
                     Cerrar hueco
                   </button>
+                </>
+              )}
+              {forma && forma !== 'punto' && (
+                <>
+                  <span className="text-mute text-xs">
+                    {`${borrador.length} vértices · Enter cierra · Retroceso quita · Esc descarta`}
+                  </span>
                   <button
                     type="button"
-                    className="btn btn--ghost btn--sm"
-                    onClick={() => {
-                      setHuecoEnCurso([]);
-                      setDibujandoHueco(false);
-                    }}
+                    className="btn btn--accent btn--sm"
+                    disabled={!trazoCompleto(forma, borrador)}
+                    onClick={terminar}
                   >
-                    Cancelar hueco
+                    Terminar trazo
                   </button>
                 </>
               )}
-              <button
-                type="button"
-                className="btn btn--accent btn--sm"
-                disabled={!trazoCompleto(forma, borrador) || dibujandoHueco}
-                onClick={terminar}
-              >
-                Terminar trazo
-              </button>
-            </>
+              {forma === 'punto' && formaPunto !== null && (
+                <span className="text-mute text-xs">
+                  Clic para estampar: {formaPunto.nombre ?? NOMBRE_DE_FORMA[formaPunto.tipo]}{' '}
+                  {formaPunto.anchoM} × {formaPunto.altoM} m
+                </span>
+              )}
+            </div>
           )}
-        </div>
-      )}
-
           <span>
             {featuresVisibles.length} de {features.length} {features.length === 1 ? 'trazo' : 'trazos'}
             {filtrando ? ' (filtrados)' : ''}
@@ -895,9 +1051,12 @@ export function EspacioDeTrazo({
         <AltaTrazo
           planoId={plano.id}
           versionPlano={plano.version}
-          herramienta={forma}
+          herramienta={formaEstampada !== null ? 'poligono' : forma}
           puntos={borrador}
-          huecos={huecos}
+          grosorM={forma === 'linea' ? grosorM : null}
+          alineacion={forma === 'linea' && grosorM !== null ? alineacion : null}
+          grosorU={grosorM !== null ? grosorM * unidadesPorMetro : null}
+          forma={formaEstampada}
           actividades={actividades}
           actividadInicial={actividadFocoId}
           nodosDePrototipo={puedeEnlazarPrototipo ? nodosDePrototipo : null}
@@ -906,6 +1065,7 @@ export function EspacioDeTrazo({
             // Un punto se captura con un solo clic: si se cancela el cajón no
             // hay nada que seguir editando, se descarta.
             if (forma === 'punto') limpiarDibujo();
+            setFormaEstampada(null);
           }}
           onGuardado={alGuardar}
         />

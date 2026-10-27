@@ -592,25 +592,12 @@ test.describe('Cuantificador · trazar un polígono', () => {
     const clic = async ([fx, fy]: readonly [number, number]) =>
       page.mouse.click(en(fx, fy).x, en(fx, fy).y);
 
-    // El muro: cuatro vértices.
+    // El muro: cuatro vértices, guardado como área.
     await page.getByRole('button', { name: 'Polígono', exact: true }).click();
     for (const p of [[0.2, 0.1], [0.8, 0.1], [0.8, 0.35], [0.2, 0.35]] as const) await clic(p);
     await expect(page.getByText('4 vértices')).toBeVisible();
-
-    // Agregar un hueco dentro: la ventana. Mientras se dibuja, Enter cierra el
-    // hueco (no el trazo) y «Terminar trazo» espera.
-    await page.getByRole('button', { name: 'Agregar hueco' }).click();
-    await expect(page.getByRole('button', { name: 'Terminar trazo' })).toBeDisabled();
-    for (const p of [[0.4, 0.17], [0.55, 0.17], [0.55, 0.27], [0.4, 0.27]] as const) await clic(p);
-    await expect(page.getByText(/Hueco: 4 vértices/)).toBeVisible();
-    await page.keyboard.press('Enter');
-    await expect(page.getByText(/1 hueco/)).toBeVisible();
-    await expect(page.getByTestId('huecos')).toBeVisible();
-
-    // Enter otra vez cierra el trazo y abre el formulario, que avisa del descuento.
     await page.keyboard.press('Enter');
     const alta = page.getByRole('dialog', { name: 'Guardar polígono' });
-    await expect(alta.getByTestId('aviso-huecos')).toContainText('1 hueco');
     const valor = await alta
       .locator('#enlace-actividad-0 option', { hasText: 'E2E-CIM' })
       .getAttribute('value');
@@ -619,10 +606,33 @@ test.describe('Cuantificador · trazar un polígono', () => {
     await alta.getByRole('button', { name: 'Guardar trazo' }).click();
     await expect(page.getByRole('status')).toContainText('Trazo guardado');
 
+    // Sin un área elegida la herramienta Hueco no se puede usar: primero se elige el área.
+    const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
+    await expect(barra.getByRole('button', { name: 'Hueco', exact: true })).toBeDisabled();
+    await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
+    const muroGuardado = (await page.locator('.visor__trazo path').first().boundingBox())!;
+    await page.mouse.click(muroGuardado.x + muroGuardado.width * 0.05, muroGuardado.y + muroGuardado.height * 0.5);
+    await expect(page.getByText('Trazo elegido')).toBeVisible();
+    await expect(barra.getByRole('button', { name: 'Hueco', exact: true })).toBeEnabled();
+
+    // Abrir el hueco: la ventana. Enter lo cierra y el servidor lo resta del área.
+    await barra.getByRole('button', { name: 'Hueco', exact: true }).click();
+    const sobre = (fx: number, fy: number) => ({
+      x: muroGuardado.x + muroGuardado.width * fx,
+      y: muroGuardado.y + muroGuardado.height * fy,
+    });
+    for (const [fx, fy] of [[0.4, 0.3], [0.6, 0.3], [0.6, 0.7], [0.4, 0.7]] as const) {
+      await page.mouse.click(sobre(fx, fy).x, sobre(fx, fy).y);
+    }
+    await expect(page.getByText(/Hueco: 4 vértices/)).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('status')).toContainText('Hueco abierto');
+
     // El servidor lo guardó con dos anillos y midió el área ya descontada.
     const trazos = await llamarApi<{
       features: { geometry: { type: string; coordinates: [number, number][][] } }[];
     }>(request, 'residente', 'GET', `/planos/${plano.id}/trazos`);
+    expect(trazos.features).toHaveLength(1); // el hueco no es un trazo más
     const [exterior, hueco] = trazos.features[0]!.geometry.coordinates as [[number, number][], [number, number][]];
     expect(trazos.features[0]!.geometry.type).toBe('Polygon');
     expect(hueco).toBeDefined();
@@ -648,7 +658,8 @@ test.describe('Cuantificador · trazar un polígono', () => {
     // el visor se reencuadra al trazo, así que los puntos se calculan sobre lo que
     // se ve: la posición relativa del hueco dentro del muro, según lo que guardó el
     // servidor, aplicada a la caja del trazo en pantalla.
-    await page.getByRole('button', { name: 'Seleccionar', exact: true }).click();
+    await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
+    await page.keyboard.press('Escape');
     const xs = exterior.map((c) => c[0]);
     const ys = exterior.map((c) => c[1]);
     const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];

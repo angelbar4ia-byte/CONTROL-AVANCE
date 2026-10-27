@@ -14,13 +14,26 @@
 
 export type Punto = readonly [number, number];
 
-export type Herramienta = 'seleccionar' | 'poligono' | 'linea' | 'punto' | 'nota' | 'escala';
+export type Herramienta =
+  | 'seleccionar'
+  | 'mano'
+  | 'zoom'
+  | 'poligono'
+  | 'linea'
+  | 'punto'
+  | 'hueco'
+  | 'nota'
+  | 'escala';
 
 /**
- * Herramientas que dibujan una geometría que alimenta cantidades (no `seleccionar`,
- * `nota` ni `escala`: la escala marca dos puntos de referencia, no un trazo).
+ * Herramientas que dibujan una geometría que alimenta cantidades. No lo son: `seleccionar`,
+ * `mano` y `zoom` (mueven o eligen), `hueco` (resta de un área ya trazada), `nota` ni `escala`
+ * (marca dos puntos de referencia, no un trazo).
  */
-export type HerramientaDeTrazo = Exclude<Herramienta, 'seleccionar' | 'nota' | 'escala'>;
+export type HerramientaDeTrazo = Exclude<
+  Herramienta,
+  'seleccionar' | 'mano' | 'zoom' | 'hueco' | 'nota' | 'escala'
+>;
 
 export type MedidaDeTrazo = 'area' | 'perimetro' | 'longitud' | 'conteo';
 
@@ -185,7 +198,7 @@ function aPuntos(valor: unknown): Punto[] {
   return Array.isArray(valor) ? valor.filter(esPunto).map((p) => [p[0], p[1]] as Punto) : [];
 }
 
-interface Parte {
+export interface Parte {
   readonly tipo: 'punto' | 'linea' | 'anillo';
   readonly puntos: Punto[];
   /** Solo en anillos: a qué polígono pertenece, para saber qué es exterior y qué hueco. */
@@ -225,6 +238,11 @@ function partes(geometria: GeometriaGeoJson): Parte[] {
     default:
       return [];
   }
+}
+
+/** Los anillos, líneas y puntos de una geometría, aplanados (para etiquetas, cotas y resúmenes). */
+export function partesDe(geometria: GeometriaGeoJson): Parte[] {
+  return partes(geometria);
 }
 
 /** Todos los vértices de la geometría. */

@@ -2670,3 +2670,58 @@ a { color: inherit; text-decoration: none; }
   .estacion__lienzo { flex: none; height: 56vh; }
   .estacion__arbol, .estacion__detalle { width: auto; border: 0; border-top: 1px solid var(--c-line); max-height: 40vh; }
 }
+
+/* Herramientas nuevas del cuantificador: grupos de la barra, opciones, cuadro de datos y capas del plano. */
+.barra-iconos { max-height: calc(100% - 20px); overflow-y: auto; }
+.barra-iconos__grupo { display: flex; gap: 2px; flex-direction: column; }
+.barra-iconos--horizontal .barra-iconos__grupo { flex-direction: row; }
+.estacion__paneles {
+  position: absolute; left: 56px; top: 10px; z-index: 4; display: flex; flex-direction: column; gap: 8px;
+  max-height: calc(100% - 20px); overflow-y: auto; pointer-events: none;
+}
+.estacion__paneles > * { pointer-events: auto; }
+.estacion__paneles .volumen { position: static; }
+.opciones {
+  width: 268px; display: grid; gap: 8px; padding: 10px;
+  background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
+}
+.opciones__titulo { font-size: var(--fs-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--c-text-mute); }
+.opciones__fila { display: flex; flex-wrap: wrap; gap: 4px; }
+.opciones__campo { display: grid; grid-template-columns: 1fr 84px; gap: 6px; align-items: center; color: var(--c-text-soft); }
+.opciones__campo .input { height: 26px; text-align: right; }
+.opciones__medidas { display: grid; gap: 6px; }
+.opciones__hoja { display: grid; gap: 6px; justify-items: start; }
+.opciones__hoja svg { width: 150px; height: 150px; background: var(--c-panel); border: 1px solid var(--c-line); border-radius: var(--r-sm); cursor: crosshair; }
+.opciones__hoja circle { fill: var(--c-accent); }
+.opciones__trazo { fill: none; stroke: var(--c-accent); stroke-width: 1.5; }
+.chip { cursor: pointer; }
+.chip:disabled { opacity: .45; cursor: default; }
+
+.datos {
+  position: absolute; right: 10px; bottom: 10px; z-index: 4; width: 320px; max-width: calc(100% - 76px); max-height: calc(100% - 60px); display: flex; flex-direction: column;
+  background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
+}
+.datos__cabecera { display: flex; align-items: center; justify-content: space-between; height: 32px; padding: 0 6px 0 10px; border-bottom: 1px solid var(--c-line); flex: none; }
+.datos__cuerpo { padding: 8px 10px 10px; overflow: auto; display: grid; gap: 6px; }
+.datos__subtitulo { font-size: var(--fs-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--c-text-mute); margin-top: 4px; }
+.datos__tabla { width: 100%; table-layout: fixed; }
+.datos__tabla th, .datos__tabla td { padding: 3px 4px; font-size: var(--fs-sm); text-transform: none; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; }
+.datos__tabla th[scope="row"] { font-weight: 400; color: var(--c-text-soft); text-align: left; width: 58%; }
+.datos__concepto { white-space: nowrap; }
+
+/* Capas dibujadas sobre el plano. */
+.visor__banda { fill: var(--c-accent); fill-opacity: .35; stroke: var(--c-accent); stroke-width: 1; }
+.visor__trazo.is-selected .visor__banda { fill-opacity: .6; stroke-width: 2; }
+.visor__banda.is-borrador { fill: var(--c-text); fill-opacity: .2; stroke: var(--c-text); stroke-dasharray: 4 3; }
+.visor__fantasma { fill: var(--c-accent); fill-opacity: .25; stroke: var(--c-accent); stroke-dasharray: 4 3; pointer-events: none; }
+.visor__cotas { fill: var(--c-text-soft); font-family: var(--f-mono); pointer-events: none; }
+.visor__cotas line { stroke: var(--c-text-mute); stroke-width: 1; }
+.visor__etiquetas { pointer-events: none; font-family: var(--f-mono); }
+.visor__vertice circle { fill: var(--c-accent); stroke: var(--c-panel); stroke-width: 1; }
+.visor__vertice text { fill: var(--c-accent-fg); font-weight: 600; }
+.visor__etiqueta { fill: var(--c-text); stroke: var(--c-surface); paint-order: stroke; stroke-linejoin: round; font-weight: 600; }
+.visor__etiqueta--hueco { fill: var(--c-danger); }
+.visor__etiqueta--longitud { fill: var(--c-accent-strong); }
+.datos__tabla thead th:nth-child(1) { width: 42%; }
+.datos__tabla thead th:nth-child(2) { width: 16%; }
+.datos__tabla td.mono { white-space: normal; overflow-wrap: anywhere; }

@@ -23,12 +23,14 @@ import { Sheet } from '@/lib/Sheet';
 import {
   MEDIDAS_POR_HERRAMIENTA,
   aWkt,
+  longitudLocal,
   medidaLocal,
   type HerramientaDeTrazo,
   type MedidaDeTrazo,
   type Punto,
 } from './geometria';
 import { fmtNum } from '@/lib/formato';
+import { NOMBRE_DE_FORMA, type Alineacion, type Forma } from './formas';
 import { etiquetaMedida } from './reglas';
 
 type Fuente = 'pdf' | 'dwg' | 'ifc';
@@ -55,8 +57,14 @@ interface Props {
   readonly versionPlano: number;
   readonly herramienta: HerramientaDeTrazo;
   readonly puntos: readonly Punto[];
-  /** Huecos del polígono (lo que se descuenta). Vacío salvo en un polígono con huecos. */
-  readonly huecos?: readonly (readonly Punto[])[];
+  /** Grosor en metros de una línea (un muro), o `null` si es una línea simple. */
+  readonly grosorM?: number | null;
+  /** De qué lado del eje queda el cuerpo del muro; va con `grosorM`. */
+  readonly alineacion?: Alineacion | null;
+  /** Grosor en unidades de plano, para la vista previa del área de un muro. */
+  readonly grosorU?: number | null;
+  /** La forma con la que se estampó el polígono (castillo, columna...), si nació de un punto con forma. */
+  readonly forma?: Forma | null;
   readonly actividades: readonly ActividadRespuesta[];
   /** Actividad con la que arranca el primer enlace (la herramienta puntual, D-532). */
   readonly actividadInicial?: string;
@@ -87,14 +95,23 @@ export function AltaTrazo({
   versionPlano,
   herramienta,
   puntos,
-  huecos = [],
+  grosorM = null,
+  alineacion = null,
+  grosorU = null,
+  forma = null,
   actividades,
   actividadInicial,
   nodosDePrototipo,
   onCerrar,
   onGuardado,
 }: Props) {
-  const medidas = MEDIDAS_POR_HERRAMIENTA[herramienta];
+  const conGrosor = herramienta === 'linea' && grosorM !== null;
+  // Un muro (línea con grosor) mide también su área; una forma estampada es lo que se cuenta.
+  const medidas: readonly MedidaDeTrazo[] = conGrosor
+    ? ['area', 'longitud', 'conteo']
+    : forma !== null
+      ? ['conteo', 'area', 'perimetro']
+      : MEDIDAS_POR_HERRAMIENTA[herramienta];
   const [fuente, setFuente] = useState<Fuente>('pdf');
   const [capa, setCapa] = useState('');
   const [filas, setFilas] = useState<readonly FilaEnlace[]>([
@@ -148,7 +165,22 @@ export function AltaTrazo({
           version_plano: versionPlano,
           fuente,
           capa: capa.trim() === '' ? null : capa.trim(),
-          geometria_wkt: aWkt(herramienta, puntos, huecos),
+          geometria_wkt: aWkt(herramienta, puntos),
+          ...(conGrosor && alineacion !== null ? { grosor_m: String(grosorM), alineacion } : {}),
+          ...(forma !== null
+            ? {
+                forma: {
+                  tipo: forma.tipo,
+                  ancho_m: String(forma.anchoM),
+                  alto_m: String(forma.altoM),
+                  rotacion_grados: String(forma.rotacionGrados),
+                  ...(forma.nombre ? { nombre: forma.nombre } : {}),
+                  ...(forma.tipo === 'libre' && forma.vertices
+                    ? { vertices: forma.vertices.map((v) => [v[0], v[1]] as [number, number]) }
+                    : {}),
+                },
+              }
+            : {}),
           enlaces: filas.map((f) => ({
             medida: f.medida,
             factor: f.factor,
@@ -177,11 +209,17 @@ export function AltaTrazo({
         <div className="sheet__body col gap-12">
           {error && <ErrorBanner mensaje={error} />}
 
-          {huecos.length > 0 && (
-            <div className="text-sm" data-testid="aviso-huecos">
-              Este polígono lleva {huecos.length} {huecos.length === 1 ? 'hueco' : 'huecos'}: su
-              área se <strong>descuenta</strong> del área del polígono, y su borde suma al
-              perímetro.
+          {conGrosor && (
+            <div className="text-sm" data-testid="aviso-grosor">
+              Línea con grosor de <strong>{grosorM} m</strong>, cuerpo a la{' '}
+              <strong>{alineacion === 'centro' ? 'mitad del eje' : alineacion}</strong>: mide su largo y
+              también largo × grosor.
+            </div>
+          )}
+          {forma !== null && (
+            <div className="text-sm" data-testid="aviso-forma">
+              {forma.nombre ?? NOMBRE_DE_FORMA[forma.tipo]} de {forma.anchoM} × {forma.altoM} m: se
+              guarda como un polígono centrado donde hiciste clic.
             </div>
           )}
 
@@ -219,7 +257,10 @@ export function AltaTrazo({
           <div className="col">
             <div className="field__label">Enlaces a actividades</div>
             {filas.map((f, i) => {
-              const local = medidaLocal(herramienta, f.medida, puntos, huecos);
+              const local =
+                conGrosor && f.medida === 'area' && grosorU !== null
+                  ? longitudLocal(puntos) * grosorU
+                  : medidaLocal(herramienta, f.medida, puntos);
               return (
                 <div key={f.clave} className="card">
                   <div className="card__body col">
