@@ -64,6 +64,7 @@ from obractrl.application.eventos import PartesCambiaronDeEstado, PublicadorEven
 from obractrl.application.puertos.cuantificacion import (
     RepositorioEnlacesCuantificacion,
     RepositorioMatrices,
+    RepositorioMediciones,
     RepositorioNotasPlano,
     RepositorioPlanos,
     RepositorioTrazos,
@@ -76,6 +77,7 @@ from obractrl.application.puertos.repositorios import (
 )
 from obractrl.domain.cuantificacion.escala import escala_desde_referencia
 from obractrl.domain.cuantificacion.matriz import NodoDeMatriz, ajuste_por_medicion
+from obractrl.domain.cuantificacion.medicion import motivo_de_incompatibilidad
 from obractrl.domain.cuantificacion.reglas import (
     EnlaceCuantificacion,
     ErrorDeCuantificacion,
@@ -147,6 +149,10 @@ class TrazoNoEncontrado(LookupError):
     (§12.4)."""
 
 
+class MedicionNoEncontrada(LookupError):
+    """La medición no existe o salió del alcance (RLS): indistinguibles a propósito (§12.4)."""
+
+
 class PlanoNoEncontrado(LookupError):
     """El plano no existe o salió del alcance (RLS): indistinguibles a
     propósito (§12.4)."""
@@ -184,6 +190,8 @@ class ComandoRegistrarTrazo:
     """De qué lado del eje queda el cuerpo de la línea: centro, izquierda o derecha."""
     forma: dict[str, Any] | None = None
     """Plantilla con la que se estampó un **polígono** que nació de un punto con forma."""
+    medicion_id: UUID | None = None
+    """La medición a la que entra el trazo (0088): hereda los enlaces de su medición y de las que la contienen."""
     pendiente_pct: Decimal | None = None
     """Pendiente en % de una **línea** inclinada: su longitud real es la de la planta × √(1 + p²) (0087)."""
 
@@ -454,6 +462,50 @@ async def _recalcular_nodo(
     )
 
 
+#: Un nodo que hay que recalcular: (actividad, matriz).
+NodoActividad = tuple[UUID, UUID | None]
+
+
+async def aplicar_asignaciones_a_trazo(
+    *,
+    trazo_id: UUID,
+    medicion_id: UUID,
+    mediciones: RepositorioMediciones,
+    enlaces: RepositorioEnlacesCuantificacion,
+) -> set[NodoActividad]:
+    """Crea los enlaces que le tocan a un trazo por estar en una medición: los de ella y los de las
+    que la contienen. No repite un enlace que el trazo ya tiene. Devuelve los nodos que tocó."""
+    tocados: set[NodoActividad] = set()
+    asignaciones = await mediciones.asignaciones_de(await mediciones.con_ancestros(medicion_id))
+    for a in asignaciones:
+        if await mediciones.enlace_vigente_equivalente(
+            trazo_id=trazo_id,
+            actividad_id=a["actividad_id"],
+            matriz_concepto_id=a["matriz_concepto_id"],
+            medida=a["medida"],
+        ):
+            continue
+        validado = EnlaceCuantificacion(
+            trazo_id=str(trazo_id),
+            actividad_id=str(a["actividad_id"]),
+            prototipo_nodo_id=None,
+            medida=MedidaCuantificacion(a["medida"]),
+            factor=Decimal(str(a["factor"])),
+            matriz_concepto_id=str(a["matriz_concepto_id"]) if a["matriz_concepto_id"] else None,
+        )
+        await enlaces.crear(
+            trazo_id=trazo_id,
+            actividad_id=a["actividad_id"],
+            prototipo_nodo_id=None,
+            matriz_concepto_id=a["matriz_concepto_id"],
+            medida=validado.medida.value,
+            factor=validado.factor,
+            asignacion_id=a["id"],
+        )
+        tocados.add((a["actividad_id"], a["matriz_concepto_id"]))
+    return tocados
+
+
 class RegistrarTrazoConEnlaces:
     """Alta de un trazo (WKT) con uno o más enlaces vigentes (MODELO.md
     §1b: "un trazo, varios enlaces")."""
@@ -469,6 +521,7 @@ class RegistrarTrazoConEnlaces:
         uow: UnidadDeTrabajo,
         eventos: PublicadorEventos | None = None,
         matrices: RepositorioMatrices | None = None,
+        mediciones: RepositorioMediciones | None = None,
     ) -> None:
         self._trazos = trazos
         self._enlaces = enlaces
@@ -478,6 +531,7 @@ class RegistrarTrazoConEnlaces:
         self._uow = uow
         self._eventos = eventos
         self._matrices = matrices
+        self._mediciones = mediciones
 
     async def ejecutar(
         self, cmd: ComandoRegistrarTrazo, *, detectada_en: datetime
@@ -504,6 +558,17 @@ class RegistrarTrazoConEnlaces:
                 raise ErrorDeCuantificacion("La pendiente es de una línea (un tramo inclinado).")
             if cmd.pendiente_pct <= 0:
                 raise ErrorDeCuantificacion("La pendiente debe ser mayor que cero.")
+        if cmd.medicion_id is not None:
+            if self._mediciones is None:
+                raise ErrorDeCuantificacion("Las mediciones no están disponibles.")
+            medicion = await self._mediciones.obtener(cmd.medicion_id)
+            if medicion is None:
+                raise MedicionNoEncontrada(f"La medición {cmd.medicion_id} no existe o está fuera de tu alcance.")
+            if medicion["plano_id"] != cmd.plano_id:
+                raise ErrorDeCuantificacion("La medición es de otro plano.")
+            motivo_medicion = motivo_de_incompatibilidad(medicion["tipo"], tipo, cmd.forma is not None)
+            if motivo_medicion is not None:
+                raise ErrorDeCuantificacion(motivo_medicion)
 
         async with self._uow:
             trazo_id = await self._trazos.crear(
@@ -570,6 +635,16 @@ class RegistrarTrazoConEnlaces:
                         intencion.matriz_concepto_id,
                     )
                 ] = None
+
+            if cmd.medicion_id is not None and self._mediciones is not None:
+                await self._mediciones.poner_trazo(trazo_id, cmd.medicion_id)
+                for actividad_id, matriz_id in await aplicar_asignaciones_a_trazo(
+                    trazo_id=trazo_id,
+                    medicion_id=cmd.medicion_id,
+                    mediciones=self._mediciones,
+                    enlaces=self._enlaces,
+                ):
+                    nodos_tocados[(TipoNodoCuantificacion.ACTIVIDAD, actividad_id, None, matriz_id)] = None
 
             recalculos = tuple(
                 [

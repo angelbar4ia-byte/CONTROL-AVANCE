@@ -38,6 +38,7 @@ from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.cuantificacion_sql import (
     RepositorioEnlacesCuantificacionSQL,
     RepositorioMatricesSQL,
+    RepositorioMedicionesSQL,
     RepositorioNotasPlanoSQL,
     RepositorioPlanosSQL,
     RepositorioTrazosSQL,
@@ -279,6 +280,7 @@ from obractrl.application.casos_uso.gestionar_usuarios import (
     CrearUsuario,
     ResetearContrasena,
 )
+from obractrl.application.casos_uso.mediciones import GestionarMediciones
 from obractrl.application.casos_uso.notificar_estimacion import (
     NotificarEstimacionValidada,
 )
@@ -396,6 +398,7 @@ __all__ = [
     "GenerarDesdeEnsambleDep",
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
+    "GestionarMedicionesDep",
     "IniciarObraDep",
     "InstanciarProgramaObraDep",
     "MarcarParteIndependienteDep",
@@ -765,6 +768,7 @@ def obtener_registrar_plano(sesion: SesionRLS) -> RegistrarPlano:
 
 def obtener_registrar_trazo_con_enlaces(sesion: SesionRLS, ctx: ContextoActual) -> RegistrarTrazoConEnlaces:
     return RegistrarTrazoConEnlaces(
+        mediciones=RepositorioMedicionesSQL(sesion),
         trazos=RepositorioTrazosSQL(sesion),
         enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
         actividades=RepositorioActividadesSQL(sesion),
@@ -817,6 +821,20 @@ def obtener_quitar_hueco(sesion: SesionRLS, ctx: ContextoActual) -> QuitarHueco:
 
 def obtener_calibrar_escala(sesion: SesionRLS, ctx: ContextoActual) -> CalibrarEscalaDePlano:
     return CalibrarEscalaDePlano(
+        planos=RepositorioPlanosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
+def obtener_gestionar_mediciones(sesion: SesionRLS, ctx: ContextoActual) -> GestionarMediciones:
+    return GestionarMediciones(
+        mediciones=RepositorioMedicionesSQL(sesion),
         planos=RepositorioPlanosSQL(sesion),
         enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
         actividades=RepositorioActividadesSQL(sesion),
@@ -958,6 +976,7 @@ ReemplazarEnlaceDep = Annotated[ReemplazarEnlace, Depends(obtener_reemplazar_enl
 CalibrarEscalaDePlanoDep = Annotated[
     CalibrarEscalaDePlano, Depends(obtener_calibrar_escala)
 ]
+GestionarMedicionesDep = Annotated[GestionarMediciones, Depends(obtener_gestionar_mediciones)]
 FijarVistaDePlanoDep = Annotated[FijarVistaDePlano, Depends(obtener_fijar_vista)]
 RegistrarNotaPlanoDep = Annotated[
     RegistrarNotaPlano, Depends(obtener_registrar_nota_plano)

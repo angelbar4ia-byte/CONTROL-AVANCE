@@ -164,6 +164,7 @@ class RepositorioEnlacesCuantificacion(Protocol):
         factor: Decimal,
         vigente: bool = True,
         matriz_concepto_id: UUID | None = None,
+        asignacion_id: UUID | None = None,
     ) -> UUID: ...
 
     async def obtener(self, enlace_id: UUID) -> dict[str, Any] | None: ...
@@ -249,4 +250,96 @@ class RepositorioMatrices(Protocol):
         matrices internas del concepto de la actividad, a cualquier profundidad, o `None` si no se
         ve. Cada matriz: `{concepto_id, padre_id, nivel, clave, descripcion, unidad, ruta,
         cantidad_unitaria, acumulada, precio_unitario, cantidad_medida}`."""
+        ...
+
+
+@runtime_checkable
+class RepositorioMediciones(Protocol):
+    """`medicion` y `medicion_asignacion` (migración 0088): la capa sombra del cuantificador."""
+
+    async def crear(
+        self, *, plano_id: UUID, nombre: str, tipo: str, parent_id: UUID | None, autor_id: UUID
+    ) -> UUID: ...
+
+    async def obtener(self, medicion_id: UUID) -> dict[str, Any] | None:
+        """`{id, plano_id, parent_id, nombre, tipo}` o `None` si no existe o está fuera de alcance."""
+        ...
+
+    async def existe_hermana(
+        self, *, plano_id: UUID, parent_id: UUID | None, nombre: str, excepto: UUID | None = None
+    ) -> bool: ...
+
+    async def renombrar(self, medicion_id: UUID, nombre: str) -> None: ...
+
+    async def eliminar(self, medicion_id: UUID) -> None: ...
+
+    async def dependencias(self, medicion_id: UUID) -> dict[str, int]:
+        """`{hijas, asignaciones}`: lo que impide borrarla."""
+        ...
+
+    async def con_ancestros(self, medicion_id: UUID) -> list[UUID]:
+        """Ella y las que la contienen, de la más cercana a la raíz."""
+        ...
+
+    async def con_descendientes(self, medicion_id: UUID) -> list[UUID]:
+        """Ella y las que contiene, a cualquier profundidad."""
+        ...
+
+    async def info_de_trazo(self, trazo_id: UUID) -> dict[str, Any] | None:
+        """`{plano_id, geometria, tiene_forma, medicion_id}` del trazo (`geometria` = `ST_GeometryType`)."""
+        ...
+
+    async def poner_trazo(self, trazo_id: UUID, medicion_id: UUID | None) -> None: ...
+
+    async def trazos_de(self, medicion_ids: list[UUID]) -> list[UUID]: ...
+
+    async def asignaciones_de(self, medicion_ids: list[UUID]) -> list[dict[str, Any]]:
+        """`{id, medicion_id, actividad_id, matriz_concepto_id, medida, factor}` de esas mediciones."""
+        ...
+
+    async def crear_asignacion(
+        self,
+        *,
+        medicion_id: UUID,
+        actividad_id: UUID,
+        matriz_concepto_id: UUID | None,
+        medida: str,
+        factor: Decimal,
+        autor_id: UUID,
+    ) -> UUID: ...
+
+    async def obtener_asignacion(self, asignacion_id: UUID) -> dict[str, Any] | None: ...
+
+    async def eliminar_asignacion(self, asignacion_id: UUID) -> None: ...
+
+    async def enlaces_de_asignacion(self, asignacion_id: UUID) -> list[dict[str, Any]]:
+        """Los enlaces vigentes que nacieron de esa asignación: `{id, trazo_id}`."""
+        ...
+
+    async def asignacion_equivalente(
+        self,
+        *,
+        medicion_ids: list[UUID],
+        actividad_id: UUID,
+        matriz_concepto_id: UUID | None,
+        medida: str,
+    ) -> bool:
+        """¿Alguna de esas mediciones ya alimenta ese mismo concepto con esa misma medida?"""
+        ...
+
+    async def enlace_vigente_equivalente(
+        self,
+        *,
+        trazo_id: UUID,
+        actividad_id: UUID,
+        matriz_concepto_id: UUID | None,
+        medida: str,
+    ) -> bool: ...
+
+    async def actividad_de_la_obra(self, actividad_id: UUID, plano_id: UUID) -> bool:
+        """¿La actividad es de la misma obra que el plano?"""
+        ...
+
+    async def de_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
+        """Las mediciones de un plano con sus asignaciones y lo que miden (ella y sus submediciones)."""
         ...

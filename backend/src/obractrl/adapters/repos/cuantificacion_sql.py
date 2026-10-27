@@ -418,7 +418,7 @@ class RepositorioTrazosSQL:
                     """
                     select t.id, t.version_plano, t.capa, t.fuente, t.autor_id,
                            t.aprobado_por, t.aprobado_en, t.created_at,
-                           t.grosor_m, t.alineacion, t.forma, t.pendiente_pct,
+                           t.grosor_m, t.alineacion, t.forma, t.pendiente_pct, t.medicion_id,
                            (select count(*) from trazo h where h.hueco_de = t.id) as n_huecos,
                            (t.version_plano < p.version) as por_revisar,
                            -- La geometría que se dibuja y se mide es la efectiva: con sus huecos.
@@ -479,6 +479,7 @@ class RepositorioEnlacesCuantificacionSQL:
         factor: Decimal,
         vigente: bool = True,
         matriz_concepto_id: UUID | None = None,
+        asignacion_id: UUID | None = None,
     ) -> UUID:
         """`tipo_nodo` no se pide: se deriva de cuál de
         `actividad_id`/`prototipo_nodo_id` llegó lleno, igual que
@@ -492,14 +493,16 @@ class RepositorioEnlacesCuantificacionSQL:
                     """
                     insert into enlace_cuantificacion
                         (org_id, trazo_id, tipo_nodo, actividad_id,
-                         prototipo_nodo_id, medida, factor, vigente, matriz_concepto_id)
+                         prototipo_nodo_id, medida, factor, vigente, matriz_concepto_id,
+                         asignacion_id)
                     values
                         (cast(current_setting('app.org_id') as uuid),
                          :trazo_id, cast(:tipo_nodo as tipo_nodo_cuantificacion),
                          cast(:actividad_id as uuid),
                          cast(:prototipo_nodo_id as uuid),
                          cast(:medida as medida_cuantificacion),
-                         :factor, :vigente, cast(:matriz_concepto_id as uuid))
+                         :factor, :vigente, cast(:matriz_concepto_id as uuid),
+                         cast(:asignacion_id as uuid))
                     returning id
                     """
                 ),
@@ -514,6 +517,7 @@ class RepositorioEnlacesCuantificacionSQL:
                     "factor": factor,
                     "vigente": vigente,
                     "matriz_concepto_id": str(matriz_concepto_id) if matriz_concepto_id else None,
+                    "asignacion_id": str(asignacion_id) if asignacion_id else None,
                 },
             )
         ).scalar_one()
@@ -814,3 +818,372 @@ class RepositorioMatricesSQL:
             ).mappings().all()
             matrices = [dict(f) for f in filas]
         return {**dict(act), "matrices": matrices}
+
+
+_CERO = "'00000000-0000-0000-0000-000000000000'::uuid"
+
+
+class RepositorioMedicionesSQL:
+    """`medicion` y `medicion_asignacion` (migración 0088)."""
+
+    def __init__(self, sesion: AsyncSession) -> None:
+        self._sesion = sesion
+
+    async def crear(
+        self, *, plano_id: UUID, nombre: str, tipo: str, parent_id: UUID | None, autor_id: UUID
+    ) -> UUID:
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into medicion (org_id, plano_id, parent_id, nombre, tipo, autor_id, orden)
+                    values (cast(current_setting('app.org_id') as uuid), :plano, :parent, :nombre, :tipo,
+                            :autor,
+                            coalesce((select max(orden) + 1 from medicion
+                                       where plano_id = :plano
+                                         and parent_id is not distinct from cast(:parent as uuid)), 0))
+                    returning id
+                    """
+                ),
+                {
+                    "plano": str(plano_id),
+                    "parent": str(parent_id) if parent_id else None,
+                    "nombre": nombre,
+                    "tipo": tipo,
+                    "autor": str(autor_id),
+                },
+            )
+        ).scalar_one()
+
+    async def obtener(self, medicion_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text("select id, plano_id, parent_id, nombre, tipo from medicion where id = :id"),
+                {"id": str(medicion_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def existe_hermana(
+        self, *, plano_id: UUID, parent_id: UUID | None, nombre: str, excepto: UUID | None = None
+    ) -> bool:
+        return bool(
+            (
+                await self._sesion.execute(
+                    text(
+                        """
+                        select exists (
+                          select 1 from medicion
+                           where plano_id = :plano
+                             and parent_id is not distinct from cast(:parent as uuid)
+                             and lower(btrim(nombre)) = lower(btrim(:nombre))
+                             and (cast(:excepto as uuid) is null or id <> cast(:excepto as uuid)))
+                        """
+                    ),
+                    {
+                        "plano": str(plano_id),
+                        "parent": str(parent_id) if parent_id else None,
+                        "nombre": nombre,
+                        "excepto": str(excepto) if excepto else None,
+                    },
+                )
+            ).scalar_one()
+        )
+
+    async def renombrar(self, medicion_id: UUID, nombre: str) -> None:
+        await self._sesion.execute(
+            text("update medicion set nombre = :nombre where id = :id"),
+            {"id": str(medicion_id), "nombre": nombre},
+        )
+
+    async def eliminar(self, medicion_id: UUID) -> None:
+        await self._sesion.execute(text("delete from medicion where id = :id"), {"id": str(medicion_id)})
+
+    async def dependencias(self, medicion_id: UUID) -> dict[str, int]:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select (select count(*) from medicion where parent_id = :id) as hijas,
+                           (select count(*) from medicion_asignacion where medicion_id = :id) as asignaciones
+                    """
+                ),
+                {"id": str(medicion_id)},
+            )
+        ).mappings().one()
+        return {"hijas": int(fila["hijas"]), "asignaciones": int(fila["asignaciones"])}
+
+    async def con_ancestros(self, medicion_id: UUID) -> list[UUID]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    with recursive arriba as (
+                      select id, parent_id, 0 as dist from medicion where id = :id
+                      union all
+                      select m.id, m.parent_id, a.dist + 1
+                        from medicion m join arriba a on m.id = a.parent_id
+                       where a.dist < 20)
+                    select id from arriba order by dist
+                    """
+                ),
+                {"id": str(medicion_id)},
+            )
+        ).scalars().all()
+        return list(filas)
+
+    async def con_descendientes(self, medicion_id: UUID) -> list[UUID]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    with recursive abajo as (
+                      select id, 0 as dist from medicion where id = :id
+                      union all
+                      select m.id, a.dist + 1 from medicion m join abajo a on m.parent_id = a.id
+                       where a.dist < 20)
+                    select id from abajo order by dist
+                    """
+                ),
+                {"id": str(medicion_id)},
+            )
+        ).scalars().all()
+        return list(filas)
+
+    async def info_de_trazo(self, trazo_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select t.plano_id, ST_GeometryType(t.geometria) as geometria,
+                           (t.forma is not null) as tiene_forma, t.medicion_id, t.hueco_de
+                      from trazo t where t.id = :id
+                    """
+                ),
+                {"id": str(trazo_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def poner_trazo(self, trazo_id: UUID, medicion_id: UUID | None) -> None:
+        await self._sesion.execute(
+            text("update trazo set medicion_id = cast(:m as uuid) where id = :id"),
+            {"id": str(trazo_id), "m": str(medicion_id) if medicion_id else None},
+        )
+
+    async def trazos_de(self, medicion_ids: list[UUID]) -> list[UUID]:
+        filas = (
+            await self._sesion.execute(
+                text("select id from trazo where medicion_id = any(:ids) and hueco_de is null order by created_at, id"),
+                {"ids": list(medicion_ids)},
+            )
+        ).scalars().all()
+        return list(filas)
+
+    async def asignaciones_de(self, medicion_ids: list[UUID]) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, medicion_id, actividad_id, matriz_concepto_id, medida::text as medida, factor
+                      from medicion_asignacion where medicion_id = any(:ids) order by created_at, id
+                    """
+                ),
+                {"ids": list(medicion_ids)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def crear_asignacion(
+        self,
+        *,
+        medicion_id: UUID,
+        actividad_id: UUID,
+        matriz_concepto_id: UUID | None,
+        medida: str,
+        factor: Decimal,
+        autor_id: UUID,
+    ) -> UUID:
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into medicion_asignacion
+                        (org_id, medicion_id, actividad_id, matriz_concepto_id, medida, factor, autor_id)
+                    values (cast(current_setting('app.org_id') as uuid), :medicion, :actividad,
+                            cast(:matriz as uuid), cast(:medida as medida_cuantificacion), :factor, :autor)
+                    returning id
+                    """
+                ),
+                {
+                    "medicion": str(medicion_id),
+                    "actividad": str(actividad_id),
+                    "matriz": str(matriz_concepto_id) if matriz_concepto_id else None,
+                    "medida": medida,
+                    "factor": factor,
+                    "autor": str(autor_id),
+                },
+            )
+        ).scalar_one()
+
+    async def obtener_asignacion(self, asignacion_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, medicion_id, actividad_id, matriz_concepto_id, medida::text as medida, factor
+                      from medicion_asignacion where id = :id
+                    """
+                ),
+                {"id": str(asignacion_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def eliminar_asignacion(self, asignacion_id: UUID) -> None:
+        await self._sesion.execute(
+            text("delete from medicion_asignacion where id = :id"), {"id": str(asignacion_id)}
+        )
+
+    async def enlaces_de_asignacion(self, asignacion_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text("select id, trazo_id from enlace_cuantificacion where asignacion_id = :id and vigente"),
+                {"id": str(asignacion_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def asignacion_equivalente(
+        self,
+        *,
+        medicion_ids: list[UUID],
+        actividad_id: UUID,
+        matriz_concepto_id: UUID | None,
+        medida: str,
+    ) -> bool:
+        return bool(
+            (
+                await self._sesion.execute(
+                    text(
+                        f"""
+                        select exists (
+                          select 1 from medicion_asignacion
+                           where medicion_id = any(:ids) and actividad_id = :actividad
+                             and coalesce(matriz_concepto_id, {_CERO}) = coalesce(cast(:matriz as uuid), {_CERO})
+                             and medida = cast(:medida as medida_cuantificacion))
+                        """
+                    ),
+                    {
+                        "ids": list(medicion_ids),
+                        "actividad": str(actividad_id),
+                        "matriz": str(matriz_concepto_id) if matriz_concepto_id else None,
+                        "medida": medida,
+                    },
+                )
+            ).scalar_one()
+        )
+
+    async def enlace_vigente_equivalente(
+        self,
+        *,
+        trazo_id: UUID,
+        actividad_id: UUID,
+        matriz_concepto_id: UUID | None,
+        medida: str,
+    ) -> bool:
+        return bool(
+            (
+                await self._sesion.execute(
+                    text(
+                        f"""
+                        select exists (
+                          select 1 from enlace_cuantificacion
+                           where trazo_id = :trazo and vigente and actividad_id = :actividad
+                             and coalesce(matriz_concepto_id, {_CERO}) = coalesce(cast(:matriz as uuid), {_CERO})
+                             and medida = cast(:medida as medida_cuantificacion))
+                        """
+                    ),
+                    {
+                        "trazo": str(trazo_id),
+                        "actividad": str(actividad_id),
+                        "matriz": str(matriz_concepto_id) if matriz_concepto_id else None,
+                        "medida": medida,
+                    },
+                )
+            ).scalar_one()
+        )
+
+    async def actividad_de_la_obra(self, actividad_id: UUID, plano_id: UUID) -> bool:
+        return bool(
+            (
+                await self._sesion.execute(
+                    text(
+                        """
+                        select exists (select 1 from actividad a join plano p on p.obra_id = a.obra_id
+                                        where a.id = :actividad and p.id = :plano)
+                        """
+                    ),
+                    {"actividad": str(actividad_id), "plano": str(plano_id)},
+                )
+            ).scalar_one()
+        )
+
+    async def de_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    with recursive sub as (
+                      select m.id as raiz, m.id from medicion m where m.plano_id = :plano
+                      union all
+                      select s.raiz, h.id from sub s join medicion h on h.parent_id = s.id
+                    )
+                    select m.id, m.parent_id, m.nombre, m.tipo, m.orden,
+                           count(t.id) as n_trazos,
+                           coalesce(sum(
+                             case m.tipo
+                               when 'area' then ST_Area(app.geometria_efectiva(t.id, t.geometria))
+                                                * power(coalesce(p.escala_m_por_unidad, 1), 2)
+                               when 'lineal' then ST_Length(app.geometria_efectiva(t.id, t.geometria))
+                                                  * coalesce(p.escala_m_por_unidad, 1)
+                                                  * sqrt(1 + power(coalesce(t.pendiente_pct, 0) / 100.0, 2))
+                               else 1
+                             end), 0) as valor
+                      from medicion m
+                      join plano p on p.id = m.plano_id
+                      left join sub s on s.raiz = m.id
+                      left join trazo t on t.medicion_id = s.id and t.hueco_de is null
+                     where m.plano_id = :plano
+                     group by m.id, p.escala_m_por_unidad
+                     order by m.orden, m.created_at, m.id
+                    """
+                ),
+                {"plano": str(plano_id)},
+            )
+        ).mappings().all()
+        asignaciones = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select a.id, a.medicion_id, a.actividad_id, a.matriz_concepto_id,
+                           a.medida::text as medida, a.factor,
+                           coalesce(c.clave, '') as concepto_clave,
+                           coalesce(act.descripcion, c.descripcion, '') as descripcion,
+                           mc.clave as matriz_clave
+                      from medicion_asignacion a
+                      join medicion m on m.id = a.medicion_id
+                      join actividad act on act.id = a.actividad_id
+                      left join concepto c on c.id = act.concepto_id
+                      left join concepto mc on mc.id = a.matriz_concepto_id
+                     where m.plano_id = :plano
+                     order by a.created_at, a.id
+                    """
+                ),
+                {"plano": str(plano_id)},
+            )
+        ).mappings().all()
+        por_medicion: dict[Any, list[dict[str, Any]]] = {}
+        for a in asignaciones:
+            por_medicion.setdefault(a["medicion_id"], []).append(dict(a))
+        return [{**dict(f), "asignaciones": por_medicion.get(f["id"], [])} for f in filas]

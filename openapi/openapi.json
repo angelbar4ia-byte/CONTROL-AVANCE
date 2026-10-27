@@ -10212,6 +10212,364 @@
         }
       }
     },
+    "/api/v1/planos/{plano_id}/mediciones": {
+      "get": {
+        "tags": [
+          "mediciones"
+        ],
+        "summary": "Las mediciones de un plano, con lo que miden y a qué conceptos alimentan",
+        "operationId": "listar_mediciones_api_v1_planos__plano_id__mediciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MedicionRespuesta"
+                  },
+                  "title": "Response Listar Mediciones Api V1 Planos  Plano Id  Mediciones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El plano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "mediciones"
+        ],
+        "summary": "Crear una medición (o una submedición)",
+        "operationId": "crear_medicion_api_v1_planos__plano_id__mediciones_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MedicionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicionCreada"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El plano o la medición madre no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "Nombre repetido entre hermanas, tipo distinto del de la madre o nombre vacío."
+          }
+        }
+      }
+    },
+    "/api/v1/mediciones/{medicion_id}": {
+      "patch": {
+        "tags": [
+          "mediciones"
+        ],
+        "summary": "Renombrar una medición",
+        "operationId": "renombrar_medicion_api_v1_mediciones__medicion_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "medicion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Medicion Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenombrarPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La medición no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "mediciones"
+        ],
+        "summary": "Borrar una medición sin asignaciones ni submediciones (sus trazos quedan sueltos)",
+        "operationId": "eliminar_medicion_api_v1_mediciones__medicion_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "medicion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Medicion Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La medición no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Alimenta conceptos o tiene submediciones."
+          }
+        }
+      }
+    },
+    "/api/v1/trazos/{trazo_id}/medicion": {
+      "put": {
+        "tags": [
+          "mediciones"
+        ],
+        "summary": "Meter un trazo en una medición, o sacarlo de ella",
+        "description": "Al entrar recibe los enlaces de la medición (y de las que la contienen); al salir pierde los que\nle venían de ella. Los enlaces quitados quedan como evidencia, no vigentes.",
+        "operationId": "poner_trazo_en_medicion_api_v1_trazos__trazo_id__medicion_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrazoEnMedicionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrazoEnMedicionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El trazo o la medición no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El trazo no es del tipo de la medición, o es de otro plano."
+          }
+        }
+      }
+    },
+    "/api/v1/mediciones/{medicion_id}/asignaciones": {
+      "post": {
+        "tags": [
+          "mediciones"
+        ],
+        "summary": "Asignar una medición a un concepto de la obra",
+        "description": "Crea un enlace por cada trazo de la medición y de sus submediciones, y recalcula el concepto.\nUn trazo que entre después a la medición hereda este enlace.",
+        "operationId": "asignar_medicion_api_v1_mediciones__medicion_id__asignaciones_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "medicion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Medicion Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AsignacionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsignacionCreada"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La medición no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Medida que no corresponde al tipo, concepto de otra obra o asignación repetida en la rama."
+          }
+        }
+      }
+    },
+    "/api/v1/asignaciones-de-medicion/{asignacion_id}": {
+      "delete": {
+        "tags": [
+          "mediciones"
+        ],
+        "summary": "Quitar la asignación de una medición a un concepto",
+        "description": "Los enlaces que nacieron de ella quedan como evidencia (no vigentes) y el concepto se recalcula.",
+        "operationId": "quitar_asignacion_api_v1_asignaciones_de_medicion__asignacion_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "asignacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Asignacion Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsignacionCreada"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La asignación no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/desviaciones": {
       "get": {
         "tags": [
@@ -14695,6 +15053,156 @@
           "programas_por_revisar"
         ],
         "title": "ArranqueRespuesta"
+      },
+      "AsignacionCreada": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "trazos_enlazados": {
+            "type": "integer",
+            "title": "Trazos Enlazados",
+            "description": "Trazos a los que se les creó (o quitó) el enlace."
+          },
+          "recalculos": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+            },
+            "type": "array",
+            "title": "Recalculos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "trazos_enlazados",
+          "recalculos"
+        ],
+        "title": "AsignacionCreada"
+      },
+      "AsignacionPeticion": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "matriz_concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matriz Concepto Id"
+          },
+          "medida": {
+            "type": "string",
+            "enum": [
+              "area",
+              "perimetro",
+              "longitud",
+              "conteo"
+            ],
+            "title": "Medida"
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Factor",
+            "default": "1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "medida"
+        ],
+        "title": "AsignacionPeticion"
+      },
+      "AsignacionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "concepto_clave": {
+            "type": "string",
+            "title": "Concepto Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "matriz_concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matriz Concepto Id"
+          },
+          "matriz_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matriz Clave"
+          },
+          "medida": {
+            "type": "string",
+            "title": "Medida"
+          },
+          "factor": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Factor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "actividad_id",
+          "concepto_clave",
+          "descripcion",
+          "medida",
+          "factor"
+        ],
+        "title": "AsignacionRespuesta"
       },
       "AsignarFrentePeticion": {
         "properties": {
@@ -22589,6 +23097,130 @@
         ],
         "title": "MatrizRespuesta"
       },
+      "MedicionCreada": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "MedicionCreada"
+      },
+      "MedicionPeticion": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "area",
+              "lineal",
+              "conteo"
+            ],
+            "title": "Tipo"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id",
+            "description": "La medición que la contiene; del mismo tipo (espacios de una losa)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nombre",
+          "tipo"
+        ],
+        "title": "MedicionPeticion"
+      },
+      "MedicionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "area",
+              "lineal",
+              "conteo"
+            ],
+            "title": "Tipo"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden"
+          },
+          "n_trazos": {
+            "type": "integer",
+            "title": "N Trazos",
+            "description": "Trazos de la medición y de sus submediciones."
+          },
+          "valor": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Valor",
+            "description": "Lo que miden esos trazos: m² (área), m (lineal) o piezas (conteo), ya con la escala del plano."
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "asignaciones": {
+            "items": {
+              "$ref": "#/components/schemas/AsignacionRespuesta"
+            },
+            "type": "array",
+            "title": "Asignaciones"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nombre",
+          "tipo",
+          "orden",
+          "n_trazos",
+          "valor",
+          "unidad",
+          "asignaciones"
+        ],
+        "title": "MedicionRespuesta"
+      },
       "MedidaCuantificacion": {
         "type": "string",
         "enum": [
@@ -26774,6 +27406,21 @@
         ],
         "title": "RenglonGeneradoRespuesta"
       },
+      "RenombrarPeticion": {
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nombre"
+        ],
+        "title": "RenombrarPeticion"
+      },
       "RepartoRespuesta": {
         "properties": {
           "obra_id": {
@@ -28586,6 +29233,41 @@
         ],
         "title": "TrazoEliminadoRespuesta"
       },
+      "TrazoEnMedicionPeticion": {
+        "properties": {
+          "medicion_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medicion Id",
+            "description": "`null` saca el trazo de su medición."
+          }
+        },
+        "type": "object",
+        "title": "TrazoEnMedicionPeticion"
+      },
+      "TrazoEnMedicionRespuesta": {
+        "properties": {
+          "recalculos": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+            },
+            "type": "array",
+            "title": "Recalculos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recalculos"
+        ],
+        "title": "TrazoEnMedicionRespuesta"
+      },
       "TrazoFeature": {
         "properties": {
           "type": {
@@ -28696,6 +29378,19 @@
               }
             ],
             "description": "Plantilla con la que se estampó un polígono que nació de un punto con forma."
+          },
+          "medicion_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medicion Id",
+            "description": "La medición (capa sombra, 0088) a la que entra el trazo: hereda los enlaces de su medición y de las que la contienen. Una medición solo admite trazos de su tipo."
           },
           "pendiente_pct": {
             "anyOf": [
@@ -28833,6 +29528,19 @@
             ],
             "title": "Pendiente Pct",
             "description": "Pendiente en % de una línea inclinada; `null` = horizontal."
+          },
+          "medicion_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medicion Id",
+            "description": "La medición a la que pertenece el trazo (0088); `null` = suelto."
           },
           "forma": {
             "anyOf": [

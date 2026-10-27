@@ -39,6 +39,7 @@ from obractrl.adapters.api.v1.identidad import router as router_identidad
 from obractrl.adapters.api.v1.incidencias import router as router_incidencias
 from obractrl.adapters.api.v1.insumos import router as router_insumos
 from obractrl.adapters.api.v1.materiales import router as router_materiales
+from obractrl.adapters.api.v1.mediciones import router as router_mediciones
 from obractrl.adapters.api.v1.obras import router as router_obras
 from obractrl.adapters.api.v1.organizacion import router as router_organizacion
 from obractrl.adapters.api.v1.partes import router as router_partes
@@ -85,6 +86,7 @@ api_v1.include_router(router_evidencias)
 api_v1.include_router(router_cargas)
 api_v1.include_router(router_expediente)
 api_v1.include_router(router_cuantificacion)
+api_v1.include_router(router_mediciones)
 api_v1.include_router(router_desviaciones)
 api_v1.include_router(router_reportes)
 api_v1.include_router(router_procesos)

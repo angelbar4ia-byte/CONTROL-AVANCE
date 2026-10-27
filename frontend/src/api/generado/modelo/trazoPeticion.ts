@@ -11,6 +11,7 @@ import type { IntencionEnlacePeticion } from "./intencionEnlacePeticion";
 import type { TrazoPeticionGrosorM } from "./trazoPeticionGrosorM";
 import type { TrazoPeticionAlineacion } from "./trazoPeticionAlineacion";
 import type { TrazoPeticionForma } from "./trazoPeticionForma";
+import type { TrazoPeticionMedicionId } from "./trazoPeticionMedicionId";
 import type { TrazoPeticionPendientePct } from "./trazoPeticionPendientePct";
 
 /**
@@ -34,6 +35,8 @@ export interface TrazoPeticion {
   alineacion?: TrazoPeticionAlineacion;
   /** Plantilla con la que se estampó un polígono que nació de un punto con forma. */
   forma?: TrazoPeticionForma;
+  /** La medición (capa sombra, 0088) a la que entra el trazo: hereda los enlaces de su medición y de las que la contienen. Una medición solo admite trazos de su tipo. */
+  medicion_id?: TrazoPeticionMedicionId;
   /** Pendiente en % de una **línea** inclinada (desnivel / recorrido × 100): su longitud real es la de la planta × √(1 + p²). Solo de una línea. */
   pendiente_pct?: TrazoPeticionPendientePct;
 }

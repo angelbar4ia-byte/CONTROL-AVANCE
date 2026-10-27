@@ -213,6 +213,13 @@ class TrazoPeticion(BaseModel):
         default=None,
         description="Plantilla con la que se estampó un polígono que nació de un punto con forma.",
     )
+    medicion_id: UUID | None = Field(
+        default=None,
+        description=(
+            "La medición (capa sombra, 0088) a la que entra el trazo: hereda los enlaces de su medición "
+            "y de las que la contienen. Una medición solo admite trazos de su tipo."
+        ),
+    )
     pendiente_pct: Decimal | None = Field(
         default=None,
         gt=0,
@@ -376,6 +383,7 @@ async def registrar_trazo(
             alineacion=peticion.alineacion,
             forma=peticion.forma.model_dump(mode="json") if peticion.forma else None,
             pendiente_pct=peticion.pendiente_pct,
+            medicion_id=peticion.medicion_id,
             enlaces=tuple(
                 IntencionEnlace(
                     medida=e.medida,
@@ -783,6 +791,9 @@ class TrazoPropiedades(BaseModel):
     pendiente_pct: Decimal | None = Field(
         default=None, description="Pendiente en % de una línea inclinada; `null` = horizontal."
     )
+    medicion_id: UUID | None = Field(
+        default=None, description="La medición a la que pertenece el trazo (0088); `null` = suelto."
+    )
     forma: dict[str, Any] | None = Field(
         default=None, description="Plantilla con la que se estampó un punto con forma."
     )
@@ -916,6 +927,7 @@ async def trazos_de_plano(
                     grosor_m=trazo.get("grosor_m"),
                     alineacion=trazo.get("alineacion"),
                     pendiente_pct=trazo.get("pendiente_pct"),
+                    medicion_id=trazo.get("medicion_id"),
                     forma=trazo.get("forma"),
                     n_huecos=int(trazo.get("n_huecos") or 0),
                     nodo_ids=list(dict.fromkeys(e.nodo_id for e in enlaces if e.vigente)),

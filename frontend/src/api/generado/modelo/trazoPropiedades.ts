@@ -12,6 +12,7 @@ import type { TrazoPropiedadesAprobadoEn } from "./trazoPropiedadesAprobadoEn";
 import type { TrazoPropiedadesGrosorM } from "./trazoPropiedadesGrosorM";
 import type { TrazoPropiedadesAlineacion } from "./trazoPropiedadesAlineacion";
 import type { TrazoPropiedadesPendientePct } from "./trazoPropiedadesPendientePct";
+import type { TrazoPropiedadesMedicionId } from "./trazoPropiedadesMedicionId";
 import type { TrazoPropiedadesForma } from "./trazoPropiedadesForma";
 import type { EnlaceDeTrazoRespuesta } from "./enlaceDeTrazoRespuesta";
 
@@ -30,6 +31,8 @@ export interface TrazoPropiedades {
   alineacion?: TrazoPropiedadesAlineacion;
   /** Pendiente en % de una línea inclinada; `null` = horizontal. */
   pendiente_pct?: TrazoPropiedadesPendientePct;
+  /** La medición a la que pertenece el trazo (0088); `null` = suelto. */
+  medicion_id?: TrazoPropiedadesMedicionId;
   /** Plantilla con la que se estampó un punto con forma. */
   forma?: TrazoPropiedadesForma;
   /** Huecos que tiene el área. Su geometría ya viene restada en `geometry`. */
