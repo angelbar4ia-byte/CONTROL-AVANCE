@@ -20,6 +20,7 @@ import {
   resolverEstatus,
   TOPE_SOBREPROGRAMA,
   UMBRAL_CASI_PCT,
+  excedenteDe,
   validarEjecucion,
   validarProgramacion,
 } from '@/lib/reglasAvance';
@@ -49,13 +50,33 @@ describe('validarProgramacion', () => {
   });
 });
 
-describe('validarEjecucion', () => {
+describe('validarEjecucion (0066: registrar nunca se bloquea)', () => {
   it('permite ejecutar exactamente lo programado', () => {
-    expect(() => validarEjecucion(50, 50)).not.toThrow();
+    expect(() => validarEjecucion(50)).not.toThrow();
   });
 
-  it('no deja ejecutar más de lo programado', () => {
-    expect(() => validarEjecucion(51, 50)).toThrow(ErrorDeCaptura);
+  it('deja ejecutar más de lo programado: el excedente se comprueba aparte', () => {
+    expect(() => validarEjecucion(51)).not.toThrow();
+  });
+
+  it('lo único imposible es ejecutar menos que nada', () => {
+    expect(() => validarEjecucion(-1)).toThrow(ErrorDeCaptura);
+  });
+});
+
+describe('excedenteDe', () => {
+  it('es lo ejecutado por encima de lo programado que aún no se decidió', () => {
+    expect(excedenteDe(80, 100)).toBe(0);
+    expect(excedenteDe(100, 100)).toBe(0);
+    expect(excedenteDe(120, 100)).toBe(20);
+    expect(excedenteDe(120, 100, 20)).toBe(0);
+    expect(excedenteDe(130, 100, 20)).toBe(10);
+  });
+
+  it('la captura lo reporta y el avance sigue topado en 100', () => {
+    const r = aplicarCaptura({ cantBase: 100, cantProgramada: 100, cantEjecutada: 115 });
+    expect(r.cantExcedente).toBe(15);
+    expect(r.avancePct).toBe(100);
   });
 });
 
@@ -100,9 +121,14 @@ describe('aplicarCaptura', () => {
     expect(resultado.estatus).toBe('casi');
   });
 
-  it('valida antes de derivar', () => {
+  it('valida antes de derivar: programar de más sigue siendo un error', () => {
     expect(() =>
-      aplicarCaptura({ cantBase: 100, cantProgramada: 100, cantEjecutada: 101 }),
+      aplicarCaptura({ cantBase: 100, cantProgramada: 130, cantEjecutada: 10 }),
     ).toThrow(ErrorDeCaptura);
+  });
+
+  it('ejecutar de más ya no lo es: se registra y queda como excedente', () => {
+    const r = aplicarCaptura({ cantBase: 100, cantProgramada: 100, cantEjecutada: 101 });
+    expect(r.cantExcedente).toBe(1);
   });
 });

@@ -20,7 +20,7 @@
  * escribir «0.5» en un factor no debe borrar vértices.
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import {
@@ -38,6 +38,7 @@ import {
 import type {
   ActividadRespuesta,
   ArchivoDePlanoRespuesta,
+  EscalaRespuesta,
   NodoCuantificadoRespuesta,
   NodoPrototipoRespuesta,
   NotaPlanoDetalleRespuesta,
@@ -57,9 +58,13 @@ import { SelectorObra } from '@/lib/SelectorObra';
 import { AltaNota } from './AltaNota';
 import { AltaPlano } from './AltaPlano';
 import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
+import { CalibrarEscala } from './CalibrarEscala';
+import { arbolDeCuantificacion } from './arbol';
+import { NuevaObra } from './NuevaObra';
 import { ReemplazarEnlace } from './ReemplazarEnlace';
 import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Visor';
 import {
+  PUNTOS_MINIMOS_DE_HUECO,
   trazoCompleto,
   type Herramienta,
   type HerramientaDeTrazo,
@@ -73,6 +78,7 @@ const HERRAMIENTAS: readonly { readonly clave: Herramienta; readonly etiqueta: s
   { clave: 'poligono', etiqueta: 'Polígono' },
   { clave: 'linea', etiqueta: 'Línea' },
   { clave: 'punto', etiqueta: 'Punto' },
+  { clave: 'escala', etiqueta: 'Calibrar escala' },
 ];
 
 /** Anotar el plano es solo de Residente y Supervisor (MODELO.md §1b); el
@@ -134,11 +140,18 @@ export function EspacioDeTrazo({
   const [planoElegido, setPlanoElegido] = useState(planoInicial ?? '');
   const [herramienta, setHerramienta] = useState<Herramienta>('seleccionar');
   const [borrador, setBorrador] = useState<readonly Punto[]>([]);
+  // Huecos del polígono en curso (la ventana de un muro, el cubo de una escalera):
+  // anillos interiores que se **descuentan**. `huecoEnCurso` es el que se está
+  // dibujando ahora; al cerrarlo pasa a `huecos`.
+  const [huecos, setHuecos] = useState<readonly (readonly Punto[])[]>([]);
+  const [huecoEnCurso, setHuecoEnCurso] = useState<readonly Punto[]>([]);
+  const [dibujandoHueco, setDibujandoHueco] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [subiendoPlano, setSubiendoPlano] = useState(false);
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
   const [notaPunto, setNotaPunto] = useState<Punto | null>(null);
   const [reemplazando, setReemplazando] = useState<string | null>(null);
+  const [calibrando, setCalibrando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
   const planos = useListarPlanosApiV1ObrasObraIdPlanosGet<
@@ -247,11 +260,29 @@ export function EspacioDeTrazo({
   });
 
   const forma: HerramientaDeTrazo | null =
-    herramienta === 'seleccionar' || herramienta === 'nota' ? null : herramienta;
+    herramienta === 'seleccionar' || herramienta === 'nota' || herramienta === 'escala'
+      ? null
+      : herramienta;
+  const escalaDelPlano = plano?.escala_m_por_unidad != null ? Number(plano.escala_m_por_unidad) : null;
+
+  function limpiarDibujo() {
+    setBorrador([]);
+    setHuecos([]);
+    setHuecoEnCurso([]);
+    setDibujandoHueco(false);
+  }
+
+  /** Cierra el hueco en curso (si ya tiene sus vértices) y vuelve al exterior. */
+  function cerrarHueco() {
+    if (huecoEnCurso.length < PUNTOS_MINIMOS_DE_HUECO) return;
+    setHuecos((actuales) => [...actuales, huecoEnCurso]);
+    setHuecoEnCurso([]);
+    setDibujandoHueco(false);
+  }
 
   function cambiarHerramienta(nueva: Herramienta) {
     setHerramienta(nueva);
-    setBorrador([]);
+    limpiarDibujo();
     setAviso(null);
     if (nueva !== 'seleccionar') setSeleccion(null);
   }
@@ -262,10 +293,22 @@ export function EspacioDeTrazo({
       setNotaPunto(p);
       return;
     }
+    if (herramienta === 'escala') {
+      // Dos puntos de referencia: al segundo se pide la distancia real. Un
+      // tercer clic empieza de nuevo.
+      const siguiente = borrador.length >= 2 ? [p] : [...borrador, p];
+      setBorrador(siguiente);
+      if (siguiente.length === 2) setCalibrando(true);
+      return;
+    }
     if (!forma) return;
     if (forma === 'punto') {
       setBorrador([p]);
       setGuardando(true);
+      return;
+    }
+    if (dibujandoHueco) {
+      setHuecoEnCurso((actual) => [...actual, p]);
       return;
     }
     setBorrador((actual) => [...actual, p]);
@@ -284,21 +327,31 @@ export function EspacioDeTrazo({
       if (destino && /^(INPUT|SELECT|TEXTAREA)$/.test(destino.tagName)) return;
       if (e.key === 'Enter') {
         e.preventDefault();
-        if (forma && trazoCompleto(forma, borrador)) setGuardando(true);
+        if (dibujandoHueco) cerrarHueco();
+        else if (forma && trazoCompleto(forma, borrador)) setGuardando(true);
       } else if (e.key === 'Backspace') {
         e.preventDefault();
-        setBorrador((actual) => actual.slice(0, -1));
+        if (dibujandoHueco) setHuecoEnCurso((actual) => actual.slice(0, -1));
+        else setBorrador((actual) => actual.slice(0, -1));
       } else if (e.key === 'Escape') {
-        setBorrador([]);
+        // Esc descarta lo que se está dibujando: el hueco en curso, o todo.
+        if (dibujandoHueco) {
+          setHuecoEnCurso([]);
+          setDibujandoHueco(false);
+        } else {
+          limpiarDibujo();
+        }
       }
     }
     window.addEventListener('keydown', alTeclear);
     return () => window.removeEventListener('keydown', alTeclear);
-  }, [forma, borrador, guardando, subiendoPlano, notaPunto, reemplazando]);
+    // `cerrarHueco` y `limpiarDibujo` leen estado del render: se rearma con él.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forma, borrador, huecos, huecoEnCurso, dibujandoHueco, guardando, subiendoPlano, notaPunto, reemplazando]);
 
   function alGuardar(resultado: TrazoRespuesta) {
     setGuardando(false);
-    setBorrador([]);
+    limpiarDibujo();
     const total = resultado.recalculos[0]?.cantidad_total;
     setAviso(
       resultado.enlace_ids.length === 0
@@ -326,7 +379,91 @@ export function EspacioDeTrazo({
     tipo === 'prototipo_nodo'
       ? (porNodoDePrototipo.get(id) ?? `Nodo de prototipo ${id.slice(0, 8)}`)
       : etiquetaActividad(porActividad.get(id), id);
-  const nodos = estado.data ?? [];
+  const arbol = useMemo(
+    () => arbolDeCuantificacion(actividades, estado.data ?? []),
+    [actividades, estado.data],
+  );
+
+  const tarjetaDelArbol = (
+      <div className="card">
+        <div className="card__header">
+          <div className="card__title">Cuantificación de la obra</div>
+          <div className="card__sub">Medido contra el presupuesto</div>
+        </div>
+        <div className="card__body card__body--flush">
+          {estado.error ? (
+            <div className="card__body">
+              <ErrorBanner mensaje={estado.error.message} />
+            </div>
+          ) : arbol.length === 0 ? (
+            <div className="card__body text-mute text-sm">
+              La obra todavía no tiene actividades: genérala para empezar a medir.
+            </div>
+          ) : (
+            <div className="table-scroll">
+              <table className="table" aria-label="Árbol de la cuantificación">
+                <thead>
+                  <tr>
+                    <th>Nivel · etapa · concepto</th>
+                    <th className="is-num">Base</th>
+                    <th className="is-num">Medido</th>
+                    <th className="is-num">Dif.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {arbol.map((nivel) => (
+                    <Fragment key={nivel.clave}>
+                      <tr>
+                        <th colSpan={4} scope="colgroup">
+                          {nivel.etiqueta}
+                          <span className="text-xs text-mute">
+                            {' '}
+                            · {nivel.medidas} de {nivel.total} medidos
+                          </span>
+                        </th>
+                      </tr>
+                      {nivel.etapas.map((etapa) => (
+                        <Fragment key={`${nivel.clave}/${etapa.clave}`}>
+                          <tr>
+                            <td colSpan={4} className="text-sm" style={{ paddingLeft: 20, fontWeight: 600 }}>
+                              {etapa.etiqueta}
+                              <span className="text-xs text-mute">
+                                {' '}
+                                · {etapa.medidas} de {etapa.hojas.length}
+                              </span>
+                            </td>
+                          </tr>
+                          {etapa.hojas.map((hoja) => (
+                            <tr key={hoja.id} className={hoja.id === actividadFocoId ? 'is-selected' : undefined}>
+                              <td style={{ paddingLeft: 40 }}>
+                                {hoja.etiqueta}
+                                {!hoja.medido && (
+                                  <span className="badge badge--outline" style={{ marginLeft: 6 }}>
+                                    Sin medir
+                                  </span>
+                                )}
+                                {hoja.porRevisar > 0 && (
+                                  <span className="badge badge--warn" style={{ marginLeft: 6 }}>
+                                    {hoja.porRevisar} por revisar
+                                  </span>
+                                )}
+                              </td>
+                              <td className="is-num">{fmtNum(hoja.base)}</td>
+                              <td className="is-num">{hoja.medido ? fmtNum(hoja.medida) : '—'}</td>
+                              <td className="is-num">{hoja.medido ? fmtNum(hoja.diferencia) : '—'}</td>
+                            </tr>
+                          ))}
+                        </Fragment>
+                      ))}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+  );
 
   const filaDeFoco = actividadFocoId
     ? (estado.data ?? []).find((n) => n.nodo_id === actividadFocoId)
@@ -397,6 +534,8 @@ export function EspacioDeTrazo({
           {!planos.isLoading && (
             <div className="empty-sub">Sube una imagen del plano para empezar a trazar.</div>
           )}
+          {/* Sin plano también se ve qué hay que medir: el árbol es el del presupuesto. */}
+          {!planos.isLoading && <div style={{ textAlign: 'left', marginTop: 16 }}>{tarjetaDelArbol}</div>}
         </div>
       ) : (
         <div className="cuant">
@@ -413,15 +552,69 @@ export function EspacioDeTrazo({
                   {h.etiqueta}
                 </button>
               ))}
+              <span
+                className={`badge badge--${escalaDelPlano === null ? 'warn' : 'ok'}`}
+                title={
+                  escalaDelPlano === null
+                    ? 'Sin calibrar: se asume 1 unidad de plano = 1 m y las cantidades están en unidades de plano.'
+                    : `1 unidad de plano = ${escalaDelPlano} m`
+                }
+              >
+                {escalaDelPlano === null
+                  ? 'Sin calibrar: cantidades en unidades de plano'
+                  : `Escala 1 u = ${escalaDelPlano.toPrecision(4)} m`}
+              </span>
+              {herramienta === 'escala' && (
+                <span className="text-mute text-xs">
+                  {borrador.length === 0
+                    ? 'Marca el primer punto de una distancia conocida (una cota, un eje)'
+                    : 'Marca el segundo punto'}
+                </span>
+              )}
               {forma && forma !== 'punto' && (
                 <>
                   <span className="text-mute text-xs">
-                    {borrador.length} vértices · Enter cierra · Retroceso quita · Esc descarta
+                    {dibujandoHueco
+                      ? `Hueco: ${huecoEnCurso.length} vértices · Enter lo cierra · Retroceso quita · Esc lo descarta`
+                      : `${borrador.length} vértices · Enter cierra · Retroceso quita · Esc descarta`}
+                    {huecos.length > 0 && ` · ${huecos.length} ${huecos.length === 1 ? 'hueco' : 'huecos'}`}
                   </span>
+                  {forma === 'poligono' && trazoCompleto(forma, borrador) && !dibujandoHueco && (
+                    <button
+                      type="button"
+                      className="btn btn--sm"
+                      title="Dibuja dentro del polígono lo que se descuenta: una ventana, un cubo de escalera"
+                      onClick={() => setDibujandoHueco(true)}
+                    >
+                      Agregar hueco
+                    </button>
+                  )}
+                  {dibujandoHueco && (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn--sm"
+                        disabled={huecoEnCurso.length < PUNTOS_MINIMOS_DE_HUECO}
+                        onClick={cerrarHueco}
+                      >
+                        Cerrar hueco
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => {
+                          setHuecoEnCurso([]);
+                          setDibujandoHueco(false);
+                        }}
+                      >
+                        Cancelar hueco
+                      </button>
+                    </>
+                  )}
                   <button
                     type="button"
                     className="btn btn--accent btn--sm"
-                    disabled={!trazoCompleto(forma, borrador)}
+                    disabled={!trazoCompleto(forma, borrador) || dibujandoHueco}
                     onClick={terminar}
                   >
                     Terminar trazo
@@ -468,6 +661,8 @@ export function EspacioDeTrazo({
               seleccion={seleccion}
               herramienta={herramienta}
               borrador={borrador}
+              huecos={huecos}
+              huecoEnCurso={huecoEnCurso}
               onPunto={alPunto}
               onSeleccionar={setSeleccion}
             />
@@ -584,53 +779,7 @@ export function EspacioDeTrazo({
               </div>
             </div>
 
-            <div className="card">
-              <div className="card__header">
-                <div className="card__title">Cuantificación de la obra</div>
-                <div className="card__sub">Medido contra el presupuesto</div>
-              </div>
-              <div className="card__body card__body--flush">
-                {estado.error ? (
-                  <div className="card__body">
-                    <ErrorBanner mensaje={estado.error.message} />
-                  </div>
-                ) : nodos.length === 0 ? (
-                  <div className="card__body text-mute text-sm">
-                    Ningún trazo está enlazado todavía.
-                  </div>
-                ) : (
-                  <div className="table-scroll">
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Nodo</th>
-                          <th className="is-num">Base</th>
-                          <th className="is-num">Medido</th>
-                          <th className="is-num">Dif.</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {nodos.map((n) => (
-                          <tr key={`${n.tipo_nodo}-${n.nodo_id}`} className={n.nodo_id === actividadFocoId ? 'is-selected' : undefined}>
-                            <td>
-                              {n.descripcion ?? nombreDeNodo(n.tipo_nodo, n.nodo_id)}
-                              {n.trazos_por_revisar > 0 && (
-                                <span className="badge badge--warn" style={{ marginLeft: 6 }}>
-                                  {n.trazos_por_revisar} por revisar
-                                </span>
-                              )}
-                            </td>
-                            <td className="is-num">{fmtNum(n.cant_base)}</td>
-                            <td className="is-num">{fmtNum(n.cantidad_medida)}</td>
-                            <td className="is-num">{fmtNum(n.diferencia)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
+            {tarjetaDelArbol}
           </aside>
         </div>
       )}
@@ -641,6 +790,7 @@ export function EspacioDeTrazo({
           versionPlano={plano.version}
           herramienta={forma}
           puntos={borrador}
+          huecos={huecos}
           actividades={actividades}
           actividadInicial={actividadFocoId}
           nodosDePrototipo={puedeEnlazarPrototipo ? nodosDePrototipo : null}
@@ -648,9 +798,42 @@ export function EspacioDeTrazo({
             setGuardando(false);
             // Un punto se captura con un solo clic: si se cancela el cajón no
             // hay nada que seguir editando, se descarta.
-            if (forma === 'punto') setBorrador([]);
+            if (forma === 'punto') limpiarDibujo();
           }}
           onGuardado={alGuardar}
+        />
+      )}
+
+      {calibrando && plano && borrador.length === 2 && (
+        <CalibrarEscala
+          planoId={plano.id}
+          puntoA={borrador[0] as Punto}
+          puntoB={borrador[1] as Punto}
+          escalaActual={escalaDelPlano}
+          onCerrar={() => {
+            setCalibrando(false);
+            setBorrador([]);
+          }}
+          onCalibrada={(r: EscalaRespuesta) => {
+            setCalibrando(false);
+            setBorrador([]);
+            setHerramienta('seleccionar');
+            setAviso(
+              `Escala calibrada: 1 unidad de plano = ${Number(r.escala_m_por_unidad).toPrecision(4)} m. ` +
+                (r.recalculos.length === 0
+                  ? 'Todavía no hay trazos enlazados que recalcular.'
+                  : `Se recalcularon ${r.recalculos.length} ${r.recalculos.length === 1 ? 'nodo' : 'nodos'}.`),
+            );
+            void queryClient.invalidateQueries({
+              queryKey: getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId),
+            });
+            void queryClient.invalidateQueries({
+              queryKey: getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey(planoElegido),
+            });
+            void queryClient.invalidateQueries({
+              queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId),
+            });
+          }}
         />
       )}
 
@@ -715,6 +898,8 @@ export function EspacioDeTrazo({
  */
 export default function Cuantificador() {
   const [busqueda, setBusqueda] = useSearchParams();
+  const { sesion } = useSesion();
+  const [creandoObra, setCreandoObra] = useState(false);
   const obraId = busqueda.get('obra') ?? '';
   const selectorDeObra = (
     <div style={{ minWidth: 220 }}>
@@ -726,6 +911,13 @@ export default function Cuantificador() {
       />
     </div>
   );
+  // La entrada del escenario «Nuevo»: la obra se crea desde aquí (Control de obra, §11.2).
+  const nuevaObra =
+    sesion?.rol === 'control_obra' ? (
+      <button type="button" className="btn btn--sm" onClick={() => setCreandoObra(true)}>
+        Nueva obra
+      </button>
+    ) : null;
 
   return (
     <div className="page">
@@ -744,6 +936,7 @@ export default function Cuantificador() {
         <>
           <div className="filterbar filterbar--suelta">
             {selectorDeObra}
+            {nuevaObra}
           </div>
           <div className="empty">
             <div className="empty-title">Elige una obra</div>
@@ -754,9 +947,23 @@ export default function Cuantificador() {
         <EspacioDeTrazo
           key={obraId}
           obraId={obraId}
-          cabecera={selectorDeObra}
+          cabecera={
+            <>
+              {selectorDeObra}
+              {nuevaObra}
+            </>
+          }
           planoInicial={busqueda.get('plano') ?? undefined}
           actividadFocoId={busqueda.get('actividad') ?? undefined}
+        />
+      )}
+      {creandoObra && (
+        <NuevaObra
+          onCerrar={() => setCreandoObra(false)}
+          onCreada={(id) => {
+            setCreandoObra(false);
+            setBusqueda({ obra: id });
+          }}
         />
       )}
     </div>

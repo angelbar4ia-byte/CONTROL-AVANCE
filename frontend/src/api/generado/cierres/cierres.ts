@@ -26,11 +26,16 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  CierreDeFrenteRespuesta,
   CierreRespuesta,
+  FrenteParaCierreRespuesta,
   HTTPValidationError,
   ListarCierresApiV1CierresGetParams,
+  RechazarCierreDeFrentePeticion,
   RechazarCierrePeticion,
+  SolicitarCierreDeFrentePeticion,
   SolicitarCierrePeticion,
+  ValidarCierreDeFrentePeticion,
   ValidarCierrePeticion,
 } from ".././modelo";
 
@@ -799,3 +804,920 @@ export function useListarCierresApiV1CierresGet<
 
   return query;
 }
+
+/**
+ * Todos los roles, cada uno con su alcance. Marca los frentes listos para
+cierre (90 %): una alerta que avisa, no cierra.
+ * @summary Los frentes de una obra con su avance y su cierre
+ */
+export const frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<FrenteParaCierreRespuesta[]>(
+    { url: `/api/v1/obras/${obraId}/cierres-frente`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetInfiniteQueryKey =
+  (obraId?: string) => {
+    return ["infinite", `/api/v1/obras/${obraId}/cierres-frente`] as const;
+  };
+
+export const getFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetQueryKey = (
+  obraId?: string,
+) => {
+  return [`/api/v1/obras/${obraId}/cierres-frente`] as const;
+};
+
+export const getFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetInfiniteQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+      >
+    > = ({ signal }) =>
+      frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type FrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>>
+  >;
+export type FrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los frentes de una obra con su avance y su cierre
+ */
+
+export function useFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetQueryOptions = <
+  TData = Awaited<
+    ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetQueryKey(obraId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>>
+  > = ({ signal }) =>
+    frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet(
+      obraId,
+      requestOptions,
+      signal,
+    );
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!obraId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type FrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>>
+  >;
+export type FrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetQueryError =
+  void | HTTPValidationError;
+
+export function useFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGet<
+  TData = Awaited<
+    ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGet<
+  TData = Awaited<
+    ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+          >,
+          TError,
+          Awaited<
+            ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGet<
+  TData = Awaited<
+    ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los frentes de una obra con su avance y su cierre
+ */
+
+export function useFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGet<
+  TData = Awaited<
+    ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<typeof frentesDeLaObraApiV1ObrasObraIdCierresFrenteGet>
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getFrentesDeLaObraApiV1ObrasObraIdCierresFrenteGetQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * El residente solicita el cierre del frente.
+ * @summary Solicitar el cierre de un frente (al 90 % de avance)
+ */
+export const solicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePost = (
+  obraId: string,
+  solicitarCierreDeFrentePeticion: SolicitarCierreDeFrentePeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CierreDeFrenteRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/cierres-frente`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: solicitarCierreDeFrentePeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getSolicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof solicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePost
+        >
+      >,
+      TError,
+      { obraId: string; data: SolicitarCierreDeFrentePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof solicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePost
+      >
+    >,
+    TError,
+    { obraId: string; data: SolicitarCierreDeFrentePeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "solicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof solicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePost
+        >
+      >,
+      { obraId: string; data: SolicitarCierreDeFrentePeticion }
+    > = (props) => {
+      const { obraId, data } = props ?? {};
+
+      return solicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePost(
+        obraId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type SolicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof solicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePost
+      >
+    >
+  >;
+export type SolicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePostMutationBody =
+  SolicitarCierreDeFrentePeticion;
+export type SolicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Solicitar el cierre de un frente (al 90 % de avance)
+ */
+export const useSolicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePost = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof solicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePost
+        >
+      >,
+      TError,
+      { obraId: string; data: SolicitarCierreDeFrentePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof solicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePost>
+  >,
+  TError,
+  { obraId: string; data: SolicitarCierreDeFrentePeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getSolicitarCierreDeFrenteApiV1ObrasObraIdCierresFrentePostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Aprobar el cierre de un frente
+ */
+export const aprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPost = (
+  cierreId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CierreDeFrenteRespuesta>(
+    {
+      url: `/api/v1/cierres-frente/${cierreId}/aprobar`,
+      method: "POST",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getAprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof aprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPost
+        >
+      >,
+      TError,
+      { cierreId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof aprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPost
+      >
+    >,
+    TError,
+    { cierreId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "aprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof aprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPost
+        >
+      >,
+      { cierreId: string }
+    > = (props) => {
+      const { cierreId } = props ?? {};
+
+      return aprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPost(
+        cierreId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof aprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPost
+      >
+    >
+  >;
+
+export type AprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Aprobar el cierre de un frente
+ */
+export const useAprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPost = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof aprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPost
+        >
+      >,
+      TError,
+      { cierreId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<
+      typeof aprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPost
+    >
+  >,
+  TError,
+  { cierreId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getAprobarCierreDeFrenteApiV1CierresFrenteCierreIdAprobarPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Validar el cierre de un frente (el residente ya no registra avance ahí)
+ */
+export const validarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPost = (
+  cierreId: string,
+  validarCierreDeFrentePeticion: ValidarCierreDeFrentePeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CierreDeFrenteRespuesta>(
+    {
+      url: `/api/v1/cierres-frente/${cierreId}/validar`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: validarCierreDeFrentePeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getValidarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof validarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPost
+        >
+      >,
+      TError,
+      { cierreId: string; data: ValidarCierreDeFrentePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof validarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPost
+      >
+    >,
+    TError,
+    { cierreId: string; data: ValidarCierreDeFrentePeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "validarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof validarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPost
+        >
+      >,
+      { cierreId: string; data: ValidarCierreDeFrentePeticion }
+    > = (props) => {
+      const { cierreId, data } = props ?? {};
+
+      return validarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPost(
+        cierreId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ValidarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof validarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPost
+      >
+    >
+  >;
+export type ValidarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPostMutationBody =
+  ValidarCierreDeFrentePeticion;
+export type ValidarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Validar el cierre de un frente (el residente ya no registra avance ahí)
+ */
+export const useValidarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPost = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof validarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPost
+        >
+      >,
+      TError,
+      { cierreId: string; data: ValidarCierreDeFrentePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<
+      typeof validarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPost
+    >
+  >,
+  TError,
+  { cierreId: string; data: ValidarCierreDeFrentePeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getValidarCierreDeFrenteApiV1CierresFrenteCierreIdValidarPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Rechazar el cierre de un frente
+ */
+export const rechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPost = (
+  cierreId: string,
+  rechazarCierreDeFrentePeticion: RechazarCierreDeFrentePeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<CierreDeFrenteRespuesta>(
+    {
+      url: `/api/v1/cierres-frente/${cierreId}/rechazar`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: rechazarCierreDeFrentePeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getRechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof rechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPost
+        >
+      >,
+      TError,
+      { cierreId: string; data: RechazarCierreDeFrentePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof rechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPost
+      >
+    >,
+    TError,
+    { cierreId: string; data: RechazarCierreDeFrentePeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "rechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof rechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPost
+        >
+      >,
+      { cierreId: string; data: RechazarCierreDeFrentePeticion }
+    > = (props) => {
+      const { cierreId, data } = props ?? {};
+
+      return rechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPost(
+        cierreId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type RechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof rechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPost
+      >
+    >
+  >;
+export type RechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPostMutationBody =
+  RechazarCierreDeFrentePeticion;
+export type RechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Rechazar el cierre de un frente
+ */
+export const useRechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPost = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof rechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPost
+        >
+      >,
+      TError,
+      { cierreId: string; data: RechazarCierreDeFrentePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<
+      typeof rechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPost
+    >
+  >,
+  TError,
+  { cierreId: string; data: RechazarCierreDeFrentePeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getRechazarCierreDeFrenteApiV1CierresFrenteCierreIdRechazarPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};

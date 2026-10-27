@@ -126,8 +126,9 @@ class TestPendientesQueSoloSeInforman:
 
 
 class TestParticipacion:
-    def test_los_cuatro_roles_participan(self) -> None:
-        assert set(ROLES_QUE_PARTICIPAN) == set(Rol)
+    def test_los_cuatro_roles_de_la_cadena_de_mando_participan_y_costos_no(self) -> None:
+        # Costos cuantifica y forma el presupuesto (D-575): no entrega ni firma la obra.
+        assert set(ROLES_QUE_PARTICIPAN) == set(Rol) - {Rol.COSTOS}
 
     def test_registrar_no_muta_el_original(self) -> None:
         """Devuelve un cierre nuevo para que el caso de uso pueda comprobar si

@@ -39,7 +39,7 @@ from obractrl.application.puertos.repositorios import (
     RepositorioCierres,
     UnidadDeTrabajo,
 )
-from obractrl.domain.avance.reglas import resolver_estatus
+from obractrl.domain.avance.reglas import excedente_de, resolver_estatus
 from obractrl.domain.cierres.reglas import ErrorDeCierre, SolicitudCierre
 from obractrl.domain.shared.diccionario import (
     EstatusActividad,
@@ -142,6 +142,26 @@ class SolicitarCierre:
         if actividad is None:
             raise ActividadNoEncontrada(
                 f"Actividad {cmd.actividad_id} no encontrada en tu alcance."
+            )
+
+        # Lo ejecutado de más se registra, pero no se cierra —y por tanto no se
+        # estima ni se paga— hasta que Control lo comprueba y lo valida (0066).
+        excedente = excedente_de(
+            Decimal(str(actividad["cant_ejecutada"])),
+            Decimal(str(actividad["cant_programada"])),
+            Decimal(str(actividad.get("cant_perdida") or 0)),
+        )
+        if excedente > 0:
+            raise ErrorDeCierre(
+                f"La actividad tiene {excedente} ejecutados por encima de lo "
+                f"programado: Control de obra debe comprobarlos y validarlos (o "
+                f"declararlos pérdida) antes de solicitar el cierre."
+            )
+        if cmd.cantidad > Decimal(str(actividad["cant_programada"])):
+            raise ErrorDeCierre(
+                f"No se puede cerrar {cmd.cantidad}: supera lo programado "
+                f"({actividad['cant_programada']}). Lo de más pasa primero por "
+                f"comprobación y validación."
             )
 
         precio = PrecioUnitario(

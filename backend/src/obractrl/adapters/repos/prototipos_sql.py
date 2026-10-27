@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 __all__ = ["RepositorioPrototiposSQL"]
 
 _COLUMNAS = """
-    id, proyecto_id, clave, nombre, m2, niveles, recamaras
+    id, proyecto_id, clave, nombre, m2, niveles, recamaras, plantas
 """
 
 
@@ -48,10 +48,11 @@ class RepositorioPrototiposSQL:
                 text(
                     """
                     insert into prototipo
-                        (org_id, proyecto_id, clave, nombre, m2, niveles, recamaras)
+                        (org_id, proyecto_id, clave, nombre, m2, niveles, recamaras, plantas, de_una_obra)
                     values
                         (cast(current_setting('app.org_id') as uuid),
-                         :proyecto_id, :clave, :nombre, :m2, :niveles, :recamaras)
+                         :proyecto_id, :clave, :nombre, :m2, :niveles, :recamaras,
+                         :plantas, :de_una_obra)
                     returning id
                     """
                 ),
@@ -62,6 +63,8 @@ class RepositorioPrototiposSQL:
                     "m2": datos.get("m2"),
                     "niveles": datos.get("niveles"),
                     "recamaras": datos.get("recamaras"),
+                    "plantas": datos.get("plantas"),
+                    "de_una_obra": bool(datos.get("de_una_obra", False)),
                 },
             )
         ).scalar_one()

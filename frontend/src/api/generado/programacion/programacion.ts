@@ -29,12 +29,15 @@ import type {
   ActividadEnRutaRespuesta,
   ArbolDeProgramaRespuesta,
   CrearProgramaBasePeticion,
+  EdicionDeProgramaRespuesta,
   HTTPValidationError,
   InstanciarProgramaPeticion,
   ItemProgramaBaseRespuesta,
   ListarProgramasBaseApiV1ProgramasBaseGetParams,
   NodoProgramadoRespuesta,
   ObraCandidataRespuesta,
+  ObservacionRespuesta,
+  ObservarReprogramacionPeticion,
   ObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGetParams,
   ObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGetParams,
   ProgramaBaseCreadoRespuesta,
@@ -43,9 +46,13 @@ import type {
   ProgramaObraRespuesta,
   ProgramacionActividadPeticion,
   ProgramarNodoPeticion,
+  ProponerReprogramacionPeticion,
   RecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPostParams,
+  RechazarReprogramacionPeticion,
   ReplicaDeProgramaRespuesta,
   ReplicarProgramaPeticion,
+  ReprogramacionDeObraRespuesta,
+  ReprogramacionRespuesta,
   RutaCriticaRespuesta,
 } from ".././modelo";
 
@@ -3308,6 +3315,514 @@ export function useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet<
 }
 
 /**
+ * Quién cambió qué del programa y con qué rol, lo más reciente primero.
+Todos los roles, cada uno con su alcance (RLS). La bitácora no se edita.
+ * @summary Bitácora de ediciones manuales del programa
+ */
+export const listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<EdicionDeProgramaRespuesta[]>(
+    {
+      url: `/api/v1/obras/${obraId}/programa/ediciones`,
+      method: "GET",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfiniteQueryKey =
+  (obraId?: string) => {
+    return ["infinite", `/api/v1/obras/${obraId}/programa/ediciones`] as const;
+  };
+
+export const getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryKey =
+  (obraId?: string) => {
+    return [`/api/v1/obras/${obraId}/programa/ediciones`] as const;
+  };
+
+export const getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfiniteQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+        >
+      >
+    > = ({ signal }) =>
+      listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >
+  >;
+export type ListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Bitácora de ediciones manuales del programa
+ */
+
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+        >
+      >
+    > = ({ signal }) =>
+      listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+      >
+    >
+  >;
+export type ListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryError =
+  void | HTTPValidationError;
+
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Bitácora de ediciones manuales del programa
+ */
+
+export function useListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof listarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
  * Recálculo on-demand (§6). Es idempotente: con el mismo cronograma y la
 misma fecha de corte deja exactamente los mismos valores.
  * @summary Recalcular y persistir la ruta crítica
@@ -3447,7 +3962,8 @@ export const useRecalcularRutaCriticaApiV1ObrasObraIdRutaCriticaRecalcularPost =
     return useMutation(mutationOptions, queryClient);
   };
 /**
- * Supervisor y Control de obra ajustan el cronograma (§11.2). El recálculo
+ * Control de obra y Supervisor ajustan el cronograma (§11.2); el Residente,
+solo las fechas. Cada edición queda en la bitácora del programa. El recálculo
 de la ruta va en la misma transacción.
  * @summary Ajustar fechas, duración y dependencias de una actividad
  */
@@ -3566,6 +4082,1251 @@ export const useEditarProgramacionActividadApiV1ActividadesActividadIdProgramaci
   > => {
     const mutationOptions =
       getEditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatchMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * Todos los roles, cada uno con su alcance (RLS). Lo más reciente, primero.
+ * @summary Las reprogramaciones de lo asignado de una obra
+ */
+export const reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ReprogramacionDeObraRespuesta[]>(
+    { url: `/api/v1/obras/${obraId}/reprogramaciones`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetInfiniteQueryKey =
+  (obraId?: string) => {
+    return ["infinite", `/api/v1/obras/${obraId}/reprogramaciones`] as const;
+  };
+
+export const getReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetQueryKey =
+  (obraId?: string) => {
+    return [`/api/v1/obras/${obraId}/reprogramaciones`] as const;
+  };
+
+export const getReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetInfiniteQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+        >
+      >
+    > = ({ signal }) =>
+      reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+      >
+    >
+  >;
+export type ReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las reprogramaciones de lo asignado de una obra
+ */
+
+export function useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetQueryKey(
+        obraId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+        >
+      >
+    > = ({ signal }) =>
+      reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet(
+        obraId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+      >
+    >
+  >;
+export type ReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetQueryError =
+  void | HTTPValidationError;
+
+export function useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Las reprogramaciones de lo asignado de una obra
+ */
+
+export function useReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet<
+  TData = Awaited<
+    ReturnType<
+      typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof reprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getReprogramacionesDeLaObraApiV1ObrasObraIdReprogramacionesGetQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Propone el residente (lo revisa el supervisor) o el supervisor (la revisión se
+salta). Solo se reprograma lo asignado; lo demás se edita directo.
+ * @summary Proponer la fecha nueva de una actividad asignada
+ */
+export const proponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost =
+  (
+    actividadId: string,
+    proponerReprogramacionPeticion: ProponerReprogramacionPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ReprogramacionRespuesta>(
+      {
+        url: `/api/v1/actividades/${actividadId}/reprogramaciones`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: proponerReprogramacionPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getProponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof proponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost
+        >
+      >,
+      TError,
+      { actividadId: string; data: ProponerReprogramacionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof proponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost
+      >
+    >,
+    TError,
+    { actividadId: string; data: ProponerReprogramacionPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "proponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof proponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost
+        >
+      >,
+      { actividadId: string; data: ProponerReprogramacionPeticion }
+    > = (props) => {
+      const { actividadId, data } = props ?? {};
+
+      return proponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost(
+        actividadId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ProponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof proponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost
+      >
+    >
+  >;
+export type ProponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPostMutationBody =
+  ProponerReprogramacionPeticion;
+export type ProponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Proponer la fecha nueva de una actividad asignada
+ */
+export const useProponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof proponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost
+          >
+        >,
+        TError,
+        { actividadId: string; data: ProponerReprogramacionPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof proponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost
+      >
+    >,
+    TError,
+    { actividadId: string; data: ProponerReprogramacionPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getProponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Revisar la reprogramación propuesta por el residente
+ */
+export const revisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPost =
+  (
+    reprogramacionId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ReprogramacionRespuesta>(
+      {
+        url: `/api/v1/reprogramaciones/${reprogramacionId}/revisar`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getRevisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof revisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPost
+        >
+      >,
+      TError,
+      { reprogramacionId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof revisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPost
+      >
+    >,
+    TError,
+    { reprogramacionId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "revisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof revisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPost
+        >
+      >,
+      { reprogramacionId: string }
+    > = (props) => {
+      const { reprogramacionId } = props ?? {};
+
+      return revisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPost(
+        reprogramacionId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type RevisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof revisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPost
+      >
+    >
+  >;
+
+export type RevisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Revisar la reprogramación propuesta por el residente
+ */
+export const useRevisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPost =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof revisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPost
+          >
+        >,
+        TError,
+        { reprogramacionId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof revisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPost
+      >
+    >,
+    TError,
+    { reprogramacionId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getRevisarReprogramacionApiV1ReprogramacionesReprogramacionIdRevisarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Validar la fecha nueva
+ */
+export const validarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPost =
+  (
+    reprogramacionId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ReprogramacionRespuesta>(
+      {
+        url: `/api/v1/reprogramaciones/${reprogramacionId}/validar`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getValidarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof validarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPost
+        >
+      >,
+      TError,
+      { reprogramacionId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof validarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPost
+      >
+    >,
+    TError,
+    { reprogramacionId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "validarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof validarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPost
+        >
+      >,
+      { reprogramacionId: string }
+    > = (props) => {
+      const { reprogramacionId } = props ?? {};
+
+      return validarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPost(
+        reprogramacionId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ValidarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof validarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPost
+      >
+    >
+  >;
+
+export type ValidarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Validar la fecha nueva
+ */
+export const useValidarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPost =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof validarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPost
+          >
+        >,
+        TError,
+        { reprogramacionId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof validarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPost
+      >
+    >,
+    TError,
+    { reprogramacionId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getValidarReprogramacionApiV1ReprogramacionesReprogramacionIdValidarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * Control de obra realiza lo validado. La fecha se mueve y la reprogramación queda
+aplicada en la misma transacción; después se notifica a los demás.
+ * @summary Realizar la reprogramación: mueve la fecha de lo asignado y avisa
+ */
+export const aplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPost =
+  (
+    reprogramacionId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ReprogramacionRespuesta>(
+      {
+        url: `/api/v1/reprogramaciones/${reprogramacionId}/aplicar`,
+        method: "POST",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getAplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof aplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPost
+        >
+      >,
+      TError,
+      { reprogramacionId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof aplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPost
+      >
+    >,
+    TError,
+    { reprogramacionId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "aplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof aplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPost
+        >
+      >,
+      { reprogramacionId: string }
+    > = (props) => {
+      const { reprogramacionId } = props ?? {};
+
+      return aplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPost(
+        reprogramacionId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof aplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPost
+      >
+    >
+  >;
+
+export type AplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Realizar la reprogramación: mueve la fecha de lo asignado y avisa
+ */
+export const useAplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPost =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof aplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPost
+          >
+        >,
+        TError,
+        { reprogramacionId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof aplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPost
+      >
+    >,
+    TError,
+    { reprogramacionId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getAplicarReprogramacionApiV1ReprogramacionesReprogramacionIdAplicarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary Rechazar la reprogramación
+ */
+export const rechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPost =
+  (
+    reprogramacionId: string,
+    rechazarReprogramacionPeticion: RechazarReprogramacionPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ReprogramacionRespuesta>(
+      {
+        url: `/api/v1/reprogramaciones/${reprogramacionId}/rechazar`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: rechazarReprogramacionPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getRechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof rechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPost
+        >
+      >,
+      TError,
+      { reprogramacionId: string; data: RechazarReprogramacionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof rechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPost
+      >
+    >,
+    TError,
+    { reprogramacionId: string; data: RechazarReprogramacionPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "rechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof rechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPost
+        >
+      >,
+      { reprogramacionId: string; data: RechazarReprogramacionPeticion }
+    > = (props) => {
+      const { reprogramacionId, data } = props ?? {};
+
+      return rechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPost(
+        reprogramacionId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type RechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof rechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPost
+      >
+    >
+  >;
+export type RechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPostMutationBody =
+  RechazarReprogramacionPeticion;
+export type RechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Rechazar la reprogramación
+ */
+export const useRechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPost =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof rechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPost
+          >
+        >,
+        TError,
+        { reprogramacionId: string; data: RechazarReprogramacionPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof rechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPost
+      >
+    >,
+    TError,
+    { reprogramacionId: string; data: RechazarReprogramacionPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getRechazarReprogramacionApiV1ReprogramacionesReprogramacionIdRechazarPostMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * Control de obra dice algo sin mover la cadena: cabe en cualquier estatus, también
+aplicada o rechazada. Se avisa al residente y al supervisor de la obra (correo y push).
+Las observaciones solo se agregan.
+ * @summary Dejar una observación al residente y al supervisor
+ */
+export const observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost =
+  (
+    reprogramacionId: string,
+    observarReprogramacionPeticion: ObservarReprogramacionPeticion,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ObservacionRespuesta>(
+      {
+        url: `/api/v1/reprogramaciones/${reprogramacionId}/observaciones`,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        data: observarReprogramacionPeticion,
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPostMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost
+        >
+      >,
+      TError,
+      { reprogramacionId: string; data: ObservarReprogramacionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost
+      >
+    >,
+    TError,
+    { reprogramacionId: string; data: ObservarReprogramacionPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost
+        >
+      >,
+      { reprogramacionId: string; data: ObservarReprogramacionPeticion }
+    > = (props) => {
+      const { reprogramacionId, data } = props ?? {};
+
+      return observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost(
+        reprogramacionId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type ObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost
+      >
+    >
+  >;
+export type ObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPostMutationBody =
+  ObservarReprogramacionPeticion;
+export type ObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Dejar una observación al residente y al supervisor
+ */
+export const useObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost
+          >
+        >,
+        TError,
+        { reprogramacionId: string; data: ObservarReprogramacionPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof observarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPost
+      >
+    >,
+    TError,
+    { reprogramacionId: string; data: ObservarReprogramacionPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getObservarReprogramacionApiV1ReprogramacionesReprogramacionIdObservacionesPostMutationOptions(
         options,
       );
 

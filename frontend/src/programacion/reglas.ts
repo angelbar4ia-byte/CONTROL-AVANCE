@@ -17,7 +17,10 @@
  *   - `GET /obras/{id}/ruta-critica` → **todos**, cada uno con su alcance
  *     (el Residente ve la de su obra porque RLS no le deja ver otra)
  *   - `POST /obras/{id}/ruta-critica/recalcular` → **S, C**
- *   - `PATCH /actividades/{id}/programacion` → **S, C**
+ *   - `PATCH /actividades/{id}/programacion` → **S, C** la estructura y las
+ *     fechas; **R** solo las fechas (0067). El backend rechaza con 403 un
+ *     `PATCH` del residente que traiga duración, vínculos, tramos o frente.
+ *   - `GET /obras/{id}/programa/ediciones` → **todos**: la bitácora de ediciones
  */
 
 import type { Rol } from '@/shell/navegacion';
@@ -52,6 +55,22 @@ export function puedeVerCronograma(rol: Rol): boolean {
  */
 export function puedeEditarProgramacion(rol: Rol): boolean {
   return rol === 'control_obra' || rol === 'supervisor';
+}
+
+/**
+ * Qué parte de la programación de una actividad edita un rol (0067).
+ *
+ *  - `completo`: Control de obra y Supervisor — fechas, duración, frente y
+ *    dependencias.
+ *  - `fechas`: el Residente. Es quien sabe cuándo arrancó de verdad una partida,
+ *    y no necesita permiso para rehacer el cronograma para decirlo.
+ *  - `lectura`: el Super intendente.
+ */
+export type AlcanceDeEdicion = 'completo' | 'fechas' | 'lectura';
+
+export function alcanceDeEdicion(rol: Rol): AlcanceDeEdicion {
+  if (puedeEditarProgramacion(rol)) return 'completo';
+  return rol === 'residente' ? 'fechas' : 'lectura';
 }
 
 /** Tono de la barra del Gantt (`.gantt__bar--*` del sistema de diseño). */

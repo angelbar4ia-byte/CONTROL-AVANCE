@@ -37,6 +37,7 @@ const ROLES: readonly Rol[] = [
   'supervisor',
   'control_obra',
   'super_intendente',
+  'costos',
 ];
 
 function esRol(valor: unknown): valor is Rol {

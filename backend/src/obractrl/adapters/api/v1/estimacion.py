@@ -65,6 +65,13 @@ class EstimacionRespuesta(BaseModel):
     n_conceptos: int | None = Field(
         default=None, description="Solo presente justo al generar (§11.3 E.2)."
     )
+    n_alertas_de_respaldo: int | None = Field(
+        default=None,
+        description=(
+            "Renglones estimados por encima de lo que el residente confirmó del "
+            "avance (D-535). Una alerta, no un bloqueo. No viene al generar."
+        ),
+    )
 
     @classmethod
     def desde_dominio(cls, estimacion_id: UUID, estimacion: Estimacion) -> EstimacionRespuesta:
@@ -97,6 +104,7 @@ class EstimacionRespuesta(BaseModel):
             origen_erp=fila["origen_erp"],
             creada_por=fila["creada_por"],
             validada_por=fila["validada_por"],
+            n_alertas_de_respaldo=fila.get("n_alertas_de_respaldo"),
         )
 
 
@@ -211,6 +219,20 @@ class ConceptoDelReporteRespuesta(BaseModel):
     nivel_id: str | None = None
     nivel_clave: str | None = None
     nivel_descripcion: str | None = None
+    cantidad_confirmada: Decimal | None = Field(
+        default=None,
+        description="Lo último que el residente confirmó del avance de la actividad; `null` = nunca.",
+    )
+    alerta: str | None = Field(
+        default=None,
+        description=(
+            "`sin_confirmar` (se estima un avance que nadie confirmó) o "
+            "`por_encima` (se estima más de lo confirmado). `null` = con respaldo."
+        ),
+    )
+    exceso: Decimal | None = Field(
+        default=None, description="Cuánto de lo estimado carece de respaldo."
+    )
 
 
 class FrenteDelReporteRespuesta(BaseModel):
@@ -246,6 +268,10 @@ class EstimacionDetalleRespuesta(BaseModel):
     monto_calculado: Decimal = Field(description="Σ de los renglones, recalculada al leer.")
     cuadra: bool = Field(
         description="¿Cabecera y renglones coinciden? Falso es una señal de auditoría, no un error de captura."
+    )
+    n_alertas_de_respaldo: int = Field(
+        default=0,
+        description="Renglones estimados por encima de lo confirmado (D-535): una alerta, no un bloqueo.",
     )
     conceptos: list[ConceptoDelReporteRespuesta]
     n_conceptos_catalogo: int
@@ -306,6 +332,7 @@ async def detalle_de_estimacion(
         monto_total=reporte.monto_total.monto,
         monto_calculado=reporte.monto_calculado.monto,
         cuadra=reporte.cuadra,
+        n_alertas_de_respaldo=reporte.n_alertas_de_respaldo,
         conceptos=[
             ConceptoDelReporteRespuesta(
                 actividad_id=c.actividad_id or None,
@@ -319,6 +346,9 @@ async def detalle_de_estimacion(
                 nivel_id=c.nivel_id,
                 nivel_clave=c.nivel_clave,
                 nivel_descripcion=c.nivel_descripcion,
+                cantidad_confirmada=c.cantidad_confirmada,
+                alerta=c.alerta_de_respaldo[0].value if c.alerta_de_respaldo else None,
+                exceso=c.alerta_de_respaldo[1] if c.alerta_de_respaldo else None,
             )
             for c in reporte.conceptos
         ],

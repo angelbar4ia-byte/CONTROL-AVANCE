@@ -3892,6 +3892,82 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/iniciar": {
+      "post": {
+        "tags": [
+          "obras"
+        ],
+        "summary": "Junta de arranque: marcar la obra como iniciada",
+        "description": "Control de obra declara la junta de arranque (`marcar_obra_iniciada`,\nD-537): la obra pasa a `iniciada` y el cronograma se recalcula contra la\nfecha de la junta, que es la que dispara las fechas contractuales.",
+        "operationId": "iniciar_obra_api_v1_obras__obra_id__iniciar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IniciarObraPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObraRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Solo una obra `pendiente` se inicia."
+          },
+          "422": {
+            "description": "La fecha de la junta es posterior al fin de la obra."
+          }
+        }
+      }
+    },
     "/api/v1/organizacion/reiniciar": {
       "post": {
         "tags": [
@@ -4501,6 +4577,62 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/programa/ediciones": {
+      "get": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Bitácora de ediciones manuales del programa",
+        "description": "Quién cambió qué del programa y con qué rol, lo más reciente primero.\nTodos los roles, cada uno con su alcance (RLS). La bitácora no se edita.",
+        "operationId": "listar_ediciones_del_programa_api_v1_obras__obra_id__programa_ediciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EdicionDeProgramaRespuesta"
+                  },
+                  "title": "Response Listar Ediciones Del Programa Api V1 Obras  Obra Id  Programa Ediciones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/ruta-critica/recalcular": {
       "post": {
         "tags": [
@@ -4571,7 +4703,7 @@
           "programacion"
         ],
         "summary": "Ajustar fechas, duración y dependencias de una actividad",
-        "description": "Supervisor y Control de obra ajustan el cronograma (§11.2). El recálculo\nde la ruta va en la misma transacción.",
+        "description": "Control de obra y Supervisor ajustan el cronograma (§11.2); el Residente,\nsolo las fechas. Cada edición queda en la bitácora del programa. El recálculo\nde la ruta va en la misma transacción.",
         "operationId": "editar_programacion_actividad_api_v1_actividades__actividad_id__programacion_patch",
         "security": [
           {
@@ -4616,6 +4748,9 @@
           },
           "422": {
             "description": "El cronograma tiene dependencias circulares o la programación es inválida; nada se escribió (§6, §7.5)."
+          },
+          "403": {
+            "description": "El residente solo edita fechas; la estructura del programa (duración, vínculos, tramos, frente) es de Control de obra."
           }
         }
       }
@@ -4995,7 +5130,7 @@
           "avance"
         ],
         "summary": "Capturar avance de una actividad",
-        "description": "Captura el avance ejecutado de una actividad (§11.3 B) — **ruta web**.\n\nEl móvil **no** pasa por aquí: su conciliación offline escribe directo a\nPostgres vía PowerSync, con RLS como única frontera (§11.3 B). Allá el\ntotal lo deriva el trigger `app.registro_avance_agregar` (migración 0017)\na partir de la bitácora `registro_avance`; acá lo escribe este caso de\nuso. Las reglas del §6 son las mismas en ambas rutas porque las garantiza\ntambién la BD (CHECKs de la migración 0007).",
+        "description": "Captura el avance ejecutado de una actividad (§11.3 B) — **ruta web**.\n\nEl móvil **no** pasa por aquí: su conciliación offline escribe directo a\nPostgres vía PowerSync, con RLS como única frontera (§11.3 B). Allá el\ntotal lo deriva el trigger `app.registro_avance_agregar` (migración 0017)\na partir de la bitácora `registro_avance`; acá lo escribe este caso de\nuso. Las reglas del §6 son las mismas en ambas rutas porque las garantiza\ntambién la BD (CHECKs de la migración 0007; desde la 0066 lo ejecutado de\nmás ya no se rechaza en ninguna de las dos).",
         "operationId": "capturar_avance_api_v1_actividades__actividad_id__avance_patch",
         "security": [
           {
@@ -5043,6 +5178,346 @@
           },
           "422": {
             "description": "Violación de una regla de captura (§6)."
+          }
+        }
+      }
+    },
+    "/api/v1/comprobaciones": {
+      "get": {
+        "tags": [
+          "comprobaciones"
+        ],
+        "summary": "Lo ejecutado de más que espera comprobación y validación",
+        "description": "Las actividades con excedente por decidir, las más viejas primero. Lo ve\nquien ve la obra; lo decide Control de obra.",
+        "operationId": "bandeja_api_v1_comprobaciones_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExcedentePendiente"
+                  },
+                  "type": "array",
+                  "title": "Response Bandeja Api V1 Comprobaciones Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/excedente": {
+      "get": {
+        "tags": [
+          "comprobaciones"
+        ],
+        "summary": "Qué se ha decidido sobre el excedente de una actividad",
+        "operationId": "historial_api_v1_actividades__actividad_id__excedente_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DecisionHistorial"
+                  },
+                  "title": "Response Historial Api V1 Actividades  Actividad Id  Excedente Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/excedente/validar": {
+      "post": {
+        "tags": [
+          "comprobaciones"
+        ],
+        "summary": "Validar el excedente: se vuelve control de cambio",
+        "description": "Sube el techo de la actividad a lo ejecutado y deja un control de cambio\nya autorizado con su orden de cambio. Es lo que vuelve cobrable el\nexcedente.",
+        "operationId": "validar_api_v1_actividades__actividad_id__excedente_validar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra y el Super intendente deciden un excedente."
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La actividad no tiene excedente pendiente (quizá ya se decidió)."
+          },
+          "422": {
+            "description": "Falta la nota o, al validar, la orden de cambio."
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/excedente/perdida": {
+      "post": {
+        "tags": [
+          "comprobaciones"
+        ],
+        "summary": "Declarar el excedente como pérdida: se ejecutó y no se cobra",
+        "description": "El excedente deja de ser pendiente y no sube el techo: no se estima.",
+        "operationId": "perdida_api_v1_actividades__actividad_id__excedente_perdida_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Solo Control de obra y el Super intendente deciden un excedente."
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La actividad no tiene excedente pendiente (quizá ya se decidió)."
+          },
+          "422": {
+            "description": "Falta la nota o, al validar, la orden de cambio."
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/avance/confirmar": {
+      "post": {
+        "tags": [
+          "avance"
+        ],
+        "summary": "Confirmar el avance de una actividad (el residente afirma que es el real)",
+        "description": "Guarda el avance ejecutado **en este momento** como lo confirmado. No\nbloquea nada; si luego se captura más avance, queda detrás y hay que confirmar\nde nuevo.",
+        "operationId": "confirmar_avance_api_v1_actividades__actividad_id__avance_confirmar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmarPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmacionRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Confirma el residente (D-534)."
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La semana activa ya la cerró una estimación validada (D-540)."
+          },
+          "422": {
+            "description": "La actividad no tiene avance capturado que confirmar."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/avance/confirmaciones": {
+      "get": {
+        "tags": [
+          "avance"
+        ],
+        "summary": "Qué avances están confirmados, desactualizados o sin confirmar",
+        "description": "Todas las actividades de la obra con su estado de confirmación. Lo ve quien\nve la obra (RLS).",
+        "operationId": "confirmaciones_de_obra_api_v1_obras__obra_id__avance_confirmaciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConfirmacionDeActividad"
+                  },
+                  "title": "Response Confirmaciones De Obra Api V1 Obras  Obra Id  Avance Confirmaciones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -5406,6 +5881,379 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/cierres-frente": {
+      "get": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Los frentes de una obra con su avance y su cierre",
+        "description": "Todos los roles, cada uno con su alcance. Marca los frentes listos para\ncierre (90 %): una alerta que avisa, no cierra.",
+        "operationId": "frentes_de_la_obra_api_v1_obras__obra_id__cierres_frente_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FrenteParaCierreRespuesta"
+                  },
+                  "title": "Response Frentes De La Obra Api V1 Obras  Obra Id  Cierres Frente Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Solicitar el cierre de un frente (al 90 % de avance)",
+        "description": "El residente solicita el cierre del frente.",
+        "operationId": "solicitar_cierre_de_frente_api_v1_obras__obra_id__cierres_frente_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitarCierreDeFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreDeFrenteRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no tiene actividades en ese frente."
+          },
+          "409": {
+            "description": "El frente aún no llega al 90 %, o ya tiene un cierre vivo."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cierres-frente/{cierre_id}/aprobar": {
+      "post": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Aprobar el cierre de un frente",
+        "operationId": "aprobar_cierre_de_frente_api_v1_cierres_frente__cierre_id__aprobar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cierre_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cierre Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreDeFrenteRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El cierre no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Transición de cierre no permitida."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cierres-frente/{cierre_id}/validar": {
+      "post": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Validar el cierre de un frente (el residente ya no registra avance ahí)",
+        "operationId": "validar_cierre_de_frente_api_v1_cierres_frente__cierre_id__validar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cierre_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cierre Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidarCierreDeFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreDeFrenteRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El cierre no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Transición de cierre no permitida."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cierres-frente/{cierre_id}/rechazar": {
+      "post": {
+        "tags": [
+          "cierres"
+        ],
+        "summary": "Rechazar el cierre de un frente",
+        "operationId": "rechazar_cierre_de_frente_api_v1_cierres_frente__cierre_id__rechazar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cierre_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cierre Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechazarCierreDeFrentePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CierreDeFrenteRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El cierre no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Transición de cierre no permitida."
           },
           "422": {
             "description": "Validation Error",
@@ -8668,6 +9516,64 @@
         }
       }
     },
+    "/api/v1/planos/{plano_id}/escala": {
+      "put": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Calibrar la escala de un plano con dos puntos y una distancia real",
+        "description": "Sin escala, lo que se mide está en unidades de plano —píxeles del visor— y\nno se puede comparar con el presupuesto. Calibrar corrige todos los trazos del\nplano de golpe (la medida se lee ya escalada) y recalcula lo que alimentan.\nSe puede repetir: la última calibración manda.",
+        "operationId": "calibrar_escala_api_v1_planos__plano_id__escala_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EscalaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EscalaRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El plano alimenta cantidades de un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El plano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Puntos iguales, distancia no positiva o escala implausible."
+          }
+        }
+      }
+    },
     "/api/v1/enlaces-cuantificacion/{enlace_id}/reemplazar": {
       "post": {
         "tags": [
@@ -9010,6 +9916,110 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/desviaciones": {
+      "get": {
+        "tags": [
+          "desviaciones"
+        ],
+        "summary": "Desviaciones de una obra, con o sin causa",
+        "description": "Las más recientes primero. Las que no tienen causa salen igual.",
+        "operationId": "listar_desviaciones_api_v1_obras__obra_id__desviaciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DesviacionRespuesta"
+                  },
+                  "title": "Response Listar Desviaciones Api V1 Obras  Obra Id  Desviaciones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/desviaciones/{desviacion_id}/causa": {
+      "put": {
+        "tags": [
+          "desviaciones"
+        ],
+        "summary": "Capturar (o corregir) la causa de una desviación",
+        "description": "La causa se agrega después de detectar la desviación, sin penalizar, y se\npuede corregir. Debe ser del mismo factor (`precio` o `consumo`) que la fila.\n\nEs un `PUT`: repetirlo deja lo mismo, así que no lleva `Idempotency-Key`.",
+        "operationId": "capturar_causa_api_v1_desviaciones__desviacion_id__causa_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "desviacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Desviacion Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CausaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La desviación no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "La causa es del otro factor: no cabe en esta desviación."
           }
         }
       }
@@ -9628,6 +10638,1639 @@
         ]
       }
     },
+    "/api/v1/obras/{obra_id}/reprogramaciones": {
+      "get": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Las reprogramaciones de lo asignado de una obra",
+        "description": "Todos los roles, cada uno con su alcance (RLS). Lo más reciente, primero.",
+        "operationId": "reprogramaciones_de_la_obra_api_v1_obras__obra_id__reprogramaciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReprogramacionDeObraRespuesta"
+                  },
+                  "title": "Response Reprogramaciones De La Obra Api V1 Obras  Obra Id  Reprogramaciones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/reprogramaciones": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Proponer la fecha nueva de una actividad asignada",
+        "description": "Propone el residente (lo revisa el supervisor) o el supervisor (la revisión se\nsalta). Solo se reprograma lo asignado; lo demás se edita directo.",
+        "operationId": "proponer_reprogramacion_api_v1_actividades__actividad_id__reprogramaciones_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProponerReprogramacionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprogramacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La actividad no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La actividad no está asignada, no hay nada que mover, o ya tiene una reprogramación en la cadena."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reprogramaciones/{reprogramacion_id}/revisar": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Revisar la reprogramación propuesta por el residente",
+        "operationId": "revisar_reprogramacion_api_v1_reprogramaciones__reprogramacion_id__revisar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reprogramacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reprogramacion Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprogramacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La reprogramación no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Ese paso no corresponde en el estado actual de la cadena."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reprogramaciones/{reprogramacion_id}/validar": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Validar la fecha nueva",
+        "operationId": "validar_reprogramacion_api_v1_reprogramaciones__reprogramacion_id__validar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reprogramacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reprogramacion Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprogramacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La reprogramación no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Ese paso no corresponde en el estado actual de la cadena."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reprogramaciones/{reprogramacion_id}/aplicar": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Realizar la reprogramación: mueve la fecha de lo asignado y avisa",
+        "description": "Control de obra realiza lo validado. La fecha se mueve y la reprogramación queda\naplicada en la misma transacción; después se notifica a los demás.",
+        "operationId": "aplicar_reprogramacion_api_v1_reprogramaciones__reprogramacion_id__aplicar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reprogramacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reprogramacion Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprogramacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La reprogramación no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Ese paso no corresponde en el estado actual de la cadena."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reprogramaciones/{reprogramacion_id}/rechazar": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Rechazar la reprogramación",
+        "operationId": "rechazar_reprogramacion_api_v1_reprogramaciones__reprogramacion_id__rechazar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reprogramacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reprogramacion Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechazarReprogramacionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprogramacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La reprogramación no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Ese paso no corresponde en el estado actual de la cadena."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reprogramaciones/{reprogramacion_id}/observaciones": {
+      "post": {
+        "tags": [
+          "programacion"
+        ],
+        "summary": "Dejar una observación al residente y al supervisor",
+        "description": "Control de obra dice algo sin mover la cadena: cabe en cualquier estatus, también\naplicada o rechazada. Se avisa al residente y al supervisor de la obra (correo y push).\nLas observaciones solo se agregan.",
+        "operationId": "observar_reprogramacion_api_v1_reprogramaciones__reprogramacion_id__observaciones_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "reprogramacion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Reprogramacion Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservarReprogramacionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La reprogramación no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "El texto de la observación está vacío."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/partes": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Las partes de una obra: etapas y conceptos independientes",
+        "description": "Todos los roles, cada uno con su alcance (RLS).",
+        "operationId": "partes_de_la_obra_api_v1_obras__obra_id__partes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartesDeObraRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/parte-independiente": {
+      "put": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Una actividad es una parte por sí sola, o vuelve a viajar con su etapa",
+        "operationId": "marcar_parte_independiente_api_v1_actividades__actividad_id__parte_independiente_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParteIndependientePeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/plantas": {
+      "put": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Las plantas de la obra (1 o 2)",
+        "operationId": "fijar_plantas_de_obra_api_v1_obras__obra_id__plantas_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlantasPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Una casa tiene 1 o 2 plantas."
+          }
+        }
+      }
+    },
+    "/api/v1/prototipos/{prototipo_id}/plantas": {
+      "put": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Las plantas del prototipo (1 o 2)",
+        "operationId": "fijar_plantas_de_prototipo_api_v1_prototipos__prototipo_id__plantas_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "prototipo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Prototipo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlantasPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Una casa tiene 1 o 2 plantas."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/partes/transicion": {
+      "post": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Mandar, autorizar, validar, programar, asignar o devolver partes",
+        "description": "Una, varias o todas («total o por partes»). Todo o nada: si una parte no puede dar el\npaso, no se escribe ninguna. Cada paso queda en la bitácora.",
+        "operationId": "cambiar_estado_de_partes_api_v1_obras__obra_id__partes_transicion_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarEstadoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PasoDeParteRespuesta"
+                  },
+                  "title": "Response Cambiar Estado De Partes Api V1 Obras  Obra Id  Partes Transicion Post"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "403": {
+            "description": "Tu rol no puede hacer esa acción sobre una parte."
+          },
+          "409": {
+            "description": "Una parte no está en el paso que la acción pide (no se escribe ninguna)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/partes/bitacora": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Bitácora de las partes: quién mandó, autorizó o devolvió qué",
+        "description": "Todos los roles, cada uno con su alcance. Lo más reciente, primero. No se edita.",
+        "operationId": "bitacora_de_partes_api_v1_obras__obra_id__partes_bitacora_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TransicionDeParteRespuesta"
+                  },
+                  "title": "Response Bitacora De Partes Api V1 Obras  Obra Id  Partes Bitacora Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/partes/alertas": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Partes sin autorizar que el programa necesita pronto",
+        "description": "El presupuesto debe ir por delante del programa (D-575): a 2 semanas de que lo necesite y\nsin autorizar, aviso; a 1 semana o vencida, importante. Avisa; no bloquea.",
+        "operationId": "alertas_de_partes_api_v1_obras__obra_id__partes_alertas_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertasDePartesRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/partes/carga": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Cuánta ingeniería de cada parte ya llegó (ESTADO_CARGA)",
+        "description": "Importe cargado entre presupuestado, por etapa. Una carga incompleta avisa, nunca\nbloquea (D-30): se puede mandar a programar con lo que llegó.",
+        "operationId": "carga_de_partes_api_v1_obras__obra_id__partes_carga_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CargaDePartesRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/modificacion": {
+      "post": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Un cambio o un adicional sobre un concepto del prototipo (antes de asignar)",
+        "description": "Escenario 3 · prototipo modificado (D-573/D-574). Se dice cuánto cambia: un cambio puede\nrestar, un adicional solo suma. Si la parte ya estaba validada vuelve a cuantificarse.",
+        "operationId": "modificar_actividad_api_v1_actividades__actividad_id__modificacion_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModificacionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModificacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "409": {
+            "description": "La parte ya está asignada: cambiarla es control de cambio."
+          },
+          "422": {
+            "description": "Delta cero, adicional que resta, o cantidad que quedaría negativa."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/modificaciones/nueva": {
+      "post": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Lo que cambia nace nuevo: un highlight, un concepto fuera de catálogo o uno agregado",
+        "operationId": "agregar_actividad_nueva_api_v1_obras__obra_id__modificaciones_nueva_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActividadNuevaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActividadNuevaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "409": {
+            "description": "La parte ya está asignada: agregarle algo es control de cambio."
+          },
+          "422": {
+            "description": "Sin descripción o con cantidad que no suma."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/modificaciones": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Los cambios y adicionales de la obra, lo más reciente primero",
+        "description": "Todos los roles, cada uno con su alcance. Solo se agrega.",
+        "operationId": "modificaciones_de_la_obra_api_v1_obras__obra_id__modificaciones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RegistroDeModificacionRespuesta"
+                  },
+                  "title": "Response Modificaciones De La Obra Api V1 Obras  Obra Id  Modificaciones Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/catalogos-base": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Los catálogos base de cuantificación: de 1 planta y de 2",
+        "operationId": "catalogos_base_api_v1_catalogos_base_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogoBaseRespuesta"
+                  },
+                  "type": "array",
+                  "title": "Response Catalogos Base Api V1 Catalogos Base Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/obras/desde-catalogo-base": {
+      "post": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Crear una obra «Nueva» desde el cuantificador, con su catálogo base",
+        "description": "Escenario «Nuevo» (D-571): una obra cuyo proyecto es diferente de todos los prototipos.\nSe crea la obra y se forma su catálogo con la estructura y los conceptos del prototipo de 1 o\nde 2 plantas, **sin cantidades**: llegan midiendo, y lo medido es el presupuesto.",
+        "operationId": "crear_obra_desde_catalogo_base_api_v1_obras_desde_catalogo_base_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObraNuevaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObraNuevaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Plantas inválidas, clave inválida o sin prototipo de dónde formar el catálogo."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/desde-cero": {
+      "post": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Crear una obra «desde cero»: el paramétrico primero y luego se mide",
+        "description": "Escenario 4 (D-578): sin obra anterior de dónde copiar. Nace con un prototipo de un solo\nuso vacío y su presupuesto; los ensambles (uno por tipo de espacio, D-579) componen la\nestructura con cantidades estimadas, y después se mide por partes.",
+        "operationId": "crear_obra_desde_cero_api_v1_obras_desde_cero_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObraDesdeCeroPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObraDesdeCeroRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Plantas o clave inválidas."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/partes/valuacion": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Cómo se valúa cada parte: por PU, por ensamble o mixto (en porcentaje)",
+        "description": "*Mixto no se guarda, se reporta en porcentaje* (§8.1). Y lo medido vuelve al paramétrico:\ncuánto se alejó de lo estimado lo que una medición ya sustituyó (propone, no aplica).",
+        "operationId": "valuacion_de_partes_api_v1_obras__obra_id__partes_valuacion_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValuacionDeObraRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/partes/rediseno": {
+      "post": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Rediseñar una parte a paramétrico o mixto: se valúa por ensamble",
+        "description": "En presupuesto se autoriza, o se rediseña (D-571). Los renglones de la parte cuyo concepto\nestá en el ensamble pasan a la cantidad estimada; el resto se queda por PU: queda mixto y se\nreporta en porcentaje. Sin `aplicar` solo propone.",
+        "operationId": "redisenar_parte_api_v1_obras__obra_id__partes_rediseno_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedisenoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RedisenoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "409": {
+            "description": "La parte ya está asignada: cambiarla es control de cambio."
+          },
+          "422": {
+            "description": "Factor inválido."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/arranque": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Lo que la junta de arranque tiene a la vista: ¿todo validado?",
+        "description": "El requisito «todo validado» de la junta (D-574): qué partes aún no están autorizadas.\nAvisa; lo que impide es asignar, con el candado (por obra).",
+        "operationId": "arranque_de_la_obra_api_v1_obras__obra_id__arranque_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArranqueRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/candado-asignar": {
+      "put": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "El candado de asignar de la obra",
+        "description": "Lo edita Control de obra, por obra (D-574).",
+        "operationId": "fijar_candado_de_asignar_api_v1_obras__obra_id__candado_asignar_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandadoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/configuracion/desfase-de-partes": {
+      "get": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Los umbrales de la alerta de desfase del presupuesto (globales)",
+        "operationId": "desfase_de_partes_api_v1_configuracion_desfase_de_partes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesfaseDePartesRespuesta"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Editar los umbrales de la alerta de desfase (afectan a cada obra)",
+        "description": "Son globales y afectan a cada obra (D-577): 2 semanas de aviso y 1 de alerta importante\npor defecto.",
+        "operationId": "fijar_desfase_de_partes_api_v1_configuracion_desfase_de_partes_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DesfaseDePartesPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesfaseDePartesRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "El aviso va antes que la alerta importante."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -9788,6 +12431,19 @@
         ],
         "title": "AbrirIncidenciaPeticion",
         "description": "Alta de incidencia (§11.3 F.1). Cualquier rol la abre."
+      },
+      "Accion": {
+        "type": "string",
+        "enum": [
+          "enviar_a_presupuesto",
+          "autorizar",
+          "validar",
+          "enviar_a_programa",
+          "programar",
+          "asignar",
+          "devolver"
+        ],
+        "title": "Accion"
       },
       "ActividadDetalleRespuesta": {
         "properties": {
@@ -10035,6 +12691,26 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Ejecutada"
+          },
+          "cant_excedente": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Excedente",
+            "description": "Lo ejecutado por encima de lo programado que aún espera comprobación y validación de Control de obra (migración 0066). Registrar nunca se bloquea: el excedente se registra y se decide aparte.",
+            "default": "0"
+          },
+          "excedente_desde": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excedente Desde",
+            "description": "Desde cuándo hay excedente pendiente: su antigüedad."
           },
           "tolerancia_pct": {
             "type": "string",
@@ -10298,6 +12974,141 @@
         ],
         "title": "ActividadEnRutaRespuesta",
         "description": "Una actividad con su cálculo de CPM (§6)."
+      },
+      "ActividadNuevaPeticion": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "cambio",
+              "adicional"
+            ],
+            "title": "Tipo"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Descripcion"
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cantidad"
+          },
+          "precio_unitario": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Precio Unitario",
+            "default": "0"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id",
+            "description": "Si el concepto es del catálogo."
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id",
+            "description": "La etapa donde nace; suelta si falta."
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "descripcion",
+          "cantidad"
+        ],
+        "title": "ActividadNuevaPeticion"
+      },
+      "ActividadNuevaRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "parte_reabierta": {
+            "type": "boolean",
+            "title": "Parte Reabierta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "clave",
+          "tipo",
+          "cantidad",
+          "parte_reabierta"
+        ],
+        "title": "ActividadNuevaRespuesta"
       },
       "ActividadProgramadaRespuesta": {
         "properties": {
@@ -10719,6 +13530,26 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cant Ejecutada"
           },
+          "cant_excedente": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Excedente",
+            "description": "Lo ejecutado por encima de lo programado que aún espera comprobación y validación de Control de obra (migración 0066). Registrar nunca se bloquea: el excedente se registra y se decide aparte.",
+            "default": "0"
+          },
+          "excedente_desde": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excedente Desde",
+            "description": "Desde cuándo hay excedente pendiente: su antigüedad."
+          },
           "tolerancia_pct": {
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -11127,6 +13958,80 @@
         ],
         "title": "AlcanceRespuesta"
       },
+      "AlertaDeParteRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "inicio": {
+            "type": "string",
+            "format": "date",
+            "title": "Inicio",
+            "description": "Cuándo necesita el programa la parte."
+          },
+          "dias": {
+            "type": "integer",
+            "title": "Dias",
+            "description": "Días para necesitarla; negativo si ya la necesitaba."
+          },
+          "severidad": {
+            "type": "string",
+            "title": "Severidad",
+            "description": "`aviso` (a las 2 semanas) · `importante` (a la semana)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "estado",
+          "inicio",
+          "dias",
+          "severidad"
+        ],
+        "title": "AlertaDeParteRespuesta"
+      },
+      "AlertasDePartesRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "aviso_dias": {
+            "type": "integer",
+            "title": "Aviso Dias"
+          },
+          "importante_dias": {
+            "type": "integer",
+            "title": "Importante Dias"
+          },
+          "alertas": {
+            "items": {
+              "$ref": "#/components/schemas/AlertaDeParteRespuesta"
+            },
+            "type": "array",
+            "title": "Alertas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "aviso_dias",
+          "importante_dias",
+          "alertas"
+        ],
+        "title": "AlertasDePartesRespuesta"
+      },
       "ArbolDeProgramaRespuesta": {
         "properties": {
           "obra_id": {
@@ -11239,6 +14144,57 @@
         "title": "ArmarPrecioPeticion",
         "description": "Con qué se va a hacer un trabajo que no está en el catálogo.\n\nEl jefe de obra lo describió así: *\"el residente dice qué cuadrilla va a\nutilizar, cuántas y el tiempo, también el material, y se crea el precio\"*."
       },
+      "ArranqueRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "candado_asignar": {
+            "type": "boolean",
+            "title": "Candado Asignar"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "por_estado": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Por Estado"
+          },
+          "sin_autorizar": {
+            "items": {
+              "$ref": "#/components/schemas/ParteSinAutorizarRespuesta"
+            },
+            "type": "array",
+            "title": "Sin Autorizar"
+          },
+          "todo_validado": {
+            "type": "boolean",
+            "title": "Todo Validado",
+            "description": "Todas las partes están autorizadas o más. Requisito de la junta; avisa."
+          },
+          "programas_por_revisar": {
+            "type": "integer",
+            "title": "Programas Por Revisar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "candado_asignar",
+          "total",
+          "por_estado",
+          "sin_autorizar",
+          "todo_validado",
+          "programas_por_revisar"
+        ],
+        "title": "ArranqueRespuesta"
+      },
       "AsignarFrentePeticion": {
         "properties": {
           "contratista_id": {
@@ -11311,6 +14267,12 @@
           "estatus": {
             "type": "string",
             "title": "Estatus"
+          },
+          "cant_excedente": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Excedente",
+            "description": "Lo ejecutado por encima de lo programado que aún no se decidió. Va a comprobación y validación (`GET /comprobaciones`)."
           }
         },
         "type": "object",
@@ -11320,7 +14282,8 @@
           "cant_programada",
           "cant_ejecutada",
           "avance_pct",
-          "estatus"
+          "estatus",
+          "cant_excedente"
         ],
         "title": "AvanceRespuesta"
       },
@@ -11572,6 +14535,55 @@
         "title": "CalendarioRespuesta",
         "description": "El calendario tal como quedó, con su lectura para la pantalla.\n\n`tipo` es **derivado** de `dias_habiles`, no un segundo dato: se calcula al\nconstruir la respuesta y nunca se captura, así que no hay forma de que los\ndos se contradigan. Existe para que el interruptor \"semana laboral / semana\nnatural\" no obligue a cada cliente a reimplementar la equivalencia."
       },
+      "CambiarEstadoPeticion": {
+        "properties": {
+          "accion": {
+            "$ref": "#/components/schemas/Accion",
+            "description": "Qué se hace con las partes."
+          },
+          "claves": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Claves",
+            "description": "Las partes (por `clave`)."
+          },
+          "todas": {
+            "type": "boolean",
+            "title": "Todas",
+            "description": "Todas las partes que están en el paso que la acción pide («el total»).",
+            "default": false
+          },
+          "a": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EstadoDeParte"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solo `devolver`: el paso anterior al que se vuelve."
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accion"
+        ],
+        "title": "CambiarEstadoPeticion"
+      },
       "CambiarEstatusPeticion": {
         "properties": {
           "estatus": {
@@ -11584,6 +14596,20 @@
           "estatus"
         ],
         "title": "CambiarEstatusPeticion"
+      },
+      "CandadoPeticion": {
+        "properties": {
+          "activo": {
+            "type": "boolean",
+            "title": "Activo",
+            "description": "Con el candado, validar una parte exige una anotación y asignarla exige que quien la validó la haya dejado."
+          }
+        },
+        "type": "object",
+        "required": [
+          "activo"
+        ],
+        "title": "CandadoPeticion"
       },
       "CapturaAvancePeticion": {
         "properties": {
@@ -11599,7 +14625,7 @@
               }
             ],
             "title": "Cant Ejecutada",
-            "description": "No puede exceder la programada."
+            "description": "Puede exceder la programada: registrar nunca se bloquea. Lo que pase de lo programado queda como excedente pendiente de comprobación y validación de Control de obra."
           },
           "cant_programada": {
             "anyOf": [
@@ -11646,6 +14672,89 @@
         ],
         "title": "CapturaAvancePeticion",
         "description": "Captura de avance (§6).\n\nLas mismas reglas se reflejan en el cliente para UX y se aplican de forma\nautoritativa en el servidor (§11.1)."
+      },
+      "CargaDeParteRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "etapa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa",
+            "description": "La clave de la etapa (`ECO-…`)."
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado",
+            "description": "`incompleto` · `completo`."
+          },
+          "porcentaje_cargado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Porcentaje Cargado",
+            "description": "Importe cargado / presupuestado, de 0 a 100."
+          },
+          "importe_presupuestado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe Presupuestado"
+          },
+          "importe_pendiente": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe Pendiente",
+            "description": "Lo que falta cargar."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "estado",
+          "porcentaje_cargado",
+          "importe_presupuestado",
+          "importe_pendiente"
+        ],
+        "title": "CargaDeParteRespuesta"
+      },
+      "CargaDePartesRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "incompletas": {
+            "type": "integer",
+            "title": "Incompletas"
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/CargaDeParteRespuesta"
+            },
+            "type": "array",
+            "title": "Partes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "incompletas",
+          "partes"
+        ],
+        "title": "CargaDePartesRespuesta"
       },
       "CargaRespuesta": {
         "properties": {
@@ -11723,6 +14832,58 @@
         "title": "CargaRespuesta",
         "description": "Resultado de una carga (§9.4 `CargaDatos.resumen`)."
       },
+      "CatalogoBaseRespuesta": {
+        "properties": {
+          "plantas": {
+            "type": "integer",
+            "title": "Plantas"
+          },
+          "plazo_base_semanas": {
+            "type": "integer",
+            "title": "Plazo Base Semanas",
+            "description": "El número de plantas fija el plazo base (D-419)."
+          },
+          "prototipo_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Clave",
+            "description": "El prototipo de cuya estructura se forma el catálogo."
+          },
+          "prototipo_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Nombre"
+          },
+          "n_nodos": {
+            "type": "integer",
+            "title": "N Nodos"
+          },
+          "disponible": {
+            "type": "boolean",
+            "title": "Disponible"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plantas",
+          "plazo_base_semanas",
+          "n_nodos",
+          "disponible"
+        ],
+        "title": "CatalogoBaseRespuesta"
+      },
       "CategoriaExplosion": {
         "type": "string",
         "enum": [
@@ -11737,6 +14898,45 @@
           "flete"
         ],
         "title": "CategoriaExplosion"
+      },
+      "CausaDesviacion": {
+        "type": "string",
+        "enum": [
+          "mercado",
+          "volumen",
+          "proveedor_distinto",
+          "cambio_de_presentacion",
+          "desperdicio_mayor_al_teorico",
+          "merma_por_dano_clima_o_robo",
+          "sustitucion_por_equivalente",
+          "renegociacion",
+          "urgencia",
+          "alza_de_tabulador",
+          "rendimiento_real_distinto",
+          "retrabajo",
+          "trabajo_fuera_de_alcance",
+          "tarifa_distinta",
+          "dias_reales_de_renta",
+          "equipo_parado",
+          "tarifa",
+          "combustible",
+          "horas_efectivas_contra_facturadas",
+          "volumen_realmente_ejecutado"
+        ],
+        "title": "CausaDesviacion",
+        "description": "Vocabulario controlado de \"Causas por categoría\" (CONOCIMIENTO.md\n§13.6, tabla de líneas 8693-8699): \"vocabulario controlado, no texto\nlibre — si no, las desviaciones no se pueden agregar ni comparar\".\n\nCuál de estas aplica a una fila de `Desviacion` depende del tipo del\ninsumo/concepto detectado (material · mano_de_obra · herramienta ·\nmaquinaria · contratos) y de `TipoDesviacion` (precio/consumo) de esa\nmisma fila. La base no restringe esa combinación —el enum es plano,\ncon los ~20 valores de las cinco categorías juntos—: decidir cuál\naplica es trabajo del dominio/aplicación, no un CHECK de Postgres\n(MODELO.md §5g: \"cuál aplica ... lo decide el dominio\").\n\n**No confundir con `domain.desviacion.CausaRaiz`** (las nueve causas de\n§13.6 que deciden SI el hallazgo es una `Desviacion`): confundir esos dos\nvocabularios fue exactamente el error D-343 que el propio cerebro\ncorrigió en D-347 (MODELO.md §5g)."
+      },
+      "CausaPeticion": {
+        "properties": {
+          "causa": {
+            "$ref": "#/components/schemas/CausaDesviacion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "causa"
+        ],
+        "title": "CausaPeticion"
       },
       "CerrarIncidenciaPeticion": {
         "properties": {
@@ -11754,6 +14954,80 @@
         },
         "type": "object",
         "title": "CerrarIncidenciaPeticion"
+      },
+      "CierreDeFrenteRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "nivel_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Nivel Id"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "description": "`solicitado` · `aprobado` · `validado` · `rechazado`."
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct",
+            "description": "El avance del frente cuando se solicitó."
+          },
+          "solicitado_por": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Solicitado Por"
+          },
+          "aprobado_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aprobado Por"
+          },
+          "validado_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validado Por"
+          },
+          "comentarios": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comentarios"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nivel_id",
+          "estatus",
+          "avance_pct",
+          "solicitado_por"
+        ],
+        "title": "CierreDeFrenteRespuesta"
       },
       "CierreDeObraRespuesta": {
         "properties": {
@@ -12102,6 +15376,44 @@
               }
             ],
             "title": "Nivel Descripcion"
+          },
+          "cantidad_confirmada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Confirmada",
+            "description": "Lo último que el residente confirmó del avance de la actividad; `null` = nunca."
+          },
+          "alerta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alerta",
+            "description": "`sin_confirmar` (se estima un avance que nadie confirmó) o `por_encima` (se estima más de lo confirmado). `null` = con respaldo."
+          },
+          "exceso": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exceso",
+            "description": "Cuánto de lo estimado carece de respaldo."
           }
         },
         "type": "object",
@@ -12200,6 +15512,165 @@
         "type": "object",
         "title": "ConceptosDelOficioPeticion",
         "description": "Los conceptos que se ejecutan con ese oficio, **completos**.\n\nReemplazo y no alta, igual que las etapas de un frente: lo que no venga en\nla lista se queda sin oficio. Así mover un concepto de un oficio a otro es\nuna llamada y no dos."
+      },
+      "ConfirmacionDeActividad": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "cant_ejecutada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Ejecutada"
+          },
+          "cant_confirmada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cant Confirmada",
+            "description": "La última confirmación; `null` = nunca."
+          },
+          "confirmado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmado En"
+          },
+          "confirmado_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmado Por Nombre"
+          },
+          "momento": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Momento"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado",
+            "description": "`sin_confirmar` · `desactualizada` (el avance cambió después de confirmar) · `confirmada`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "cant_ejecutada",
+          "estado"
+        ],
+        "title": "ConfirmacionDeActividad"
+      },
+      "ConfirmacionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "description": "Lo que se afirmó: el avance ejecutado en este momento."
+          },
+          "momento": {
+            "type": "string",
+            "title": "Momento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cantidad",
+          "momento"
+        ],
+        "title": "ConfirmacionRespuesta"
+      },
+      "ConfirmarPeticion": {
+        "properties": {
+          "momento": {
+            "type": "string",
+            "enum": [
+              "al_terminar",
+              "antes_de_estimar"
+            ],
+            "title": "Momento",
+            "description": "Los dos momentos del cerebro (D-533): al terminar la actividad y antes de estimar.",
+            "default": "antes_de_estimar"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "title": "ConfirmarPeticion"
       },
       "ConflictoJerarquiaRespuesta": {
         "properties": {
@@ -13839,6 +17310,154 @@
         "title": "DarDeAltaExtraPeticion",
         "description": "Trabajo que apareció en obra y no estaba en el prototipo (§11.2)."
       },
+      "DecisionHistorial": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "decision": {
+            "type": "string",
+            "title": "Decision"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "nota": {
+            "type": "string",
+            "title": "Nota"
+          },
+          "orden_cambio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden Cambio"
+          },
+          "control_cambio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Control Cambio Id"
+          },
+          "decidido_por": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Decidido Por"
+          },
+          "decidido_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decidido Por Nombre"
+          },
+          "decidido_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Decidido En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "actividad_id",
+          "decision",
+          "cantidad",
+          "nota",
+          "decidido_por",
+          "decidido_en"
+        ],
+        "title": "DecisionHistorial"
+      },
+      "DecisionPeticion": {
+        "properties": {
+          "nota": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Nota",
+            "description": "Qué se comprobó. Queda como constancia."
+          },
+          "orden_cambio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden Cambio",
+            "description": "Obligatoria al validar: la orden de cambio que respalda el excedente."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nota"
+        ],
+        "title": "DecisionPeticion"
+      },
+      "DecisionRespuesta": {
+        "properties": {
+          "decision_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Decision Id"
+          },
+          "decision": {
+            "type": "string",
+            "title": "Decision"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad",
+            "description": "El excedente que cubrió esta decisión."
+          },
+          "control_cambio_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Control Cambio Id",
+            "description": "El control de cambio que quedó, si se validó."
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision_id",
+          "decision",
+          "cantidad"
+        ],
+        "title": "DecisionRespuesta"
+      },
       "DependenciaDTO": {
         "properties": {
           "ref": {
@@ -13866,6 +17485,205 @@
         ],
         "title": "DependenciaDTO",
         "description": "Precedencia entre actividades (§7.5, §6)."
+      },
+      "DesfaseDePartesPeticion": {
+        "properties": {
+          "aviso_dias": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Aviso Dias",
+            "description": "Días antes de que el programa la necesite: aviso."
+          },
+          "importante_dias": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Importante Dias",
+            "description": "Días antes: alerta importante."
+          }
+        },
+        "type": "object",
+        "required": [
+          "aviso_dias",
+          "importante_dias"
+        ],
+        "title": "DesfaseDePartesPeticion"
+      },
+      "DesfaseDePartesRespuesta": {
+        "properties": {
+          "aviso_dias": {
+            "type": "integer",
+            "title": "Aviso Dias"
+          },
+          "importante_dias": {
+            "type": "integer",
+            "title": "Importante Dias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aviso_dias",
+          "importante_dias"
+        ],
+        "title": "DesfaseDePartesRespuesta"
+      },
+      "DesviacionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "tipo_nodo": {
+            "type": "string",
+            "title": "Tipo Nodo",
+            "description": "`insumo` o `concepto`: dónde se detectó."
+          },
+          "nodo_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nodo Clave"
+          },
+          "nodo_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nodo Descripcion"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "`precio` o `consumo`: los dos factores, nunca sumados."
+          },
+          "monto": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto",
+            "description": "El efecto en dinero de este factor, solamente."
+          },
+          "cantidad_plan": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Plan"
+          },
+          "cantidad_real": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Real"
+          },
+          "precio_plan": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Plan"
+          },
+          "precio_real": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Real"
+          },
+          "causa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causa",
+            "description": "`null` es «sin causa»: un estado válido, no un dato faltante."
+          },
+          "causa_capturada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causa Capturada En"
+          },
+          "causa_capturada_por": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Causa Capturada Por"
+          },
+          "detectada_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Detectada En"
+          },
+          "causas_posibles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Causas Posibles",
+            "description": "Las causas del vocabulario controlado que caben en el factor de esta fila."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "tipo_nodo",
+          "tipo",
+          "monto",
+          "detectada_en",
+          "causas_posibles"
+        ],
+        "title": "DesviacionRespuesta"
       },
       "DispositivoRespuesta": {
         "properties": {
@@ -13944,6 +17762,98 @@
           "subido_por"
         ],
         "title": "DocumentoRespuesta"
+      },
+      "EdicionDeProgramaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "actividad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "usuario_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Usuario Id"
+          },
+          "usuario_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Nombre"
+          },
+          "rol": {
+            "type": "string",
+            "title": "Rol"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "`estructura`, `fechas` o `mixta`."
+          },
+          "antes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Antes"
+          },
+          "despues": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Despues"
+          },
+          "creada_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creada En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "actividad_id",
+          "actividad",
+          "concepto_clave",
+          "usuario_id",
+          "usuario_nombre",
+          "rol",
+          "tipo",
+          "antes",
+          "despues",
+          "creada_en"
+        ],
+        "title": "EdicionDeProgramaRespuesta",
+        "description": "Una edición manual del programa: quién, con qué rol, qué pidió y cómo\nestaba (0067). Solo trae lo que esa persona cambió."
       },
       "EditarEspecialidadPeticion": {
         "properties": {
@@ -14362,6 +18272,86 @@
         "title": "ErrorDeFilaRespuesta",
         "description": "Un renglón del reporte de errores por fila/columna (§9.3)."
       },
+      "EscalaPeticion": {
+        "properties": {
+          "punto_a": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Punto A",
+            "description": "Coordenada de plano `[x, y]`."
+          },
+          "punto_b": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Punto B",
+            "description": "Coordenada de plano `[x, y]`."
+          },
+          "distancia_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Distancia M",
+            "description": "Los metros reales entre `punto_a` y `punto_b`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "punto_a",
+          "punto_b",
+          "distancia_m"
+        ],
+        "title": "EscalaPeticion",
+        "description": "Calibrar la escala de un plano (migración 0069): dos puntos de una distancia\nconocida del plano y los metros que son."
+      },
+      "EscalaRespuesta": {
+        "properties": {
+          "escala_m_por_unidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Escala M Por Unidad",
+            "description": "Metros por unidad de plano."
+          },
+          "recalculos": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+            },
+            "type": "array",
+            "title": "Recalculos",
+            "description": "Una por cada nodo que alimentan los trazos del plano: su cantidad cambió con la escala."
+          }
+        },
+        "type": "object",
+        "required": [
+          "escala_m_por_unidad",
+          "recalculos"
+        ],
+        "title": "EscalaRespuesta"
+      },
       "EspecialidadRespuesta": {
         "properties": {
           "id": {
@@ -14523,6 +18513,20 @@
         ],
         "title": "EstadoDeObraRespuesta",
         "description": "El renglón de la Torre: una obra y lo que le falta (§5.1)."
+      },
+      "EstadoDeParte": {
+        "type": "string",
+        "enum": [
+          "cuantificando",
+          "enviada_presupuesto",
+          "por_validar",
+          "autorizada",
+          "enviada_programa",
+          "programada",
+          "asignada"
+        ],
+        "title": "EstadoDeParte",
+        "description": "Es el enum de Postgres `estado_parte`."
       },
       "EstadoRenglonGenerado": {
         "type": "string",
@@ -14777,6 +18781,12 @@
             "title": "Cuadra",
             "description": "¿Cabecera y renglones coinciden? Falso es una señal de auditoría, no un error de captura."
           },
+          "n_alertas_de_respaldo": {
+            "type": "integer",
+            "title": "N Alertas De Respaldo",
+            "description": "Renglones estimados por encima de lo confirmado (D-535): una alerta, no un bloqueo.",
+            "default": 0
+          },
           "conceptos": {
             "items": {
               "$ref": "#/components/schemas/ConceptoDelReporteRespuesta"
@@ -14924,6 +18934,18 @@
             ],
             "title": "N Conceptos",
             "description": "Solo presente justo al generar (§11.3 E.2)."
+          },
+          "n_alertas_de_respaldo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Alertas De Respaldo",
+            "description": "Renglones estimados por encima de lo que el residente confirmó del avance (D-535). Una alerta, no un bloqueo. No viene al generar."
           }
         },
         "type": "object",
@@ -15189,6 +19211,113 @@
         ],
         "title": "EvidenciaRespuesta",
         "description": "Una clave de R2 referenciada por alguna entidad de la obra (§7.8)."
+      },
+      "ExcedentePendiente": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "obra_clave": {
+            "type": "string",
+            "title": "Obra Clave"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "cant_programada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Programada"
+          },
+          "cant_ejecutada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Ejecutada"
+          },
+          "cant_perdida": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Perdida"
+          },
+          "cant_excedente": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cant Excedente",
+            "description": "Lo ejecutado por encima de lo programado que aún no se decidió."
+          },
+          "excedente_desde": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excedente Desde"
+          },
+          "dias": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias",
+            "description": "Antigüedad del excedente, en días."
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "obra_id",
+          "obra_clave",
+          "cant_programada",
+          "cant_ejecutada",
+          "cant_perdida",
+          "cant_excedente"
+        ],
+        "title": "ExcedentePendiente"
       },
       "ExpedienteRespuesta": {
         "properties": {
@@ -15673,6 +19802,144 @@
         "title": "FrenteDelReporteRespuesta",
         "description": "Un renglón de «Resumen general»: un frente, cuánto suma y qué\nproporción de la semana es."
       },
+      "FrenteParaCierreRespuesta": {
+        "properties": {
+          "nivel_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Nivel Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion"
+          },
+          "n_actividades": {
+            "type": "integer",
+            "title": "N Actividades"
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct",
+            "description": "Ponderado por costo, como el avance de la obra."
+          },
+          "umbral_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Umbral Pct",
+            "description": "Desde aquí el residente puede solicitar el cierre."
+          },
+          "listo_para_cierre": {
+            "type": "boolean",
+            "title": "Listo Para Cierre",
+            "description": "`frente_listo_para_cierre`: llegó al umbral y no se ha solicitado su cierre. Avisa, no cierra: el cierre pregunta, no impide."
+          },
+          "cierre_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cierre Id"
+          },
+          "cierre_estatus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cierre Estatus",
+            "description": "El cierre vivo del frente, o el rechazado más reciente (con su motivo)."
+          },
+          "cierre_avance_pct": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cierre Avance Pct"
+          },
+          "solicitado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solicitado En"
+          },
+          "aprobado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aprobado En"
+          },
+          "validado_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validado En"
+          },
+          "cierre_comentarios": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cierre Comentarios"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nivel_id",
+          "clave",
+          "n_actividades",
+          "avance_pct",
+          "umbral_pct",
+          "listo_para_cierre"
+        ],
+        "title": "FrenteParaCierreRespuesta"
+      },
       "FrenteRespuesta": {
         "properties": {
           "id": {
@@ -16118,6 +20385,26 @@
           "evidencias"
         ],
         "title": "IncidenciaRespuesta"
+      },
+      "IniciarObraPeticion": {
+        "properties": {
+          "fecha": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha",
+            "description": "Día de la junta de arranque; sin él, hoy. Es el arranque del cronograma: todo lo que cuelga de él se recalcula contra esta fecha."
+          }
+        },
+        "type": "object",
+        "title": "IniciarObraPeticion",
+        "description": "La junta de arranque (WORKFLOWS.md §8.1, D-537)."
       },
       "InstanciaEnsambleRespuesta": {
         "properties": {
@@ -17188,6 +21475,98 @@
         "title": "MedidaCuantificacion",
         "description": "Qué métrica del trazo alimenta la cantidad (ENLACE_CUANTIFICACION.\nmedida, MODELO.md §1b). `AREA`/`PERIMETRO`/`LONGITUD` se calculan en\nSQL con `ST_Area`/`ST_Perimeter`/`ST_Length` sobre la geometría\n(§12.11: el dominio nunca toca PostGIS); `CONTEO` no es una función de\nPostGIS, es \"este trazo cuenta como una instancia\"."
       },
+      "ModificacionPeticion": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "cambio",
+              "adicional"
+            ],
+            "title": "Tipo",
+            "description": "`cambio` puede restar (se elimina del presupuesto); `adicional` solo suma."
+          },
+          "delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Delta",
+            "description": "Cuánto cambia la cantidad; negativo solo en un cambio."
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "delta"
+        ],
+        "title": "ModificacionPeticion"
+      },
+      "ModificacionRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave",
+            "description": "La parte a la que pertenece."
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "cantidad_antes": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Antes"
+          },
+          "delta": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Delta"
+          },
+          "cantidad_despues": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Despues"
+          },
+          "parte_reabierta": {
+            "type": "boolean",
+            "title": "Parte Reabierta",
+            "description": "La parte ya estaba validada o más allá: volvió a cuantificarse."
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "clave",
+          "tipo",
+          "cantidad_antes",
+          "delta",
+          "cantidad_despues",
+          "parte_reabierta"
+        ],
+        "title": "ModificacionRespuesta"
+      },
       "ModoCarga": {
         "type": "string",
         "enum": [
@@ -17901,6 +22280,91 @@
         "title": "ObraCandidataRespuesta",
         "description": "Una obra a la que este programa base se puede replicar (§11.2).\n\nLo que la pantalla de replicación necesita saber **antes** de elegir: qué\ncasa es, si ya se generó desde su prototipo —sin actividades no hay nada\nque programar (§11.3 A.2)— y si ya trae cronograma, porque replicar sobre\nuna obra programada le crea una **versión nueva** y eso el usuario lo tiene\nque saber antes, no después (§7.5)."
       },
+      "ObraDesdeCeroPeticion": {
+        "properties": {
+          "cluster_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cluster Id"
+          },
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave"
+          },
+          "plantas": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "enum": [
+                  1,
+                  2
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantas"
+          },
+          "residente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residente Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cluster_id",
+          "clave"
+        ],
+        "title": "ObraDesdeCeroPeticion"
+      },
+      "ObraDesdeCeroRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "presupuesto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Presupuesto Id",
+            "description": "Donde los ensambles componen sus instancias."
+          },
+          "plantas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "prototipo_id",
+          "presupuesto_id"
+        ],
+        "title": "ObraDesdeCeroRespuesta"
+      },
       "ObraGeneradaRespuesta": {
         "properties": {
           "obra_id": {
@@ -17926,6 +22390,90 @@
         ],
         "title": "ObraGeneradaRespuesta",
         "description": "Resultado del workflow A: qué se creó y sobre qué programa (§11.3 A)."
+      },
+      "ObraNuevaPeticion": {
+        "properties": {
+          "cluster_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cluster Id"
+          },
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave"
+          },
+          "plantas": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Plantas",
+            "description": "El catálogo base: de 1 planta o de 2."
+          },
+          "residente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residente Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cluster_id",
+          "clave",
+          "plantas"
+        ],
+        "title": "ObraNuevaPeticion"
+      },
+      "ObraNuevaRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "plantas": {
+            "type": "integer",
+            "title": "Plantas"
+          },
+          "plazo_base_semanas": {
+            "type": "integer",
+            "title": "Plazo Base Semanas"
+          },
+          "base_clave": {
+            "type": "string",
+            "title": "Base Clave",
+            "description": "El prototipo de cuya estructura se formó el catálogo."
+          },
+          "nodos": {
+            "type": "integer",
+            "title": "Nodos",
+            "description": "Nodos del catálogo, sin cantidades."
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "prototipo_id",
+          "plantas",
+          "plazo_base_semanas",
+          "base_clave",
+          "nodos"
+        ],
+        "title": "ObraNuevaRespuesta"
       },
       "ObraRespuesta": {
         "properties": {
@@ -18032,6 +22580,74 @@
           "es_urba"
         ],
         "title": "ObraRespuesta"
+      },
+      "ObservacionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "reprogramacion_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Reprogramacion Id"
+          },
+          "usuario_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Usuario Id"
+          },
+          "usuario_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Nombre"
+          },
+          "rol": {
+            "type": "string",
+            "title": "Rol"
+          },
+          "texto": {
+            "type": "string",
+            "title": "Texto"
+          },
+          "creada_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creada En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "reprogramacion_id",
+          "usuario_id",
+          "rol",
+          "texto",
+          "creada_en"
+        ],
+        "title": "ObservacionRespuesta"
+      },
+      "ObservarReprogramacionPeticion": {
+        "properties": {
+          "texto": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Texto",
+            "description": "La observación para el residente y el supervisor. No cambia el estatus."
+          }
+        },
+        "type": "object",
+        "required": [
+          "texto"
+        ],
+        "title": "ObservarReprogramacionPeticion"
       },
       "OficioDeFrenteRespuesta": {
         "properties": {
@@ -18308,6 +22924,165 @@
         "title": "ParametrosReporte",
         "description": "Lo que puede necesitar un reporte del catálogo.\n\nUn solo modelo con todo opcional en vez de uno por tipo: el borde valida\ncontra `TipoDeReporte.requiere`, que es la lista que de verdad manda, y\nasí agregar un reporte no agrega un DTO. Lo que se pierde —que OpenAPI no\ndiga *para este tipo, este campo es obligatorio*— se compensa con\n`GET /reportes/tipos`, que publica la tabla.\n\n**Ningún campo de alcance.** No hay `usuario_id` ni `org_id`: el alcance\nsale del token y lo aplica RLS (§12.4). `proyecto_id` y `cluster_id` son\nfoco dentro de lo visible, no permiso."
       },
+      "ParteIndependientePeticion": {
+        "properties": {
+          "independiente": {
+            "type": "boolean",
+            "title": "Independiente",
+            "description": "`true`: la actividad es una parte por sí sola (losa, piso…)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "independiente"
+        ],
+        "title": "ParteIndependientePeticion"
+      },
+      "ParteRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave",
+            "description": "`etapa:<id>`, `concepto:<id>` o `sin_etapa:-`."
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo",
+            "description": "`etapa` · `concepto` (independiente) · `sin_etapa`."
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "La etapa o la actividad independiente."
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado",
+            "description": "`cuantificando` · `enviada_presupuesto` · `por_validar` · `autorizada` · `enviada_programa` · `programada` · `asignada`. Sin renglón: `cuantificando`."
+          },
+          "programa_por_revisar": {
+            "type": "boolean",
+            "title": "Programa Por Revisar",
+            "description": "La parte se devolvió teniendo programa: ese programa puede estar desactualizado. Se quita al volver a programarla.",
+            "default": false
+          },
+          "n_actividades": {
+            "type": "integer",
+            "title": "N Actividades"
+          },
+          "actividad_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Actividad Ids"
+          },
+          "importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe"
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct",
+            "description": "Ponderado por importe, como el de la obra."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "tipo",
+          "nombre",
+          "estado",
+          "n_actividades",
+          "actividad_ids",
+          "importe",
+          "avance_pct"
+        ],
+        "title": "ParteRespuesta"
+      },
+      "ParteSinAutorizarRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "estado"
+        ],
+        "title": "ParteSinAutorizarRespuesta"
+      },
+      "PartesDeObraRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "plantas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantas",
+            "description": "1 o 2; nace del prototipo."
+          },
+          "plantas_del_prototipo": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantas Del Prototipo"
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/ParteRespuesta"
+            },
+            "type": "array",
+            "title": "Partes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "partes"
+        ],
+        "title": "PartesDeObraRespuesta"
+      },
       "ParticipacionRespuesta": {
         "properties": {
           "id": {
@@ -18527,6 +23302,41 @@
           "orden"
         ],
         "title": "PartidaRespuesta"
+      },
+      "PasoDeParteRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "de": {
+            "type": "string",
+            "title": "De"
+          },
+          "a": {
+            "type": "string",
+            "title": "A"
+          },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso",
+            "description": "Se puede seguir, pero hay algo que ver: cantidad solo estimada (D-579)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "de",
+          "a"
+        ],
+        "title": "PasoDeParteRespuesta"
       },
       "PendienteBandejaRespuesta": {
         "properties": {
@@ -18789,6 +23599,44 @@
             "type": "integer",
             "title": "N Trazos Por Revisar",
             "description": "Trazos hechos sobre una versión anterior del plano: quedan marcados para revisión y no se recalculan solos (MODELO.md §1b)."
+          },
+          "escala_m_por_unidad": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escala M Por Unidad",
+            "description": "Metros por unidad de plano; `null` = sin calibrar (se asume 1 unidad = 1 m y las cantidades están en unidades de plano). Migración 0069."
+          },
+          "escala_referencia": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escala Referencia",
+            "description": "Los dos puntos y la distancia real con que se calibró."
+          },
+          "escala_calibrada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escala Calibrada En"
           }
         },
         "type": "object",
@@ -18899,6 +23747,24 @@
           "version"
         ],
         "title": "PlanoRespuesta"
+      },
+      "PlantasPeticion": {
+        "properties": {
+          "plantas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantas",
+            "description": "1 o 2; `null` la deja sin decir."
+          }
+        },
+        "type": "object",
+        "title": "PlantasPeticion"
       },
       "PrecioArmadoRespuesta": {
         "properties": {
@@ -19584,6 +24450,100 @@
         "title": "ProgramarNodoPeticion",
         "description": "§11.2 `POST /obras/{id}/programa/nodos/{prototipo_nodo_id}`."
       },
+      "ProponerReprogramacionPeticion": {
+        "properties": {
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio",
+            "description": "La fecha de inicio nueva."
+          },
+          "fecha_termino": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Termino",
+            "description": "La fecha de término nueva."
+          },
+          "motivo": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Motivo",
+            "description": "Obligatorio: por qué se mueve lo asignado."
+          }
+        },
+        "type": "object",
+        "required": [
+          "motivo"
+        ],
+        "title": "ProponerReprogramacionPeticion"
+      },
+      "PropuestaDeRedisenoRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "concepto_clave": {
+            "type": "string",
+            "title": "Concepto Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "cantidad_actual": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Actual"
+          },
+          "cantidad_estimada": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Estimada"
+          },
+          "importe_actual": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe Actual"
+          },
+          "importe_estimado": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe Estimado"
+          },
+          "ya_estimada": {
+            "type": "boolean",
+            "title": "Ya Estimada"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "concepto_clave",
+          "descripcion",
+          "cantidad_actual",
+          "cantidad_estimada",
+          "importe_actual",
+          "importe_estimado",
+          "ya_estimada"
+        ],
+        "title": "PropuestaDeRedisenoRespuesta"
+      },
       "PrototipoRespuesta": {
         "properties": {
           "id": {
@@ -19637,6 +24597,18 @@
               }
             ],
             "title": "Recamaras"
+          },
+          "plantas": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plantas",
+            "description": "1 o 2 (planta baja y alta); ver `PUT /prototipos/{id}/plantas`."
           }
         },
         "type": "object",
@@ -19761,6 +24733,21 @@
         "type": "object",
         "title": "PublicarCPUPeticion"
       },
+      "RechazarCierreDeFrentePeticion": {
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Motivo",
+            "description": "Obligatorio: es lo que el residente corrige."
+          }
+        },
+        "type": "object",
+        "required": [
+          "motivo"
+        ],
+        "title": "RechazarCierreDeFrentePeticion"
+      },
       "RechazarCierrePeticion": {
         "properties": {
           "motivo": {
@@ -19790,6 +24777,125 @@
           "motivo"
         ],
         "title": "RechazarIncidenciaPeticion"
+      },
+      "RechazarReprogramacionPeticion": {
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Motivo",
+            "description": "Obligatorio: es lo que quien propuso corrige."
+          }
+        },
+        "type": "object",
+        "required": [
+          "motivo"
+        ],
+        "title": "RechazarReprogramacionPeticion"
+      },
+      "RedisenoPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave",
+            "description": "La parte (`etapa:<id>`, `concepto:<id>` o `sin_etapa:-`)."
+          },
+          "ensamble_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Ensamble Id"
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Factor",
+            "description": "Cuántas veces entra el ensamble en esta parte."
+          },
+          "aplicar": {
+            "type": "boolean",
+            "title": "Aplicar",
+            "description": "Sin esto solo propone.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "ensamble_id",
+          "factor"
+        ],
+        "title": "RedisenoPeticion"
+      },
+      "RedisenoRespuesta": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "ensamble_clave": {
+            "type": "string",
+            "title": "Ensamble Clave"
+          },
+          "factor": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Factor"
+          },
+          "aplicado": {
+            "type": "boolean",
+            "title": "Aplicado"
+          },
+          "propuestas": {
+            "items": {
+              "$ref": "#/components/schemas/PropuestaDeRedisenoRespuesta"
+            },
+            "type": "array",
+            "title": "Propuestas"
+          },
+          "sin_renglon_en_la_parte": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sin Renglon En La Parte",
+            "description": "Conceptos del ensamble que la parte no tiene: no se agregan."
+          },
+          "conservan_pu": {
+            "type": "integer",
+            "title": "Conservan Pu",
+            "description": "Renglones de la parte que el ensamble no cubre."
+          },
+          "forma_despues": {
+            "type": "string",
+            "title": "Forma Despues"
+          },
+          "porcentaje_parametrico_despues": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Porcentaje Parametrico Despues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "ensamble_clave",
+          "factor",
+          "aplicado",
+          "propuestas",
+          "sin_renglon_en_la_parte",
+          "conservan_pu",
+          "forma_despues",
+          "porcentaje_parametrico_despues"
+        ],
+        "title": "RedisenoRespuesta"
       },
       "ReemplazarEnlacePeticion": {
         "properties": {
@@ -20003,6 +25109,109 @@
         ],
         "title": "RegistrarSalidaPeticion",
         "description": "Movimiento de almacén a registrar (§7.7, §10.5)."
+      },
+      "RegistroDeModificacionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "cantidad_antes": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Antes"
+          },
+          "delta": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Delta"
+          },
+          "cantidad_despues": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad Despues"
+          },
+          "nace_nueva": {
+            "type": "boolean",
+            "title": "Nace Nueva"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          },
+          "usuario_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Usuario Id"
+          },
+          "usuario_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Nombre"
+          },
+          "rol": {
+            "type": "string",
+            "title": "Rol"
+          },
+          "creada_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creada En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "actividad_id",
+          "descripcion",
+          "tipo",
+          "cantidad_antes",
+          "delta",
+          "cantidad_despues",
+          "nace_nueva",
+          "usuario_id",
+          "rol",
+          "creada_en"
+        ],
+        "title": "RegistroDeModificacionRespuesta"
       },
       "RendimientoPorConceptoRespuesta": {
         "properties": {
@@ -20613,6 +25822,438 @@
         ],
         "title": "ReporteGeneracionRespuesta"
       },
+      "ReprogramacionDeObraRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "actividad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actividad"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "contratista": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contratista"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio"
+          },
+          "fecha_termino": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Termino"
+          },
+          "fecha_inicio_anterior": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio Anterior",
+            "description": "La fecha de inicio que había cuando se propuso."
+          },
+          "fecha_termino_anterior": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Termino Anterior"
+          },
+          "motivo": {
+            "type": "string",
+            "title": "Motivo"
+          },
+          "propuesta_por": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Propuesta Por"
+          },
+          "propuesta_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuesta Por Nombre"
+          },
+          "propuesta_rol": {
+            "type": "string",
+            "title": "Propuesta Rol"
+          },
+          "propuesta_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Propuesta En"
+          },
+          "revisada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revisada Por"
+          },
+          "revisada_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revisada Por Nombre"
+          },
+          "revisada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revisada En"
+          },
+          "validada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada Por"
+          },
+          "validada_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada Por Nombre"
+          },
+          "validada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada En"
+          },
+          "aplicada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aplicada Por"
+          },
+          "aplicada_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aplicada Por Nombre"
+          },
+          "aplicada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aplicada En"
+          },
+          "rechazada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rechazada Por"
+          },
+          "rechazada_por_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rechazada Por Nombre"
+          },
+          "rechazada_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rechazada En"
+          },
+          "motivo_rechazo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Rechazo"
+          },
+          "observaciones": {
+            "items": {
+              "$ref": "#/components/schemas/ObservacionRespuesta"
+            },
+            "type": "array",
+            "title": "Observaciones",
+            "description": "Lo que control de obra le ha dicho al residente y al supervisor, en orden."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "obra_id",
+          "actividad_id",
+          "estatus",
+          "motivo",
+          "propuesta_por",
+          "propuesta_rol",
+          "propuesta_en"
+        ],
+        "title": "ReprogramacionDeObraRespuesta",
+        "description": "Una reprogramación con lo que la lista necesita: la actividad, las fechas de\nantes y quién intervino en cada paso de la cadena."
+      },
+      "ReprogramacionRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus",
+            "description": "`propuesta` · `revisada` · `validada` · `aplicada` · `rechazada`."
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio"
+          },
+          "fecha_termino": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Termino"
+          },
+          "motivo": {
+            "type": "string",
+            "title": "Motivo"
+          },
+          "propuesta_por": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Propuesta Por"
+          },
+          "propuesta_rol": {
+            "type": "string",
+            "title": "Propuesta Rol"
+          },
+          "revisada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revisada Por",
+            "description": "Vacío si propuso el supervisor: la revisión se salta."
+          },
+          "validada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validada Por"
+          },
+          "aplicada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aplicada Por"
+          },
+          "rechazada_por": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rechazada Por"
+          },
+          "motivo_rechazo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Rechazo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "actividad_id",
+          "estatus",
+          "motivo",
+          "propuesta_por",
+          "propuesta_rol"
+        ],
+        "title": "ReprogramacionRespuesta"
+      },
       "ResetearContrasenaPeticion": {
         "properties": {
           "contrasena_temporal": {
@@ -21122,7 +26763,8 @@
           "residente",
           "supervisor",
           "control_obra",
-          "super_intendente"
+          "super_intendente",
+          "costos"
         ],
         "title": "Rol"
       },
@@ -21332,6 +26974,21 @@
           "lineas"
         ],
         "title": "SolicitarCambioPeticion"
+      },
+      "SolicitarCierreDeFrentePeticion": {
+        "properties": {
+          "nivel_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Nivel Id",
+            "description": "El frente que se cierra: un nivel de la obra."
+          }
+        },
+        "type": "object",
+        "required": [
+          "nivel_id"
+        ],
+        "title": "SolicitarCierreDeFrentePeticion"
       },
       "SolicitarCierrePeticion": {
         "properties": {
@@ -21589,6 +27246,79 @@
         "title": "TramoDTO",
         "description": "Un segmento de una actividad interrumpida (§7.6).\n\nLista vacía = actividad continua, el caso normal. Con tramos, la\n`duracion_dias` de la actividad es la **suma** de sus tramos —los días de\ntrabajo— y lo que ocupa en el calendario es\n`max(offset_dias + duracion_dias)`, que es lo que el CPM encadena."
       },
+      "TransicionDeParteRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "accion": {
+            "type": "string",
+            "title": "Accion"
+          },
+          "de": {
+            "type": "string",
+            "title": "De"
+          },
+          "a": {
+            "type": "string",
+            "title": "A"
+          },
+          "usuario_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Usuario Id"
+          },
+          "usuario_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usuario Nombre"
+          },
+          "rol": {
+            "type": "string",
+            "title": "Rol"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          },
+          "creada_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Creada En"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "accion",
+          "de",
+          "a",
+          "usuario_id",
+          "rol",
+          "creada_en"
+        ],
+        "title": "TransicionDeParteRespuesta"
+      },
       "TrazoAprobadoRespuesta": {
         "properties": {
           "trazo_id": {
@@ -21843,6 +27573,19 @@
             "type": "integer",
             "title": "Version Plano"
           },
+          "escala_m_por_unidad": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Escala M Por Unidad",
+            "description": "Metros por unidad de plano; `null` = sin calibrar."
+          },
           "features": {
             "items": {
               "$ref": "#/components/schemas/TrazoFeature"
@@ -21972,6 +27715,23 @@
         "title": "UsuarioRespuesta",
         "description": "Una persona del equipo, como la ve la pantalla de Equipo (§5.1)."
       },
+      "ValidarCierreDeFrentePeticion": {
+        "properties": {
+          "comentario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comentario"
+          }
+        },
+        "type": "object",
+        "title": "ValidarCierreDeFrentePeticion"
+      },
       "ValidarCierrePeticion": {
         "properties": {
           "comentario": {
@@ -22049,6 +27809,180 @@
           "precio_unitario"
         ],
         "title": "ValorPartidaRespuesta"
+      },
+      "ValuacionDeObraRespuesta": {
+        "properties": {
+          "obra_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Obra Id"
+          },
+          "obra": {
+            "$ref": "#/components/schemas/ValuacionRespuesta"
+          },
+          "partes": {
+            "items": {
+              "$ref": "#/components/schemas/ValuacionDeParteRespuesta"
+            },
+            "type": "array",
+            "title": "Partes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "obra_id",
+          "obra",
+          "partes"
+        ],
+        "title": "ValuacionDeObraRespuesta"
+      },
+      "ValuacionDeParteRespuesta": {
+        "properties": {
+          "forma": {
+            "type": "string",
+            "title": "Forma",
+            "description": "`pu` · `parametrico` · `mixto` (se reporta, no se guarda)."
+          },
+          "importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe"
+          },
+          "importe_parametrico": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe Parametrico"
+          },
+          "porcentaje_parametrico": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Porcentaje Parametrico",
+            "description": "Del importe, 0 a 100."
+          },
+          "n_estimadas": {
+            "type": "integer",
+            "title": "N Estimadas"
+          },
+          "n_renglones": {
+            "type": "integer",
+            "title": "N Renglones"
+          },
+          "estimado_original": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Estimado Original",
+            "description": "Lo que valía, al precio de hoy, lo que ya se midió."
+          },
+          "medido": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Medido"
+          },
+          "desviacion_pct": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desviacion Pct",
+            "description": "Cuánto se alejó lo medido de lo estimado; vuelve al paramétrico."
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          }
+        },
+        "type": "object",
+        "required": [
+          "forma",
+          "importe",
+          "importe_parametrico",
+          "porcentaje_parametrico",
+          "n_estimadas",
+          "n_renglones",
+          "estimado_original",
+          "medido",
+          "clave",
+          "nombre"
+        ],
+        "title": "ValuacionDeParteRespuesta"
+      },
+      "ValuacionRespuesta": {
+        "properties": {
+          "forma": {
+            "type": "string",
+            "title": "Forma",
+            "description": "`pu` · `parametrico` · `mixto` (se reporta, no se guarda)."
+          },
+          "importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe"
+          },
+          "importe_parametrico": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe Parametrico"
+          },
+          "porcentaje_parametrico": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Porcentaje Parametrico",
+            "description": "Del importe, 0 a 100."
+          },
+          "n_estimadas": {
+            "type": "integer",
+            "title": "N Estimadas"
+          },
+          "n_renglones": {
+            "type": "integer",
+            "title": "N Renglones"
+          },
+          "estimado_original": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Estimado Original",
+            "description": "Lo que valía, al precio de hoy, lo que ya se midió."
+          },
+          "medido": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Medido"
+          },
+          "desviacion_pct": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Desviacion Pct",
+            "description": "Cuánto se alejó lo medido de lo estimado; vuelve al paramétrico."
+          }
+        },
+        "type": "object",
+        "required": [
+          "forma",
+          "importe",
+          "importe_parametrico",
+          "porcentaje_parametrico",
+          "n_estimadas",
+          "n_renglones",
+          "estimado_original",
+          "medido"
+        ],
+        "title": "ValuacionRespuesta"
       },
       "VersionCPURespuesta": {
         "properties": {

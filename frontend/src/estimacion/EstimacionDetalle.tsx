@@ -110,6 +110,8 @@ export function EstimacionDetalle({ estimacionId, rol, onVolver }: Props) {
     return (Number(datos.acumulado_proyecto) / base) * 100;
   }, [datos]);
 
+  const alertas = datos?.n_alertas_de_respaldo ?? 0;
+
   return (
     <div className="page">
       <div className="page__header">
@@ -213,6 +215,19 @@ export function EstimacionDetalle({ estimacionId, rol, onVolver }: Props) {
               </div>
             </div>
             <div className="kpi">
+              <div className="kpi__label">Respaldo del avance</div>
+              <div className="kpi__value">{fmtEntero(alertas)}</div>
+              <div className="kpi__sub">
+                {alertas === 0 ? (
+                  'Todo lo estimado está confirmado'
+                ) : (
+                  <span className="badge badge--warn">
+                    renglones estimados por encima de lo confirmado
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="kpi">
               <div className="kpi__label">Semana</div>
               <div className="kpi__value">{fmtSemana(datos.semana, datos.anio)}</div>
               <div className="kpi__sub">{etiquetaModo(datos.modo)}</div>
@@ -248,6 +263,25 @@ export function EstimacionDetalle({ estimacionId, rol, onVolver }: Props) {
               Extra-catálogo <span className="text-mute">{datos.n_conceptos_extra}</span>
             </button>
           </div>
+
+          {alertas > 0 && (
+            <div
+              className="text-sm mb-8"
+              role="alert"
+              style={{
+                color: 'oklch(45% 0.13 75)',
+                background: 'var(--c-warn-soft)',
+                border: '1px solid var(--c-warn)',
+                borderRadius: 'var(--r-md)',
+                padding: '8px 12px',
+              }}
+            >
+              <strong>Estimado por encima de lo confirmado.</strong> El residente no ha confirmado
+              (o confirmó menos) el avance de {fmtEntero(alertas)} renglón(es).
+              No bloquea la estimación: se resuelve confirmando el avance real o bajando la cantidad
+              estimada. Míralos en la pestaña «Detalle».
+            </div>
+          )}
 
           {pestana === 'resumen' && <TablaPorFrente frentes={datos.por_frente} total={datos.monto_total} />}
           {pestana === 'detalle' && <TablaDeConceptos conceptos={datos.conceptos} />}
@@ -359,6 +393,7 @@ function TablaDeConceptos({
               <th className="is-num" style={{ minWidth: 120 }}>
                 Importe
               </th>
+              <th style={{ minWidth: 190 }}>Respaldo</th>
             </tr>
           </thead>
           <tbody>
@@ -374,6 +409,24 @@ function TablaDeConceptos({
                 <td className="is-num tnum">{fmtNum(c.cantidad)}</td>
                 <td className="is-num tnum">{fmtMXN(c.precio_unitario)}</td>
                 <td className="is-num tnum">{fmtMXN(c.importe)}</td>
+                <td className="text-xs">
+                  {c.alerta === 'sin_confirmar' ? (
+                    <span className="badge badge--warn" title="Nadie confirmó este avance">
+                      sin confirmar
+                    </span>
+                  ) : c.alerta === 'por_encima' ? (
+                    <span
+                      className="badge badge--warn"
+                      title={`Se confirmó ${fmtNum(c.cantidad_confirmada)}; se estima más`}
+                    >
+                      +{fmtNum(c.exceso)} sobre lo confirmado
+                    </span>
+                  ) : c.actividad_id ? (
+                    <span className="badge badge--ok">con respaldo</span>
+                  ) : (
+                    '—'
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

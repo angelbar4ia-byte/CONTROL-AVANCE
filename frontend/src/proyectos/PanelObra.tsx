@@ -5,7 +5,9 @@
  *   - lectura del detalle — `GET /obras/{id}` (todos, por alcance §4);
  *   - edición — `PATCH /obras/{id}` (solo Control de obra, §11.2);
  *   - generación de actividades desde el prototipo — `POST
- *     /obras/{id}/generar`, Workflow A (§11.3 A.2).
+ *     /obras/{id}/generar`, Workflow A (§11.3 A.2);
+ *   - la junta de arranque — `POST /obras/{id}/iniciar`: la obra pasa de
+ *     `pendiente` a `iniciada` y el cronograma arranca ese día (D-537).
  *
  * El componente monta el formulario a partir de la obra recibida; se espera
  * que el padre lo remonte con `key={obra.id}` al cambiar de obra.
@@ -18,6 +20,7 @@ import { useClavesPorRecurso } from '@/lib/idempotencia';
 import {
   useActualizarObraApiV1ObrasObraIdPatch,
   useGenerarObraApiV1ObrasObraIdGenerarPost,
+  useIniciarObraApiV1ObrasObraIdIniciarPost,
   useRevertirGeneracionApiV1ObrasObraIdActividadesDelete,
 } from '@/api/generado/obras/obras';
 import { useListarUsuariosApiV1UsuariosGet } from '@/api/generado/usuarios/usuarios';
@@ -31,9 +34,11 @@ import type {
 } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
 import { colorAvance, fmtFecha, fmtNum, fmtPct } from '@/lib/formato';
+import { hoyISO } from '@/materiales/formulario';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Sheet } from '@/lib/Sheet';
 import type { Rol } from '@/shell/navegacion';
+import { useArranqueDeLaObraApiV1ObrasObraIdArranqueGet } from '@/api/generado/partes/partes';
 import { InstanciarPrograma } from '@/programacion/InstanciarPrograma';
 import { CampoSelect, CampoTexto } from './Campos';
 import { cambiosDeObra, formularioDeObra, hayCambios } from './formulario';
@@ -41,6 +46,7 @@ import {
   etiquetaEstatusObra,
   impedimentoParaGenerar,
   motivoImpedimento,
+  puedeDeclararJuntaDeArranque,
   puedeEditarObra,
   tonoEstatusObra,
 } from './reglas';
@@ -60,6 +66,9 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
   const [modoPago, setModoPago] = useState<ModoPago>(ModoPago.destajo);
   const [generada, setGenerada] = useState<ObraGeneradaRespuesta | null>(null);
   const [instanciando, setInstanciando] = useState(false);
+  const [fechaJunta, setFechaJunta] = useState(() => hoyISO());
+  // Requisito de la junta: ¿todo validado? Avisa; lo que impide es asignar (el candado).
+  const arranque = useArranqueDeLaObraApiV1ObrasObraIdArranqueGet(obra.id);
   const [error, setError] = useState<{ mensaje: string; campo?: string } | null>(null);
 
   // Una clave por (método, ruta): generar la obra A y la obra B son
@@ -106,6 +115,19 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
       },
       onError: (err) => setError({ mensaje: err.message, campo: err.campo }),
     },
+  });
+
+  // La junta de arranque es una marca manual y se da una sola vez; la clave de
+  // idempotencia es por (método, ruta) así que un doble clic no la repite.
+  const iniciar = useIniciarObraApiV1ObrasObraIdIniciarPost<ErrorApi>({
+    mutation: {
+      onSuccess: () => {
+        setError(null);
+        onCambiada();
+      },
+      onError: (err) => setError({ mensaje: err.message, campo: err.campo }),
+    },
+    ...idempotente,
   });
 
   // Cualquier rol puede leer `GET /usuarios` (§5.1: quién es el residente de
@@ -259,6 +281,55 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
               </div>
             </div>
           </form>
+        )}
+
+        {puedeDeclararJuntaDeArranque(rol, obra) && (
+          <div className="card">
+            <div className="card__header">
+              <div>
+                <h3 className="card__title">Junta de arranque</h3>
+                <div className="card__sub">
+                  Marca la obra como iniciada. La fecha de la junta es el arranque del
+                  cronograma: lo que cuelga de ella se recalcula (D-537).
+                </div>
+              </div>
+            </div>
+            <div className="card__body col gap-12">
+              {arranque.data && (
+                <div className="row gap-8" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span className={`badge badge--${arranque.data.todo_validado ? 'ok' : 'warn'}`}>
+                    {arranque.data.todo_validado
+                      ? 'Todo validado'
+                      : `Falta validar ${arranque.data.sin_autorizar.length} de ${arranque.data.total} partes`}
+                  </span>
+                  <span className="text-xs text-mute">
+                    Requisito de la junta. {arranque.data.candado_asignar
+                      ? 'El candado impide asignar lo no validado.'
+                      : 'Sin candado: avisa, no impide asignar.'}
+                  </span>
+                </div>
+              )}
+              <CampoTexto
+                id="junta-fecha"
+                etiqueta="Fecha de la junta"
+                valor={fechaJunta}
+                onCambio={setFechaJunta}
+                tipo="date"
+              />
+              <div className="row">
+                <button
+                  type="button"
+                  className="btn btn--accent"
+                  disabled={iniciar.isPending || fechaJunta === ''}
+                  onClick={() =>
+                    iniciar.mutate({ obraId: obra.id, data: { fecha: fechaJunta } })
+                  }
+                >
+                  {iniciar.isPending ? 'Declarando…' : 'Declarar junta de arranque'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* La generación es del creador de obra (§11.2): a los demás roles

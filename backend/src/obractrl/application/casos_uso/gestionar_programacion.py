@@ -39,13 +39,19 @@ no su tabla.
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from obractrl.application.casos_uso.generar_obra_desde_prototipo import ObraNoEncontrada
+from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
+    ObraNoEncontrada,
+    reconstruir_obra,
+)
+from obractrl.application.puertos.ediciones_de_programa import (
+    RepositorioEdicionesDePrograma,
+)
 from obractrl.application.puertos.repositorios import (
     RegistroNoEncontrado,
     RepositorioActividades,
@@ -53,6 +59,7 @@ from obractrl.application.puertos.repositorios import (
     RepositorioProgramas,
     UnidadDeTrabajo,
 )
+from obractrl.domain.obras.reglas import Obra
 from obractrl.domain.programacion.calendario import (
     SEMANA_NATURAL,
     CalendarioLaboral,
@@ -75,16 +82,23 @@ from obractrl.domain.programacion.jerarquia import (
     resumir_arbol,
 )
 from obractrl.domain.programacion.reglas import (
+    CAMPOS_DE_ESTRUCTURA,
+    CAMPOS_DE_FECHAS,
     ActividadProgramable,
     ErrorDeProgramacion,
     ItemProgramaBase,
     ProgramacionDeActividad,
     editar_programacion,
+    exigir_permiso_de_edicion,
     instanciar_programa,
     nodos_cpm,
     validar_item_base,
 )
-from obractrl.domain.shared.diccionario import ClaseNodo
+from obractrl.domain.programacion.reprogramacion import (
+    esta_asignada,
+    exigir_fechas_libres,
+)
+from obractrl.domain.shared.diccionario import ClaseNodo, Rol
 
 __all__ = [
     "ActividadEnRuta",
@@ -94,6 +108,7 @@ __all__ = [
     "CicloEnGrafoError",
     "ComandoCrearProgramaBase",
     "ComandoEditarProgramacion",
+    "ComandoIniciarObra",
     "ComandoInstanciarPrograma",
     "ComandoProgramarNodo",
     "ComandoRecalcularRutaCritica",
@@ -101,11 +116,13 @@ __all__ = [
     "ConflictoJerarquia",
     "ConflictoNoResuelto",
     "ConsultarArbolPrograma",
+    "ConsultarEdicionesDePrograma",
     "ConsultarRutaCritica",
     "CrearProgramaBase",
     "EditarProgramacionActividad",
     "ErrorDeJerarquia",
     "ErrorDeProgramacion",
+    "IniciarObra",
     "InstanciarProgramaObra",
     "NodoNoProgramable",
     "NodoProgramado",
@@ -257,15 +274,31 @@ class ComandoRecalcularRutaCritica:
 
 
 @dataclass(frozen=True, slots=True)
+class ComandoIniciarObra:
+    """`POST /obras/{id}/iniciar` (Control de obra): la junta de arranque.
+
+    `fecha` es el día de la junta; sin ella, hoy.
+    """
+
+    obra_id: UUID
+    fecha: date | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ComandoEditarProgramacion:
-    """§11.2 `PATCH /actividades/{id}/programacion` (Supervisor, C).
+    """§11.2 `PATCH /actividades/{id}/programacion` (Supervisor, C, Residente).
 
     `None` significa "no lo mandaron"; una lista vacía de `dependencias` sí
     es un cambio —deja la actividad sin predecesoras—, y una de `tramos` le
     quita la interrupción a la actividad (§7.6).
+
+    `rol` y `usuario_id` son de quien edita: el rol decide **qué** puede tocar
+    (`exigir_permiso_de_edicion`) y los dos quedan en la bitácora de la edición.
     """
 
     actividad_id: UUID
+    rol: Rol
+    usuario_id: UUID
     duracion_dias: Decimal | None = None
     dependencias: tuple[Dependencia, ...] | None = None
     frente_id: UUID | None = None
@@ -273,6 +306,9 @@ class ComandoEditarProgramacion:
     fecha_termino: date | None = None
     tramos: tuple[Tramo, ...] | None = None
     inicio_dias: Decimal | None = None
+    reprogramacion_id: UUID | None = None
+    """Solo lo pone `AplicarReprogramacion`: la fecha de lo asignado se mueve por
+    la cadena (D-533), y ese es el único camino que puede tocarla (P-4)."""
 
 
 # --- Resultados ----------------------------------------------------------
@@ -742,6 +778,22 @@ class ConsultarRutaCritica(_ConCronograma):
         )
 
 
+class ConsultarEdicionesDePrograma:
+    """`GET /obras/{id}/programa/ediciones`: la bitácora de ediciones manuales
+    del programa (0067), las más recientes primero."""
+
+    def __init__(
+        self, *, obras: RepositorioObras, ediciones: RepositorioEdicionesDePrograma
+    ) -> None:
+        self._obras = obras
+        self._ediciones = ediciones
+
+    async def ejecutar(self, obra_id: UUID) -> list[dict]:
+        if await self._obras.obtener(obra_id) is None:
+            raise ObraNoEncontrada(f"Obra {obra_id} no encontrada en tu alcance.")
+        return await self._ediciones.de_obra(obra_id)
+
+
 class RecalcularRutaCritica(_ConCronograma):
     """`POST /obras/{id}/ruta-critica/recalcular` (S, C — §11.2).
 
@@ -796,6 +848,72 @@ class RecalcularRutaCritica(_ConCronograma):
             programa=programa,
             calendario=calendario,
         )
+
+
+class IniciarObra(_ConCronograma):
+    """`POST /obras/{id}/iniciar` (Control de obra — WORKFLOWS.md §8.1).
+
+    **La junta de arranque**: Control de obra la declara con `marcar_obra_iniciada`
+    (D-537) y con eso la obra pasa de `pendiente` a `iniciada`. Es una de las dos
+    marcas manuales del estatus, junto con `entregada`.
+
+    La fecha de la junta **es** el arranque del cronograma: es el día que el
+    contrato echa a andar el reloj (`disparador_fecha = contractual`, MODELO.md
+    §5c), así que todo lo que cuelga del arranque se recalcula contra ella en la
+    misma transacción —el ancla `inicio_dias` de las actividades que arrancan
+    "N días después del arranque" incluida—. Sin recalcular, la obra diría
+    `iniciada` con un Gantt todavía pintado contra el día en que se dio de alta.
+    """
+
+    def __init__(
+        self,
+        *,
+        actividades: RepositorioActividades,
+        obras: RepositorioObras,
+        programas: RepositorioProgramas,
+        uow: UnidadDeTrabajo,
+    ) -> None:
+        super().__init__(actividades=actividades, obras=obras, programas=programas)
+        self._uow = uow
+
+    async def ejecutar(self, cmd: ComandoIniciarObra) -> Obra:
+        fila = await self._obras.obtener(cmd.obra_id)
+        if fila is None:
+            raise ObraNoEncontrada(f"Obra {cmd.obra_id} no encontrada en tu alcance.")
+
+        obra = reconstruir_obra(fila)
+        fecha = cmd.fecha or date.today()
+        obra.iniciar(fecha)  # pendiente → iniciada; cualquier otra cosa es 409
+
+        programa = await self._programas.programa_vigente(cmd.obra_id)
+        filas = await self._actividades.programacion_de_obra(cmd.obra_id)
+        resultados = (
+            calcular_cpm(
+                nodos_cpm([_a_actividad(f) for f in filas]),
+                fecha,
+                fecha_corte=(programa or {}).get("fecha_corte") or date.today(),
+                calendario=_calendario_de(programa),
+            )
+            if filas
+            else None
+        )
+
+        async with self._uow:
+            try:
+                await self._obras.actualizar(
+                    cmd.obra_id,
+                    {"estatus": obra.estatus.value, "fecha_inicio": obra.fecha_inicio},
+                )
+            except RegistroNoEncontrado as exc:
+                raise ObraNoEncontrada(
+                    f"Obra {cmd.obra_id} ya no está en tu alcance."
+                ) from exc
+            if resultados is not None:
+                await self._actividades.guardar_resultado_cpm(
+                    cmd.obra_id, _a_guardable(resultados)
+                )
+            await self._uow.commit()
+        return obra
 
 
 class InstanciarProgramaObra(_ConCronograma):
@@ -1078,18 +1196,40 @@ class EditarProgramacionActividad:
         actividades: RepositorioActividades,
         obras: RepositorioObras,
         programas: RepositorioProgramas,
+        ediciones: RepositorioEdicionesDePrograma,
         uow: UnidadDeTrabajo,
     ) -> None:
         self._actividades = actividades
         self._obras = obras
         self._programas = programas
+        self._ediciones = ediciones
         self._uow = uow
 
-    async def ejecutar(self, cmd: ComandoEditarProgramacion) -> ActividadEnRuta:
+    async def ejecutar(
+        self,
+        cmd: ComandoEditarProgramacion,
+        *,
+        en_la_transaccion: Callable[[], Awaitable[None]] | None = None,
+    ) -> ActividadEnRuta:
+        """`en_la_transaccion` corre dentro de la unidad de trabajo, antes del commit:
+        es como `AplicarReprogramacion` marca la reprogramación como aplicada **en la
+        misma transacción** que mueve la fecha, sin dejar una sin la otra."""
+        # Primero el permiso: quien no puede tocar esto no debe enterarse de si la
+        # actividad existe ni de si el cronograma tendría un ciclo.
+        tipo = exigir_permiso_de_edicion(cmd.rol, _campos_pedidos(cmd))
+
         fila = await self._actividades.programacion_de(cmd.actividad_id)
         if fila is None:
             raise ActividadNoProgramable(
                 f"Actividad {cmd.actividad_id} no encontrada en tu alcance."
+            )
+
+        # Las fechas de lo asignado no se mueven solas (P-4): se cambian por la
+        # cadena de reprogramación, que es la única que llega aquí con su id.
+        if cmd.reprogramacion_id is None:
+            exigir_fechas_libres(
+                asignada=esta_asignada(contratista_id=fila.get("contratista_id")),
+                toca_fechas=cmd.fecha_inicio is not None or cmd.fecha_termino is not None,
             )
 
         obra_id = fila["obra_id"]
@@ -1122,10 +1262,11 @@ class EditarProgramacionActividad:
             calendario=calendario,
         )
 
+        cambios = _cambios(cmd, programacion)
         async with self._uow:
             try:
                 await self._actividades.actualizar_programacion(
-                    cmd.actividad_id, _cambios(cmd, programacion)
+                    cmd.actividad_id, cambios
                 )
             except RegistroNoEncontrado as exc:
                 raise ActividadNoProgramable(
@@ -1134,6 +1275,27 @@ class EditarProgramacionActividad:
             await self._actividades.guardar_resultado_cpm(
                 obra_id, _a_guardable(resultados)
             )
+            # La bitácora lleva solo lo que esta persona pidió cambiar, no lo que
+            # el recálculo reescribió solo en las demás actividades.
+            await self._ediciones.registrar(
+                obra_id=obra_id,
+                actividad_id=cmd.actividad_id,
+                usuario_id=cmd.usuario_id,
+                rol=cmd.rol.value,
+                tipo=tipo,
+                antes={campo: _a_json(fila.get(campo)) for campo in cambios},
+                despues={
+                    **{campo: _a_json(valor) for campo, valor in cambios.items()},
+                    # Si la fecha se movió por una reprogramación, la bitácora dice cuál.
+                    **(
+                        {"reprogramacion_id": str(cmd.reprogramacion_id)}
+                        if cmd.reprogramacion_id is not None
+                        else {}
+                    ),
+                },
+            )
+            if en_la_transaccion is not None:
+                await en_la_transaccion()
             await self._uow.commit()
 
         # Se relee para devolver lo que quedó escrito, no lo que se propuso:
@@ -1155,6 +1317,35 @@ class EditarProgramacionActividad:
             calendario=calendario,
         )
         return ruta.actividades[0]
+
+
+def _campos_pedidos(cmd: ComandoEditarProgramacion) -> tuple[str, ...]:
+    """Los campos que el cliente mandó (lo que no es `None`)."""
+    return tuple(
+        campo
+        for campo in (*CAMPOS_DE_ESTRUCTURA, *CAMPOS_DE_FECHAS)
+        if getattr(cmd, campo) is not None
+    )
+
+
+def _a_json(valor: object) -> object:
+    """Un valor de `actividad` en la forma que guarda la bitácora (jsonb).
+
+    `dependencias` y `tramos` llegan como jsonb ya decodificado desde la fila y
+    como texto JSON desde `_cambios`; se normalizan a la estructura, no al texto,
+    para que `antes` y `despues` se puedan comparar a simple vista.
+    """
+    if isinstance(valor, str):
+        try:
+            decodificado = json.loads(valor)
+        except ValueError:
+            return valor
+        if isinstance(decodificado, list):
+            return decodificado
+        return valor
+    if isinstance(valor, Decimal | date | UUID):
+        return str(valor)
+    return valor
 
 
 def _cambios(
@@ -1179,6 +1370,10 @@ def _cambios(
         cambios["fecha_inicio"] = programacion.fecha_inicio
     if cmd.fecha_termino is not None:
         cambios["fecha_termino"] = programacion.fecha_termino
+    if cmd.inicio_dias is not None:
+        # El comando lo aceptaba y la política de edición lo calculaba, pero este
+        # `UPDATE` nunca lo escribía: el ancla se perdía al volver a leer.
+        cambios["inicio_dias"] = programacion.inicio_dias
     return cambios
 
 

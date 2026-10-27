@@ -195,6 +195,43 @@ class TestContrato:
             "POST /api/v1/incidencias/{incidencia_id}/eventos",
             "POST /api/v1/incidencias/{incidencia_id}/cerrar",
             "POST /api/v1/incidencias/{incidencia_id}/rechazar",
+            # La junta de arranque es una marca de una sola vez: pasa la obra a
+            # `iniciada` y mueve el arranque del cronograma. Un doble clic no debe
+            # recalcular dos veces.
+            "POST /api/v1/obras/{obra_id}/iniciar",
+            # Confirmar el avance agrega una fila a una bitácora que no se
+            # reescribe: un reintento por red caída dejaría dos confirmaciones.
+            "POST /api/v1/actividades/{actividad_id}/avance/confirmar",
+            # El cierre de un frente (0071) lleva las manos del cierre de
+            # actividad —solicita, aprueba, valida, rechaza— y, como ese, deja un
+            # trámite con folio de quién y cuándo que un doble clic no debe repetir.
+            "POST /api/v1/obras/{obra_id}/cierres-frente",
+            "POST /api/v1/cierres-frente/{cierre_id}/aprobar",
+            "POST /api/v1/cierres-frente/{cierre_id}/validar",
+            "POST /api/v1/cierres-frente/{cierre_id}/rechazar",
+            # Reprogramar lo asignado (0072): cada paso de la cadena deja un trámite
+            # con quién y cuándo, y «realizar» mueve la fecha y avisa a los demás —un
+            # doble clic no debe repetir ni lo uno ni lo otro.
+            "POST /api/v1/actividades/{actividad_id}/reprogramaciones",
+            "POST /api/v1/reprogramaciones/{reprogramacion_id}/revisar",
+            "POST /api/v1/reprogramaciones/{reprogramacion_id}/validar",
+            "POST /api/v1/reprogramaciones/{reprogramacion_id}/aplicar",
+            "POST /api/v1/reprogramaciones/{reprogramacion_id}/rechazar",
+            # Una observación se agrega a un rastro que no se reescribe y dispara un
+            # correo y un push: un reintento no debe dejarla ni avisarla dos veces.
+            "POST /api/v1/reprogramaciones/{reprogramacion_id}/observaciones",
+            # Mandar, autorizar o asignar partes (0075) escribe estado y bitácora: un
+            # reintento por red caída no debe repetir el paso.
+            "POST /api/v1/obras/{obra_id}/partes/transicion",
+            "POST /api/v1/actividades/{actividad_id}/modificacion",
+            "POST /api/v1/obras/{obra_id}/modificaciones/nueva",
+            # Crear la obra «Nueva» y su catálogo base escribe obra, prototipo y árbol: un
+            # reintento no debe dejar dos obras.
+            "POST /api/v1/obras/desde-catalogo-base",
+            # Rediseñar una parte a paramétrico reescribe cantidades y deja bitácora, y la obra
+            # «desde cero» crea obra, prototipo y presupuesto: un reintento no debe repetirlos.
+            "POST /api/v1/obras/desde-cero",
+            "POST /api/v1/obras/{obra_id}/partes/rediseno",
         }
 
     def test_es_opcional(self) -> None:

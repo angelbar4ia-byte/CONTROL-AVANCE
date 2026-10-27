@@ -13,12 +13,18 @@
 
 import { useState, type FormEvent } from 'react';
 
-import { useEditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch } from '@/api/generado/programacion/programacion';
+import {
+  useEditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch,
+  useProponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost,
+} from '@/api/generado/programacion/programacion';
 import type { FrenteRespuesta } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
+import { useSesion } from '@/app/sesion';
 import { colorAvance, fmtFecha, fmtNum, fmtPct } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
+import { useClavesPorRecurso } from '@/lib/idempotencia';
 import { Sheet } from '@/lib/Sheet';
+import { esFechaDeLoAsignado, puedeProponerReprogramacion } from '@/reprogramaciones/reglas';
 import { EditorDependencias } from './Dependencias';
 import type { FilaGantt } from './filas';
 import {
@@ -27,8 +33,10 @@ import {
   formularioDeFila,
   hayCambios,
   refsDesconocidas,
+  soloFechas,
 } from './formulario';
 import {
+  type AlcanceDeEdicion,
   etiquetaEstatusActividad,
   etiquetaTipoDependencia,
   etiquetaTono,
@@ -41,8 +49,8 @@ interface Props {
   /** Resto de actividades de la obra, para elegir predecesoras por nombre. */
   readonly actividades: readonly FilaGantt[];
   readonly frentes: readonly FrenteRespuesta[];
-  /** `PATCH /actividades/{id}/programacion` es (S, C) — §11.2. */
-  readonly editable: boolean;
+  /** `PATCH /actividades/{id}/programacion`: (S, C) todo, (R) solo fechas — 0067. */
+  readonly alcance: AlcanceDeEdicion;
   readonly onCerrar: () => void;
   /** El padre revalida el cronograma tras un ajuste. */
   readonly onAjustada: () => void;
@@ -52,13 +60,19 @@ export function PanelActividad({
   fila,
   actividades,
   frentes,
-  editable,
+  alcance,
   onCerrar,
   onAjustada,
 }: Props) {
   const [formulario, setFormulario] = useState(() => formularioDeFila(fila));
-  const [error, setError] = useState<{ mensaje: string; campo?: string } | null>(null);
+  const { sesion } = useSesion();
+  const idempotente = useClavesPorRecurso();
+  const [error, setError] = useState<{ mensaje: string; campo?: string; tipo?: string } | null>(
+    null,
+  );
   const [guardada, setGuardada] = useState(false);
+  const [motivo, setMotivo] = useState('');
+  const [propuesta, setPropuesta] = useState(false);
 
   const ajustar = useEditarProgramacionActividadApiV1ActividadesActividadIdProgramacionPatch<
     ErrorApi
@@ -71,13 +85,31 @@ export function PanelActividad({
       },
       onError: (err) => {
         setGuardada(false);
-        setError({ mensaje: err.message, campo: err.campo });
+        setError({ mensaje: err.message, campo: err.campo, tipo: err.tipo });
       },
     },
   });
 
+  // P-4: las fechas de lo asignado no se editan directo; se propone la nueva.
+  const proponer = useProponerReprogramacionApiV1ActividadesActividadIdReprogramacionesPost<
+    ErrorApi
+  >({
+    mutation: {
+      onSuccess: () => {
+        setError(null);
+        setPropuesta(true);
+        setMotivo('');
+      },
+      onError: (err) => setError({ mensaje: err.message, campo: err.campo, tipo: err.tipo }),
+    },
+    ...idempotente,
+  });
+
   const tono = tonoBarra(fila);
-  const cambios = cambiosDeProgramacion(fila, formulario);
+  const soloLasFechas = alcance === 'fechas';
+  const cambios = soloLasFechas
+    ? soloFechas(cambiosDeProgramacion(fila, formulario))
+    : cambiosDeProgramacion(fila, formulario);
   const conocidas = new Set(actividades.map((otra) => otra.actividadId));
   const sueltas = refsDesconocidas(formulario.dependencias, conocidas);
   const autoreferencia = dependeDeSiMisma(fila.actividadId, formulario.dependencias);
@@ -87,9 +119,25 @@ export function PanelActividad({
     .filter((otra) => otra.actividadId !== fila.actividadId)
     .map((otra) => ({ valor: otra.actividadId, etiqueta: otra.descripcion }));
 
+  const asignada = esFechaDeLoAsignado(error);
+  const rol = sesion?.rol ?? null;
+
+  function alProponer(evento: FormEvent) {
+    evento.preventDefault();
+    if (motivo.trim() === '' || proponer.isPending) return;
+    proponer.mutate({
+      actividadId: fila.actividadId,
+      data: {
+        motivo: motivo.trim(),
+        fecha_inicio: cambios.fecha_inicio ?? null,
+        fecha_termino: cambios.fecha_termino ?? null,
+      },
+    });
+  }
+
   function alGuardar(evento: FormEvent) {
     evento.preventDefault();
-    if (!editable || autoreferencia || !hayCambios(cambios) || ajustar.isPending) return;
+    if (alcance === 'lectura' || autoreferencia || !hayCambios(cambios) || ajustar.isPending) return;
     ajustar.mutate({ actividadId: fila.actividadId, data: cambios });
   }
 
@@ -144,7 +192,63 @@ export function PanelActividad({
           </div>
         </div>
 
-        {error && <ErrorBanner mensaje={error.mensaje} campo={error.campo} />}
+        {error && !asignada && <ErrorBanner mensaje={error.mensaje} campo={error.campo} />}
+
+        {asignada && (
+          <div className="card" role="alert">
+            <div className="card__header">
+              <div>
+                <h3 className="card__title">Esta actividad está asignada</h3>
+                <div className="card__sub">{error?.mensaje}</div>
+              </div>
+            </div>
+            <form onSubmit={alProponer} className="card__body col gap-12">
+              {puedeProponerReprogramacion(rol) ? (
+                <>
+                  <div className="field">
+                    <label className="field__label" htmlFor="prog-motivo-reprogramacion">
+                      Motivo de la reprogramación
+                    </label>
+                    <textarea
+                      id="prog-motivo-reprogramacion"
+                      className="input"
+                      rows={2}
+                      value={motivo}
+                      onChange={(e) => setMotivo(e.target.value)}
+                    />
+                    <span className="field__hint">
+                      Se propone con las fechas del formulario. La fecha no cambia hasta que
+                      control de obra la valide y la realice.
+                    </span>
+                  </div>
+                  <div className="row">
+                    <button
+                      type="submit"
+                      className="btn btn--primary"
+                      disabled={motivo.trim() === '' || proponer.isPending}
+                    >
+                      {proponer.isPending ? 'Proponiendo…' : 'Proponer reprogramación'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm">
+                  La reprogramación la propone el residente o el supervisor; tú la validas y la
+                  realizas desde <strong>Reprogramaciones</strong>, donde también puedes dejarles
+                  observaciones.
+                </div>
+              )}
+            </form>
+          </div>
+        )}
+
+        {propuesta && (
+          <div role="status">
+            <span className="badge badge--ok">
+              Reprogramación propuesta · la fecha cambia cuando control de obra la realice
+            </span>
+          </div>
+        )}
 
         {guardada && !ajustar.isPending && error === null && (
           <div role="status">
@@ -152,14 +256,17 @@ export function PanelActividad({
           </div>
         )}
 
-        {editable ? (
+        {alcance !== 'lectura' ? (
           <form onSubmit={alGuardar} className="card">
             <div className="card__header">
               <div>
-                <h3 className="card__title">Ajustar programación</h3>
+                <h3 className="card__title">
+                  {soloLasFechas ? 'Ajustar fechas' : 'Ajustar programación'}
+                </h3>
                 <div className="card__sub">
-                  Solo se envía lo que cambió. Dejar la lista de dependencias vacía deja la
-                  actividad sin predecesoras (§11.2).
+                  {soloLasFechas
+                    ? 'Puedes corregir cuándo arrancó y cuándo terminó la partida. La duración, los vínculos y el frente los edita Control de obra. Queda registrado quién lo cambió.'
+                    : 'Solo se envía lo que cambió. Dejar la lista de dependencias vacía deja la actividad sin predecesoras (§11.2). Queda registrado quién lo cambió.'}
                 </div>
               </div>
             </div>
@@ -193,24 +300,27 @@ export function PanelActividad({
                     }
                   />
                 </div>
-                <div className="field" style={{ flex: 1, minWidth: 120 }}>
-                  <label className="field__label" htmlFor="prog-duracion">
-                    Duración (días)
-                  </label>
-                  <input
-                    id="prog-duracion"
-                    className="input input--mono"
-                    type="number"
-                    step="any"
-                    min="0"
-                    value={formulario.duracionDias}
-                    onChange={(e) =>
-                      setFormulario((f) => ({ ...f, duracionDias: e.target.value }))
-                    }
-                  />
-                </div>
+                {!soloLasFechas && (
+                  <div className="field" style={{ flex: 1, minWidth: 120 }}>
+                    <label className="field__label" htmlFor="prog-duracion">
+                      Duración (días)
+                    </label>
+                    <input
+                      id="prog-duracion"
+                      className="input input--mono"
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={formulario.duracionDias}
+                      onChange={(e) =>
+                        setFormulario((f) => ({ ...f, duracionDias: e.target.value }))
+                      }
+                    />
+                  </div>
+                )}
               </div>
 
+              {!soloLasFechas && (
               <div className="field">
                 <label className="field__label" htmlFor="prog-frente">
                   Frente
@@ -229,7 +339,9 @@ export function PanelActividad({
                   ))}
                 </select>
               </div>
+              )}
 
+              {!soloLasFechas && (
               <div className="col gap-4">
                 <EditorDependencias
                   idBase="prog"
@@ -255,6 +367,7 @@ export function PanelActividad({
                   </div>
                 )}
               </div>
+              )}
 
               <div className="row">
                 <button
@@ -291,7 +404,8 @@ export function PanelActividad({
                 ))
               )}
               <div className="field__hint">
-                Ajustar la programación es de Supervisor y Control de obra (§11.2).
+                Ajustar la programación es de Control de obra y Supervisor (§11.2); las
+                fechas, también del Residente.
               </div>
             </div>
           </div>

@@ -61,6 +61,7 @@ const ENCABEZADO: Record<Rol, { readonly eyebrow: string; readonly titulo: strin
   supervisor: { eyebrow: 'Control supervisión', titulo: 'Obras supervisadas' },
   control_obra: { eyebrow: 'Configuración', titulo: 'Creador de obra' },
   super_intendente: { eyebrow: 'Control general', titulo: 'Avance de proyecto' },
+  costos: { eyebrow: 'Presupuesto', titulo: 'Obras' },
 };
 
 const ESTATUS: readonly EstatusObra[] = [

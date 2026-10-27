@@ -154,6 +154,7 @@ _REFERENCIAS_EXTERNAS: tuple[tuple[str, str, str], ...] = (
     ("actividad", "nivel_id", "nivel"),
     ("control_cambio", "nivel_id", "nivel"),
     ("incidencia", "nivel_id", "nivel"),
+    ("cierre_frente", "nivel_id", "nivel"),
     ("prototipo_nodo", "etapa_id", "etapa_constructiva"),
     ("actividad", "etapa_id", "etapa_constructiva"),
     ("programa_base_item", "etapa_id", "etapa_constructiva"),

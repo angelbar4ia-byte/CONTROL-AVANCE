@@ -31,7 +31,14 @@ class CapturaAvancePeticion(BaseModel):
     autoritativa en el servidor (§11.1).
     """
 
-    cant_ejecutada: Decimal = Field(ge=0, description="No puede exceder la programada.")
+    cant_ejecutada: Decimal = Field(
+        ge=0,
+        description=(
+            "Puede exceder la programada: registrar nunca se bloquea. Lo que "
+            "pase de lo programado queda como excedente pendiente de "
+            "comprobación y validación de Control de obra."
+        ),
+    )
     cant_programada: Decimal | None = Field(
         default=None,
         ge=0,
@@ -53,6 +60,12 @@ class AvanceRespuesta(BaseModel):
     cant_ejecutada: Decimal
     avance_pct: Decimal
     estatus: str
+    cant_excedente: Decimal = Field(
+        description=(
+            "Lo ejecutado por encima de lo programado que aún no se decidió. "
+            "Va a comprobación y validación (`GET /comprobaciones`)."
+        )
+    )
 
 
 @router.patch(
@@ -80,7 +93,8 @@ async def capturar_avance(
     total lo deriva el trigger `app.registro_avance_agregar` (migración 0017)
     a partir de la bitácora `registro_avance`; acá lo escribe este caso de
     uso. Las reglas del §6 son las mismas en ambas rutas porque las garantiza
-    también la BD (CHECKs de la migración 0007).
+    también la BD (CHECKs de la migración 0007; desde la 0066 lo ejecutado de
+    más ya no se rechaza en ninguna de las dos).
     """
     resultado = await caso_uso.ejecutar(
         ComandoCapturarAvance(
@@ -90,6 +104,7 @@ async def capturar_avance(
             cant_programada=peticion.cant_programada,
             fecha=peticion.fecha,
             evidencias=tuple(peticion.evidencias),
+            rol=Rol(ctx.rol),
         )
     )
     return AvanceRespuesta(
@@ -99,5 +114,6 @@ async def capturar_avance(
         cant_ejecutada=resultado.cant_ejecutada,
         avance_pct=resultado.avance.pct,
         estatus=resultado.estatus.value,
+        cant_excedente=resultado.cant_excedente,
     )
 

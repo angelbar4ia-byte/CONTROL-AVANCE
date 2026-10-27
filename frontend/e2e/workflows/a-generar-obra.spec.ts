@@ -11,6 +11,9 @@ import { entrarComo, expect, hayRoles, MOTIVO_SALTO, motivoSinRoles, test } from
  * conceptos, cada uno con CPU vigente, y un residente al que asignar la obra.
  * La clave de la obra lleva la hora para que dos corridas seguidas no choquen
  * (la clave es única por cluster).
+ *
+ * Al final, la junta de arranque (D-537): Control de obra marca la obra
+ * `iniciada` y la fecha de la junta queda como arranque del cronograma.
  */
 
 test.describe('§11.3 A · Generación de obra desde prototipo', () => {
@@ -56,5 +59,15 @@ test.describe('§11.3 A · Generación de obra desde prototipo', () => {
     // Generada la obra, el botón de generar da paso a «Deshacer»: generar dos
     // veces duplicaría las actividades.
     await expect(panel.getByRole('button', { name: 'Deshacer' })).toBeVisible();
+
+    // 4. La junta de arranque: la obra pasa de «Pendiente» a «Iniciada» y su
+    //    fecha es el arranque del cronograma. Es una marca de una sola vez: la
+    //    tarjeta desaparece.
+    await expect(panel.getByRole('heading', { name: 'Junta de arranque' })).toBeVisible();
+    await panel.getByLabel('Fecha de la junta').fill('2031-03-03');
+    await panel.getByRole('button', { name: 'Declarar junta de arranque' }).click();
+    await expect(panel.getByText('Iniciada', { exact: true })).toBeVisible();
+    await expect(panel.getByText(/03 mar 31/i)).toBeVisible();
+    await expect(panel.getByRole('heading', { name: 'Junta de arranque' })).toHaveCount(0);
   });
 });

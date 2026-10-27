@@ -124,6 +124,22 @@ export function cambiosDeProgramacion(
   return cambios;
 }
 
+/**
+ * Lo que un rol de alcance `fechas` puede mandar: solo las fechas. El backend
+ * rechaza con 403 una petición que traiga algo más, así que no se manda ni por
+ * descuido (un campo que el formulario no mostró pero que difiere de la fila).
+ */
+export function soloFechas(
+  cambios: ProgramacionActividadPeticion,
+): ProgramacionActividadPeticion {
+  const fechas: {
+    -readonly [K in keyof ProgramacionActividadPeticion]: ProgramacionActividadPeticion[K];
+  } = {};
+  if ('fecha_inicio' in cambios) fechas.fecha_inicio = cambios.fecha_inicio;
+  if ('fecha_termino' in cambios) fechas.fecha_termino = cambios.fecha_termino;
+  return fechas;
+}
+
 export function hayCambios(cambios: ProgramacionActividadPeticion): boolean {
   return Object.keys(cambios).length > 0;
 }

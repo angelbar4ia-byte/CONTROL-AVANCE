@@ -547,7 +547,7 @@ class RepositorioObrasSQL:
                      nivel_id, etapa_id, descripcion, cant_base,
                      cant_programada,
                      precio_unitario, precio_destajo, modo_pago, duracion_dias,
-                     dependencias, tramos, inicio_dias)
+                     dependencias, tramos, inicio_dias, modo_cantidad)
                 values
                     (cast(current_setting('app.org_id') as uuid),
                      cast(:obra_id as uuid), cast(:programa_obra_id as uuid),
@@ -557,7 +557,9 @@ class RepositorioObrasSQL:
                      :descripcion, :cant_base, :cant_base, :precio_unitario,
                      :precio_destajo, cast(:modo_pago as modo_pago),
                      :duracion_dias, cast(:dependencias as jsonb),
-                     cast(:tramos as jsonb), :inicio_dias)
+                     cast(:tramos as jsonb), :inicio_dias,
+                     (select n.modo_cantidad from prototipo_nodo n
+                       where n.id = cast(:prototipo_nodo_id as uuid)))
                 """
             ),
             params,

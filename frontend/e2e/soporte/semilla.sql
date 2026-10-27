@@ -11,6 +11,7 @@
 -- Usuarios (la contraseña es E2E_PASSWORD; la auth falsa no distingue):
 --   res@e2e.mx residente · sup@e2e.mx supervisor · ctrl@e2e.mx control_obra
 --   si@e2e.mx super_intendente
+--   cos@e2e.mx costos
 -- ============================================================
 \set ON_ERROR_STOP on
 
@@ -32,7 +33,8 @@ insert into usuario (org_id, nombre, email, rol) values
   (:org_id, 'Rosa Residente',   'res@e2e.mx',  'residente'),
   (:org_id, 'Sara Supervisora', 'sup@e2e.mx',  'supervisor'),
   (:org_id, 'Carlos Control',   'ctrl@e2e.mx', 'control_obra'),
-  (:org_id, 'Silvia Superintendente', 'si@e2e.mx', 'super_intendente');
+  (:org_id, 'Silvia Superintendente', 'si@e2e.mx', 'super_intendente'),
+  (:org_id, 'Carmen Costos', 'cos@e2e.mx', 'costos');
 
 select id as res_id  from usuario where org_id = :org_id and email = 'res@e2e.mx'  \gset
 select id as sup_id  from usuario where org_id = :org_id and email = 'sup@e2e.mx'  \gset
@@ -57,8 +59,8 @@ insert into superintendente_usuario (org_id, superintendente_id, usuario_id)
 values (:org_id, :'si_id', :'sup_id');
 
 -- Árbol del prototipo: etapa -> nivel -> 3 conceptos, cada uno con CPU vigente.
-insert into prototipo (org_id, proyecto_id, clave, nombre)
-values (:org_id, :'proyecto_id', 'CAS-E2E', 'Casa E2E')
+insert into prototipo (org_id, proyecto_id, clave, nombre, plantas)
+values (:org_id, :'proyecto_id', 'CAS-E2E', 'Casa E2E', 1)
 returning id as proto_id \gset
 
 insert into etapa_constructiva (org_id, clave, descripcion, orden)

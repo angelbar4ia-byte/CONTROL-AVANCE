@@ -45,15 +45,20 @@ from datetime import date
 from decimal import Decimal
 
 from obractrl.domain.programacion.cpm import Dependencia, NodoCPM, Tramo, trabajo_de
+from obractrl.domain.shared.diccionario import Rol
 
 __all__ = [
+    "CAMPOS_DE_ESTRUCTURA",
+    "CAMPOS_DE_FECHAS",
     "DURACION_POR_DEFECTO",
     "ActividadProgramable",
+    "EdicionDeProgramaNoPermitida",
     "ErrorDeProgramacion",
     "ItemProgramaBase",
     "ProgramaInstanciado",
     "ProgramacionDeActividad",
     "editar_programacion",
+    "exigir_permiso_de_edicion",
     "instanciar_programa",
     "item_aplicable",
     "nodos_cpm",
@@ -66,6 +71,56 @@ DURACION_POR_DEFECTO = Decimal(1)
 """Default de `programa_base_item.duracion_dias` y `actividad.duracion_dias`
 (§7.5, §7.6). Una actividad sin plantilla nace con un día y se ajusta con
 `PATCH /actividades/{id}/programacion` (§11.2)."""
+
+
+CAMPOS_DE_ESTRUCTURA = ("duracion_dias", "dependencias", "tramos", "frente_id", "inicio_dias")
+"""Lo que cambia **la forma** del programa: cuánto dura, de qué depende, si se
+parte, en qué frente va. Es `editar_estructura_programa` del cerebro (MODELO.md
+§5b) y es de Control de obra."""
+
+CAMPOS_DE_FECHAS = ("fecha_inicio", "fecha_termino")
+"""Las fechas con que la obra se va dando. Es `editar_fechas_programa` del
+cerebro: la persona que está en la obra sabe cuándo arrancó de verdad una
+partida, y no necesita permiso para rehacer el cronograma para decirlo."""
+
+
+class EdicionDeProgramaNoPermitida(PermissionError):
+    """Un rol pidió cambiar algo que su permiso de programa no alcanza."""
+
+
+def exigir_permiso_de_edicion(rol: Rol, campos: Sequence[str]) -> str:
+    """El tipo de edición (`estructura`, `fechas` o `mixta`) si `rol` puede
+    hacerla; si no, `EdicionDeProgramaNoPermitida`.
+
+    * Control de obra y Supervisor editan todo (§11.2): quien programa la obra.
+    * El Residente edita **solo fechas**. Mandarle una duración o un vínculo no
+      es un dato mal formado sino algo que no le toca, así que se rechaza entera
+      en vez de aplicar solo las fechas: aplicar a medias esconde que la otra
+      mitad se perdió.
+    * El Super intendente no edita el programa; el endpoint ya lo corta, esto
+      lo repite para que la regla no dependa de quién la llame.
+    """
+    pedidos = set(campos)
+    toca_estructura = bool(pedidos & set(CAMPOS_DE_ESTRUCTURA))
+    toca_fechas = bool(pedidos & set(CAMPOS_DE_FECHAS))
+
+    if rol in (Rol.CONTROL_OBRA, Rol.SUPERVISOR):
+        pass
+    elif rol is Rol.RESIDENTE:
+        if toca_estructura:
+            raise EdicionDeProgramaNoPermitida(
+                "El residente solo puede editar las fechas del programa; la "
+                "duración, los vínculos, los tramos y el frente los edita "
+                "Control de obra."
+            )
+    else:
+        raise EdicionDeProgramaNoPermitida(
+            f"El rol {rol.value!r} no edita el programa de obra."
+        )
+
+    if toca_estructura and toca_fechas:
+        return "mixta"
+    return "estructura" if toca_estructura else "fechas"
 
 
 class ErrorDeProgramacion(ValueError):

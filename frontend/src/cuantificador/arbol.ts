@@ -1,0 +1,108 @@
+/**
+ * El árbol del cuantificador es el del presupuesto: nivel → etapa → concepto (cerebro
+ * WORKFLOWS.md §8.9, escenario «Nuevo», D-565).
+ *
+ * Antes la cuantificación era una lista de lo ya enlazado: no decía qué faltaba. El árbol trae
+ * **todas** las actividades de la obra, medidas o no, con la misma forma con que se revisa el
+ * presupuesto, y cuenta cuántos conceptos van medidos en cada rama. Las hojas son conceptos.
+ */
+
+import type { ActividadRespuesta, NodoCuantificadoRespuesta } from '@/api/generado/modelo';
+
+export interface HojaDelArbol {
+  readonly id: string;
+  readonly etiqueta: string;
+  readonly base: string;
+  readonly medida: string | null;
+  readonly diferencia: string | null;
+  /** Tiene al menos un enlace vigente: alguien ya lo midió. */
+  readonly medido: boolean;
+  readonly porRevisar: number;
+}
+
+export interface EtapaDelArbol {
+  readonly clave: string;
+  readonly etiqueta: string;
+  readonly hojas: readonly HojaDelArbol[];
+  readonly medidas: number;
+}
+
+export interface NivelDelArbol {
+  readonly clave: string;
+  readonly etiqueta: string;
+  readonly etapas: readonly EtapaDelArbol[];
+  readonly medidas: number;
+  readonly total: number;
+}
+
+const SIN_NIVEL = '~sin-nivel';
+const SIN_ETAPA = '~sin-etapa';
+
+function porClave(a: string, b: string): number {
+  // Lo suelto (sin nivel o sin etapa) va al final.
+  if (a.startsWith('~') !== b.startsWith('~')) return a.startsWith('~') ? 1 : -1;
+  return a.localeCompare(b, 'es', { numeric: true });
+}
+
+export function arbolDeCuantificacion(
+  actividades: readonly ActividadRespuesta[],
+  estado: readonly NodoCuantificadoRespuesta[],
+): readonly NivelDelArbol[] {
+  const medidoPorActividad = new Map(
+    estado.filter((n) => n.tipo_nodo === 'actividad').map((n) => [n.nodo_id, n]),
+  );
+
+  const niveles = new Map<
+    string,
+    { etiqueta: string; etapas: Map<string, { etiqueta: string; hojas: HojaDelArbol[] }> }
+  >();
+  for (const a of actividades) {
+    const nivelClave = a.nivel_clave ?? SIN_NIVEL;
+    const etapaClave = a.etapa_clave ?? SIN_ETAPA;
+    const nivel = niveles.get(nivelClave) ?? {
+      etiqueta: a.nivel_clave
+        ? [a.nivel_clave, a.nivel_descripcion].filter(Boolean).join(' · ')
+        : 'Sin nivel',
+      etapas: new Map(),
+    };
+    niveles.set(nivelClave, nivel);
+    const etapa = nivel.etapas.get(etapaClave) ?? {
+      etiqueta: a.etapa_clave
+        ? [a.etapa_clave, a.etapa_descripcion].filter(Boolean).join(' · ')
+        : 'Sin etapa',
+      hojas: [],
+    };
+    nivel.etapas.set(etapaClave, etapa);
+
+    const nodo = medidoPorActividad.get(a.id);
+    etapa.hojas.push({
+      id: a.id,
+      etiqueta: [a.concepto_clave, a.descripcion].filter(Boolean).join(' · ') || 'Actividad',
+      base: a.cant_base,
+      medida: nodo ? nodo.cantidad_medida : null,
+      diferencia: nodo ? (nodo.diferencia ?? null) : null,
+      medido: (nodo?.enlaces_vigentes ?? 0) > 0,
+      porRevisar: nodo?.trazos_por_revisar ?? 0,
+    });
+  }
+
+  return [...niveles.entries()]
+    .sort(([a], [b]) => porClave(a, b))
+    .map(([clave, nivel]) => {
+      const etapas = [...nivel.etapas.entries()]
+        .sort(([a], [b]) => porClave(a, b))
+        .map(([c, e]) => ({
+          clave: c,
+          etiqueta: e.etiqueta,
+          hojas: [...e.hojas].sort((x, y) => x.etiqueta.localeCompare(y.etiqueta, 'es', { numeric: true })),
+          medidas: e.hojas.filter((h) => h.medido).length,
+        }));
+      return {
+        clave,
+        etiqueta: nivel.etiqueta,
+        etapas,
+        medidas: etapas.reduce((s, e) => s + e.medidas, 0),
+        total: etapas.reduce((s, e) => s + e.hojas.length, 0),
+      };
+    });
+}

@@ -24,11 +24,14 @@ from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.asignaciones_sql import RepositorioAsignacionesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
+from obractrl.adapters.repos.cierres_frente_sql import RepositorioCierresDeFrenteSQL
 from obractrl.adapters.repos.cierres_obra_sql import RepositorioCierresDeObraSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
 from obractrl.adapters.repos.clusters_sql import RepositorioClustersSQL
+from obractrl.adapters.repos.comprobacion_sql import RepositorioComprobacionesSQL
 from obractrl.adapters.repos.conceptos_sql import RepositorioConceptosSQL
 from obractrl.adapters.repos.configuracion_sql import RepositorioConfiguracionSQL
+from obractrl.adapters.repos.confirmaciones_sql import RepositorioConfirmacionesSQL
 from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.control_cambio_sql import RepositorioControlCambioSQL
 from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
@@ -39,6 +42,9 @@ from obractrl.adapters.repos.cuantificacion_sql import (
     RepositorioTrazosSQL,
 )
 from obractrl.adapters.repos.desviaciones_sql import RepositorioDesviacionesSQL
+from obractrl.adapters.repos.ediciones_de_programa_sql import (
+    RepositorioEdicionesDeProgramaSQL,
+)
 from obractrl.adapters.repos.ensambles_sql import RepositorioEnsamblesSQL
 from obractrl.adapters.repos.especialidades_sql import (
     RepositorioEspecialidadesSQL,
@@ -60,12 +66,14 @@ from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.organizacion_sql import RepositorioOrganizacionSQL
+from obractrl.adapters.repos.partes_sql import RepositorioPartesSQL
 from obractrl.adapters.repos.planeacion_sql import RepositorioPlaneacionSQL
 from obractrl.adapters.repos.presupuestos_sql import RepositorioPresupuestosSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
 from obractrl.adapters.repos.prototipo_nodo_sql import RepositorioPrototipoNodoSQL
 from obractrl.adapters.repos.prototipos_sql import RepositorioPrototiposSQL
 from obractrl.adapters.repos.proyectos_sql import RepositorioProyectosSQL
+from obractrl.adapters.repos.reprogramaciones_sql import RepositorioReprogramacionesSQL
 from obractrl.adapters.repos.revisiones_sql import RepositorioRevisionesSQL
 from obractrl.adapters.repos.unidad_de_trabajo import UnidadDeTrabajoSQL
 from obractrl.adapters.repos.unidades_sql import RepositorioUnidadesSQL
@@ -96,6 +104,15 @@ from obractrl.application.casos_uso.calcular_cpu import (
     PublicarVersionCPU,
 )
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
+from obractrl.application.casos_uso.comprobar_excedente import (
+    ConsultarComprobaciones,
+    DeclararPerdidaDeExcedente,
+    ValidarExcedente,
+)
+from obractrl.application.casos_uso.confirmar_avance import (
+    ConfirmarAvance,
+    ConsultarConfirmaciones,
+)
 from obractrl.application.casos_uso.consultar_insumos_programados import (
     ConsultarInsumosProgramados,
 )
@@ -103,8 +120,14 @@ from obractrl.application.casos_uso.consultar_planeacion import (
     AsignarFrenteDeObra,
     ConsultarPlaneacion,
 )
+from obractrl.application.casos_uso.crear_obra_desde_catalogo_base import (
+    ConsultarCatalogosBase,
+    CrearObraDesdeCatalogoBase,
+    CrearObraDesdeCero,
+)
 from obractrl.application.casos_uso.cuantificar import (
     AprobarTrazo,
+    CalibrarEscalaDePlano,
     ConsultarCuantificacion,
     ReemplazarEnlace,
     RegistrarNotaPlano,
@@ -143,6 +166,13 @@ from obractrl.application.casos_uso.gestionar_cierre import (
     SolicitarCierre,
     ValidarCierre,
 )
+from obractrl.application.casos_uso.gestionar_cierre_de_frente import (
+    AprobarCierreDeFrente,
+    ConsultarFrentesDeObra,
+    RechazarCierreDeFrente,
+    SolicitarCierreDeFrente,
+    ValidarCierreDeFrente,
+)
 from obractrl.application.casos_uso.gestionar_cierre_de_obra import (
     AbrirCierreDeObra,
     ConsultarCierreDeObra,
@@ -151,6 +181,10 @@ from obractrl.application.casos_uso.gestionar_cierre_de_obra import (
 from obractrl.application.casos_uso.gestionar_control_cambio import (
     ResolverControlDeCambio,
     SolicitarControlDeCambio,
+)
+from obractrl.application.casos_uso.gestionar_desviaciones import (
+    CapturarCausaDeDesviacion,
+    ConsultarDesviaciones,
 )
 from obractrl.application.casos_uso.gestionar_ensamble import (
     ExplotarEnsamble,
@@ -184,12 +218,31 @@ from obractrl.application.casos_uso.gestionar_obra import (
     CrearObrasEnLote,
 )
 from obractrl.application.casos_uso.gestionar_organizacion import ReiniciarOrganizacion
+from obractrl.application.casos_uso.gestionar_partes import (
+    AgregarActividadNueva,
+    CambiarEstadoDePartes,
+    ConsultarAlertasDePartes,
+    ConsultarArranque,
+    ConsultarBitacoraDePartes,
+    ConsultarCargaDePartes,
+    ConsultarDesfaseDePartes,
+    ConsultarModificaciones,
+    ConsultarPartes,
+    FijarCandadoDeAsignar,
+    FijarDesfaseDePartes,
+    FijarPlantasDeObra,
+    FijarPlantasDePrototipo,
+    MarcarParteIndependiente,
+    ModificarActividad,
+)
 from obractrl.application.casos_uso.gestionar_programacion import (
     ComandoRecalcularRutaCritica,
     ConsultarArbolPrograma,
+    ConsultarEdicionesDePrograma,
     ConsultarRutaCritica,
     CrearProgramaBase,
     EditarProgramacionActividad,
+    IniciarObra,
     InstanciarProgramaObra,
     ProgramarNodoDelArbol,
     RecalcularRutaCritica,
@@ -200,6 +253,15 @@ from obractrl.application.casos_uso.gestionar_proyecto import (
     CrearPrototipo,
     CrearProyecto,
 )
+from obractrl.application.casos_uso.gestionar_reprogramacion import (
+    AplicarReprogramacion,
+    ConsultarReprogramaciones,
+    ObservarReprogramacion,
+    ProponerReprogramacion,
+    RechazarReprogramacion,
+    RevisarReprogramacion,
+    ValidarReprogramacion,
+)
 from obractrl.application.casos_uso.gestionar_usuarios import (
     ActualizarUsuario,
     AsignarAlcance,
@@ -209,15 +271,26 @@ from obractrl.application.casos_uso.gestionar_usuarios import (
 from obractrl.application.casos_uso.notificar_estimacion import (
     NotificarEstimacionValidada,
 )
+from obractrl.application.casos_uso.notificar_partes import NotificarPartes
+from obractrl.application.casos_uso.notificar_reprogramacion import (
+    NotificarReprogramacion,
+)
 from obractrl.application.casos_uso.registrar_revision_fisica import (
     RegistrarRevisionFisica,
 )
 from obractrl.application.casos_uso.registrar_salida_almacen import RegistrarSalidaAlmacen
+from obractrl.application.casos_uso.valuacion_de_partes import (
+    ConsultarValuacion,
+    RedisenarParte,
+)
 from obractrl.application.eventos import (
     ActividadCerrada,
     BusEnProceso,
     EstimacionValidada,
     IncidenciaDetiene,
+    PartesCambiaronDeEstado,
+    ReprogramacionAplicada,
+    ReprogramacionObservada,
 )
 from obractrl.domain.shared.diccionario import TipoCarga, TipoConcepto, TipoInsumo
 from obractrl.infrastructure.auth.supabase_admin import AdminDeSupabase
@@ -231,25 +304,47 @@ __all__ = [
     "AbrirIncidenciaDep",
     "ActualizarObraDep",
     "ActualizarUsuarioDep",
+    "AgregarActividadNuevaDep",
     "AgregarDocumentoDep",
     "AgregarRespuestasDep",
+    "AplicarReprogramacionDep",
+    "AprobarCierreDeFrenteDep",
     "AprobarTrazoDep",
     "ArmarExpedienteDep",
     "ArmarReporteDeEstimacionDep",
     "AsignarAlcanceDep",
     "AsignarFrenteDeObraDep",
     "AutorizarCierreDep",
+    "CalibrarEscalaDePlanoDep",
+    "CambiarEstadoDePartesDep",
     "CapturarAvanceDep",
+    "CapturarCausaDeDesviacionDep",
     "CerrarIncidenciaDep",
     "ColaDeTrabajosDep",
+    "ConfirmarAvanceDep",
+    "ConsultarAlertasDePartesDep",
     "ConsultarArbolProgramaDep",
+    "ConsultarArranqueDep",
+    "ConsultarBitacoraDePartesDep",
+    "ConsultarCargaDePartesDep",
     "ConsultarCargaDep",
+    "ConsultarCatalogosBaseDep",
     "ConsultarCierreDeObraDep",
+    "ConsultarComprobacionesDep",
+    "ConsultarConfirmacionesDep",
     "ConsultarCuantificacionDep",
+    "ConsultarDesfaseDePartesDep",
+    "ConsultarDesviacionesDep",
+    "ConsultarEdicionesDeProgramaDep",
     "ConsultarExpedienteDep",
+    "ConsultarFrentesDeObraDep",
     "ConsultarInsumosProgramadosDep",
+    "ConsultarModificacionesDep",
+    "ConsultarPartesDep",
     "ConsultarPlaneacionDep",
+    "ConsultarReprogramacionesDep",
     "ConsultarRutaCriticaDep",
+    "ConsultarValuacionDep",
     "CrearClusterDep",
     "CrearConceptoDep",
     "CrearContratistaDep",
@@ -258,6 +353,8 @@ __all__ = [
     "CrearFamiliaDep",
     "CrearInsumoDep",
     "CrearObraDep",
+    "CrearObraDesdeCatalogoBaseDep",
+    "CrearObraDesdeCeroDep",
     "CrearObrasEnLoteDep",
     "CrearProgramaBaseDep",
     "CrearPrototipoDep",
@@ -265,6 +362,7 @@ __all__ = [
     "CrearUnidadDep",
     "CrearUsuarioDep",
     "DarDeAltaExtraDep",
+    "DeclararPerdidaDeExcedenteDep",
     "EditarProgramacionActividadDep",
     "EliminarCargaDep",
     "EliminarVersionDeCPUDep",
@@ -274,18 +372,30 @@ __all__ = [
     "ExplotarEnsambleDep",
     "ExtraerEnsambleDep",
     "FabricaDeCargasDep",
+    "FijarCandadoDeAsignarDep",
+    "FijarDesfaseDePartesDep",
+    "FijarPlantasDeObraDep",
+    "FijarPlantasDePrototipoDep",
     "GenerarDesdeEnsambleDep",
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
+    "IniciarObraDep",
     "InstanciarProgramaObraDep",
+    "MarcarParteIndependienteDep",
+    "ModificarActividadDep",
+    "ObservarReprogramacionDep",
     "ObtenerCPUDep",
     "ParticiparEnCierreDep",
     "ProgramarIncidenciaDep",
     "ProgramarNodoDelArbolDep",
+    "ProponerReprogramacionDep",
     "PublicarVersionCPUDep",
     "RecalcularRutaCriticaDep",
+    "RechazarCierreDeFrenteDep",
     "RechazarCierreDep",
     "RechazarIncidenciaDep",
+    "RechazarReprogramacionDep",
+    "RedisenarParteDep",
     "ReemplazarEnlaceDep",
     "RegistrarEventoIncidenciaDep",
     "RegistrarNotaPlanoDep",
@@ -300,9 +410,14 @@ __all__ = [
     "RevertirCargaDep",
     "RevertirCargaEnCadenaDep",
     "RevertirGeneracionDeObraDep",
+    "RevisarReprogramacionDep",
+    "SolicitarCierreDeFrenteDep",
     "SolicitarCierreDep",
+    "ValidarCierreDeFrenteDep",
     "ValidarCierreDep",
     "ValidarEstimacionDep",
+    "ValidarExcedenteDep",
+    "ValidarReprogramacionDep",
 ]
 
 
@@ -310,6 +425,7 @@ def obtener_capturar_avance(sesion: SesionRLS) -> CapturarAvance:
     return CapturarAvance(
         actividades=RepositorioActividadesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
+        cierres_de_frente=RepositorioCierresDeFrenteSQL(sesion),
     )
 
 
@@ -635,12 +751,100 @@ def obtener_registrar_trazo_con_enlaces(sesion: SesionRLS) -> RegistrarTrazoConE
     )
 
 
+def obtener_calibrar_escala(sesion: SesionRLS) -> CalibrarEscalaDePlano:
+    return CalibrarEscalaDePlano(
+        planos=RepositorioPlanosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_reemplazar_enlace(sesion: SesionRLS) -> ReemplazarEnlace:
     return ReemplazarEnlace(
         enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
         actividades=RepositorioActividadesSQL(sesion),
         prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
         desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_confirmar_avance(sesion: SesionRLS) -> ConfirmarAvance:
+    return ConfirmarAvance(
+        actividades=RepositorioActividadesSQL(sesion),
+        confirmaciones=RepositorioConfirmacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_consultar_confirmaciones(sesion: SesionRLS) -> ConsultarConfirmaciones:
+    return ConsultarConfirmaciones(
+        confirmaciones=RepositorioConfirmacionesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+    )
+
+
+def obtener_consultar_frentes_de_obra(sesion: SesionRLS) -> ConsultarFrentesDeObra:
+    return ConsultarFrentesDeObra(
+        cierres=RepositorioCierresDeFrenteSQL(sesion), obras=RepositorioObrasSQL(sesion)
+    )
+
+
+def obtener_solicitar_cierre_de_frente(sesion: SesionRLS) -> SolicitarCierreDeFrente:
+    return SolicitarCierreDeFrente(
+        cierres=RepositorioCierresDeFrenteSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+def obtener_aprobar_cierre_de_frente(sesion: SesionRLS) -> AprobarCierreDeFrente:
+    return AprobarCierreDeFrente(
+        cierres=RepositorioCierresDeFrenteSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+def obtener_validar_cierre_de_frente(sesion: SesionRLS) -> ValidarCierreDeFrente:
+    return ValidarCierreDeFrente(
+        cierres=RepositorioCierresDeFrenteSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+def obtener_rechazar_cierre_de_frente(sesion: SesionRLS) -> RechazarCierreDeFrente:
+    return RechazarCierreDeFrente(
+        cierres=RepositorioCierresDeFrenteSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+def obtener_consultar_desviaciones(sesion: SesionRLS) -> ConsultarDesviaciones:
+    return ConsultarDesviaciones(
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+    )
+
+
+def obtener_capturar_causa(sesion: SesionRLS) -> CapturarCausaDeDesviacion:
+    return CapturarCausaDeDesviacion(
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_consultar_comprobaciones(sesion: SesionRLS) -> ConsultarComprobaciones:
+    return ConsultarComprobaciones(comprobaciones=RepositorioComprobacionesSQL(sesion))
+
+
+def obtener_validar_excedente(sesion: SesionRLS) -> ValidarExcedente:
+    return ValidarExcedente(
+        comprobaciones=RepositorioComprobacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_declarar_perdida_de_excedente(sesion: SesionRLS) -> DeclararPerdidaDeExcedente:
+    return DeclararPerdidaDeExcedente(
+        comprobaciones=RepositorioComprobacionesSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
     )
 
@@ -659,6 +863,13 @@ def obtener_registrar_nota_plano(sesion: SesionRLS) -> RegistrarNotaPlano:
     )
 
 
+ConsultarComprobacionesDep = Annotated[
+    ConsultarComprobaciones, Depends(obtener_consultar_comprobaciones)
+]
+ValidarExcedenteDep = Annotated[ValidarExcedente, Depends(obtener_validar_excedente)]
+DeclararPerdidaDeExcedenteDep = Annotated[
+    DeclararPerdidaDeExcedente, Depends(obtener_declarar_perdida_de_excedente)
+]
 AprobarTrazoDep = Annotated[AprobarTrazo, Depends(obtener_aprobar_trazo)]
 ConsultarCuantificacionDep = Annotated[
     ConsultarCuantificacion, Depends(obtener_consultar_cuantificacion)
@@ -668,6 +879,9 @@ RegistrarTrazoConEnlacesDep = Annotated[
     RegistrarTrazoConEnlaces, Depends(obtener_registrar_trazo_con_enlaces)
 ]
 ReemplazarEnlaceDep = Annotated[ReemplazarEnlace, Depends(obtener_reemplazar_enlace)]
+CalibrarEscalaDePlanoDep = Annotated[
+    CalibrarEscalaDePlano, Depends(obtener_calibrar_escala)
+]
 RegistrarNotaPlanoDep = Annotated[
     RegistrarNotaPlano, Depends(obtener_registrar_nota_plano)
 ]
@@ -1037,9 +1251,311 @@ def obtener_editar_programacion(sesion: SesionRLS) -> EditarProgramacionActivida
         actividades=RepositorioActividadesSQL(sesion),
         obras=RepositorioObrasSQL(sesion),
         programas=RepositorioProgramasSQL(sesion),
+        ediciones=RepositorioEdicionesDeProgramaSQL(sesion),
         uow=UnidadDeTrabajoSQL(sesion),
     )
 
+
+def obtener_iniciar_obra(sesion: SesionRLS) -> IniciarObra:
+    return IniciarObra(
+        actividades=RepositorioActividadesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        programas=RepositorioProgramasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_consultar_ediciones_de_programa(
+    sesion: SesionRLS,
+) -> ConsultarEdicionesDePrograma:
+    return ConsultarEdicionesDePrograma(
+        obras=RepositorioObrasSQL(sesion),
+        ediciones=RepositorioEdicionesDeProgramaSQL(sesion),
+    )
+
+
+def _bus_de_reprogramacion(sesion: SesionRLS, ctx: ContextoActual) -> BusEnProceso:
+    """`ReprogramacionAplicada` y `ReprogramacionObservada` → avisar (D-533): correo +
+    push, y el aviso en vivo. Mismo cableado que `_bus_de_estimacion`."""
+    notificar = NotificarReprogramacion(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        usuarios=RepositorioUsuariosSQL(sesion),
+        correo=ClienteResend(),
+        push=ClienteExpoPush(),
+    )
+
+    async def _avisar_aplicada(evento: ReprogramacionAplicada) -> None:
+        await notificar.aplicada(evento)
+
+    async def _avisar_observada(evento: ReprogramacionObservada) -> None:
+        await notificar.observada(evento)
+
+    bus = BusEnProceso()
+    bus.suscribir(ReprogramacionAplicada, _avisar_aplicada)
+    bus.suscribir(ReprogramacionObservada, _avisar_observada)
+    return suscribir_avisos(bus, ctx=ctx, canal=canal_de_avisos)
+
+
+def obtener_consultar_reprogramaciones(sesion: SesionRLS) -> ConsultarReprogramaciones:
+    return ConsultarReprogramaciones(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+    )
+
+
+def obtener_proponer_reprogramacion(sesion: SesionRLS) -> ProponerReprogramacion:
+    return ProponerReprogramacion(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_revisar_reprogramacion(sesion: SesionRLS) -> RevisarReprogramacion:
+    return RevisarReprogramacion(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_validar_reprogramacion(sesion: SesionRLS) -> ValidarReprogramacion:
+    return ValidarReprogramacion(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_rechazar_reprogramacion(sesion: SesionRLS) -> RechazarReprogramacion:
+    return RechazarReprogramacion(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_observar_reprogramacion(
+    sesion: SesionRLS, ctx: ContextoActual
+) -> ObservarReprogramacion:
+    return ObservarReprogramacion(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_reprogramacion(sesion, ctx),
+    )
+
+
+def obtener_aplicar_reprogramacion(
+    sesion: SesionRLS, ctx: ContextoActual
+) -> AplicarReprogramacion:
+    return AplicarReprogramacion(
+        reprogramaciones=RepositorioReprogramacionesSQL(sesion),
+        editar=obtener_editar_programacion(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_reprogramacion(sesion, ctx),
+    )
+
+
+def obtener_consultar_partes(sesion: SesionRLS) -> ConsultarPartes:
+    return ConsultarPartes(
+        partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion)
+    )
+
+
+def obtener_consultar_carga_de_partes(sesion: SesionRLS) -> ConsultarCargaDePartes:
+    return ConsultarCargaDePartes(
+        partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion)
+    )
+
+
+def obtener_crear_obra_desde_catalogo_base(sesion: SesionRLS) -> CrearObraDesdeCatalogoBase:
+    return CrearObraDesdeCatalogoBase(
+        obras=RepositorioObrasSQL(sesion),
+        clusters=RepositorioClustersSQL(sesion),
+        prototipos=RepositorioPrototiposSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        partes=RepositorioPartesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_crear_obra_desde_cero(sesion: SesionRLS) -> CrearObraDesdeCero:
+    return CrearObraDesdeCero(
+        obras=RepositorioObrasSQL(sesion),
+        clusters=RepositorioClustersSQL(sesion),
+        prototipos=RepositorioPrototiposSQL(sesion),
+        partes=RepositorioPartesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_consultar_valuacion(sesion: SesionRLS) -> ConsultarValuacion:
+    return ConsultarValuacion(
+        partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion)
+    )
+
+
+def obtener_redisenar_parte(sesion: SesionRLS, ctx: ContextoActual) -> RedisenarParte:
+    return RedisenarParte(
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        explotar=ExplotarEnsamble(
+            ensambles=RepositorioEnsamblesSQL(sesion), conceptos=RepositorioConceptosSQL(sesion)
+        ),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+    )
+
+
+def obtener_consultar_catalogos_base(sesion: SesionRLS) -> ConsultarCatalogosBase:
+    return ConsultarCatalogosBase(partes=RepositorioPartesSQL(sesion))
+
+
+def obtener_modificar_actividad(sesion: SesionRLS, ctx: ContextoActual) -> ModificarActividad:
+    return ModificarActividad(
+        partes=RepositorioPartesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+    )
+
+
+def obtener_agregar_actividad_nueva(sesion: SesionRLS, ctx: ContextoActual) -> AgregarActividadNueva:
+    return AgregarActividadNueva(
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+    )
+
+
+def obtener_consultar_modificaciones(sesion: SesionRLS) -> ConsultarModificaciones:
+    return ConsultarModificaciones(
+        partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion)
+    )
+
+
+def obtener_marcar_parte_independiente(sesion: SesionRLS) -> MarcarParteIndependiente:
+    return MarcarParteIndependiente(
+        partes=RepositorioPartesSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+def obtener_fijar_plantas_de_obra(sesion: SesionRLS) -> FijarPlantasDeObra:
+    return FijarPlantasDeObra(partes=RepositorioPartesSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
+
+
+def obtener_fijar_plantas_de_prototipo(sesion: SesionRLS) -> FijarPlantasDePrototipo:
+    return FijarPlantasDePrototipo(
+        partes=RepositorioPartesSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+def _bus_de_partes(sesion: SesionRLS, ctx: ContextoActual) -> BusEnProceso:
+    """`PartesCambiaronDeEstado` → avisar por correo y push a quien da el siguiente paso, y el
+    aviso en vivo (D-571, §8.6)."""
+    notificar = NotificarPartes(
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        usuarios=RepositorioUsuariosSQL(sesion),
+        correo=ClienteResend(),
+        push=ClienteExpoPush(),
+    )
+
+    async def _avisar(evento: PartesCambiaronDeEstado) -> None:
+        await notificar.ejecutar(evento)
+
+    bus = BusEnProceso()
+    bus.suscribir(PartesCambiaronDeEstado, _avisar)
+    return suscribir_avisos(bus, ctx=ctx, canal=canal_de_avisos)
+
+
+def obtener_cambiar_estado_de_partes(
+    sesion: SesionRLS, ctx: ContextoActual
+) -> CambiarEstadoDePartes:
+    return CambiarEstadoDePartes(
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+    )
+
+
+def obtener_consultar_bitacora_de_partes(sesion: SesionRLS) -> ConsultarBitacoraDePartes:
+    return ConsultarBitacoraDePartes(
+        partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion)
+    )
+
+
+def obtener_consultar_alertas_de_partes(sesion: SesionRLS) -> ConsultarAlertasDePartes:
+    return ConsultarAlertasDePartes(
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        configuracion=RepositorioConfiguracionSQL(sesion),
+    )
+
+
+def obtener_consultar_arranque(sesion: SesionRLS) -> ConsultarArranque:
+    return ConsultarArranque(partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion))
+
+
+def obtener_fijar_candado_de_asignar(sesion: SesionRLS) -> FijarCandadoDeAsignar:
+    return FijarCandadoDeAsignar(partes=RepositorioPartesSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
+
+
+def obtener_consultar_desfase_de_partes(sesion: SesionRLS) -> ConsultarDesfaseDePartes:
+    return ConsultarDesfaseDePartes(configuracion=RepositorioConfiguracionSQL(sesion))
+
+
+def obtener_fijar_desfase_de_partes(sesion: SesionRLS) -> FijarDesfaseDePartes:
+    return FijarDesfaseDePartes(
+        configuracion=RepositorioConfiguracionSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+ConsultarAlertasDePartesDep = Annotated[
+    ConsultarAlertasDePartes, Depends(obtener_consultar_alertas_de_partes)
+]
+ConsultarArranqueDep = Annotated[ConsultarArranque, Depends(obtener_consultar_arranque)]
+FijarCandadoDeAsignarDep = Annotated[
+    FijarCandadoDeAsignar, Depends(obtener_fijar_candado_de_asignar)
+]
+ConsultarDesfaseDePartesDep = Annotated[
+    ConsultarDesfaseDePartes, Depends(obtener_consultar_desfase_de_partes)
+]
+FijarDesfaseDePartesDep = Annotated[
+    FijarDesfaseDePartes, Depends(obtener_fijar_desfase_de_partes)
+]
+CambiarEstadoDePartesDep = Annotated[
+    CambiarEstadoDePartes, Depends(obtener_cambiar_estado_de_partes)
+]
+ConsultarBitacoraDePartesDep = Annotated[
+    ConsultarBitacoraDePartes, Depends(obtener_consultar_bitacora_de_partes)
+]
+ConsultarPartesDep = Annotated[ConsultarPartes, Depends(obtener_consultar_partes)]
+CrearObraDesdeCatalogoBaseDep = Annotated[
+    CrearObraDesdeCatalogoBase, Depends(obtener_crear_obra_desde_catalogo_base)
+]
+CrearObraDesdeCeroDep = Annotated[CrearObraDesdeCero, Depends(obtener_crear_obra_desde_cero)]
+ConsultarValuacionDep = Annotated[ConsultarValuacion, Depends(obtener_consultar_valuacion)]
+RedisenarParteDep = Annotated[RedisenarParte, Depends(obtener_redisenar_parte)]
+ConsultarCatalogosBaseDep = Annotated[
+    ConsultarCatalogosBase, Depends(obtener_consultar_catalogos_base)
+]
+ModificarActividadDep = Annotated[ModificarActividad, Depends(obtener_modificar_actividad)]
+AgregarActividadNuevaDep = Annotated[
+    AgregarActividadNueva, Depends(obtener_agregar_actividad_nueva)
+]
+ConsultarModificacionesDep = Annotated[
+    ConsultarModificaciones, Depends(obtener_consultar_modificaciones)
+]
+ConsultarCargaDePartesDep = Annotated[
+    ConsultarCargaDePartes, Depends(obtener_consultar_carga_de_partes)
+]
+MarcarParteIndependienteDep = Annotated[
+    MarcarParteIndependiente, Depends(obtener_marcar_parte_independiente)
+]
+FijarPlantasDeObraDep = Annotated[FijarPlantasDeObra, Depends(obtener_fijar_plantas_de_obra)]
+FijarPlantasDePrototipoDep = Annotated[
+    FijarPlantasDePrototipo, Depends(obtener_fijar_plantas_de_prototipo)
+]
 
 CrearProgramaBaseDep = Annotated[
     CrearProgramaBase, Depends(obtener_crear_programa_base)
@@ -1055,6 +1571,56 @@ InstanciarProgramaObraDep = Annotated[
 ]
 EditarProgramacionActividadDep = Annotated[
     EditarProgramacionActividad, Depends(obtener_editar_programacion)
+]
+ConfirmarAvanceDep = Annotated[ConfirmarAvance, Depends(obtener_confirmar_avance)]
+ConsultarConfirmacionesDep = Annotated[
+    ConsultarConfirmaciones, Depends(obtener_consultar_confirmaciones)
+]
+ConsultarFrentesDeObraDep = Annotated[
+    ConsultarFrentesDeObra, Depends(obtener_consultar_frentes_de_obra)
+]
+SolicitarCierreDeFrenteDep = Annotated[
+    SolicitarCierreDeFrente, Depends(obtener_solicitar_cierre_de_frente)
+]
+AprobarCierreDeFrenteDep = Annotated[
+    AprobarCierreDeFrente, Depends(obtener_aprobar_cierre_de_frente)
+]
+ValidarCierreDeFrenteDep = Annotated[
+    ValidarCierreDeFrente, Depends(obtener_validar_cierre_de_frente)
+]
+RechazarCierreDeFrenteDep = Annotated[
+    RechazarCierreDeFrente, Depends(obtener_rechazar_cierre_de_frente)
+]
+ConsultarDesviacionesDep = Annotated[
+    ConsultarDesviaciones, Depends(obtener_consultar_desviaciones)
+]
+CapturarCausaDeDesviacionDep = Annotated[
+    CapturarCausaDeDesviacion, Depends(obtener_capturar_causa)
+]
+IniciarObraDep = Annotated[IniciarObra, Depends(obtener_iniciar_obra)]
+ConsultarEdicionesDeProgramaDep = Annotated[
+    ConsultarEdicionesDePrograma, Depends(obtener_consultar_ediciones_de_programa)
+]
+ConsultarReprogramacionesDep = Annotated[
+    ConsultarReprogramaciones, Depends(obtener_consultar_reprogramaciones)
+]
+ProponerReprogramacionDep = Annotated[
+    ProponerReprogramacion, Depends(obtener_proponer_reprogramacion)
+]
+RevisarReprogramacionDep = Annotated[
+    RevisarReprogramacion, Depends(obtener_revisar_reprogramacion)
+]
+ValidarReprogramacionDep = Annotated[
+    ValidarReprogramacion, Depends(obtener_validar_reprogramacion)
+]
+RechazarReprogramacionDep = Annotated[
+    RechazarReprogramacion, Depends(obtener_rechazar_reprogramacion)
+]
+AplicarReprogramacionDep = Annotated[
+    AplicarReprogramacion, Depends(obtener_aplicar_reprogramacion)
+]
+ObservarReprogramacionDep = Annotated[
+    ObservarReprogramacion, Depends(obtener_observar_reprogramacion)
 ]
 ReplicarProgramaEnObrasDep = Annotated[
     ReplicarProgramaEnObras, Depends(obtener_replicar_programa)

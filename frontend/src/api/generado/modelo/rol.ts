@@ -14,4 +14,5 @@ export const Rol = {
   supervisor: "supervisor",
   control_obra: "control_obra",
   super_intendente: "super_intendente",
+  costos: "costos",
 } as const;

@@ -13,7 +13,9 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Blocks,
+  Boxes,
   Building2,
+  CalendarClock,
   ClipboardCheck,
   ClipboardList,
   FileEdit,
@@ -22,13 +24,14 @@ import {
   FolderTree,
   GanttChartSquare,
   GitBranch,
+  HardHat,
   Home,
   Layers,
   LineChart,
-  Boxes,
-  HardHat,
+  ListChecks,
   Package,
   Ruler,
+  Scale,
   Settings,
   ShieldCheck,
   Star,
@@ -38,7 +41,7 @@ import {
   Users,
 } from 'lucide-react';
 
-export type Rol = 'residente' | 'supervisor' | 'control_obra' | 'super_intendente';
+export type Rol = 'residente' | 'supervisor' | 'control_obra' | 'super_intendente' | 'costos';
 
 export interface ItemNav {
   /** Ruta de React Router. */
@@ -60,6 +63,7 @@ export const NOMBRE_ROL: Record<Rol, string> = {
   supervisor: 'Supervisor de obra',
   control_obra: 'Control de obra',
   super_intendente: 'Super intendente de obra',
+  costos: 'Costos',
 };
 
 /** Alcance del rol, tal como lo impone RLS (§4). Se muestra como contexto. */
@@ -68,6 +72,7 @@ export const ALCANCE_ROL: Record<Rol, string> = {
   supervisor: 'Sus clusters',
   control_obra: 'Proyectos asignados',
   super_intendente: 'Todos los proyectos',
+  costos: 'Todas las obras, sin privilegios de Control',
 };
 
 const RESIDENTE: readonly SeccionNav[] = [
@@ -77,6 +82,11 @@ const RESIDENTE: readonly SeccionNav[] = [
       { a: '/obras', etiqueta: 'Mis obras', icono: Home },
       { a: '/frentes', etiqueta: 'Frentes de obra', icono: Layers },
       { a: '/avances', etiqueta: 'Avances', icono: LineChart },
+      { a: '/comprobaciones', etiqueta: 'Comprobación', icono: ClipboardCheck },
+      { a: '/desviaciones', etiqueta: 'Desviaciones', icono: Scale },
+      { a: '/cierre-frentes', etiqueta: 'Cierre de frentes', icono: ListChecks },
+      { a: '/partes', etiqueta: 'Partes', icono: Layers },
+      { a: '/reprogramaciones', etiqueta: 'Reprogramaciones', icono: CalendarClock },
       { a: '/incidencias', etiqueta: 'Mis incidencias', icono: ClipboardList },
       { a: '/extra-catalogo', etiqueta: 'Extra-catálogo', icono: FolderTree },
       { a: '/ruta-critica', etiqueta: 'Mi ruta crítica', icono: GitBranch },
@@ -108,6 +118,11 @@ const SUPERVISOR: readonly SeccionNav[] = [
       { a: '/torre', etiqueta: 'Torre de control', icono: Building2 },
       { a: '/incidencias', etiqueta: 'Incidencias', icono: ClipboardList },
       { a: '/cierres', etiqueta: 'Solicitudes de cierre', icono: ClipboardCheck },
+      { a: '/comprobaciones', etiqueta: 'Comprobación', icono: ClipboardCheck },
+      { a: '/desviaciones', etiqueta: 'Desviaciones', icono: Scale },
+      { a: '/cierre-frentes', etiqueta: 'Cierre de frentes', icono: ListChecks },
+      { a: '/partes', etiqueta: 'Partes', icono: Layers },
+      { a: '/reprogramaciones', etiqueta: 'Reprogramaciones', icono: CalendarClock },
       { a: '/ruta-critica', etiqueta: 'Ruta crítica', icono: GitBranch },
     ],
   },
@@ -137,6 +152,11 @@ const CONTROL_OBRA: readonly SeccionNav[] = [
       { a: '/cierres', etiqueta: 'Cierres', icono: ClipboardCheck },
       // Control SÍ autoriza aquí — es distinto del cierre (§11.3)
       { a: '/control-cambio', etiqueta: 'Control de cambio', icono: FileEdit },
+      { a: '/comprobaciones', etiqueta: 'Comprobación', icono: ClipboardCheck },
+      { a: '/desviaciones', etiqueta: 'Desviaciones', icono: Scale },
+      { a: '/cierre-frentes', etiqueta: 'Cierre de frentes', icono: ListChecks },
+      { a: '/partes', etiqueta: 'Partes', icono: Layers },
+      { a: '/reprogramaciones', etiqueta: 'Reprogramaciones', icono: CalendarClock },
       { a: '/ruta-critica', etiqueta: 'Ruta crítica', icono: GitBranch },
     ],
   },
@@ -208,6 +228,11 @@ const SUPER_INTENDENTE: readonly SeccionNav[] = [
       { a: '/cierres-obra', etiqueta: 'Cierres de obra', icono: ShieldCheck },
       { a: '/incidencias', etiqueta: 'Incidencias', icono: ClipboardList },
       { a: '/control-cambio', etiqueta: 'Control de cambio', icono: FileEdit },
+      { a: '/comprobaciones', etiqueta: 'Comprobación', icono: ClipboardCheck },
+      { a: '/desviaciones', etiqueta: 'Desviaciones', icono: Scale },
+      { a: '/cierre-frentes', etiqueta: 'Cierre de frentes', icono: ListChecks },
+      { a: '/partes', etiqueta: 'Partes', icono: Layers },
+      { a: '/reprogramaciones', etiqueta: 'Reprogramaciones', icono: CalendarClock },
       { a: '/ruta-critica', etiqueta: 'Ruta crítica', icono: GitBranch },
       { a: '/avance-proyecto', etiqueta: 'Avance de proyecto', icono: LineChart },
     ],
@@ -243,7 +268,25 @@ const SUPER_INTENDENTE: readonly SeccionNav[] = [
   },
 ];
 
+/**
+ * Costos (D-575): cuantifica y forma el presupuesto, y autoriza lo cuantificado (Control lo valida
+ * al final). **Ve todas las obras, sin las funciones ni los privilegios de Control.**
+ */
+const COSTOS: readonly SeccionNav[] = [
+  {
+    titulo: 'Presupuesto',
+    items: [
+      { a: '/obras', etiqueta: 'Obras', icono: Home, soloLectura: true },
+      { a: '/cuantificador', etiqueta: 'Cuantificador', icono: Ruler },
+      { a: '/partes', etiqueta: 'Partes', icono: Layers },
+      { a: '/desviaciones', etiqueta: 'Desviaciones', icono: Scale },
+      { a: '/config/presupuesto', etiqueta: 'Presupuesto', icono: FileSpreadsheet },
+    ],
+  },
+];
+
 const POR_ROL: Record<Rol, readonly SeccionNav[]> = {
+  costos: COSTOS,
   residente: RESIDENTE,
   supervisor: SUPERVISOR,
   control_obra: CONTROL_OBRA,

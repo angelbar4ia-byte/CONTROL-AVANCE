@@ -23,10 +23,12 @@
  * fechas a porcentajes.
  */
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import {
+  getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryKey,
   useObtenerArbolDelProgramaApiV1ObrasObraIdProgramaArbolGet,
   useObtenerProgramaDeObraApiV1ObrasObraIdProgramaGet,
   useObtenerRutaCriticaApiV1ObrasObraIdRutaCriticaGet,
@@ -48,6 +50,7 @@ import { fmtEntero, fmtFecha } from '@/lib/formato';
 import type { Rol } from '@/shell/navegacion';
 import { construirEscala } from './escala';
 import { agruparPorFrente, construirFilas, filtrarPorTexto, resumirPrograma, soloCriticas } from './filas';
+import { BitacoraDelPrograma } from './BitacoraDelPrograma';
 import { Gantt } from './Gantt';
 import { InstanciarPrograma } from './InstanciarPrograma';
 import {
@@ -61,21 +64,24 @@ import {
 } from './jerarquia';
 import { PanelActividad } from './PanelActividad';
 import { ProgramarNodo } from './ProgramarNodo';
-import { puedeEditarProgramacion, puedeVerCronograma } from './reglas';
+import { alcanceDeEdicion, puedeEditarProgramacion, puedeVerCronograma } from './reglas';
 
 const ENCABEZADO: Record<Rol, { readonly eyebrow: string; readonly titulo: string }> = {
   residente: { eyebrow: 'Mi trabajo', titulo: 'Mi ruta crítica' },
   supervisor: { eyebrow: 'Control supervisión', titulo: 'Ruta crítica' },
   control_obra: { eyebrow: 'Control de obra', titulo: 'Ruta crítica' },
   super_intendente: { eyebrow: 'Control general', titulo: 'Ruta crítica' },
+  costos: { eyebrow: 'Presupuesto', titulo: 'Ruta crítica' },
 };
 
 export default function Programacion() {
   const { sesion } = useSesion();
   const { pathname } = useLocation();
+  const queryClient = useQueryClient();
   const rol = sesion?.rol ?? null;
   const verCronograma = rol !== null && puedeVerCronograma(rol);
   const edita = rol !== null && puedeEditarProgramacion(rol);
+  const alcance = rol !== null ? alcanceDeEdicion(rol) : 'lectura';
 
   const [obraElegida, setObraElegida] = useState('');
   const [fechaCorte, setFechaCorte] = useState('');
@@ -209,6 +215,9 @@ export default function Programacion() {
 
   function refrescar() {
     void rutaQ.refetch();
+    void queryClient.invalidateQueries({
+      queryKey: getListarEdicionesDelProgramaApiV1ObrasObraIdProgramaEdicionesGetQueryKey(obraId),
+    });
     if (verCronograma) void programaQ.refetch();
     if (vistaArbol) void arbolQ.refetch();
   }
@@ -425,13 +434,15 @@ export default function Programacion() {
         </div>
       )}
 
+      {obraId !== '' && <BitacoraDelPrograma obraId={obraId} />}
+
       {filaAbierta && (
         <PanelActividad
           key={filaAbierta.actividadId}
           fila={filaAbierta}
           actividades={filas}
           frentes={frentes}
-          editable={edita}
+          alcance={alcance}
           onCerrar={() => setAbierta(null)}
           onAjustada={refrescar}
         />

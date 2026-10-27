@@ -12,8 +12,13 @@
 export interface AdvertenciasAvance {
   /** `cant_programada` excede `cant_base × 1.2` (§6). */
   readonly cantProgramadaExcedeBase: boolean;
-  /** `cant_ejecutada` excede `cant_programada` (§6). */
-  readonly cantEjecutadaExcedeProgramada: boolean;
+  /**
+   * Lo ejecutado de más: `cant_ejecutada − cant_programada`, o 0. **No es un
+   * error**: registrar nunca se bloquea y el excedente va a comprobación y
+   * validación de Control de obra (migración 0066). Es solo un aviso de lo que
+   * va a pasar al guardar.
+   */
+  readonly excedente: number;
 }
 
 export function advertenciasAvance(params: {
@@ -25,8 +30,10 @@ export function advertenciasAvance(params: {
   return {
     cantProgramadaExcedeBase:
       cantBase !== null && cantProgramada !== null && cantProgramada > cantBase * 1.2,
-    cantEjecutadaExcedeProgramada:
-      cantProgramada !== null && cantEjecutada !== null && cantEjecutada > cantProgramada,
+    excedente:
+      cantProgramada !== null && cantEjecutada !== null
+        ? Math.max(cantEjecutada - cantProgramada, 0)
+        : 0,
   };
 }
 
@@ -190,4 +197,38 @@ export function porSubFrente(
     etiqueta: etiquetas.get(clave)!,
     actividades: grupos.get(clave)!,
   }));
+}
+
+/**
+ * Confirmar el avance antes de estimar (D-533, D-534, D-535). El residente
+ * **registra** siempre y **confirma** que la cifra es la real; confirmar no es un
+ * candado. El estado lo calcula el servidor; aquí solo se traduce a presentación.
+ */
+export type EstadoDeConfirmacion = 'sin_confirmar' | 'desactualizada' | 'confirmada';
+
+export function etiquetaConfirmacion(estado: string): string {
+  switch (estado) {
+    case 'confirmada':
+      return 'confirmado';
+    case 'desactualizada':
+      return 'cambió tras confirmar';
+    default:
+      return 'sin confirmar';
+  }
+}
+
+export function tonoConfirmacion(estado: string): 'ok' | 'warn' | 'outline' {
+  return estado === 'confirmada' ? 'ok' : estado === 'desactualizada' ? 'warn' : 'outline';
+}
+
+/**
+ * ¿Se ofrece «Confirmar»? Solo el residente (D-534), solo si hay avance que
+ * afirmar y solo si la cifra no está ya confirmada tal cual.
+ */
+export function puedeConfirmar(
+  rol: string | null | undefined,
+  actividad: { readonly cant_ejecutada: string | number },
+  estado: string | undefined,
+): boolean {
+  return rol === 'residente' && Number(actividad.cant_ejecutada) > 0 && estado !== 'confirmada';
 }

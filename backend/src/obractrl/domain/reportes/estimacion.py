@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
+from obractrl.domain.avance.confirmacion import AlertaDeRespaldo, alerta_de_respaldo
 from obractrl.domain.shared.diccionario import EstatusEstimacion, ModoPago
 from obractrl.domain.shared.valores import Dinero
 
@@ -57,6 +58,18 @@ class ConceptoDelReporte:
     `SIN_FRENTE`, no se descarta."""
     nivel_clave: str | None = None
     nivel_descripcion: str | None = None
+    cantidad_confirmada: Decimal | None = None
+    """Lo que el residente confirmó del avance de esta actividad (la última
+    confirmación, migración 0070). `None` = nunca se confirmó."""
+
+    @property
+    def alerta_de_respaldo(self) -> tuple[AlertaDeRespaldo, Decimal] | None:
+        """`pago_sin_respaldo_avance` (MODELO.md §5a): la alerta de lo estimado
+        por encima de lo confirmado y cuánto excede. Un renglón sin actividad
+        (no hay avance contra qué leerlo) no la lleva."""
+        if not self.actividad_id:
+            return None
+        return alerta_de_respaldo(self.cantidad, self.cantidad_confirmada)
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +127,11 @@ class ReporteDeEstimacion:
     def cantidad_total(self) -> Decimal:
         return sum((c.cantidad for c in self.conceptos), Decimal(0))
 
+    @property
+    def n_alertas_de_respaldo(self) -> int:
+        """Renglones estimados por encima de lo confirmado (D-535)."""
+        return sum(1 for c in self.conceptos if c.alerta_de_respaldo is not None)
+
     @classmethod
     def armar(
         cls,
@@ -156,6 +174,11 @@ def _concepto(fila: dict) -> ConceptoDelReporte:
         nivel_id=str(fila["nivel_id"]) if fila.get("nivel_id") else None,
         nivel_clave=fila.get("nivel_clave"),
         nivel_descripcion=fila.get("nivel_descripcion"),
+        cantidad_confirmada=(
+            None
+            if fila.get("cantidad_confirmada") is None
+            else Decimal(str(fila["cantidad_confirmada"]))
+        ),
     )
 
 

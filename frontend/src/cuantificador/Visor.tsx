@@ -75,6 +75,10 @@ interface Props {
   readonly herramienta: Herramienta;
   /** Vértices del trazo en curso. */
   readonly borrador: readonly Punto[];
+  /** Huecos ya cerrados del polígono en curso: lo que se descuenta. */
+  readonly huecos?: readonly (readonly Punto[])[];
+  /** El hueco que se está dibujando ahora. */
+  readonly huecoEnCurso?: readonly Punto[];
   readonly onPunto: (p: Punto) => void;
   readonly onSeleccionar: (seleccion: Seleccion | null) => void;
   /** Cambia cuando hay que volver a encuadrar (otro plano). */
@@ -95,6 +99,8 @@ export function Visor({
   seleccion,
   herramienta,
   borrador,
+  huecos = [],
+  huecoEnCurso = [],
   onPunto,
   onSeleccionar,
   claveDePlano,
@@ -283,6 +289,27 @@ export function Visor({
           </g>
         );
       })}
+
+      {(huecos.length > 0 || huecoEnCurso.length > 0) && (
+        <g className="visor__hueco" data-testid="huecos">
+          {huecos.map((h, i) => (
+            <polygon
+              key={i}
+              points={h.map((p) => `${p[0]},${p[1]}`).join(' ')}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+          {huecoEnCurso.length > 0 && (
+            <polyline
+              points={huecoEnCurso.map((p) => `${p[0]},${p[1]}`).join(' ')}
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+          {[...huecos.flat(), ...huecoEnCurso].map((p, i) => (
+            <circle key={i} cx={p[0]} cy={p[1]} r={radio} />
+          ))}
+        </g>
+      )}
 
       {borrador.length > 0 && (
         <g className="visor__borrador" data-testid="borrador">

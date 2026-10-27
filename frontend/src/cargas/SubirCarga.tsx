@@ -22,7 +22,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useSubirCargaApiV1CargasPost } from '@/api/generado/cargas/cargas';
 import { ModoCarga, TipoCarga, type CargaRespuesta } from '@/api/generado/modelo';
 import { claveDeIdempotencia, type ErrorApi } from '@/api/cliente';
+import { useListarPrototiposApiV1PrototiposGet } from '@/api/generado/proyectos/proyectos';
 import { ErrorBanner } from '@/lib/ErrorBanner';
+import { SelectorObra } from '@/lib/SelectorObra';
 import { Sheet } from '@/lib/Sheet';
 import {
   MODOS,
@@ -54,17 +56,28 @@ const CATALOGOS_AFECTADOS = [
 ] as const;
 
 interface Props {
+  /** Desde Presupuesto se entra directo a cargar la ingeniería de una obra. */
+  readonly tipoInicial?: TipoCarga;
+  readonly obraInicial?: string;
   readonly onCerrar: () => void;
   readonly onAplicada: () => void;
 }
 
-export function SubirCarga({ onCerrar, onAplicada }: Props) {
-  const [tipo, setTipo] = useState<TipoCarga>(TipoCarga.catalogo_conceptos);
+export function SubirCarga({ tipoInicial, obraInicial, onCerrar, onAplicada }: Props) {
+  const [tipo, setTipo] = useState<TipoCarga>(tipoInicial ?? TipoCarga.catalogo_conceptos);
   const [modo, setModo] = useState<ModoCarga>(ModoCarga.actualizar);
   const [archivo, setArchivo] = useState<File | null>(null);
   const [previa, setPrevia] = useState<CargaRespuesta | null>(null);
+  // Ingeniería del lote: a qué obra, y si el modelo es de un prototipo conocido o se parte del
+  // más parecido (escenario 2, paso 2 del cerebro).
+  const [obraId, setObraId] = useState(obraInicial ?? '');
+  const [camino, setCamino] = useState<'conocido' | 'diseno_nuevo'>('conocido');
+  const [baseId, setBaseId] = useState('');
+  const [nombreNuevo, setNombreNuevo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const esIngenieria = tipo === TipoCarga.ingenieria_lote;
+  const prototipos = useListarPrototiposApiV1PrototiposGet(undefined, { query: { enabled: esIngenieria } });
 
   // La clave protege el **aplicar**, no la vista previa: la previa no escribe
   // nada y repetirla es inofensivo. Se genera al montar y se reusa, que es lo
@@ -93,6 +106,18 @@ export function SubirCarga({ onCerrar, onAplicada }: Props) {
           tipo,
           modo,
           dry_run: dryRun,
+          ...(esIngenieria
+            ? {
+                obra_id: obraId,
+                camino_ingenieria: camino,
+                ...(camino === 'diseno_nuevo'
+                  ? {
+                      prototipo_base_id: baseId,
+                      nombre_prototipo_nuevo: nombreNuevo.trim() || null,
+                    }
+                  : {}),
+              }
+            : {}),
         },
       },
       {
@@ -161,6 +186,80 @@ export function SubirCarga({ onCerrar, onAplicada }: Props) {
             </div>
           </div>
 
+          {esIngenieria && (
+            <fieldset className="col gap-12" style={{ border: 0, padding: 0, margin: 0 }}>
+              <SelectorObra
+                id="carga-obra"
+                etiqueta="Obra de la ingeniería"
+                valor={obraId}
+                onCambio={(id) => {
+                  setObraId(id);
+                  reiniciarPrevia();
+                }}
+                requerido
+              />
+              <div className="field">
+                <label className="field__label" htmlFor="carga-camino">
+                  El modelo de la obra
+                </label>
+                <select
+                  id="carga-camino"
+                  className="select"
+                  value={camino}
+                  onChange={(e) => {
+                    setCamino(e.target.value as 'conocido' | 'diseno_nuevo');
+                    reiniciarPrevia();
+                  }}
+                >
+                  <option value="conocido">Es uno de los prototipos (el de la obra)</option>
+                  <option value="diseno_nuevo">Es especial o nuevo: partir del más parecido</option>
+                </select>
+                <div className="field__hint">
+                  {camino === 'conocido'
+                    ? 'Se compara contra el prototipo de la obra y las diferencias quedan como desviaciones sin causa.'
+                    : 'Se copia la estructura del prototipo más parecido a uno de un solo uso para esta obra; la ingeniería cargada es su presupuesto.'}
+                </div>
+              </div>
+              {camino === 'diseno_nuevo' && (
+                <>
+                  <div className="field">
+                    <label className="field__label" htmlFor="carga-base">
+                      Prototipo más parecido
+                    </label>
+                    <select
+                      id="carga-base"
+                      className="select"
+                      value={baseId}
+                      required
+                      onChange={(e) => {
+                        setBaseId(e.target.value);
+                        reiniciarPrevia();
+                      }}
+                    >
+                      <option value="">Elige un prototipo…</option>
+                      {(prototipos.data ?? []).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.clave} · {p.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label className="field__label" htmlFor="carga-nombre-nuevo">
+                      Nombre del prototipo nuevo (opcional)
+                    </label>
+                    <input
+                      id="carga-nombre-nuevo"
+                      className="input"
+                      value={nombreNuevo}
+                      onChange={(e) => setNombreNuevo(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+            </fieldset>
+          )}
+
           <div className="field">
             <label className="field__label" htmlFor="carga-modo">
               Modo
@@ -216,7 +315,11 @@ export function SubirCarga({ onCerrar, onAplicada }: Props) {
             <button
               type="submit"
               className="btn btn--primary"
-              disabled={subir.isPending || archivo === null}
+              disabled={
+                subir.isPending ||
+                archivo === null ||
+                (esIngenieria && (obraId === '' || (camino === 'diseno_nuevo' && baseId === '')))
+              }
             >
               {subir.isPending ? 'Revisando…' : 'Ver qué haría'}
             </button>

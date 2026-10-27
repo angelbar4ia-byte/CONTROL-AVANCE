@@ -52,6 +52,7 @@ export const ROLES = {
   supervisor: process.env.E2E_USUARIO_SUPERVISOR ?? '',
   control: process.env.E2E_USUARIO_CONTROL ?? '',
   superIntendente: process.env.E2E_USUARIO_SUPER_INTENDENTE ?? '',
+  costos: process.env.E2E_USUARIO_COSTOS ?? '',
 } as const;
 
 export type Rol = keyof typeof ROLES;

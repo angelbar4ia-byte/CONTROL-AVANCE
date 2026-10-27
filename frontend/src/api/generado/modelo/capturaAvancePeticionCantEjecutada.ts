@@ -7,6 +7,6 @@
  */
 
 /**
- * No puede exceder la programada.
+ * Puede exceder la programada: registrar nunca se bloquea. Lo que pase de lo programado queda como excedente pendiente de comprobación y validación de Control de obra.
  */
 export type CapturaAvancePeticionCantEjecutada = number | string;

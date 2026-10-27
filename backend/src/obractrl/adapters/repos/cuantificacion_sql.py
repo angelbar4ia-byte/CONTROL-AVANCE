@@ -25,6 +25,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 __all__ = [
@@ -37,14 +38,18 @@ __all__ = [
 # `ST_Area`/`ST_Perimeter`/`ST_Length` sobre la geometría nativa; `conteo`
 # es un literal (MODELO.md §1b: "cuántas filas de trazo enlaza, no una
 # función de PostGIS") — este `case` es la única fórmula que decide cuál
-# aplicar, repetida en los dos lugares que necesitan `medida_valor`
-# (`_crear` de trazos+enlace en un solo golpe no existe: `enlaces_de_nodo`
-# es el único lector real).
-_MEDIDA_VALOR_SQL = """
+# aplicar, y la usan todas las consultas que leen `medida_valor`.
+#
+# La medida se lee **ya escalada** (migración 0069): `p.escala_m_por_unidad` son
+# los metros por unidad de plano, `null` = sin calibrar = 1. Un área escala con el
+# cuadrado, un largo con la escala, un conteo no escala. Toda consulta que use
+# esta fórmula debe unir `plano p` (`p.id = t.plano_id`).
+_ESCALA_SQL = "coalesce(p.escala_m_por_unidad, 1)"
+_MEDIDA_VALOR_SQL = f"""
     case e.medida
-      when 'area'      then ST_Area(t.geometria)
-      when 'perimetro'  then ST_Perimeter(t.geometria)
-      when 'longitud'   then ST_Length(t.geometria)
+      when 'area'      then ST_Area(t.geometria) * power({_ESCALA_SQL}, 2)
+      when 'perimetro'  then ST_Perimeter(t.geometria) * {_ESCALA_SQL}
+      when 'longitud'   then ST_Length(t.geometria) * {_ESCALA_SQL}
       when 'conteo'     then 1
     end
 """
@@ -96,7 +101,8 @@ class RepositorioPlanosSQL:
                 text(
                     """
                     select id, obra_id, nombre, archivo_url, version, capas,
-                           subido_por, created_at
+                           subido_por, created_at, escala_m_por_unidad,
+                           escala_referencia, escala_calibrada_en
                       from plano
                      where id = :id
                     """
@@ -116,6 +122,35 @@ class RepositorioPlanosSQL:
             ).scalar_one()
         )
 
+    async def fijar_escala(
+        self,
+        plano_id: UUID,
+        *,
+        escala_m_por_unidad: Decimal,
+        referencia: dict[str, Any],
+        usuario_id: UUID,
+    ) -> None:
+        """Calibra (o recalibra) el plano. La geometría de los trazos no se
+        toca: la escala se aplica al leer la medida (migración 0069)."""
+        await self._sesion.execute(
+            text(
+                """
+                update plano
+                   set escala_m_por_unidad  = :escala,
+                       escala_referencia    = cast(:referencia as jsonb),
+                       escala_calibrada_por = :usuario_id,
+                       escala_calibrada_en  = now()
+                 where id = :id
+                """
+            ),
+            {
+                "id": str(plano_id),
+                "escala": escala_m_por_unidad,
+                "referencia": json.dumps(referencia),
+                "usuario_id": str(usuario_id),
+            },
+        )
+
     async def listar_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
         filas = (
             await self._sesion.execute(
@@ -123,6 +158,8 @@ class RepositorioPlanosSQL:
                     """
                     select p.id, p.obra_id, p.nombre, p.archivo_url, p.version,
                            p.capas, p.subido_por, p.created_at,
+                           p.escala_m_por_unidad, p.escala_referencia,
+                           p.escala_calibrada_en,
                            count(t.id) as n_trazos,
                            -- Trazados sobre una versión anterior del plano:
                            -- quedan marcados para revisión, no se recalculan
@@ -186,6 +223,41 @@ class RepositorioTrazosSQL:
             )
         ).scalar_one()
         return fila
+
+    async def motivo_de_geometria_invalida(self, geometria_wkt: str) -> str | None:
+        """Por qué el WKT no sirve para medir, o `None` si sirve.
+
+        Dos cosas distintas pasan por aquí: un texto que ni siquiera es WKT
+        (PostGIS lo rechaza al leerlo) y una geometría bien formada pero
+        **inválida**, como un polígono cuyos bordes se cruzan. La segunda es la
+        peligrosa: PostGIS la acepta y `ST_Area` devuelve 0 en silencio, así que
+        el trazo sumaría cero a la cantidad sin que nadie lo notara.
+
+        El `SAVEPOINT` (`begin_nested`) es lo que permite probar un WKT roto sin
+        abortar la transacción de quien llama.
+        """
+        try:
+            async with self._sesion.begin_nested():
+                fila = (
+                    await self._sesion.execute(
+                        text(
+                            """
+                            select ST_IsValid(g) as valida,
+                                   ST_IsValidReason(g) as motivo,
+                                   ST_IsEmpty(g) as vacia
+                              from (select ST_GeomFromText(:wkt, 0) as g) s
+                            """
+                        ),
+                        {"wkt": geometria_wkt},
+                    )
+                ).one()
+        except DBAPIError:
+            return "No es una geometría WKT válida (revisa que tenga los puntos que su forma exige)."
+        if fila.vacia:
+            return "La geometría está vacía."
+        if not fila.valida:
+            return f"La geometría es inválida: {fila.motivo}."
+        return None
 
     async def obtener(self, trazo_id: UUID) -> dict[str, Any] | None:
         fila = (
@@ -252,6 +324,7 @@ class RepositorioTrazosSQL:
                            {_MEDIDA_VALOR_SQL} as medida_valor
                       from enlace_cuantificacion e
                       join trazo t on t.id = e.trazo_id
+                      join plano p on p.id = t.plano_id
                      where t.plano_id = :plano_id
                      order by e.created_at, e.id
                     """
@@ -364,6 +437,7 @@ class RepositorioEnlacesCuantificacionSQL:
                            {_MEDIDA_VALOR_SQL} as medida_valor
                       from enlace_cuantificacion e
                       join trazo t on t.id = e.trazo_id
+                      join plano p on p.id = t.plano_id
                      where e.tipo_nodo = cast(:tipo_nodo as tipo_nodo_cuantificacion)
                        and (
                             (cast(:actividad_id as uuid) is not null
@@ -383,6 +457,25 @@ class RepositorioEnlacesCuantificacionSQL:
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]
+
+    async def nodos_vigentes_de_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
+        """Los nodos distintos a los que enlazan, vigentes, los trazos de un
+        plano: lo que hay que recalcular cuando cambia su escala."""
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select distinct e.tipo_nodo, e.actividad_id, e.prototipo_nodo_id
+                      from enlace_cuantificacion e
+                      join trazo t on t.id = e.trazo_id
+                     where t.plano_id = :plano_id and e.vigente
+                     order by e.tipo_nodo, e.actividad_id, e.prototipo_nodo_id
+                    """
+                ),
+                {"plano_id": str(plano_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
 
     async def de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
         filas = (

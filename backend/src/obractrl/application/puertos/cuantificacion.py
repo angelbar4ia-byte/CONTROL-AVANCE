@@ -45,6 +45,18 @@ class RepositorioPlanos(Protocol):
 
     async def obtener(self, plano_id: UUID) -> dict[str, Any] | None: ...
 
+    async def fijar_escala(
+        self,
+        plano_id: UUID,
+        *,
+        escala_m_por_unidad: Decimal,
+        referencia: dict[str, Any],
+        usuario_id: UUID,
+    ) -> None:
+        """Calibra (o recalibra) el plano (migración 0069). La geometría de los
+        trazos no se toca: la escala se aplica al leer la medida."""
+        ...
+
     async def obra_visible(self, obra_id: UUID) -> bool:
         """¿La obra existe y entra en el alcance de quien consulta (RLS)?
         Para responder 404 en vez de una lista vacía que se confunde con "esta
@@ -79,6 +91,13 @@ class RepositorioTrazos(Protocol):
         fuente: str,
         autor_id: UUID,
     ) -> UUID: ...
+
+    async def motivo_de_geometria_invalida(self, geometria_wkt: str) -> str | None:
+        """Por qué el WKT no sirve para medir (no es WKT, está vacío o es
+        inválido —bordes que se cruzan—), o `None` si sirve. PostGIS acepta un
+        polígono con bordes cruzados y mide 0: sin esta guarda el trazo sumaría
+        cero en silencio."""
+        ...
 
     async def obtener(self, trazo_id: UUID) -> dict[str, Any] | None:
         """El trazo (sin geometría) o `None` si no existe o RLS no lo deja ver."""
@@ -139,6 +158,12 @@ class RepositorioEnlacesCuantificacion(Protocol):
         (§12.11: el cálculo con PostGIS y el filtro de vigencia están
         separados a propósito — esta consulta solo calcula, el dominio
         decide qué sumar)."""
+        ...
+
+    async def nodos_vigentes_de_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
+        """Los nodos distintos (`tipo_nodo`, `actividad_id`, `prototipo_nodo_id`)
+        a los que enlazan, vigentes, los trazos de un plano: lo que hay que
+        recalcular cuando cambia su escala (migración 0069)."""
         ...
 
     async def de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:

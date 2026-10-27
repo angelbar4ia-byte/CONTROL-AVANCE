@@ -10,6 +10,7 @@ from obractrl.domain.avance.reglas import (
     ErrorDeCaptura,
     aplicar_captura,
     calcular_avance,
+    excedente_de,
     resolver_estatus,
     validar_ejecucion,
     validar_programacion,
@@ -51,16 +52,54 @@ class TestTopeDeProgramacion:
             validar_programacion(D("150"), D("100"), tope=D("1.2"))
 
 
-class TestTopeDeEjecucion:
-    """`cant_ejecutada <= cant_programada` (§6)."""
+class TestEjecucionYExcedente:
+    """Lo ejecutado de más se registra: no se rechaza (migración 0066).
 
-    def test_permite_igual_a_la_programada(self) -> None:
-        validar_ejecucion(D("80"), D("80"))
+    Antes `cant_ejecutada <= cant_programada` rechazaba la captura. El cerebro
+    dice «registrar nunca se bloquea» y el usuario decidió que el excedente va a
+    comprobación y validación de Control de obra.
+    """
 
-    def test_rechaza_arriba_de_la_programada(self) -> None:
+    def test_acepta_ejecutar_cero_y_lo_programado(self) -> None:
+        validar_ejecucion(D("0"))
+        validar_ejecucion(D("80"))
+
+    def test_acepta_ejecutar_mas_de_lo_programado(self) -> None:
+        validar_ejecucion(D("80.5"))
+
+    def test_lo_unico_imposible_es_ejecutar_menos_que_nada(self) -> None:
         with pytest.raises(ErrorDeCaptura) as exc:
-            validar_ejecucion(D("80.5"), D("80"))
+            validar_ejecucion(D("-1"))
         assert exc.value.campo == "cant_ejecutada"
+
+    @pytest.mark.parametrize(
+        ("ejecutada", "programada", "perdida", "esperado"),
+        [
+            ("80", "100", "0", "0"),       # no llegó a lo programado
+            ("100", "100", "0", "0"),      # justo lo programado
+            ("120", "100", "0", "20"),     # el excedente es la diferencia
+            ("120", "100", "20", "0"),     # Control lo declaró pérdida: ya no es pendiente
+            ("130", "100", "20", "10"),    # volvió a crecer después de la pérdida
+        ],
+    )
+    def test_el_excedente_es_lo_que_aun_no_se_decidio(
+        self, ejecutada: str, programada: str, perdida: str, esperado: str
+    ) -> None:
+        assert excedente_de(D(ejecutada), D(programada), D(perdida)) == D(esperado)
+
+    def test_la_captura_lo_reporta_y_el_avance_sigue_topado(self) -> None:
+        captura = aplicar_captura(
+            cant_base=D("100"), cant_programada=D("100"), cant_ejecutada=D("115")
+        )
+        assert captura.cant_excedente == D("15")
+        assert captura.avance.pct == D("100")
+        assert captura.estatus is EstatusActividad.CASI
+
+    def test_sin_excedente_la_captura_dice_cero(self) -> None:
+        captura = aplicar_captura(
+            cant_base=D("100"), cant_programada=D("100"), cant_ejecutada=D("60")
+        )
+        assert captura.cant_excedente == D("0")
 
 
 class TestCalculoDeAvance:

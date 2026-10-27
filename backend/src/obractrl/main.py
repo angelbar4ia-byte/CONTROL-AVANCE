@@ -46,10 +46,19 @@ from obractrl.application.casos_uso.calcular_cpu import ConceptoNoEncontrado
 from obractrl.application.casos_uso.capturar_avance import (
     ActividadBloqueada,
     ActividadNoEncontrada,
+    FrenteCerrado,
+)
+from obractrl.application.casos_uso.comprobar_excedente import ActividadSinComprobacion
+from obractrl.application.casos_uso.confirmar_avance import (
+    ActividadSinConfirmacion,
+    PeriodoBloqueadoParaConfirmar,
 )
 from obractrl.application.casos_uso.consultar_insumos_programados import (
     CalendarioSinGenerar,
     PrototipoSinPrograma,
+)
+from obractrl.application.casos_uso.crear_obra_desde_catalogo_base import (
+    ErrorDeCatalogoBase,
 )
 from obractrl.application.casos_uso.cuantificar import (
     EnlaceNoEncontrado,
@@ -68,9 +77,14 @@ from obractrl.application.casos_uso.gestionar_carga import (
     CargaNoRevertible,
 )
 from obractrl.application.casos_uso.gestionar_cierre import SolicitudCierreNoEncontrada
+from obractrl.application.casos_uso.gestionar_cierre_de_frente import (
+    CierreDeFrenteNoEncontrado,
+    FrenteNoEncontrado,
+)
 from obractrl.application.casos_uso.gestionar_cierre_de_obra import (
     CierreDeObraNoEncontrado,
 )
+from obractrl.application.casos_uso.gestionar_desviaciones import DesviacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_ensamble import (
     ClaveDeEnsambleEnUso,
     EnsambleNoCoincideConInstancia,
@@ -81,11 +95,21 @@ from obractrl.application.casos_uso.gestionar_ensamble import (
 from obractrl.application.casos_uso.gestionar_estimacion import EstimacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_evaluacion import EvaluacionNoEncontrada
 from obractrl.application.casos_uso.gestionar_incidencia import IncidenciaNoEncontrada
+from obractrl.application.casos_uso.gestionar_partes import (
+    ErrorDeParte,
+    ErrorDePlantas,
+    ParteNoEncontrada,
+    ParteNoPermitida,
+    PrototipoNoEncontrado,
+)
 from obractrl.application.casos_uso.gestionar_programacion import (
     ActividadNoProgramable,
     ConflictoNoResuelto,
     NodoNoProgramable,
     ProgramaBaseNoEncontrado,
+)
+from obractrl.application.casos_uso.gestionar_reprogramacion import (
+    ReprogramacionNoEncontrada,
 )
 from obractrl.application.casos_uso.gestionar_usuarios import (
     CorreoYaRegistrado,
@@ -99,6 +123,8 @@ from obractrl.application.puertos.repositorios import (
     RegistroNoEncontrado,
     VersionVigenteNoEliminable,
 )
+from obractrl.domain.avance.comprobacion import ErrorDeComprobacion, SinExcedente
+from obractrl.domain.avance.confirmacion import ErrorDeConfirmacion
 from obractrl.domain.avance.reglas import ErrorDeCaptura
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera
 from obractrl.domain.catalogos.apu import CicloEnExplosion, ErrorDeAPU
@@ -106,6 +132,7 @@ from obractrl.domain.catalogos.reglas import ErrorDeCatalogo
 from obractrl.domain.cierres.obra import ErrorDeCierreDeObra
 from obractrl.domain.cierres.reglas import ErrorDeCierre
 from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
+from obractrl.domain.desviacion.desviacion import ErrorDeDesviacion
 from obractrl.domain.estimacion.reglas import ErrorDeEstimacion
 from obractrl.domain.evaluaciones.reglas import ErrorDeEvaluacion
 from obractrl.domain.expediente.reglas import ErrorDeExpediente
@@ -115,8 +142,17 @@ from obractrl.domain.materiales.reglas import ErrorDeMaterial
 from obractrl.domain.obras.generacion import ErrorDeGeneracion
 from obractrl.domain.obras.precio_armado import ErrorDePrecioArmado
 from obractrl.domain.obras.reglas import ErrorDeObra, TransicionDeObraInvalida
+from obractrl.domain.partes.alertas import ErrorDeUmbrales
+from obractrl.domain.partes.modificacion import ErrorDeModificacion
 from obractrl.domain.programacion.cpm import CicloEnGrafoError
-from obractrl.domain.programacion.reglas import ErrorDeProgramacion
+from obractrl.domain.programacion.reglas import (
+    EdicionDeProgramaNoPermitida,
+    ErrorDeProgramacion,
+)
+from obractrl.domain.programacion.reprogramacion import (
+    ErrorDeReprogramacion,
+    FechasDeLoAsignado,
+)
 from obractrl.domain.proyectos.reglas import ErrorDeProyecto
 from obractrl.domain.revisiones.reglas import ErrorDeRevision
 from obractrl.infrastructure.config import obtener_config
@@ -572,6 +608,249 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             campo=exc.campo,
         )
 
+    @app.exception_handler(EdicionDeProgramaNoPermitida)
+    async def _edicion_de_programa(
+        request: Request, exc: EdicionDeProgramaNoPermitida
+    ) -> JSONResponse:
+        # 403: el rol puede editar el programa, pero no ESTO. Depende de qué campos
+        # trae la petición, no solo de quién la manda (`exigir_rol` no lo ve).
+        return _problema(
+            request,
+            status=403,
+            tipo="edicion-de-programa-no-permitida",
+            titulo="Esa edición del programa no te corresponde",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ParteNoPermitida)
+    async def _parte_no_permitida(request: Request, exc: ParteNoPermitida) -> JSONResponse:
+        return _problema(
+            request,
+            status=403,
+            tipo="parte-no-permitida",
+            titulo="Ese paso de la parte no te corresponde",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeParte)
+    async def _error_de_parte(request: Request, exc: ErrorDeParte) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="regla-de-parte",
+            titulo="La parte no está en ese paso",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ParteNoEncontrada)
+    async def _parte_no_encontrada(request: Request, exc: ParteNoEncontrada) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="parte-no-encontrada",
+            titulo="Parte no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeCatalogoBase)
+    async def _catalogo_base(request: Request, exc: ErrorDeCatalogoBase) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="catalogo-base-no-disponible",
+            titulo="No hay catálogo base para eso",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeModificacion)
+    async def _modificacion(request: Request, exc: ErrorDeModificacion) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="modificacion-invalida",
+            titulo="Esa modificación no cabe",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeUmbrales)
+    async def _umbrales(request: Request, exc: ErrorDeUmbrales) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="umbrales-invalidos",
+            titulo="Umbrales inválidos",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDePlantas)
+    async def _plantas(request: Request, exc: ErrorDePlantas) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="plantas-invalidas",
+            titulo="Plantas inválidas",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(PrototipoNoEncontrado)
+    async def _prototipo_no_encontrado(
+        request: Request, exc: PrototipoNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="prototipo-no-encontrado",
+            titulo="Prototipo no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(FechasDeLoAsignado)
+    async def _fechas_de_lo_asignado(
+        request: Request, exc: FechasDeLoAsignado
+    ) -> JSONResponse:
+        # 409: la petición es válida pero choca con el estado de la actividad
+        # (asignada). El camino es proponer una reprogramación (P-4).
+        return _problema(
+            request,
+            status=409,
+            tipo="fechas-de-lo-asignado",
+            titulo="Las fechas de lo asignado no se mueven solas",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeReprogramacion)
+    async def _reprogramacion(request: Request, exc: ErrorDeReprogramacion) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="regla-de-reprogramacion",
+            titulo="Reprogramación no permitida",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ReprogramacionNoEncontrada)
+    async def _reprogramacion_no_encontrada(
+        request: Request, exc: ReprogramacionNoEncontrada
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="reprogramacion-no-encontrada",
+            titulo="Reprogramación no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(CierreDeFrenteNoEncontrado)
+    async def _cierre_de_frente_no_encontrado(
+        request: Request, exc: CierreDeFrenteNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="cierre-de-frente-no-encontrado",
+            titulo="Cierre de frente no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(FrenteNoEncontrado)
+    async def _frente_no_encontrado(request: Request, exc: FrenteNoEncontrado) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="frente-no-encontrado",
+            titulo="Frente no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeConfirmacion)
+    async def _confirmacion(request: Request, exc: ErrorDeConfirmacion) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-confirmacion",
+            titulo="Confirmación de avance inválida",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ActividadSinConfirmacion)
+    async def _actividad_sin_confirmacion(
+        request: Request, exc: ActividadSinConfirmacion
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="actividad-no-encontrada",
+            titulo="Actividad no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(PeriodoBloqueadoParaConfirmar)
+    async def _periodo_bloqueado_confirmar(
+        request: Request, exc: PeriodoBloqueadoParaConfirmar
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="periodo-bloqueado",
+            titulo="El periodo está bloqueado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeDesviacion)
+    async def _desviacion(request: Request, exc: ErrorDeDesviacion) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-desviacion",
+            titulo="Desviación inválida",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(DesviacionNoEncontrada)
+    async def _desviacion_no_encontrada(
+        request: Request, exc: DesviacionNoEncontrada
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="desviacion-no-encontrada",
+            titulo="Desviación no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ErrorDeComprobacion)
+    async def _comprobacion(request: Request, exc: ErrorDeComprobacion) -> JSONResponse:
+        return _problema(
+            request,
+            status=422,
+            tipo="regla-de-comprobacion",
+            titulo="Comprobación de excedente inválida",
+            detalle=str(exc),
+            campo=exc.campo,
+        )
+
+    @app.exception_handler(SinExcedente)
+    async def _sin_excedente(request: Request, exc: SinExcedente) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="sin-excedente",
+            titulo="No hay excedente que decidir",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(ActividadSinComprobacion)
+    async def _actividad_sin_comprobacion(
+        request: Request, exc: ActividadSinComprobacion
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="actividad-no-encontrada",
+            titulo="Actividad no encontrada",
+            detalle=str(exc),
+        )
+
     @app.exception_handler(ErrorDePrecioArmado)
     async def _precio_armado(
         request: Request, exc: ErrorDePrecioArmado
@@ -744,6 +1023,16 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="actividad-no-encontrada",
             titulo="Actividad no encontrada",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(FrenteCerrado)
+    async def _frente_cerrado(request: Request, exc: FrenteCerrado) -> JSONResponse:
+        return _problema(
+            request,
+            status=409,
+            tipo="frente-cerrado",
+            titulo="El frente está cerrado",
             detalle=str(exc),
         )
 

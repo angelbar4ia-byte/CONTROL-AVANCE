@@ -33,6 +33,9 @@ from obractrl.application.eventos import (
     CierreDeObraCompletado,
     EstimacionValidada,
     IncidenciaDetiene,
+    PartesCambiaronDeEstado,
+    ReprogramacionAplicada,
+    ReprogramacionObservada,
 )
 from obractrl.application.puertos.tiempo_real import Aviso, PublicadorEnVivo
 from obractrl.infrastructure.db.sesion import ContextoSesion
@@ -75,13 +78,43 @@ def _cierre_de_obra(evento: CierreDeObraCompletado) -> tuple[str, dict[str, str]
     }
 
 
+def _reprogramacion_aplicada(evento: ReprogramacionAplicada) -> tuple[str, dict[str, str]]:
+    # Sin fechas ni motivo: el aviso llega a todos los conectados de la organización y
+    # el detalle lo pide quien tenga permiso, por su endpoint (§12.4).
+    return "reprogramacion_aplicada", {
+        "obra_id": str(evento.obra_id),
+        "reprogramacion_id": str(evento.reprogramacion_id),
+        "actividad_id": str(evento.actividad_id),
+    }
+
+
+def _reprogramacion_observada(evento: ReprogramacionObservada) -> tuple[str, dict[str, str]]:
+    # Sin el texto: el aviso llega a todos los conectados de la organización y la
+    # observación la lee quien tenga permiso, por su endpoint (§12.4).
+    return "reprogramacion_observada", {
+        "obra_id": str(evento.obra_id),
+        "reprogramacion_id": str(evento.reprogramacion_id),
+    }
+
+
+def _partes_cambiaron(evento: PartesCambiaronDeEstado) -> tuple[str, dict[str, str]]:
+    return "partes_cambiaron_de_estado", {
+        "obra_id": str(evento.obra_id),
+        "accion": evento.accion,
+        "n": str(len(evento.claves)),
+    }
+
+
 TRADUCCIONES: dict[type, Callable[[Any], tuple[str, dict[str, str]]]] = {
     ActividadCerrada: _actividad_cerrada,
     IncidenciaDetiene: _incidencia_detiene,
     EstimacionValidada: _estimacion_validada,
     CierreDeObraCompletado: _cierre_de_obra,
+    ReprogramacionAplicada: _reprogramacion_aplicada,
+    ReprogramacionObservada: _reprogramacion_observada,
+    PartesCambiaronDeEstado: _partes_cambiaron,
 }
-"""Los cuatro eventos del §11.1 que hoy existen. Ver el encabezado sobre por
+"""Los eventos del §11.1 que hoy existen (y el de D-533). Ver el encabezado sobre por
 qué esto es una tabla explícita."""
 
 

@@ -41,8 +41,10 @@ import {
   formularioDeFila,
   hayCambios,
   refsDesconocidas,
+  soloFechas,
 } from '@/programacion/formulario';
 import {
+  alcanceDeEdicion,
   claseBarra,
   etiquetaTipoDependencia,
   puedeAdministrarProgramasBase,
@@ -324,6 +326,13 @@ describe('permisos reflejados del §11.2', () => {
   it('ajustar la programación es de Supervisor y Control de obra', () => {
     expect(ROLES.filter(puedeEditarProgramacion)).toEqual(['supervisor', 'control_obra']);
   });
+
+  it('el residente edita solo las fechas; el super intendente solo lee', () => {
+    expect(alcanceDeEdicion('control_obra')).toBe('completo');
+    expect(alcanceDeEdicion('supervisor')).toBe('completo');
+    expect(alcanceDeEdicion('residente')).toBe('fechas');
+    expect(alcanceDeEdicion('super_intendente')).toBe('lectura');
+  });
 });
 
 describe('rutas donde se monta la feature (§5.1)', () => {
@@ -376,6 +385,10 @@ describe('diff del PATCH de programación (§11.2)', () => {
   it('manda solo el campo que cambió', () => {
     const formulario = { ...formularioDeFila(fila), duracionDias: '8' };
     expect(cambiosDeProgramacion(fila, formulario)).toEqual({ duracion_dias: 8 });
+    // El residente (alcance `fechas`) no manda la duración aunque cambie.
+    expect(soloFechas({ duracion_dias: 8, fecha_inicio: '2026-03-09', frente_id: null })).toEqual({
+      fecha_inicio: '2026-03-09',
+    });
   });
 
   it('vaciar una fecha la limpia con null, no la omite', () => {

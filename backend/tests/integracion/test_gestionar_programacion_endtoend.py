@@ -28,6 +28,9 @@ from obractrl.adapters.api.casos_uso import (
 )
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.cierres_sql import RepositorioCierresSQL
+from obractrl.adapters.repos.ediciones_de_programa_sql import (
+    RepositorioEdicionesDeProgramaSQL,
+)
 from obractrl.adapters.repos.incidencias_sql import RepositorioIncidenciasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
 from obractrl.adapters.repos.programas_sql import RepositorioProgramasSQL
@@ -450,9 +453,12 @@ async def test_patch_programacion_ajusta_y_recalcula(
             actividades=RepositorioActividadesSQL(sesion),
             obras=RepositorioObrasSQL(sesion),
             programas=RepositorioProgramasSQL(sesion),
+            ediciones=RepositorioEdicionesDeProgramaSQL(sesion),
             uow=UnidadDeTrabajoSQL(sesion),
         ).ejecutar(
             ComandoEditarProgramacion(
+                rol=Rol(contexto_supervisor.rol),
+                usuario_id=contexto_supervisor.usuario_id,
                 actividad_id=cronograma.act_c, duracion_dias=Decimal("9")
             )
         )
@@ -537,10 +543,13 @@ async def test_patch_parte_una_actividad_y_recalcula_la_obra(
             actividades=RepositorioActividadesSQL(sesion),
             obras=RepositorioObrasSQL(sesion),
             programas=RepositorioProgramasSQL(sesion),
+            ediciones=RepositorioEdicionesDeProgramaSQL(sesion),
             uow=UnidadDeTrabajoSQL(sesion),
         ).ejecutar(
             ComandoEditarProgramacion(
                 actividad_id=cronograma.act_a,
+                rol=Rol(contexto_supervisor.rol),
+                usuario_id=contexto_supervisor.usuario_id,
                 tramos=(
                     Tramo(duracion_dias=2),
                     Tramo(duracion_dias=3, offset_dias=6),
@@ -588,10 +597,13 @@ async def test_patch_con_tramos_traslapados_no_escribe(
                 actividades=RepositorioActividadesSQL(sesion),
                 obras=RepositorioObrasSQL(sesion),
                 programas=RepositorioProgramasSQL(sesion),
+                ediciones=RepositorioEdicionesDeProgramaSQL(sesion),
                 uow=UnidadDeTrabajoSQL(sesion),
             ).ejecutar(
                 ComandoEditarProgramacion(
                     actividad_id=cronograma.act_a,
+                    rol=Rol(contexto_control.rol),
+                    usuario_id=contexto_control.usuario_id,
                     tramos=(
                         Tramo(duracion_dias=3),
                         Tramo(duracion_dias=2, offset_dias=1),
@@ -621,10 +633,13 @@ async def test_patch_con_dependencia_ciclica_no_escribe(
                 actividades=RepositorioActividadesSQL(sesion),
                 obras=RepositorioObrasSQL(sesion),
                 programas=RepositorioProgramasSQL(sesion),
+                ediciones=RepositorioEdicionesDeProgramaSQL(sesion),
                 uow=UnidadDeTrabajoSQL(sesion),
             ).ejecutar(
                 ComandoEditarProgramacion(
                     actividad_id=cronograma.act_a,
+                    rol=Rol(contexto_control.rol),
+                    usuario_id=contexto_control.usuario_id,
                     dependencias=(Dependencia(str(cronograma.act_b)),),
                 )
             )
@@ -642,9 +657,14 @@ async def test_patch_de_actividad_fuera_de_alcance_da_no_encontrada(
                 actividades=RepositorioActividadesSQL(sesion),
                 obras=RepositorioObrasSQL(sesion),
                 programas=RepositorioProgramasSQL(sesion),
+                ediciones=RepositorioEdicionesDeProgramaSQL(sesion),
                 uow=UnidadDeTrabajoSQL(sesion),
             ).ejecutar(
                 ComandoEditarProgramacion(
+                    # El rol del contexto ajeno es super intendente, que no edita
+                    # el programa: aquí se prueba el alcance, no el permiso.
+                    rol=Rol.CONTROL_OBRA,
+                    usuario_id=contexto_ajeno.usuario_id,
                     actividad_id=uuid.uuid4(), duracion_dias=Decimal("3")
                 )
             )
@@ -1023,9 +1043,12 @@ async def test_editar_una_actividad_respeta_el_calendario_de_su_obra(
             actividades=RepositorioActividadesSQL(sesion),
             obras=RepositorioObrasSQL(sesion),
             programas=RepositorioProgramasSQL(sesion),
+            ediciones=RepositorioEdicionesDeProgramaSQL(sesion),
             uow=UnidadDeTrabajoSQL(sesion),
         ).ejecutar(
             ComandoEditarProgramacion(
+                rol=Rol(contexto_control.rol),
+                usuario_id=contexto_control.usuario_id,
                 actividad_id=cronograma.act_b, duracion_dias=Decimal("7")
             )
         )

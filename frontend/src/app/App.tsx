@@ -20,6 +20,9 @@ import { supabase } from '@/lib/supabase';
 import { useEnLinea } from '@/lib/useEnLinea';
 import Avances from '@/avance/Avances';
 import Cierres from '@/cierres/Cierres';
+import CierresDeFrente from '@/cierresFrente/CierresDeFrente';
+import Comprobaciones from '@/comprobaciones/Comprobaciones';
+import Desviaciones from '@/desviaciones/Desviaciones';
 import ControlCambio from '@/control-cambio/ControlCambio';
 import Estimacion from '@/estimacion/Estimacion';
 import Obras from '@/proyectos/Obras';
@@ -28,6 +31,8 @@ import Frentes from '@/proyectos/Frentes';
 import Catalogos from '@/catalogos/Catalogos';
 import Ensambles from '@/ensambles/Ensambles';
 import Programacion from '@/programacion/Programacion';
+import Partes from '@/partes/Partes';
+import Reprogramaciones from '@/reprogramaciones/Reprogramaciones';
 import ProgramasBase from '@/programacion/ProgramasBase';
 
 /**
@@ -181,6 +186,11 @@ function Rutas() {
         <Route path="/avances" element={<Avances />} />
         <Route path="/cierres" element={<Cierres />} />
         <Route path="/control-cambio" element={<ControlCambio />} />
+        <Route path="/comprobaciones" element={<Comprobaciones />} />
+        <Route path="/desviaciones" element={<Desviaciones />} />
+        <Route path="/cierre-frentes" element={<CierresDeFrente />} />
+        <Route path="/partes" element={<Partes />} />
+        <Route path="/reprogramaciones" element={<Reprogramaciones />} />
         {/* Control de materiales (§7.7, §11.2): Control de obra trae las dos
             entradas en su sidebar —"Salidas de almacén" y "Consumo vs
             presupuesto"—; el Residente trae una sola, "Control de materiales

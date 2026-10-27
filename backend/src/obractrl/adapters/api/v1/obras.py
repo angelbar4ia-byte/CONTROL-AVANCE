@@ -28,6 +28,7 @@ from obractrl.adapters.api.casos_uso import (
     CrearObraDep,
     CrearObrasEnLoteDep,
     GenerarObraDesdePrototipoDep,
+    IniciarObraDep,
     RevertirGeneracionDeObraDep,
 )
 from obractrl.adapters.api.dependencias import SesionRLS, exigir_rol
@@ -43,6 +44,7 @@ from obractrl.application.casos_uso.gestionar_obra import (
     ComandoCrearObra,
     ComandoCrearObrasEnLote,
 )
+from obractrl.application.casos_uso.gestionar_programacion import ComandoIniciarObra
 from obractrl.domain.obras.reglas import Obra
 from obractrl.domain.shared.diccionario import EstatusObra, ModoPago, Rol
 
@@ -102,6 +104,18 @@ class GenerarObraPeticion(BaseModel):
     modo_pago: ModoPago = Field(
         default=ModoPago.DESTAJO,
         description="Cómo se pagan las actividades generadas (§6).",
+    )
+
+
+class IniciarObraPeticion(BaseModel):
+    """La junta de arranque (WORKFLOWS.md §8.1, D-537)."""
+
+    fecha: date | None = Field(
+        default=None,
+        description=(
+            "Día de la junta de arranque; sin él, hoy. Es el arranque del "
+            "cronograma: todo lo que cuelga de él se recalcula contra esta fecha."
+        ),
     )
 
 
@@ -366,3 +380,28 @@ async def generar_obra(
         programa_obra_id=generada.programa_obra_id,
         n_actividades=generada.n_actividades,
     )
+
+
+@router.post(
+    "/obras/{obra_id}/iniciar",
+    response_model=ObraRespuesta,
+    summary="Junta de arranque: marcar la obra como iniciada",
+    dependencies=[CREADOR_DE_OBRA, Idempotencia],
+    responses={
+        **_NO_ENCONTRADA,
+        409: {"description": "Solo una obra `pendiente` se inicia."},
+        422: {"description": "La fecha de la junta es posterior al fin de la obra."},
+    },
+)
+async def iniciar_obra(
+    obra_id: UUID,
+    peticion: IniciarObraPeticion,
+    caso_uso: IniciarObraDep,
+) -> ObraRespuesta:
+    """Control de obra declara la junta de arranque (`marcar_obra_iniciada`,
+    D-537): la obra pasa a `iniciada` y el cronograma se recalcula contra la
+    fecha de la junta, que es la que dispara las fechas contractuales."""
+    obra = await caso_uso.ejecutar(
+        ComandoIniciarObra(obra_id=obra_id, fecha=peticion.fecha)
+    )
+    return ObraRespuesta.desde_dominio(obra_id, obra)

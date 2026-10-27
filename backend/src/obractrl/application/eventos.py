@@ -36,7 +36,10 @@ __all__ = [
     "EstimacionValidada",
     "IncidenciaDetiene",
     "Manejador",
+    "PartesCambiaronDeEstado",
     "PublicadorEventos",
+    "ReprogramacionAplicada",
+    "ReprogramacionObservada",
 ]
 
 _log = logging.getLogger(__name__)
@@ -112,6 +115,47 @@ class EstimacionValidada:
 
     obra_id: UUID
     estimacion_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class ReprogramacionAplicada:
+    """D-533 — control de obra realizó una reprogramación de lo asignado: la fecha
+    ya se movió y «se notifica el cambio a los demás».
+
+    La fecha se mueve y la reprogramación queda `aplicada` en la **misma** transacción
+    de `AplicarReprogramacion` (lo uno sin lo otro dejaría lo asignado movido sin
+    constancia, o constancia sin movimiento). Lo que viaja por el evento es solo el
+    aviso, que se puede perder sin consecuencias.
+    """
+
+    obra_id: UUID
+    reprogramacion_id: UUID
+    actividad_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class ReprogramacionObservada:
+    """D-533 — control de obra dejó una observación al residente y al supervisor sobre
+    una reprogramación. La observación ya está escrita; el evento solo avisa."""
+
+    obra_id: UUID
+    reprogramacion_id: UUID
+    observacion_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class PartesCambiaronDeEstado:
+    """D-571 — una o varias partes de una obra pasaron de un paso al siguiente (o volvieron
+    a uno anterior). El estado ya está escrito; el evento solo avisa en vivo."""
+
+    obra_id: UUID
+    accion: str
+    claves: tuple[str, ...]
+    estados: tuple[str, ...] = ()
+    """El estado al que pasó cada parte, en el mismo orden que `claves`."""
+    usuario_id: UUID | None = None
+    programa_por_revisar: tuple[str, ...] = ()
+    """Las partes devueltas que tenían programa: su programa quedó por revisar (D-571)."""
 
 
 @runtime_checkable

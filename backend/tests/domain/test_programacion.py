@@ -24,15 +24,20 @@ from obractrl.domain.programacion.cpm import (
     calcular_cpm,
 )
 from obractrl.domain.programacion.reglas import (
+    CAMPOS_DE_ESTRUCTURA,
+    CAMPOS_DE_FECHAS,
     ActividadProgramable,
+    EdicionDeProgramaNoPermitida,
     ErrorDeProgramacion,
     ItemProgramaBase,
     editar_programacion,
+    exigir_permiso_de_edicion,
     instanciar_programa,
     item_aplicable,
     nodos_cpm,
     validar_item_base,
 )
+from obractrl.domain.shared.diccionario import Rol
 
 INICIO = date(2026, 3, 2)  # lunes
 
@@ -631,3 +636,36 @@ class TestEditarProgramacion:
         )
         with pytest.raises(CicloEnGrafoError):
             calcular_cpm(nodos_cpm(actividades, {nueva.actividad_id: nueva}), INICIO)
+
+
+class TestPermisoDeEdicion:
+    """Quién edita qué del programa (MODELO.md §5b): Control la estructura, el
+    Residente las fechas."""
+
+    def test_control_y_supervisor_editan_todo(self) -> None:
+        for rol in (Rol.CONTROL_OBRA, Rol.SUPERVISOR):
+            assert exigir_permiso_de_edicion(rol, ["duracion_dias"]) == "estructura"
+            assert exigir_permiso_de_edicion(rol, ["fecha_inicio"]) == "fechas"
+            assert (
+                exigir_permiso_de_edicion(rol, ["duracion_dias", "fecha_termino"]) == "mixta"
+            )
+
+    def test_el_residente_solo_edita_fechas(self) -> None:
+        assert (
+            exigir_permiso_de_edicion(Rol.RESIDENTE, ["fecha_inicio", "fecha_termino"])
+            == "fechas"
+        )
+        for campo in CAMPOS_DE_ESTRUCTURA:
+            with pytest.raises(EdicionDeProgramaNoPermitida, match="solo puede editar las fechas"):
+                exigir_permiso_de_edicion(Rol.RESIDENTE, [campo])
+
+    def test_el_residente_no_se_cuela_con_fechas_y_estructura_juntas(self) -> None:
+        with pytest.raises(EdicionDeProgramaNoPermitida):
+            exigir_permiso_de_edicion(Rol.RESIDENTE, ["fecha_inicio", "duracion_dias"])
+
+    def test_el_super_intendente_no_edita_el_programa(self) -> None:
+        with pytest.raises(EdicionDeProgramaNoPermitida):
+            exigir_permiso_de_edicion(Rol.SUPER_INTENDENTE, ["fecha_inicio"])
+
+    def test_los_campos_de_estructura_y_de_fechas_no_se_traslapan(self) -> None:
+        assert not set(CAMPOS_DE_ESTRUCTURA) & set(CAMPOS_DE_FECHAS)

@@ -94,8 +94,8 @@ class RepositorioActividadesSQL:
                 text(
                     """
                     select id, obra_id, concepto_id, cant_base, cant_programada,
-                           cant_ejecutada, avance_pct, estatus, bloqueada,
-                           precio_unitario, precio_destajo, modo_pago
+                           cant_ejecutada, cant_perdida, avance_pct, estatus,
+                           bloqueada, precio_unitario, precio_destajo, modo_pago
                     from actividad
                     where id = :id
                     """
@@ -104,6 +104,96 @@ class RepositorioActividadesSQL:
             )
         ).mappings().first()
         return dict(fila) if fila is not None else None
+
+    async def fijar_cantidad_medida(self, actividad_id: UUID, cantidad: Decimal) -> bool:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select a.obra_id, a.cant_base,
+                           coalesce(a.descripcion, c.descripcion, '') as descripcion,
+                           case when a.parte_independiente then 'concepto:' || a.id::text
+                                when a.etapa_id is not null then 'etapa:' || a.etapa_id::text
+                                else 'sin_etapa:-' end as clave,
+                           p.de_una_obra, a.modo_cantidad::text as modo
+                      from actividad a
+                      join obra o on o.id = a.obra_id
+                      left join prototipo p on p.id = o.prototipo_id
+                      left join concepto c on c.id = a.concepto_id
+                     where a.id = :id
+                       for update of a
+                    """
+                ),
+                {"id": str(actividad_id)},
+            )
+        ).mappings().first()
+        if fila is None or not fila["de_una_obra"]:
+            return False
+        estado = (
+            await self._sesion.execute(
+                text("select estado::text from parte_estado where obra_id = :o and clave = :c"),
+                {"o": str(fila["obra_id"]), "c": fila["clave"]},
+            )
+        ).scalar_one_or_none()
+        if estado == "asignada":
+            return False
+        if Decimal(str(fila["cant_base"])) == cantidad and fila["modo"] == "medida":
+            return True
+        # Medir sustituye a lo estimado, pero lo estimado no se pierde: el paramétrico aprende de
+        # esa diferencia (propone, no aplica, §8.1).
+        await self._sesion.execute(
+            text(
+                """
+                update actividad
+                   set cant_estimada = case when modo_cantidad = 'estimada' then cant_base
+                                            else cant_estimada end,
+                       cant_base = :c, cant_programada = least(cant_programada, :c),
+                       modo_cantidad = 'medida'
+                 where id = :id
+                """
+            ),
+            {"c": cantidad, "id": str(actividad_id)},
+        )
+        # Una cantidad que cambia ya no es la que se validó: la parte vuelve a cuantificarse
+        # (volver es libre hasta asignar, D-571) y su programa, si lo tenía, queda por revisar.
+        cambio = Decimal(str(fila["cant_base"])) != cantidad
+        if cambio and estado in ("por_validar", "autorizada", "enviada_programa", "programada"):
+            await self._sesion.execute(
+                text(
+                    """
+                    update parte_estado
+                       set estado = 'cuantificando', actualizada_en = now(),
+                           programa_por_revisar = programa_por_revisar
+                               or :tenia_programa
+                     where obra_id = :o and clave = :c
+                    """
+                ),
+                {
+                    "o": str(fila["obra_id"]),
+                    "c": fila["clave"],
+                    "tenia_programa": estado in ("enviada_programa", "programada"),
+                },
+            )
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into parte_transicion
+                        (org_id, obra_id, clave, accion, de, a, usuario_id, rol, nota)
+                    values
+                        (cast(current_setting('app.org_id') as uuid), :o, :c, 'devolver',
+                         cast(:de as estado_parte), 'cuantificando',
+                         cast(current_setting('app.usuario_id') as uuid),
+                         current_setting('app.rol'), :nota)
+                    """
+                ),
+                {
+                    "o": str(fila["obra_id"]),
+                    "c": fila["clave"],
+                    "de": estado,
+                    "nota": f"Medición: cambió la cantidad de {fila['descripcion']}",
+                },
+            )
+        return True
 
     async def obtener_para_captura(self, actividad_id: UUID) -> dict[str, Any] | None:
         """Como `obtener`, pero **bloqueando la fila** hasta el commit.
@@ -134,8 +224,8 @@ class RepositorioActividadesSQL:
                 text(
                     """
                     select id, obra_id, cant_base, cant_programada,
-                           cant_ejecutada, avance_pct, estatus, bloqueada,
-                           precio_unitario, precio_destajo, modo_pago
+                           cant_ejecutada, cant_perdida, avance_pct, estatus,
+                           bloqueada, precio_unitario, precio_destajo, modo_pago
                     from actividad
                     where id = :id
                     for update
@@ -511,7 +601,18 @@ class RepositorioActividadesSQL:
             await self._sesion.execute(
                 text(
                     f"""
-                    select obra_id, programa_obra_id, {_COLUMNAS_PROGRAMACION}
+                    select obra_id, programa_obra_id,
+                           -- Lo asignado (P-4): el contratista del trato del frente
+                           -- en esta obra (la planeación, `frente_obra`) o, si la
+                           -- actividad lo trae directo, ese.
+                           coalesce(
+                               contratista_id,
+                               (select fo.contratista_id
+                                  from frente_obra fo
+                                 where fo.obra_id = actividad.obra_id
+                                   and fo.frente_id = actividad.frente_id)
+                           ) as contratista_id,
+                           {_COLUMNAS_PROGRAMACION}
                     from actividad
                     where id = :id
                     """

@@ -17,6 +17,7 @@ export const ROLES: readonly Rol[] = [
   'supervisor',
   'control_obra',
   'super_intendente',
+  'costos',
 ];
 
 const ETIQUETA: Record<Rol, string> = {
@@ -24,6 +25,7 @@ const ETIQUETA: Record<Rol, string> = {
   supervisor: 'Supervisor',
   control_obra: 'Control de obra',
   super_intendente: 'Super intendente',
+  costos: 'Costos',
 };
 
 export function etiquetaRol(rol: string): string {

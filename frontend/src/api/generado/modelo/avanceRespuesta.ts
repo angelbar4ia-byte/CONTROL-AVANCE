@@ -17,4 +17,9 @@ export interface AvanceRespuesta {
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   avance_pct: string;
   estatus: string;
+  /**
+   * Lo ejecutado por encima de lo programado que aún no se decidió. Va a comprobación y validación (`GET /comprobaciones`).
+   * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+   */
+  cant_excedente: string;
 }

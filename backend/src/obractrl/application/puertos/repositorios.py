@@ -95,6 +95,14 @@ class RepositorioActividades(Protocol):
         no un campo nuevo."""
         ...
 
+    async def fijar_cantidad_medida(self, actividad_id: UUID, cantidad: Decimal) -> bool:
+        """En una obra «Nueva» (prototipo de un solo uso, 0081) **la cantidad medida es el
+        presupuesto**: sustituye a `cant_base` mientras la parte no esté asignada, y si la parte
+        ya iba validada o más allá la devuelve a cuantificarse. `False` si no aplica (la obra
+        tiene el presupuesto de un prototipo compartido, o la parte ya está asignada): entonces
+        el cuantificador solo compara."""
+        ...
+
     async def obtener_para_captura(self, actividad_id: UUID) -> dict | None:
         """Como `obtener`, pero bloqueando la fila hasta el commit.
 
@@ -385,7 +393,11 @@ class RepositorioPrototipoNodo(Protocol):
         ...
 
     async def clonar_estructura(
-        self, *, origen_prototipo_id: UUID, destino_prototipo_id: UUID
+        self,
+        *,
+        origen_prototipo_id: UUID,
+        destino_prototipo_id: UUID,
+        sin_cantidades: bool = False,
     ) -> int:
         """Copia todo el árbol de origen_prototipo_id hacia
         destino_prototipo_id: misma forma, mismas claves, mismos
@@ -1520,6 +1532,18 @@ class RepositorioUsuarios(Protocol):
         en el alcance. Los que no, simplemente no aparecen."""
         ...
 
+    async def de_la_obra(self, obra_id: UUID) -> list[dict]:
+        """`{id, nombre, email, rol}` de quienes llevan esa obra, activos: sus
+        residentes, los supervisores de esos residentes y los usuarios de control de
+        obra y de costos (que ven toda la organización).
+
+        Sirve para avisar **por rol** («al supervisor y a control»), que es como lo
+        pide el flujo de reprogramación (D-533). Se lee con el alcance de quien
+        llama: la jerarquía (`residente_obra`, `supervisor_residente`) la ve completa
+        control de obra, que es quien dispara esos avisos.
+        """
+        ...
+
     async def tokens_push_de(self, usuario_ids: list[UUID]) -> list[str]:
         """Tokens de Expo Push activos de esos usuarios (§12.2).
 
@@ -1727,6 +1751,15 @@ class RepositorioDesviaciones(Protocol):
         captura 1, MODELO.md §5g: la detección no depende de que nadie
         declare). `capturar_causa` es la única vía para llenar la causa, y
         es una escritura aparte — nunca se combinan en un solo método."""
+        ...
+
+    async def obtener(self, desviacion_id: UUID) -> dict | None:
+        """Una desviación, o `None` si no existe o no se ve (RLS)."""
+        ...
+
+    async def de_obra(self, obra_id: UUID) -> list[dict]:
+        """Las desviaciones de una obra con el nombre de su nodo y de quien
+        capturó la causa, las más recientes primero."""
         ...
 
     async def capturar_causa(

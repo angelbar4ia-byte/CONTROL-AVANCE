@@ -16,7 +16,7 @@ Las mismas reglas se reflejan en el cliente para UX y se aplican de forma
 autoritativa en el servidor (§11.1).
  */
 export interface CapturaAvancePeticion {
-  /** No puede exceder la programada. */
+  /** Puede exceder la programada: registrar nunca se bloquea. Lo que pase de lo programado queda como excedente pendiente de comprobación y validación de Control de obra. */
   cant_ejecutada: CapturaAvancePeticionCantEjecutada;
   /** Si se envía, se revalida contra cant_base × 1.2. */
   cant_programada?: CapturaAvancePeticionCantProgramada;

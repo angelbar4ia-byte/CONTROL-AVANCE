@@ -7,6 +7,9 @@
  */
 import type { PlanoDetalleRespuestaCapas } from "./planoDetalleRespuestaCapas";
 import type { PlanoDetalleRespuestaSubidoPor } from "./planoDetalleRespuestaSubidoPor";
+import type { PlanoDetalleRespuestaEscalaMPorUnidad } from "./planoDetalleRespuestaEscalaMPorUnidad";
+import type { PlanoDetalleRespuestaEscalaReferencia } from "./planoDetalleRespuestaEscalaReferencia";
+import type { PlanoDetalleRespuestaEscalaCalibradaEn } from "./planoDetalleRespuestaEscalaCalibradaEn";
 
 export interface PlanoDetalleRespuesta {
   id: string;
@@ -20,4 +23,9 @@ export interface PlanoDetalleRespuesta {
   n_trazos: number;
   /** Trazos hechos sobre una versión anterior del plano: quedan marcados para revisión y no se recalculan solos (MODELO.md §1b). */
   n_trazos_por_revisar: number;
+  /** Metros por unidad de plano; `null` = sin calibrar (se asume 1 unidad = 1 m y las cantidades están en unidades de plano). Migración 0069. */
+  escala_m_por_unidad?: PlanoDetalleRespuestaEscalaMPorUnidad;
+  /** Los dos puntos y la distancia real con que se calibró. */
+  escala_referencia?: PlanoDetalleRespuestaEscalaReferencia;
+  escala_calibrada_en?: PlanoDetalleRespuestaEscalaCalibradaEn;
 }

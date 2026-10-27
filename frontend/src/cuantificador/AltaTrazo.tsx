@@ -52,6 +52,8 @@ interface Props {
   readonly versionPlano: number;
   readonly herramienta: HerramientaDeTrazo;
   readonly puntos: readonly Punto[];
+  /** Huecos del polígono (lo que se descuenta). Vacío salvo en un polígono con huecos. */
+  readonly huecos?: readonly (readonly Punto[])[];
   readonly actividades: readonly ActividadRespuesta[];
   /** Actividad con la que arranca el primer enlace (la herramienta puntual, D-532). */
   readonly actividadInicial?: string;
@@ -82,6 +84,7 @@ export function AltaTrazo({
   versionPlano,
   herramienta,
   puntos,
+  huecos = [],
   actividades,
   actividadInicial,
   nodosDePrototipo,
@@ -142,7 +145,7 @@ export function AltaTrazo({
           version_plano: versionPlano,
           fuente,
           capa: capa.trim() === '' ? null : capa.trim(),
-          geometria_wkt: aWkt(herramienta, puntos),
+          geometria_wkt: aWkt(herramienta, puntos, huecos),
           enlaces: filas.map((f) => ({
             medida: f.medida,
             factor: f.factor,
@@ -167,6 +170,14 @@ export function AltaTrazo({
       <form onSubmit={(e) => void alEnviar(e)}>
         <div className="sheet__body col gap-12">
           {error && <ErrorBanner mensaje={error} />}
+
+          {huecos.length > 0 && (
+            <div className="text-sm" data-testid="aviso-huecos">
+              Este polígono lleva {huecos.length} {huecos.length === 1 ? 'hueco' : 'huecos'}: su
+              área se <strong>descuenta</strong> del área del polígono, y su borde suma al
+              perímetro.
+            </div>
+          )}
 
           <div className="field">
             <label className="field__label" htmlFor="trazo-fuente">
@@ -202,7 +213,7 @@ export function AltaTrazo({
           <div className="col">
             <div className="field__label">Enlaces a actividades</div>
             {filas.map((f, i) => {
-              const local = medidaLocal(herramienta, f.medida, puntos);
+              const local = medidaLocal(herramienta, f.medida, puntos, huecos);
               return (
                 <div key={f.clave} className="card">
                   <div className="card__body col">

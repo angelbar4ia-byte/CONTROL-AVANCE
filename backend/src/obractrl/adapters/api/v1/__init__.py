@@ -16,12 +16,18 @@ from obractrl.adapters.api.v1.bitacora import router as router_bitacora
 from obractrl.adapters.api.v1.cargas import router as router_cargas
 from obractrl.adapters.api.v1.catalogos import router as router_catalogos
 from obractrl.adapters.api.v1.cierres import router as router_cierres
+from obractrl.adapters.api.v1.cierres_frente import router as router_cierres_frente
 from obractrl.adapters.api.v1.cierres_obra import router as router_cierres_obra
 from obractrl.adapters.api.v1.cliente import router as router_cliente
+from obractrl.adapters.api.v1.comprobaciones import router as router_comprobaciones
+from obractrl.adapters.api.v1.confirmacion_avance import (
+    router as router_confirmacion_avance,
+)
 from obractrl.adapters.api.v1.control_cambio import (
     router as router_control_cambio,
 )
 from obractrl.adapters.api.v1.cuantificacion import router as router_cuantificacion
+from obractrl.adapters.api.v1.desviaciones import router as router_desviaciones
 from obractrl.adapters.api.v1.dispositivos import router as router_dispositivos
 from obractrl.adapters.api.v1.ensambles import router as router_ensambles
 from obractrl.adapters.api.v1.estimacion import router as router_estimacion
@@ -35,12 +41,14 @@ from obractrl.adapters.api.v1.insumos import router as router_insumos
 from obractrl.adapters.api.v1.materiales import router as router_materiales
 from obractrl.adapters.api.v1.obras import router as router_obras
 from obractrl.adapters.api.v1.organizacion import router as router_organizacion
+from obractrl.adapters.api.v1.partes import router as router_partes
 from obractrl.adapters.api.v1.planeacion import router as router_planeacion
 from obractrl.adapters.api.v1.presupuesto import router as router_presupuesto
 from obractrl.adapters.api.v1.procesos import router as router_procesos
 from obractrl.adapters.api.v1.programacion import router as router_programacion
 from obractrl.adapters.api.v1.proyectos import router as router_proyectos
 from obractrl.adapters.api.v1.reportes import router as router_reportes
+from obractrl.adapters.api.v1.reprogramaciones import router as router_reprogramaciones
 from obractrl.adapters.api.v1.revisiones import router as router_revisiones
 from obractrl.adapters.api.v1.torre import router as router_torre
 from obractrl.adapters.api.v1.usuarios import router as router_usuarios
@@ -60,7 +68,10 @@ api_v1.include_router(router_organizacion)
 api_v1.include_router(router_programacion)
 api_v1.include_router(router_presupuesto)
 api_v1.include_router(router_avance)
+api_v1.include_router(router_comprobaciones)
+api_v1.include_router(router_confirmacion_avance)
 api_v1.include_router(router_cierres)
+api_v1.include_router(router_cierres_frente)
 api_v1.include_router(router_cierres_obra)
 api_v1.include_router(router_estimacion)
 api_v1.include_router(router_materiales)
@@ -74,6 +85,7 @@ api_v1.include_router(router_evidencias)
 api_v1.include_router(router_cargas)
 api_v1.include_router(router_expediente)
 api_v1.include_router(router_cuantificacion)
+api_v1.include_router(router_desviaciones)
 api_v1.include_router(router_reportes)
 api_v1.include_router(router_procesos)
 api_v1.include_router(router_bitacora)
@@ -83,3 +95,5 @@ api_v1.include_router(router_eventos)
 # y tiempo real entraron en la Fase 16. El tiempo real vive en `eventos.py` y
 # es SSE (`GET /events`), la alternativa que el propio §11.2 nombra.
 __all__ = ["api_v1"]
+api_v1.include_router(router_reprogramaciones)
+api_v1.include_router(router_partes)
