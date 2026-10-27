@@ -142,7 +142,7 @@ test.describe('Cuantificador · trazar un polígono', () => {
     expect(nodo, 'la actividad enlazada aparece en la cuantificación').toBeDefined();
     expect(Number(nodo!.cantidad_medida)).toBeGreaterThan(0);
 
-    const tabla = page.getByRole('row', { name: /Excavación de cepas/ });
+    const tabla = page.getByRole('treeitem', { name: /Excavación de cepas/ });
     await expect(tabla).toBeVisible();
 
     // --- 5. Elegirlo con un clic y que sobreviva a recargar -------------

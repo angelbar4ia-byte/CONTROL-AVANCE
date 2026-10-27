@@ -2512,3 +2512,161 @@ a { color: inherit; text-decoration: none; }
 .w-full { width: 100%; }
 .sep { height: 1px; background: var(--c-line); margin: 12px 0; }
 .divider-v { width: 1px; background: var(--c-line); align-self: stretch; }
+
+/* ===== Menú lateral contraíble y cabecera baja ================= */
+/* Contraído, el sidebar es una tira de iconos: el nombre queda en el `title`. */
+.app.is-nav-min { --sidebar-w: 52px; }
+.app.is-nav-min .sidebar__section { visibility: hidden; height: 8px; padding: 0; }
+.app.is-nav-min .sidebar__item { justify-content: center; padding: 6px 0; margin: 1px 6px; }
+.app.is-nav-min .sidebar__item > span:not(.sidebar__icon) { display: none; }
+.app.is-nav-min .sidebar__item.is-active::before { left: -6px; }
+.sidebar { transition: none; }
+.topbar .topbar__rail-toggle { display: inline-flex; }
+/* La pantalla de trabajo gana altura: cabecera más baja y sin textos de apoyo. */
+.app--estacion { --topbar-h: 38px; }
+.app--estacion .topbar { gap: 10px; padding: 0 10px; }
+.app--estacion .topbar__brand-name,
+.app--estacion .crumbs,
+.app--estacion .role-chip > div { display: none; }
+@media (max-width: 880px) {
+  .topbar .topbar__rail-toggle { display: none; }
+  .app.is-nav-min { --sidebar-w: 232px; }
+}
+
+/* ===== Cuantificador como pantalla de trabajo ================== */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.page--estacion { padding: 0; height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.btn-icono {
+  display: inline-grid; place-items: center;
+  width: 28px; height: 28px; border-radius: var(--r-sm);
+  color: var(--c-text-soft); background: transparent; border: 0; cursor: pointer;
+}
+.btn-icono:hover:not(:disabled) { background: var(--c-accent-soft); color: var(--c-accent-strong); }
+.btn-icono.is-activo { background: var(--c-accent-soft); color: var(--c-accent-strong); }
+.btn-icono:disabled { opacity: .4; cursor: default; }
+.btn-icono:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 1px; }
+
+.estacion { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; background: var(--c-bg); }
+.estacion__cabecera {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 4px 10px; min-height: 36px;
+  background: var(--c-surface); border-bottom: 1px solid var(--c-line);
+}
+.estacion__cabecera .field { margin: 0; flex-direction: row; align-items: center; gap: 0; }
+.estacion__cabecera .field__label,
+.estacion__cabecera .field__hint {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap;
+}
+.estacion__cabecera .select { height: 26px; min-height: 0; padding-top: 0; padding-bottom: 0; }
+.estacion__obra { min-width: 150px; }
+.estacion__plano { min-width: 200px; }
+.estacion__relleno { flex: 1; }
+.estacion__cuerpo { display: flex; flex: 1; min-height: 0; min-width: 0; }
+.estacion__arbol, .estacion__detalle {
+  display: flex; flex-direction: column; min-height: 0; overflow: auto;
+  background: var(--c-surface);
+}
+.estacion__arbol { width: 300px; flex: none; border-right: 1px solid var(--c-line); }
+.estacion__detalle { width: 320px; flex: none; border-left: 1px solid var(--c-line); }
+.estacion__titulo {
+  display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; flex: none;
+  font-weight: 600; font-size: var(--fs-md); border-bottom: 1px solid var(--c-line);
+}
+.estacion__subtitulo { font-weight: 400; color: var(--c-text-mute); font-size: var(--fs-sm); }
+.estacion__detalle-cuerpo { padding: 10px; gap: 8px; }
+.estacion__lienzo { position: relative; flex: 1; min-width: 0; min-height: 0; background: var(--c-panel); }
+.estacion__lienzo .visor {
+  position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0;
+  border: 0; border-radius: 0;
+}
+.estacion__lienzo > .empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.estacion__hud {
+  position: absolute; right: 10px; top: 10px; z-index: 3;
+  display: flex; gap: 6px; align-items: center;
+}
+.estacion__dibujo { flex-wrap: nowrap; gap: 8px; align-items: center; font-family: var(--f-sans); }
+.estacion__dibujo .btn { height: 20px; padding: 0 8px; }
+.estacion__mensajes {
+  position: absolute; left: 56px; bottom: 10px; z-index: 3; max-width: calc(100% - 76px);
+  display: flex; flex-direction: column; gap: 4px; pointer-events: none;
+}
+.estacion__mensajes > * {
+  pointer-events: auto; width: fit-content;
+  background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-md); padding: 4px 9px;
+}
+.estacion__estado {
+  display: flex; gap: 16px; align-items: center; min-height: 26px; padding: 0 10px; flex: none;
+  background: var(--c-surface); border-top: 1px solid var(--c-line);
+  color: var(--c-text-mute); font-family: var(--f-mono); font-size: var(--fs-xs); white-space: nowrap; overflow: hidden;
+}
+
+/* Barra de iconos: flota sobre el plano, a la izquierda. */
+.barra-iconos {
+  position: absolute; z-index: 3; display: flex; gap: 2px; padding: 4px;
+  background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+}
+.barra-iconos--vertical { left: 10px; top: 10px; flex-direction: column; }
+.barra-iconos--horizontal { left: 10px; top: 10px; flex-direction: row; }
+.barra-iconos .btn-icono { width: 32px; height: 32px; }
+.barra-iconos__sep { background: var(--c-line); }
+.barra-iconos--vertical .barra-iconos__sep { height: 1px; margin: 3px 2px; }
+.barra-iconos--horizontal .barra-iconos__sep { width: 1px; margin: 2px 3px; }
+
+/* Árbol del presupuesto: carpetas. */
+.arbol { display: flex; flex-direction: column; min-height: 0; }
+.arbol__herramientas { display: flex; gap: 6px; align-items: center; padding: 8px; }
+.arbol__buscar { flex: 1; min-width: 0; height: 26px; }
+.arbol__lista, .arbol__hijos { list-style: none; margin: 0; padding: 0; }
+.arbol__lista { padding: 0 4px 10px; }
+.arbol__hijos { padding-left: 14px; }
+.arbol__fila {
+  display: flex; align-items: center; gap: 4px; min-height: 26px; padding: 0 4px;
+  border-radius: var(--r-sm); white-space: nowrap; font-size: var(--fs-md);
+}
+.arbol__fila:hover { background: var(--c-elev); }
+.arbol__fila.is-elegida { background: var(--c-accent-soft); }
+.arbol__fila.is-foco { box-shadow: inset 2px 0 0 var(--c-accent); }
+.arbol__fila--carpeta { font-weight: 600; }
+.arbol__giro { width: 16px; height: 16px; display: grid; place-items: center; flex: none; color: var(--c-text-mute); background: none; border: 0; padding: 0; cursor: pointer; }
+.arbol__giro svg { transition: transform .1s; }
+.arbol__giro svg.is-abierto { transform: rotate(90deg); }
+.arbol__casilla { margin: 0 2px; accent-color: var(--c-accent); }
+.arbol__texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.arbol__cuenta { font-family: var(--f-mono); font-size: var(--fs-xs); font-weight: 400; color: var(--c-text-mute); }
+.arbol__fila--hoja { flex-wrap: wrap; padding-top: 2px; padding-bottom: 2px; }
+.arbol__fila--hoja .arbol__texto { flex: 1 1 calc(100% - 52px); }
+.arbol__meta { display: flex; align-items: center; gap: 6px; flex: 1 1 100%; padding-left: 40px; min-width: 0; }
+.arbol__meta .arbol__cuenta { margin-left: auto; }
+.arbol__matrices { padding: 0 4px; height: 20px; }
+.arbol__matrices-cuerpo { padding: 2px 4px 6px 36px; }
+
+/* Calcular volumen. */
+.volumen {
+  position: absolute; left: 56px; top: 54px; z-index: 4; width: 260px;
+  background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
+}
+.volumen__cabecera { display: flex; align-items: center; justify-content: space-between; height: 32px; padding: 0 6px 0 10px; border-bottom: 1px solid var(--c-line); }
+.volumen__cuerpo { display: grid; gap: 8px; padding: 10px; }
+.volumen__base, .volumen__resultado { display: flex; justify-content: space-between; align-items: baseline; }
+.volumen__resultado { border-top: 1px solid var(--c-line); padding-top: 8px; font-size: var(--fs-lg); }
+.volumen__campo { display: grid; grid-template-columns: 1fr 90px; gap: 6px; align-items: center; color: var(--c-text-soft); }
+.volumen__campo .input { text-align: right; height: 26px; }
+
+@media (max-width: 1100px) {
+  .estacion__arbol, .estacion__detalle { width: 240px; }
+}
+/* La ventana flotante y el teléfono: una columna, el plano arriba y los paneles debajo. */
+.estacion--compacta .estacion__cuerpo,
+.estacion--compacta { flex-direction: column; }
+.estacion--compacta .estacion__lienzo { flex: none; height: 320px; }
+.estacion--compacta .estacion__arbol,
+.estacion--compacta .estacion__detalle { width: auto; border: 0; border-top: 1px solid var(--c-line); max-height: 260px; }
+@media (max-width: 760px) {
+  .estacion__cuerpo { flex-direction: column; }
+  .estacion__lienzo { flex: none; height: 56vh; }
+  .estacion__arbol, .estacion__detalle { width: auto; border: 0; border-top: 1px solid var(--c-line); max-height: 40vh; }
+}

@@ -106,3 +106,40 @@ export function arbolDeCuantificacion(
       };
     });
 }
+
+/** Lo mínimo que se necesita de un trazo para saber a qué conceptos alimenta. */
+export interface TrazoConEnlaces {
+  readonly id: string;
+  readonly properties: {
+    readonly enlaces: readonly {
+      readonly tipo_nodo: string;
+      readonly nodo_id: string;
+      readonly vigente: boolean;
+    }[];
+  };
+}
+
+/**
+ * Los trazos que alimentan alguno de los conceptos elegidos (herramienta «Solo
+ * trazos de los conceptos elegidos»). Cuenta solo el enlace **vigente** a una
+ * actividad: un enlace reemplazado queda como evidencia y ya no suma.
+ */
+export function trazosDeConceptos<T extends TrazoConEnlaces>(
+  trazos: readonly T[],
+  conceptos: ReadonlySet<string>,
+): readonly T[] {
+  return trazos.filter((t) =>
+    t.properties.enlaces.some(
+      (e) => e.vigente && e.tipo_nodo === 'actividad' && conceptos.has(e.nodo_id),
+    ),
+  );
+}
+
+/** Los ids de todas las hojas bajo una rama, para elegir una carpeta completa. */
+export function idsDeNivel(nivel: NivelDelArbol): readonly string[] {
+  return nivel.etapas.flatMap((e) => e.hojas.map((h) => h.id));
+}
+
+export function idsDeEtapa(etapa: EtapaDelArbol): readonly string[] {
+  return etapa.hojas.map((h) => h.id);
+}

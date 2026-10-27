@@ -38,7 +38,7 @@ test.describe('Escenario nuevo · entrar por el cuantificador', () => {
 
     // --- 2. El árbol es el del presupuesto, sin cantidades ----------------------------------------
     await expect(control).toHaveURL(/cuantificador\?obra=/);
-    const arbol = control.getByRole('table', { name: 'Árbol de la cuantificación' });
+    const arbol = control.getByRole('tree', { name: 'Árbol de la cuantificación' });
     await expect(arbol).toBeVisible();
     await expect(arbol).toContainText('0 de 3 medidos');
     await expect(arbol.getByText('Sin medir')).toHaveCount(3);
@@ -68,8 +68,8 @@ test.describe('Escenario nuevo · entrar por el cuantificador', () => {
       enlaces: [{ actividad_id: actividades[0]!.id, medida: 'area', factor: '1' }],
     });
     await control.reload();
-    await expect(control.getByRole('table', { name: 'Árbol de la cuantificación' })).toContainText('1 de 3 medidos');
-    const fila = control.getByRole('row', { name: new RegExp(actividades[0]!.concepto_clave) });
+    await expect(control.getByRole('tree', { name: 'Árbol de la cuantificación' })).toContainText('1 de 3 medidos');
+    const fila = control.getByRole('treeitem', { name: new RegExp(actividades[0]!.concepto_clave) });
     await expect(fila).toContainText('120');
     await expect(fila.getByText('Sin medir')).toHaveCount(0);
     const despues = await llamarApi<{ cant_base: string }[]>(request, 'control', 'GET', `/obras/${obra.id}/actividades`);

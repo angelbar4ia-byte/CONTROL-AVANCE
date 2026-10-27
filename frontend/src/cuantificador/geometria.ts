@@ -445,3 +445,26 @@ export function escalaPrevista(a: Punto, b: Punto, metros: number): number | nul
   if (!Number.isFinite(metros) || metros <= 0 || enPlano === 0) return null;
   return metros / enPlano;
 }
+
+// ── Medidas de un trazo ya guardado ───────────────────────────────────────
+
+/**
+ * Área de una geometría de polígono en unidades de plano², descontando los huecos.
+ * 0 si no hay polígono. Vista previa para el cálculo de volúmenes: la cantidad que
+ * cuenta sigue siendo la del servidor.
+ */
+export function areaDeGeometria(geometria: GeometriaGeoJson): number {
+  return partes(geometria)
+    .filter((p) => p.tipo === 'anillo')
+    .reduce((suma, p) => {
+      const area = areaLocal(p.puntos);
+      return p.hueco ? suma - area : suma + area;
+    }, 0);
+}
+
+/** Longitud de una geometría de línea en unidades de plano. 0 si no hay línea. */
+export function longitudDeGeometria(geometria: GeometriaGeoJson): number {
+  return partes(geometria)
+    .filter((p) => p.tipo === 'linea')
+    .reduce((suma, p) => suma + longitudLocal(p.puntos), 0);
+}

@@ -20,7 +20,8 @@
  * escribir «0.5» en un factor no debe borrar vértices.
  */
 
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { PanelLeft, PanelRight, Upload } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import {
@@ -59,8 +60,11 @@ import { AltaNota } from './AltaNota';
 import { AltaPlano } from './AltaPlano';
 import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
 import { CalibrarEscala } from './CalibrarEscala';
-import { arbolDeCuantificacion } from './arbol';
-import { MatricesDeActividad } from './MatricesDeActividad';
+import { useAjuste } from '@/lib/useAjuste';
+import { arbolDeCuantificacion, trazosDeConceptos } from './arbol';
+import { ArbolPresupuesto } from './ArbolPresupuesto';
+import { BarraDeHerramientas } from './BarraDeHerramientas';
+import { PanelVolumen } from './PanelVolumen';
 import { NuevaObra } from './NuevaObra';
 import { ReemplazarEnlace } from './ReemplazarEnlace';
 import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Visor';
@@ -74,17 +78,21 @@ import {
 import { useImagenDePdf } from './pdf';
 import { etiquetaMedida } from './reglas';
 
-const HERRAMIENTAS: readonly { readonly clave: Herramienta; readonly etiqueta: string }[] = [
-  { clave: 'seleccionar', etiqueta: 'Seleccionar' },
-  { clave: 'poligono', etiqueta: 'Polígono' },
-  { clave: 'linea', etiqueta: 'Línea' },
-  { clave: 'punto', etiqueta: 'Punto' },
-  { clave: 'escala', etiqueta: 'Calibrar escala' },
-];
+const HERRAMIENTAS: readonly Herramienta[] = ['seleccionar', 'poligono', 'linea', 'punto', 'escala'];
 
 /** Anotar el plano es solo de Residente y Supervisor (MODELO.md §1b); el
  *  servidor lo impone con 403, esto solo evita ofrecer un botón que fallaría. */
-const HERRAMIENTA_NOTA = { clave: 'nota', etiqueta: 'Nota' } as const;
+const HERRAMIENTA_NOTA: Herramienta = 'nota';
+
+/** Atajo de teclado de cada herramienta de la barra. */
+const ATAJOS: Readonly<Record<string, Herramienta>> = {
+  v: 'seleccionar',
+  p: 'poligono',
+  l: 'linea',
+  o: 'punto',
+  e: 'escala',
+  n: 'nota',
+};
 
 const ES_IMAGEN = /\.(png|jpe?g|webp)$/i;
 const ES_PDF = /\.pdf$/i;
@@ -154,7 +162,11 @@ export function EspacioDeTrazo({
   const [reemplazando, setReemplazando] = useState<string | null>(null);
   const [calibrando, setCalibrando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
-  const [conMatrices, setConMatrices] = useState<ReadonlySet<string>>(new Set());
+  const [elegidos, setElegidos] = useState<ReadonlySet<string>>(new Set());
+  const [soloElegidos, setSoloElegidos] = useState(false);
+  const [volumenAbierto, setVolumenAbierto] = useState(false);
+  const [arbolAbierto, setArbolAbierto] = useAjuste('arbol', !compacto);
+  const [detalleAbierto, setDetalleAbierto] = useAjuste('detalle', !compacto);
 
   const planos = useListarPlanosApiV1ObrasObraIdPlanosGet<
     PlanoDetalleRespuesta[],
@@ -217,15 +229,22 @@ export function EspacioDeTrazo({
   const fondoUrl = esImagen ? (archivo.data?.url ?? null) : esPdf ? pdf.url : null;
 
   const features = useMemo(() => trazosConsulta.data?.features ?? [], [trazosConsulta.data]);
+  // «Solo los trazos de los conceptos elegidos»: sin conceptos elegidos no hay nada
+  // que filtrar, y se ve todo.
+  const filtrando = soloElegidos && elegidos.size > 0;
+  const featuresVisibles = useMemo(
+    () => (filtrando ? trazosDeConceptos(features, elegidos) : features),
+    [features, elegidos, filtrando],
+  );
   const trazosVisibles = useMemo<TrazoVisible[]>(
     () =>
-      features.map((f) => ({
+      featuresVisibles.map((f) => ({
         id: f.id,
         geometry: f.geometry,
         porRevisar: f.properties.por_revisar,
         aprobado: f.properties.aprobado_en != null,
       })),
-    [features],
+    [featuresVisibles],
   );
   const notasConsulta = useNotasDePlanoApiV1PlanosPlanoIdNotasGet<
     NotaPlanoDetalleRespuesta[],
@@ -386,122 +405,227 @@ export function EspacioDeTrazo({
     [actividades, estado.data],
   );
 
-  const tarjetaDelArbol = (
-      <div className="card">
-        <div className="card__header">
-          <div className="card__title">Cuantificación de la obra</div>
-          <div className="card__sub">Medido contra el presupuesto</div>
-        </div>
-        <div className="card__body card__body--flush">
-          {estado.error ? (
-            <div className="card__body">
-              <ErrorBanner mensaje={estado.error.message} />
-            </div>
-          ) : arbol.length === 0 ? (
-            <div className="card__body text-mute text-sm">
-              La obra todavía no tiene actividades: genérala para empezar a medir.
-            </div>
-          ) : (
-            <div className="table-scroll">
-              <table className="table" aria-label="Árbol de la cuantificación">
-                <thead>
-                  <tr>
-                    <th>Nivel · etapa · concepto</th>
-                    <th className="is-num">Base</th>
-                    <th className="is-num">Medido</th>
-                    <th className="is-num">Dif.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {arbol.map((nivel) => (
-                    <Fragment key={nivel.clave}>
-                      <tr>
-                        <th colSpan={4} scope="colgroup">
-                          {nivel.etiqueta}
-                          <span className="text-xs text-mute">
-                            {' '}
-                            · {nivel.medidas} de {nivel.total} medidos
-                          </span>
-                        </th>
-                      </tr>
-                      {nivel.etapas.map((etapa) => (
-                        <Fragment key={`${nivel.clave}/${etapa.clave}`}>
-                          <tr>
-                            <td colSpan={4} className="text-sm" style={{ paddingLeft: 20, fontWeight: 600 }}>
-                              {etapa.etiqueta}
-                              <span className="text-xs text-mute">
-                                {' '}
-                                · {etapa.medidas} de {etapa.hojas.length}
-                              </span>
-                            </td>
-                          </tr>
-                          {etapa.hojas.map((hoja) => (
-                            <Fragment key={hoja.id}>
-                              <tr className={hoja.id === actividadFocoId ? 'is-selected' : undefined}>
-                                <td style={{ paddingLeft: 40 }}>
-                                  {hoja.etiqueta}
-                                  <button
-                                    type="button"
-                                    className="btn btn--ghost btn--sm"
-                                    style={{ marginLeft: 6 }}
-                                    aria-expanded={conMatrices.has(hoja.id)}
-                                    aria-label={`Matrices de ${hoja.etiqueta}`}
-                                    onClick={() => {
-                                      const siguiente = new Set(conMatrices);
-                                      if (siguiente.has(hoja.id)) siguiente.delete(hoja.id);
-                                      else siguiente.add(hoja.id);
-                                      setConMatrices(siguiente);
-                                    }}
-                                  >
-                                    {conMatrices.has(hoja.id) ? '▾ Matrices' : '▸ Matrices'}
-                                  </button>
-                                  {!hoja.medido && (
-                                    <span className="badge badge--outline" style={{ marginLeft: 6 }}>
-                                      Sin medir
-                                    </span>
-                                  )}
-                                  {hoja.porRevisar > 0 && (
-                                    <span className="badge badge--warn" style={{ marginLeft: 6 }}>
-                                      {hoja.porRevisar} por revisar
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="is-num">{fmtNum(hoja.base)}</td>
-                                <td className="is-num">{hoja.medido ? fmtNum(hoja.medida) : '—'}</td>
-                                <td className="is-num">{hoja.medido ? fmtNum(hoja.diferencia) : '—'}</td>
-                              </tr>
-                              {conMatrices.has(hoja.id) && (
-                                <tr>
-                                  <td colSpan={4} style={{ paddingLeft: 56 }}>
-                                    <MatricesDeActividad actividadId={hoja.id} />
-                                  </td>
-                                </tr>
-                              )}
-                            </Fragment>
-                          ))}
-                        </Fragment>
-                      ))}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-  );
-
   const filaDeFoco = actividadFocoId
     ? (estado.data ?? []).find((n) => n.nodo_id === actividadFocoId)
     : undefined;
   const actividadDeFoco = actividadFocoId ? porActividad.get(actividadFocoId) : undefined;
 
+  const herramientasDisponibles: readonly Herramienta[] = puedeAnotar
+    ? [...HERRAMIENTAS, HERRAMIENTA_NOTA]
+    : HERRAMIENTAS;
+
+  function elegirConceptos(ids: readonly string[], marcar: boolean) {
+    const siguiente = new Set(elegidos);
+    for (const id of ids) {
+      if (marcar) siguiente.add(id);
+      else siguiente.delete(id);
+    }
+    setElegidos(siguiente);
+    // Sin conceptos elegidos el filtro no tiene nada que mostrar: se apaga solo.
+    if (siguiente.size === 0) setSoloElegidos(false);
+  }
+
+  function abrirVolumen() {
+    // Calcular un volumen es mirar un trazo, no dibujar: se vuelve a Seleccionar.
+    if (!volumenAbierto) cambiarHerramienta('seleccionar');
+    setVolumenAbierto(!volumenAbierto);
+  }
+
+  // Atajos de herramienta (V, P, L, O, E, N). Se ignoran con un campo enfocado o un
+  // cajón abierto, igual que los del dibujo: escribir «0.5» no debe cambiar de herramienta.
+  const hayCajon = guardando || subiendoPlano || notaPunto !== null || reemplazando !== null || calibrando;
+  useEffect(() => {
+    if (hayCajon) return;
+    function alTeclear(e: KeyboardEvent) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const destino = e.target as HTMLElement | null;
+      if (destino && /^(INPUT|SELECT|TEXTAREA)$/.test(destino.tagName)) return;
+      if (destino?.isContentEditable) return;
+      const h = ATAJOS[e.key.toLowerCase()];
+      if (h && herramientasDisponibles.includes(h)) cambiarHerramienta(h);
+    }
+    window.addEventListener('keydown', alTeclear);
+    return () => window.removeEventListener('keydown', alTeclear);
+    // `cambiarHerramienta` lee estado del render: se rearma con él.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hayCajon, puedeAnotar, borrador, huecos]);
+
+  const nombreDelTrazo = seleccionado
+    ? (seleccionado.properties.enlaces.find((e) => e.vigente)
+        ? nombreDeNodo(
+            seleccionado.properties.enlaces.find((e) => e.vigente)!.tipo_nodo,
+            seleccionado.properties.enlaces.find((e) => e.vigente)!.nodo_id,
+          )
+        : (seleccionado.properties.capa ?? 'Trazo sin enlace'))
+    : '';
+
+  const detalle = (
+    <aside className="estacion__detalle" aria-label="Detalle">
+      <div className="estacion__titulo">
+        {seleccionado ? 'Trazo elegido' : notaElegida ? 'Nota elegida' : 'Trazos del plano'}
+      </div>
+      <div className="estacion__detalle-cuerpo col">
+        {notaElegida ? (
+          <>
+            <div className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>
+              {notaElegida.texto}
+            </div>
+            <div className="text-mute text-xs">
+              {fmtFecha(notaElegida.created_at)}
+              {notaElegida.actividad_id &&
+                ` · ${etiquetaActividad(porActividad.get(notaElegida.actividad_id), notaElegida.actividad_id)}`}
+            </div>
+            {notaElegida.por_revisar && (
+              <span className="badge badge--warn">
+                Hecha sobre una versión anterior: el lugar pudo moverse
+              </span>
+            )}
+            <div className="text-mute text-xs">Una nota no suma cantidad.</div>
+          </>
+        ) : seleccionado ? (
+          <>
+            <div className="text-sm">
+              {seleccionado.properties.capa ?? 'Sin capa'} ·{' '}
+              <span className="mono">{seleccionado.properties.fuente.toUpperCase()}</span>
+            </div>
+            <div className="row">
+              {seleccionado.properties.aprobado_en ? (
+                <span className="badge badge--ok">
+                  Aprobado · {fmtFecha(seleccionado.properties.aprobado_en)}
+                </span>
+              ) : (
+                <span className="badge badge--outline">Sin aprobar</span>
+              )}
+              {puedeAprobar && !seleccionado.properties.aprobado_en && (
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  disabled={aprobar.isPending}
+                  onClick={() => aprobar.mutate({ trazoId: seleccionado.id })}
+                >
+                  Aprobar trazo
+                </button>
+              )}
+            </div>
+            {puedeAprobar && !seleccionado.properties.aprobado_en && (
+              <div className="text-mute text-xs">
+                Aprobar deja constancia de la revisión; no cambia la cantidad: el trazo
+                cuenta desde que se guarda.
+              </div>
+            )}
+            {seleccionado.properties.por_revisar && (
+              <span className="badge badge--warn">
+                Hecho sobre una versión anterior: revísalo
+              </span>
+            )}
+            {seleccionado.properties.enlaces.length === 0 ? (
+              <div className="text-mute text-sm">Sin enlaces: no alimenta ninguna cantidad.</div>
+            ) : (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Actividad</th>
+                    <th>Medida</th>
+                    <th className="is-num">Cantidad</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {seleccionado.properties.enlaces.map((e) => (
+                    <tr key={e.enlace_id} style={e.vigente ? undefined : { opacity: 0.5 }}>
+                      <td>
+                        {nombreDeNodo(e.tipo_nodo, e.nodo_id)}
+                        {!e.vigente && <span className="text-mute"> · reemplazado</span>}
+                      </td>
+                      <td>
+                        {etiquetaMedida(e.medida)} × {fmtNum(e.factor)}
+                      </td>
+                      <td className="is-num">{fmtNum(e.cantidad)}</td>
+                      <td>
+                        {e.vigente && (
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--sm"
+                            onClick={() => setReemplazando(e.enlace_id)}
+                          >
+                            Reemplazar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
+        ) : (
+          <div className="text-mute text-sm">
+            {features.length === 0 && listaDeNotas.length === 0
+              ? 'Este plano aún no tiene trazos ni notas.'
+              : `${features.length} ${features.length === 1 ? 'trazo' : 'trazos'} y ${listaDeNotas.length} ${listaDeNotas.length === 1 ? 'nota' : 'notas'}. Elige uno con la herramienta Seleccionar.`}
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+
+  const panelDelArbol = (
+    <aside className="estacion__arbol" aria-label="Presupuesto">
+      <div className="estacion__titulo">
+        Presupuesto
+        <span className="estacion__subtitulo">
+          {elegidos.size === 0
+            ? 'Medido contra la base'
+            : `${elegidos.size} ${elegidos.size === 1 ? 'elegido' : 'elegidos'}`}
+        </span>
+        {elegidos.size > 0 && (
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            style={{ marginLeft: 'auto' }}
+            onClick={() => {
+              setElegidos(new Set());
+              setSoloElegidos(false);
+            }}
+          >
+            Limpiar
+          </button>
+        )}
+      </div>
+      {estado.error ? (
+        <div style={{ padding: 8 }}>
+          <ErrorBanner mensaje={estado.error.message} />
+        </div>
+      ) : arbol.length === 0 ? (
+        <div className="text-mute text-sm" style={{ padding: 10 }}>
+          La obra todavía no tiene actividades: genérala para empezar a medir.
+        </div>
+      ) : (
+        <ArbolPresupuesto
+          arbol={arbol}
+          elegidos={elegidos}
+          onElegir={elegirConceptos}
+          actividadFocoId={actividadFocoId}
+        />
+      )}
+    </aside>
+  );
+
+  const claseEspacio = [
+    'estacion',
+    compacto && 'estacion--compacta',
+    arbolAbierto && 'tiene-arbol',
+    detalleAbierto && 'tiene-detalle',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className={compacto ? 'cuant-espacio cuant-espacio--compacto' : 'cuant-espacio'}>
-      <div className="filterbar filterbar--suelta">
+    <div className={claseEspacio}>
+      <div className="estacion__cabecera">
         {cabecera}
-        <div className="field" style={{ minWidth: 240 }}>
-          <label className="field__label" htmlFor="cuant-plano">
+        <div className="estacion__plano">
+          <label className="sr-only" htmlFor="cuant-plano">
             Plano
           </label>
           <select
@@ -523,8 +647,35 @@ export function EspacioDeTrazo({
             ))}
           </select>
         </div>
-        <button type="button" className="btn" onClick={() => setSubiendoPlano(true)}>
-          Subir plano
+        <button
+          type="button"
+          className="btn-icono"
+          aria-label="Subir plano"
+          title="Subir plano"
+          onClick={() => setSubiendoPlano(true)}
+        >
+          <Upload size={16} aria-hidden />
+        </button>
+        <span className="estacion__relleno" />
+        <button
+          type="button"
+          className={arbolAbierto ? 'btn-icono is-activo' : 'btn-icono'}
+          aria-label="Mostrar u ocultar el árbol del presupuesto"
+          aria-pressed={arbolAbierto}
+          title="Árbol del presupuesto"
+          onClick={() => setArbolAbierto(!arbolAbierto)}
+        >
+          <PanelLeft size={16} aria-hidden />
+        </button>
+        <button
+          type="button"
+          className={detalleAbierto ? 'btn-icono is-activo' : 'btn-icono'}
+          aria-label="Mostrar u ocultar el detalle del trazo"
+          aria-pressed={detalleAbierto}
+          title="Detalle del trazo"
+          onClick={() => setDetalleAbierto(!detalleAbierto)}
+        >
+          <PanelRight size={16} aria-hidden />
         </button>
       </div>
 
@@ -554,259 +705,189 @@ export function EspacioDeTrazo({
         </div>
       )}
 
-      {plano === undefined ? (
-        <div className="empty">
-          <div className="empty-title">{planos.isLoading ? 'Cargando planos…' : 'Esta obra no tiene planos'}</div>
-          {!planos.isLoading && (
-            <div className="empty-sub">Sube una imagen del plano para empezar a trazar.</div>
-          )}
-          {/* Sin plano también se ve qué hay que medir: el árbol es el del presupuesto. */}
-          {!planos.isLoading && <div style={{ textAlign: 'left', marginTop: 16 }}>{tarjetaDelArbol}</div>}
-        </div>
-      ) : (
-        <div className="cuant">
-          <div className="cuant__lienzo">
-            <div className="row cuant__barra" role="toolbar" aria-label="Herramientas de trazo">
-              {(puedeAnotar ? [...HERRAMIENTAS, HERRAMIENTA_NOTA] : HERRAMIENTAS).map((h) => (
-                <button
-                  key={h.clave}
-                  type="button"
-                  className={`btn btn--sm${herramienta === h.clave ? ' btn--primary' : ''}`}
-                  aria-pressed={herramienta === h.clave}
-                  onClick={() => cambiarHerramienta(h.clave)}
-                >
-                  {h.etiqueta}
-                </button>
-              ))}
-              <span
-                className={`badge badge--${escalaDelPlano === null ? 'warn' : 'ok'}`}
-                title={
-                  escalaDelPlano === null
-                    ? 'Sin calibrar: se asume 1 unidad de plano = 1 m y las cantidades están en unidades de plano.'
-                    : `1 unidad de plano = ${escalaDelPlano} m`
-                }
-              >
-                {escalaDelPlano === null
-                  ? 'Sin calibrar: cantidades en unidades de plano'
-                  : `Escala 1 u = ${escalaDelPlano.toPrecision(4)} m`}
-              </span>
-              {herramienta === 'escala' && (
-                <span className="text-mute text-xs">
-                  {borrador.length === 0
-                    ? 'Marca el primer punto de una distancia conocida (una cota, un eje)'
-                    : 'Marca el segundo punto'}
-                </span>
-              )}
-              {forma && forma !== 'punto' && (
-                <>
-                  <span className="text-mute text-xs">
-                    {dibujandoHueco
-                      ? `Hueco: ${huecoEnCurso.length} vértices · Enter lo cierra · Retroceso quita · Esc lo descarta`
-                      : `${borrador.length} vértices · Enter cierra · Retroceso quita · Esc descarta`}
-                    {huecos.length > 0 && ` · ${huecos.length} ${huecos.length === 1 ? 'hueco' : 'huecos'}`}
-                  </span>
-                  {forma === 'poligono' && trazoCompleto(forma, borrador) && !dibujandoHueco && (
-                    <button
-                      type="button"
-                      className="btn btn--sm"
-                      title="Dibuja dentro del polígono lo que se descuenta: una ventana, un cubo de escalera"
-                      onClick={() => setDibujandoHueco(true)}
-                    >
-                      Agregar hueco
-                    </button>
-                  )}
-                  {dibujandoHueco && (
-                    <>
-                      <button
-                        type="button"
-                        className="btn btn--sm"
-                        disabled={huecoEnCurso.length < PUNTOS_MINIMOS_DE_HUECO}
-                        onClick={cerrarHueco}
-                      >
-                        Cerrar hueco
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => {
-                          setHuecoEnCurso([]);
-                          setDibujandoHueco(false);
-                        }}
-                      >
-                        Cancelar hueco
-                      </button>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    className="btn btn--accent btn--sm"
-                    disabled={!trazoCompleto(forma, borrador) || dibujandoHueco}
-                    onClick={terminar}
-                  >
-                    Terminar trazo
-                  </button>
-                </>
+      <div className="estacion__cuerpo">
+        {arbolAbierto && panelDelArbol}
+
+        <div className="estacion__lienzo">
+          {plano === undefined ? (
+            <div className="empty">
+              <div className="empty-title">
+                {planos.isLoading ? 'Cargando planos…' : 'Esta obra no tiene planos'}
+              </div>
+              {!planos.isLoading && (
+                <div className="empty-sub">Sube una imagen del plano para empezar a trazar.</div>
               )}
             </div>
+          ) : (
+            <>
+              <BarraDeHerramientas
+                herramientas={herramientasDisponibles}
+                activa={herramienta}
+                onElegir={cambiarHerramienta}
+                soloElegidos={soloElegidos}
+                hayElegidos={elegidos.size > 0}
+                onAlternarSoloElegidos={() => setSoloElegidos(!soloElegidos)}
+                volumenAbierto={volumenAbierto}
+                onAlternarVolumen={abrirVolumen}
+                orientacion={compacto ? 'horizontal' : 'vertical'}
+              />
 
-            {aviso && (
-              <div className="text-sm" role="status">
-                {aviso}
+              <div className="estacion__hud">
+                <span
+                  className={`badge badge--${escalaDelPlano === null ? 'warn' : 'ok'}`}
+                  title={
+                    escalaDelPlano === null
+                      ? 'Sin calibrar: se asume 1 unidad de plano = 1 m y las cantidades están en unidades de plano.'
+                      : `1 unidad de plano = ${escalaDelPlano} m`
+                  }
+                >
+                  {escalaDelPlano === null
+                    ? 'Sin calibrar: cantidades en unidades de plano'
+                    : `Escala 1 u = ${escalaDelPlano.toPrecision(4)} m`}
+                </span>
+                {filtrando && (
+                  <span className="badge badge--info" role="status">
+                    Solo {elegidos.size} {elegidos.size === 1 ? 'concepto' : 'conceptos'}
+                  </span>
+                )}
               </div>
-            )}
-            {trazosConsulta.error && <ErrorBanner mensaje={trazosConsulta.error.message} />}
-            {plano !== undefined && !esImagen && !esPdf && (
-              <div className="text-mute text-xs">
-                Este plano no es una imagen (PNG, JPG o WebP) ni un PDF: se traza sobre una
-                rejilla en blanco.
-              </div>
-            )}
-            {(esImagen || esPdf) && archivo.error && (
-              <div className="text-mute text-xs">
-                No se pudo cargar el archivo del plano ({archivo.error.message}). Los trazos se
-                muestran sobre una rejilla en blanco.
-              </div>
-            )}
-            {esPdf && pdf.cargando && (
-              <div className="text-mute text-xs" role="status">
-                Preparando la hoja del PDF…
-              </div>
-            )}
-            {esPdf && pdf.error && (
-              <div className="text-mute text-xs">
-                No se pudo dibujar el PDF ({pdf.error}). Los trazos se muestran sobre una
-                rejilla en blanco.
-              </div>
-            )}
 
-            <Visor
-              claveDePlano={planoElegido}
-              fondoUrl={fondoUrl}
-              trazos={trazosVisibles}
-              notas={notasVisibles}
-              seleccion={seleccion}
-              herramienta={herramienta}
-              borrador={borrador}
-              huecos={huecos}
-              huecoEnCurso={huecoEnCurso}
-              onPunto={alPunto}
-              onSeleccionar={setSeleccion}
-            />
-          </div>
+              {volumenAbierto && (
+                <PanelVolumen
+                  key={seleccionado?.id ?? 'sin-trazo'}
+                  trazo={
+                    seleccionado
+                      ? { id: seleccionado.id, geometry: seleccionado.geometry, nombre: nombreDelTrazo }
+                      : null
+                  }
+                  escalaMPorUnidad={escalaDelPlano}
+                  onCerrar={() => setVolumenAbierto(false)}
+                />
+              )}
 
-          <aside className="cuant__lateral col gap-12">
-            <div className="card">
-              <div className="card__header">
-                <div className="card__title">
-                  {seleccionado ? 'Trazo elegido' : notaElegida ? 'Nota elegida' : 'Trazos del plano'}
-                </div>
-              </div>
-              <div className="card__body col">
-                {notaElegida ? (
-                  <>
-                    <div className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>
-                      {notaElegida.texto}
-                    </div>
-                    <div className="text-mute text-xs">
-                      {fmtFecha(notaElegida.created_at)}
-                      {notaElegida.actividad_id &&
-                        ` · ${etiquetaActividad(porActividad.get(notaElegida.actividad_id), notaElegida.actividad_id)}`}
-                    </div>
-                    {notaElegida.por_revisar && (
-                      <span className="badge badge--warn">
-                        Hecha sobre una versión anterior: el lugar pudo moverse
-                      </span>
-                    )}
-                    <div className="text-mute text-xs">Una nota no suma cantidad.</div>
-                  </>
-                ) : seleccionado ? (
-                  <>
-                    <div className="text-sm">
-                      {seleccionado.properties.capa ?? 'Sin capa'} ·{' '}
-                      <span className="mono">{seleccionado.properties.fuente.toUpperCase()}</span>
-                    </div>
-                    <div className="row">
-                      {seleccionado.properties.aprobado_en ? (
-                        <span className="badge badge--ok">
-                          Aprobado · {fmtFecha(seleccionado.properties.aprobado_en)}
-                        </span>
-                      ) : (
-                        <span className="badge badge--outline">Sin aprobar</span>
-                      )}
-                      {puedeAprobar && !seleccionado.properties.aprobado_en && (
-                        <button
-                          type="button"
-                          className="btn btn--sm"
-                          disabled={aprobar.isPending}
-                          onClick={() => aprobar.mutate({ trazoId: seleccionado.id })}
-                        >
-                          Aprobar trazo
-                        </button>
-                      )}
-                    </div>
-                    {puedeAprobar && !seleccionado.properties.aprobado_en && (
-                      <div className="text-mute text-xs">
-                        Aprobar deja constancia de la revisión; no cambia la cantidad: el trazo
-                        cuenta desde que se guarda.
-                      </div>
-                    )}
-                    {seleccionado.properties.por_revisar && (
-                      <span className="badge badge--warn">
-                        Hecho sobre una versión anterior: revísalo
-                      </span>
-                    )}
-                    {seleccionado.properties.enlaces.length === 0 ? (
-                      <div className="text-mute text-sm">Sin enlaces: no alimenta ninguna cantidad.</div>
-                    ) : (
-                      <table className="table">
-                        <thead>
-                          <tr>
-                            <th>Actividad</th>
-                            <th>Medida</th>
-                            <th className="is-num">Cantidad</th>
-                            <th />
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {seleccionado.properties.enlaces.map((e) => (
-                            <tr key={e.enlace_id} style={e.vigente ? undefined : { opacity: 0.5 }}>
-                              <td>
-                                {nombreDeNodo(e.tipo_nodo, e.nodo_id)}
-                                {!e.vigente && <span className="text-mute"> · reemplazado</span>}
-                              </td>
-                              <td>
-                                {etiquetaMedida(e.medida)} × {fmtNum(e.factor)}
-                              </td>
-                              <td className="is-num">{fmtNum(e.cantidad)}</td>
-                              <td>
-                                {e.vigente && (
-                                  <button
-                                    type="button"
-                                    className="btn btn--ghost btn--sm"
-                                    onClick={() => setReemplazando(e.enlace_id)}
-                                  >
-                                    Reemplazar
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-mute text-sm">
-                    {features.length === 0 && listaDeNotas.length === 0
-                      ? 'Este plano aún no tiene trazos ni notas.'
-                      : `${features.length} ${features.length === 1 ? 'trazo' : 'trazos'} y ${listaDeNotas.length} ${listaDeNotas.length === 1 ? 'nota' : 'notas'}. Elige uno con la herramienta Seleccionar.`}
+              <Visor
+                claveDePlano={planoElegido}
+                fondoUrl={fondoUrl}
+                trazos={trazosVisibles}
+                notas={notasVisibles}
+                seleccion={seleccion}
+                herramienta={herramienta}
+                borrador={borrador}
+                huecos={huecos}
+                huecoEnCurso={huecoEnCurso}
+                onPunto={alPunto}
+                onSeleccionar={setSeleccion}
+              />
+
+              <div className="estacion__mensajes">
+                {aviso && (
+                  <div className="text-sm" role="status">
+                    {aviso}
+                  </div>
+                )}
+                {trazosConsulta.error && <ErrorBanner mensaje={trazosConsulta.error.message} />}
+                {plano !== undefined && !esImagen && !esPdf && (
+                  <div className="text-mute text-xs">
+                    Este plano no es una imagen (PNG, JPG o WebP) ni un PDF: se traza sobre una
+                    rejilla en blanco.
+                  </div>
+                )}
+                {(esImagen || esPdf) && archivo.error && (
+                  <div className="text-mute text-xs">
+                    No se pudo cargar el archivo del plano ({archivo.error.message}). Los trazos se
+                    muestran sobre una rejilla en blanco.
+                  </div>
+                )}
+                {esPdf && pdf.cargando && (
+                  <div className="text-mute text-xs" role="status">
+                    Preparando la hoja del PDF…
+                  </div>
+                )}
+                {esPdf && pdf.error && (
+                  <div className="text-mute text-xs">
+                    No se pudo dibujar el PDF ({pdf.error}). Los trazos se muestran sobre una
+                    rejilla en blanco.
                   </div>
                 )}
               </div>
-            </div>
+            </>
+          )}
+        </div>
 
-            {tarjetaDelArbol}
-          </aside>
+        {detalleAbierto && detalle}
+      </div>
+
+      {plano !== undefined && (
+        <div className="estacion__estado" aria-label="Estado del plano">
+      {(forma || herramienta === 'escala') && (
+        <div className="estacion__dibujo row" role="group" aria-label="Trazo en curso">
+          {herramienta === 'escala' && (
+            <span className="text-mute text-xs">
+              {borrador.length === 0
+                ? 'Marca el primer punto de una distancia conocida (una cota, un eje)'
+                : 'Marca el segundo punto'}
+            </span>
+          )}
+          {forma && forma !== 'punto' && (
+            <>
+              <span className="text-mute text-xs">
+                {dibujandoHueco
+                  ? `Hueco: ${huecoEnCurso.length} vértices · Enter lo cierra · Retroceso quita · Esc lo descarta`
+                  : `${borrador.length} vértices · Enter cierra · Retroceso quita · Esc descarta`}
+                {huecos.length > 0 && ` · ${huecos.length} ${huecos.length === 1 ? 'hueco' : 'huecos'}`}
+              </span>
+              {forma === 'poligono' && trazoCompleto(forma, borrador) && !dibujandoHueco && (
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  title="Dibuja dentro del polígono lo que se descuenta: una ventana, un cubo de escalera"
+                  onClick={() => setDibujandoHueco(true)}
+                >
+                  Agregar hueco
+                </button>
+              )}
+              {dibujandoHueco && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn--sm"
+                    disabled={huecoEnCurso.length < PUNTOS_MINIMOS_DE_HUECO}
+                    onClick={cerrarHueco}
+                  >
+                    Cerrar hueco
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => {
+                      setHuecoEnCurso([]);
+                      setDibujandoHueco(false);
+                    }}
+                  >
+                    Cancelar hueco
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                className="btn btn--accent btn--sm"
+                disabled={!trazoCompleto(forma, borrador) || dibujandoHueco}
+                onClick={terminar}
+              >
+                Terminar trazo
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+          <span>
+            {featuresVisibles.length} de {features.length} {features.length === 1 ? 'trazo' : 'trazos'}
+            {filtrando ? ' (filtrados)' : ''}
+          </span>
+          <span>
+            {listaDeNotas.length} {listaDeNotas.length === 1 ? 'nota' : 'notas'}
+          </span>
         </div>
       )}
 
@@ -928,7 +1009,7 @@ export default function Cuantificador() {
   const [creandoObra, setCreandoObra] = useState(false);
   const obraId = busqueda.get('obra') ?? '';
   const selectorDeObra = (
-    <div style={{ minWidth: 220 }}>
+    <div className="estacion__obra">
       <SelectorObra
         id="cuant-obra"
         etiqueta="Obra"
@@ -946,21 +1027,10 @@ export default function Cuantificador() {
     ) : null;
 
   return (
-    <div className="page">
-      <div className="page__header">
-        <div className="page__titlewrap">
-          <div className="page__eyebrow mono">Presupuesto</div>
-          <h1 className="page__title">Cuantificador</h1>
-          <div className="page__subtitle">
-            Traza sobre el plano y enlaza cada trazo a las actividades que alimenta. Lo que se
-            mide <strong>informa</strong> y se compara con la cantidad base; no la reemplaza.
-          </div>
-        </div>
-      </div>
-
+    <div className="page page--estacion">
       {obraId === '' ? (
         <>
-          <div className="filterbar filterbar--suelta">
+          <div className="estacion__cabecera">
             {selectorDeObra}
             {nuevaObra}
           </div>
