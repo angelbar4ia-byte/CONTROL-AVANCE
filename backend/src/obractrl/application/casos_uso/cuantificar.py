@@ -1484,6 +1484,7 @@ class ConsultarMatrices:
             )
         return {
             "actividad_id": actividad_id,
+            "concepto_id": arbol["concepto_id"],
             "concepto_clave": arbol["concepto_clave"],
             "descripcion": arbol["descripcion"],
             "cant_base": cant_base,

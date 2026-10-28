@@ -98,19 +98,19 @@ test.describe('Hojas matriz · medir la matriz dentro del concepto', () => {
     await expect(despues).toContainText('La cantidad de la actividad no cambia');
 
     // Un clic en una matriz la vuelve lo que se mide: su tipo resalta el bloque de la barra.
-    await despues.getByRole('button', { name: /MTZ-BAST/ }).click();
+    await despues.getByRole('button', { name: /^MTZ-BAST · / }).click();
     await expect(control.getByTestId('tipo-del-concepto')).toContainText('MTZ-BAST');
     await expect(control.getByTestId('tipo-del-concepto')).toContainText('Lineal (ml)');
     await expect(control.getByRole('toolbar', { name: 'Herramientas de trazo' }).locator('[data-bloque="lineal"]')).toHaveClass(
       /is-resaltado/,
     );
-    await despues.getByRole('button', { name: /MTZ-BAST/ }).click(); // otro clic la suelta: se vuelve a medir la losa
+    await despues.getByRole('button', { name: /^MTZ-BAST · / }).click(); // otro clic la suelta: se vuelve a medir la losa
     await expect(control.getByTestId('tipo-del-concepto')).not.toContainText('MTZ-BAST');
     await expect(control.getByTestId('tipo-del-concepto')).toContainText('Área');
 
     // La matriz que se está midiendo llega elegida al cajón de guardar.
     const bast = conceptos.find((c) => c.clave === 'MTZ-BAST')!;
-    await despues.getByRole('button', { name: /MTZ-BAST/ }).click();
+    await despues.getByRole('button', { name: /^MTZ-BAST · / }).click();
     await control.getByRole('toolbar', { name: 'Herramientas de trazo' }).getByRole('button', { name: 'Línea', exact: true }).click();
     const cabeza = control.locator('.opciones__cabeza[aria-expanded="true"]');
     if ((await cabeza.count()) > 0) await cabeza.first().click();

@@ -25,6 +25,8 @@ interface Props {
   /** La matriz interna que se está midiendo (`concepto_id`), y el clic que activa una. */
   readonly matrizActivaId?: string | null;
   readonly onActivarMatriz?: (actividadId: string, matriz: { id: string; clave: string; unidad: string | null }) => void;
+  /** Control de obra y Costos agregan y quitan matrices (composición del catálogo). */
+  readonly puedeEditarMatrices?: boolean;
 }
 
 const norm = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -64,6 +66,7 @@ export function ArbolPresupuesto({
   onActivar,
   matrizActivaId,
   onActivarMatriz,
+  puedeEditarMatrices = false,
 }: Props) {
   // Todo abierto al empezar: el árbol de una obra cabe y lo que se busca no debe esconderse.
   const [cerradas, setCerradas] = useState<ReadonlySet<string>>(new Set());
@@ -227,6 +230,7 @@ export function ArbolPresupuesto({
                                   <div className="arbol__matrices-cuerpo">
                                     <MatricesDeActividad
                                       actividadId={hoja.id}
+                                      puedeEditar={puedeEditarMatrices}
                                       matrizActivaId={hoja.id === actividadFocoId ? matrizActivaId : null}
                                       onActivar={onActivarMatriz ? (m) => onActivarMatriz(hoja.id, m) : undefined}
                                     />

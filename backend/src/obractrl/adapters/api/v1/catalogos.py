@@ -39,6 +39,7 @@ from obractrl.adapters.api.casos_uso import (
     EliminarVersionDeCPUDep,
     EliminarVersionDeCuadrillaDep,
     ExplotarConceptoDep,
+    GestionarMatricesDeConceptoDep,
     ObtenerCPUDep,
     PublicarVersionCPUDep,
 )
@@ -63,6 +64,10 @@ from obractrl.application.casos_uso.gestionar_catalogos import (
     ComandoCrearInsumo,
     ComandoCrearUnidad,
     InsumoCreado,
+)
+from obractrl.application.casos_uso.matrices_de_concepto import (
+    ComandoPonerMatriz,
+    MatrizNueva,
 )
 from obractrl.domain.catalogos.apu import ExplosionCalculada, VersionCPU
 from obractrl.domain.shared.diccionario import (
@@ -1055,7 +1060,7 @@ def _precio(precio: PrecioUnitario) -> PrecioUnitarioRespuesta:
     "/conceptos",
     response_model=list[ConceptoRespuesta],
     summary="Catálogo de conceptos",
-    dependencies=[CATALOGOS],
+    dependencies=[LECTURA_PARA_ALTAS],
 )
 async def listar_conceptos(
     sesion: SesionRLS,
@@ -1139,6 +1144,71 @@ async def crear_concepto(
             UUID(creado.concepto.familia_id) if creado.concepto.familia_id else None
         ),
     )
+
+
+class MatrizNuevaPeticion(BaseModel):
+    clave: str = Field(min_length=1, max_length=60)
+    descripcion: str = Field(min_length=1)
+    unidad_id: UUID
+
+
+class PonerMatrizPeticion(BaseModel):
+    cantidad: Decimal = Field(gt=0, description="Cuánto lleva por unidad del concepto padre.")
+    matriz_id: UUID | None = Field(default=None, description="Un concepto que ya existe…")
+    nueva: MatrizNuevaPeticion | None = Field(default=None, description="…o uno que nace aquí.")
+
+
+class MatrizPuestaRespuesta(BaseModel):
+    concepto_id: UUID
+    matriz_id: UUID
+    cantidad: Decimal
+
+
+@router.post(
+    "/conceptos/{concepto_id}/matrices",
+    response_model=MatrizPuestaRespuesta,
+    summary="Poner una matriz bajo el concepto (o cambiarle la cantidad)",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))],
+    responses={
+        404: {"description": "El concepto no existe o está fuera de tu alcance."},
+        422: {"description": "Ciclo, clave repetida, cantidad que no suma o ni matriz ni nueva."},
+    },
+)
+async def poner_matriz_al_concepto(
+    concepto_id: UUID, peticion: PonerMatrizPeticion, caso_uso: GestionarMatricesDeConceptoDep
+) -> MatrizPuestaRespuesta:
+    """Cambia la composición del **catálogo**: vale para todas las obras que usen el concepto."""
+    return MatrizPuestaRespuesta(
+        **await caso_uso.poner(
+            ComandoPonerMatriz(
+                concepto_id=concepto_id,
+                cantidad=peticion.cantidad,
+                hijo_id=peticion.matriz_id,
+                nueva=(
+                    MatrizNueva(
+                        clave=peticion.nueva.clave,
+                        descripcion=peticion.nueva.descripcion,
+                        unidad_id=peticion.nueva.unidad_id,
+                    )
+                    if peticion.nueva
+                    else None
+                ),
+            )
+        )
+    )
+
+
+@router.delete(
+    "/conceptos/{concepto_id}/matrices/{matriz_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Quitar una matriz del concepto",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))],
+    responses={404: {"description": "El concepto o esa matriz directa no existen."}},
+)
+async def quitar_matriz_del_concepto(
+    concepto_id: UUID, matriz_id: UUID, caso_uso: GestionarMatricesDeConceptoDep
+) -> None:
+    await caso_uso.quitar(concepto_id, matriz_id)
 
 
 @router.get(

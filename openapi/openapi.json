@@ -2776,6 +2776,115 @@
         }
       }
     },
+    "/api/v1/conceptos/{concepto_id}/matrices": {
+      "post": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Poner una matriz bajo el concepto (o cambiarle la cantidad)",
+        "description": "Cambia la composición del **catálogo**: vale para todas las obras que usen el concepto.",
+        "operationId": "poner_matriz_al_concepto_api_v1_conceptos__concepto_id__matrices_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PonerMatrizPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatrizPuestaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El concepto no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Ciclo, clave repetida, cantidad que no suma o ni matriz ni nueva."
+          }
+        }
+      }
+    },
+    "/api/v1/conceptos/{concepto_id}/matrices/{matriz_id}": {
+      "delete": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Quitar una matriz del concepto",
+        "operationId": "quitar_matriz_del_concepto_api_v1_conceptos__concepto_id__matrices__matriz_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          },
+          {
+            "name": "matriz_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Matriz Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "El concepto o esa matriz directa no existen."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/conceptos/{concepto_id}/explosion": {
       "get": {
         "tags": [
@@ -23535,6 +23644,19 @@
             "format": "uuid",
             "title": "Actividad Id"
           },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id",
+            "description": "El concepto madre: a él se le agregan matrices en el catálogo."
+          },
           "concepto_clave": {
             "anyOf": [
               {
@@ -23595,6 +23717,59 @@
           "matrices"
         ],
         "title": "MatricesDeActividadRespuesta"
+      },
+      "MatrizNuevaPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Descripcion"
+          },
+          "unidad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unidad Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad_id"
+        ],
+        "title": "MatrizNuevaPeticion"
+      },
+      "MatrizPuestaRespuesta": {
+        "properties": {
+          "concepto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Concepto Id"
+          },
+          "matriz_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Matriz Id"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto_id",
+          "matriz_id",
+          "cantidad"
+        ],
+        "title": "MatrizPuestaRespuesta"
       },
       "MatrizRespuesta": {
         "properties": {
@@ -26189,6 +26364,53 @@
         },
         "type": "object",
         "title": "PlantasPeticion"
+      },
+      "PonerMatrizPeticion": {
+        "properties": {
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cantidad",
+            "description": "Cuánto lleva por unidad del concepto padre."
+          },
+          "matriz_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matriz Id",
+            "description": "Un concepto que ya existe…"
+          },
+          "nueva": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatrizNuevaPeticion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "…o uno que nace aquí."
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad"
+        ],
+        "title": "PonerMatrizPeticion"
       },
       "PrecioArmadoRespuesta": {
         "properties": {

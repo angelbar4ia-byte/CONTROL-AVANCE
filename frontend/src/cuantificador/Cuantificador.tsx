@@ -1571,6 +1571,7 @@ export function EspacioDeTrazo({
             setConceptoActivo((actual) => (actual === id && !matrizActiva ? null : id));
           }}
           matrizActivaId={matrizActiva?.id ?? null}
+          puedeEditarMatrices={puedePonerPeso}
           onActivarMatriz={(actividadId, m) => {
             if (matrizActiva?.id === m.id && conceptoActivo === actividadId) {
               setMatrizActiva(null);

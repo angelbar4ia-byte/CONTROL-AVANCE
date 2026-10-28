@@ -283,6 +283,9 @@ from obractrl.application.casos_uso.gestionar_usuarios import (
     CrearUsuario,
     ResetearContrasena,
 )
+from obractrl.application.casos_uso.matrices_de_concepto import (
+    GestionarMatricesDeConcepto,
+)
 from obractrl.application.casos_uso.mediciones import GestionarMediciones
 from obractrl.application.casos_uso.notificar_estimacion import (
     NotificarEstimacionValidada,
@@ -403,6 +406,7 @@ __all__ = [
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
     "GestionarElementosDep",
+    "GestionarMatricesDeConceptoDep",
     "GestionarMedicionesDep",
     "IniciarObraDep",
     "InstanciarProgramaObraDep",
@@ -1562,6 +1566,12 @@ def obtener_agregar_actividad_nueva(sesion: SesionRLS, ctx: ContextoActual) -> A
     )
 
 
+def obtener_gestionar_matrices_de_concepto(sesion: SesionRLS) -> GestionarMatricesDeConcepto:
+    return GestionarMatricesDeConcepto(
+        conceptos=RepositorioConceptosSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
 def obtener_crear_concepto_en_obra(sesion: SesionRLS) -> CrearConceptoEnObra:
     return CrearConceptoEnObra(
         conceptos=RepositorioConceptosSQL(sesion),
@@ -1690,6 +1700,9 @@ ConsultarCatalogosBaseDep = Annotated[
     ConsultarCatalogosBase, Depends(obtener_consultar_catalogos_base)
 ]
 ModificarActividadDep = Annotated[ModificarActividad, Depends(obtener_modificar_actividad)]
+GestionarMatricesDeConceptoDep = Annotated[
+    GestionarMatricesDeConcepto, Depends(obtener_gestionar_matrices_de_concepto)
+]
 CrearConceptoEnObraDep = Annotated[CrearConceptoEnObra, Depends(obtener_crear_concepto_en_obra)]
 AgregarActividadNuevaDep = Annotated[
     AgregarActividadNueva, Depends(obtener_agregar_actividad_nueva)

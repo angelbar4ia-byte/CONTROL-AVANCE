@@ -1054,6 +1054,9 @@ class MatrizRespuesta(BaseModel):
 
 class MatricesDeActividadRespuesta(BaseModel):
     actividad_id: UUID
+    concepto_id: UUID | None = Field(
+        default=None, description="El concepto madre: a él se le agregan matrices en el catálogo."
+    )
     concepto_clave: str | None = None
     descripcion: str
     cant_base: Decimal

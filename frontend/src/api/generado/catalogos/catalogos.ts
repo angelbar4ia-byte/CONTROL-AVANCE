@@ -51,10 +51,12 @@ import type {
   ListarInsumosApiV1InsumosGetParams,
   ListarMaterialesApiV1MaterialesGetParams,
   ListarUnidadesApiV1UnidadesGetParams,
+  MatrizPuestaRespuesta,
   NivelDeLaEtapaPeticion,
   NivelRespuesta,
   ObtenerCpuApiV1ConceptosConceptoIdCpuGetParams,
   OficioDelConceptoPeticion,
+  PonerMatrizPeticion,
   PublicarCPUPeticion,
   UnidadRespuesta,
   VersionCuadrillaRespuesta,
@@ -4710,6 +4712,251 @@ export const useAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialida
   > => {
     const mutationOptions =
       getAsignarEspecialidadAlConceptoApiV1ConceptosConceptoIdEspecialidadPutMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * Cambia la composición del **catálogo**: vale para todas las obras que usen el concepto.
+ * @summary Poner una matriz bajo el concepto (o cambiarle la cantidad)
+ */
+export const ponerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPost = (
+  conceptoId: string,
+  ponerMatrizPeticion: PonerMatrizPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<MatrizPuestaRespuesta>(
+    {
+      url: `/api/v1/conceptos/${conceptoId}/matrices`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: ponerMatrizPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getPonerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof ponerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPost
+        >
+      >,
+      TError,
+      { conceptoId: string; data: PonerMatrizPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof ponerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPost
+      >
+    >,
+    TError,
+    { conceptoId: string; data: PonerMatrizPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "ponerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof ponerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPost
+        >
+      >,
+      { conceptoId: string; data: PonerMatrizPeticion }
+    > = (props) => {
+      const { conceptoId, data } = props ?? {};
+
+      return ponerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPost(
+        conceptoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type PonerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof ponerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPost
+      >
+    >
+  >;
+export type PonerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPostMutationBody =
+  PonerMatrizPeticion;
+export type PonerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPostMutationError =
+  void;
+
+/**
+ * @summary Poner una matriz bajo el concepto (o cambiarle la cantidad)
+ */
+export const usePonerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof ponerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPost
+        >
+      >,
+      TError,
+      { conceptoId: string; data: PonerMatrizPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof ponerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPost>
+  >,
+  TError,
+  { conceptoId: string; data: PonerMatrizPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getPonerMatrizAlConceptoApiV1ConceptosConceptoIdMatricesPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Quitar una matriz del concepto
+ */
+export const quitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete =
+  (
+    conceptoId: string,
+    matrizId: string,
+    options?: SecondParameter<typeof peticion>,
+  ) => {
+    return peticion<void>(
+      {
+        url: `/api/v1/conceptos/${conceptoId}/matrices/${matrizId}`,
+        method: "DELETE",
+      },
+      options,
+    );
+  };
+
+export const getQuitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDeleteMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof quitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete
+        >
+      >,
+      TError,
+      { conceptoId: string; matrizId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof quitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete
+      >
+    >,
+    TError,
+    { conceptoId: string; matrizId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "quitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof quitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete
+        >
+      >,
+      { conceptoId: string; matrizId: string }
+    > = (props) => {
+      const { conceptoId, matrizId } = props ?? {};
+
+      return quitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete(
+        conceptoId,
+        matrizId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type QuitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDeleteMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof quitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete
+      >
+    >
+  >;
+
+export type QuitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDeleteMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Quitar una matriz del concepto
+ */
+export const useQuitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof quitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete
+          >
+        >,
+        TError,
+        { conceptoId: string; matrizId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof quitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete
+      >
+    >,
+    TError,
+    { conceptoId: string; matrizId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getQuitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDeleteMutationOptions(
         options,
       );
 

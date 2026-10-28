@@ -7,13 +7,16 @@
  * de la actividad sin tocar su cantidad base ni el catálogo.
  */
 
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import type { MatricesDeActividadRespuesta } from '@/api/generado/modelo';
+import { useQuitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete } from '@/api/generado/catalogos/catalogos';
 import { useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet } from '@/api/generado/cuantificacion/cuantificacion';
 import { ErrorBanner } from '@/lib/ErrorBanner';
+import { AltaDeMatriz } from './AltaDeMatriz';
 import { fmtMXN, fmtNum } from '@/lib/formato';
 import { arbolDeMatrices, llavesConHijos, type NodoDeMatriz } from './matrices';
 import { NOMBRE_DE_TIPO } from './tipos';
@@ -24,6 +27,15 @@ interface Props {
   readonly matrizActivaId?: string | null;
   /** Clic en una matriz: pasa a ser lo que se mide. Otro clic la suelta. */
   readonly onActivar?: (matriz: { id: string; clave: string; unidad: string | null }) => void;
+  /** Control de obra y Costos pueden agregar y quitar matrices: es composición del catálogo. */
+  readonly puedeEditar?: boolean;
+}
+
+/** Lo que el nodo necesita para editar la composición de su concepto. */
+interface Edicion {
+  readonly onPuesta: (aviso: string) => void;
+  readonly onError: (mensaje: string) => void;
+  readonly quitar: (padreId: string, matrizId: string) => void;
 }
 
 function Nodo({
@@ -32,12 +44,17 @@ function Nodo({
   alternar,
   matrizActivaId,
   onActivar,
+  padreId,
+  edicion,
 }: {
   readonly nodo: NodoDeMatriz;
   readonly cerradas: ReadonlySet<string>;
   readonly alternar: (llave: string) => void;
   readonly matrizActivaId?: string | null;
   readonly onActivar?: Props['onActivar'];
+  /** La matriz (o el concepto) de la que ésta es insumo directo. */
+  readonly padreId: string | null;
+  readonly edicion?: Edicion;
 }) {
   const conHijos = nodo.hijos.length > 0;
   const abierto = !cerradas.has(nodo.llave);
@@ -91,11 +108,27 @@ function Nodo({
             {nodo.medidas} de {nodo.total}
           </span>
         )}
+        {edicion && padreId && (
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            aria-label={`Quitar ${nodo.clave} de su concepto`}
+            title="Quitar esta matriz del catálogo del concepto"
+            onClick={() => edicion.quitar(padreId, nodo.conceptoId)}
+          >
+            <X size={12} aria-hidden />
+          </button>
+        )}
       </div>
+      {edicion && (
+        <div className="arbol__alta-matriz">
+          <AltaDeMatriz padreId={nodo.conceptoId} padreClave={nodo.clave} onPuesta={edicion.onPuesta} onError={edicion.onError} />
+        </div>
+      )}
       {conHijos && abierto && (
         <ul role="group" className="arbol__hijos">
           {nodo.hijos.map((h) => (
-            <Nodo key={h.llave} nodo={h} cerradas={cerradas} alternar={alternar} matrizActivaId={matrizActivaId} onActivar={onActivar} />
+            <Nodo key={h.llave} nodo={h} cerradas={cerradas} alternar={alternar} matrizActivaId={matrizActivaId} onActivar={onActivar} padreId={nodo.conceptoId} edicion={edicion} />
           ))}
         </ul>
       )}
@@ -103,19 +136,52 @@ function Nodo({
   );
 }
 
-export function MatricesDeActividad({ actividadId, matrizActivaId, onActivar }: Props) {
+export function MatricesDeActividad({ actividadId, matrizActivaId, onActivar, puedeEditar = false }: Props) {
   const consulta = useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet<
     MatricesDeActividadRespuesta,
     ErrorApi
   >(actividadId);
   const [cerradas, setCerradas] = useState<ReadonlySet<string>>(new Set());
   const nodos = useMemo(() => arbolDeMatrices(consulta.data?.matrices ?? []), [consulta.data]);
+  const queryClient = useQueryClient();
+  const quitarMatriz = useQuitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelete<ErrorApi>();
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const edicion: Edicion | undefined = puedeEditar
+    ? {
+        onPuesta: (aviso) => {
+          setMensaje(aviso);
+          void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/matrices') });
+        },
+        onError: (m) => setMensaje(m),
+        quitar: (padre, matriz) =>
+          quitarMatriz
+            .mutateAsync({ conceptoId: padre, matrizId: matriz })
+            .then(() => {
+              setMensaje('Matriz quitada del catálogo del concepto.');
+              void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/matrices') });
+            })
+            .catch((err: unknown) => setMensaje(err instanceof Error ? err.message : 'No se pudo quitar la matriz.')),
+      }
+    : undefined;
 
   if (consulta.isLoading) return <div className="text-mute text-xs">Cargando matrices…</div>;
   if (consulta.error) return <ErrorBanner mensaje={consulta.error.message} />;
   const datos = consulta.data;
   if (!datos || datos.matrices.length === 0) {
-    return <div className="text-mute text-xs">Este concepto no tiene matrices internas que medir.</div>;
+    return (
+      <div className="col gap-4">
+        <div className="text-mute text-xs">Este concepto no tiene matrices internas que medir.</div>
+        {edicion && datos?.concepto_id && (
+          <AltaDeMatriz
+            padreId={datos.concepto_id}
+            padreClave={datos.concepto_clave ?? 'el concepto'}
+            onPuesta={edicion.onPuesta}
+            onError={edicion.onError}
+          />
+        )}
+        {mensaje && <div role="status" className="text-xs">{mensaje}</div>}
+      </div>
+    );
   }
 
   const conHijos = llavesConHijos(nodos);
@@ -146,9 +212,18 @@ export function MatricesDeActividad({ actividadId, matrizActivaId, onActivar }: 
       </div>
       <ul role="tree" className="arbol__hijos arbol__matrices-arbol" aria-label={`Árbol de matrices de ${datos.concepto_clave ?? 'la actividad'}`}>
         {nodos.map((n) => (
-          <Nodo key={n.llave} nodo={n} cerradas={cerradas} alternar={alternar} matrizActivaId={matrizActivaId} onActivar={onActivar} />
+          <Nodo key={n.llave} nodo={n} cerradas={cerradas} alternar={alternar} matrizActivaId={matrizActivaId} onActivar={onActivar} padreId={datos.concepto_id ?? null} edicion={edicion} />
         ))}
       </ul>
+      {edicion && datos.concepto_id && (
+        <AltaDeMatriz
+          padreId={datos.concepto_id}
+          padreClave={datos.concepto_clave ?? 'el concepto'}
+          onPuesta={edicion.onPuesta}
+          onError={edicion.onError}
+        />
+      )}
+      {mensaje && <div role="status" className="text-xs">{mensaje}</div>}
       {datos.medidas > 0 && (
         <div className="text-xs">
           Lo medido ajusta el importe: {fmtMXN(Number(datos.importe))} → <strong>{fmtMXN(Number(datos.importe_ajustado))}</strong>{' '}
