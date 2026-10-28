@@ -51,6 +51,7 @@ class ProponerTrazosPeticion(BaseModel):
 
 class ProponerTrazosRespuesta(BaseModel):
     trazo_ids: list[UUID]
+    descartadas: int = Field(default=0, description="Geometrías inválidas que no entraron al lote.")
 
 
 class IdsDeTrazoPeticion(BaseModel):
@@ -86,7 +87,7 @@ async def proponer_trazos(
     caso_uso: ProponerTrazosDep,
 ) -> ProponerTrazosRespuesta:
     """Cada propuesta queda como trazo **sin enlaces**: no cuenta como medida hasta que se acepta."""
-    ids = await caso_uso.ejecutar(
+    creadas = await caso_uso.ejecutar(
         ComandoProponerTrazos(
             plano_id=plano_id,
             actividad_id=peticion.actividad_id,
@@ -100,7 +101,7 @@ async def proponer_trazos(
             rol=Rol(ctx.rol),
         )
     )
-    return ProponerTrazosRespuesta(trazo_ids=ids)
+    return ProponerTrazosRespuesta(trazo_ids=list(creadas.trazo_ids), descartadas=creadas.descartadas)
 
 
 @router.post(

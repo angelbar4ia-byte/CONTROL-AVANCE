@@ -130,8 +130,26 @@ async def test_validaciones(escenario: Escenario, control: httpx.AsyncClient) ->
     base = {"actividad_id": str(escenario.actividad_id), "medida": "conteo", "origen": "conteo_auto", "propuestas": _puntos(1)}
 
     assert (await control.post(url, json={**base, "medida": "area"})).status_code == 422  # un punto no da área
-    assert (await control.post(url, json={**base, "propuestas": [{"wkt": "POINT(nada)"}]})).status_code == 422
+    assert (await control.post(url, json={**base, "propuestas": [{"wkt": "POINT(nada)"}]})).status_code == 422  # todo inválido
     assert (await control.post(url, json={**base, "actividad_id": str(uuid.uuid4())})).status_code == 422
     assert (await control.post(f"/api/v1/planos/{uuid.uuid4()}/propuestas", json=base)).status_code == 404
     area = {**base, "medida": "area", "origen": "takeoff", "propuestas": [{"wkt": "POLYGON((0 0,10 0,10 10,0 10,0 0))"}]}
     assert (await control.post(url, json=area)).status_code == 201
+
+
+async def test_una_geometria_mala_no_pierde_el_lote(escenario: Escenario, control: httpx.AsyncClient) -> None:
+    plano = await _plano(control, escenario)
+    r = await control.post(
+        f"/api/v1/planos/{plano}/propuestas",
+        json={
+            "actividad_id": str(escenario.actividad_id),
+            "medida": "area",
+            "origen": "takeoff",
+            "propuestas": [
+                {"wkt": "POLYGON((0 0,10 0,10 10,0 10,0 0))"},
+                {"wkt": "POLYGON((0 0,10 10,10 0,0 10,0 0))"},  # corbata: se cruza a sí misma
+            ],
+        },
+    )
+    assert r.status_code == 201, r.text
+    assert len(r.json()["trazo_ids"]) == 1 and r.json()["descartadas"] == 1

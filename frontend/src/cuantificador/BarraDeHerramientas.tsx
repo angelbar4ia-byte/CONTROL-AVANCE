@@ -29,6 +29,7 @@ import {
   RotateCw,
   RectangleHorizontal,
   Ruler,
+  ScanLine,
   ScanSearch,
   Spline,
   SquareMinus,
@@ -190,7 +191,7 @@ const ICONOS_DE_VISTA: Record<AccionDeVista['clave'], Icono> = {
   voltearV: FlipVertical2,
 };
 
-export type ClaveDeInterruptor = 'medidas' | 'cotas' | 'soloElegidos' | 'volumen' | 'datos' | 'empalme' | 'escalaAuto';
+export type ClaveDeInterruptor = 'medidas' | 'cotas' | 'soloElegidos' | 'volumen' | 'datos' | 'empalme' | 'escalaAuto' | 'takeoff';
 
 export interface Interruptor {
   readonly clave: ClaveDeInterruptor;
@@ -209,6 +210,7 @@ const INTERRUPTORES: Record<ClaveDeInterruptor, { etiqueta: string; icono: Icono
   datos: { etiqueta: 'Cuadro de datos', icono: Table2 },
   empalme: { etiqueta: 'Empalmar la versión anterior', icono: Layers },
   escalaAuto: { etiqueta: 'Proponer la escala', icono: Wand2 },
+  takeoff: { etiqueta: 'Takeoff automático', icono: ScanLine },
 };
 
 interface Props {

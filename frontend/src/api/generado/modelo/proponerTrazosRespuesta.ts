@@ -8,4 +8,6 @@
 
 export interface ProponerTrazosRespuesta {
   trazo_ids: string[];
+  /** Geometrías inválidas que no entraron al lote. */
+  descartadas?: number;
 }

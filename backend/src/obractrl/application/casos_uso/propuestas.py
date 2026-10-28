@@ -34,6 +34,7 @@ __all__ = [
     "ComandoProponerTrazos",
     "ProponerTrazos",
     "PropuestasAceptadas",
+    "PropuestasCreadas",
     "RechazarPropuestas",
 ]
 
@@ -62,6 +63,14 @@ class ComandoProponerTrazos:
 
 
 @dataclass(frozen=True, slots=True)
+class PropuestasCreadas:
+    trazo_ids: tuple[UUID, ...]
+    descartadas: int = 0
+    """Geometrías que no se pudieron medir (inválidas): una herramienta automática las genera de vez en cuando y
+    no por eso se pierde todo el lote."""
+
+
+@dataclass(frozen=True, slots=True)
 class PropuestasAceptadas:
     trazo_ids: tuple[UUID, ...]
     recalculos: tuple[ResultadoDeRecalculo, ...] = field(default_factory=tuple)
@@ -76,7 +85,7 @@ class ProponerTrazos:
         self._actividades = actividades
         self._uow = uow
 
-    async def ejecutar(self, cmd: ComandoProponerTrazos) -> list[UUID]:
+    async def ejecutar(self, cmd: ComandoProponerTrazos) -> PropuestasCreadas:
         if cmd.origen not in ORIGENES:
             raise ErrorDeCuantificacion(
                 f"Origen de propuesta desconocido: {cmd.origen!r}."
@@ -100,15 +109,20 @@ class ProponerTrazos:
                 "La actividad no existe o no es de la obra de este plano."
             )
 
-        for wkt in cmd.geometrias_wkt:
-            motivo = await self._trazos.motivo_de_geometria_invalida(wkt)
-            if motivo is not None:
-                raise ErrorDeCuantificacion(f"Una propuesta no se puede medir. {motivo}")
+        validas: list[tuple[str, Decimal | None]] = []
+        for i, wkt in enumerate(cmd.geometrias_wkt):
+            if await self._trazos.motivo_de_geometria_invalida(wkt) is not None:
+                continue  # se descarta y se cuenta: no se pierde el lote por una geometría mala
             tipo = await self._trazos.tipo_de_geometria(wkt)
             if cmd.medida not in _MEDIDAS_POR_GEOMETRIA.get(tipo, frozenset()):
                 raise ErrorDeCuantificacion(
                     f"La medida {cmd.medida!r} no va con una geometría {tipo}."
                 )
+            validas.append((wkt, cmd.confianzas[i] if cmd.confianzas else None))
+        if not validas:
+            raise ErrorDeCuantificacion(
+                "Ninguna de las geometrías propuestas se puede medir."
+            )
 
         async with self._uow:
             ids = [
@@ -120,12 +134,14 @@ class ProponerTrazos:
                     origen=cmd.origen,
                     actividad_id=cmd.actividad_id,
                     medida=cmd.medida,
-                    confianza=cmd.confianzas[i] if cmd.confianzas else None,
+                    confianza=confianza,
                 )
-                for i, wkt in enumerate(cmd.geometrias_wkt)
+                for wkt, confianza in validas
             ]
             await self._uow.commit()
-        return ids
+        return PropuestasCreadas(
+            trazo_ids=tuple(ids), descartadas=len(cmd.geometrias_wkt) - len(validas)
+        )
 
 
 class AceptarPropuestas:

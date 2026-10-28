@@ -22,7 +22,7 @@
 
 import { PanelLeft, PanelRight, Upload } from 'lucide-react';
 import { useIsMutating } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import {
@@ -135,6 +135,7 @@ import { OpcionesDeHerramienta } from './OpcionesDeHerramienta';
 import { desfaseDeTexto, porTraer, versionesAnteriores } from './empalme';
 import { AltaEnlaceDeHoja } from './AltaEnlaceDeHoja';
 import { ConteoAutomatico } from './ConteoAutomatico';
+import { TakeoffAutomatico } from './TakeoffAutomatico';
 import { OpcionesDeEmpalme } from './OpcionesDeEmpalme';
 import { PanelDePropuestas } from './PanelDePropuestas';
 import { ProponerEscala } from './ProponerEscala';
@@ -405,7 +406,12 @@ export function EspacioDeTrazo({
   const [zonaDeEnlace, setZonaDeEnlace] = useState<readonly [Punto, Punto] | null>(null);
   // Conteo automático: el símbolo que se marcó con dos clics y las coincidencias que se ven de antemano.
   const [zonaDePlantilla, setZonaDePlantilla] = useState<readonly [Punto, Punto] | null>(null);
-  const [coincidenciasPrevias, setCoincidenciasPrevias] = useState<readonly Punto[]>([]);
+  const [previasAuto, setPreviasAuto] = useState<readonly GeometriaGeoJson[]>([]);
+  const verCoincidencias = useCallback(
+    (centros: readonly Punto[]) => setPreviasAuto(centros.map((c) => ({ type: 'Point', coordinates: [c[0], c[1]] }) as GeometriaGeoJson)),
+    [],
+  );
+  const [takeoffAbierto, setTakeoffAbierto] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [subiendoPlano, setSubiendoPlano] = useState(false);
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
@@ -1277,6 +1283,7 @@ export function EspacioDeTrazo({
     else if (clave === 'cotas') setMostrarCotas(!mostrarCotas);
     else if (clave === 'datos') setDatosAbiertos(!datosAbiertos);
     else if (clave === 'volumen') abrirVolumen();
+    else if (clave === 'takeoff') setTakeoffAbierto(fondoUrl !== null && !takeoffAbierto);
     else if (clave === 'escalaAuto') setProponiendoEscala(esPdf && archivo.data?.url !== undefined);
     else if (clave === 'empalme') {
       if (versionesPrevias.length > 0 || empalmeAbierto) setEmpalmeAbierto(!empalmeAbierto);
@@ -1298,6 +1305,15 @@ export function EspacioDeTrazo({
     },
     { clave: 'volumen', activo: volumenAbierto, descripcion: 'Calcular volumen del trazo elegido' },
     { clave: 'datos', activo: datosAbiertos, atajo: 'D', descripcion: 'Cuadro de datos: resumen de las medidas en pantalla (D)' },
+    {
+      clave: 'takeoff',
+      activo: takeoffAbierto,
+      deshabilitado: fondoUrl === null,
+      descripcion:
+        fondoUrl !== null
+          ? 'Takeoff automático: propone áreas y muros que encuentra en la imagen (por revisar)'
+          : 'El takeoff automático busca en la imagen del plano: este plano no tiene una (imagen o PDF)',
+    },
     {
       clave: 'escalaAuto',
       activo: proponiendoEscala,
@@ -2135,11 +2151,7 @@ export function EspacioDeTrazo({
                 enlaces={enlacesVisibles}
                 propuestas={[
                   ...propuestasDelPlano.map((f) => ({ id: f.id, geometry: f.geometry, elegida: !propuestasDescartadas.has(f.id) })),
-                  ...coincidenciasPrevias.map((c, i) => ({
-                    id: `previa-${i}`,
-                    geometry: { type: 'Point', coordinates: [c[0], c[1]] } as GeometriaGeoJson,
-                    elegida: true,
-                  })),
+                  ...previasAuto.map((g, i) => ({ id: `previa-${i}`, geometry: g, elegida: true })),
                 ]}
                 onAlternarPropuesta={(id) =>
                   !id.startsWith('previa-') &&
@@ -2446,6 +2458,25 @@ export function EspacioDeTrazo({
         />
       )}
 
+      {takeoffAbierto && plano && fondoUrl !== null && (
+        <TakeoffAutomatico
+          planoId={plano.id}
+          fondoUrl={fondoUrl}
+          actividades={actividades.map((a) => ({ id: a.id, etiqueta: etiquetaActividad(a, a.id), tipo: tipoDeMedicion(a.unidad) }))}
+          escalaMPorUnidad={escalaDelPlano}
+          onVistaPrevia={setPreviasAuto}
+          onCerrar={() => setTakeoffAbierto(false)}
+          onPropuestas={(cuantas, descartadas) => {
+            setTakeoffAbierto(false);
+            setAviso(
+              `${cuantas} ${cuantas === 1 ? 'propuesta' : 'propuestas'} del takeoff: revísalas, no suman hasta aceptarlas.` +
+                (descartadas > 0 ? ` ${descartadas} no se pudieron medir y se omitieron.` : ''),
+            );
+            invalidarTrazos();
+          }}
+        />
+      )}
+
       {zonaDePlantilla !== null && plano && fondoUrl !== null && (
         <ConteoAutomatico
           planoId={plano.id}
@@ -2456,7 +2487,7 @@ export function EspacioDeTrazo({
             .filter((a) => tipoDeMedicion(a.unidad) === 'conteo')
             .map((a) => ({ id: a.id, etiqueta: etiquetaActividad(a, a.id) }))}
           actividadInicialId={conceptoActivo ?? undefined}
-          onVistaPrevia={setCoincidenciasPrevias}
+          onVistaPrevia={verCoincidencias}
           onCerrar={() => {
             setZonaDePlantilla(null);
             setBorrador([]);
