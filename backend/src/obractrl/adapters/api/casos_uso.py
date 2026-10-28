@@ -38,6 +38,7 @@ from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.cuantificacion_sql import (
     RepositorioElementosSQL,
     RepositorioEnlacesCuantificacionSQL,
+    RepositorioEnlacesDeHojaSQL,
     RepositorioMatricesSQL,
     RepositorioMedicionesSQL,
     RepositorioNotasPlanoSQL,
@@ -151,6 +152,7 @@ from obractrl.application.casos_uso.cuantificar import (
 )
 from obractrl.application.casos_uso.dar_de_alta_extra import DarDeAltaExtra
 from obractrl.application.casos_uso.elementos import GestionarElementos
+from obractrl.application.casos_uso.enlaces_de_hoja import GestionarEnlacesDeHoja
 from obractrl.application.casos_uso.exportar_estimacion import (
     ArmarReporteDeEstimacion,
 )
@@ -407,6 +409,7 @@ __all__ = [
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
     "GestionarElementosDep",
+    "GestionarEnlacesDeHojaDep",
     "GestionarMatricesDeConceptoDep",
     "GestionarMedicionesDep",
     "IniciarObraDep",
@@ -902,6 +905,14 @@ def obtener_traer_trazo(sesion: SesionRLS, ctx: ContextoActual) -> TraerTrazoAOt
     )
 
 
+def obtener_gestionar_enlaces_de_hoja(sesion: SesionRLS) -> GestionarEnlacesDeHoja:
+    return GestionarEnlacesDeHoja(
+        planos=RepositorioPlanosSQL(sesion),
+        enlaces=RepositorioEnlacesDeHojaSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_confirmar_avance(sesion: SesionRLS) -> ConfirmarAvance:
     return ConfirmarAvance(
         actividades=RepositorioActividadesSQL(sesion),
@@ -1013,6 +1024,7 @@ RegistrarTrazoConEnlacesDep = Annotated[
     RegistrarTrazoConEnlaces, Depends(obtener_registrar_trazo_con_enlaces)
 ]
 ReemplazarEnlaceDep = Annotated[ReemplazarEnlace, Depends(obtener_reemplazar_enlace)]
+GestionarEnlacesDeHojaDep = Annotated[GestionarEnlacesDeHoja, Depends(obtener_gestionar_enlaces_de_hoja)]
 TraerTrazoDep = Annotated[TraerTrazoAOtraVersion, Depends(obtener_traer_trazo)]
 CalibrarEscalaDePlanoDep = Annotated[
     CalibrarEscalaDePlano, Depends(obtener_calibrar_escala)

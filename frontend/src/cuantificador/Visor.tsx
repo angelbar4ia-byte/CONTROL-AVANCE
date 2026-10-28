@@ -79,6 +79,17 @@ export interface TrazoFantasma {
   readonly geometry: GeometriaGeoJson;
 }
 
+/** Una zona de la hoja que lleva a otra hoja (enlace entre hojas). */
+export interface EnlaceVisible {
+  readonly id: string;
+  readonly x: number;
+  readonly y: number;
+  readonly ancho: number;
+  readonly alto: number;
+  readonly etiqueta: string;
+  readonly destinoId: string;
+}
+
 export interface NotaVisible {
   readonly id: string;
   readonly punto: Punto;
@@ -143,6 +154,9 @@ interface Props {
   readonly empalmeOpacidad?: number;
   /** Clic en un fantasma con Seleccionar: es el que se va a traer. */
   readonly onElegirFantasma?: (id: string | null) => void;
+  /** Zonas que llevan a otra hoja. Con Seleccionar un clic salta; con Borrar, lo quita. */
+  readonly enlaces?: readonly EnlaceVisible[];
+  readonly onUsarEnlace?: (enlace: EnlaceVisible, accion: 'abrir' | 'quitar') => void;
 }
 
 /** El trazo de una flecha de `desde` a `hasta`: el cuerpo y la cabeza (de `cabeza` unidades de largo). */
@@ -168,6 +182,8 @@ export function Visor({
   empalmeElegidoId = null,
   empalmeOpacidad = 0.55,
   onElegirFantasma,
+  enlaces = [],
+  onUsarEnlace,
   fondoUrl,
   trazos,
   notas,
@@ -483,6 +499,26 @@ export function Visor({
           ))}
         </g>
       )}
+
+      {enlaces.map((e) => (
+        <g
+          key={e.id}
+          className="visor__enlace"
+          data-enlace-id={e.id}
+          onPointerDown={(ev) => {
+            // Un clic en la zona salta a la otra hoja (Seleccionar) o la quita (Borrar).
+            if (ev.button !== 0 || (herramienta !== 'seleccionar' && herramienta !== 'borrar')) return;
+            ev.stopPropagation();
+            onUsarEnlace?.(e, herramienta === 'borrar' ? 'quitar' : 'abrir');
+          }}
+        >
+          <title>{e.etiqueta}</title>
+          <rect x={e.x} y={e.y} width={e.ancho} height={e.alto} vectorEffect="non-scaling-stroke" />
+          <text x={e.x + 4 * px} y={e.y + 14 * px} fontSize={12 * px} transform={T.contragiro(e.x + 4 * px, e.y + 14 * px)}>
+            {e.etiqueta} ↗
+          </text>
+        </g>
+      ))}
 
       {trazos.map((t) => {
         const elegido = seleccion?.tipo === 'trazo' && t.id === seleccion.id;

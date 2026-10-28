@@ -68,6 +68,7 @@ from obractrl.application.casos_uso.cuantificar import (
     PlanoNoEncontrado,
     TrazoNoEncontrado,
 )
+from obractrl.application.casos_uso.enlaces_de_hoja import EnlaceDeHojaNoEncontrado
 from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     ObraNoEncontrada,
     ObraYaEjecutada,
@@ -1669,6 +1670,18 @@ def _registrar_manejadores_de_error(app: FastAPI) -> None:
             status=404,
             tipo="plano-no-encontrado",
             titulo="Plano no encontrado",
+            detalle=str(exc),
+        )
+
+    @app.exception_handler(EnlaceDeHojaNoEncontrado)
+    async def _enlace_de_hoja_no_encontrado(
+        request: Request, exc: EnlaceDeHojaNoEncontrado
+    ) -> JSONResponse:
+        return _problema(
+            request,
+            status=404,
+            tipo="enlace-de-hoja-no-encontrado",
+            titulo="Enlace no encontrado",
             detalle=str(exc),
         )
 

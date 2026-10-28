@@ -2907,3 +2907,8 @@ a { color: inherit; text-decoration: none; }
 .empalme__clave { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; }
 .empalme__clave--antes { background: var(--c-danger, #dc2626); }
 .empalme__clave--ahora { background: var(--c-ok, #16a34a); }
+
+/* Fase 2 · enlaces entre hojas: la zona que lleva a otra hoja */
+.visor__enlace rect { fill: var(--c-info, #2563eb); fill-opacity: .08; stroke: var(--c-info, #2563eb); stroke-width: 1.5; stroke-dasharray: 2 3; cursor: pointer; }
+.visor__enlace text { fill: var(--c-info, #2563eb); font-weight: 600; pointer-events: none; }
+.visor__enlace:hover rect { fill-opacity: .18; }

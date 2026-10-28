@@ -20,6 +20,7 @@ import {
   Hand,
   Hash,
   Layers,
+  Link2,
   MapPin,
   MousePointer,
   Pentagon,
@@ -92,6 +93,7 @@ const ICONOS: Record<Herramienta, Icono> = {
   borrar: Eraser,
   escala: Ruler,
   nota: StickyNote,
+  enlace: Link2,
 };
 
 export const ETIQUETAS: Record<Herramienta, string> = {
@@ -115,6 +117,7 @@ export const ETIQUETAS: Record<Herramienta, string> = {
   borrar: 'Borrar',
   escala: 'Calibrar escala',
   nota: 'Nota',
+  enlace: 'Enlace a otra hoja',
 };
 
 export const ATAJOS: Record<Herramienta, string> = {
@@ -138,6 +141,7 @@ export const ATAJOS: Record<Herramienta, string> = {
   borrar: 'B',
   escala: 'E',
   nota: 'N',
+  enlace: '',
 };
 
 /**
@@ -153,7 +157,7 @@ const BLOQUES: readonly { readonly clave: BloqueDeBarra; readonly titulo?: strin
   { clave: 'area', titulo: 'Área', herramientas: ['poligono', 'rectangulo', 'circulo', 'elipse', 'contorno', 'hueco'] },
   { clave: 'lineal', titulo: 'Lineal', herramientas: ['linea', 'polilinea', 'arco', 'rectangulo_l', 'circulo_l', 'elipse_l'] },
   { clave: 'conteo', titulo: 'Conteo', herramientas: ['punto', 'copiar'] },
-  { clave: 'otros', herramientas: ['nota', 'borrar'] },
+  { clave: 'otros', herramientas: ['nota', 'enlace', 'borrar'] },
 ];
 
 export interface Accion {

@@ -1382,3 +1382,70 @@ class RepositorioElementosSQL:
             )
         ).mappings().one()
         return {"mediciones": int(fila["mediciones"]), "asignaciones_con_peso": int(fila["asignaciones_con_peso"])}
+
+
+class RepositorioEnlacesDeHojaSQL:
+    """`plano_enlace` (migración 0091): zonas de una hoja que llevan a otra hoja de la obra."""
+
+    def __init__(self, sesion: AsyncSession) -> None:
+        self._sesion = sesion
+
+    async def crear(
+        self,
+        *,
+        plano_id: UUID,
+        destino_plano_id: UUID,
+        etiqueta: str,
+        x: float,
+        y: float,
+        ancho: float,
+        alto: float,
+        autor_id: UUID,
+    ) -> UUID:
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into plano_enlace
+                        (org_id, plano_id, destino_plano_id, etiqueta, x, y, ancho, alto, autor_id)
+                    values (cast(current_setting('app.org_id') as uuid),
+                            :plano, :destino, :etiqueta, :x, :y, :ancho, :alto, :autor)
+                    returning id
+                    """
+                ),
+                {
+                    "plano": str(plano_id),
+                    "destino": str(destino_plano_id),
+                    "etiqueta": etiqueta,
+                    "x": x,
+                    "y": y,
+                    "ancho": ancho,
+                    "alto": alto,
+                    "autor": str(autor_id),
+                },
+            )
+        ).scalar_one()
+
+    async def de_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select e.id, e.plano_id, e.destino_plano_id, e.etiqueta, e.x, e.y, e.ancho, e.alto,
+                           d.nombre as destino_nombre, d.version as destino_version
+                      from plano_enlace e
+                      join plano d on d.id = e.destino_plano_id
+                     where e.plano_id = :plano
+                     order by e.created_at, e.id
+                    """
+                ),
+                {"plano": str(plano_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def eliminar(self, enlace_id: UUID) -> bool:
+        resultado = await self._sesion.execute(
+            text("delete from plano_enlace where id = :id"), {"id": str(enlace_id)}
+        )
+        return bool(resultado.rowcount)

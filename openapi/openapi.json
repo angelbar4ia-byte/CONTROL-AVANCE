@@ -10972,6 +10972,157 @@
         }
       }
     },
+    "/api/v1/planos/{plano_id}/enlaces": {
+      "get": {
+        "tags": [
+          "enlaces-de-hoja"
+        ],
+        "summary": "Los enlaces a otras hojas que tiene un plano",
+        "operationId": "listar_enlaces_de_hoja_api_v1_planos__plano_id__enlaces_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EnlaceDeHojaRespuesta"
+                  },
+                  "title": "Response Listar Enlaces De Hoja Api V1 Planos  Plano Id  Enlaces Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El plano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "enlaces-de-hoja"
+        ],
+        "summary": "Marcar una zona del plano que lleva a otra hoja",
+        "operationId": "crear_enlace_de_hoja_api_v1_planos__plano_id__enlaces_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnlaceDeHojaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnlaceDeHojaCreado"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Una de las hojas no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Sin etiqueta o zona, a la misma hoja o a una hoja de otra obra."
+          }
+        }
+      }
+    },
+    "/api/v1/enlaces-de-hoja/{enlace_id}": {
+      "delete": {
+        "tags": [
+          "enlaces-de-hoja"
+        ],
+        "summary": "Quitar un enlace entre hojas",
+        "operationId": "eliminar_enlace_de_hoja_api_v1_enlaces_de_hoja__enlace_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "enlace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Enlace Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "El enlace no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/desviaciones": {
       "get": {
         "tags": [
@@ -19975,6 +20126,126 @@
           "n_mediciones"
         ],
         "title": "ElementoRespuesta"
+      },
+      "EnlaceDeHojaCreado": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "EnlaceDeHojaCreado"
+      },
+      "EnlaceDeHojaPeticion": {
+        "properties": {
+          "destino_plano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Destino Plano Id",
+            "description": "La hoja a la que lleva (de la misma obra)."
+          },
+          "etiqueta": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Etiqueta",
+            "description": "«Ver corte A-A»."
+          },
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "ancho": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Ancho"
+          },
+          "alto": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Alto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "destino_plano_id",
+          "etiqueta",
+          "x",
+          "y",
+          "ancho",
+          "alto"
+        ],
+        "title": "EnlaceDeHojaPeticion"
+      },
+      "EnlaceDeHojaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "plano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plano Id"
+          },
+          "destino_plano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Destino Plano Id"
+          },
+          "destino_nombre": {
+            "type": "string",
+            "title": "Destino Nombre"
+          },
+          "destino_version": {
+            "type": "integer",
+            "title": "Destino Version"
+          },
+          "etiqueta": {
+            "type": "string",
+            "title": "Etiqueta"
+          },
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "ancho": {
+            "type": "number",
+            "title": "Ancho"
+          },
+          "alto": {
+            "type": "number",
+            "title": "Alto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "plano_id",
+          "destino_plano_id",
+          "destino_nombre",
+          "destino_version",
+          "etiqueta",
+          "x",
+          "y",
+          "ancho",
+          "alto"
+        ],
+        "title": "EnlaceDeHojaRespuesta"
       },
       "EnlaceDeTrazoRespuesta": {
         "properties": {

@@ -64,6 +64,11 @@ import type {
   TrazoRespuesta,
   TrazosDePlanoRespuesta,
 } from '@/api/generado/modelo';
+import {
+  getListarEnlacesDeHojaApiV1PlanosPlanoIdEnlacesGetQueryKey,
+  useEliminarEnlaceDeHojaApiV1EnlacesDeHojaEnlaceIdDelete,
+  useListarEnlacesDeHojaApiV1PlanosPlanoIdEnlacesGet,
+} from '@/api/generado/enlaces-de-hoja/enlaces-de-hoja';
 import { useListarObrasApiV1ObrasGet } from '@/api/generado/obras/obras';
 import { useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet } from '@/api/generado/proyectos/proyectos';
 import {
@@ -124,6 +129,7 @@ import {
 import { NavegadorDePlanos } from './NavegadorDePlanos';
 import { OpcionesDeHerramienta } from './OpcionesDeHerramienta';
 import { desfaseDeTexto, porTraer, versionesAnteriores } from './empalme';
+import { AltaEnlaceDeHoja } from './AltaEnlaceDeHoja';
 import { OpcionesDeEmpalme } from './OpcionesDeEmpalme';
 import { ProponerEscala } from './ProponerEscala';
 import { PanelVolumen } from './PanelVolumen';
@@ -169,6 +175,7 @@ const HERRAMIENTAS: readonly Herramienta[] = [
   'hueco',
   'borrar',
   'escala',
+  'enlace',
 ];
 
 /** Anotar el plano es solo de Residente y Supervisor (MODELO.md §1b); el
@@ -387,6 +394,8 @@ export function EspacioDeTrazo({
   const [trayendo, setTrayendo] = useState(false);
   const [empalmeOpacidad, setEmpalmeOpacidad] = useState(55);
   const [proponiendoEscala, setProponiendoEscala] = useState(false);
+  // Enlaces entre hojas: la zona que se marca con dos clics y a dónde lleva.
+  const [zonaDeEnlace, setZonaDeEnlace] = useState<readonly [Punto, Punto] | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [subiendoPlano, setSubiendoPlano] = useState(false);
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
@@ -528,6 +537,44 @@ export function EspacioDeTrazo({
     [trazosAnteriores.data, traidos],
   );
   const traerTrazo = useTraerTrazoApiV1TrazosTrazoIdTraerPost<ErrorApi>();
+  const enlacesConsulta = useListarEnlacesDeHojaApiV1PlanosPlanoIdEnlacesGet(planoElegido, {
+    query: { enabled: planoElegido !== '' },
+  });
+  const quitarEnlace = useEliminarEnlaceDeHojaApiV1EnlacesDeHojaEnlaceIdDelete<ErrorApi>();
+  const enlacesVisibles = useMemo(
+    () =>
+      (enlacesConsulta.data ?? []).map((e) => ({
+        id: e.id,
+        x: e.x,
+        y: e.y,
+        ancho: e.ancho,
+        alto: e.alto,
+        etiqueta: e.etiqueta,
+        destinoId: e.destino_plano_id,
+      })),
+    [enlacesConsulta.data],
+  );
+  const hojasDeDestino = useMemo(() => listaDePlanos.filter((p) => p.id !== planoElegido), [listaDePlanos, planoElegido]);
+  function usarEnlace(enlace: { id: string; destinoId: string; etiqueta: string }, accion: 'abrir' | 'quitar') {
+    if (accion === 'abrir') {
+      setPlanoElegido(enlace.destinoId);
+      setBorrador([]);
+      setSeleccion(null);
+      return;
+    }
+    quitarEnlace.mutate(
+      { enlaceId: enlace.id },
+      {
+        onSuccess: () => {
+          setAviso(`Enlace «${enlace.etiqueta}» quitado.`);
+          void queryClient.invalidateQueries({
+            queryKey: getListarEnlacesDeHojaApiV1PlanosPlanoIdEnlacesGetQueryKey(planoElegido),
+          });
+        },
+        onError: (err) => setAviso(`No se pudo quitar el enlace: ${err.message}`),
+      },
+    );
+  }
   // Otro plano: el empalme y lo elegido no se arrastran.
   useEffect(() => {
     setEmpalmeAbierto(false);
@@ -934,6 +981,13 @@ export function EspacioDeTrazo({
       const siguiente = borrador.length >= 2 ? [p] : [...borrador, p];
       setBorrador(siguiente);
       if (siguiente.length === 2) setCalibrando(true);
+      return;
+    }
+    if (herramienta === 'enlace') {
+      // Dos esquinas de la zona; al segundo clic se pide a dónde lleva.
+      const siguiente = borrador.length >= 2 ? [p] : [...borrador, p];
+      setBorrador(siguiente);
+      if (siguiente.length === 2) setZonaDeEnlace([siguiente[0] as Punto, siguiente[1] as Punto]);
       return;
     }
     if (herramienta === 'hueco') {
@@ -2011,6 +2065,8 @@ export function EspacioDeTrazo({
                 empalmeElegidoId={fantasmaElegido}
                 empalmeOpacidad={empalmeOpacidad / 100}
                 onElegirFantasma={setFantasmaElegido}
+                enlaces={enlacesVisibles}
+                onUsarEnlace={usarEnlace}
                 notas={notasVisibles}
                 seleccion={seleccion}
                 herramienta={herramienta}
@@ -2080,12 +2136,19 @@ export function EspacioDeTrazo({
 
       {plano !== undefined && (
         <div className="estacion__estado" aria-label="Estado del plano">
-          {(forma || herramienta === 'hueco' || herramienta === 'escala' || herramienta === 'copiar') && (
+          {(forma || herramienta === 'hueco' || herramienta === 'escala' || herramienta === 'copiar' || herramienta === 'enlace') && (
             <div className="estacion__dibujo row" role="group" aria-label="Trazo en curso">
               {herramienta === 'copiar' && (
                 <span className="text-mute text-xs">
                   Copiar en lote: clic donde va cada copia · {copias.current}{' '}
                   {copias.current === 1 ? 'copia' : 'copias'} · Esc termina
+                </span>
+              )}
+              {herramienta === 'enlace' && (
+                <span className="text-mute text-xs">
+                  {borrador.length === 0
+                    ? 'Enlace a otra hoja: clic en una esquina de la zona (un detalle, un corte)'
+                    : 'Clic en la esquina opuesta'}
                 </span>
               )}
               {herramienta === 'escala' && (
@@ -2287,6 +2350,28 @@ export function EspacioDeTrazo({
             });
             void queryClient.invalidateQueries({
               queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId),
+            });
+          }}
+        />
+      )}
+
+      {zonaDeEnlace !== null && plano && (
+        <AltaEnlaceDeHoja
+          planoId={plano.id}
+          puntoA={zonaDeEnlace[0]}
+          puntoB={zonaDeEnlace[1]}
+          destinos={hojasDeDestino}
+          onCerrar={() => {
+            setZonaDeEnlace(null);
+            setBorrador([]);
+          }}
+          onCreado={(etiqueta) => {
+            setZonaDeEnlace(null);
+            setBorrador([]);
+            setHerramienta('seleccionar');
+            setAviso(`Enlace «${etiqueta}» creado: un clic en la zona lleva a esa hoja.`);
+            void queryClient.invalidateQueries({
+              queryKey: getListarEnlacesDeHojaApiV1PlanosPlanoIdEnlacesGetQueryKey(planoElegido),
             });
           }}
         />
