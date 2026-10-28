@@ -17,6 +17,7 @@ import { useQuitarMatrizDelConceptoApiV1ConceptosConceptoIdMatricesMatrizIdDelet
 import { useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet } from '@/api/generado/cuantificacion/cuantificacion';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { AltaDeMatriz } from './AltaDeMatriz';
+import { CostoDelConcepto } from './CostoDelConcepto';
 import { fmtMXN, fmtNum } from '@/lib/formato';
 import { arbolDeMatrices, llavesConHijos, type NodoDeMatriz } from './matrices';
 import { NOMBRE_DE_TIPO } from './tipos';
@@ -150,7 +151,7 @@ export function MatricesDeActividad({ actividadId, matrizActivaId, onActivar, pu
     ? {
         onPuesta: (aviso) => {
           setMensaje(aviso);
-          void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/matrices') });
+          void queryClient.invalidateQueries({ predicate: (q) => /\/matrices|\/cpu/.test(JSON.stringify(q.queryKey)) });
         },
         onError: (m) => setMensaje(m),
         quitar: (padre, matriz) =>
@@ -158,7 +159,7 @@ export function MatricesDeActividad({ actividadId, matrizActivaId, onActivar, pu
             .mutateAsync({ conceptoId: padre, matrizId: matriz })
             .then(() => {
               setMensaje('Matriz quitada del catálogo del concepto.');
-              void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/matrices') });
+              void queryClient.invalidateQueries({ predicate: (q) => /\/matrices|\/cpu/.test(JSON.stringify(q.queryKey)) });
             })
             .catch((err: unknown) => setMensaje(err instanceof Error ? err.message : 'No se pudo quitar la matriz.')),
       }
@@ -180,6 +181,9 @@ export function MatricesDeActividad({ actividadId, matrizActivaId, onActivar, pu
           />
         )}
         {mensaje && <div role="status" className="text-xs">{mensaje}</div>}
+        {edicion && datos?.concepto_id && (
+          <CostoDelConcepto conceptoId={datos.concepto_id} conceptoClave={datos.concepto_clave ?? 'el concepto'} />
+        )}
       </div>
     );
   }
@@ -224,6 +228,9 @@ export function MatricesDeActividad({ actividadId, matrizActivaId, onActivar, pu
         />
       )}
       {mensaje && <div role="status" className="text-xs">{mensaje}</div>}
+      {edicion && datos.concepto_id && (
+        <CostoDelConcepto conceptoId={datos.concepto_id} conceptoClave={datos.concepto_clave ?? 'el concepto'} />
+      )}
       {datos.medidas > 0 && (
         <div className="text-xs">
           Lo medido ajusta el importe: {fmtMXN(Number(datos.importe))} → <strong>{fmtMXN(Number(datos.importe_ajustado))}</strong>{' '}

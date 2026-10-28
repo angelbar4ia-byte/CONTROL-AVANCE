@@ -38,6 +38,24 @@ async def residente(contexto_residente: ContextoSesion) -> AsyncIterator[httpx.A
 
 
 @pytest.fixture
+async def costos(escenario: Escenario) -> AsyncIterator[httpx.AsyncClient]:
+    usuario = uuid.uuid4()
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "insert into usuario (id, org_id, nombre, email, rol) "
+                "values (:i, :o, 'Costos Test', :e, 'costos')"
+            ),
+            {"i": str(usuario), "o": str(escenario.org_id), "e": f"cos-{usuario.hex[:8]}@test.mx"},
+        )
+    await engine.dispose()
+    contexto = ContextoSesion(org_id=escenario.org_id, usuario_id=usuario, rol="costos")
+    async with _cliente(contexto) as c:
+        yield c
+
+
+@pytest.fixture
 async def catalogo(escenario: Escenario) -> AsyncIterator[dict[str, uuid.UUID]]:
     """Una unidad, un concepto padre ligado a la actividad del escenario y otro suelto."""
     engine = create_async_engine(DATABASE_URL_ADMIN)
@@ -144,3 +162,64 @@ async def test_el_residente_no_cambia_el_catalogo(catalogo: dict, residente: htt
         json={"cantidad": "1", "matriz_id": str(catalogo["otro"])},
     )
     assert r.status_code == 403, r.text
+
+
+async def test_costos_pone_y_quita_matrices_con_su_rol_real(
+    escenario: Escenario, catalogo: dict, costos: httpx.AsyncClient
+) -> None:
+    url = f"/api/v1/conceptos/{catalogo['padre']}/matrices"
+    r = await costos.post(
+        url,
+        json={
+            "cantidad": "1",
+            "nueva": {"clave": "cos-n1", "descripcion": "De Costos", "unidad_id": str(catalogo["unidad"])},
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert [m["clave"] for m in await _matrices(costos, escenario)] == ["COS-N1"]
+    assert (await costos.delete(f"{url}/{r.json()['matriz_id']}")).status_code == 204
+    assert await _matrices(costos, escenario) == []
+
+
+async def test_el_costo_se_ve_desactualizado_y_se_publica_una_version_nueva(
+    escenario: Escenario, catalogo: dict, control: httpx.AsyncClient, costos: httpx.AsyncClient
+) -> None:
+    """Agregar una matriz con receta propia cambia el costo calculado; Costos publica la versión."""
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    org = str(escenario.org_id)
+    insumo = uuid.uuid4()
+    async with engine.begin() as conn:
+        await conn.execute(
+            text("insert into insumo (id, org_id, tipo, clave, descripcion, costo_base) values (:i, :o, 'material', 'INS-1', 'Ins', 10)"),
+            {"i": str(insumo), "o": org},
+        )
+        await conn.execute(
+            text(
+                "insert into explosion (org_id, concepto_id, tipo_hijo, insumo_id, categoria, cantidad, costo_unitario, importe) "
+                "values (:o, :c, 'insumo', :i, 'material', 3, 10, 30)"
+            ),
+            {"o": org, "c": str(catalogo["otro"]), "i": str(insumo)},
+        )
+    await engine.dispose()
+
+    url_cpu = f"/api/v1/conceptos/{catalogo['padre']}/cpu"
+    primero = await costos.post(url_cpu, json={})
+    assert primero.status_code == 201, primero.text
+    antes = (await costos.get(url_cpu)).json()
+    assert antes["calculado"]["total"] == antes["vigente"]["precio"]["total"]
+
+    # «otro» cuesta 30 por unidad; media unidad suma 15 al padre.
+    r = await control.post(
+        f"/api/v1/conceptos/{catalogo['padre']}/matrices",
+        json={"cantidad": "0.5", "matriz_id": str(catalogo["otro"])},
+    )
+    assert r.status_code == 200, r.text
+    despues = (await costos.get(url_cpu)).json()
+    assert float(despues["calculado"]["total"]) == float(antes["calculado"]["total"]) + 15
+    assert despues["calculado"]["total"] != despues["vigente"]["precio"]["total"]
+
+    publicada = await costos.post(url_cpu, json={})
+    assert publicada.status_code == 201, publicada.text
+    assert publicada.json()["version"]["version"] == 2
+    final = (await costos.get(url_cpu)).json()
+    assert final["calculado"]["total"] == final["vigente"]["precio"]["total"]

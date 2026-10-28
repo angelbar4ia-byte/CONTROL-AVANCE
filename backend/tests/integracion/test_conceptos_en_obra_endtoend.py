@@ -38,6 +38,24 @@ async def residente(contexto_residente: ContextoSesion) -> AsyncIterator[httpx.A
 
 
 @pytest.fixture
+async def costos(escenario: Escenario) -> AsyncIterator[httpx.AsyncClient]:
+    usuario = uuid.uuid4()
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "insert into usuario (id, org_id, nombre, email, rol) "
+                "values (:i, :o, 'Costos Test', :e, 'costos')"
+            ),
+            {"i": str(usuario), "o": str(escenario.org_id), "e": f"cos-{usuario.hex[:8]}@test.mx"},
+        )
+    await engine.dispose()
+    contexto = ContextoSesion(org_id=escenario.org_id, usuario_id=usuario, rol="costos")
+    async with _cliente(contexto) as c:
+        yield c
+
+
+@pytest.fixture
 async def unidad(escenario: Escenario) -> AsyncIterator[uuid.UUID]:
     engine = create_async_engine(DATABASE_URL_ADMIN)
     unidad_id = uuid.uuid4()
@@ -102,3 +120,17 @@ async def test_el_residente_no_da_de_alta_conceptos(
 async def test_obra_ajena_no_existe(unidad: uuid.UUID, control: httpx.AsyncClient) -> None:
     r = await control.post(f"/api/v1/obras/{uuid.uuid4()}/conceptos-nuevos", json=_cuerpo(unidad))
     assert r.status_code == 404, r.text
+
+
+async def test_costos_da_de_alta_el_concepto_con_su_rol_real(
+    escenario: Escenario, unidad: uuid.UUID, costos: httpx.AsyncClient
+) -> None:
+    """Costos no está en `es_config()`: lo que lo deja escribir es la política de la migración 0090."""
+    r = await costos.post(
+        f"/api/v1/obras/{escenario.obra_id}/conceptos-nuevos", json=_cuerpo(unidad)
+    )
+    assert r.status_code == 201, r.text
+    # Y lee unidades y etapas para llenar el formulario.
+    assert (await costos.get("/api/v1/unidades")).status_code == 200
+    assert (await costos.get("/api/v1/etapas")).status_code == 200
+    assert (await costos.get("/api/v1/conceptos")).status_code == 200

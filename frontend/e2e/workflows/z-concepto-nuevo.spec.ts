@@ -6,12 +6,12 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
  *  1. Control abre «+ Concepto», escribe clave y descripción y, al elegir la unidad, el concepto se crea
  *     **sin botón**: entra al árbol sin cantidad y queda activo.
  *  2. Existe en el servidor como adicional y sin cantidad; con clave repetida avisa y no duplica.
- *  3. El residente no ve la opción de crear.
+ *  3. El residente no ve la opción de crear; Costos sí, y llega hasta la base (RLS de la migración 0090).
  *
  * Es una obra nueva por corrida.
  */
 
-const ROLES_Z = ['control', 'residente'] as const;
+const ROLES_Z = ['control', 'residente', 'costos'] as const;
 
 test.describe('Cuantificador · concepto nuevo', () => {
   test.skip(!hayRoles(...ROLES_Z), motivoSinRoles(...ROLES_Z));
@@ -75,5 +75,30 @@ test.describe('Cuantificador · concepto nuevo', () => {
     await page.goto(`/cuantificador?obra=${obra!.id}`);
     await expect(page.getByRole('tab', { name: /Presupuesto/ })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Nuevo concepto' })).toHaveCount(0);
+  });
+
+  test('Costos también da de alta un concepto, con su propio rol en la base', async ({ page, request }) => {
+    const clave = `COS-${Date.now().toString(36).toUpperCase()}`;
+    const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
+    const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
+    const usuarios = await llamarApi<{ id: string; nombre: string }[]>(request, 'control', 'GET', '/usuarios');
+    const obra = await llamarApi<{ id: string }>(request, 'control', 'POST', '/obras', {
+      cluster_id: clusters.find((c) => c.clave === 'CLU-E2E')!.id,
+      prototipo_id: prototipos.find((p) => p.clave === 'CAS-E2E')!.id,
+      residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
+      clave,
+    });
+    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
+
+    await entrarComo(page, 'costos');
+    await page.goto(`/cuantificador?obra=${obra.id}`);
+    await page.getByRole('button', { name: 'Nuevo concepto' }).click();
+    const forma = page.getByRole('form', { name: 'Nuevo concepto' });
+    await forma.getByLabel('Clave').fill(`${clave}-X`);
+    await forma.getByLabel('Descripción').fill('Concepto de Costos');
+    await forma.getByLabel('Unidad').selectOption({ label: 'm2 · Metro cuadrado' });
+    // Sin planos no hay dónde mostrar el aviso; el concepto entra al árbol y queda activo.
+    await expect(page.getByRole('treeitem', { name: new RegExp(`${clave}-X`) })).toBeVisible();
+    await expect(page.getByText(/Actividad\s*$/).first()).toBeVisible();
   });
 });

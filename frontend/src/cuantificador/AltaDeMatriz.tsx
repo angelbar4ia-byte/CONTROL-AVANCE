@@ -67,7 +67,7 @@ export function AltaDeMatriz({ padreId, padreClave, onPuesta, onError }: Props) 
               },
       });
       void queryClient.invalidateQueries({
-        predicate: (q) => JSON.stringify(q.queryKey).includes('/matrices'),
+        predicate: (q) => /\/matrices|\/cpu/.test(JSON.stringify(q.queryKey)),
       });
       onPuesta(`Matriz ${clave.trim().toUpperCase()} puesta en ${padreClave} (catálogo).`);
       reiniciar();

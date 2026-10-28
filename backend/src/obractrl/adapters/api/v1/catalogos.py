@@ -88,6 +88,11 @@ LECTURA_PARA_ALTAS = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))
 """Unidades, niveles y etapas: lo que Costos necesita para dar de alta un concepto desde el
 cuantificador (entrega 5). Solo lectura; escribir sigue siendo de Control de obra."""
 
+CONSULTA_CPU_Y_COSTOS = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE, Rol.COSTOS))
+PUBLICA_CPU = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))
+"""El costo del catálogo: Costos lo ve y publica una versión nueva cuando cambia la composición
+de un concepto (entrega 6, migración 0090)."""
+
 CONSULTA_CPU = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE))
 """`GET /conceptos/{id}/cpu` y `/explosion`: C y SI (§11.2)."""
 
@@ -1232,7 +1237,7 @@ async def explotar_concepto(
     "/conceptos/{concepto_id}/cpu",
     response_model=CPURespuesta,
     summary="CPU del concepto: versión vigente e historial",
-    dependencies=[CONSULTA_CPU],
+    dependencies=[CONSULTA_CPU_Y_COSTOS],
     responses={
         404: {"description": "El concepto no existe o está fuera de tu alcance."},
         422: {"description": "La composición tiene un ciclo (§7.3)."},
@@ -1272,7 +1277,7 @@ async def eliminar_version_de_cpu(
     response_model=VersionPublicadaRespuesta,
     status_code=status.HTTP_201_CREATED,
     summary="Publica una nueva versión del CPU",
-    dependencies=[CATALOGOS],
+    dependencies=[PUBLICA_CPU],
     responses={
         404: {"description": "El concepto no existe o está fuera de tu alcance."},
         422: {"description": "Composición cíclica o precio inválido (§7.3)."},
