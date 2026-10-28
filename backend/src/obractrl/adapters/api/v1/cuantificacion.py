@@ -853,6 +853,16 @@ class TrazoPropiedades(BaseModel):
         default=0,
         description="Huecos que tiene el área. Su geometría ya viene restada en `geometry`.",
     )
+    propuesta: bool = Field(
+        default=False,
+        description="Propuesto por una herramienta automática y aún sin revisar: no suma cantidad (0092).",
+    )
+    propuesta_origen: Literal["conteo_auto", "takeoff"] | None = None
+    propuesta_actividad_id: UUID | None = Field(
+        default=None, description="El concepto para el que se propuso."
+    )
+    propuesta_medida: str | None = None
+    propuesta_confianza: Decimal | None = Field(default=None, description="De 0 a 1.")
     nodo_ids: list[UUID] = Field(
         description=(
             "Nodos a los que el trazo alimenta con un enlace **vigente**: lo que "
@@ -982,6 +992,11 @@ async def trazos_de_plano(
                     medicion_id=trazo.get("medicion_id"),
                     forma=trazo.get("forma"),
                     n_huecos=int(trazo.get("n_huecos") or 0),
+                    propuesta=bool(trazo.get("propuesta")),
+                    propuesta_origen=trazo.get("propuesta_origen"),
+                    propuesta_actividad_id=trazo.get("propuesta_actividad_id"),
+                    propuesta_medida=trazo.get("propuesta_medida"),
+                    propuesta_confianza=trazo.get("propuesta_confianza"),
                     nodo_ids=list(dict.fromkeys(e.nodo_id for e in enlaces if e.vigente)),
                     enlaces=enlaces,
                 ),

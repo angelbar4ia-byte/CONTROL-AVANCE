@@ -11123,6 +11123,163 @@
         }
       }
     },
+    "/api/v1/planos/{plano_id}/propuestas": {
+      "post": {
+        "tags": [
+          "propuestas"
+        ],
+        "summary": "Proponer trazos encontrados por una herramienta automática (no suman hasta aceptarse)",
+        "description": "Cada propuesta queda como trazo **sin enlaces**: no cuenta como medida hasta que se acepta.",
+        "operationId": "proponer_trazos_api_v1_planos__plano_id__propuestas_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProponerTrazosPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProponerTrazosRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El plano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Geometría inválida, medida que no va con ella o actividad de otra obra."
+          }
+        }
+      }
+    },
+    "/api/v1/planos/{plano_id}/propuestas/aceptar": {
+      "post": {
+        "tags": [
+          "propuestas"
+        ],
+        "summary": "Aceptar propuestas: cada una pasa a medir su concepto",
+        "operationId": "aceptar_propuestas_api_v1_planos__plano_id__propuestas_aceptar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdsDeTrazoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropuestasAceptadasRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ninguno de esos trazos es una propuesta pendiente."
+          }
+        }
+      }
+    },
+    "/api/v1/planos/{plano_id}/propuestas/rechazar": {
+      "post": {
+        "tags": [
+          "propuestas"
+        ],
+        "summary": "Rechazar propuestas: se borran, sin haber sumado nada",
+        "operationId": "rechazar_propuestas_api_v1_planos__plano_id__propuestas_rechazar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdsDeTrazoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropuestasRechazadasRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ninguno de esos trazos es una propuesta pendiente."
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/desviaciones": {
       "get": {
         "tags": [
@@ -22603,6 +22760,25 @@
         ],
         "title": "IdRespuesta"
       },
+      "IdsDeTrazoPeticion": {
+        "properties": {
+          "trazo_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 2000,
+            "minItems": 1,
+            "title": "Trazo Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_ids"
+        ],
+        "title": "IdsDeTrazoPeticion"
+      },
       "ImpactoIncidencia": {
         "type": "string",
         "enum": [
@@ -27466,6 +27642,68 @@
         ],
         "title": "ProponerReprogramacionPeticion"
       },
+      "ProponerTrazosPeticion": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id",
+            "description": "El concepto para el que se propone (de la obra del plano)."
+          },
+          "medida": {
+            "type": "string",
+            "enum": [
+              "area",
+              "perimetro",
+              "longitud",
+              "conteo"
+            ],
+            "title": "Medida"
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "conteo_auto",
+              "takeoff"
+            ],
+            "title": "Origen"
+          },
+          "propuestas": {
+            "items": {
+              "$ref": "#/components/schemas/PropuestaPeticion"
+            },
+            "type": "array",
+            "maxItems": 2000,
+            "minItems": 1,
+            "title": "Propuestas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "medida",
+          "origen",
+          "propuestas"
+        ],
+        "title": "ProponerTrazosPeticion"
+      },
+      "ProponerTrazosRespuesta": {
+        "properties": {
+          "trazo_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Trazo Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_ids"
+        ],
+        "title": "ProponerTrazosRespuesta"
+      },
       "PropuestaDeRedisenoRespuesta": {
         "properties": {
           "actividad_id": {
@@ -27518,6 +27756,77 @@
           "ya_estimada"
         ],
         "title": "PropuestaDeRedisenoRespuesta"
+      },
+      "PropuestaPeticion": {
+        "properties": {
+          "wkt": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Wkt",
+            "description": "La geometría propuesta, en WKT (coordenadas de plano)."
+          },
+          "confianza": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confianza",
+            "description": "Qué tan segura estaba la herramienta."
+          }
+        },
+        "type": "object",
+        "required": [
+          "wkt"
+        ],
+        "title": "PropuestaPeticion"
+      },
+      "PropuestasAceptadasRespuesta": {
+        "properties": {
+          "trazo_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Trazo Ids"
+          },
+          "recalculos": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+            },
+            "type": "array",
+            "title": "Recalculos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_ids",
+          "recalculos"
+        ],
+        "title": "PropuestasAceptadasRespuesta"
+      },
+      "PropuestasRechazadasRespuesta": {
+        "properties": {
+          "rechazadas": {
+            "type": "integer",
+            "title": "Rechazadas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rechazadas"
+        ],
+        "title": "PropuestasRechazadasRespuesta"
       },
       "PrototipoRespuesta": {
         "properties": {
@@ -30757,6 +31066,64 @@
             "title": "N Huecos",
             "description": "Huecos que tiene el área. Su geometría ya viene restada en `geometry`.",
             "default": 0
+          },
+          "propuesta": {
+            "type": "boolean",
+            "title": "Propuesta",
+            "description": "Propuesto por una herramienta automática y aún sin revisar: no suma cantidad (0092).",
+            "default": false
+          },
+          "propuesta_origen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "conteo_auto",
+                  "takeoff"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuesta Origen"
+          },
+          "propuesta_actividad_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuesta Actividad Id",
+            "description": "El concepto para el que se propuso."
+          },
+          "propuesta_medida": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuesta Medida"
+          },
+          "propuesta_confianza": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Propuesta Confianza",
+            "description": "De 0 a 1."
           },
           "nodo_ids": {
             "items": {

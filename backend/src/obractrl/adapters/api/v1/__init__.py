@@ -48,6 +48,7 @@ from obractrl.adapters.api.v1.planeacion import router as router_planeacion
 from obractrl.adapters.api.v1.presupuesto import router as router_presupuesto
 from obractrl.adapters.api.v1.procesos import router as router_procesos
 from obractrl.adapters.api.v1.programacion import router as router_programacion
+from obractrl.adapters.api.v1.propuestas import router as router_propuestas
 from obractrl.adapters.api.v1.proyectos import router as router_proyectos
 from obractrl.adapters.api.v1.reportes import router as router_reportes
 from obractrl.adapters.api.v1.reprogramaciones import router as router_reprogramaciones
@@ -89,6 +90,7 @@ api_v1.include_router(router_expediente)
 api_v1.include_router(router_cuantificacion)
 api_v1.include_router(router_mediciones)
 api_v1.include_router(router_enlaces_de_hoja)
+api_v1.include_router(router_propuestas)
 api_v1.include_router(router_desviaciones)
 api_v1.include_router(router_reportes)
 api_v1.include_router(router_procesos)

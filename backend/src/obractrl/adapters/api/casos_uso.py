@@ -297,6 +297,11 @@ from obractrl.application.casos_uso.notificar_partes import NotificarPartes
 from obractrl.application.casos_uso.notificar_reprogramacion import (
     NotificarReprogramacion,
 )
+from obractrl.application.casos_uso.propuestas import (
+    AceptarPropuestas,
+    ProponerTrazos,
+    RechazarPropuestas,
+)
 from obractrl.application.casos_uso.registrar_revision_fisica import (
     RegistrarRevisionFisica,
 )
@@ -324,6 +329,7 @@ from obractrl.infrastructure.tiempo_real.canal import canal_de_avisos
 __all__ = [
     "AbrirCierreDeObraDep",
     "AbrirIncidenciaDep",
+    "AceptarPropuestasDep",
     "ActualizarObraDep",
     "ActualizarUsuarioDep",
     "AgregarActividadNuevaDep",
@@ -422,12 +428,14 @@ __all__ = [
     "ProgramarIncidenciaDep",
     "ProgramarNodoDelArbolDep",
     "ProponerReprogramacionDep",
+    "ProponerTrazosDep",
     "PublicarVersionCPUDep",
     "QuitarHuecoDep",
     "RecalcularRutaCriticaDep",
     "RechazarCierreDeFrenteDep",
     "RechazarCierreDep",
     "RechazarIncidenciaDep",
+    "RechazarPropuestasDep",
     "RechazarReprogramacionDep",
     "RedisenarParteDep",
     "ReemplazarEnlaceDep",
@@ -913,6 +921,32 @@ def obtener_gestionar_enlaces_de_hoja(sesion: SesionRLS) -> GestionarEnlacesDeHo
     )
 
 
+def obtener_proponer_trazos(sesion: SesionRLS) -> ProponerTrazos:
+    return ProponerTrazos(
+        trazos=RepositorioTrazosSQL(sesion),
+        planos=RepositorioPlanosSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_aceptar_propuestas(sesion: SesionRLS, ctx: ContextoActual) -> AceptarPropuestas:
+    return AceptarPropuestas(
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
+def obtener_rechazar_propuestas(sesion: SesionRLS) -> RechazarPropuestas:
+    return RechazarPropuestas(trazos=RepositorioTrazosSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
+
+
 def obtener_confirmar_avance(sesion: SesionRLS) -> ConfirmarAvance:
     return ConfirmarAvance(
         actividades=RepositorioActividadesSQL(sesion),
@@ -1025,6 +1059,9 @@ RegistrarTrazoConEnlacesDep = Annotated[
 ]
 ReemplazarEnlaceDep = Annotated[ReemplazarEnlace, Depends(obtener_reemplazar_enlace)]
 GestionarEnlacesDeHojaDep = Annotated[GestionarEnlacesDeHoja, Depends(obtener_gestionar_enlaces_de_hoja)]
+ProponerTrazosDep = Annotated[ProponerTrazos, Depends(obtener_proponer_trazos)]
+AceptarPropuestasDep = Annotated[AceptarPropuestas, Depends(obtener_aceptar_propuestas)]
+RechazarPropuestasDep = Annotated[RechazarPropuestas, Depends(obtener_rechazar_propuestas)]
 TraerTrazoDep = Annotated[TraerTrazoAOtraVersion, Depends(obtener_traer_trazo)]
 CalibrarEscalaDePlanoDep = Annotated[
     CalibrarEscalaDePlano, Depends(obtener_calibrar_escala)

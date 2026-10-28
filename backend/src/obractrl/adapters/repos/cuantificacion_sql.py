@@ -390,6 +390,67 @@ class RepositorioTrazosSQL:
         ).mappings().first()
         return dict(fila) if fila is not None else None
 
+    async def crear_propuesta(
+        self,
+        *,
+        plano_id: UUID,
+        version_plano: int,
+        geometria_wkt: str,
+        autor_id: UUID,
+        origen: str,
+        actividad_id: UUID,
+        medida: str,
+        confianza: Decimal | None,
+    ) -> UUID:
+        """Un trazo propuesto por una herramienta automática: sin enlaces, no suma nada."""
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into trazo
+                        (org_id, plano_id, version_plano, geometria, fuente, autor_id,
+                         propuesta, propuesta_origen, propuesta_actividad_id, propuesta_medida,
+                         propuesta_confianza)
+                    values
+                        (cast(current_setting('app.org_id') as uuid), :plano, :version,
+                         ST_GeomFromText(:wkt, 0), cast('pdf' as fuente_trazo), :autor,
+                         true, :origen, :actividad, :medida, :confianza)
+                    returning id
+                    """
+                ),
+                {
+                    "plano": str(plano_id),
+                    "version": version_plano,
+                    "wkt": geometria_wkt,
+                    "autor": str(autor_id),
+                    "origen": origen,
+                    "actividad": str(actividad_id),
+                    "medida": medida,
+                    "confianza": confianza,
+                },
+            )
+        ).scalar_one()
+
+    async def propuestas(self, plano_id: UUID, trazo_ids: list[UUID]) -> list[dict[str, Any]]:
+        """Las propuestas pendientes de esos trazos (los que no lo son no vuelven)."""
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, plano_id, propuesta_actividad_id as actividad_id,
+                           propuesta_medida as medida, propuesta_origen as origen
+                      from trazo
+                     where plano_id = :plano and propuesta and id = any(cast(:ids as uuid[]))
+                    """
+                ),
+                {"plano": str(plano_id), "ids": [str(i) for i in trazo_ids]},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def aceptar_propuesta(self, trazo_id: UUID) -> None:
+        await self._sesion.execute(text("update trazo set propuesta = false where id = :id"), {"id": str(trazo_id)})
+
     async def para_traer(self, trazo_id: UUID) -> dict[str, Any] | None:
         """Todo lo que hace falta para dibujar el mismo trazo en otra versión del plano."""
         fila = (
@@ -456,6 +517,8 @@ class RepositorioTrazosSQL:
                     select t.id, t.version_plano, t.capa, t.fuente, t.autor_id,
                            t.aprobado_por, t.aprobado_en, t.created_at,
                            t.grosor_m, t.alineacion, t.forma, t.pendiente_pct, t.medicion_id,
+                           t.propuesta, t.propuesta_origen, t.propuesta_actividad_id,
+                           t.propuesta_medida, t.propuesta_confianza,
                            (select count(*) from trazo h where h.hueco_de = t.id) as n_huecos,
                            (t.version_plano < p.version) as por_revisar,
                            -- La geometría que se dibuja y se mide es la efectiva: con sus huecos.

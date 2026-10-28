@@ -134,6 +134,29 @@ class RepositorioTrazos(Protocol):
         """El trazo (sin geometría) o `None` si no existe o RLS no lo deja ver."""
         ...
 
+    async def crear_propuesta(
+        self,
+        *,
+        plano_id: UUID,
+        version_plano: int,
+        geometria_wkt: str,
+        autor_id: UUID,
+        origen: str,
+        actividad_id: UUID,
+        medida: str,
+        confianza: Decimal | None,
+    ) -> UUID:
+        """Un trazo propuesto por una herramienta automática: sin enlaces, no suma nada (0092)."""
+        ...
+
+    async def propuestas(self, plano_id: UUID, trazo_ids: list[UUID]) -> list[dict[str, Any]]:
+        """Las propuestas pendientes de esos trazos."""
+        ...
+
+    async def aceptar_propuesta(self, trazo_id: UUID) -> None:
+        """La propuesta deja de serlo (su enlace ya se creó)."""
+        ...
+
     async def para_traer(self, trazo_id: UUID) -> dict[str, Any] | None:
         """El trazo con su geometría en WKT y lo que lo describe, para repetirlo en otra versión."""
         ...

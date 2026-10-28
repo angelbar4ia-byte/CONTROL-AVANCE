@@ -70,6 +70,10 @@ import {
   useListarEnlacesDeHojaApiV1PlanosPlanoIdEnlacesGet,
 } from '@/api/generado/enlaces-de-hoja/enlaces-de-hoja';
 import { useListarObrasApiV1ObrasGet } from '@/api/generado/obras/obras';
+import {
+  useAceptarPropuestasApiV1PlanosPlanoIdPropuestasAceptarPost,
+  useRechazarPropuestasApiV1PlanosPlanoIdPropuestasRechazarPost,
+} from '@/api/generado/propuestas/propuestas';
 import { useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet } from '@/api/generado/proyectos/proyectos';
 import {
   getActividadesDeObraApiV1ObrasObraIdActividadesGetQueryKey,
@@ -131,6 +135,7 @@ import { OpcionesDeHerramienta } from './OpcionesDeHerramienta';
 import { desfaseDeTexto, porTraer, versionesAnteriores } from './empalme';
 import { AltaEnlaceDeHoja } from './AltaEnlaceDeHoja';
 import { OpcionesDeEmpalme } from './OpcionesDeEmpalme';
+import { PanelDePropuestas } from './PanelDePropuestas';
 import { ProponerEscala } from './ProponerEscala';
 import { PanelVolumen } from './PanelVolumen';
 import { resumenDePantalla, type TrazoParaResumen } from './resumen';
@@ -525,7 +530,43 @@ export function EspacioDeTrazo({
   const pdf = useImagenDePdf(esPdf ? (archivo.data?.url ?? null) : null);
   const fondoUrl = esImagen ? (archivo.data?.url ?? null) : esPdf ? pdf.url : null;
 
-  const features = useMemo(() => trazosConsulta.data?.features ?? [], [trazosConsulta.data]);
+  // Las propuestas por revisar no son medidas: se ven aparte y nada de lo que se mide las toca.
+  const todosLosTrazos = useMemo(() => trazosConsulta.data?.features ?? [], [trazosConsulta.data]);
+  const features = useMemo(() => todosLosTrazos.filter((f) => !f.properties.propuesta), [todosLosTrazos]);
+  const propuestasDelPlano = useMemo(() => todosLosTrazos.filter((f) => f.properties.propuesta), [todosLosTrazos]);
+  const [propuestasDescartadas, setPropuestasDescartadas] = useState<ReadonlySet<string>>(new Set());
+  const propuestasElegidas = propuestasDelPlano.filter((f) => !propuestasDescartadas.has(f.id));
+  const aceptarPropuestas = useAceptarPropuestasApiV1PlanosPlanoIdPropuestasAceptarPost<ErrorApi>();
+  const rechazarPropuestas = useRechazarPropuestasApiV1PlanosPlanoIdPropuestasRechazarPost<ErrorApi>();
+  const resumenDePropuestas = useMemo(() => {
+    const por = new Map<string, { concepto: string; n: number; origen: string }>();
+    for (const f of propuestasDelPlano) {
+      const a = actividades.find((x) => x.id === f.properties.propuesta_actividad_id);
+      const concepto = String(a?.concepto_clave ?? a?.descripcion ?? 'un concepto');
+      const origen = String(f.properties.propuesta_origen ?? '');
+      const clave = `${concepto}|${origen}`;
+      por.set(clave, { concepto, origen, n: (por.get(clave)?.n ?? 0) + 1 });
+    }
+    return [...por.values()];
+  }, [propuestasDelPlano, actividades]);
+  async function resolverPropuestas(accion: 'aceptar' | 'rechazar') {
+    const ids = propuestasElegidas.map((f) => f.id);
+    if (ids.length === 0) return;
+    try {
+      if (accion === 'aceptar') {
+        await aceptarPropuestas.mutateAsync({ planoId: planoElegido, data: { trazo_ids: ids } });
+        setAviso(`${ids.length} ${ids.length === 1 ? 'propuesta aceptada' : 'propuestas aceptadas'}: ya miden su concepto.`);
+      } else {
+        await rechazarPropuestas.mutateAsync({ planoId: planoElegido, data: { trazo_ids: ids } });
+        setAviso(`${ids.length} ${ids.length === 1 ? 'propuesta rechazada' : 'propuestas rechazadas'}.`);
+      }
+      setPropuestasDescartadas(new Set());
+    } catch (err) {
+      setAviso(`No se pudo ${accion} las propuestas: ${err instanceof Error ? err.message : 'error'}`);
+    } finally {
+      invalidarTrazos();
+    }
+  }
   const versionesPrevias = useMemo(() => versionesAnteriores(listaDePlanos, planoElegido), [listaDePlanos, planoElegido]);
   const empalmeVersion = versionesPrevias.find((v) => v.id === empalmeVersionId) ?? versionesPrevias[0];
   const trazosAnteriores = useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet<TrazosDePlanoRespuesta, ErrorApi>(
@@ -1978,6 +2019,17 @@ export function EspacioDeTrazo({
                   />
                 )}
                 {herramienta === 'contorno' && <OpcionesDeContorno modo={modoContorno} onModo={setModoContorno} />}
+                {propuestasDelPlano.length > 0 && (
+                  <PanelDePropuestas
+                    total={propuestasDelPlano.length}
+                    elegidas={propuestasElegidas.length}
+                    resumen={resumenDePropuestas}
+                    trabajando={aceptarPropuestas.isPending || rechazarPropuestas.isPending}
+                    onAceptar={() => void resolverPropuestas('aceptar')}
+                    onRechazar={() => void resolverPropuestas('rechazar')}
+                    onElegirTodas={() => setPropuestasDescartadas(new Set())}
+                  />
+                )}
                 {empalmeAbierto && empalmeVersion && (
                   <OpcionesDeEmpalme
                     versiones={versionesPrevias}
@@ -2066,6 +2118,15 @@ export function EspacioDeTrazo({
                 empalmeOpacidad={empalmeOpacidad / 100}
                 onElegirFantasma={setFantasmaElegido}
                 enlaces={enlacesVisibles}
+                propuestas={propuestasDelPlano.map((f) => ({ id: f.id, geometry: f.geometry, elegida: !propuestasDescartadas.has(f.id) }))}
+                onAlternarPropuesta={(id) =>
+                  setPropuestasDescartadas((d) => {
+                    const n = new Set(d);
+                    if (n.has(id)) n.delete(id);
+                    else n.add(id);
+                    return n;
+                  })
+                }
                 onUsarEnlace={usarEnlace}
                 notas={notasVisibles}
                 seleccion={seleccion}

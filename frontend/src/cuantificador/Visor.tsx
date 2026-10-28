@@ -79,6 +79,14 @@ export interface TrazoFantasma {
   readonly geometry: GeometriaGeoJson;
 }
 
+/** Una propuesta por revisar (conteo o takeoff automático): se ve en naranja y no suma nada. */
+export interface PropuestaVisible {
+  readonly id: string;
+  readonly geometry: GeometriaGeoJson;
+  /** Está elegida para aceptarse o rechazarse; una descartada se ve atenuada. */
+  readonly elegida: boolean;
+}
+
 /** Una zona de la hoja que lleva a otra hoja (enlace entre hojas). */
 export interface EnlaceVisible {
   readonly id: string;
@@ -157,6 +165,9 @@ interface Props {
   /** Zonas que llevan a otra hoja. Con Seleccionar un clic salta; con Borrar, lo quita. */
   readonly enlaces?: readonly EnlaceVisible[];
   readonly onUsarEnlace?: (enlace: EnlaceVisible, accion: 'abrir' | 'quitar') => void;
+  /** Trazos propuestos por una herramienta automática. Un clic (con Seleccionar) los descarta o los elige. */
+  readonly propuestas?: readonly PropuestaVisible[];
+  readonly onAlternarPropuesta?: (id: string) => void;
 }
 
 /** El trazo de una flecha de `desde` a `hasta`: el cuerpo y la cabeza (de `cabeza` unidades de largo). */
@@ -184,6 +195,8 @@ export function Visor({
   onElegirFantasma,
   enlaces = [],
   onUsarEnlace,
+  propuestas = [],
+  onAlternarPropuesta,
   fondoUrl,
   trazos,
   notas,
@@ -499,6 +512,25 @@ export function Visor({
           ))}
         </g>
       )}
+
+      {propuestas.map((pr) => (
+        <g
+          key={pr.id}
+          className={pr.elegida ? 'visor__propuesta' : 'visor__propuesta is-descartada'}
+          data-propuesta-id={pr.id}
+          onPointerDown={(ev) => {
+            if (ev.button !== 0 || herramienta !== 'seleccionar') return;
+            ev.stopPropagation();
+            onAlternarPropuesta?.(pr.id);
+          }}
+        >
+          <path className="visor__propuesta-zona" d={rutaSvg(pr.geometry)} vectorEffect="non-scaling-stroke" />
+          <path d={rutaSvg(pr.geometry)} vectorEffect="non-scaling-stroke" />
+          {marcadoresDe(pr.geometry).map((m, i) => (
+            <circle key={i} cx={m[0]} cy={m[1]} r={radio * 1.2} />
+          ))}
+        </g>
+      ))}
 
       {enlaces.map((e) => (
         <g
