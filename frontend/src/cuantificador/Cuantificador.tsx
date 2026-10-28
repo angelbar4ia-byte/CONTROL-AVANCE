@@ -1870,6 +1870,7 @@ export function EspacioDeTrazo({
                   resumen={resumen}
                   nombreDeNodo={nombreDeNodo}
                   calibrada={escalaDelPlano !== null}
+                  mediciones={listaDeMediciones}
                   onCerrar={() => setDatosAbiertos(false)}
                 />
               )}

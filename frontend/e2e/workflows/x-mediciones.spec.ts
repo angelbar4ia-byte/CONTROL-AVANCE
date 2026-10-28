@@ -152,5 +152,11 @@ test.describe('Cuantificador · mediciones', () => {
     await expect(page.getByRole('status')).toContainText('dejaron de sumar');
     await expect.poll(cantidad).toBe(0);
     await expect(losa.getByText('Sin asignar').first()).toBeVisible();
+
+    // --- 5. El cuadro de datos también resume por medición, con la marca de las que no alimentan nada ----------
+    await page.getByRole('button', { name: 'Cuadro de datos', exact: true }).click();
+    const porMedicion = page.getByRole('table', { name: 'Cantidades por medición' });
+    await expect(porMedicion).toBeVisible();
+    await expect(porMedicion.getByRole('row', { name: /Losa de cimentación/ })).toContainText('Sin asignar');
   });
 });

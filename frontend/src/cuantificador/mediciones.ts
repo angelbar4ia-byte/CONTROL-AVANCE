@@ -98,6 +98,19 @@ export function motivoDeIncompatibilidad(
   return `Una medición ${tipo === 'area' ? 'de área' : tipo === 'lineal' ? 'lineal' : 'de conteo'} no admite ${que}. Elige otra herramienta o la medición correcta.`;
 }
 
+/** El árbol de mediciones en orden de lectura (cada madre seguida de sus submediciones), con su nivel. */
+export function aplanarMediciones<T extends MedicionPlana>(lista: readonly T[]): NodoDeMedicion<T>[] {
+  const fuera: NodoDeMedicion<T>[] = [];
+  const recorrer = (nodos: readonly NodoDeMedicion<T>[]) => {
+    for (const n of nodos) {
+      fuera.push(n);
+      recorrer(n.hijos);
+    }
+  };
+  recorrer(arbolDeMediciones(lista));
+  return fuera;
+}
+
 /** Cuántas asignaciones le tocan a una medición: las suyas y las de las que la contienen. */
 export function asignacionesEfectivas<T extends MedicionPlana>(lista: readonly T[], id: string): number {
   const porId = new Map(lista.map((m) => [m.id, m]));

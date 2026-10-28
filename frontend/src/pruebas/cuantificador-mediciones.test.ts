@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   admiteGeometria,
+  aplanarMediciones,
   arbolDeMediciones,
   candidatasAMadre,
   idsDeRama,
@@ -92,5 +93,21 @@ describe('Asignaciones que le tocan a una medición', () => {
     expect(asignacionesEfectivas(lista, 'r1')).toBe(3);
     expect(asignacionesEfectivas(lista, 'losa')).toBe(2);
     expect(asignacionesEfectivas(lista, 'otra')).toBe(0);
+  });
+});
+
+describe('Mediciones en orden de lectura (cuadro de datos)', () => {
+  it('cada madre va seguida de sus submediciones, con su nivel y si queda sin asignar', () => {
+    const lista = [
+      m('c1', 'Cocina', 'area', { parent_id: 'losa', orden: 1 }),
+      m('losa', 'Losa', 'area', { asignaciones: [{}] }),
+      m('muros', 'Muros', 'lineal', { orden: 1, unidad: 'm' }),
+    ];
+    const plano = aplanarMediciones(lista).map((n) => [n.medicion.nombre, n.nivel, n.sinAsignar]);
+    expect(plano).toEqual([
+      ['Losa', 0, false],
+      ['Cocina', 1, false], // hereda la asignación de su madre
+      ['Muros', 0, true],
+    ]);
   });
 });

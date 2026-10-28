@@ -2893,3 +2893,4 @@ a { color: inherit; text-decoration: none; }
 .alta-concepto label { display: grid; gap: 2px; font-size: 11px; }
 .alta-concepto input, .alta-concepto select { min-width: 0; }
 .arbol__alta-matriz { padding: 0 0 2px 22px; }
+.datos__sin-asignar { margin-left: 6px; font-size: 9px; }

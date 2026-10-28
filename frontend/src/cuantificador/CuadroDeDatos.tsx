@@ -8,6 +8,7 @@ import { X } from 'lucide-react';
 
 import { fmtNum } from '@/lib/formato';
 import { fmtMedida } from './etiquetas';
+import { aplanarMediciones, NOMBRE_DE_TIPO_DE_MEDICION, type MedicionPlana } from './mediciones';
 import type { Resumen } from './resumen';
 import { etiquetaMedida } from './reglas';
 
@@ -15,10 +16,13 @@ interface Props {
   readonly resumen: Resumen;
   readonly nombreDeNodo: (tipo: string, id: string) => string;
   readonly calibrada: boolean;
+  /** Las mediciones del plano (la capa sombra): se resumen con lo que miden y si alimentan algo. */
+  readonly mediciones?: readonly MedicionPlana[];
   readonly onCerrar: () => void;
 }
 
-export function CuadroDeDatos({ resumen, nombreDeNodo, calibrada, onCerrar }: Props) {
+export function CuadroDeDatos({ resumen, nombreDeNodo, calibrada, mediciones = [], onCerrar }: Props) {
+  const porMedicion = aplanarMediciones(mediciones);
   const { lineal, superficie } = resumen.unidades;
   const filas: readonly [string, string][] = [
     ['Trazos en pantalla', String(resumen.trazos)],
@@ -66,6 +70,39 @@ export function CuadroDeDatos({ resumen, nombreDeNodo, calibrada, onCerrar }: Pr
               ))}
             </tbody>
           </table>
+        )}
+
+        {porMedicion.length > 0 && (
+          <>
+            <div className="datos__subtitulo datos__subtitulo--menor">Por medición</div>
+            <table className="table datos__tabla datos__tabla--conceptos" aria-label="Cantidades por medición">
+              <thead>
+                <tr>
+                  <th>Medición</th>
+                  <th className="is-num">Trazos</th>
+                  <th className="is-num">Mide</th>
+                </tr>
+              </thead>
+              <tbody>
+                {porMedicion.map((n) => (
+                  <tr key={n.medicion.id}>
+                    <td
+                      className="datos__concepto"
+                      style={{ paddingLeft: 6 + n.nivel * 12 }}
+                      title={`${n.medicion.nombre} · ${NOMBRE_DE_TIPO_DE_MEDICION[n.medicion.tipo]}`}
+                    >
+                      {n.medicion.nombre}
+                      {n.sinAsignar && <span className="badge badge--warn datos__sin-asignar">Sin asignar</span>}
+                    </td>
+                    <td className="is-num">{n.medicion.n_trazos}</td>
+                    <td className="is-num mono">
+                      {fmtNum(n.medicion.valor)} {n.medicion.unidad}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         )}
 
         <div className="datos__subtitulo datos__subtitulo--menor">En pantalla</div>
