@@ -2897,9 +2897,13 @@ a { color: inherit; text-decoration: none; }
 .arbol__costo { padding: 4px 6px; border: 1px dashed var(--c-warn, #d97706); border-radius: 6px; }
 
 /* Fase 2 · empalme de versiones: la versión anterior como fantasma */
-.visor__fantasma path { fill: none; stroke: var(--c-info, #2563eb); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: .55; }
-.visor__fantasma circle { fill: var(--c-info, #2563eb); opacity: .55; }
-.visor__fantasma .visor__fantasma-zona { stroke: transparent; stroke-width: 12; stroke-dasharray: none; opacity: 1; pointer-events: stroke; cursor: pointer; }
-.visor__fantasma.is-elegido path:not(.visor__fantasma-zona) { opacity: 1; stroke-width: 2.5; }
+.visor__fantasma path { fill: none; stroke: var(--c-danger, #dc2626); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.visor__fantasma circle { fill: var(--c-danger, #dc2626); }
+.visor__fantasma .visor__fantasma-zona { stroke: transparent; stroke-width: 12; stroke-dasharray: none; pointer-events: stroke; cursor: pointer; }
+.visor__fantasma.is-elegido path:not(.visor__fantasma-zona) { stroke-width: 3; }
 .visor__empalme { pointer-events: none; }
 .visor__empalme .visor__fantasma { pointer-events: auto; }
+
+.empalme__clave { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; }
+.empalme__clave--antes { background: var(--c-danger, #dc2626); }
+.empalme__clave--ahora { background: var(--c-ok, #16a34a); }

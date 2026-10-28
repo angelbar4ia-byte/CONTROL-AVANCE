@@ -28,6 +28,9 @@ interface Props {
   readonly onTraerElegido: () => void;
   readonly onTraerTodos: () => void;
   readonly onCerrar: () => void;
+  /** Transparencia del fantasma, de 10 a 100 (%). */
+  readonly opacidad: number;
+  readonly onOpacidad: (porcentaje: number) => void;
 }
 
 const PASO = 1;
@@ -45,6 +48,8 @@ export function OpcionesDeEmpalme({
   onTraerElegido,
   onTraerTodos,
   onCerrar,
+  opacidad,
+  onOpacidad,
 }: Props) {
   const mover = (ddx: number, ddy: number) =>
     onDesfase(String(desfaseDeTexto(dx) + ddx), String(desfaseDeTexto(dy) + ddy));
@@ -68,6 +73,23 @@ export function OpcionesDeEmpalme({
           </option>
         ))}
       </select>
+
+      <label className="f">
+        Transparencia del fantasma ({opacidad} %)
+        <input
+          type="range"
+          min={10}
+          max={100}
+          step={5}
+          value={opacidad}
+          aria-label="Transparencia del fantasma"
+          onChange={(e) => onOpacidad(Number(e.target.value))}
+        />
+      </label>
+      <p className="text-mute text-xs">
+        <span className="empalme__clave empalme__clave--antes" /> Rojo: lo que tenía la versión anterior.{' '}
+        <span className="empalme__clave empalme__clave--ahora" /> Sus trazos de esta versión se ven con su color de siempre.
+      </p>
 
       <div className="opciones__titulo">Alinear (unidades de plano)</div>
       <div className="opciones__fila">

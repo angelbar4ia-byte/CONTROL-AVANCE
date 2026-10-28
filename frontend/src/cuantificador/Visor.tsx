@@ -139,6 +139,8 @@ interface Props {
   /** Cuánto se corre el fantasma para alinearlo con la versión nueva (unidades de plano). */
   readonly empalmeDesfase?: Punto;
   readonly empalmeElegidoId?: string | null;
+  /** Opacidad del fantasma, de 0 a 1. */
+  readonly empalmeOpacidad?: number;
   /** Clic en un fantasma con Seleccionar: es el que se va a traer. */
   readonly onElegirFantasma?: (id: string | null) => void;
 }
@@ -164,6 +166,7 @@ export function Visor({
   empalme = [],
   empalmeDesfase = [0, 0],
   empalmeElegidoId = null,
+  empalmeOpacidad = 0.55,
   onElegirFantasma,
   fondoUrl,
   trazos,
@@ -453,7 +456,12 @@ export function Visor({
       )}
 
       {empalme.length > 0 && (
-        <g className="visor__empalme" transform={`translate(${empalmeDesfase[0]} ${empalmeDesfase[1]})`} data-testid="empalme">
+        <g
+          className="visor__empalme"
+          transform={`translate(${empalmeDesfase[0]} ${empalmeDesfase[1]})`}
+          data-testid="empalme"
+          style={{ opacity: empalmeOpacidad }}
+        >
           {empalme.map((f) => (
             <g
               key={f.id}

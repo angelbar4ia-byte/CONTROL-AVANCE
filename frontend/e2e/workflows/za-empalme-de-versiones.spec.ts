@@ -86,6 +86,10 @@ test.describe('Cuantificador · empalme de versiones', () => {
     const panel = page.getByRole('region', { name: 'Opciones del empalme de versiones' });
     await expect(panel).toContainText('Traer todos (2)');
 
+    // La transparencia se ajusta.
+    await panel.getByLabel('Transparencia del fantasma').fill('30');
+    await expect(page.getByTestId('empalme')).toHaveCSS('opacity', '0.3');
+
     // --- 2. Alinear y traer el elegido ----------------------------------------------------------------
     await panel.getByLabel('Desfase X').fill('5');
     await fantasmas.first().locator('path').first().click({ force: true });

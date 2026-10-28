@@ -125,6 +125,7 @@ import { NavegadorDePlanos } from './NavegadorDePlanos';
 import { OpcionesDeHerramienta } from './OpcionesDeHerramienta';
 import { desfaseDeTexto, porTraer, versionesAnteriores } from './empalme';
 import { OpcionesDeEmpalme } from './OpcionesDeEmpalme';
+import { ProponerEscala } from './ProponerEscala';
 import { PanelVolumen } from './PanelVolumen';
 import { resumenDePantalla, type TrazoParaResumen } from './resumen';
 import { NuevaObra } from './NuevaObra';
@@ -384,6 +385,8 @@ export function EspacioDeTrazo({
   const [fantasmaElegido, setFantasmaElegido] = useState<string | null>(null);
   const [traidos, setTraidos] = useState<ReadonlySet<string>>(new Set());
   const [trayendo, setTrayendo] = useState(false);
+  const [empalmeOpacidad, setEmpalmeOpacidad] = useState(55);
+  const [proponiendoEscala, setProponiendoEscala] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [subiendoPlano, setSubiendoPlano] = useState(false);
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
@@ -1167,6 +1170,7 @@ export function EspacioDeTrazo({
     else if (clave === 'cotas') setMostrarCotas(!mostrarCotas);
     else if (clave === 'datos') setDatosAbiertos(!datosAbiertos);
     else if (clave === 'volumen') abrirVolumen();
+    else if (clave === 'escalaAuto') setProponiendoEscala(esPdf && archivo.data?.url !== undefined);
     else if (clave === 'empalme') {
       if (versionesPrevias.length > 0 || empalmeAbierto) setEmpalmeAbierto(!empalmeAbierto);
     }
@@ -1187,6 +1191,14 @@ export function EspacioDeTrazo({
     },
     { clave: 'volumen', activo: volumenAbierto, descripcion: 'Calcular volumen del trazo elegido' },
     { clave: 'datos', activo: datosAbiertos, atajo: 'D', descripcion: 'Cuadro de datos: resumen de las medidas en pantalla (D)' },
+    {
+      clave: 'escalaAuto',
+      activo: proponiendoEscala,
+      deshabilitado: !esPdf || archivo.data?.url === undefined,
+      descripcion: esPdf
+        ? 'Proponer la escala que dice la hoja (la confirmas tú)'
+        : 'La escala automática lee el texto de un plano en PDF',
+    },
     {
       clave: 'empalme',
       activo: empalmeAbierto,
@@ -1932,6 +1944,8 @@ export function EspacioDeTrazo({
                     onTraerElegido={() => fantasmaElegido && void traerFantasmas([fantasmaElegido])}
                     onTraerTodos={() => void traerFantasmas(fantasmasPorTraer.map((f) => f.id))}
                     onCerrar={() => setEmpalmeAbierto(false)}
+                    opacidad={empalmeOpacidad}
+                    onOpacidad={setEmpalmeOpacidad}
                   />
                 )}
                 {herramienta === 'nota' && (
@@ -1995,6 +2009,7 @@ export function EspacioDeTrazo({
                 empalme={empalmeAbierto ? fantasmasPorTraer.map((f) => ({ id: f.id, geometry: f.geometry })) : undefined}
                 empalmeDesfase={[desfaseDeTexto(empalmeDx), desfaseDeTexto(empalmeDy)]}
                 empalmeElegidoId={fantasmaElegido}
+                empalmeOpacidad={empalmeOpacidad / 100}
                 onElegirFantasma={setFantasmaElegido}
                 notas={notasVisibles}
                 seleccion={seleccion}
@@ -2273,6 +2288,27 @@ export function EspacioDeTrazo({
             void queryClient.invalidateQueries({
               queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId),
             });
+          }}
+        />
+      )}
+
+      {proponiendoEscala && plano && archivo.data?.url && (
+        <ProponerEscala
+          planoId={plano.id}
+          urlDelPdf={archivo.data.url}
+          escalaActual={escalaDelPlano}
+          onCerrar={() => setProponiendoEscala(false)}
+          onAplicada={(r: EscalaRespuesta) => {
+            setProponiendoEscala(false);
+            setAviso(
+              `Escala aplicada: 1 unidad de plano = ${Number(r.escala_m_por_unidad).toPrecision(4)} m. ` +
+                (r.recalculos.length === 0
+                  ? 'Todavía no hay trazos enlazados que recalcular.'
+                  : `Se recalcularon ${r.recalculos.length} ${r.recalculos.length === 1 ? 'nodo' : 'nodos'}.`),
+            );
+            void queryClient.invalidateQueries({ queryKey: getListarPlanosApiV1ObrasObraIdPlanosGetQueryKey(obraId) });
+            void queryClient.invalidateQueries({ queryKey: getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey(planoElegido) });
+            void queryClient.invalidateQueries({ queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId) });
           }}
         />
       )}
