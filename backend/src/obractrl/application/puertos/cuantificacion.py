@@ -134,6 +134,18 @@ class RepositorioTrazos(Protocol):
         """El trazo (sin geometría) o `None` si no existe o RLS no lo deja ver."""
         ...
 
+    async def para_traer(self, trazo_id: UUID) -> dict[str, Any] | None:
+        """El trazo con su geometría en WKT y lo que lo describe, para repetirlo en otra versión."""
+        ...
+
+    async def huecos_de(self, trazo_id: UUID) -> list[str]:
+        """Los huecos de un trazo, cada uno como WKT."""
+        ...
+
+    async def trasladar(self, geometria_wkt: str, dx: Decimal, dy: Decimal) -> str:
+        """El WKT corrido (dx, dy) unidades de plano."""
+        ...
+
     async def aprobar(self, *, trazo_id: UUID, aprobador_id: UUID) -> bool:
         """Marca el trazo como aprobado **solo si aún no lo estaba**. `True` si
         esta llamada lo aprobó, `False` si ya tenía aprobación (que no se pisa:
@@ -168,6 +180,10 @@ class RepositorioEnlacesCuantificacion(Protocol):
     ) -> UUID: ...
 
     async def obtener(self, enlace_id: UUID) -> dict[str, Any] | None: ...
+
+    async def vigentes_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]:
+        """Los enlaces vigentes de un trazo, uno por uno."""
+        ...
 
     async def nodos_vigentes_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]:
         """Los nodos distintos a los que enlaza, vigentes, un trazo."""

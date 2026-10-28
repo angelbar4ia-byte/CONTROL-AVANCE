@@ -9988,6 +9988,64 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/traer": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Traer un trazo de una versión anterior del plano a la nueva",
+        "description": "Empalme de versiones (acción explícita, nunca por cercanía): el trazo se repite en la versión\nnueva —corrido `dx`, `dy`, con sus huecos y enlaces vigentes— y los enlaces del viejo dejan de\nser vigentes, así que lo medido no se cuenta dos veces. El viejo queda como evidencia.",
+        "operationId": "traer_trazo_api_v1_trazos__trazo_id__traer_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraerTrazoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrazoTraidoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "El trazo mide un prototipo_nodo y el rol no puede tocarlo."
+          },
+          "404": {
+            "description": "El trazo o el plano no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "No son versiones del mismo plano, o va de la nueva a la anterior."
+          }
+        }
+      }
+    },
     "/api/v1/trazos/{trazo_id}/aprobar": {
       "post": {
         "tags": [
@@ -29908,6 +29966,49 @@
         "title": "TrabajoRespuesta",
         "description": "Identificador con el que se sigue un reporte encolado (§11.2)."
       },
+      "TraerTrazoPeticion": {
+        "properties": {
+          "plano_destino_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Plano Destino Id",
+            "description": "La versión nueva del mismo plano."
+          },
+          "dx": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Dx",
+            "description": "Cuánto se corre el trazo en X (unidades de plano).",
+            "default": "0"
+          },
+          "dy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Dy",
+            "description": "Cuánto se corre el trazo en Y (unidades de plano).",
+            "default": "0"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plano_destino_id"
+        ],
+        "title": "TraerTrazoPeticion"
+      },
       "TramoDTO": {
         "properties": {
           "duracion_dias": {
@@ -30448,6 +30549,42 @@
           "recalculos"
         ],
         "title": "TrazoRespuesta"
+      },
+      "TrazoTraidoRespuesta": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "enlace_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Enlace Ids"
+          },
+          "huecos": {
+            "type": "integer",
+            "title": "Huecos"
+          },
+          "recalculos": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+            },
+            "type": "array",
+            "title": "Recalculos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "enlace_ids",
+          "huecos",
+          "recalculos"
+        ],
+        "title": "TrazoTraidoRespuesta"
       },
       "TrazosDePlanoRespuesta": {
         "properties": {

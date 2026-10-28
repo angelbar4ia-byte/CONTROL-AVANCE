@@ -147,6 +147,7 @@ from obractrl.application.casos_uso.cuantificar import (
     RegistrarNotaPlano,
     RegistrarPlano,
     RegistrarTrazoConEnlaces,
+    TraerTrazoAOtraVersion,
 )
 from obractrl.application.casos_uso.dar_de_alta_extra import DarDeAltaExtra
 from obractrl.application.casos_uso.elementos import GestionarElementos
@@ -444,6 +445,7 @@ __all__ = [
     "RevisarReprogramacionDep",
     "SolicitarCierreDeFrenteDep",
     "SolicitarCierreDep",
+    "TraerTrazoDep",
     "ValidarCierreDeFrenteDep",
     "ValidarCierreDep",
     "ValidarEstimacionDep",
@@ -886,6 +888,20 @@ def obtener_reemplazar_enlace(sesion: SesionRLS, ctx: ContextoActual) -> Reempla
     )
 
 
+def obtener_traer_trazo(sesion: SesionRLS, ctx: ContextoActual) -> TraerTrazoAOtraVersion:
+    return TraerTrazoAOtraVersion(
+        trazos=RepositorioTrazosSQL(sesion),
+        planos=RepositorioPlanosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
 def obtener_confirmar_avance(sesion: SesionRLS) -> ConfirmarAvance:
     return ConfirmarAvance(
         actividades=RepositorioActividadesSQL(sesion),
@@ -997,6 +1013,7 @@ RegistrarTrazoConEnlacesDep = Annotated[
     RegistrarTrazoConEnlaces, Depends(obtener_registrar_trazo_con_enlaces)
 ]
 ReemplazarEnlaceDep = Annotated[ReemplazarEnlace, Depends(obtener_reemplazar_enlace)]
+TraerTrazoDep = Annotated[TraerTrazoAOtraVersion, Depends(obtener_traer_trazo)]
 CalibrarEscalaDePlanoDep = Annotated[
     CalibrarEscalaDePlano, Depends(obtener_calibrar_escala)
 ]

@@ -390,6 +390,43 @@ class RepositorioTrazosSQL:
         ).mappings().first()
         return dict(fila) if fila is not None else None
 
+    async def para_traer(self, trazo_id: UUID) -> dict[str, Any] | None:
+        """Todo lo que hace falta para dibujar el mismo trazo en otra versión del plano."""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select t.id, t.plano_id, t.hueco_de, t.capa, t.fuente::text as fuente,
+                           t.grosor_m, t.alineacion, t.forma, t.pendiente_pct,
+                           ST_AsText(t.geometria) as geometria_wkt
+                      from trazo t
+                     where t.id = :id
+                    """
+                ),
+                {"id": str(trazo_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def huecos_de(self, trazo_id: UUID) -> list[str]:
+        """Los huecos de un trazo, cada uno como WKT."""
+        filas = (
+            await self._sesion.execute(
+                text("select ST_AsText(geometria) from trazo where hueco_de = :id order by created_at, id"),
+                {"id": str(trazo_id)},
+            )
+        ).scalars().all()
+        return list(filas)
+
+    async def trasladar(self, geometria_wkt: str, dx: Decimal, dy: Decimal) -> str:
+        """El mismo WKT corrido (dx, dy) unidades de plano: el alineado de una versión con otra."""
+        return (
+            await self._sesion.execute(
+                text("select ST_AsText(ST_Translate(ST_GeomFromText(:wkt, 0), :dx, :dy))"),
+                {"wkt": geometria_wkt, "dx": float(dx), "dy": float(dy)},
+            )
+        ).scalar_one()
+
     async def aprobar(self, *, trazo_id: UUID, aprobador_id: UUID) -> bool:
         # `aprobado_por is null`: la primera aprobación manda y no se pisa.
         resultado = await self._sesion.execute(
@@ -603,6 +640,24 @@ class RepositorioEnlacesCuantificacionSQL:
                     """
                 ),
                 {"plano_id": str(plano_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def vigentes_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]:
+        """Los enlaces vigentes de un trazo, uno por uno (a diferencia de los nodos distintos)."""
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select e.id, e.tipo_nodo, e.actividad_id, e.prototipo_nodo_id,
+                           e.matriz_concepto_id, e.medida, e.factor
+                      from enlace_cuantificacion e
+                     where e.trazo_id = :trazo_id and e.vigente
+                     order by e.created_at, e.id
+                    """
+                ),
+                {"trazo_id": str(trazo_id)},
             )
         ).mappings().all()
         return [dict(f) for f in filas]

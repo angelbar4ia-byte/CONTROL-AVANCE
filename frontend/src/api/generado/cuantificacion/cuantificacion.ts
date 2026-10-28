@@ -42,10 +42,12 @@ import type {
   PlanoRespuesta,
   ReemplazarEnlacePeticion,
   ResultadoRecalculoRespuesta,
+  TraerTrazoPeticion,
   TrazoAprobadoRespuesta,
   TrazoEliminadoRespuesta,
   TrazoPeticion,
   TrazoRespuesta,
+  TrazoTraidoRespuesta,
   TrazosDePlanoRespuesta,
   VistaPeticion,
 } from ".././modelo";
@@ -1578,6 +1580,103 @@ export const useReemplazarEnlaceApiV1EnlacesCuantificacionEnlaceIdReemplazarPost
 
     return useMutation(mutationOptions, queryClient);
   };
+/**
+ * Empalme de versiones (acción explícita, nunca por cercanía): el trazo se repite en la versión
+nueva —corrido `dx`, `dy`, con sus huecos y enlaces vigentes— y los enlaces del viejo dejan de
+ser vigentes, así que lo medido no se cuenta dos veces. El viejo queda como evidencia.
+ * @summary Traer un trazo de una versión anterior del plano a la nueva
+ */
+export const traerTrazoApiV1TrazosTrazoIdTraerPost = (
+  trazoId: string,
+  traerTrazoPeticion: TraerTrazoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<TrazoTraidoRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/traer`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: traerTrazoPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getTraerTrazoApiV1TrazosTrazoIdTraerPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof traerTrazoApiV1TrazosTrazoIdTraerPost>>,
+    TError,
+    { trazoId: string; data: TraerTrazoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof traerTrazoApiV1TrazosTrazoIdTraerPost>>,
+  TError,
+  { trazoId: string; data: TraerTrazoPeticion },
+  TContext
+> => {
+  const mutationKey = ["traerTrazoApiV1TrazosTrazoIdTraerPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof traerTrazoApiV1TrazosTrazoIdTraerPost>>,
+    { trazoId: string; data: TraerTrazoPeticion }
+  > = (props) => {
+    const { trazoId, data } = props ?? {};
+
+    return traerTrazoApiV1TrazosTrazoIdTraerPost(trazoId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TraerTrazoApiV1TrazosTrazoIdTraerPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof traerTrazoApiV1TrazosTrazoIdTraerPost>>
+>;
+export type TraerTrazoApiV1TrazosTrazoIdTraerPostMutationBody =
+  TraerTrazoPeticion;
+export type TraerTrazoApiV1TrazosTrazoIdTraerPostMutationError = void;
+
+/**
+ * @summary Traer un trazo de una versión anterior del plano a la nueva
+ */
+export const useTraerTrazoApiV1TrazosTrazoIdTraerPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof traerTrazoApiV1TrazosTrazoIdTraerPost>>,
+      TError,
+      { trazoId: string; data: TraerTrazoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof traerTrazoApiV1TrazosTrazoIdTraerPost>>,
+  TError,
+  { trazoId: string; data: TraerTrazoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getTraerTrazoApiV1TrazosTrazoIdTraerPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * Idempotente. **No es una compuerta:** un trazo cuenta en la cantidad
 desde que se guarda, aprobado o no — el cerebro no define lo contrario

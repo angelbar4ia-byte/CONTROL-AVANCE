@@ -19,6 +19,7 @@ import {
   FlipVertical2,
   Hand,
   Hash,
+  Layers,
   MapPin,
   MousePointer,
   Pentagon,
@@ -180,7 +181,7 @@ const ICONOS_DE_VISTA: Record<AccionDeVista['clave'], Icono> = {
   voltearV: FlipVertical2,
 };
 
-export type ClaveDeInterruptor = 'medidas' | 'cotas' | 'soloElegidos' | 'volumen' | 'datos';
+export type ClaveDeInterruptor = 'medidas' | 'cotas' | 'soloElegidos' | 'volumen' | 'datos' | 'empalme';
 
 export interface Interruptor {
   readonly clave: ClaveDeInterruptor;
@@ -197,6 +198,7 @@ const INTERRUPTORES: Record<ClaveDeInterruptor, { etiqueta: string; icono: Icono
   soloElegidos: { etiqueta: 'Solo los trazos de los conceptos elegidos', icono: Eye },
   volumen: { etiqueta: 'Calcular volumen', icono: Box },
   datos: { etiqueta: 'Cuadro de datos', icono: Table2 },
+  empalme: { etiqueta: 'Empalmar la versión anterior', icono: Layers },
 };
 
 interface Props {

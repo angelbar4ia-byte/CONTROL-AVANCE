@@ -33,6 +33,7 @@ import {
   useAgregarHuecoApiV1TrazosTrazoIdHuecosPost,
   useQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete,
   useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost,
+  useTraerTrazoApiV1TrazosTrazoIdTraerPost,
   useEliminarTrazoApiV1TrazosTrazoIdDelete,
   useAprobarTrazoApiV1TrazosTrazoIdAprobarPost,
   useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet,
@@ -122,6 +123,8 @@ import {
 } from './formas';
 import { NavegadorDePlanos } from './NavegadorDePlanos';
 import { OpcionesDeHerramienta } from './OpcionesDeHerramienta';
+import { desfaseDeTexto, porTraer, versionesAnteriores } from './empalme';
+import { OpcionesDeEmpalme } from './OpcionesDeEmpalme';
 import { PanelVolumen } from './PanelVolumen';
 import { resumenDePantalla, type TrazoParaResumen } from './resumen';
 import { NuevaObra } from './NuevaObra';
@@ -373,6 +376,14 @@ export function EspacioDeTrazo({
   const [mostrarMedidas, setMostrarMedidas] = useState(false);
   const [mostrarCotas, setMostrarCotas] = useState(false);
   const [datosAbiertos, setDatosAbiertos] = useState(false);
+  // Empalme de versiones: la versión anterior como fantasma, su desfase y lo que ya se trajo.
+  const [empalmeAbierto, setEmpalmeAbierto] = useState(false);
+  const [empalmeVersionId, setEmpalmeVersionId] = useState('');
+  const [empalmeDx, setEmpalmeDx] = useState('0');
+  const [empalmeDy, setEmpalmeDy] = useState('0');
+  const [fantasmaElegido, setFantasmaElegido] = useState<string | null>(null);
+  const [traidos, setTraidos] = useState<ReadonlySet<string>>(new Set());
+  const [trayendo, setTrayendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [subiendoPlano, setSubiendoPlano] = useState(false);
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
@@ -503,6 +514,53 @@ export function EspacioDeTrazo({
   const fondoUrl = esImagen ? (archivo.data?.url ?? null) : esPdf ? pdf.url : null;
 
   const features = useMemo(() => trazosConsulta.data?.features ?? [], [trazosConsulta.data]);
+  const versionesPrevias = useMemo(() => versionesAnteriores(listaDePlanos, planoElegido), [listaDePlanos, planoElegido]);
+  const empalmeVersion = versionesPrevias.find((v) => v.id === empalmeVersionId) ?? versionesPrevias[0];
+  const trazosAnteriores = useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet<TrazosDePlanoRespuesta, ErrorApi>(
+    empalmeVersion?.id ?? '',
+    { query: { enabled: empalmeAbierto && empalmeVersion !== undefined } },
+  );
+  const fantasmasPorTraer = useMemo(
+    () => porTraer(trazosAnteriores.data?.features ?? [], traidos),
+    [trazosAnteriores.data, traidos],
+  );
+  const traerTrazo = useTraerTrazoApiV1TrazosTrazoIdTraerPost<ErrorApi>();
+  // Otro plano: el empalme y lo elegido no se arrastran.
+  useEffect(() => {
+    setEmpalmeAbierto(false);
+    setFantasmaElegido(null);
+    setTraidos(new Set());
+    setEmpalmeVersionId('');
+  }, [planoElegido]);
+  async function traerFantasmas(ids: readonly string[]) {
+    if (ids.length === 0 || trayendo) return;
+    setTrayendo(true);
+    let hechos = 0;
+    try {
+      for (const id of ids) {
+        await traerTrazo.mutateAsync({
+          trazoId: id,
+          data: { plano_destino_id: planoElegido, dx: String(desfaseDeTexto(empalmeDx)), dy: String(desfaseDeTexto(empalmeDy)) },
+        });
+        hechos += 1;
+        setTraidos((t) => new Set(t).add(id));
+      }
+      setFantasmaElegido(null);
+      setAviso(hechos === 1 ? 'Trazo traído a esta versión.' : `${hechos} trazos traídos a esta versión.`);
+    } catch (err) {
+      setAviso(
+        `${hechos > 0 ? `Se trajeron ${hechos}; ` : ''}no se pudo traer el siguiente: ${err instanceof Error ? err.message : 'error'}`,
+      );
+    } finally {
+      setTrayendo(false);
+      invalidarTrazos();
+      if (empalmeVersion) {
+        void queryClient.invalidateQueries({
+          queryKey: getTrazosDePlanoApiV1PlanosPlanoIdTrazosGetQueryKey(empalmeVersion.id),
+        });
+      }
+    }
+  }
   // Los trazos de la medición activa (y de sus submediciones), para resaltarlos en el plano.
   const trazosDeLaMedicion = useMemo(() => {
     if (!medicionActiva) return new Set<string>();
@@ -1109,6 +1167,9 @@ export function EspacioDeTrazo({
     else if (clave === 'cotas') setMostrarCotas(!mostrarCotas);
     else if (clave === 'datos') setDatosAbiertos(!datosAbiertos);
     else if (clave === 'volumen') abrirVolumen();
+    else if (clave === 'empalme') {
+      if (versionesPrevias.length > 0 || empalmeAbierto) setEmpalmeAbierto(!empalmeAbierto);
+    }
     else if (elegidos.size > 0 || soloElegidos) setSoloElegidos(!soloElegidos);
   }
 
@@ -1126,6 +1187,15 @@ export function EspacioDeTrazo({
     },
     { clave: 'volumen', activo: volumenAbierto, descripcion: 'Calcular volumen del trazo elegido' },
     { clave: 'datos', activo: datosAbiertos, atajo: 'D', descripcion: 'Cuadro de datos: resumen de las medidas en pantalla (D)' },
+    {
+      clave: 'empalme',
+      activo: empalmeAbierto,
+      deshabilitado: versionesPrevias.length === 0 && !empalmeAbierto,
+      descripcion:
+        versionesPrevias.length > 0 || empalmeAbierto
+          ? 'Empalmar la versión anterior del plano: verla de fantasma, alinearla y traer sus trazos'
+          : 'Este plano no tiene una versión anterior que empalmar',
+    },
   ];
 
   const etiquetas = useMemo(
@@ -1842,6 +1912,28 @@ export function EspacioDeTrazo({
                   />
                 )}
                 {herramienta === 'contorno' && <OpcionesDeContorno modo={modoContorno} onModo={setModoContorno} />}
+                {empalmeAbierto && empalmeVersion && (
+                  <OpcionesDeEmpalme
+                    versiones={versionesPrevias}
+                    versionId={empalmeVersion.id}
+                    onVersion={(id) => {
+                      setEmpalmeVersionId(id);
+                      setFantasmaElegido(null);
+                    }}
+                    dx={empalmeDx}
+                    dy={empalmeDy}
+                    onDesfase={(x, y) => {
+                      setEmpalmeDx(x);
+                      setEmpalmeDy(y);
+                    }}
+                    porTraer={fantasmasPorTraer.length}
+                    elegido={fantasmaElegido !== null}
+                    trabajando={trayendo}
+                    onTraerElegido={() => fantasmaElegido && void traerFantasmas([fantasmaElegido])}
+                    onTraerTodos={() => void traerFantasmas(fantasmasPorTraer.map((f) => f.id))}
+                    onCerrar={() => setEmpalmeAbierto(false)}
+                  />
+                )}
                 {herramienta === 'nota' && (
                   <OpcionesDeNota
                     clase={claseDeNota}
@@ -1900,6 +1992,10 @@ export function EspacioDeTrazo({
                 vistaDelPlano={vistaDelPlano}
                 fondoUrl={fondoUrl}
                 trazos={trazosVisibles}
+                empalme={empalmeAbierto ? fantasmasPorTraer.map((f) => ({ id: f.id, geometry: f.geometry })) : undefined}
+                empalmeDesfase={[desfaseDeTexto(empalmeDx), desfaseDeTexto(empalmeDy)]}
+                empalmeElegidoId={fantasmaElegido}
+                onElegirFantasma={setFantasmaElegido}
                 notas={notasVisibles}
                 seleccion={seleccion}
                 herramienta={herramienta}

@@ -59,6 +59,7 @@ from obractrl.adapters.api.casos_uso import (
     RegistrarNotaPlanoDep,
     RegistrarPlanoDep,
     RegistrarTrazoConEnlacesDep,
+    TraerTrazoDep,
 )
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.application.casos_uso.cuantificar import (
@@ -70,6 +71,7 @@ from obractrl.application.casos_uso.cuantificar import (
     ComandoReemplazarEnlace,
     ComandoRegistrarNotaPlano,
     ComandoRegistrarTrazo,
+    ComandoTraerTrazo,
     IntencionEnlace,
     NodoCuantificado,
     NuevoEnlace,
@@ -639,6 +641,56 @@ async def reemplazar_enlace(
         detectada_en=datetime.now(UTC),
     )
     return ResultadoRecalculoRespuesta.desde_dominio(resultado)
+
+
+class TraerTrazoPeticion(BaseModel):
+    plano_destino_id: UUID = Field(description="La versión nueva del mismo plano.")
+    dx: Decimal = Field(default=Decimal(0), description="Cuánto se corre el trazo en X (unidades de plano).")
+    dy: Decimal = Field(default=Decimal(0), description="Cuánto se corre el trazo en Y (unidades de plano).")
+
+
+class TrazoTraidoRespuesta(BaseModel):
+    trazo_id: UUID
+    enlace_ids: list[UUID]
+    huecos: int
+    recalculos: list[ResultadoRecalculoRespuesta]
+
+
+@router.post(
+    "/trazos/{trazo_id}/traer",
+    response_model=TrazoTraidoRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Traer un trazo de una versión anterior del plano a la nueva",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        403: {"description": "El trazo mide un prototipo_nodo y el rol no puede tocarlo."},
+        404: {"description": "El trazo o el plano no existen o están fuera de tu alcance."},
+        422: {"description": "No son versiones del mismo plano, o va de la nueva a la anterior."},
+    },
+)
+async def traer_trazo(
+    trazo_id: UUID, peticion: TraerTrazoPeticion, ctx: ContextoActual, caso_uso: TraerTrazoDep
+) -> TrazoTraidoRespuesta:
+    """Empalme de versiones (acción explícita, nunca por cercanía): el trazo se repite en la versión
+    nueva —corrido `dx`, `dy`, con sus huecos y enlaces vigentes— y los enlaces del viejo dejan de
+    ser vigentes, así que lo medido no se cuenta dos veces. El viejo queda como evidencia."""
+    resultado = await caso_uso.ejecutar(
+        ComandoTraerTrazo(
+            trazo_id=trazo_id,
+            plano_destino_id=peticion.plano_destino_id,
+            usuario_id=ctx.usuario_id,
+            rol=Rol(ctx.rol),
+            dx=peticion.dx,
+            dy=peticion.dy,
+        ),
+        detectada_en=datetime.now(UTC),
+    )
+    return TrazoTraidoRespuesta(
+        trazo_id=resultado.trazo_id,
+        enlace_ids=list(resultado.enlace_ids),
+        huecos=resultado.huecos,
+        recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos],
+    )
 
 
 class TrazoAprobadoRespuesta(BaseModel):

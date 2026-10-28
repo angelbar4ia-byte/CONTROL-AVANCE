@@ -773,6 +773,156 @@ class ReemplazarEnlace:
 
 
 @dataclass(frozen=True, slots=True)
+class ComandoTraerTrazo:
+    trazo_id: UUID
+    plano_destino_id: UUID
+    usuario_id: UUID
+    rol: Rol
+    dx: Decimal = Decimal(0)
+    dy: Decimal = Decimal(0)
+    """Cuánto se corre el trazo al pasarlo (unidades de plano): el alineado de una versión con otra."""
+
+
+@dataclass(frozen=True, slots=True)
+class TrazoTraido:
+    trazo_id: UUID
+    enlace_ids: tuple[UUID, ...]
+    huecos: int
+    recalculos: tuple[ResultadoDeRecalculo, ...] = field(default_factory=tuple)
+
+
+class TraerTrazoAOtraVersion:
+    """Pasa un trazo de una versión anterior del plano a la versión nueva (empalme de versiones).
+
+    Es la acción **explícita y manual** de siempre (MODELO.md §1b, «Si el plano cambia»): nunca se
+    empareja solo por cercanía. El trazo se repite en la versión nueva —corrido lo que se diga, con
+    sus huecos y sus enlaces vigentes— y los enlaces del trazo viejo dejan de ser vigentes (el trazo y
+    sus enlaces se quedan como evidencia), de modo que **lo medido no se cuenta dos veces**. No se
+    traen las pertenencias a una medición: la capa sombra es de cada plano.
+    """
+
+    def __init__(
+        self,
+        *,
+        trazos: RepositorioTrazos,
+        planos: RepositorioPlanos,
+        enlaces: RepositorioEnlacesCuantificacion,
+        actividades: RepositorioActividades,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        desviaciones: RepositorioDesviaciones,
+        uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
+        matrices: RepositorioMatrices | None = None,
+    ) -> None:
+        self._trazos = trazos
+        self._planos = planos
+        self._enlaces = enlaces
+        self._actividades = actividades
+        self._prototipo_nodos = prototipo_nodos
+        self._desviaciones = desviaciones
+        self._uow = uow
+        self._eventos = eventos
+        self._matrices = matrices
+
+    async def ejecutar(self, cmd: ComandoTraerTrazo, *, detectada_en: datetime) -> TrazoTraido:
+        origen = await self._trazos.para_traer(cmd.trazo_id)
+        if origen is None:
+            raise TrazoNoEncontrado(f"El trazo {cmd.trazo_id} no existe o está fuera de tu alcance.")
+        if origen["hueco_de"] is not None:
+            raise ErrorDeCuantificacion("Un hueco viaja con su trazo: trae el trazo, no el hueco.")
+        plano_origen = await self._planos.obtener(origen["plano_id"])
+        destino = await self._planos.obtener(cmd.plano_destino_id)
+        if plano_origen is None or destino is None:
+            raise PlanoNoEncontrado("El plano no existe o está fuera de tu alcance.")
+        if plano_origen["obra_id"] != destino["obra_id"] or plano_origen["nombre"] != destino["nombre"]:
+            raise ErrorDeCuantificacion("Solo se trae de una versión a otra del mismo plano de la obra.")
+        if int(destino["version"]) <= int(plano_origen["version"]):
+            raise ErrorDeCuantificacion("Se trae de una versión anterior a una más nueva, no al revés.")
+
+        vigentes = await self._enlaces.vigentes_de_trazo(cmd.trazo_id)
+        intenciones = tuple(
+            IntencionEnlace(
+                medida=MedidaCuantificacion(str(e["medida"])),
+                factor=Decimal(str(e["factor"])),
+                actividad_id=e["actividad_id"],
+                prototipo_nodo_id=e["prototipo_nodo_id"],
+                matriz_concepto_id=e["matriz_concepto_id"],
+            )
+            for e in vigentes
+        )
+        _exigir_gobierno(cmd.rol, intenciones)
+
+        geometria = await self._trazos.trasladar(origen["geometria_wkt"], cmd.dx, cmd.dy)
+        huecos = [await self._trazos.trasladar(h, cmd.dx, cmd.dy) for h in await self._trazos.huecos_de(cmd.trazo_id)]
+
+        async with self._uow:
+            nuevo_id = await self._trazos.crear(
+                plano_id=cmd.plano_destino_id,
+                version_plano=int(destino["version"]),
+                capa=origen["capa"],
+                geometria_wkt=geometria,
+                fuente=str(origen["fuente"]),
+                autor_id=cmd.usuario_id,
+                grosor_m=origen["grosor_m"],
+                alineacion=origen["alineacion"],
+                forma=origen["forma"],
+                pendiente_pct=origen["pendiente_pct"],
+            )
+            for hueco in huecos:
+                await self._trazos.crear_hueco(trazo_id=nuevo_id, geometria_wkt=hueco, autor_id=cmd.usuario_id)
+
+            enlace_ids: list[UUID] = []
+            nodos: dict[tuple[TipoNodoCuantificacion, UUID | None, UUID | None, UUID | None], None] = {}
+            for viejo, intencion in zip(vigentes, intenciones, strict=True):
+                validado = EnlaceCuantificacion(
+                    trazo_id=str(nuevo_id),
+                    actividad_id=str(intencion.actividad_id) if intencion.actividad_id else None,
+                    prototipo_nodo_id=str(intencion.prototipo_nodo_id) if intencion.prototipo_nodo_id else None,
+                    medida=intencion.medida,
+                    factor=intencion.factor,
+                    matriz_concepto_id=str(intencion.matriz_concepto_id) if intencion.matriz_concepto_id else None,
+                )
+                enlace_ids.append(
+                    await self._enlaces.crear(
+                        trazo_id=nuevo_id,
+                        actividad_id=intencion.actividad_id,
+                        prototipo_nodo_id=intencion.prototipo_nodo_id,
+                        matriz_concepto_id=intencion.matriz_concepto_id,
+                        medida=validado.medida.value,
+                        factor=validado.factor,
+                    )
+                )
+                await self._enlaces.marcar_no_vigente(viejo["id"])
+                nodos[
+                    (validado.tipo_nodo, intencion.actividad_id, intencion.prototipo_nodo_id, intencion.matriz_concepto_id)
+                ] = None
+
+            recalculos = tuple(
+                [
+                    await _recalcular_nodo(
+                        tipo_nodo=tipo_nodo,
+                        actividad_id=actividad_id,
+                        prototipo_nodo_id=prototipo_nodo_id,
+                        matriz_concepto_id=matriz_concepto_id,
+                        enlaces=self._enlaces,
+                        actividades=self._actividades,
+                        prototipo_nodos=self._prototipo_nodos,
+                        desviaciones=self._desviaciones,
+                        detectada_en=detectada_en,
+                        matrices=self._matrices,
+                    )
+                    for (tipo_nodo, actividad_id, prototipo_nodo_id, matriz_concepto_id) in nodos
+                ]
+            )
+            await self._uow.commit()
+
+        await _avisar_reaperturas(self._eventos, recalculos, cmd.usuario_id)
+        return TrazoTraido(
+            trazo_id=nuevo_id, enlace_ids=tuple(enlace_ids), huecos=len(huecos), recalculos=recalculos
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ComandoCalibrarEscala:
     plano_id: UUID
     punto_a: tuple[float, float]

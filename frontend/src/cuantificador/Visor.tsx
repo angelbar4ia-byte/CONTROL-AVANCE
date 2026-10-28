@@ -73,6 +73,12 @@ export interface TrazoVisible {
   readonly banda?: readonly Punto[];
 }
 
+/** Un trazo de la versión anterior del plano, dibujado como fantasma (empalme de versiones). */
+export interface TrazoFantasma {
+  readonly id: string;
+  readonly geometry: GeometriaGeoJson;
+}
+
 export interface NotaVisible {
   readonly id: string;
   readonly punto: Punto;
@@ -128,6 +134,13 @@ interface Props {
   readonly claveDePlano: string;
   /** Cómo se ve el plano: girado y/o en espejo. Solo presentación. */
   readonly vistaDelPlano?: VistaDelPlano;
+  /** La versión anterior del plano, como fantasma bajo los trazos (empalme de versiones). */
+  readonly empalme?: readonly TrazoFantasma[];
+  /** Cuánto se corre el fantasma para alinearlo con la versión nueva (unidades de plano). */
+  readonly empalmeDesfase?: Punto;
+  readonly empalmeElegidoId?: string | null;
+  /** Clic en un fantasma con Seleccionar: es el que se va a traer. */
+  readonly onElegirFantasma?: (id: string | null) => void;
 }
 
 /** El trazo de una flecha de `desde` a `hasta`: el cuerpo y la cabeza (de `cabeza` unidades de largo). */
@@ -148,6 +161,10 @@ interface Gesto {
 }
 
 export function Visor({
+  empalme = [],
+  empalmeDesfase = [0, 0],
+  empalmeElegidoId = null,
+  onElegirFantasma,
   fondoUrl,
   trazos,
   notas,
@@ -433,6 +450,30 @@ export function Visor({
       <g transform={T.svg} data-testid="plano-girado" data-rotacion={rotacionGrados} data-volteo={`${volteoH ? 'h' : ''}${volteoV ? 'v' : ''}`}>
       {fondoUrl && imagen && !fondoRoto && (
         <image href={fondoUrl} x={0} y={0} width={imagen.ancho} height={imagen.alto} />
+      )}
+
+      {empalme.length > 0 && (
+        <g className="visor__empalme" transform={`translate(${empalmeDesfase[0]} ${empalmeDesfase[1]})`} data-testid="empalme">
+          {empalme.map((f) => (
+            <g
+              key={f.id}
+              className={f.id === empalmeElegidoId ? 'visor__fantasma is-elegido' : 'visor__fantasma'}
+              data-fantasma-id={f.id}
+              onPointerDown={(e) => {
+                // El visor captura el puntero al presionar y el clic ya no llega al fantasma: se elige aquí.
+                if (herramienta !== 'seleccionar' || e.button !== 0) return;
+                e.stopPropagation();
+                onElegirFantasma?.(f.id === empalmeElegidoId ? null : f.id);
+              }}
+            >
+              <path className="visor__fantasma-zona" d={rutaSvg(f.geometry)} vectorEffect="non-scaling-stroke" />
+              <path d={rutaSvg(f.geometry)} vectorEffect="non-scaling-stroke" />
+              {marcadoresDe(f.geometry).map((m, i) => (
+                <circle key={i} cx={m[0]} cy={m[1]} r={radio} />
+              ))}
+            </g>
+          ))}
+        </g>
       )}
 
       {trazos.map((t) => {
