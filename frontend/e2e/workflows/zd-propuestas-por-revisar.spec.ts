@@ -37,7 +37,7 @@ test.describe('Cuantificador · propuestas por revisar', () => {
       actividad_id: actividad!.id,
       medida: 'conteo',
       origen: 'conteo_auto',
-      propuestas: [0, 1, 2].map((i) => ({ wkt: `POINT(${50 + i * 40} 60)`, confianza: '0.9' })),
+      propuestas: [0, 1, 2].map((i) => ({ wkt: `POINT(${400 + i * 40} 320)`, confianza: '0.9' })),
     });
     const cantidad = async () => {
       const nodos = await llamarApi<{ nodo_id: string; cantidad_medida: string }[]>(
@@ -60,7 +60,7 @@ test.describe('Cuantificador · propuestas por revisar', () => {
     expect(await cantidad()).toBe(0);
 
     // --- 2. Un clic la descarta ----------------------------------------------------------------------------
-    await marcas.first().locator('circle').first().click({ force: true });
+    await marcas.first().locator('circle').first().click();
     await expect(panel.getByRole('button', { name: 'Aceptar 2' })).toBeVisible();
 
     // --- 3. Aceptar: las elegidas miden ---------------------------------------------------------------------

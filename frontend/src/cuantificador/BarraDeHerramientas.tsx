@@ -29,6 +29,7 @@ import {
   RotateCw,
   RectangleHorizontal,
   Ruler,
+  ScanSearch,
   Spline,
   SquareMinus,
   Slash,
@@ -94,6 +95,7 @@ const ICONOS: Record<Herramienta, Icono> = {
   escala: Ruler,
   nota: StickyNote,
   enlace: Link2,
+  conteo_auto: ScanSearch,
 };
 
 export const ETIQUETAS: Record<Herramienta, string> = {
@@ -118,6 +120,7 @@ export const ETIQUETAS: Record<Herramienta, string> = {
   escala: 'Calibrar escala',
   nota: 'Nota',
   enlace: 'Enlace a otra hoja',
+  conteo_auto: 'Conteo automático',
 };
 
 export const ATAJOS: Record<Herramienta, string> = {
@@ -142,6 +145,7 @@ export const ATAJOS: Record<Herramienta, string> = {
   escala: 'E',
   nota: 'N',
   enlace: '',
+  conteo_auto: '',
 };
 
 /**
@@ -156,7 +160,7 @@ const BLOQUES: readonly { readonly clave: BloqueDeBarra; readonly titulo?: strin
   { clave: 'vista', herramientas: ['seleccionar', 'mano', 'zoom'] },
   { clave: 'area', titulo: 'Área', herramientas: ['poligono', 'rectangulo', 'circulo', 'elipse', 'contorno', 'hueco'] },
   { clave: 'lineal', titulo: 'Lineal', herramientas: ['linea', 'polilinea', 'arco', 'rectangulo_l', 'circulo_l', 'elipse_l'] },
-  { clave: 'conteo', titulo: 'Conteo', herramientas: ['punto', 'copiar'] },
+  { clave: 'conteo', titulo: 'Conteo', herramientas: ['punto', 'copiar', 'conteo_auto'] },
   { clave: 'otros', herramientas: ['nota', 'enlace', 'borrar'] },
 ];
 

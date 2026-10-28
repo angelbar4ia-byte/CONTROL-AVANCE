@@ -134,6 +134,7 @@ import { NavegadorDePlanos } from './NavegadorDePlanos';
 import { OpcionesDeHerramienta } from './OpcionesDeHerramienta';
 import { desfaseDeTexto, porTraer, versionesAnteriores } from './empalme';
 import { AltaEnlaceDeHoja } from './AltaEnlaceDeHoja';
+import { ConteoAutomatico } from './ConteoAutomatico';
 import { OpcionesDeEmpalme } from './OpcionesDeEmpalme';
 import { PanelDePropuestas } from './PanelDePropuestas';
 import { ProponerEscala } from './ProponerEscala';
@@ -181,6 +182,7 @@ const HERRAMIENTAS: readonly Herramienta[] = [
   'borrar',
   'escala',
   'enlace',
+  'conteo_auto',
 ];
 
 /** Anotar el plano es solo de Residente y Supervisor (MODELO.md §1b); el
@@ -401,6 +403,9 @@ export function EspacioDeTrazo({
   const [proponiendoEscala, setProponiendoEscala] = useState(false);
   // Enlaces entre hojas: la zona que se marca con dos clics y a dónde lleva.
   const [zonaDeEnlace, setZonaDeEnlace] = useState<readonly [Punto, Punto] | null>(null);
+  // Conteo automático: el símbolo que se marcó con dos clics y las coincidencias que se ven de antemano.
+  const [zonaDePlantilla, setZonaDePlantilla] = useState<readonly [Punto, Punto] | null>(null);
+  const [coincidenciasPrevias, setCoincidenciasPrevias] = useState<readonly Punto[]>([]);
   const [guardando, setGuardando] = useState(false);
   const [subiendoPlano, setSubiendoPlano] = useState(false);
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
@@ -1022,6 +1027,13 @@ export function EspacioDeTrazo({
       const siguiente = borrador.length >= 2 ? [p] : [...borrador, p];
       setBorrador(siguiente);
       if (siguiente.length === 2) setCalibrando(true);
+      return;
+    }
+    if (herramienta === 'conteo_auto') {
+      // Dos esquinas del símbolo que se busca; al segundo clic se hace la búsqueda.
+      const siguiente = borrador.length >= 2 ? [p] : [...borrador, p];
+      setBorrador(siguiente);
+      if (siguiente.length === 2) setZonaDePlantilla([siguiente[0] as Punto, siguiente[1] as Punto]);
       return;
     }
     if (herramienta === 'enlace') {
@@ -1785,6 +1797,9 @@ export function EspacioDeTrazo({
               ...(areaElegida === null
                 ? { hueco: 'Para abrir un hueco, primero elige el área con Seleccionar' }
                 : {}),
+              ...(fondoUrl === null
+                ? { conteo_auto: 'El conteo automático busca en la imagen del plano: este plano no tiene una (imagen o PDF)' }
+                : {}),
               ...(piezaElegida === null
                 ? { copiar: 'Para copiar en lote, primero elige con Seleccionar el punto o la pieza que quieres repetir' }
                 : {}),
@@ -2118,8 +2133,16 @@ export function EspacioDeTrazo({
                 empalmeOpacidad={empalmeOpacidad / 100}
                 onElegirFantasma={setFantasmaElegido}
                 enlaces={enlacesVisibles}
-                propuestas={propuestasDelPlano.map((f) => ({ id: f.id, geometry: f.geometry, elegida: !propuestasDescartadas.has(f.id) }))}
+                propuestas={[
+                  ...propuestasDelPlano.map((f) => ({ id: f.id, geometry: f.geometry, elegida: !propuestasDescartadas.has(f.id) })),
+                  ...coincidenciasPrevias.map((c, i) => ({
+                    id: `previa-${i}`,
+                    geometry: { type: 'Point', coordinates: [c[0], c[1]] } as GeometriaGeoJson,
+                    elegida: true,
+                  })),
+                ]}
                 onAlternarPropuesta={(id) =>
+                  !id.startsWith('previa-') &&
                   setPropuestasDescartadas((d) => {
                     const n = new Set(d);
                     if (n.has(id)) n.delete(id);
@@ -2197,12 +2220,19 @@ export function EspacioDeTrazo({
 
       {plano !== undefined && (
         <div className="estacion__estado" aria-label="Estado del plano">
-          {(forma || herramienta === 'hueco' || herramienta === 'escala' || herramienta === 'copiar' || herramienta === 'enlace') && (
+          {(forma || herramienta === 'hueco' || herramienta === 'escala' || herramienta === 'copiar' || herramienta === 'enlace' || herramienta === 'conteo_auto') && (
             <div className="estacion__dibujo row" role="group" aria-label="Trazo en curso">
               {herramienta === 'copiar' && (
                 <span className="text-mute text-xs">
                   Copiar en lote: clic donde va cada copia · {copias.current}{' '}
                   {copias.current === 1 ? 'copia' : 'copias'} · Esc termina
+                </span>
+              )}
+              {herramienta === 'conteo_auto' && (
+                <span className="text-mute text-xs">
+                  {borrador.length === 0
+                    ? 'Conteo automático: clic en una esquina del símbolo que quieres contar'
+                    : 'Clic en la esquina opuesta del símbolo'}
                 </span>
               )}
               {herramienta === 'enlace' && (
@@ -2412,6 +2442,31 @@ export function EspacioDeTrazo({
             void queryClient.invalidateQueries({
               queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId),
             });
+          }}
+        />
+      )}
+
+      {zonaDePlantilla !== null && plano && fondoUrl !== null && (
+        <ConteoAutomatico
+          planoId={plano.id}
+          fondoUrl={fondoUrl}
+          puntoA={zonaDePlantilla[0]}
+          puntoB={zonaDePlantilla[1]}
+          actividades={actividades
+            .filter((a) => tipoDeMedicion(a.unidad) === 'conteo')
+            .map((a) => ({ id: a.id, etiqueta: etiquetaActividad(a, a.id) }))}
+          actividadInicialId={conceptoActivo ?? undefined}
+          onVistaPrevia={setCoincidenciasPrevias}
+          onCerrar={() => {
+            setZonaDePlantilla(null);
+            setBorrador([]);
+          }}
+          onPropuestas={(cuantas) => {
+            setZonaDePlantilla(null);
+            setBorrador([]);
+            setHerramienta('seleccionar');
+            setAviso(`${cuantas} ${cuantas === 1 ? 'coincidencia propuesta' : 'coincidencias propuestas'}: revísalas, no suman hasta aceptarlas.`);
+            invalidarTrazos();
           }}
         />
       )}

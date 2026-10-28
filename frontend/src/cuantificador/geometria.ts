@@ -35,7 +35,8 @@ export type Herramienta =
   | 'borrar'
   | 'nota'
   | 'escala'
-  | 'enlace';
+  | 'enlace'
+  | 'conteo_auto';
 
 /**
  * Herramientas que dibujan una geometría que alimenta cantidades. No lo son: `seleccionar`,
@@ -45,7 +46,7 @@ export type Herramienta =
  */
 export type HerramientaDeTrazo = Exclude<
   Herramienta,
-  'seleccionar' | 'mano' | 'zoom' | 'copiar' | 'hueco' | 'borrar' | 'nota' | 'escala' | 'enlace'
+  'seleccionar' | 'mano' | 'zoom' | 'copiar' | 'hueco' | 'borrar' | 'nota' | 'escala' | 'enlace' | 'conteo_auto'
 >;
 
 /** La geometría que se guarda: lo que el servidor mide. Las herramientas de dibujo desembocan en una de estas. */
