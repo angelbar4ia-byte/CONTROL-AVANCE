@@ -65,7 +65,10 @@ import type {
 } from '@/api/generado/modelo';
 import { useListarObrasApiV1ObrasGet } from '@/api/generado/obras/obras';
 import { useListarNodosDePrototipoApiV1PrototiposPrototipoIdNodosGet } from '@/api/generado/proyectos/proyectos';
-import { useActividadesDeObraApiV1ObrasObraIdActividadesGet } from '@/api/generado/torre/torre';
+import {
+  getActividadesDeObraApiV1ObrasObraIdActividadesGetQueryKey,
+  useActividadesDeObraApiV1ObrasObraIdActividadesGet,
+} from '@/api/generado/torre/torre';
 import { queryClient } from '@/app/queryClient';
 import { useSesion } from '@/app/sesion';
 import { useSearchParams } from 'react-router-dom';
@@ -85,6 +88,7 @@ import { CalibrarEscala } from './CalibrarEscala';
 import { useAjuste, useAnchoAjustable } from '@/lib/useAjuste';
 import { SeparadorDeAncho } from './SeparadorDeAncho';
 import { arbolDeCuantificacion, trazosDeConceptos } from './arbol';
+import { AltaDeConcepto } from './AltaDeConcepto';
 import { ArbolPresupuesto } from './ArbolPresupuesto';
 import { Modal } from '@/lib/Modal';
 import { BarraDeFunciones, BarraDeTrazo, type ClaveDeInterruptor, type Interruptor } from './BarraDeHerramientas';
@@ -1517,6 +1521,23 @@ export function EspacioDeTrazo({
             ? 'Medido contra la base'
             : `${elegidos.size} ${elegidos.size === 1 ? 'elegido' : 'elegidos'}`}
         </span>
+        {puedePonerPeso && (
+          <AltaDeConcepto
+            obraId={obraId}
+            onError={(m) => setAviso(m)}
+            onCreado={(actividadId, claveNueva) => {
+              void queryClient.invalidateQueries({
+                queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId),
+              });
+              void queryClient.invalidateQueries({
+                queryKey: getActividadesDeObraApiV1ObrasObraIdActividadesGetQueryKey(obraId),
+              });
+              setMatrizActiva(null);
+              setConceptoActivo(actividadId);
+              setAviso(`Concepto ${claveNueva} creado: llega sin cantidad, se mide en el plano.`);
+            }}
+          />
+        )}
         {elegidos.size > 0 && (
           <button
             type="button"

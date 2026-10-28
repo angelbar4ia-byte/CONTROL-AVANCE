@@ -79,6 +79,10 @@ router = APIRouter(tags=["catalogos"])
 CATALOGOS = Depends(exigir_rol(Rol.CONTROL_OBRA))
 """Catálogos y APU: Control de obra (§11.2, §5.1 "Configuración")."""
 
+LECTURA_PARA_ALTAS = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))
+"""Unidades, niveles y etapas: lo que Costos necesita para dar de alta un concepto desde el
+cuantificador (entrega 5). Solo lectura; escribir sigue siendo de Control de obra."""
+
 CONSULTA_CPU = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE))
 """`GET /conceptos/{id}/cpu` y `/explosion`: C y SI (§11.2)."""
 
@@ -130,7 +134,7 @@ class UnidadRespuesta(BaseModel):
     "/unidades",
     response_model=list[UnidadRespuesta],
     summary="Catálogo de unidades",
-    dependencies=[CATALOGOS],
+    dependencies=[LECTURA_PARA_ALTAS],
 )
 async def listar_unidades(
     sesion: SesionRLS, incluir_inactivos: IncluirInactivos = False
@@ -626,7 +630,7 @@ class EtapaRespuesta(BaseModel):
     "/niveles",
     response_model=list[NivelRespuesta],
     summary="Catálogo de niveles de construcción",
-    dependencies=[CATALOGOS],
+    dependencies=[LECTURA_PARA_ALTAS],
 )
 async def listar_niveles(sesion: SesionRLS) -> list[NivelRespuesta]:
     """Lectura simple sin orquestación de dominio —como `GET /unidades`—
@@ -639,7 +643,7 @@ async def listar_niveles(sesion: SesionRLS) -> list[NivelRespuesta]:
     "/etapas",
     response_model=list[EtapaRespuesta],
     summary="Catálogo de etapas de construcción",
-    dependencies=[CATALOGOS],
+    dependencies=[LECTURA_PARA_ALTAS],
 )
 async def listar_etapas(sesion: SesionRLS) -> list[EtapaRespuesta]:
     filas = await RepositorioNivelesEtapasSQL(sesion).listar_etapas()

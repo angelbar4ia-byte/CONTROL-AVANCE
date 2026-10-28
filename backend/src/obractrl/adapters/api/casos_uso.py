@@ -112,6 +112,7 @@ from obractrl.application.casos_uso.comprobar_excedente import (
     DeclararPerdidaDeExcedente,
     ValidarExcedente,
 )
+from obractrl.application.casos_uso.conceptos_en_obra import CrearConceptoEnObra
 from obractrl.application.casos_uso.confirmar_avance import (
     ConfirmarAvance,
     ConsultarConfirmaciones,
@@ -366,6 +367,7 @@ __all__ = [
     "CotizarLoModificadoDep",
     "CrearClusterDep",
     "CrearConceptoDep",
+    "CrearConceptoEnObraDep",
     "CrearContratistaDep",
     "CrearCuadrillaDep",
     "CrearEvaluacionDep",
@@ -1560,6 +1562,15 @@ def obtener_agregar_actividad_nueva(sesion: SesionRLS, ctx: ContextoActual) -> A
     )
 
 
+def obtener_crear_concepto_en_obra(sesion: SesionRLS) -> CrearConceptoEnObra:
+    return CrearConceptoEnObra(
+        conceptos=RepositorioConceptosSQL(sesion),
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_consultar_modificaciones(sesion: SesionRLS) -> ConsultarModificaciones:
     return ConsultarModificaciones(
         partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion)
@@ -1679,6 +1690,7 @@ ConsultarCatalogosBaseDep = Annotated[
     ConsultarCatalogosBase, Depends(obtener_consultar_catalogos_base)
 ]
 ModificarActividadDep = Annotated[ModificarActividad, Depends(obtener_modificar_actividad)]
+CrearConceptoEnObraDep = Annotated[CrearConceptoEnObra, Depends(obtener_crear_concepto_en_obra)]
 AgregarActividadNuevaDep = Annotated[
     AgregarActividadNueva, Depends(obtener_agregar_actividad_nueva)
 ]

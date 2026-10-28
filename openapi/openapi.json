@@ -12645,6 +12645,82 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/conceptos-nuevos": {
+      "post": {
+        "tags": [
+          "partes"
+        ],
+        "summary": "Un concepto que no estaba en el catálogo: se da de alta y entra a la obra sin cantidad",
+        "description": "Desde el cuantificador: nace adicional y sin cantidad, que llega midiendo.",
+        "operationId": "crear_concepto_en_la_obra_api_v1_obras__obra_id__conceptos_nuevos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección.",
+              "title": "Idempotency-Key"
+            },
+            "description": "Clave única por operación (un UUID sirve). Si se repite, la mutación no se vuelve a ejecutar y la API responde 409. Opcional: sin ella la petición pasa igual, sin protección."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConceptoNuevoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConceptoNuevoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe o está fuera de tu alcance (§12.4)."
+          },
+          "409": {
+            "description": "La parte ya está asignada: agregarle algo es control de cambio."
+          },
+          "422": {
+            "description": "Clave repetida, sin descripción o precio negativo."
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/modificaciones": {
       "get": {
         "tags": [
@@ -16683,6 +16759,115 @@
           "fuera_catalogo"
         ],
         "title": "ConceptoDelReporteRespuesta"
+      },
+      "ConceptoNuevoPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Descripcion"
+          },
+          "unidad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unidad Id",
+            "description": "Su unidad decide el tipo de medición: m², m o pza."
+          },
+          "precio_unitario": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Precio Unitario",
+            "default": "0"
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id",
+            "description": "La etapa donde nace; suelto si falta."
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          },
+          "familia_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Familia Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "unidad_id"
+        ],
+        "title": "ConceptoNuevoPeticion"
+      },
+      "ConceptoNuevoRespuesta": {
+        "properties": {
+          "concepto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Concepto Id"
+          },
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "parte": {
+            "type": "string",
+            "title": "Parte"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto_id",
+          "actividad_id",
+          "clave",
+          "parte"
+        ],
+        "title": "ConceptoNuevoRespuesta"
       },
       "ConceptoRespuesta": {
         "properties": {
