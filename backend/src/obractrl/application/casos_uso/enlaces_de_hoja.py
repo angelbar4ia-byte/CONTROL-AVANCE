@@ -51,7 +51,8 @@ class GestionarEnlacesDeHoja:
             raise PlanoNoEncontrado(
                 f"El plano {plano_id} no existe o está fuera de tu alcance."
             )
-        return await self._enlaces.de_plano(plano_id)
+        filas: list[dict[str, Any]] = await self._enlaces.de_plano(plano_id)
+        return filas
 
     async def crear(self, cmd: ComandoCrearEnlaceDeHoja) -> UUID:
         etiqueta = cmd.etiqueta.strip()
@@ -81,7 +82,8 @@ class GestionarEnlacesDeHoja:
                 autor_id=cmd.autor_id,
             )
             await self._uow.commit()
-        return enlace_id
+        creado: UUID = enlace_id
+        return creado
 
     async def eliminar(self, enlace_id: UUID) -> None:
         async with self._uow:
