@@ -94,6 +94,8 @@ import { bloqueDeTipo, NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
 import { girar, rotacionValida, type VistaDelPlano } from './vista';
 import { AltaPlano } from './AltaPlano';
 import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
+import { medidaDirecta, trazoPeticion } from './trazoPeticion';
+import { motivoDeIncompatibilidad } from './mediciones';
 import { CalibrarEscala } from './CalibrarEscala';
 import { useAjuste, useAnchoAjustable } from '@/lib/useAjuste';
 import { SeparadorDeAncho } from './SeparadorDeAncho';
@@ -1058,12 +1060,10 @@ export function EspacioDeTrazo({
     if (forma === 'punto') {
       if (formaPunto !== null) {
         // Un punto con forma: el polígono de la forma, centrado donde se hizo clic.
-        setAGuardar({ tipo: 'poligono', puntos: poligonoDeForma(p, formaPunto, unidadesPorMetro) });
-        setFormaEstampada(formaPunto);
+        cerrarTrazo('poligono', poligonoDeForma(p, formaPunto, unidadesPorMetro), formaPunto);
       } else {
-        setAGuardar({ tipo: 'punto', puntos: [p] });
+        cerrarTrazo('punto', [p], null);
       }
-      setGuardando(true);
       return;
     }
     if (forma === 'contorno') {
@@ -1088,8 +1088,7 @@ export function EspacioDeTrazo({
       const hecha = formaDe(forma as HerramientaDeDibujo, clics, null, baseGrados);
       if (hecha) {
         setBorrador(clics);
-        setAGuardar({ tipo: hecha.tipo, puntos: hecha.puntos });
-        setGuardando(true);
+        cerrarTrazo(hecha.tipo, hecha.puntos, null);
       }
       return;
     }
@@ -1100,9 +1099,52 @@ export function EspacioDeTrazo({
   function cerrarContorno() {
     const anillo = contornoCerrado(borrador, tramosContorno);
     if (anillo) {
-      setAGuardar({ tipo: 'poligono', puntos: anillo });
-      setGuardando(true);
+      cerrarTrazo('poligono', anillo, null);
     }
+  }
+
+  /**
+   * Cierra una figura. Con un destino claro (concepto, matriz o medición activos) el trazo se guarda solo,
+   * sin botón (D-588): la cantidad cambia al cerrar. Si falta destino o hay que elegir la medida, abre el cajón.
+   */
+  function cerrarTrazo(tipo: GeometriaBase, puntos: readonly Punto[], conForma: Forma | null) {
+    const abrirCajon = () => {
+      setAGuardar({ tipo, puntos });
+      if (conForma) setFormaEstampada(conForma);
+      setGuardando(true);
+    };
+    if (!plano) return abrirCajon();
+    const conGrosor = tipo === 'linea' && grosorM !== null;
+    const base = {
+      versionPlano: plano.version,
+      herramienta: tipo,
+      puntos,
+      grosorM: tipo === 'linea' ? grosorM : null,
+      alineacion: conGrosor ? alineacion : null,
+      pendientePct: tipo === 'linea' ? pendientePct : null,
+      forma: conForma,
+    };
+    let data: TrazoPeticion | null = null;
+    if (medicionActiva) {
+      if (motivoDeIncompatibilidad(medicionActiva.tipo, tipo, conForma !== null) === null) {
+        data = trazoPeticion({ ...base, medicionId: medicionActiva.id, enlaces: [] });
+      }
+    } else if (conceptoEnFoco) {
+      const medida = medidaDirecta(tipoDelConcepto, tipo, conGrosor, conForma !== null);
+      if (medida) {
+        data = trazoPeticion({
+          ...base,
+          enlaces: [{ actividadId: conceptoEnFoco, ...(matrizActiva ? { matrizId: matrizActiva.id } : {}), medida, factor: '1' }],
+        });
+      }
+    }
+    if (!data) return abrirCajon();
+    const planoId = plano.id;
+    const cuerpo = data;
+    registrarTrazo.mutateAsync({ planoId, data: cuerpo }).then(
+      (r) => alGuardar(r, { planoId, data: cuerpo }),
+      () => abrirCajon(),
+    );
   }
 
   function quitarUltimoClic() {
@@ -1116,8 +1158,7 @@ export function EspacioDeTrazo({
       return;
     }
     if (forma && forma !== 'punto' && trazoCompleto(GEOMETRIA_DE[forma as HerramientaDeDibujo], borrador)) {
-      setAGuardar({ tipo: GEOMETRIA_DE[forma as HerramientaDeDibujo], puntos: borrador });
-      setGuardando(true);
+      cerrarTrazo(GEOMETRIA_DE[forma as HerramientaDeDibujo], borrador, null);
     }
   }
 

@@ -552,7 +552,7 @@ export function Visor({
         </g>
       ))}
 
-      {trazos.map((t) => {
+      {trazos.map((t, i) => {
         const elegido = seleccion?.tipo === 'trazo' && t.id === seleccion.id;
         const clase = [
           'visor__trazo',
@@ -564,7 +564,7 @@ export function Visor({
           .filter(Boolean)
           .join(' ');
         return (
-          <g key={t.id} className={clase} data-trazo-id={t.id}>
+          <g key={t.id} className={clase} data-trazo-id={t.id} style={{ ['--c-trazo' as string]: colorDeTrazo(i) }}>
             {t.banda && t.banda.length > 2 && (
               <polygon
                 className="visor__banda"
@@ -772,4 +772,9 @@ function marcaDeReferencia(r: Referencia, t: number) {
     case 'cercano':
       return <path d={`M${x - t} ${y - t}L${x + t} ${y - t}L${x - t} ${y + t}L${x + t} ${y + t}Z`} vectorEffect="non-scaling-stroke" />;
   }
+}
+
+/** Un color distinto por trazo: el ángulo áureo reparte los tonos sin que dos vecinos se parezcan. */
+export function colorDeTrazo(indice: number): string {
+  return `hsl(${Math.round((indice * 137.508) % 360)} 68% 42%)`;
 }

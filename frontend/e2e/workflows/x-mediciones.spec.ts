@@ -82,10 +82,8 @@ test.describe('Cuantificador · mediciones', () => {
 
     // Lo que se dibuja entra a la medición activa, sin pedir concepto.
     await rect(0.4, 0.3, 0.55, 0.45);
+    // Con una medición activa el trazo entra solo, sin cajón.
     let alta = page.getByRole('dialog', { name: 'Guardar polígono' });
-    await expect(alta.getByTestId('aviso-medicion')).toContainText('Recámara 1');
-    await expect(alta.getByTestId('aviso-medicion')).toContainText('Todavía no alimenta ningún concepto');
-    await alta.getByRole('button', { name: 'Guardar trazo' }).click();
     await expect(alta).toBeHidden();
     await expect.poll(async () => (await trazos()).length).toBe(1);
 
@@ -94,9 +92,6 @@ test.describe('Cuantificador · mediciones', () => {
     await panel.getByRole('button', { name: 'Crear medición' }).click();
     await expect(page.getByTestId('tipo-del-concepto')).toContainText('Recámara 2');
     await rect(0.6, 0.3, 0.8, 0.5);
-    alta = page.getByRole('dialog', { name: 'Guardar polígono' });
-    await expect(alta.getByTestId('aviso-medicion')).toContainText('Recámara 2');
-    await alta.getByRole('button', { name: 'Guardar trazo' }).click();
     await expect(alta).toBeHidden();
     await expect.poll(async () => (await trazos()).length).toBe(2);
 
@@ -126,9 +121,7 @@ test.describe('Cuantificador · mediciones', () => {
     // La recámara 2 sigue siendo la medición activa (la última que se creó): ahí entra lo que se dibuje.
     await expect(panel.getByRole('button', { name: 'Recámara 2', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await rect(0.6, 0.6, 0.7, 0.7);
-    alta = page.getByRole('dialog', { name: 'Guardar polígono' });
-    await expect(alta.getByTestId('aviso-medicion')).toContainText('Se enlaza sola');
-    await alta.getByRole('button', { name: 'Guardar trazo' }).click();
+    await expect(alta).toBeHidden();
     await expect(page.getByRole('status')).toContainText('Trazo guardado');
     await expect.poll(async () => (await trazos()).length).toBe(3);
     const despues = await cantidad();

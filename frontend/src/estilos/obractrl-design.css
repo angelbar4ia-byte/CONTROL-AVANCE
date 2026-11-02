@@ -2408,15 +2408,15 @@ a { color: inherit; text-decoration: none; }
 }
 .visor__trazo path,
 .visor__trazo circle {
-  fill: var(--c-accent-soft);
-  stroke: var(--c-accent);
+  fill: var(--c-trazo, var(--c-accent));
+  stroke: var(--c-trazo, var(--c-accent));
   stroke-width: 2;
 }
 /* Un polígono con hueco (la ventana de un muro) se pinta vacío por dentro: con
    la regla por defecto, `nonzero`, un hueco del mismo giro que el exterior se
    rellenaría y parecería que no descuenta. */
 .visor__trazo path { fill-rule: evenodd; }
-.visor__trazo circle { stroke-width: 1; fill: var(--c-accent); }
+.visor__trazo circle { stroke-width: 1; fill: var(--c-trazo, var(--c-accent)); }
 .visor__trazo path { fill-opacity: .45; }
 .visor__trazo.is-selected path { stroke: var(--c-accent-strong); stroke-width: 3.5; fill-opacity: .7; }
 .visor__trazo.is-selected circle { fill: var(--c-accent-strong); }
@@ -2707,7 +2707,7 @@ a { color: inherit; text-decoration: none; }
 .datos__concepto { white-space: nowrap; }
 
 /* Capas dibujadas sobre el plano. */
-.visor__banda { fill: var(--c-accent); fill-opacity: .35; stroke: var(--c-accent); stroke-width: 1; }
+.visor__banda { fill: var(--c-trazo, var(--c-accent)); fill-opacity: .35; stroke: var(--c-trazo, var(--c-accent)); stroke-width: 1; }
 .visor__trazo.is-selected .visor__banda { fill-opacity: .6; stroke-width: 2; }
 .visor__banda.is-borrador { fill: var(--c-text); fill-opacity: .2; stroke: var(--c-text); stroke-dasharray: 4 3; }
 .visor__fantasma { fill: var(--c-accent); fill-opacity: .25; stroke: var(--c-accent); stroke-dasharray: 4 3; pointer-events: none; }
