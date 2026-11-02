@@ -78,6 +78,20 @@ test.describe('Cuantificador · matrices de un concepto', () => {
     await expect(matrices.getByRole('treeitem', { name: /MTZ-BAST/ })).toHaveCount(0);
     await expect(fila).toBeVisible();
 
+    // --- 3b. La cantidad se forma: 4 varillas de 12 ml con 0.5 % de desperdicio = 0.335 por unidad ------------
+    await pagina.getByRole('button', { name: `Agregar matriz a PAD-${sufijo}` }).click();
+    const formada = pagina.getByRole('form', { name: `Nueva matriz de PAD-${sufijo}` });
+    await formada.getByLabel('Matriz (clave)').fill('MTZ-TRABE');
+    await formada.getByRole('button', { name: 'Por piezas comerciales' }).click();
+    await formada.getByLabel('Piezas por unidad del concepto').fill('4');
+    await formada.getByLabel('Lo que mide una pieza completa').fill('12');
+    await formada.getByLabel('Desperdicio (%)').fill('0.5');
+    await expect(formada.getByTestId('cantidad-formada')).toContainText('0.335000');
+    await formada.getByLabel('Matriz (clave)').press('Enter');
+    const trabe = matrices.getByRole('treeitem', { name: /MTZ-TRABE/ });
+    await expect(trabe.getByTestId('formula-de-matriz')).toContainText('4 ÷ 12 + 0.5 %');
+    await expect(trabe).toContainText('3.35'); // 0.335 por unidad × 10 de la actividad
+
     // --- 4. El residente no edita el catálogo -------------------------------------------------------------
     const res = await (await browser.newContext()).newPage();
     await entrarComo(res, 'residente');

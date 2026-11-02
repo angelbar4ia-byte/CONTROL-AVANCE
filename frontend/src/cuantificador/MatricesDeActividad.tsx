@@ -96,6 +96,11 @@ function Nodo({
             {NOMBRE_DE_TIPO[nodo.tipo]}
           </span>
         )}
+        {nodo.formula && (
+          <span className="badge badge--outline" data-testid="formula-de-matriz" title="Cómo se formó la cantidad por unidad (piezas ÷ largo de la pieza comercial + desperdicio)">
+            {nodo.formula}
+          </span>
+        )}
         {sinMedir && <span className="badge badge--outline">Sin medir</span>}
         <span
           className="arbol__cuenta"

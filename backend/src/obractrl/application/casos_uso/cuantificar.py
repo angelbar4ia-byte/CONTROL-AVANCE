@@ -1624,6 +1624,7 @@ class ConsultarMatrices:
                     "descripcion": f["descripcion"],
                     "unidad": f["unidad"],
                     "cantidad_unitaria": f["unitaria"],
+                    "formula": f.get("formula"),
                     "cantidad_catalogo": catalogo,
                     "precio_unitario": f["precio_unitario"],
                     "cantidad_medida": n.cantidad_medida,

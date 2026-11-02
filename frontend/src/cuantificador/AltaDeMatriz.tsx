@@ -9,6 +9,8 @@
 
 import { Plus, X } from 'lucide-react';
 import { useMemo, useState, type KeyboardEvent } from 'react';
+
+import { cantidadPorPiezas, numeroDeTexto } from './cantidad';
 import { useQueryClient } from '@tanstack/react-query';
 
 import type { ErrorApi } from '@/api/cliente';
@@ -31,6 +33,11 @@ export function AltaDeMatriz({ padreId, padreClave, onPuesta, onError }: Props) 
   const [abierto, setAbierto] = useState(false);
   const [clave, setClave] = useState('');
   const [cantidad, setCantidad] = useState('1');
+  // La cantidad se captura a mano o se forma: piezas ÷ largo de la pieza comercial × desperdicio.
+  const [modo, setModo] = useState<'mano' | 'piezas'>('mano');
+  const [piezas, setPiezas] = useState('4');
+  const [largo, setLargo] = useState('12');
+  const [desperdicio, setDesperdicio] = useState('0.5');
   const [descripcion, setDescripcion] = useState('');
   const [unidadId, setUnidadId] = useState('');
   const queryClient = useQueryClient();
@@ -43,7 +50,16 @@ export function AltaDeMatriz({ padreId, padreClave, onPuesta, onError }: Props) 
     [conceptos.data, clave],
   );
   const esNueva = clave.trim() !== '' && !existente && conceptos.data !== undefined;
-  const cantidadValida = Number(cantidad) > 0;
+  const porPiezas = cantidadPorPiezas({
+    piezas: numeroDeTexto(piezas),
+    largo: numeroDeTexto(largo),
+    desperdicioPct: numeroDeTexto(desperdicio || '0'),
+  });
+  const cantidadValida = modo === 'piezas' ? porPiezas !== null : Number(cantidad) > 0;
+  // Lo que se manda: la cantidad a mano, o la fórmula (el servidor la calcula y la guarda).
+  const lleva = modo === 'piezas'
+    ? { formula: { piezas: String(numeroDeTexto(piezas)), largo: String(numeroDeTexto(largo)), desperdicio_pct: String(numeroDeTexto(desperdicio || '0')) } }
+    : { cantidad };
 
   const reiniciar = () => {
     setClave('');
@@ -60,9 +76,9 @@ export function AltaDeMatriz({ padreId, padreClave, onPuesta, onError }: Props) 
         conceptoId: padreId,
         data:
           existente !== undefined
-            ? { cantidad, matriz_id: existente.id }
+            ? { ...lleva, matriz_id: existente.id }
             : {
-                cantidad,
+                ...lleva,
                 nueva: { clave: clave.trim(), descripcion: descripcion.trim(), unidad_id: unidad as string },
               },
       });
@@ -132,10 +148,40 @@ export function AltaDeMatriz({ padreId, padreClave, onPuesta, onError }: Props) 
           ))}
         </datalist>
       </label>
-      <label>
-        Cantidad por unidad
-        <input inputMode="decimal" value={cantidad} onChange={(e) => setCantidad(e.target.value)} onKeyDown={alIntro} />
-      </label>
+      <div className="opciones__fila" role="group" aria-label="Cómo se forma la cantidad">
+        <button type="button" className={modo === 'mano' ? 'chip is-active' : 'chip'} aria-pressed={modo === 'mano'} onClick={() => setModo('mano')}>
+          A mano
+        </button>
+        <button type="button" className={modo === 'piezas' ? 'chip is-active' : 'chip'} aria-pressed={modo === 'piezas'} onClick={() => setModo('piezas')}>
+          Por piezas comerciales
+        </button>
+      </div>
+      {modo === 'mano' ? (
+        <label>
+          Cantidad por unidad
+          <input inputMode="decimal" value={cantidad} onChange={(e) => setCantidad(e.target.value)} onKeyDown={alIntro} />
+        </label>
+      ) : (
+        <>
+          <label>
+            Piezas por unidad del concepto
+            <input inputMode="decimal" value={piezas} onChange={(e) => setPiezas(e.target.value)} onKeyDown={alIntro} />
+          </label>
+          <label>
+            Lo que mide una pieza completa
+            <input inputMode="decimal" value={largo} onChange={(e) => setLargo(e.target.value)} onKeyDown={alIntro} />
+          </label>
+          <label>
+            Desperdicio (%)
+            <input inputMode="decimal" value={desperdicio} onChange={(e) => setDesperdicio(e.target.value)} onKeyDown={alIntro} />
+          </label>
+          <p className="text-sm" data-testid="cantidad-formada" style={{ margin: 0 }}>
+            {porPiezas === null
+              ? 'Completa piezas, largo y desperdicio (0 a 100).'
+              : `${piezas} ÷ ${largo} × ${(1 + numeroDeTexto(desperdicio || '0') / 100).toFixed(4).replace(/0+$/, '').replace(/\.$/, '')} = ${porPiezas.toFixed(6)} por unidad`}
+          </p>
+        </>
+      )}
       {existente && (
         <p className="text-mute text-sm" style={{ margin: 0 }}>
           {existente.descripcion} — Intro la pone.

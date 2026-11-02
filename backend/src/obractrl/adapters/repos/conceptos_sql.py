@@ -18,6 +18,7 @@ dominio lo recorre.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any
@@ -314,13 +315,19 @@ class RepositorioConceptosSQL:
         ).mappings().first()
         return dict(fila) if fila is not None else None
 
-    async def poner_matriz(self, padre_id: UUID, hijo_id: UUID, cantidad: Decimal) -> UUID:
-        """Alta o cambio de cantidad de una matriz directa. Devuelve el id de la fila."""
+    async def poner_matriz(
+        self, padre_id: UUID, hijo_id: UUID, cantidad: Decimal, formula: dict[str, Any] | None = None
+    ) -> UUID:
+        """Alta o cambio de cantidad de una matriz directa. Devuelve el id de la fila.
+
+        `formula` es cómo se formó la cantidad (0094), o `None` si se capturó a mano; al cambiarla se reemplaza.
+        """
         existente = await self.matriz_directa(padre_id, hijo_id)
+        carga = json.dumps(formula) if formula is not None else None
         if existente is not None:
             await self._sesion.execute(
-                text("update explosion set cantidad = :c where id = :id"),
-                {"c": cantidad, "id": str(existente["id"])},
+                text("update explosion set cantidad = :c, formula = cast(:f as jsonb) where id = :id"),
+                {"c": cantidad, "f": carga, "id": str(existente["id"])},
             )
             return UUID(str(existente["id"]))
         return (
@@ -329,14 +336,15 @@ class RepositorioConceptosSQL:
                     """
                     insert into explosion
                         (org_id, concepto_id, cpu_id, tipo_hijo, concepto_hijo_id, categoria,
-                         cantidad, rendimiento, costo_unitario, importe, orden)
+                         cantidad, rendimiento, costo_unitario, importe, orden, formula)
                     values (cast(current_setting('app.org_id') as uuid), :padre, null, 'concepto',
                             :hijo, 'matriz', cast(:c as numeric), 0, 0, 0,
-                            coalesce((select max(orden) + 1 from explosion where concepto_id = :padre), 0))
+                            coalesce((select max(orden) + 1 from explosion where concepto_id = :padre), 0),
+                            cast(:f as jsonb))
                     returning id
                     """
                 ),
-                {"padre": str(padre_id), "hijo": str(hijo_id), "c": cantidad},
+                {"padre": str(padre_id), "hijo": str(hijo_id), "c": cantidad, "f": carga},
             )
         ).scalar_one()
 

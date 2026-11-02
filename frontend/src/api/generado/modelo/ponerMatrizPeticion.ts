@@ -6,12 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PonerMatrizPeticionCantidad } from "./ponerMatrizPeticionCantidad";
+import type { PonerMatrizPeticionFormula } from "./ponerMatrizPeticionFormula";
 import type { PonerMatrizPeticionMatrizId } from "./ponerMatrizPeticionMatrizId";
 import type { PonerMatrizPeticionNueva } from "./ponerMatrizPeticionNueva";
 
 export interface PonerMatrizPeticion {
-  /** Cuánto lleva por unidad del concepto padre. */
-  cantidad: PonerMatrizPeticionCantidad;
+  /** Cuánto lleva por unidad del concepto padre, capturada a mano. */
+  cantidad?: PonerMatrizPeticionCantidad;
+  /** O cómo se forma esa cantidad; el servidor la calcula. Una sola de las dos. */
+  formula?: PonerMatrizPeticionFormula;
   /** Un concepto que ya existe… */
   matriz_id?: PonerMatrizPeticionMatrizId;
   /** …o uno que nace aquí. */

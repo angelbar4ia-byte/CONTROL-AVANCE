@@ -51,3 +51,13 @@ describe('Árbol de matrices', () => {
     expect(arbolDeMatrices([])).toEqual([]);
   });
 });
+
+describe('Fórmula de la cantidad en el árbol', () => {
+  it('se lee «4 ÷ 12 + 0.5 %» y una cantidad a mano no lleva texto', async () => {
+    const { textoDeFormula } = await import('@/cuantificador/matrices');
+    expect(textoDeFormula({ tipo: 'piezas_comerciales', piezas: 4, largo: 12, desperdicio_pct: 0.5 })).toBe('4 ÷ 12 + 0.5 %');
+    expect(textoDeFormula({ tipo: 'piezas_comerciales', piezas: 4, largo: 12, desperdicio_pct: 0 })).toBe('4 ÷ 12');
+    expect(textoDeFormula(null)).toBeNull();
+    expect(textoDeFormula(undefined)).toBeNull();
+  });
+});

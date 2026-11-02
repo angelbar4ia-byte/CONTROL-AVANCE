@@ -902,14 +902,14 @@ class RepositorioMatricesSQL:
                         with recursive arbol as (
                             select e.concepto_hijo_id as concepto_id, e.concepto_id as padre_id,
                                    1 as nivel, e.cantidad::numeric as unitaria, e.cantidad::numeric as acumulada,
-                                   array[e.concepto_id, e.concepto_hijo_id] as ruta, e.orden
+                                   array[e.concepto_id, e.concepto_hijo_id] as ruta, e.orden, e.formula
                               from explosion e
                              where e.concepto_id = :raiz and e.tipo_hijo = 'concepto'
                                and (e.cpu_id is null
                                     or exists (select 1 from cpu k where k.id = e.cpu_id and k.vigente))
                             union all
                             select e.concepto_hijo_id, e.concepto_id, ar.nivel + 1, e.cantidad::numeric,
-                                   ar.acumulada * e.cantidad, ar.ruta || e.concepto_hijo_id, e.orden
+                                   ar.acumulada * e.cantidad, ar.ruta || e.concepto_hijo_id, e.orden, e.formula
                               from arbol ar
                               join explosion e on e.concepto_id = ar.concepto_id
                              where e.tipo_hijo = 'concepto' and ar.nivel < 8
@@ -918,7 +918,7 @@ class RepositorioMatricesSQL:
                                     or exists (select 1 from cpu k where k.id = e.cpu_id and k.vigente))
                         )
                         select ar.concepto_id, ar.padre_id, ar.nivel, ar.unitaria, ar.acumulada,
-                               ar.ruta, c.clave, c.descripcion, u.clave as unidad,
+                               ar.ruta, ar.formula, c.clave, c.descripcion, u.clave as unidad,
                                coalesce((select k.precio_unitario from cpu k
                                           where k.concepto_id = ar.concepto_id and k.vigente
                                           order by k.version desc limit 1), 0) as precio_unitario,

@@ -19,6 +19,8 @@ export interface MatrizPlana {
   readonly cantidad_catalogo: number | string;
   readonly cantidad_medida?: number | string | null;
   readonly diferencia?: number | string | null;
+  /** Cómo se formó la cantidad unitaria, si no fue a mano: piezas ÷ largo × desperdicio. */
+  readonly formula?: Readonly<Record<string, unknown>> | null;
 }
 
 export interface NodoDeMatriz {
@@ -34,6 +36,7 @@ export interface NodoDeMatriz {
   /** `null` = sin medir. */
   readonly cantidadMedida: number | null;
   readonly diferencia: number | null;
+  readonly formula: string | null;
   readonly hijos: readonly NodoDeMatriz[];
   /** Matrices medidas en esta rama (ella y todo lo que tiene dentro). */
   readonly medidas: number;
@@ -50,6 +53,13 @@ interface Borrador {
 const numero = (v: number | string | null | undefined): number | null =>
   v === null || v === undefined || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null;
 
+/** «4 ÷ 12 + 0.5 %» a partir de la fórmula guardada; `null` si la cantidad se capturó a mano. */
+export function textoDeFormula(formula: Readonly<Record<string, unknown>> | null | undefined): string | null {
+  if (!formula || formula.tipo !== 'piezas_comerciales') return null;
+  const { piezas, largo, desperdicio_pct: desperdicio } = formula as Record<string, number>;
+  return `${piezas} ÷ ${largo}${desperdicio ? ` + ${desperdicio} %` : ''}`;
+}
+
 function cerrar(b: Borrador): NodoDeMatriz {
   const hijos = b.hijos.map(cerrar);
   const cantidadMedida = numero(b.base.cantidad_medida);
@@ -64,6 +74,7 @@ function cerrar(b: Borrador): NodoDeMatriz {
     cantidadCatalogo: numero(b.base.cantidad_catalogo) ?? 0,
     cantidadMedida,
     diferencia: numero(b.base.diferencia),
+    formula: textoDeFormula(b.base.formula),
     hijos,
     medidas: (cantidadMedida !== null ? 1 : 0) + hijos.reduce((s, h) => s + h.medidas, 0),
     total: 1 + hijos.reduce((s, h) => s + h.total, 0),

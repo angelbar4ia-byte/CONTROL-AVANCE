@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator
+from decimal import Decimal
 
 import httpx
 import pytest
@@ -223,3 +224,87 @@ async def test_el_costo_se_ve_desactualizado_y_se_publica_una_version_nueva(
     assert publicada.json()["version"]["version"] == 2
     final = (await costos.get(url_cpu)).json()
     assert final["calculado"]["total"] == final["vigente"]["precio"]["total"]
+
+
+async def test_la_cantidad_se_forma_por_piezas_comerciales_castillo_k2(
+    escenario: Escenario, catalogo: dict, control: httpx.AsyncClient
+) -> None:
+    """4 varillas del no. 3 de 12 ml, con 0.5 % de desperdicio: 0.335 varillas por cada ml de castillo."""
+    url = f"/api/v1/conceptos/{catalogo['padre']}/matrices"
+    r = await control.post(
+        url,
+        json={"matriz_id": str(catalogo["otro"]), "formula": {"piezas": "4", "largo": "12", "desperdicio_pct": "0.5"}},
+    )
+    assert r.status_code == 200, r.text
+    assert Decimal(str(r.json()["cantidad"])) == Decimal("0.335")
+    assert r.json()["formula"] == {"tipo": "piezas_comerciales", "piezas": 4.0, "largo": 12.0, "desperdicio_pct": 0.5}
+
+    # El árbol de la actividad (100 de cantidad base) la usa y la devuelve: 0.335 × 100 = 33.5.
+    [matriz] = await _matrices(control, escenario)
+    assert float(matriz["cantidad_unitaria"]) == 0.335 and float(matriz["cantidad_catalogo"]) == 33.5
+    assert matriz["formula"]["piezas"] == 4.0
+
+    # Cambiarla a mano reemplaza la fórmula.
+    r = await control.post(url, json={"matriz_id": str(catalogo["otro"]), "cantidad": "2"})
+    assert r.status_code == 200 and r.json()["formula"] is None
+    [matriz] = await _matrices(control, escenario)
+    assert float(matriz["cantidad_unitaria"]) == 2 and matriz["formula"] is None
+
+
+async def test_cantidad_y_formula_son_una_o_la_otra(catalogo: dict, control: httpx.AsyncClient) -> None:
+    url = f"/api/v1/conceptos/{catalogo['padre']}/matrices"
+    formula = {"piezas": "4", "largo": "12"}
+    assert (await control.post(url, json={"matriz_id": str(catalogo["otro"])})).status_code == 422
+    assert (
+        await control.post(url, json={"matriz_id": str(catalogo["otro"]), "cantidad": "1", "formula": formula})
+    ).status_code == 422
+    assert (
+        await control.post(url, json={"matriz_id": str(catalogo["otro"]), "formula": {"piezas": "4", "largo": "0"}})
+    ).status_code == 422
+    assert (
+        await control.post(url, json={"matriz_id": str(catalogo["otro"]), "formula": {**formula, "desperdicio_pct": "150"}})
+    ).status_code == 422
+
+
+async def test_losa_zafiro_una_pieza_con_matrices_de_distintas_unidades(
+    escenario: Escenario, catalogo: dict, control: httpx.AsyncClient
+) -> None:
+    """Losa Zafiro: unidad pieza, cantidad 1; adentro, trabe en ml, malla en m²…, cada una con su tipo de medición."""
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    org = str(escenario.org_id)
+    ids = {k: uuid.uuid4() for k in ("zafiro", "trabe", "malla")}
+    async with engine.begin() as conn:
+        for clave in ("ml", "pza"):
+            await conn.execute(
+                text("insert into unidad (id, org_id, clave, nombre) values (:i, :o, :c, :c)"),
+                {"i": str(uuid.uuid4()), "o": org, "c": clave},
+            )
+        unidades = {
+            fila[0]: fila[1]
+            for fila in (await conn.execute(text("select clave, id from unidad where org_id = :o"), {"o": org})).all()
+        }
+        for k, clave, desc, u in (
+            ("zafiro", "ZAFIRO", "Losa Zafiro", "pza"),
+            ("trabe", "TRABE-ML", "Trabe", "ml"),
+            ("malla", "MALLA-M2", "Malla electrosoldada", "m2"),
+        ):
+            await conn.execute(
+                text(
+                    "insert into concepto (id, org_id, tipo, clave, descripcion, unidad_id) "
+                    "values (:i, :o, 'concepto', :c, :d, :u)"
+                ),
+                {"i": str(ids[k]), "o": org, "c": clave, "d": desc, "u": str(unidades[u])},
+            )
+        await conn.execute(
+            text("update actividad set concepto_id = :c, cant_base = 1, cant_programada = 1 where id = :a"),
+            {"c": str(ids["zafiro"]), "a": str(escenario.actividad_id)},
+        )
+    await engine.dispose()
+
+    url = f"/api/v1/conceptos/{ids['zafiro']}/matrices"
+    assert (await control.post(url, json={"matriz_id": str(ids["trabe"]), "cantidad": "5.5"})).status_code == 200
+    assert (await control.post(url, json={"matriz_id": str(ids["malla"]), "cantidad": "1.05"})).status_code == 200
+
+    por_clave = {m["clave"]: m for m in await _matrices(control, escenario)}
+    assert (por_clave["TRABE-ML"]["unidad"], float(por_clave["TRABE-ML"]["cantidad_catalogo"])) == ("ml", 5.5)
+    assert (por_clave["MALLA-M2"]["unidad"], float(por_clave["MALLA-M2"]["cantidad_catalogo"])) == ("m2", 1.05)

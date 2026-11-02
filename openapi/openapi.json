@@ -22483,6 +22483,61 @@
         "title": "FormaDeTrazo",
         "description": "Con qué plantilla y a qué tamaño se estampó un punto con forma (un castillo, una columna)."
       },
+      "FormulaPeticion": {
+        "properties": {
+          "piezas": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Piezas",
+            "description": "Piezas que lleva una unidad del concepto (4 varillas)."
+          },
+          "largo": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Largo",
+            "description": "Lo que mide una pieza comercial completa (una varilla: 12)."
+          },
+          "desperdicio_pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Desperdicio Pct",
+            "description": "Por ejemplo 0.5.",
+            "default": "0"
+          }
+        },
+        "type": "object",
+        "required": [
+          "piezas",
+          "largo"
+        ],
+        "title": "FormulaPeticion",
+        "description": "Cantidad por piezas comerciales: `piezas ÷ largo × (1 + desperdicio %)` por unidad del concepto padre."
+      },
       "FrenteDeObraRespuesta": {
         "properties": {
           "frente_id": {
@@ -24550,6 +24605,19 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cantidad"
+          },
+          "formula": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula",
+            "description": "Cómo se formó la cantidad, si no fue a mano."
           }
         },
         "type": "object",
@@ -24602,6 +24670,19 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Cantidad Unitaria",
             "description": "Por unidad de su matriz madre inmediata."
+          },
+          "formula": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formula",
+            "description": "Cómo se formó la cantidad unitaria (piezas ÷ largo × desperdicio), si no fue a mano."
           },
           "cantidad_catalogo": {
             "type": "string",
@@ -27119,10 +27200,24 @@
               {
                 "type": "string",
                 "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
               }
             ],
             "title": "Cantidad",
-            "description": "Cuánto lleva por unidad del concepto padre."
+            "description": "Cuánto lleva por unidad del concepto padre, capturada a mano."
+          },
+          "formula": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FormulaPeticion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "O cómo se forma esa cantidad; el servidor la calcula. Una sola de las dos."
           },
           "matriz_id": {
             "anyOf": [
@@ -27150,9 +27245,6 @@
           }
         },
         "type": "object",
-        "required": [
-          "cantidad"
-        ],
         "title": "PonerMatrizPeticion"
       },
       "PrecioArmadoRespuesta": {

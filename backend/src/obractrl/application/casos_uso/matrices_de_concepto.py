@@ -19,6 +19,10 @@ from uuid import UUID
 
 from obractrl.application.casos_uso.calcular_cpu import ConceptoNoEncontrado
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
+from obractrl.domain.catalogos.cantidad import (
+    FormulaDePiezasComerciales,
+    cantidad_por_piezas_comerciales,
+)
 from obractrl.domain.catalogos.reglas import Concepto, ErrorDeCatalogo
 
 __all__ = ["ComandoPonerMatriz", "GestionarMatricesDeConcepto", "MatrizNueva"]
@@ -34,9 +38,12 @@ class MatrizNueva:
 @dataclass(frozen=True, slots=True)
 class ComandoPonerMatriz:
     concepto_id: UUID
-    cantidad: Decimal
+    cantidad: Decimal | None = None
+    """Capturada a mano. Va **una sola** de `cantidad` o `formula`."""
     hijo_id: UUID | None = None
     nueva: MatrizNueva | None = None
+    formula: FormulaDePiezasComerciales | None = None
+    """Cómo se forma la cantidad (piezas ÷ largo de la pieza comercial × desperdicio); el servidor la calcula."""
 
 
 class GestionarMatricesDeConcepto:
@@ -49,7 +56,17 @@ class GestionarMatricesDeConcepto:
             raise ErrorDeCatalogo(
                 "Di qué matriz es: una que ya existe o una nueva, no las dos."
             )
-        if cmd.cantidad <= 0:
+        if (cmd.cantidad is None) == (cmd.formula is None):
+            raise ErrorDeCatalogo(
+                "Di la cantidad a mano o con su fórmula, no las dos ni ninguna."
+            )
+        if cmd.formula is not None:
+            cantidad = cantidad_por_piezas_comerciales(cmd.formula)
+            formula_json: dict[str, Any] | None = cmd.formula.como_json()
+        else:
+            assert cmd.cantidad is not None
+            cantidad, formula_json = cmd.cantidad, None
+        if cantidad <= 0:
             raise ErrorDeCatalogo("La cantidad de una matriz va por encima de cero.")
         if await self._conceptos.obtener(cmd.concepto_id) is None:
             raise ConceptoNoEncontrado(
@@ -95,12 +112,15 @@ class GestionarMatricesDeConcepto:
                     }
                 )
             assert hijo_id is not None
-            await self._conceptos.poner_matriz(cmd.concepto_id, hijo_id, cmd.cantidad)
+            await self._conceptos.poner_matriz(
+                cmd.concepto_id, hijo_id, cantidad, formula_json
+            )
             await self._uow.commit()
         return {
             "concepto_id": cmd.concepto_id,
             "matriz_id": hijo_id,
-            "cantidad": cmd.cantidad,
+            "cantidad": cantidad,
+            "formula": formula_json,
         }
 
     async def quitar(self, concepto_id: UUID, hijo_id: UUID) -> None:

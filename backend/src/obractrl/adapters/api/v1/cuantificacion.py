@@ -1111,6 +1111,9 @@ class MatrizRespuesta(BaseModel):
     descripcion: str
     unidad: str | None = None
     cantidad_unitaria: Decimal = Field(description="Por unidad de su matriz madre inmediata.")
+    formula: dict[str, Any] | None = Field(
+        default=None, description="Cómo se formó la cantidad unitaria (piezas ÷ largo × desperdicio), si no fue a mano."
+    )
     cantidad_catalogo: Decimal = Field(description="Lo que el catálogo implica para esta actividad.")
     precio_unitario: Decimal
     cantidad_medida: Decimal | None = Field(

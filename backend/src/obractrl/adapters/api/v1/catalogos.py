@@ -70,6 +70,7 @@ from obractrl.application.casos_uso.matrices_de_concepto import (
     MatrizNueva,
 )
 from obractrl.domain.catalogos.apu import ExplosionCalculada, VersionCPU
+from obractrl.domain.catalogos.cantidad import FormulaDePiezasComerciales
 from obractrl.domain.shared.diccionario import (
     CategoriaExplosion,
     Rol,
@@ -1157,8 +1158,21 @@ class MatrizNuevaPeticion(BaseModel):
     unidad_id: UUID
 
 
+class FormulaPeticion(BaseModel):
+    """Cantidad por piezas comerciales: `piezas ÷ largo × (1 + desperdicio %)` por unidad del concepto padre."""
+
+    piezas: Decimal = Field(gt=0, description="Piezas que lleva una unidad del concepto (4 varillas).")
+    largo: Decimal = Field(gt=0, description="Lo que mide una pieza comercial completa (una varilla: 12).")
+    desperdicio_pct: Decimal = Field(default=Decimal(0), ge=0, le=100, description="Por ejemplo 0.5.")
+
+
 class PonerMatrizPeticion(BaseModel):
-    cantidad: Decimal = Field(gt=0, description="Cuánto lleva por unidad del concepto padre.")
+    cantidad: Decimal | None = Field(
+        default=None, gt=0, description="Cuánto lleva por unidad del concepto padre, capturada a mano."
+    )
+    formula: FormulaPeticion | None = Field(
+        default=None, description="O cómo se forma esa cantidad; el servidor la calcula. Una sola de las dos."
+    )
     matriz_id: UUID | None = Field(default=None, description="Un concepto que ya existe…")
     nueva: MatrizNuevaPeticion | None = Field(default=None, description="…o uno que nace aquí.")
 
@@ -1167,6 +1181,7 @@ class MatrizPuestaRespuesta(BaseModel):
     concepto_id: UUID
     matriz_id: UUID
     cantidad: Decimal
+    formula: dict[str, object] | None = Field(default=None, description="Cómo se formó la cantidad, si no fue a mano.")
 
 
 @router.post(
@@ -1188,6 +1203,15 @@ async def poner_matriz_al_concepto(
             ComandoPonerMatriz(
                 concepto_id=concepto_id,
                 cantidad=peticion.cantidad,
+                formula=(
+                    FormulaDePiezasComerciales(
+                        piezas=peticion.formula.piezas,
+                        largo=peticion.formula.largo,
+                        desperdicio_pct=peticion.formula.desperdicio_pct,
+                    )
+                    if peticion.formula
+                    else None
+                ),
                 hijo_id=peticion.matriz_id,
                 nueva=(
                     MatrizNueva(

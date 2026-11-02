@@ -7,6 +7,6 @@
  */
 
 /**
- * Cuánto lleva por unidad del concepto padre.
+ * Cuánto lleva por unidad del concepto padre, capturada a mano.
  */
-export type PonerMatrizPeticionCantidad = number | string;
+export type PonerMatrizPeticionCantidad = number | string | null;
