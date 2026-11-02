@@ -1114,12 +1114,12 @@ export function EspacioDeTrazo({
       setGuardando(true);
     };
     if (!plano) return abrirCajon();
-    const conGrosor = tipo === 'linea' && grosorM !== null;
+    const conGrosor = tipo === 'linea' && grosorUsado !== null;
     const base = {
       versionPlano: plano.version,
       herramienta: tipo,
       puntos,
-      grosorM: tipo === 'linea' ? grosorM : null,
+      grosorM: tipo === 'linea' ? grosorUsado : null,
       alineacion: conGrosor ? alineacion : null,
       pendientePct: tipo === 'linea' ? pendientePct : null,
       forma: conForma,
@@ -1315,6 +1315,9 @@ export function EspacioDeTrazo({
   const unidadEnFoco = matrizActiva ? matrizActiva.unidad : actividadDeFoco?.unidad;
   // Con una medición activa manda su tipo; si no, el del concepto que se mide.
   const bloqueActivo = medicionActiva ? medicionActiva.tipo : bloqueDeTipo(tipoDelConcepto);
+  // Un concepto lineal (ml: bastones, trabes) mide el largo de la línea: el grosor que haya quedado en las opciones
+  // solo vale para un muro (m²) y no debe volver «muro» lo que se traza para medir largo.
+  const grosorUsado = (medicionActiva ? medicionActiva.tipo : tipoDelConcepto) === 'lineal' ? null : grosorM;
 
   const herramientasDisponibles: readonly Herramienta[] = puedeAnotar
     ? [...HERRAMIENTAS, HERRAMIENTA_NOTA]
@@ -1411,8 +1414,8 @@ export function EspacioDeTrazo({
       ? formaDe(forma as HerramientaDeDibujo, borrador, cursor, baseGrados, tramosContorno)
       : null;
   const bandaEnCurso =
-    (forma === 'linea' || forma === 'polilinea') && grosorM !== null && previa && previa.puntos.length >= 2
-      ? bandaDeLinea(previa.puntos, grosorM * unidadesPorMetro, alineacion)
+    (forma === 'linea' || forma === 'polilinea') && grosorUsado !== null && previa && previa.puntos.length >= 2
+      ? bandaDeLinea(previa.puntos, grosorUsado * unidadesPorMetro, alineacion)
       : [];
   const fantasma = (() => {
     if (forma === 'punto' && formaPunto !== null && cursor !== null) {
@@ -2466,9 +2469,9 @@ export function EspacioDeTrazo({
           versionPlano={plano.version}
           herramienta={aGuardar.tipo}
           puntos={aGuardar.puntos}
-          grosorM={aGuardar.tipo === 'linea' ? grosorM : null}
-          alineacion={aGuardar.tipo === 'linea' && grosorM !== null ? alineacion : null}
-          grosorU={grosorM !== null ? grosorM * unidadesPorMetro : null}
+          grosorM={aGuardar.tipo === 'linea' ? grosorUsado : null}
+          alineacion={aGuardar.tipo === 'linea' && grosorUsado !== null ? alineacion : null}
+          grosorU={grosorUsado !== null ? grosorUsado * unidadesPorMetro : null}
           pendientePct={aGuardar.tipo === 'linea' ? pendientePct : null}
           forma={formaEstampada}
           actividades={actividades}

@@ -112,6 +112,8 @@ test.describe('Hojas matriz · medir la matriz dentro del concepto', () => {
     const bast = conceptos.find((c) => c.clave === 'MTZ-BAST')!;
     await despues.getByRole('button', { name: /^MTZ-BAST · / }).click();
     await control.getByRole('toolbar', { name: 'Herramientas de trazo' }).getByRole('button', { name: 'Línea', exact: true }).click();
+    // Aunque en las opciones haya quedado un grosor, los bastones (ml) miden largo: no es un muro.
+    await control.getByRole('button', { name: /^0[.,]15/ }).first().click();
     const cabeza = control.locator('.opciones__cabeza[aria-expanded="true"]');
     if ((await cabeza.count()) > 0) await cabeza.first().click();
     const lienzo = control.getByRole('img', { name: 'Plano con sus trazos' });
@@ -126,7 +128,11 @@ test.describe('Hojas matriz · medir la matriz dentro del concepto', () => {
         const t = await llamarApi<{ features: { properties: { enlaces: { matriz_concepto_id?: string | null }[] } }[] }>(
           request, 'control', 'GET', `/planos/${plano.id}/trazos`,
         );
-        return t.features.some((f) => f.properties.enlaces.some((e) => e.matriz_concepto_id === bast.id));
+        return t.features.some(
+          (f) =>
+            f.properties.enlaces.some((e) => e.matriz_concepto_id === bast.id && (e as { medida?: string }).medida === 'longitud') &&
+            !(f.properties as { grosor_m?: unknown }).grosor_m,
+        );
       })
       .toBe(true);
 
