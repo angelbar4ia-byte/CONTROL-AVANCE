@@ -2,7 +2,7 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
 
 /**
  * Con un concepto elegido, cerrar la figura guarda el trazo solo (D-588): la cantidad cambia al cerrar,
- * sin cajón ni botón «Guardar trazo». Y cada trazo se pinta de un color distinto.
+ * sin cajón ni botón «Guardar trazo».
  */
 
 const ROLES_Z = ['control'] as const;
@@ -11,7 +11,7 @@ test.describe('Cuantificador · trazo directo', () => {
   test.skip(!hayRoles(...ROLES_Z), motivoSinRoles(...ROLES_Z));
   test.setTimeout(120_000);
 
-  test('un acabado elegido + un rectángulo suma su área y cada trazo lleva su color', async ({ page, request }) => {
+  test('un acabado elegido + un rectángulo suma su área sin cajón', async ({ page, request }) => {
     const clave = `DIR-${Date.now().toString(36).toUpperCase()}`;
     const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
     const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
@@ -57,10 +57,7 @@ test.describe('Cuantificador · trazo directo', () => {
     await rect(0.6, 0.55, 0.8, 0.75);
     await expect.poll(cantidad).toBeGreaterThan(unTrazo);
 
-    const colores = await page.locator('.visor__trazo').evaluateAll((gs) =>
-      gs.map((g) => getComputedStyle(g.querySelector('path')!).stroke),
-    );
-    expect(colores).toHaveLength(2);
-    expect(new Set(colores).size).toBe(2);
+    // Sin medición los trazos van del color de acento; el color propio es de cada medición (ver x-mediciones).
+    await expect(page.locator('.visor__trazo')).toHaveCount(2);
   });
 });

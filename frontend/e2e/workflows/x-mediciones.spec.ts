@@ -127,6 +127,18 @@ test.describe('Cuantificador · mediciones', () => {
     const despues = await cantidad();
     expect(despues).toBeGreaterThan(valorLosa);
 
+    // Cada medición lleva su color, en el panel y en el plano, y «Mostrar medidas» escribe a qué pertenece:
+    // concepto, medición y medida en una sola etiqueta.
+    const colores = await panel.getByTestId('color-de-medicion').evaluateAll((ns) => ns.map((n) => (n as HTMLElement).style.background));
+    expect(colores.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(colores).size).toBe(colores.length);
+    await page.getByRole('button', { name: 'Mostrar medidas', exact: true }).click();
+    const rotulos = page.getByTestId('rotulo-de-medida');
+    await expect(rotulos.first()).toBeVisible();
+    await expect(rotulos.filter({ hasText: 'Recámara 1' }).first()).toContainText(/(m|u)²/);
+    await expect(rotulos.filter({ hasText: 'Recámara 1' }).first()).toContainText(/E2E|FIR|CIM|PLA|EXC/);
+    await page.getByRole('button', { name: 'Mostrar medidas', exact: true }).click();
+
     // --- 3. Una medición de área no admite una línea: se avisa antes de guardar --------------------------------
     await barra.getByRole('button', { name: 'Línea', exact: true }).click();
     const cabeza = page.locator('.opciones__cabeza[aria-expanded="true"]');

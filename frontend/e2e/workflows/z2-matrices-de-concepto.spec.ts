@@ -50,6 +50,8 @@ test.describe('Cuantificador · matrices de un concepto', () => {
     const pagina = await (await browser.newContext()).newPage();
     await entrarComo(pagina, 'control');
     await pagina.goto(`/cuantificador?obra=${obra.id}`);
+    // Las matrices se agregan y se quitan en la pestaña «Árbol»; el Presupuesto solo elige y mide.
+    await pagina.getByRole('tab', { name: /Árbol/ }).click();
     await pagina.getByRole('button', { name: new RegExp(`Matrices de PAD-${sufijo}`) }).click();
     const matrices = pagina.getByRole('region', { name: /Matrices de PAD-/ }).or(pagina.locator('.arbol__matrices-cuerpo'));
 
@@ -91,6 +93,12 @@ test.describe('Cuantificador · matrices de un concepto', () => {
     const trabe = matrices.getByRole('treeitem', { name: /MTZ-TRABE/ });
     await expect(trabe.getByTestId('formula-de-matriz')).toContainText('4 ÷ 12 + 0.5 %');
     await expect(trabe).toContainText('3.35'); // 0.335 por unidad × 10 de la actividad
+
+    // --- 3c. El Presupuesto no edita: las mismas matrices se ven, sin agregar ni quitar -------------------
+    await pagina.getByRole('tab', { name: /Presupuesto/ }).click();
+    await pagina.getByRole('button', { name: new RegExp(`Matrices de PAD-${sufijo}`) }).click();
+    await expect(pagina.getByRole('treeitem', { name: /MTZ-TRABE/ })).toBeVisible();
+    await expect(pagina.getByRole('button', { name: /Agregar matriz|Quitar .* de su concepto/ })).toHaveCount(0);
 
     // --- 4. El residente no edita el catálogo -------------------------------------------------------------
     const res = await (await browser.newContext()).newPage();

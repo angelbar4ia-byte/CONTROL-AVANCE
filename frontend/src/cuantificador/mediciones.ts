@@ -138,3 +138,13 @@ export function idsDeRama<T extends MedicionPlana>(lista: readonly T[], raizId: 
   }
   return ids;
 }
+
+/** El color de la medición número `indice`: el ángulo áureo reparte los tonos sin que dos vecinas se parezcan. */
+export function colorDeMedicion(indice: number): string {
+  return `hsl(${Math.round((indice * 137.508 + 215) % 360)} 66% 42%)`;
+}
+
+/** Un color propio por medición, estable mientras no se borre una anterior: lo usan el plano, el panel y la etiqueta. */
+export function coloresDeMediciones(lista: readonly { readonly id: string }[]): Map<string, string> {
+  return new Map(lista.map((m, i) => [m.id, colorDeMedicion(i)]));
+}

@@ -25,6 +25,7 @@ import { OpcionesDeMatriz } from './MatricesDeActividad';
 import { PanelDeElementos, UNIDAD_DEL_PESO } from './PanelDeElementos';
 import {
   arbolDeMediciones,
+  coloresDeMediciones,
   candidatasAMadre,
   MEDIDAS_ASIGNABLES,
   NOMBRE_DE_TIPO_DE_MEDICION,
@@ -69,6 +70,8 @@ export function PanelDeMediciones({
   onError,
 }: Props) {
   const arbol = useMemo(() => arbolDeMediciones(mediciones), [mediciones]);
+  /** El mismo color con que se pinta la medición en el plano. */
+  const colores = useMemo(() => coloresDeMediciones(mediciones), [mediciones]);
   const [cerradas, setCerradas] = useState<ReadonlySet<string>>(new Set());
   const [creando, setCreando] = useState<{ parentId: string | null; tipo: TipoDeMedicionSombra } | null>(null);
   const [nombreNuevo, setNombreNuevo] = useState('');
@@ -200,6 +203,8 @@ export function PanelDeMediciones({
               </button>
             </form>
           ) : (
+            <>
+              <i className="arbol__color-medicion" data-testid="color-de-medicion" style={{ background: colores.get(m.id) }} aria-hidden />
             <button
               type="button"
               className="arbol__texto arbol__activar"
@@ -209,6 +214,7 @@ export function PanelDeMediciones({
             >
               {m.nombre}
             </button>
+            </>
           )}
           <span className="badge badge--outline" data-testid="tipo-de-medicion">
             {NOMBRE_DE_TIPO_DE_MEDICION[m.tipo]}

@@ -30,6 +30,7 @@ import {
 import { useCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost } from '@/api/generado/partes/partes';
 import type { ActividadRespuesta } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
+import { MatricesDeActividad } from './MatricesDeActividad';
 import { NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
 
 interface Props {
@@ -175,6 +176,7 @@ function NuevaPartida({ obraId, etapaId, onCreada, onError }: {
 }
 
 export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props) {
+  const [matricesAbiertas, setMatricesAbiertas] = useState<ReadonlySet<string>>(new Set());
   const niveles = useListarNivelesApiV1NivelesGet();
   const etapas = useListarEtapasApiV1EtapasGet();
   const unidades = useListarUnidadesApiV1UnidadesGet(undefined, { query: { staleTime: 60_000 } });
@@ -245,6 +247,7 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
 
   const filaDePartida = (a: ActividadRespuesta) => {
     const tipo = tipoDeMedicion(a.unidad);
+    const conMatrices = matricesAbiertas.has(a.id);
     return (
       <li key={a.id} className="arbol-edicion__partida" data-partida={a.concepto_clave ?? a.id}>
         <span className="arbol-edicion__concepto" title={String(a.descripcion ?? '')}>
@@ -279,6 +282,29 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
             </option>
           ))}
         </select>
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          style={{ gridColumn: '1 / -1', justifySelf: 'start' }}
+          aria-expanded={conMatrices}
+          aria-label={`Matrices de ${a.concepto_clave ?? 'la partida'}`}
+          title="Las matrices del concepto: agregarlas, quitarlas, su cantidad y su costo (cambia el catálogo)"
+          onClick={() =>
+            setMatricesAbiertas((actual) => {
+              const siguiente = new Set(actual);
+              if (siguiente.has(a.id)) siguiente.delete(a.id);
+              else siguiente.add(a.id);
+              return siguiente;
+            })
+          }
+        >
+          {conMatrices ? 'Ocultar matrices' : 'Matrices'}
+        </button>
+        {conMatrices && (
+          <div style={{ gridColumn: '1 / -1' }}>
+            <MatricesDeActividad actividadId={a.id} puedeEditar />
+          </div>
+        )}
       </li>
     );
   };
