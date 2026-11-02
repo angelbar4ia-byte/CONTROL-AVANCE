@@ -62,11 +62,16 @@ test.describe('Cuantificador · árbol editable', () => {
     const etapa = arbol.locator(`[data-etapa="ET${sufijo}"]`);
     await expect(etapa).toBeVisible();
 
+    // La lista de conceptos tarda en llegar: Intro antes de que cargue no debe perderse (en CI lento pasaba).
+    await page.route(/\/api\/v1\/conceptos(\?.*)?$/, async (ruta) => {
+      if (ruta.request().method() === 'GET') await new Promise((r) => setTimeout(r, 2500));
+      await ruta.continue();
+    });
     await etapa.getByRole('button', { name: 'Agregar partida' }).click();
     await etapa.getByLabel('Concepto de la partida (clave)').fill(`FIR-${sufijo}`);
     await etapa.getByLabel('Concepto de la partida (clave)').press('Enter');
     const partida = arbol.locator(`[data-partida="FIR-${sufijo}"]`);
-    await expect(partida).toBeVisible({ timeout: 15_000 }); // espera a la API; el runner de CI es lento
+    await expect(partida).toBeVisible();
     await expect.poll(async () => (await partidas()).find((p) => p.concepto_clave === `FIR-${sufijo}`)?.etapa_clave).toBe(`ET${sufijo}`);
     expect(Number((await partidas()).find((p) => p.concepto_clave === `FIR-${sufijo}`)!.cant_base)).toBe(0);
 

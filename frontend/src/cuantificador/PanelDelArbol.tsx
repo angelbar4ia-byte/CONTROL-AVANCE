@@ -9,7 +9,7 @@
  */
 
 import { Plus } from 'lucide-react';
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import {
@@ -101,6 +101,17 @@ function NuevaPartida({ obraId, etapaId, onCreada, onError }: {
     setAbierto(false);
   };
 
+  // Intro antes de que llegue la lista de conceptos no se pierde: queda pendiente y se aplica al cargar.
+  const [pendiente, setPendiente] = useState(false);
+  useEffect(() => {
+    if (pendiente && conceptos.data !== undefined) {
+      setPendiente(false);
+      void ponerExistente();
+    }
+    // `ponerExistente` lee el estado del render en que llegó la lista.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendiente, conceptos.data]);
+
   async function ponerExistente() {
     if (!existente) return;
     try {
@@ -143,7 +154,8 @@ function NuevaPartida({ obraId, etapaId, onCreada, onError }: {
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
-            void ponerExistente();
+            if (conceptos.data === undefined) setPendiente(true);
+            else void ponerExistente();
           }
         }}
       />
