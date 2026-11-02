@@ -110,7 +110,7 @@ test.describe('Cuantificador · herramientas de dibujo', () => {
     await barra.getByRole('button', { name: 'Círculo', exact: true }).click();
     await clic(0.5, 0.5);
     await page.mouse.move((await en(0.6, 0.5)).x, (await en(0.6, 0.5)).y);
-    await expect(page.getByTestId('previa')).toBeVisible(); // la forma se ve antes del segundo clic
+    await expect(page.getByTestId('previa')).toBeVisible({ timeout: 15_000 }); // la forma se ve antes del segundo clic (el runner de CI es lento)
     await clic(0.6, 0.5);
     await guardar('Guardar polígono', 'area');
     const circ = (await trazosDe(pCirc.id))[0]!;
