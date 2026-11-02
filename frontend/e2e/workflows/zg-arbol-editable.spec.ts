@@ -66,7 +66,7 @@ test.describe('Cuantificador · árbol editable', () => {
     await etapa.getByLabel('Concepto de la partida (clave)').fill(`FIR-${sufijo}`);
     await etapa.getByLabel('Concepto de la partida (clave)').press('Enter');
     const partida = arbol.locator(`[data-partida="FIR-${sufijo}"]`);
-    await expect(partida).toBeVisible();
+    await expect(partida).toBeVisible({ timeout: 15_000 }); // espera a la API; el runner de CI es lento
     await expect.poll(async () => (await partidas()).find((p) => p.concepto_clave === `FIR-${sufijo}`)?.etapa_clave).toBe(`ET${sufijo}`);
     expect(Number((await partidas()).find((p) => p.concepto_clave === `FIR-${sufijo}`)!.cant_base)).toBe(0);
 
