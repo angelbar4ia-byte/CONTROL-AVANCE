@@ -1,0 +1,325 @@
+/**
+ * La pestaña «Árbol»: se arma la estructura de la obra desde el cuantificador. Nivel → etapa → partida (la
+ * actividad de la obra). Se crean niveles y etapas, se agregan partidas con un concepto que ya existe o uno nuevo, se
+ * mueven de etapa y se cambia la **unidad** de un concepto, que cambia cómo se mide (m² área, ml lineal, pza conteo…).
+ * Solo Control de obra y Costos. Sin botones de guardar: cada cambio llega a la API al hacerlo.
+ *
+ * Dos advertencias que la pantalla dice: la unidad es **del catálogo** (vale para todas las obras) y no se cambia si el
+ * concepto ya mide con algo que la unidad nueva no admite; y una partida de una parte ya asignada no se toca.
+ */
+
+import { Plus } from 'lucide-react';
+import { useMemo, useState, type KeyboardEvent } from 'react';
+
+import type { ErrorApi } from '@/api/cliente';
+import {
+  getListarEtapasApiV1EtapasGetQueryKey,
+  getListarNivelesApiV1NivelesGetQueryKey,
+  useListarConceptosApiV1ConceptosGet,
+  useListarEtapasApiV1EtapasGet,
+  useListarNivelesApiV1NivelesGet,
+  useListarUnidadesApiV1UnidadesGet,
+} from '@/api/generado/catalogos/catalogos';
+import {
+  useAgregarPartidaApiV1ObrasObraIdPartidasPost,
+  useCambiarUnidadDelConceptoApiV1ConceptosConceptoIdUnidadPut,
+  useCrearEtapaApiV1EtapasPost,
+  useCrearNivelApiV1NivelesPost,
+  useMoverPartidaApiV1ActividadesActividadIdUbicacionPut,
+} from '@/api/generado/arbol/arbol';
+import { useCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost } from '@/api/generado/partes/partes';
+import type { ActividadRespuesta } from '@/api/generado/modelo';
+import { queryClient } from '@/app/queryClient';
+import { NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
+
+interface Props {
+  readonly obraId: string;
+  readonly actividades: readonly ActividadRespuesta[];
+  /** Algo cambió en el servidor: hay que volver a leer actividades y cantidades. */
+  readonly onCambio: (aviso: string) => void;
+  readonly onError: (mensaje: string) => void;
+}
+
+const SIN_ETAPA = '__sin_etapa__';
+
+function Alta({ etiqueta, campos, onCrear, ocupado }: {
+  readonly etiqueta: string;
+  readonly campos: readonly [string, string];
+  readonly onCrear: (a: string, b: string) => Promise<void>;
+  readonly ocupado: boolean;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [a, setA] = useState('');
+  const [b, setB] = useState('');
+  const intro = (e: KeyboardEvent) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (a.trim() === '' || b.trim() === '' || ocupado) return;
+    void onCrear(a.trim(), b.trim()).then(() => {
+      setA('');
+      setB('');
+      setAbierto(false);
+    });
+  };
+  if (!abierto) {
+    return (
+      <button type="button" className="btn btn--ghost btn--sm" aria-label={etiqueta} onClick={() => setAbierto(true)}>
+        <Plus size={12} aria-hidden /> {etiqueta.replace(/^Agregar /, '').replace(/^Nuev[oa] /, '')}
+      </button>
+    );
+  }
+  return (
+    <div className="arbol-edicion__alta" role="group" aria-label={etiqueta}>
+      <input aria-label={`${etiqueta}: ${campos[0]}`} placeholder={campos[0]} value={a} onChange={(e) => setA(e.target.value)} onKeyDown={intro} autoFocus />
+      <input aria-label={`${etiqueta}: ${campos[1]}`} placeholder={`${campos[1]} · Intro crea`} value={b} onChange={(e) => setB(e.target.value)} onKeyDown={intro} />
+    </div>
+  );
+}
+
+function NuevaPartida({ obraId, etapaId, onCreada, onError }: {
+  readonly obraId: string;
+  readonly etapaId: string | null;
+  readonly onCreada: (aviso: string) => void;
+  readonly onError: (m: string) => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [clave, setClave] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const conceptos = useListarConceptosApiV1ConceptosGet(undefined, { query: { enabled: abierto, staleTime: 60_000 } });
+  const unidades = useListarUnidadesApiV1UnidadesGet(undefined, { query: { enabled: abierto, staleTime: 60_000 } });
+  const agregar = useAgregarPartidaApiV1ObrasObraIdPartidasPost<ErrorApi>();
+  const crearConcepto = useCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost<ErrorApi>();
+  const existente = useMemo(
+    () => (conceptos.data ?? []).find((c) => c.clave.toLowerCase() === clave.trim().toLowerCase()),
+    [conceptos.data, clave],
+  );
+  const esNueva = clave.trim() !== '' && !existente && conceptos.data !== undefined;
+  const cerrar = () => {
+    setClave('');
+    setDescripcion('');
+    setAbierto(false);
+  };
+
+  async function ponerExistente() {
+    if (!existente) return;
+    try {
+      await agregar.mutateAsync({ obraId, data: { concepto_id: existente.id, etapa_id: etapaId ?? undefined } });
+      onCreada(`Partida ${existente.clave} agregada: llega sin cantidad, se mide en el plano.`);
+      cerrar();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo agregar la partida.');
+    }
+  }
+  async function crearNuevo(unidadId: string) {
+    if (!esNueva || descripcion.trim() === '' || unidadId === '') return;
+    try {
+      const r = await crearConcepto.mutateAsync({
+        obraId,
+        data: { clave: clave.trim(), descripcion: descripcion.trim(), unidad_id: unidadId, etapa_id: etapaId ?? undefined },
+      });
+      onCreada(`Concepto ${r.clave} creado y agregado como partida.`);
+      cerrar();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo crear el concepto.');
+    }
+  }
+
+  if (!abierto) {
+    return (
+      <button type="button" className="btn btn--ghost btn--sm" aria-label="Agregar partida" onClick={() => setAbierto(true)}>
+        <Plus size={12} aria-hidden /> Partida
+      </button>
+    );
+  }
+  return (
+    <div className="arbol-edicion__alta" role="group" aria-label="Nueva partida">
+      <input
+        aria-label="Concepto de la partida (clave)"
+        list="conceptos-del-arbol"
+        placeholder="Clave de un concepto (o una nueva)"
+        value={clave}
+        onChange={(e) => setClave(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            void ponerExistente();
+          }
+        }}
+      />
+      <datalist id="conceptos-del-arbol">
+        {(conceptos.data ?? []).slice(0, 1500).map((c) => (
+          <option key={c.id} value={c.clave}>
+            {c.descripcion}
+          </option>
+        ))}
+      </datalist>
+      {existente && <span className="text-mute text-xs">{existente.descripcion} · Intro la agrega</span>}
+      {esNueva && (
+        <>
+          <input aria-label="Descripción del concepto nuevo" placeholder="Descripción" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
+          <select aria-label="Unidad del concepto nuevo" defaultValue="" onChange={(e) => void crearNuevo(e.target.value)}>
+            <option value="">Unidad: elige para crearlo…</option>
+            {(unidades.data ?? []).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.clave} · {u.nombre}
+              </option>
+            ))}
+          </select>
+        </>
+      )}
+      <button type="button" className="btn btn--ghost btn--sm" aria-label="Cerrar nueva partida" onClick={cerrar}>
+        ×
+      </button>
+    </div>
+  );
+}
+
+export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props) {
+  const niveles = useListarNivelesApiV1NivelesGet();
+  const etapas = useListarEtapasApiV1EtapasGet();
+  const unidades = useListarUnidadesApiV1UnidadesGet(undefined, { query: { staleTime: 60_000 } });
+  const crearNivel = useCrearNivelApiV1NivelesPost<ErrorApi>();
+  const crearEtapa = useCrearEtapaApiV1EtapasPost<ErrorApi>();
+  const cambiarUnidad = useCambiarUnidadDelConceptoApiV1ConceptosConceptoIdUnidadPut<ErrorApi>();
+  const mover = useMoverPartidaApiV1ActividadesActividadIdUbicacionPut<ErrorApi>();
+
+  const unidadPorClave = useMemo(() => new Map((unidades.data ?? []).map((u) => [u.clave, u.id])), [unidades.data]);
+  const partidasPorEtapa = useMemo(() => {
+    const por = new Map<string, ActividadRespuesta[]>();
+    for (const a of actividades) por.set(a.etapa_id ?? SIN_ETAPA, [...(por.get(a.etapa_id ?? SIN_ETAPA) ?? []), a]);
+    return por;
+  }, [actividades]);
+  const datosDeEtapas = etapas.data;
+  const etapasPorNivel = useMemo(() => {
+    const por = new Map<string, NonNullable<typeof datosDeEtapas>>();
+    for (const e of datosDeEtapas ?? []) por.set(e.nivel_id ?? '', [...(por.get(e.nivel_id ?? '') ?? []), e]);
+    return por;
+  }, [datosDeEtapas]);
+
+  const recargar = () => {
+    void queryClient.invalidateQueries({ queryKey: getListarNivelesApiV1NivelesGetQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getListarEtapasApiV1EtapasGetQueryKey() });
+  };
+
+  async function nuevoNivel(clave: string, descripcion: string) {
+    try {
+      await crearNivel.mutateAsync({ data: { clave, descripcion } });
+      recargar();
+      onCambio(`Nivel ${clave.toUpperCase()} creado.`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo crear el nivel.');
+      throw err;
+    }
+  }
+  async function nuevaEtapa(nivelId: string, clave: string, descripcion: string) {
+    try {
+      await crearEtapa.mutateAsync({ data: { nivel_id: nivelId, clave, descripcion } });
+      recargar();
+      onCambio(`Etapa ${clave.toUpperCase()} creada.`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo crear la etapa.');
+      throw err;
+    }
+  }
+  async function conUnidad(a: ActividadRespuesta, unidadId: string) {
+    if (!a.concepto_id || unidadId === '') return;
+    try {
+      const r = await cambiarUnidad.mutateAsync({ conceptoId: a.concepto_id, data: { unidad_id: unidadId } });
+      onCambio(
+        `${a.concepto_clave ?? 'El concepto'} ahora es ${r.unidad_nueva}` +
+          (r.tipo_nuevo ? ` y se mide como ${NOMBRE_DE_TIPO[r.tipo_nuevo as keyof typeof NOMBRE_DE_TIPO] ?? r.tipo_nuevo}` : '') +
+          '. Vale para todas las obras.',
+      );
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo cambiar la unidad.');
+    }
+  }
+  async function aEtapa(a: ActividadRespuesta, etapaId: string) {
+    try {
+      await mover.mutateAsync({ actividadId: a.id, data: { etapa_id: etapaId === SIN_ETAPA ? null : etapaId } });
+      onCambio(`${a.concepto_clave ?? 'La partida'} movida de etapa.`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo mover la partida.');
+    }
+  }
+
+  const filaDePartida = (a: ActividadRespuesta) => {
+    const tipo = tipoDeMedicion(a.unidad);
+    return (
+      <li key={a.id} className="arbol-edicion__partida" data-partida={a.concepto_clave ?? a.id}>
+        <span className="arbol-edicion__concepto" title={String(a.descripcion ?? '')}>
+          <span className="mono">{a.concepto_clave ?? '—'}</span> · {a.descripcion ?? ''}
+        </span>
+        <select
+          aria-label={`Unidad de ${a.concepto_clave ?? 'la partida'}`}
+          value={a.unidad ? (unidadPorClave.get(a.unidad) ?? '') : ''}
+          disabled={!a.concepto_id}
+          title="La unidad decide cómo se mide; cambia el catálogo"
+          onChange={(e) => void conUnidad(a, e.target.value)}
+        >
+          {!a.unidad || !unidadPorClave.has(a.unidad) ? <option value="">{a.unidad ?? 'sin unidad'}</option> : null}
+          {(unidades.data ?? []).map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.clave}
+            </option>
+          ))}
+        </select>
+        <span className="badge badge--outline" title="Cómo se mide: sale de su unidad">
+          {tipo ? NOMBRE_DE_TIPO[tipo] : '—'}
+        </span>
+        <select
+          aria-label={`Mover ${a.concepto_clave ?? 'la partida'} a`}
+          value={a.etapa_id ?? SIN_ETAPA}
+          onChange={(e) => void aEtapa(a, e.target.value)}
+        >
+          <option value={SIN_ETAPA}>Sin etapa</option>
+          {(etapas.data ?? []).map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.clave}
+            </option>
+          ))}
+        </select>
+      </li>
+    );
+  };
+
+  return (
+    <div className="arbol-edicion" role="region" aria-label="Armar el árbol">
+      <p className="text-mute text-xs" style={{ margin: '6px 8px' }}>
+        Aquí armas el árbol: niveles, etapas y partidas. La unidad de un concepto decide cómo se mide y es del catálogo (vale para
+        todas las obras).
+      </p>
+      <div style={{ padding: '0 8px' }}>
+        <Alta etiqueta="Nuevo nivel" campos={['Clave', 'Descripción']} ocupado={crearNivel.isPending} onCrear={nuevoNivel} />
+      </div>
+      <ul className="arbol-edicion__niveles" aria-label="Niveles">
+        {(niveles.data ?? []).map((n) => (
+          <li key={n.id} data-nivel={n.clave}>
+            <div className="arbol-edicion__titulo">
+              <strong>{n.clave}</strong> <span className="text-mute">{n.descripcion}</span>
+              <Alta etiqueta={`Nueva etapa en ${n.clave}`} campos={['Clave', 'Descripción']} ocupado={crearEtapa.isPending} onCrear={(c, d) => nuevaEtapa(n.id, c, d)} />
+            </div>
+            <ul aria-label={`Etapas de ${n.clave}`}>
+              {(etapasPorNivel.get(n.id) ?? []).map((e) => (
+                <li key={e.id} data-etapa={e.clave}>
+                  <div className="arbol-edicion__titulo">
+                    <strong>{e.clave}</strong> <span className="text-mute">{e.descripcion}</span>
+                    <NuevaPartida obraId={obraId} etapaId={e.id} onCreada={onCambio} onError={onError} />
+                  </div>
+                  <ul aria-label={`Partidas de ${e.clave}`}>{(partidasPorEtapa.get(e.id) ?? []).map(filaDePartida)}</ul>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+        <li data-nivel="sin-etapa">
+          <div className="arbol-edicion__titulo">
+            <strong>Sin etapa</strong> <span className="text-mute">partidas sueltas</span>
+            <NuevaPartida obraId={obraId} etapaId={null} onCreada={onCambio} onError={onError} />
+          </div>
+          <ul aria-label="Partidas sin etapa">{(partidasPorEtapa.get(SIN_ETAPA) ?? []).map(filaDePartida)}</ul>
+        </li>
+      </ul>
+    </div>
+  );
+}

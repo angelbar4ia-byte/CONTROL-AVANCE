@@ -2919,3 +2919,12 @@ a { color: inherit; text-decoration: none; }
 .visor__propuesta .visor__propuesta-zona { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
 .visor__propuesta.is-descartada { opacity: .3; }
 .propuestas__resumen { margin: 0; padding-left: 16px; }
+
+/* Entrega 7 · pestaña «Árbol»: armar niveles, etapas y partidas */
+.arbol-edicion ul { list-style: none; margin: 0; padding-left: 12px; }
+.arbol-edicion__niveles { padding-left: 4px !important; }
+.arbol-edicion__titulo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 8px 2px 0; font-size: 12px; }
+.arbol-edicion__alta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.arbol-edicion__alta input, .arbol-edicion__alta select, .arbol-edicion__partida select { min-width: 0; height: 24px; font-size: 11px; }
+.arbol-edicion__partida { display: grid; grid-template-columns: 1fr auto; gap: 2px 6px; align-items: center; padding: 3px 0; font-size: 11px; border-bottom: 1px solid var(--line, #e5e7eb); }
+.arbol-edicion__concepto { grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

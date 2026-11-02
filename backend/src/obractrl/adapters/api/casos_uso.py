@@ -21,6 +21,7 @@ from obractrl.adapters.api.avisos import suscribir_avisos
 from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS
 from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador, cargador_para
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
+from obractrl.adapters.repos.arbol_sql import RepositorioArbolSQL
 from obractrl.adapters.repos.asignaciones_sql import RepositorioAsignacionesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
@@ -102,6 +103,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorTrabajos,
     AplicadorUnidades,
 )
+from obractrl.application.casos_uso.arbol import ArmarArbol
 from obractrl.application.casos_uso.calcular_cpu import (
     ExplotarConcepto,
     ObtenerCPU,
@@ -339,6 +341,7 @@ __all__ = [
     "AplicarReprogramacionDep",
     "AprobarCierreDeFrenteDep",
     "AprobarTrazoDep",
+    "ArmarArbolDep",
     "ArmarExpedienteDep",
     "ArmarReporteDeEstimacionDep",
     "AsignarAlcanceDep",
@@ -947,6 +950,15 @@ def obtener_rechazar_propuestas(sesion: SesionRLS) -> RechazarPropuestas:
     return RechazarPropuestas(trazos=RepositorioTrazosSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
 
 
+def obtener_armar_arbol(sesion: SesionRLS) -> ArmarArbol:
+    return ArmarArbol(
+        arbol=RepositorioArbolSQL(sesion),
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_confirmar_avance(sesion: SesionRLS) -> ConfirmarAvance:
     return ConfirmarAvance(
         actividades=RepositorioActividadesSQL(sesion),
@@ -1062,6 +1074,7 @@ GestionarEnlacesDeHojaDep = Annotated[GestionarEnlacesDeHoja, Depends(obtener_ge
 ProponerTrazosDep = Annotated[ProponerTrazos, Depends(obtener_proponer_trazos)]
 AceptarPropuestasDep = Annotated[AceptarPropuestas, Depends(obtener_aceptar_propuestas)]
 RechazarPropuestasDep = Annotated[RechazarPropuestas, Depends(obtener_rechazar_propuestas)]
+ArmarArbolDep = Annotated[ArmarArbol, Depends(obtener_armar_arbol)]
 TraerTrazoDep = Annotated[TraerTrazoAOtraVersion, Depends(obtener_traer_trazo)]
 CalibrarEscalaDePlanoDep = Annotated[
     CalibrarEscalaDePlano, Depends(obtener_calibrar_escala)

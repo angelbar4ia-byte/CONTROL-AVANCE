@@ -2257,6 +2257,43 @@
             "HTTPBearer": []
           }
         ]
+      },
+      "post": {
+        "tags": [
+          "arbol"
+        ],
+        "summary": "Crear un nivel del árbol",
+        "operationId": "crear_nivel_api_v1_niveles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NivelPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdCreado"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Clave repetida o sin descripción."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/etapas": {
@@ -2280,6 +2317,43 @@
                 }
               }
             }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "arbol"
+        ],
+        "summary": "Crear una etapa dentro de un nivel",
+        "operationId": "crear_etapa_api_v1_etapas_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EtapaPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdCreado"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Clave repetida, sin descripción o nivel inexistente."
           }
         },
         "security": [
@@ -11276,6 +11350,175 @@
           },
           "422": {
             "description": "Ninguno de esos trazos es una propuesta pendiente."
+          }
+        }
+      }
+    },
+    "/api/v1/conceptos/{concepto_id}/unidad": {
+      "put": {
+        "tags": [
+          "arbol"
+        ],
+        "summary": "Cambiar la unidad de un concepto (cambia cómo se mide)",
+        "description": "Es un cambio **del catálogo**: vale para todas las obras que usen el concepto.",
+        "operationId": "cambiar_unidad_del_concepto_api_v1_conceptos__concepto_id__unidad_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnidadPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnidadCambiadaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El concepto no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "El concepto ya mide con algo que la unidad nueva no admite, o la unidad no existe."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/partidas": {
+      "post": {
+        "tags": [
+          "arbol"
+        ],
+        "summary": "Agregar a la obra una partida con un concepto que ya existe (sin cantidad)",
+        "operationId": "agregar_partida_api_v1_obras__obra_id__partidas_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartidaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/obractrl__adapters__api__v1__arbol__PartidaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La obra o el concepto no existen o están fuera de tu alcance."
+          },
+          "409": {
+            "description": "La parte ya está asignada: es control de cambio."
+          },
+          "422": {
+            "description": "Ya es una partida de esa etapa, o la etapa no existe."
+          }
+        }
+      }
+    },
+    "/api/v1/actividades/{actividad_id}/ubicacion": {
+      "put": {
+        "tags": [
+          "arbol"
+        ],
+        "summary": "Mover una partida a otra etapa",
+        "operationId": "mover_partida_api_v1_actividades__actividad_id__ubicacion_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UbicacionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UbicacionRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La partida no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Ya tiene avance, o una de las dos partes ya está asignada."
+          },
+          "422": {
+            "description": "La etapa no existe."
           }
         }
       }
@@ -21412,6 +21655,33 @@
         ],
         "title": "EstimacionRespuesta"
       },
+      "EtapaPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Descripcion"
+          },
+          "nivel_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Nivel Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion",
+          "nivel_id"
+        ],
+        "title": "EtapaPeticion"
+      },
       "EtapaRespuesta": {
         "properties": {
           "id": {
@@ -22745,6 +23015,20 @@
           "recalculos"
         ],
         "title": "HuecoRespuesta"
+      },
+      "IdCreado": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "IdCreado"
       },
       "IdRespuesta": {
         "properties": {
@@ -24655,6 +24939,27 @@
         ],
         "title": "NivelEvaluacion"
       },
+      "NivelPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Descripcion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "descripcion"
+        ],
+        "title": "NivelPeticion"
+      },
       "NivelRespuesta": {
         "properties": {
           "id": {
@@ -26297,59 +26602,14 @@
         ],
         "title": "PartidaExistenteRespuesta"
       },
-      "PartidaRespuesta": {
+      "PartidaPeticion": {
         "properties": {
-          "id": {
+          "concepto_id": {
             "type": "string",
             "format": "uuid",
-            "title": "Id"
-          },
-          "concepto_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
             "title": "Concepto Id"
           },
-          "concepto_clave": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Concepto Clave"
-          },
-          "concepto_descripcion": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Concepto Descripcion"
-          },
-          "unidad_clave": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unidad Clave"
-          },
-          "prototipo_nodo_id": {
+          "etapa_id": {
             "anyOf": [
               {
                 "type": "string",
@@ -26359,37 +26619,15 @@
                 "type": "null"
               }
             ],
-            "title": "Prototipo Nodo Id"
-          },
-          "cantidad": {
-            "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Cantidad"
-          },
-          "precio_unitario": {
-            "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Precio Unitario"
-          },
-          "importe": {
-            "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Importe"
-          },
-          "orden": {
-            "type": "integer",
-            "title": "Orden"
+            "title": "Etapa Id",
+            "description": "La etapa donde va; suelta si falta."
           }
         },
         "type": "object",
         "required": [
-          "id",
-          "cantidad",
-          "precio_unitario",
-          "importe",
-          "orden"
+          "concepto_id"
         ],
-        "title": "PartidaRespuesta"
+        "title": "PartidaPeticion"
       },
       "PasoDeParteRespuesta": {
         "properties": {
@@ -27144,7 +27382,7 @@
           },
           "partidas": {
             "items": {
-              "$ref": "#/components/schemas/PartidaRespuesta"
+              "$ref": "#/components/schemas/obractrl__adapters__api__v1__presupuesto__PartidaRespuesta"
             },
             "type": "array",
             "title": "Partidas"
@@ -31277,6 +31515,130 @@
         "title": "TrazosDePlanoRespuesta",
         "description": "`FeatureCollection` de GeoJSON con los trazos de un plano."
       },
+      "UbicacionPeticion": {
+        "properties": {
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id",
+            "description": "La etapa a la que pasa; `null` la deja suelta."
+          }
+        },
+        "type": "object",
+        "title": "UbicacionPeticion"
+      },
+      "UbicacionRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "etapa_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etapa Id"
+          },
+          "nivel_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nivel Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id"
+        ],
+        "title": "UbicacionRespuesta"
+      },
+      "UnidadCambiadaRespuesta": {
+        "properties": {
+          "concepto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Concepto Id"
+          },
+          "unidad_anterior": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Anterior"
+          },
+          "unidad_nueva": {
+            "type": "string",
+            "title": "Unidad Nueva"
+          },
+          "tipo_anterior": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Anterior",
+            "description": "area, lineal, conteo, volumen o derivada."
+          },
+          "tipo_nuevo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Nuevo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto_id",
+          "unidad_nueva"
+        ],
+        "title": "UnidadCambiadaRespuesta"
+      },
+      "UnidadPeticion": {
+        "properties": {
+          "unidad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unidad Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unidad_id"
+        ],
+        "title": "UnidadPeticion"
+      },
       "UnidadRespuesta": {
         "properties": {
           "id": {
@@ -31868,6 +32230,36 @@
         "title": "VistaPeticion",
         "description": "Cómo se ve el plano (migración 0087). Solo presentación: ninguna cantidad cambia."
       },
+      "obractrl__adapters__api__v1__arbol__PartidaRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "concepto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Concepto Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "parte": {
+            "type": "string",
+            "title": "Parte"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "concepto_id",
+          "clave",
+          "parte"
+        ],
+        "title": "PartidaRespuesta"
+      },
       "obractrl__adapters__api__v1__insumos__PeriodoRespuesta": {
         "properties": {
           "clave": {
@@ -31936,6 +32328,100 @@
           "dias_habiles"
         ],
         "title": "PeriodoRespuesta"
+      },
+      "obractrl__adapters__api__v1__presupuesto__PartidaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "concepto_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Descripcion"
+          },
+          "unidad_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Clave"
+          },
+          "prototipo_nodo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Nodo Id"
+          },
+          "cantidad": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Cantidad"
+          },
+          "precio_unitario": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio Unitario"
+          },
+          "importe": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Importe"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cantidad",
+          "precio_unitario",
+          "importe",
+          "orden"
+        ],
+        "title": "PartidaRespuesta"
       }
     },
     "securitySchemes": {

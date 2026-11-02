@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from obractrl.adapters.api.v1.arbol import router as router_arbol
 from obractrl.adapters.api.v1.avance import router as router_avance
 from obractrl.adapters.api.v1.bitacora import router as router_bitacora
 from obractrl.adapters.api.v1.cargas import router as router_cargas
@@ -91,6 +92,7 @@ api_v1.include_router(router_cuantificacion)
 api_v1.include_router(router_mediciones)
 api_v1.include_router(router_enlaces_de_hoja)
 api_v1.include_router(router_propuestas)
+api_v1.include_router(router_arbol)
 api_v1.include_router(router_desviaciones)
 api_v1.include_router(router_reportes)
 api_v1.include_router(router_procesos)

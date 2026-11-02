@@ -137,6 +137,7 @@ import { AltaEnlaceDeHoja } from './AltaEnlaceDeHoja';
 import { ConteoAutomatico } from './ConteoAutomatico';
 import { TakeoffAutomatico } from './TakeoffAutomatico';
 import { OpcionesDeEmpalme } from './OpcionesDeEmpalme';
+import { PanelDelArbol } from './PanelDelArbol';
 import { PanelDePropuestas } from './PanelDePropuestas';
 import { ProponerEscala } from './ProponerEscala';
 import { PanelVolumen } from './PanelVolumen';
@@ -427,7 +428,7 @@ export function EspacioDeTrazo({
   const [volumenAbierto, setVolumenAbierto] = useState(false);
   const [arbolAbierto, setArbolAbierto] = useAjuste('arbol', !compacto);
   // La segunda pestaña del panel lateral: el navegador de planos (el presupuesto es la primera).
-  const [pestana, setPestana] = useState<'presupuesto' | 'planos' | 'mediciones'>('presupuesto');
+  const [pestana, setPestana] = useState<'presupuesto' | 'planos' | 'mediciones' | 'arbol'>('presupuesto');
   /** La medición activa (la capa sombra): lo que se dibuja entra a ella. */
   const [medicionActivaId, setMedicionActivaId] = useState<string | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useAjuste('detalle', !compacto);
@@ -1676,8 +1677,38 @@ export function EspacioDeTrazo({
         >
           Mediciones <span className="estacion__contador">{listaDeMediciones.length}</span>
         </button>
+        {puedePonerPeso && (
+          <button
+            type="button"
+            role="tab"
+            id="pestana-arbol"
+            aria-selected={pestana === 'arbol'}
+            aria-controls="panel-arbol"
+            className={pestana === 'arbol' ? 'estacion__pestana is-activa' : 'estacion__pestana'}
+            onClick={() => setPestana('arbol')}
+          >
+            Árbol
+          </button>
+        )}
       </div>
-      {pestana === 'mediciones' ? (
+      {pestana === 'arbol' && puedePonerPeso ? (
+        <div role="tabpanel" id="panel-arbol" aria-labelledby="pestana-arbol" className="estacion__panel-pestana">
+          <PanelDelArbol
+            obraId={obraId}
+            actividades={actividades}
+            onCambio={(aviso) => {
+              setAviso(aviso);
+              void queryClient.invalidateQueries({
+                queryKey: getActividadesDeObraApiV1ObrasObraIdActividadesGetQueryKey(obraId),
+              });
+              void queryClient.invalidateQueries({
+                queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId),
+              });
+            }}
+            onError={(m) => setAviso(m)}
+          />
+        </div>
+      ) : pestana === 'mediciones' ? (
         <div role="tabpanel" id="panel-mediciones" aria-labelledby="pestana-mediciones" className="estacion__panel-pestana">
           <PanelDeMediciones
             planoId={planoElegido}

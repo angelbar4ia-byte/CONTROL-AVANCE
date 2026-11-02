@@ -2,7 +2,7 @@
 -- ObraCtrl · Costos da de alta conceptos y matrices, y publica el CPU (migración 0090)
 --
 -- Lo que se prueba:
---   1. Costos da de alta un concepto, pero no modifica ni borra uno existente.
+--   1. Costos da de alta un concepto y (0093) lo cambia, pero no lo borra.
 --   2. Costos pone y quita matrices (composición viva, hijo concepto), pero no escribe insumos ni
 --      filas de una versión de CPU.
 --   3. Costos publica una versión de CPU y retira la vigente, pero no borra versiones.
@@ -55,8 +55,11 @@ select pg_temp.como('11111111-1111-1111-1111-111111111111', 'aaaaaaaa-0000-0000-
 insert into concepto (id, org_id, tipo, clave, descripcion) values
   ('c1000000-0000-0000-0000-000000000003', '11111111-1111-1111-1111-111111111111', 'matriz', 'NUEVA', 'Nueva');
 select pg_temp.esperar('costos ve el concepto que dio de alta', count(*), 1) from concepto where clave = 'NUEVA';
+-- Desde la 0093 Costos también cambia un concepto (la API solo lo usa para la unidad): ver test_rls_costos_arbol.sql.
 update concepto set descripcion = 'Cambiada' where clave = 'PADRE';
-select pg_temp.esperar('costos no cambia un concepto existente', count(*), 0) from concepto where descripcion = 'Cambiada';
+select pg_temp.esperar('costos cambia un concepto (0093)', count(*), 1) from concepto where descripcion = 'Cambiada';
+delete from concepto where clave = 'PADRE';
+select pg_temp.esperar('costos no borra un concepto', count(*), 1) from concepto where clave = 'PADRE';
 
 -- 2 · Matrices: sí; insumos y filas de una versión: no
 insert into explosion (org_id, concepto_id, cpu_id, tipo_hijo, concepto_hijo_id, categoria, cantidad)
