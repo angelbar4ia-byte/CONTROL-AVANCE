@@ -8,6 +8,7 @@
  * sus matrices internas (D-583).
  */
 
+import { colorDeConcepto } from './mediciones';
 import { ChevronRight, Layers, Folder, FolderOpen } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -178,6 +179,7 @@ export function ArbolPresupuesto({
                                 >
                                   <span className="arbol__giro" aria-hidden />
                                   <Casilla ids={[hoja.id]} elegidos={elegidos} etiqueta={hoja.etiqueta} onElegir={onElegir} />
+                                  <i className="arbol__color-medicion" data-testid="color-del-concepto" style={{ background: colorDeConcepto(hoja.id) }} aria-hidden />
                                   {onActivar ? (
                                     <button
                                       type="button"

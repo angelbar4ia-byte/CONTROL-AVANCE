@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { medidaDirecta, trazoPeticion } from '@/cuantificador/trazoPeticion';
+import { factorDeLaMedida, medidaDirecta, trazoPeticion } from '@/cuantificador/trazoPeticion';
 
 describe('Guardado directo: la medida se deduce del concepto', () => {
   it('un concepto de área con un rectángulo mide su área', () => {
@@ -19,7 +19,6 @@ describe('Guardado directo: la medida se deduce del concepto', () => {
 
   it('lo ambiguo se pregunta: conteo dibujado como área, área con una línea, volumen, derivado, sin tipo', () => {
     expect(medidaDirecta('conteo', 'poligono', false, false)).toBeNull();
-    expect(medidaDirecta('area', 'linea', false, false)).toBeNull();
     expect(medidaDirecta('volumen', 'poligono', false, false)).toBeNull();
     expect(medidaDirecta('derivada', 'punto', false, false)).toBeNull();
     expect(medidaDirecta(null, 'poligono', false, false)).toBeNull();
@@ -55,5 +54,17 @@ describe('Cuerpo del trazo', () => {
       enlaces: [{ actividadId: 'a1', matrizId: 'c9', medida: 'conteo', factor: '1' }],
     });
     expect(conMatriz.enlaces).toEqual([{ actividad_id: 'a1', matriz_concepto_id: 'c9', medida: 'conteo', factor: '1' }]);
+  });
+
+  it('una línea sobre un concepto en m² mide su largo y lo convierte con la altura y las caras por defecto', () => {
+    expect(medidaDirecta('area', 'linea', false, false)).toBe('longitud');
+    expect(factorDeLaMedida('area', 'linea', false, 'longitud')).toBe('5.2'); // 2.6 m × 2 caras
+  });
+
+  it('el factor es 1 en todo lo demás', () => {
+    expect(factorDeLaMedida('area', 'poligono', false, 'area')).toBe('1');
+    expect(factorDeLaMedida('area', 'linea', true, 'area')).toBe('1'); // un muro con grosor mide su área
+    expect(factorDeLaMedida('lineal', 'linea', false, 'longitud')).toBe('1');
+    expect(factorDeLaMedida('conteo', 'punto', false, 'conteo')).toBe('1');
   });
 });

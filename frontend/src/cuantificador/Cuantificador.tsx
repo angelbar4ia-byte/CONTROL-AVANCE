@@ -88,7 +88,7 @@ import { ErrorBanner } from '@/lib/ErrorBanner';
 import { SelectorObra } from '@/lib/SelectorObra';
 import { AltaNota } from './AltaNota';
 import { PanelDeMediciones } from './PanelDeMediciones';
-import { admiteGeometria, asignacionesEfectivas, coloresDeMediciones, idsDeRama } from './mediciones';
+import { admiteGeometria, asignacionesEfectivas, colorDeConcepto, coloresDeMediciones, idsDeRama } from './mediciones';
 import { OpcionesDeContorno } from './OpcionesDeContorno';
 import { OpcionesDeNota, type ClaseDeNota } from './OpcionesDeNota';
 import { bloqueDeTipo, NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
@@ -96,7 +96,7 @@ import { girar, rotacionValida, type VistaDelPlano } from './vista';
 import { AltaDeConcepto } from './AltaDeConcepto';
 import { AltaPlano } from './AltaPlano';
 import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
-import { medidaDirecta, trazoPeticion } from './trazoPeticion';
+import { ALTURA_POR_DEFECTO_M, CARAS_POR_DEFECTO, factorDeLaMedida, medidaDirecta, trazoPeticion } from './trazoPeticion';
 import { motivoDeIncompatibilidad } from './mediciones';
 import { CalibrarEscala } from './CalibrarEscala';
 import { useAjuste, useAnchoAjustable } from '@/lib/useAjuste';
@@ -696,9 +696,13 @@ export function EspacioDeTrazo({
         porRevisar: f.properties.por_revisar,
         aprobado: f.properties.aprobado_en != null,
         resaltado: trazosDeLaMedicion.has(f.id),
-        ...(f.properties.medicion_id && coloresDeMedicion.has(f.properties.medicion_id)
-          ? { color: coloresDeMedicion.get(f.properties.medicion_id) as string }
-          : {}),
+        // El color de su medición; sin medición, el de su concepto (para distinguir los trazos de cada concepto).
+        ...(() => {
+          const deMedicion = f.properties.medicion_id ? coloresDeMedicion.get(f.properties.medicion_id) : undefined;
+          const concepto = f.properties.enlaces.find((e) => e.vigente && e.tipo_nodo !== 'prototipo_nodo')?.nodo_id;
+          const color = deMedicion ?? (concepto ? colorDeConcepto(concepto) : undefined);
+          return color ? { color } : {};
+        })(),
         // El cuerpo de una línea con grosor (un muro), pintado con su alineación.
         banda:
           f.properties.grosor_m != null && f.properties.alineacion
@@ -1131,6 +1135,7 @@ export function EspacioDeTrazo({
       forma: conForma,
     };
     let data: TrazoPeticion | null = null;
+    let factor = '1';
     if (medicionActiva) {
       if (motivoDeIncompatibilidad(medicionActiva.tipo, tipo, conForma !== null) === null) {
         data = trazoPeticion({ ...base, medicionId: medicionActiva.id, enlaces: [] });
@@ -1138,9 +1143,10 @@ export function EspacioDeTrazo({
     } else if (conceptoEnFoco) {
       const medida = medidaDirecta(tipoDelConcepto, tipo, conGrosor, conForma !== null);
       if (medida) {
+        factor = factorDeLaMedida(tipoDelConcepto, tipo, conGrosor, medida);
         data = trazoPeticion({
           ...base,
-          enlaces: [{ actividadId: conceptoEnFoco, ...(matrizActiva ? { matrizId: matrizActiva.id } : {}), medida, factor: '1' }],
+          enlaces: [{ actividadId: conceptoEnFoco, ...(matrizActiva ? { matrizId: matrizActiva.id } : {}), medida, factor }],
         });
       }
     }
@@ -1148,7 +1154,16 @@ export function EspacioDeTrazo({
     const planoId = plano.id;
     const cuerpo = data;
     registrarTrazo.mutateAsync({ planoId, data: cuerpo }).then(
-      (r) => alGuardar(r, { planoId, data: cuerpo }),
+      (r) => {
+        alGuardar(r, { planoId, data: cuerpo });
+        if (factor !== '1') {
+          // Una línea sobre un concepto en m²: se dice cómo se convirtió el largo en área, y que se puede cambiar.
+          setAviso(
+            `Línea medida como área: largo × ${ALTURA_POR_DEFECTO_M} m de altura × ${CARAS_POR_DEFECTO} caras. ` +
+              `Cantidad medida del nodo: ${fmtNum(r.recalculos[0]?.cantidad_total)}. El factor se cambia en el detalle del trazo.`,
+          );
+        }
+      },
       () => abrirCajon(),
     );
   }

@@ -148,3 +148,10 @@ export function colorDeMedicion(indice: number): string {
 export function coloresDeMediciones(lista: readonly { readonly id: string }[]): Map<string, string> {
   return new Map(lista.map((m, i) => [m.id, colorDeMedicion(i)]));
 }
+
+/** El color de un concepto: estable (sale de su id) y distinto de un concepto a otro. Pinta sus trazos que aún no están en una medición. */
+export function colorDeConcepto(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i += 1) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return `hsl(${h % 360} 62% 44%)`;
+}
