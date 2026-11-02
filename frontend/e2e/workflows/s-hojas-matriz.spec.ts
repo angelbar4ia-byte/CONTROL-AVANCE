@@ -118,9 +118,17 @@ test.describe('Hojas matriz · medir la matriz dentro del concepto', () => {
     const caja = (await lienzo.boundingBox())!;
     await control.mouse.click(caja.x + caja.width * 0.4, caja.y + caja.height * 0.5);
     await control.mouse.click(caja.x + caja.width * 0.8, caja.y + caja.height * 0.5);
-    const alta = control.getByRole('dialog', { name: 'Guardar línea' });
-    await expect(alta.locator('#enlace-matriz-0')).toHaveValue(bast.id);
-    await alta.getByRole('button', { name: 'Cancelar' }).click();
+    // Con la matriz elegida el trazo se guarda solo, enlazado a ella, sin cajón.
+    await expect(control.getByRole('dialog', { name: 'Guardar línea' })).toBeHidden();
+    await expect(control.getByRole('status')).toContainText('Trazo guardado');
+    await expect
+      .poll(async () => {
+        const t = await llamarApi<{ features: { properties: { enlaces: { matriz_concepto_id?: string | null }[] } }[] }>(
+          request, 'control', 'GET', `/planos/${plano.id}/trazos`,
+        );
+        return t.features.some((f) => f.properties.enlaces.some((e) => e.matriz_concepto_id === bast.id));
+      })
+      .toBe(true);
 
     const actividades = await llamarApi<{ id: string; cant_base: string }[]>(
       request,
