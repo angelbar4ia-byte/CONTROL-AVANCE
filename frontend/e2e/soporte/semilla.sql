@@ -69,6 +69,8 @@ insert into nivel (org_id, clave, descripcion, orden)
 values (:org_id, 'PB', 'Planta baja', 1) returning id as nivel_id \gset
 
 select id as unidad_m2 from unidad where org_id = :org_id and clave = 'm2' \gset
+select id as unidad_ml from unidad where org_id = :org_id and clave = 'ml' \gset
+select id as unidad_kg from unidad where org_id = :org_id and clave = 'kg' \gset
 select id as fam_obra from familia where org_id = :org_id and clave = 'FAM-C-OBRA' \gset
 
 insert into concepto (org_id, tipo, clave, descripcion, unidad_id, familia_id) values
@@ -88,14 +90,18 @@ from concepto c where c.org_id = :org_id and c.clave like 'E2E-%';
 insert into concepto (org_id, tipo, clave, descripcion, unidad_id, familia_id) values
   (:org_id, 'concepto', 'MTZ-LOSA',  'Losa de cimentación', :'unidad_m2', :'fam_obra'),
   (:org_id, 'concepto', 'MTZ-NERV',  'Nervaduras',          :'unidad_m2', :'fam_obra'),
-  (:org_id, 'concepto', 'MTZ-TRABE', 'Trabes',              :'unidad_m2', :'fam_obra');
+  (:org_id, 'concepto', 'MTZ-TRABE', 'Trabes',              :'unidad_m2', :'fam_obra'),
+  -- Una matriz dentro de una matriz: los bastones (en metros lineales) son insumo de las nervaduras.
+  (:org_id, 'concepto', 'MTZ-BAST',  'Bastones',            :'unidad_ml', :'fam_obra'),
+  -- Un concepto en kg: se deriva del peso de un elemento (castillos K1) por su cantidad.
+  (:org_id, 'concepto', 'ACE-K1',    'Acero en castillos',  :'unidad_kg', :'fam_obra');
 insert into cpu (org_id, concepto_id, version, precio_unitario, precio_destajo, vigente)
 select :org_id, c.id, 1,
        case c.clave when 'MTZ-LOSA' then 1000 when 'MTZ-NERV' then 200 else 300 end, 0, true
-from concepto c where c.org_id = :org_id and c.clave like 'MTZ-%';
+from concepto c where c.org_id = :org_id and (c.clave like 'MTZ-%' or c.clave = 'ACE-K1');
 insert into explosion (org_id, concepto_id, tipo_hijo, concepto_hijo_id, categoria, cantidad)
 select :org_id, padre.id, 'concepto', hijo.id, 'matriz', q.cantidad
-from (values ('MTZ-LOSA', 'MTZ-NERV', 0.5), ('MTZ-LOSA', 'MTZ-TRABE', 0.2)) as q(padre, hijo, cantidad)
+from (values ('MTZ-LOSA', 'MTZ-NERV', 0.5), ('MTZ-LOSA', 'MTZ-TRABE', 0.2), ('MTZ-NERV', 'MTZ-BAST', 3)) as q(padre, hijo, cantidad)
 join concepto padre on padre.org_id = :org_id and padre.clave = q.padre
 join concepto hijo on hijo.org_id = :org_id and hijo.clave = q.hijo;
 

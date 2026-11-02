@@ -81,11 +81,8 @@ test.describe('Cuantificador · ventana flotante', () => {
     }
     await page.keyboard.press('Enter');
 
-    const alta = page.getByRole('dialog', { name: 'Guardar polígono' });
-    // La herramienta puntual ya sabe sobre qué actividad se mide.
-    await expect(alta.getByLabel('Actividad 1')).toHaveValue(actividadPla);
-    await alta.getByLabel('Medida').selectOption('area');
-    await alta.getByRole('button', { name: 'Guardar trazo' }).click();
+    // La herramienta puntual ya sabe sobre qué actividad se mide: el trazo se guarda solo, sin cajón.
+    await expect(page.getByRole('dialog', { name: 'Guardar polígono' })).toBeHidden();
 
     await expect(ventana.getByTestId('medido-foco')).not.toHaveText('—');
 

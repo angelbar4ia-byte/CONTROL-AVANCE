@@ -16,19 +16,23 @@ import { useState, type FormEvent } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import { useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost } from '@/api/generado/cuantificacion/cuantificacion';
-import type { ActividadRespuesta, TrazoRespuesta } from '@/api/generado/modelo';
+import type { ActividadRespuesta, TrazoPeticion, TrazoRespuesta } from '@/api/generado/modelo';
 import { OpcionesDeMatriz } from './MatricesDeActividad';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Sheet } from '@/lib/Sheet';
 import {
   MEDIDAS_POR_HERRAMIENTA,
   aWkt,
+  factorDePendiente,
+  longitudLocal,
   medidaLocal,
-  type HerramientaDeTrazo,
+  type GeometriaBase,
   type MedidaDeTrazo,
   type Punto,
 } from './geometria';
 import { fmtNum } from '@/lib/formato';
+import { NOMBRE_DE_FORMA, type Alineacion, type Forma } from './formas';
+import { motivoDeIncompatibilidad, NOMBRE_DE_TIPO_DE_MEDICION, type TipoDeMedicionSombra } from './mediciones';
 import { etiquetaMedida } from './reglas';
 
 type Fuente = 'pdf' | 'dwg' | 'ifc';
@@ -53,13 +57,28 @@ interface FilaEnlace {
 interface Props {
   readonly planoId: string;
   readonly versionPlano: number;
-  readonly herramienta: HerramientaDeTrazo;
+  readonly herramienta: GeometriaBase;
   readonly puntos: readonly Punto[];
-  /** Huecos del polígono (lo que se descuenta). Vacío salvo en un polígono con huecos. */
-  readonly huecos?: readonly (readonly Punto[])[];
+  /** Grosor en metros de una línea (un muro), o `null` si es una línea simple. */
+  readonly grosorM?: number | null;
+  /** De qué lado del eje queda el cuerpo del muro; va con `grosorM`. */
+  readonly alineacion?: Alineacion | null;
+  /** Grosor en unidades de plano, para la vista previa del área de un muro. */
+  readonly grosorU?: number | null;
+  /** Pendiente en % de una línea inclinada: su longitud real es la de la planta × √(1 + p²). */
+  readonly pendientePct?: number | null;
+  /** La forma con la que se estampó el polígono (castillo, columna...), si nació de un punto con forma. */
+  readonly forma?: Forma | null;
   readonly actividades: readonly ActividadRespuesta[];
   /** Actividad con la que arranca el primer enlace (la herramienta puntual, D-532). */
   readonly actividadInicial?: string;
+  /** La matriz interna con la que arranca el primer enlace (la que se está midiendo en el árbol). */
+  readonly matrizInicial?: string;
+  /**
+   * La medición activa (la capa sombra, 0088): el trazo entra a ella y hereda los enlaces que ya tenga
+   * asignados; sin ninguno, se guarda suelto en la medición y se enlaza cuando se asigne.
+   */
+  readonly medicion?: { readonly id: string; readonly nombre: string; readonly tipo: TipoDeMedicionSombra; readonly nAsignaciones: number } | null;
   /**
    * Nodos del prototipo, o `null` si este rol no puede enlazarlos. Enlazar a un
    * nodo de prototipo es de Control de obra y Super intendente (el servidor lo
@@ -67,10 +86,14 @@ interface Props {
    */
   readonly nodosDePrototipo: readonly NodoDePrototipo[] | null;
   readonly onCerrar: () => void;
-  readonly onGuardado: (resultado: TrazoRespuesta) => void;
+  /** Lo que se guardó y lo que se mandó: con eso se puede volver a registrar el mismo trazo (rehacer). */
+  readonly onGuardado: (
+    resultado: TrazoRespuesta,
+    solicitud: { readonly planoId: string; readonly data: TrazoPeticion },
+  ) => void;
 }
 
-const NOMBRE_FORMA: Record<HerramientaDeTrazo, string> = {
+const NOMBRE_FORMA: Record<GeometriaBase, string> = {
   poligono: 'Polígono',
   linea: 'Línea',
   punto: 'Punto',
@@ -87,20 +110,45 @@ export function AltaTrazo({
   versionPlano,
   herramienta,
   puntos,
-  huecos = [],
+  grosorM = null,
+  alineacion = null,
+  grosorU = null,
+  pendientePct = null,
+  forma = null,
   actividades,
   actividadInicial,
+  matrizInicial,
+  medicion = null,
   nodosDePrototipo,
   onCerrar,
   onGuardado,
 }: Props) {
-  const medidas = MEDIDAS_POR_HERRAMIENTA[herramienta];
+  const conGrosor = herramienta === 'linea' && grosorM !== null;
+  // Un muro (línea con grosor) mide también su área; una forma estampada es lo que se cuenta.
+  const medidas: readonly MedidaDeTrazo[] = conGrosor
+    ? ['area', 'longitud', 'conteo']
+    : forma !== null
+      ? ['conteo', 'area', 'perimetro']
+      : MEDIDAS_POR_HERRAMIENTA[herramienta];
   const [fuente, setFuente] = useState<Fuente>('pdf');
   const [capa, setCapa] = useState('');
-  const [filas, setFilas] = useState<readonly FilaEnlace[]>([
-    { clave: 0, destino: 'actividad', actividadId: actividadInicial ?? '', medida: medidas[0] as MedidaDeTrazo, factor: '1' },
-  ]);
+  const [filas, setFilas] = useState<readonly FilaEnlace[]>(
+    medicion
+      ? []
+      : [
+    {
+      clave: 0,
+      destino: 'actividad',
+      actividadId: actividadInicial ?? '',
+      ...(actividadInicial && matrizInicial ? { matrizId: matrizInicial } : {}),
+      medida: medidas[0] as MedidaDeTrazo,
+      factor: '1',
+    },
+      ],
+  );
   const [siguienteClave, setSiguienteClave] = useState(1);
+  // Una medición solo admite trazos de su tipo: se avisa antes de mandar.
+  const incompatible = medicion ? motivoDeIncompatibilidad(medicion.tipo, herramienta, forma !== null) : null;
   const [error, setError] = useState<string | null>(null);
 
   const registrar = useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost<ErrorApi>();
@@ -120,6 +168,10 @@ export function AltaTrazo({
   async function alEnviar(evento: FormEvent) {
     evento.preventDefault();
     setError(null);
+    if (incompatible) {
+      setError(incompatible);
+      return;
+    }
 
     // Una fila sin actividad es una fila a medias, no «sin enlace»: quien no
     // quiere enlazar la quita. Mandarla vacía daría un 422 sin decir cuál.
@@ -142,13 +194,28 @@ export function AltaTrazo({
     }
 
     try {
-      const resultado = await registrar.mutateAsync({
-        planoId,
-        data: {
+      const data: TrazoPeticion = {
           version_plano: versionPlano,
           fuente,
           capa: capa.trim() === '' ? null : capa.trim(),
-          geometria_wkt: aWkt(herramienta, puntos, huecos),
+          geometria_wkt: aWkt(herramienta, puntos),
+          ...(medicion ? { medicion_id: medicion.id } : {}),
+          ...(conGrosor && alineacion !== null ? { grosor_m: String(grosorM), alineacion } : {}),
+          ...(herramienta === 'linea' && pendientePct !== null ? { pendiente_pct: String(pendientePct) } : {}),
+          ...(forma !== null
+            ? {
+                forma: {
+                  tipo: forma.tipo,
+                  ancho_m: String(forma.anchoM),
+                  alto_m: String(forma.altoM),
+                  rotacion_grados: String(forma.rotacionGrados),
+                  ...(forma.nombre ? { nombre: forma.nombre } : {}),
+                  ...(forma.tipo === 'libre' && forma.vertices
+                    ? { vertices: forma.vertices.map((v) => [v[0], v[1]] as [number, number]) }
+                    : {}),
+                },
+              }
+            : {}),
           enlaces: filas.map((f) => ({
             medida: f.medida,
             factor: f.factor,
@@ -159,9 +226,9 @@ export function AltaTrazo({
                 }
               : { prototipo_nodo_id: f.actividadId }),
           })),
-        },
-      });
-      onGuardado(resultado);
+      };
+      const resultado = await registrar.mutateAsync({ planoId, data });
+      onGuardado(resultado, { planoId, data });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar el trazo.');
     }
@@ -177,11 +244,39 @@ export function AltaTrazo({
         <div className="sheet__body col gap-12">
           {error && <ErrorBanner mensaje={error} />}
 
-          {huecos.length > 0 && (
-            <div className="text-sm" data-testid="aviso-huecos">
-              Este polígono lleva {huecos.length} {huecos.length === 1 ? 'hueco' : 'huecos'}: su
-              área se <strong>descuenta</strong> del área del polígono, y su borde suma al
-              perímetro.
+          {medicion && (
+            <div className="text-sm" data-testid="aviso-medicion">
+              Entra a la medición <strong>«{medicion.nombre}»</strong> ({NOMBRE_DE_TIPO_DE_MEDICION[medicion.tipo]}).{' '}
+              {medicion.nAsignaciones > 0
+                ? 'Se enlaza sola a los conceptos que esa medición ya alimenta.'
+                : 'Todavía no alimenta ningún concepto: se guarda en la medición y suma cuando la asignes.'}{' '}
+              Puedes agregar enlaces extra abajo.
+            </div>
+          )}
+          {incompatible && (
+            <div className="text-sm" role="alert" data-testid="aviso-incompatible">
+              {incompatible}
+            </div>
+          )}
+
+          {herramienta === 'linea' && pendientePct !== null && (
+            <div className="text-sm" data-testid="aviso-pendiente">
+              Tramo inclinado, pendiente de <strong>{pendientePct} %</strong>: la longitud real es la de la
+              planta × {factorDePendiente(pendientePct).toFixed(4)}.
+            </div>
+          )}
+
+          {conGrosor && (
+            <div className="text-sm" data-testid="aviso-grosor">
+              Línea con grosor de <strong>{grosorM} m</strong>, cuerpo a la{' '}
+              <strong>{alineacion === 'centro' ? 'mitad del eje' : alineacion}</strong>: mide su largo y
+              también largo × grosor.
+            </div>
+          )}
+          {forma !== null && (
+            <div className="text-sm" data-testid="aviso-forma">
+              {forma.nombre ?? NOMBRE_DE_FORMA[forma.tipo]} de {forma.anchoM} × {forma.altoM} m: se
+              guarda como un polígono centrado donde hiciste clic.
             </div>
           )}
 
@@ -219,7 +314,12 @@ export function AltaTrazo({
           <div className="col">
             <div className="field__label">Enlaces a actividades</div>
             {filas.map((f, i) => {
-              const local = medidaLocal(herramienta, f.medida, puntos, huecos);
+              const inclinada = herramienta === 'linea' ? factorDePendiente(pendientePct) : 1;
+              const local =
+                (conGrosor && f.medida === 'area' && grosorU !== null
+                  ? longitudLocal(puntos) * grosorU
+                  : medidaLocal(herramienta, f.medida, puntos)) *
+                (f.medida === 'area' || f.medida === 'longitud' ? inclinada : 1);
               return (
                 <div key={f.clave} className="card">
                   <div className="card__body col">
@@ -330,7 +430,7 @@ export function AltaTrazo({
                         Vista previa en unidades de plano: {fmtNum(local)}. La cantidad
                         la calcula el servidor al guardar.
                       </span>
-                      {filas.length > 1 && (
+                      {filas.length > (medicion ? 0 : 1) && (
                         <button
                           type="button"
                           className="btn btn--ghost btn--sm"
@@ -353,7 +453,7 @@ export function AltaTrazo({
           <button type="button" className="btn" onClick={onCerrar}>
             Cancelar
           </button>
-          <button type="submit" className="btn btn--primary" disabled={registrar.isPending}>
+          <button type="submit" className="btn btn--primary" disabled={registrar.isPending || incompatible !== null}>
             {registrar.isPending ? 'Guardando…' : 'Guardar trazo'}
           </button>
         </div>

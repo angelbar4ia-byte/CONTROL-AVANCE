@@ -29,6 +29,7 @@ from obractrl.adapters.api.casos_uso import (
     ConsultarPartesDep,
     ConsultarValuacionDep,
     CotizarLoModificadoDep,
+    CrearConceptoEnObraDep,
     CrearObraDesdeCatalogoBaseDep,
     CrearObraDesdeCeroDep,
     FijarCandadoDeAsignarDep,
@@ -42,6 +43,7 @@ from obractrl.adapters.api.casos_uso import (
 )
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.adapters.api.idempotencia import Idempotencia
+from obractrl.application.casos_uso.conceptos_en_obra import ComandoCrearConceptoEnObra
 from obractrl.application.casos_uso.cotizacion_al_cliente import ComandoCotizar
 from obractrl.application.casos_uso.crear_obra_desde_catalogo_base import (
     ComandoCrearObraDesdeCatalogoBase,
@@ -606,6 +608,55 @@ async def agregar_actividad_nueva(
                 etapa_id=peticion.etapa_id,
                 nivel_id=peticion.nivel_id,
                 nota=peticion.nota,
+            )
+        )
+    )
+
+
+class ConceptoNuevoPeticion(BaseModel):
+    clave: str = Field(min_length=1, max_length=60)
+    descripcion: str = Field(min_length=1)
+    unidad_id: UUID = Field(description="Su unidad decide el tipo de medición: m², m o pza.")
+    precio_unitario: Decimal = Field(default=Decimal(0), ge=0)
+    etapa_id: UUID | None = Field(default=None, description="La etapa donde nace; suelto si falta.")
+    nivel_id: UUID | None = None
+    familia_id: UUID | None = None
+
+
+class ConceptoNuevoRespuesta(BaseModel):
+    concepto_id: UUID
+    actividad_id: UUID
+    clave: str
+    parte: str
+
+
+@router.post(
+    "/obras/{obra_id}/conceptos-nuevos",
+    response_model=ConceptoNuevoRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Un concepto que no estaba en el catálogo: se da de alta y entra a la obra sin cantidad",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS)), Idempotencia],
+    responses={
+        **_NO_ENCONTRADO,
+        409: {"description": "La parte ya está asignada: agregarle algo es control de cambio."},
+        422: {"description": "Clave repetida, sin descripción o precio negativo."},
+    },
+)
+async def crear_concepto_en_la_obra(
+    obra_id: UUID, peticion: ConceptoNuevoPeticion, caso_uso: CrearConceptoEnObraDep
+) -> ConceptoNuevoRespuesta:
+    """Desde el cuantificador: nace adicional y sin cantidad, que llega midiendo."""
+    return ConceptoNuevoRespuesta(
+        **await caso_uso.ejecutar(
+            ComandoCrearConceptoEnObra(
+                obra_id=obra_id,
+                clave=peticion.clave,
+                descripcion=peticion.descripcion,
+                unidad_id=peticion.unidad_id,
+                precio_unitario=peticion.precio_unitario,
+                etapa_id=peticion.etapa_id,
+                nivel_id=peticion.nivel_id,
+                familia_id=peticion.familia_id,
             )
         )
     )

@@ -9,6 +9,15 @@ import type { TrazoPropiedadesCapa } from "./trazoPropiedadesCapa";
 import type { TrazoPropiedadesAutorId } from "./trazoPropiedadesAutorId";
 import type { TrazoPropiedadesAprobadoPor } from "./trazoPropiedadesAprobadoPor";
 import type { TrazoPropiedadesAprobadoEn } from "./trazoPropiedadesAprobadoEn";
+import type { TrazoPropiedadesGrosorM } from "./trazoPropiedadesGrosorM";
+import type { TrazoPropiedadesAlineacion } from "./trazoPropiedadesAlineacion";
+import type { TrazoPropiedadesPendientePct } from "./trazoPropiedadesPendientePct";
+import type { TrazoPropiedadesMedicionId } from "./trazoPropiedadesMedicionId";
+import type { TrazoPropiedadesForma } from "./trazoPropiedadesForma";
+import type { TrazoPropiedadesPropuestaOrigen } from "./trazoPropiedadesPropuestaOrigen";
+import type { TrazoPropiedadesPropuestaActividadId } from "./trazoPropiedadesPropuestaActividadId";
+import type { TrazoPropiedadesPropuestaMedida } from "./trazoPropiedadesPropuestaMedida";
+import type { TrazoPropiedadesPropuestaConfianza } from "./trazoPropiedadesPropuestaConfianza";
 import type { EnlaceDeTrazoRespuesta } from "./enlaceDeTrazoRespuesta";
 
 export interface TrazoPropiedades {
@@ -21,6 +30,25 @@ export interface TrazoPropiedades {
   /** Control de obra que lo aprobó, o `null` si aún no está aprobado. */
   aprobado_por: TrazoPropiedadesAprobadoPor;
   aprobado_en: TrazoPropiedadesAprobadoEn;
+  /** Grosor en metros de una línea (un muro); `null` si no tiene. */
+  grosor_m?: TrazoPropiedadesGrosorM;
+  alineacion?: TrazoPropiedadesAlineacion;
+  /** Pendiente en % de una línea inclinada; `null` = horizontal. */
+  pendiente_pct?: TrazoPropiedadesPendientePct;
+  /** La medición a la que pertenece el trazo (0088); `null` = suelto. */
+  medicion_id?: TrazoPropiedadesMedicionId;
+  /** Plantilla con la que se estampó un punto con forma. */
+  forma?: TrazoPropiedadesForma;
+  /** Huecos que tiene el área. Su geometría ya viene restada en `geometry`. */
+  n_huecos?: number;
+  /** Propuesto por una herramienta automática y aún sin revisar: no suma cantidad (0092). */
+  propuesta?: boolean;
+  propuesta_origen?: TrazoPropiedadesPropuestaOrigen;
+  /** El concepto para el que se propuso. */
+  propuesta_actividad_id?: TrazoPropiedadesPropuestaActividadId;
+  propuesta_medida?: TrazoPropiedadesPropuestaMedida;
+  /** De 0 a 1. */
+  propuesta_confianza?: TrazoPropiedadesPropuestaConfianza;
   /** Nodos a los que el trazo alimenta con un enlace **vigente**: lo que el visor necesita para resolver el clic (MODELO.md §1b). Un trazo puede alimentar varios (el área da el piso, el perímetro el zoclo). */
   nodo_ids: string[];
   enlaces: EnlaceDeTrazoRespuesta[];

@@ -69,6 +69,9 @@ class EnlaceCuantificacion:
     vigente: bool = True
     matriz_concepto_id: str | None = None
     """La matriz interna de la actividad que se mide (D-583); solo con `actividad_id`."""
+    derivado: bool = False
+    """El enlace convierte la medida a otra unidad (piezas → kg con el peso de un elemento, 0089): ahí el
+    factor sí puede llevar fracción aunque la medida sea un conteo."""
 
     def __post_init__(self) -> None:
         if self.matriz_concepto_id is not None and self.actividad_id is None:
@@ -101,6 +104,7 @@ class EnlaceCuantificacion:
         # general de "factor siempre entero".
         if (
             self.medida is MedidaCuantificacion.CONTEO
+            and not self.derivado
             and self.factor != self.factor.to_integral_value()
         ):
             raise ErrorDeCuantificacion(

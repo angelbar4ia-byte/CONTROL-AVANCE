@@ -8,6 +8,8 @@
 import type { NotaPlanoDetalleRespuestaAutorId } from "./notaPlanoDetalleRespuestaAutorId";
 import type { NotaPlanoDetalleRespuestaActividadId } from "./notaPlanoDetalleRespuestaActividadId";
 import type { NotaPlanoDetalleRespuestaUbicacion } from "./notaPlanoDetalleRespuestaUbicacion";
+import type { NotaPlanoDetalleRespuestaTipo } from "./notaPlanoDetalleRespuestaTipo";
+import type { NotaPlanoDetalleRespuestaDestino } from "./notaPlanoDetalleRespuestaDestino";
 
 export interface NotaPlanoDetalleRespuesta {
   id: string;
@@ -21,4 +23,7 @@ export interface NotaPlanoDetalleRespuesta {
   por_revisar: boolean;
   /** `Point` GeoJSON en **coordenadas de plano** (SRID 0), no lon/lat. */
   ubicacion: NotaPlanoDetalleRespuestaUbicacion;
+  tipo?: NotaPlanoDetalleRespuestaTipo;
+  /** `Point` GeoJSON al que apunta una flecha o una llamada. */
+  destino?: NotaPlanoDetalleRespuestaDestino;
 }

@@ -30,6 +30,8 @@ import type {
   EscalaPeticion,
   EscalaRespuesta,
   HTTPValidationError,
+  HuecoPeticion,
+  HuecoRespuesta,
   MatricesDeActividadRespuesta,
   NodoCuantificadoRespuesta,
   NotaPlanoDetalleRespuesta,
@@ -40,10 +42,14 @@ import type {
   PlanoRespuesta,
   ReemplazarEnlacePeticion,
   ResultadoRecalculoRespuesta,
+  TraerTrazoPeticion,
   TrazoAprobadoRespuesta,
+  TrazoEliminadoRespuesta,
   TrazoPeticion,
   TrazoRespuesta,
+  TrazoTraidoRespuesta,
   TrazosDePlanoRespuesta,
+  VistaPeticion,
 } from ".././modelo";
 
 import { peticion } from "../../cliente";
@@ -964,6 +970,294 @@ export function useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet<
 }
 
 /**
+ * El hueco resta del área y del perímetro del trazo; el trazo no se modifica (es un trazo
+hijo). Cada nodo que el área alimenta se recalcula, igual que al calibrar la escala.
+ * @summary Abrir un hueco en un área ya trazada
+ */
+export const agregarHuecoApiV1TrazosTrazoIdHuecosPost = (
+  trazoId: string,
+  huecoPeticion: HuecoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<HuecoRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/huecos`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: huecoPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getAgregarHuecoApiV1TrazosTrazoIdHuecosPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof agregarHuecoApiV1TrazosTrazoIdHuecosPost>>,
+    TError,
+    { trazoId: string; data: HuecoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof agregarHuecoApiV1TrazosTrazoIdHuecosPost>>,
+  TError,
+  { trazoId: string; data: HuecoPeticion },
+  TContext
+> => {
+  const mutationKey = ["agregarHuecoApiV1TrazosTrazoIdHuecosPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof agregarHuecoApiV1TrazosTrazoIdHuecosPost>>,
+    { trazoId: string; data: HuecoPeticion }
+  > = (props) => {
+    const { trazoId, data } = props ?? {};
+
+    return agregarHuecoApiV1TrazosTrazoIdHuecosPost(
+      trazoId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AgregarHuecoApiV1TrazosTrazoIdHuecosPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof agregarHuecoApiV1TrazosTrazoIdHuecosPost>>
+  >;
+export type AgregarHuecoApiV1TrazosTrazoIdHuecosPostMutationBody =
+  HuecoPeticion;
+export type AgregarHuecoApiV1TrazosTrazoIdHuecosPostMutationError = void;
+
+/**
+ * @summary Abrir un hueco en un área ya trazada
+ */
+export const useAgregarHuecoApiV1TrazosTrazoIdHuecosPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof agregarHuecoApiV1TrazosTrazoIdHuecosPost>>,
+      TError,
+      { trazoId: string; data: HuecoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof agregarHuecoApiV1TrazosTrazoIdHuecosPost>>,
+  TError,
+  { trazoId: string; data: HuecoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getAgregarHuecoApiV1TrazosTrazoIdHuecosPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Cada nodo que el trazo alimentaba se recalcula; si era su último trazo vuelve a «sin
+medir» y no levanta una desviación.
+ * @summary Borrar un trazo (punto, línea o área) con sus enlaces y huecos
+ */
+export const eliminarTrazoApiV1TrazosTrazoIdDelete = (
+  trazoId: string,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<TrazoEliminadoRespuesta>(
+    { url: `/api/v1/trazos/${trazoId}`, method: "DELETE" },
+    options,
+  );
+};
+
+export const getEliminarTrazoApiV1TrazosTrazoIdDeleteMutationOptions = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof eliminarTrazoApiV1TrazosTrazoIdDelete>>,
+    TError,
+    { trazoId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof eliminarTrazoApiV1TrazosTrazoIdDelete>>,
+  TError,
+  { trazoId: string },
+  TContext
+> => {
+  const mutationKey = ["eliminarTrazoApiV1TrazosTrazoIdDelete"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof eliminarTrazoApiV1TrazosTrazoIdDelete>>,
+    { trazoId: string }
+  > = (props) => {
+    const { trazoId } = props ?? {};
+
+    return eliminarTrazoApiV1TrazosTrazoIdDelete(trazoId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EliminarTrazoApiV1TrazosTrazoIdDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof eliminarTrazoApiV1TrazosTrazoIdDelete>>
+>;
+
+export type EliminarTrazoApiV1TrazosTrazoIdDeleteMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Borrar un trazo (punto, línea o área) con sus enlaces y huecos
+ */
+export const useEliminarTrazoApiV1TrazosTrazoIdDelete = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof eliminarTrazoApiV1TrazosTrazoIdDelete>>,
+      TError,
+      { trazoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof eliminarTrazoApiV1TrazosTrazoIdDelete>>,
+  TError,
+  { trazoId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getEliminarTrazoApiV1TrazosTrazoIdDeleteMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * El área vuelve a medir lo que medía sin ese hueco; sus nodos se recalculan.
+ * @summary Quitar un hueco de un área
+ */
+export const quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete = (
+  trazoId: string,
+  huecoId: string,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<TrazoEliminadoRespuesta>(
+    { url: `/api/v1/trazos/${trazoId}/huecos/${huecoId}`, method: "DELETE" },
+    options,
+  );
+};
+
+export const getQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDeleteMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete>
+      >,
+      TError,
+      { trazoId: string; huecoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete>
+    >,
+    TError,
+    { trazoId: string; huecoId: string },
+    TContext
+  > => {
+    const mutationKey = ["quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete>
+      >,
+      { trazoId: string; huecoId: string }
+    > = (props) => {
+      const { trazoId, huecoId } = props ?? {};
+
+      return quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete(
+        trazoId,
+        huecoId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type QuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDeleteMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete>>
+  >;
+
+export type QuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDeleteMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Quitar un hueco de un área
+ */
+export const useQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete>
+      >,
+      TError,
+      { trazoId: string; huecoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof quitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete>>,
+  TError,
+  { trazoId: string; huecoId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDeleteMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Sin escala, lo que se mide está en unidades de plano —píxeles del visor— y
 no se puede comparar con el presupuesto. Calibrar corrige todos los trazos del
 plano de golpe (la medida se lee ya escalada) y recalcula lo que alimentan.
@@ -1061,6 +1355,100 @@ export const useCalibrarEscalaApiV1PlanosPlanoIdEscalaPut = <
 > => {
   const mutationOptions =
     getCalibrarEscalaApiV1PlanosPlanoIdEscalaPutMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * La rotación y el espejo se guardan con el plano para que todos lo vean igual. No tocan
+la geometría de los trazos ni las cantidades.
+ * @summary Girar o voltear el plano al verlo
+ */
+export const fijarVistaApiV1PlanosPlanoIdVistaPut = (
+  planoId: string,
+  vistaPeticion: VistaPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<VistaPeticion>(
+    {
+      url: `/api/v1/planos/${planoId}/vista`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: vistaPeticion,
+    },
+    options,
+  );
+};
+
+export const getFijarVistaApiV1PlanosPlanoIdVistaPutMutationOptions = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof fijarVistaApiV1PlanosPlanoIdVistaPut>>,
+    TError,
+    { planoId: string; data: VistaPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof fijarVistaApiV1PlanosPlanoIdVistaPut>>,
+  TError,
+  { planoId: string; data: VistaPeticion },
+  TContext
+> => {
+  const mutationKey = ["fijarVistaApiV1PlanosPlanoIdVistaPut"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof fijarVistaApiV1PlanosPlanoIdVistaPut>>,
+    { planoId: string; data: VistaPeticion }
+  > = (props) => {
+    const { planoId, data } = props ?? {};
+
+    return fijarVistaApiV1PlanosPlanoIdVistaPut(planoId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type FijarVistaApiV1PlanosPlanoIdVistaPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof fijarVistaApiV1PlanosPlanoIdVistaPut>>
+>;
+export type FijarVistaApiV1PlanosPlanoIdVistaPutMutationBody = VistaPeticion;
+export type FijarVistaApiV1PlanosPlanoIdVistaPutMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Girar o voltear el plano al verlo
+ */
+export const useFijarVistaApiV1PlanosPlanoIdVistaPut = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof fijarVistaApiV1PlanosPlanoIdVistaPut>>,
+      TError,
+      { planoId: string; data: VistaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof fijarVistaApiV1PlanosPlanoIdVistaPut>>,
+  TError,
+  { planoId: string; data: VistaPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getFijarVistaApiV1PlanosPlanoIdVistaPutMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
@@ -1192,6 +1580,103 @@ export const useReemplazarEnlaceApiV1EnlacesCuantificacionEnlaceIdReemplazarPost
 
     return useMutation(mutationOptions, queryClient);
   };
+/**
+ * Empalme de versiones (acción explícita, nunca por cercanía): el trazo se repite en la versión
+nueva —corrido `dx`, `dy`, con sus huecos y enlaces vigentes— y los enlaces del viejo dejan de
+ser vigentes, así que lo medido no se cuenta dos veces. El viejo queda como evidencia.
+ * @summary Traer un trazo de una versión anterior del plano a la nueva
+ */
+export const traerTrazoApiV1TrazosTrazoIdTraerPost = (
+  trazoId: string,
+  traerTrazoPeticion: TraerTrazoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<TrazoTraidoRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/traer`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: traerTrazoPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getTraerTrazoApiV1TrazosTrazoIdTraerPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof traerTrazoApiV1TrazosTrazoIdTraerPost>>,
+    TError,
+    { trazoId: string; data: TraerTrazoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof traerTrazoApiV1TrazosTrazoIdTraerPost>>,
+  TError,
+  { trazoId: string; data: TraerTrazoPeticion },
+  TContext
+> => {
+  const mutationKey = ["traerTrazoApiV1TrazosTrazoIdTraerPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof traerTrazoApiV1TrazosTrazoIdTraerPost>>,
+    { trazoId: string; data: TraerTrazoPeticion }
+  > = (props) => {
+    const { trazoId, data } = props ?? {};
+
+    return traerTrazoApiV1TrazosTrazoIdTraerPost(trazoId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TraerTrazoApiV1TrazosTrazoIdTraerPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof traerTrazoApiV1TrazosTrazoIdTraerPost>>
+>;
+export type TraerTrazoApiV1TrazosTrazoIdTraerPostMutationBody =
+  TraerTrazoPeticion;
+export type TraerTrazoApiV1TrazosTrazoIdTraerPostMutationError = void;
+
+/**
+ * @summary Traer un trazo de una versión anterior del plano a la nueva
+ */
+export const useTraerTrazoApiV1TrazosTrazoIdTraerPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof traerTrazoApiV1TrazosTrazoIdTraerPost>>,
+      TError,
+      { trazoId: string; data: TraerTrazoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof traerTrazoApiV1TrazosTrazoIdTraerPost>>,
+  TError,
+  { trazoId: string; data: TraerTrazoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getTraerTrazoApiV1TrazosTrazoIdTraerPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * Idempotente. **No es una compuerta:** un trazo cuenta en la cantidad
 desde que se guarda, aprobado o no — el cerebro no define lo contrario

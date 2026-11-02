@@ -21,6 +21,7 @@ from obractrl.adapters.api.avisos import suscribir_avisos
 from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS
 from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador, cargador_para
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
+from obractrl.adapters.repos.arbol_sql import RepositorioArbolSQL
 from obractrl.adapters.repos.asignaciones_sql import RepositorioAsignacionesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
@@ -36,8 +37,11 @@ from obractrl.adapters.repos.contratistas_sql import RepositorioContratistasSQL
 from obractrl.adapters.repos.control_cambio_sql import RepositorioControlCambioSQL
 from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.cuantificacion_sql import (
+    RepositorioElementosSQL,
     RepositorioEnlacesCuantificacionSQL,
+    RepositorioEnlacesDeHojaSQL,
     RepositorioMatricesSQL,
+    RepositorioMedicionesSQL,
     RepositorioNotasPlanoSQL,
     RepositorioPlanosSQL,
     RepositorioTrazosSQL,
@@ -99,6 +103,7 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorTrabajos,
     AplicadorUnidades,
 )
+from obractrl.application.casos_uso.arbol import ArmarArbol
 from obractrl.application.casos_uso.calcular_cpu import (
     ExplotarConcepto,
     ObtenerCPU,
@@ -110,6 +115,7 @@ from obractrl.application.casos_uso.comprobar_excedente import (
     DeclararPerdidaDeExcedente,
     ValidarExcedente,
 )
+from obractrl.application.casos_uso.conceptos_en_obra import CrearConceptoEnObra
 from obractrl.application.casos_uso.confirmar_avance import (
     ConfirmarAvance,
     ConsultarConfirmaciones,
@@ -132,16 +138,23 @@ from obractrl.application.casos_uso.crear_obra_desde_catalogo_base import (
     CrearObraDesdeCero,
 )
 from obractrl.application.casos_uso.cuantificar import (
+    AgregarHuecoATrazo,
     AprobarTrazo,
     CalibrarEscalaDePlano,
     ConsultarCuantificacion,
     ConsultarMatrices,
+    EliminarTrazo,
+    FijarVistaDePlano,
+    QuitarHueco,
     ReemplazarEnlace,
     RegistrarNotaPlano,
     RegistrarPlano,
     RegistrarTrazoConEnlaces,
+    TraerTrazoAOtraVersion,
 )
 from obractrl.application.casos_uso.dar_de_alta_extra import DarDeAltaExtra
+from obractrl.application.casos_uso.elementos import GestionarElementos
+from obractrl.application.casos_uso.enlaces_de_hoja import GestionarEnlacesDeHoja
 from obractrl.application.casos_uso.exportar_estimacion import (
     ArmarReporteDeEstimacion,
 )
@@ -275,12 +288,21 @@ from obractrl.application.casos_uso.gestionar_usuarios import (
     CrearUsuario,
     ResetearContrasena,
 )
+from obractrl.application.casos_uso.matrices_de_concepto import (
+    GestionarMatricesDeConcepto,
+)
+from obractrl.application.casos_uso.mediciones import GestionarMediciones
 from obractrl.application.casos_uso.notificar_estimacion import (
     NotificarEstimacionValidada,
 )
 from obractrl.application.casos_uso.notificar_partes import NotificarPartes
 from obractrl.application.casos_uso.notificar_reprogramacion import (
     NotificarReprogramacion,
+)
+from obractrl.application.casos_uso.propuestas import (
+    AceptarPropuestas,
+    ProponerTrazos,
+    RechazarPropuestas,
 )
 from obractrl.application.casos_uso.registrar_revision_fisica import (
     RegistrarRevisionFisica,
@@ -309,14 +331,17 @@ from obractrl.infrastructure.tiempo_real.canal import canal_de_avisos
 __all__ = [
     "AbrirCierreDeObraDep",
     "AbrirIncidenciaDep",
+    "AceptarPropuestasDep",
     "ActualizarObraDep",
     "ActualizarUsuarioDep",
     "AgregarActividadNuevaDep",
     "AgregarDocumentoDep",
+    "AgregarHuecoDep",
     "AgregarRespuestasDep",
     "AplicarReprogramacionDep",
     "AprobarCierreDeFrenteDep",
     "AprobarTrazoDep",
+    "ArmarArbolDep",
     "ArmarExpedienteDep",
     "ArmarReporteDeEstimacionDep",
     "AsignarAlcanceDep",
@@ -357,6 +382,7 @@ __all__ = [
     "CotizarLoModificadoDep",
     "CrearClusterDep",
     "CrearConceptoDep",
+    "CrearConceptoEnObraDep",
     "CrearContratistaDep",
     "CrearCuadrillaDep",
     "CrearEvaluacionDep",
@@ -375,6 +401,7 @@ __all__ = [
     "DeclararPerdidaDeExcedenteDep",
     "EditarProgramacionActividadDep",
     "EliminarCargaDep",
+    "EliminarTrazoDep",
     "EliminarVersionDeCPUDep",
     "EliminarVersionDeCuadrillaDep",
     "EnviarEstimacionDep",
@@ -386,9 +413,14 @@ __all__ = [
     "FijarDesfaseDePartesDep",
     "FijarPlantasDeObraDep",
     "FijarPlantasDePrototipoDep",
+    "FijarVistaDePlanoDep",
     "GenerarDesdeEnsambleDep",
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
+    "GestionarElementosDep",
+    "GestionarEnlacesDeHojaDep",
+    "GestionarMatricesDeConceptoDep",
+    "GestionarMedicionesDep",
     "IniciarObraDep",
     "InstanciarProgramaObraDep",
     "MarcarParteIndependienteDep",
@@ -399,11 +431,14 @@ __all__ = [
     "ProgramarIncidenciaDep",
     "ProgramarNodoDelArbolDep",
     "ProponerReprogramacionDep",
+    "ProponerTrazosDep",
     "PublicarVersionCPUDep",
+    "QuitarHuecoDep",
     "RecalcularRutaCriticaDep",
     "RechazarCierreDeFrenteDep",
     "RechazarCierreDep",
     "RechazarIncidenciaDep",
+    "RechazarPropuestasDep",
     "RechazarReprogramacionDep",
     "RedisenarParteDep",
     "ReemplazarEnlaceDep",
@@ -424,6 +459,7 @@ __all__ = [
     "RevisarReprogramacionDep",
     "SolicitarCierreDeFrenteDep",
     "SolicitarCierreDep",
+    "TraerTrazoDep",
     "ValidarCierreDeFrenteDep",
     "ValidarCierreDep",
     "ValidarEstimacionDep",
@@ -757,6 +793,46 @@ def obtener_registrar_plano(sesion: SesionRLS) -> RegistrarPlano:
 
 def obtener_registrar_trazo_con_enlaces(sesion: SesionRLS, ctx: ContextoActual) -> RegistrarTrazoConEnlaces:
     return RegistrarTrazoConEnlaces(
+        mediciones=RepositorioMedicionesSQL(sesion),
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
+def obtener_agregar_hueco(sesion: SesionRLS, ctx: ContextoActual) -> AgregarHuecoATrazo:
+    return AgregarHuecoATrazo(
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
+def obtener_eliminar_trazo(sesion: SesionRLS, ctx: ContextoActual) -> EliminarTrazo:
+    return EliminarTrazo(
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
+def obtener_quitar_hueco(sesion: SesionRLS, ctx: ContextoActual) -> QuitarHueco:
+    return QuitarHueco(
         trazos=RepositorioTrazosSQL(sesion),
         enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
         actividades=RepositorioActividadesSQL(sesion),
@@ -781,6 +857,39 @@ def obtener_calibrar_escala(sesion: SesionRLS, ctx: ContextoActual) -> CalibrarE
     )
 
 
+def obtener_gestionar_elementos(sesion: SesionRLS, ctx: ContextoActual) -> GestionarElementos:
+    return GestionarElementos(
+        elementos=RepositorioElementosSQL(sesion),
+        mediciones=RepositorioMedicionesSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
+def obtener_gestionar_mediciones(sesion: SesionRLS, ctx: ContextoActual) -> GestionarMediciones:
+    return GestionarMediciones(
+        elementos=RepositorioElementosSQL(sesion),
+        mediciones=RepositorioMedicionesSQL(sesion),
+        planos=RepositorioPlanosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
+def obtener_fijar_vista(sesion: SesionRLS) -> FijarVistaDePlano:
+    return FijarVistaDePlano(planos=RepositorioPlanosSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
+
+
 def obtener_reemplazar_enlace(sesion: SesionRLS, ctx: ContextoActual) -> ReemplazarEnlace:
     return ReemplazarEnlace(
         enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
@@ -790,6 +899,63 @@ def obtener_reemplazar_enlace(sesion: SesionRLS, ctx: ContextoActual) -> Reempla
         uow=UnidadDeTrabajoSQL(sesion),
         eventos=_bus_de_partes(sesion, ctx),
         matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
+def obtener_traer_trazo(sesion: SesionRLS, ctx: ContextoActual) -> TraerTrazoAOtraVersion:
+    return TraerTrazoAOtraVersion(
+        trazos=RepositorioTrazosSQL(sesion),
+        planos=RepositorioPlanosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
+def obtener_gestionar_enlaces_de_hoja(sesion: SesionRLS) -> GestionarEnlacesDeHoja:
+    return GestionarEnlacesDeHoja(
+        planos=RepositorioPlanosSQL(sesion),
+        enlaces=RepositorioEnlacesDeHojaSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_proponer_trazos(sesion: SesionRLS) -> ProponerTrazos:
+    return ProponerTrazos(
+        trazos=RepositorioTrazosSQL(sesion),
+        planos=RepositorioPlanosSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+def obtener_aceptar_propuestas(sesion: SesionRLS, ctx: ContextoActual) -> AceptarPropuestas:
+    return AceptarPropuestas(
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
+def obtener_rechazar_propuestas(sesion: SesionRLS) -> RechazarPropuestas:
+    return RechazarPropuestas(trazos=RepositorioTrazosSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
+
+
+def obtener_armar_arbol(sesion: SesionRLS) -> ArmarArbol:
+    return ArmarArbol(
+        arbol=RepositorioArbolSQL(sesion),
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
     )
 
 
@@ -892,6 +1058,9 @@ DeclararPerdidaDeExcedenteDep = Annotated[
     DeclararPerdidaDeExcedente, Depends(obtener_declarar_perdida_de_excedente)
 ]
 AprobarTrazoDep = Annotated[AprobarTrazo, Depends(obtener_aprobar_trazo)]
+AgregarHuecoDep = Annotated[AgregarHuecoATrazo, Depends(obtener_agregar_hueco)]
+EliminarTrazoDep = Annotated[EliminarTrazo, Depends(obtener_eliminar_trazo)]
+QuitarHuecoDep = Annotated[QuitarHueco, Depends(obtener_quitar_hueco)]
 ConsultarMatricesDep = Annotated[ConsultarMatrices, Depends(obtener_consultar_matrices)]
 ConsultarCuantificacionDep = Annotated[
     ConsultarCuantificacion, Depends(obtener_consultar_cuantificacion)
@@ -901,9 +1070,18 @@ RegistrarTrazoConEnlacesDep = Annotated[
     RegistrarTrazoConEnlaces, Depends(obtener_registrar_trazo_con_enlaces)
 ]
 ReemplazarEnlaceDep = Annotated[ReemplazarEnlace, Depends(obtener_reemplazar_enlace)]
+GestionarEnlacesDeHojaDep = Annotated[GestionarEnlacesDeHoja, Depends(obtener_gestionar_enlaces_de_hoja)]
+ProponerTrazosDep = Annotated[ProponerTrazos, Depends(obtener_proponer_trazos)]
+AceptarPropuestasDep = Annotated[AceptarPropuestas, Depends(obtener_aceptar_propuestas)]
+RechazarPropuestasDep = Annotated[RechazarPropuestas, Depends(obtener_rechazar_propuestas)]
+ArmarArbolDep = Annotated[ArmarArbol, Depends(obtener_armar_arbol)]
+TraerTrazoDep = Annotated[TraerTrazoAOtraVersion, Depends(obtener_traer_trazo)]
 CalibrarEscalaDePlanoDep = Annotated[
     CalibrarEscalaDePlano, Depends(obtener_calibrar_escala)
 ]
+GestionarElementosDep = Annotated[GestionarElementos, Depends(obtener_gestionar_elementos)]
+GestionarMedicionesDep = Annotated[GestionarMediciones, Depends(obtener_gestionar_mediciones)]
+FijarVistaDePlanoDep = Annotated[FijarVistaDePlano, Depends(obtener_fijar_vista)]
 RegistrarNotaPlanoDep = Annotated[
     RegistrarNotaPlano, Depends(obtener_registrar_nota_plano)
 ]
@@ -1467,6 +1645,21 @@ def obtener_agregar_actividad_nueva(sesion: SesionRLS, ctx: ContextoActual) -> A
     )
 
 
+def obtener_gestionar_matrices_de_concepto(sesion: SesionRLS) -> GestionarMatricesDeConcepto:
+    return GestionarMatricesDeConcepto(
+        conceptos=RepositorioConceptosSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
+def obtener_crear_concepto_en_obra(sesion: SesionRLS) -> CrearConceptoEnObra:
+    return CrearConceptoEnObra(
+        conceptos=RepositorioConceptosSQL(sesion),
+        partes=RepositorioPartesSQL(sesion),
+        obras=RepositorioObrasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_consultar_modificaciones(sesion: SesionRLS) -> ConsultarModificaciones:
     return ConsultarModificaciones(
         partes=RepositorioPartesSQL(sesion), obras=RepositorioObrasSQL(sesion)
@@ -1586,6 +1779,10 @@ ConsultarCatalogosBaseDep = Annotated[
     ConsultarCatalogosBase, Depends(obtener_consultar_catalogos_base)
 ]
 ModificarActividadDep = Annotated[ModificarActividad, Depends(obtener_modificar_actividad)]
+GestionarMatricesDeConceptoDep = Annotated[
+    GestionarMatricesDeConcepto, Depends(obtener_gestionar_matrices_de_concepto)
+]
+CrearConceptoEnObraDep = Annotated[CrearConceptoEnObra, Depends(obtener_crear_concepto_en_obra)]
 AgregarActividadNuevaDep = Annotated[
     AgregarActividadNueva, Depends(obtener_agregar_actividad_nueva)
 ]

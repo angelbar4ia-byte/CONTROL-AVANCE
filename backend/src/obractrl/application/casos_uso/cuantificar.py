@@ -53,6 +53,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from obractrl.application.casos_uso.capturar_avance import ActividadNoEncontrada
@@ -63,6 +64,7 @@ from obractrl.application.eventos import PartesCambiaronDeEstado, PublicadorEven
 from obractrl.application.puertos.cuantificacion import (
     RepositorioEnlacesCuantificacion,
     RepositorioMatrices,
+    RepositorioMediciones,
     RepositorioNotasPlano,
     RepositorioPlanos,
     RepositorioTrazos,
@@ -75,6 +77,7 @@ from obractrl.application.puertos.repositorios import (
 )
 from obractrl.domain.cuantificacion.escala import escala_desde_referencia
 from obractrl.domain.cuantificacion.matriz import NodoDeMatriz, ajuste_por_medicion
+from obractrl.domain.cuantificacion.medicion import motivo_de_incompatibilidad
 from obractrl.domain.cuantificacion.reglas import (
     EnlaceCuantificacion,
     ErrorDeCuantificacion,
@@ -91,26 +94,35 @@ from obractrl.domain.shared.diccionario import (
 )
 
 __all__ = [
+    "AgregarHuecoATrazo",
     "CalibrarEscalaDePlano",
+    "ComandoAgregarHueco",
     "ComandoCalibrarEscala",
+    "ComandoEliminarTrazo",
+    "ComandoFijarVistaDePlano",
     "ComandoReemplazarEnlace",
     "ComandoRegistrarNotaPlano",
     "ComandoRegistrarTrazo",
     "ConsultarCuantificacion",
+    "EliminarTrazo",
     "EnlaceNoEncontrado",
     "ErrorDeCuantificacion",
     "EscalaCalibrada",
+    "FijarVistaDePlano",
     "GobiernoDeCuantificacionInvalido",
+    "HuecoAgregado",
     "IntencionEnlace",
     "NodoCuantificado",
     "NotaPlanoRegistrada",
     "NuevoEnlace",
     "PlanoNoEncontrado",
+    "QuitarHueco",
     "ReemplazarEnlace",
     "RegistrarNotaPlano",
     "RegistrarPlano",
     "RegistrarTrazoConEnlaces",
     "ResultadoDeRecalculo",
+    "TrazoEliminado",
     "TrazoRegistrado",
 ]
 
@@ -135,6 +147,10 @@ class EnlaceNoEncontrado(LookupError):
 class TrazoNoEncontrado(LookupError):
     """El trazo no existe o salió del alcance (RLS): indistinguibles a propósito
     (§12.4)."""
+
+
+class MedicionNoEncontrada(LookupError):
+    """La medición no existe o salió del alcance (RLS): indistinguibles a propósito (§12.4)."""
 
 
 class PlanoNoEncontrado(LookupError):
@@ -168,6 +184,43 @@ class ComandoRegistrarTrazo:
     autor_id: UUID
     rol: Rol
     enlaces: tuple[IntencionEnlace, ...] = ()
+    grosor_m: Decimal | None = None
+    """Grosor en metros de una **línea** (un muro): su área es largo × grosor (0086)."""
+    alineacion: str | None = None
+    """De qué lado del eje queda el cuerpo de la línea: centro, izquierda o derecha."""
+    forma: dict[str, Any] | None = None
+    """Plantilla con la que se estampó un **polígono** que nació de un punto con forma."""
+    medicion_id: UUID | None = None
+    """La medición a la que entra el trazo (0088): hereda los enlaces de su medición y de las que la contienen."""
+    pendiente_pct: Decimal | None = None
+    """Pendiente en % de una **línea** inclinada: su longitud real es la de la planta × √(1 + p²) (0087)."""
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoAgregarHueco:
+    trazo_id: UUID
+    geometria_wkt: str
+    autor_id: UUID
+    rol: Rol
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoEliminarTrazo:
+    trazo_id: UUID
+    usuario_id: UUID
+    rol: Rol
+
+
+@dataclass(frozen=True, slots=True)
+class TrazoEliminado:
+    trazo_id: UUID
+    recalculos: tuple[ResultadoDeRecalculo, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True, slots=True)
+class HuecoAgregado:
+    hueco_id: UUID
+    recalculos: tuple[ResultadoDeRecalculo, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True, slots=True)
@@ -218,6 +271,10 @@ class ComandoRegistrarNotaPlano:
     autor_id: UUID
     texto: str
     actividad_id: UUID | None = None
+    tipo: str = "nota"
+    """`nota`, `texto`, `flecha` o `llamada` (0087)."""
+    destino_wkt: str | None = None
+    """A dónde apunta una `flecha` o una `llamada`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -290,6 +347,7 @@ async def _recalcular_nodo(
     umbral: Decimal = UMBRAL_DESVIACION,
     matriz_concepto_id: UUID | None = None,
     matrices: RepositorioMatrices | None = None,
+    proponer_desviacion: bool = True,
 ) -> ResultadoDeRecalculo:
     """Suma la cantidad vigente del nodo y aplica la consecuencia que le
     toca (ver docstring del módulo) — compartido por
@@ -351,6 +409,11 @@ async def _recalcular_nodo(
         if actividad is None or actividad.get("concepto_id") is None:
             return ResultadoDeRecalculo(cantidad_total=cantidad_total)
 
+        # Al borrar el último trazo del nodo la cantidad vuelve a «sin medir»: eso no es una
+        # desviación de -100 %, es que ya no hay medida con qué comparar.
+        if not proponer_desviacion:
+            return ResultadoDeRecalculo(cantidad_total=cantidad_total)
+
         cant_base = Decimal(str(actividad["cant_base"]))
         precio = Decimal(str(actividad["precio_unitario"]))
         medida_desv = desviacion_de(
@@ -399,6 +462,51 @@ async def _recalcular_nodo(
     )
 
 
+#: Un nodo que hay que recalcular: (actividad, matriz).
+NodoActividad = tuple[UUID, UUID | None]
+
+
+async def aplicar_asignaciones_a_trazo(
+    *,
+    trazo_id: UUID,
+    medicion_id: UUID,
+    mediciones: RepositorioMediciones,
+    enlaces: RepositorioEnlacesCuantificacion,
+) -> set[NodoActividad]:
+    """Crea los enlaces que le tocan a un trazo por estar en una medición: los de ella y los de las
+    que la contienen. No repite un enlace que el trazo ya tiene. Devuelve los nodos que tocó."""
+    tocados: set[NodoActividad] = set()
+    asignaciones = await mediciones.asignaciones_de(await mediciones.con_ancestros(medicion_id))
+    for a in asignaciones:
+        if await mediciones.enlace_vigente_equivalente(
+            trazo_id=trazo_id,
+            actividad_id=a["actividad_id"],
+            matriz_concepto_id=a["matriz_concepto_id"],
+            medida=a["medida"],
+        ):
+            continue
+        validado = EnlaceCuantificacion(
+            trazo_id=str(trazo_id),
+            actividad_id=str(a["actividad_id"]),
+            prototipo_nodo_id=None,
+            medida=MedidaCuantificacion(a["medida"]),
+            factor=Decimal(str(a["factor"])),
+            matriz_concepto_id=str(a["matriz_concepto_id"]) if a["matriz_concepto_id"] else None,
+            derivado=bool(a.get("usa_peso")),
+        )
+        await enlaces.crear(
+            trazo_id=trazo_id,
+            actividad_id=a["actividad_id"],
+            prototipo_nodo_id=None,
+            matriz_concepto_id=a["matriz_concepto_id"],
+            medida=validado.medida.value,
+            factor=validado.factor,
+            asignacion_id=a["id"],
+        )
+        tocados.add((a["actividad_id"], a["matriz_concepto_id"]))
+    return tocados
+
+
 class RegistrarTrazoConEnlaces:
     """Alta de un trazo (WKT) con uno o más enlaces vigentes (MODELO.md
     §1b: "un trazo, varios enlaces")."""
@@ -414,6 +522,7 @@ class RegistrarTrazoConEnlaces:
         uow: UnidadDeTrabajo,
         eventos: PublicadorEventos | None = None,
         matrices: RepositorioMatrices | None = None,
+        mediciones: RepositorioMediciones | None = None,
     ) -> None:
         self._trazos = trazos
         self._enlaces = enlaces
@@ -423,6 +532,7 @@ class RegistrarTrazoConEnlaces:
         self._uow = uow
         self._eventos = eventos
         self._matrices = matrices
+        self._mediciones = mediciones
 
     async def ejecutar(
         self, cmd: ComandoRegistrarTrazo, *, detectada_en: datetime
@@ -435,6 +545,32 @@ class RegistrarTrazoConEnlaces:
         if motivo is not None:
             raise ErrorDeCuantificacion(f"El trazo no se puede medir. {motivo}")
 
+        # El grosor es de una línea y la forma de un polígono: en otra geometría no
+        # significan nada y se rechazan en vez de guardarse callados.
+        tipo = await self._trazos.tipo_de_geometria(cmd.geometria_wkt)
+        if (cmd.grosor_m is not None or cmd.alineacion is not None) and tipo != "ST_LineString":
+            raise ErrorDeCuantificacion("El grosor y la alineación son de una línea (un muro).")
+        if (cmd.grosor_m is None) != (cmd.alineacion is None):
+            raise ErrorDeCuantificacion("El grosor y la alineación van juntos.")
+        if cmd.forma is not None and tipo != "ST_Polygon":
+            raise ErrorDeCuantificacion("La forma es de un trazo cerrado (un polígono).")
+        if cmd.pendiente_pct is not None:
+            if tipo != "ST_LineString":
+                raise ErrorDeCuantificacion("La pendiente es de una línea (un tramo inclinado).")
+            if cmd.pendiente_pct <= 0:
+                raise ErrorDeCuantificacion("La pendiente debe ser mayor que cero.")
+        if cmd.medicion_id is not None:
+            if self._mediciones is None:
+                raise ErrorDeCuantificacion("Las mediciones no están disponibles.")
+            medicion = await self._mediciones.obtener(cmd.medicion_id)
+            if medicion is None:
+                raise MedicionNoEncontrada(f"La medición {cmd.medicion_id} no existe o está fuera de tu alcance.")
+            if medicion["plano_id"] != cmd.plano_id:
+                raise ErrorDeCuantificacion("La medición es de otro plano.")
+            motivo_medicion = motivo_de_incompatibilidad(medicion["tipo"], tipo, cmd.forma is not None)
+            if motivo_medicion is not None:
+                raise ErrorDeCuantificacion(motivo_medicion)
+
         async with self._uow:
             trazo_id = await self._trazos.crear(
                 plano_id=cmd.plano_id,
@@ -443,6 +579,10 @@ class RegistrarTrazoConEnlaces:
                 geometria_wkt=cmd.geometria_wkt,
                 fuente=cmd.fuente,
                 autor_id=cmd.autor_id,
+                grosor_m=cmd.grosor_m,
+                alineacion=cmd.alineacion,
+                forma=cmd.forma,
+                pendiente_pct=cmd.pendiente_pct,
             )
 
             enlace_ids: list[UUID] = []
@@ -496,6 +636,16 @@ class RegistrarTrazoConEnlaces:
                         intencion.matriz_concepto_id,
                     )
                 ] = None
+
+            if cmd.medicion_id is not None and self._mediciones is not None:
+                await self._mediciones.poner_trazo(trazo_id, cmd.medicion_id)
+                for actividad_id, matriz_id in await aplicar_asignaciones_a_trazo(
+                    trazo_id=trazo_id,
+                    medicion_id=cmd.medicion_id,
+                    mediciones=self._mediciones,
+                    enlaces=self._enlaces,
+                ):
+                    nodos_tocados[(TipoNodoCuantificacion.ACTIVIDAD, actividad_id, None, matriz_id)] = None
 
             recalculos = tuple(
                 [
@@ -620,6 +770,156 @@ class ReemplazarEnlace:
 
         await _avisar_reaperturas(self._eventos, (resultado,), cmd.usuario_id)
         return resultado
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoTraerTrazo:
+    trazo_id: UUID
+    plano_destino_id: UUID
+    usuario_id: UUID
+    rol: Rol
+    dx: Decimal = Decimal(0)
+    dy: Decimal = Decimal(0)
+    """Cuánto se corre el trazo al pasarlo (unidades de plano): el alineado de una versión con otra."""
+
+
+@dataclass(frozen=True, slots=True)
+class TrazoTraido:
+    trazo_id: UUID
+    enlace_ids: tuple[UUID, ...]
+    huecos: int
+    recalculos: tuple[ResultadoDeRecalculo, ...] = field(default_factory=tuple)
+
+
+class TraerTrazoAOtraVersion:
+    """Pasa un trazo de una versión anterior del plano a la versión nueva (empalme de versiones).
+
+    Es la acción **explícita y manual** de siempre (MODELO.md §1b, «Si el plano cambia»): nunca se
+    empareja solo por cercanía. El trazo se repite en la versión nueva —corrido lo que se diga, con
+    sus huecos y sus enlaces vigentes— y los enlaces del trazo viejo dejan de ser vigentes (el trazo y
+    sus enlaces se quedan como evidencia), de modo que **lo medido no se cuenta dos veces**. No se
+    traen las pertenencias a una medición: la capa sombra es de cada plano.
+    """
+
+    def __init__(
+        self,
+        *,
+        trazos: RepositorioTrazos,
+        planos: RepositorioPlanos,
+        enlaces: RepositorioEnlacesCuantificacion,
+        actividades: RepositorioActividades,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        desviaciones: RepositorioDesviaciones,
+        uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
+        matrices: RepositorioMatrices | None = None,
+    ) -> None:
+        self._trazos = trazos
+        self._planos = planos
+        self._enlaces = enlaces
+        self._actividades = actividades
+        self._prototipo_nodos = prototipo_nodos
+        self._desviaciones = desviaciones
+        self._uow = uow
+        self._eventos = eventos
+        self._matrices = matrices
+
+    async def ejecutar(self, cmd: ComandoTraerTrazo, *, detectada_en: datetime) -> TrazoTraido:
+        origen = await self._trazos.para_traer(cmd.trazo_id)
+        if origen is None:
+            raise TrazoNoEncontrado(f"El trazo {cmd.trazo_id} no existe o está fuera de tu alcance.")
+        if origen["hueco_de"] is not None:
+            raise ErrorDeCuantificacion("Un hueco viaja con su trazo: trae el trazo, no el hueco.")
+        plano_origen = await self._planos.obtener(origen["plano_id"])
+        destino = await self._planos.obtener(cmd.plano_destino_id)
+        if plano_origen is None or destino is None:
+            raise PlanoNoEncontrado("El plano no existe o está fuera de tu alcance.")
+        if plano_origen["obra_id"] != destino["obra_id"] or plano_origen["nombre"] != destino["nombre"]:
+            raise ErrorDeCuantificacion("Solo se trae de una versión a otra del mismo plano de la obra.")
+        if int(destino["version"]) <= int(plano_origen["version"]):
+            raise ErrorDeCuantificacion("Se trae de una versión anterior a una más nueva, no al revés.")
+
+        vigentes = await self._enlaces.vigentes_de_trazo(cmd.trazo_id)
+        intenciones = tuple(
+            IntencionEnlace(
+                medida=MedidaCuantificacion(str(e["medida"])),
+                factor=Decimal(str(e["factor"])),
+                actividad_id=e["actividad_id"],
+                prototipo_nodo_id=e["prototipo_nodo_id"],
+                matriz_concepto_id=e["matriz_concepto_id"],
+            )
+            for e in vigentes
+        )
+        _exigir_gobierno(cmd.rol, intenciones)
+
+        geometria = await self._trazos.trasladar(origen["geometria_wkt"], cmd.dx, cmd.dy)
+        huecos = [await self._trazos.trasladar(h, cmd.dx, cmd.dy) for h in await self._trazos.huecos_de(cmd.trazo_id)]
+
+        async with self._uow:
+            nuevo_id = await self._trazos.crear(
+                plano_id=cmd.plano_destino_id,
+                version_plano=int(destino["version"]),
+                capa=origen["capa"],
+                geometria_wkt=geometria,
+                fuente=str(origen["fuente"]),
+                autor_id=cmd.usuario_id,
+                grosor_m=origen["grosor_m"],
+                alineacion=origen["alineacion"],
+                forma=origen["forma"],
+                pendiente_pct=origen["pendiente_pct"],
+            )
+            for hueco in huecos:
+                await self._trazos.crear_hueco(trazo_id=nuevo_id, geometria_wkt=hueco, autor_id=cmd.usuario_id)
+
+            enlace_ids: list[UUID] = []
+            nodos: dict[tuple[TipoNodoCuantificacion, UUID | None, UUID | None, UUID | None], None] = {}
+            for viejo, intencion in zip(vigentes, intenciones, strict=True):
+                validado = EnlaceCuantificacion(
+                    trazo_id=str(nuevo_id),
+                    actividad_id=str(intencion.actividad_id) if intencion.actividad_id else None,
+                    prototipo_nodo_id=str(intencion.prototipo_nodo_id) if intencion.prototipo_nodo_id else None,
+                    medida=intencion.medida,
+                    factor=intencion.factor,
+                    matriz_concepto_id=str(intencion.matriz_concepto_id) if intencion.matriz_concepto_id else None,
+                )
+                enlace_ids.append(
+                    await self._enlaces.crear(
+                        trazo_id=nuevo_id,
+                        actividad_id=intencion.actividad_id,
+                        prototipo_nodo_id=intencion.prototipo_nodo_id,
+                        matriz_concepto_id=intencion.matriz_concepto_id,
+                        medida=validado.medida.value,
+                        factor=validado.factor,
+                    )
+                )
+                await self._enlaces.marcar_no_vigente(viejo["id"])
+                nodos[
+                    (validado.tipo_nodo, intencion.actividad_id, intencion.prototipo_nodo_id, intencion.matriz_concepto_id)
+                ] = None
+
+            recalculos = tuple(
+                [
+                    await _recalcular_nodo(
+                        tipo_nodo=tipo_nodo,
+                        actividad_id=actividad_id,
+                        prototipo_nodo_id=prototipo_nodo_id,
+                        matriz_concepto_id=matriz_concepto_id,
+                        enlaces=self._enlaces,
+                        actividades=self._actividades,
+                        prototipo_nodos=self._prototipo_nodos,
+                        desviaciones=self._desviaciones,
+                        detectada_en=detectada_en,
+                        matrices=self._matrices,
+                    )
+                    for (tipo_nodo, actividad_id, prototipo_nodo_id, matriz_concepto_id) in nodos
+                ]
+            )
+            await self._uow.commit()
+
+        await _avisar_reaperturas(self._eventos, recalculos, cmd.usuario_id)
+        return TrazoTraido(
+            trazo_id=nuevo_id, enlace_ids=tuple(enlace_ids), huecos=len(huecos), recalculos=recalculos
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -783,6 +1083,290 @@ class AprobarTrazo:
         )
 
 
+class AgregarHuecoATrazo:
+    """Abre un hueco en un área ya trazada (la ventana de un muro, el cubo de una escalera).
+
+    La geometría de un trazo no se toca (0057): el hueco es un trazo hijo y lo que se mide
+    es la geometría efectiva, la del área menos sus huecos (0086). Como cambia lo que el
+    área mide, cada nodo que alimenta se **recalcula**: la actividad se vuelve a comparar
+    contra su `cant_base` (y puede levantar una desviación) y el `prototipo_nodo` se vuelve
+    a sobreescribir. Si el área alimenta un `prototipo_nodo`, tiene el mismo gobierno que
+    enlazarlo: Control de obra o Super intendente.
+    """
+
+    def __init__(
+        self,
+        *,
+        trazos: RepositorioTrazos,
+        enlaces: RepositorioEnlacesCuantificacion,
+        actividades: RepositorioActividades,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        desviaciones: RepositorioDesviaciones,
+        uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
+        matrices: RepositorioMatrices | None = None,
+    ) -> None:
+        self._trazos = trazos
+        self._enlaces = enlaces
+        self._actividades = actividades
+        self._prototipo_nodos = prototipo_nodos
+        self._desviaciones = desviaciones
+        self._uow = uow
+        self._eventos = eventos
+        self._matrices = matrices
+
+    async def ejecutar(
+        self, cmd: ComandoAgregarHueco, *, detectada_en: datetime
+    ) -> HuecoAgregado:
+        if await self._trazos.obtener(cmd.trazo_id) is None:
+            raise TrazoNoEncontrado(f"El trazo {cmd.trazo_id} no existe o no está en tu alcance.")
+
+        motivo = await self._trazos.motivo_de_geometria_invalida(cmd.geometria_wkt)
+        if motivo is not None:
+            raise ErrorDeCuantificacion(f"El hueco no se puede medir. {motivo}")
+        motivo = await self._trazos.motivo_de_hueco_invalido(cmd.trazo_id, cmd.geometria_wkt)
+        if motivo is not None:
+            raise ErrorDeCuantificacion(motivo)
+
+        nodos = await self._enlaces.nodos_vigentes_de_trazo(cmd.trazo_id)
+        if (
+            any(n["tipo_nodo"] == TipoNodoCuantificacion.PROTOTIPO_NODO.value for n in nodos)
+            and cmd.rol not in _ROLES_QUE_TOCAN_PROTOTIPO
+        ):
+            permitidos = ", ".join(r.value for r in _ROLES_QUE_TOCAN_PROTOTIPO)
+            raise GobiernoDeCuantificacionInvalido(
+                f"Esta área alimenta la cantidad de un prototipo_nodo: abrirle un hueco la "
+                f"cambia, y eso exige {permitidos}; el rol {cmd.rol.value!r} no puede."
+            )
+
+        async with self._uow:
+            hueco_id = await self._trazos.crear_hueco(
+                trazo_id=cmd.trazo_id, geometria_wkt=cmd.geometria_wkt, autor_id=cmd.autor_id
+            )
+            recalculos = tuple(
+                [
+                    await _recalcular_nodo(
+                        tipo_nodo=TipoNodoCuantificacion(str(n["tipo_nodo"])),
+                        actividad_id=n["actividad_id"],
+                        prototipo_nodo_id=n["prototipo_nodo_id"],
+                        matriz_concepto_id=n.get("matriz_concepto_id"),
+                        enlaces=self._enlaces,
+                        actividades=self._actividades,
+                        prototipo_nodos=self._prototipo_nodos,
+                        desviaciones=self._desviaciones,
+                        detectada_en=detectada_en,
+                        matrices=self._matrices,
+                    )
+                    for n in nodos
+                ]
+            )
+            await self._uow.commit()
+
+        await _avisar_reaperturas(self._eventos, recalculos, cmd.autor_id)
+        return HuecoAgregado(hueco_id=hueco_id, recalculos=recalculos)
+
+
+class EliminarTrazo:
+    """Borra un trazo (un punto, una línea, un área) con sus enlaces y sus huecos.
+
+    Quien lo borra: Control de obra y Super intendente cualquiera; los demás roles, solo uno
+    suyo que aún no esté aprobado (aprobar deja constancia de una revisión que no se desharía
+    en silencio). Si el trazo alimenta un `prototipo_nodo`, tiene el mismo gobierno que
+    enlazarlo. Cada nodo que alimentaba se **recalcula**; si era su último trazo vuelve a «sin
+    medir» y no levanta una desviación.
+    """
+
+    def __init__(
+        self,
+        *,
+        trazos: RepositorioTrazos,
+        enlaces: RepositorioEnlacesCuantificacion,
+        actividades: RepositorioActividades,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        desviaciones: RepositorioDesviaciones,
+        uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
+        matrices: RepositorioMatrices | None = None,
+    ) -> None:
+        self._trazos = trazos
+        self._enlaces = enlaces
+        self._actividades = actividades
+        self._prototipo_nodos = prototipo_nodos
+        self._desviaciones = desviaciones
+        self._uow = uow
+        self._eventos = eventos
+        self._matrices = matrices
+
+    async def ejecutar(
+        self, cmd: ComandoEliminarTrazo, *, detectada_en: datetime
+    ) -> TrazoEliminado:
+        trazo = await self._trazos.obtener(cmd.trazo_id)
+        if trazo is None or trazo.get("hueco_de") is not None:
+            raise TrazoNoEncontrado(f"El trazo {cmd.trazo_id} no existe o no está en tu alcance.")
+
+        if cmd.rol not in _ROLES_QUE_TOCAN_PROTOTIPO and (
+            trazo.get("autor_id") != cmd.usuario_id or trazo.get("aprobado_por") is not None
+        ):
+            raise GobiernoDeCuantificacionInvalido(
+                "Solo puedes borrar un trazo tuyo que todavía no esté aprobado; "
+                "Control de obra y Super intendente borran cualquiera."
+            )
+
+        nodos = await self._enlaces.nodos_vigentes_de_trazo(cmd.trazo_id)
+        if (
+            any(n["tipo_nodo"] == TipoNodoCuantificacion.PROTOTIPO_NODO.value for n in nodos)
+            and cmd.rol not in _ROLES_QUE_TOCAN_PROTOTIPO
+        ):
+            permitidos = ", ".join(r.value for r in _ROLES_QUE_TOCAN_PROTOTIPO)
+            raise GobiernoDeCuantificacionInvalido(
+                f"Este trazo alimenta la cantidad de un prototipo_nodo: borrarlo la cambia, "
+                f"y eso exige {permitidos}; el rol {cmd.rol.value!r} no puede."
+            )
+
+        async with self._uow:
+            await self._trazos.eliminar(cmd.trazo_id)
+            recalculos: list[ResultadoDeRecalculo] = []
+            for n in nodos:
+                tipo = TipoNodoCuantificacion(str(n["tipo_nodo"]))
+                quedan = await self._enlaces.enlaces_de_nodo(
+                    tipo_nodo=tipo.value,
+                    actividad_id=n["actividad_id"],
+                    prototipo_nodo_id=n["prototipo_nodo_id"],
+                    matriz_concepto_id=n.get("matriz_concepto_id"),
+                )
+                recalculos.append(
+                    await _recalcular_nodo(
+                        tipo_nodo=tipo,
+                        actividad_id=n["actividad_id"],
+                        prototipo_nodo_id=n["prototipo_nodo_id"],
+                        matriz_concepto_id=n.get("matriz_concepto_id"),
+                        enlaces=self._enlaces,
+                        actividades=self._actividades,
+                        prototipo_nodos=self._prototipo_nodos,
+                        desviaciones=self._desviaciones,
+                        detectada_en=detectada_en,
+                        matrices=self._matrices,
+                        proponer_desviacion=any(bool(f["vigente"]) for f in quedan),
+                    )
+                )
+            await self._uow.commit()
+
+        resultado = tuple(recalculos)
+        await _avisar_reaperturas(self._eventos, resultado, cmd.usuario_id)
+        return TrazoEliminado(trazo_id=cmd.trazo_id, recalculos=resultado)
+
+
+class QuitarHueco:
+    """Quita un hueco de un área (deshacer abrirlo, o corregirlo): el área vuelve a medir lo que medía.
+    Mismo gobierno que borrar el trazo, y los nodos que el área alimenta se recalculan."""
+
+    def __init__(
+        self,
+        *,
+        trazos: RepositorioTrazos,
+        enlaces: RepositorioEnlacesCuantificacion,
+        actividades: RepositorioActividades,
+        prototipo_nodos: RepositorioPrototipoNodo,
+        desviaciones: RepositorioDesviaciones,
+        uow: UnidadDeTrabajo,
+        eventos: PublicadorEventos | None = None,
+        matrices: RepositorioMatrices | None = None,
+    ) -> None:
+        self._trazos = trazos
+        self._enlaces = enlaces
+        self._actividades = actividades
+        self._prototipo_nodos = prototipo_nodos
+        self._desviaciones = desviaciones
+        self._uow = uow
+        self._eventos = eventos
+        self._matrices = matrices
+
+    async def ejecutar(
+        self, *, trazo_id: UUID, hueco_id: UUID, usuario_id: UUID, rol: Rol, detectada_en: datetime
+    ) -> TrazoEliminado:
+        padre = await self._trazos.obtener(trazo_id)
+        hueco = await self._trazos.obtener(hueco_id)
+        if padre is None or hueco is None or hueco.get("hueco_de") != trazo_id:
+            raise TrazoNoEncontrado(f"El hueco {hueco_id} no existe en el trazo {trazo_id}.")
+        if rol not in _ROLES_QUE_TOCAN_PROTOTIPO and (
+            padre.get("autor_id") != usuario_id or padre.get("aprobado_por") is not None
+        ):
+            raise GobiernoDeCuantificacionInvalido(
+                "Solo puedes cambiar un trazo tuyo que todavía no esté aprobado; "
+                "Control de obra y Super intendente cambian cualquiera."
+            )
+        nodos = await self._enlaces.nodos_vigentes_de_trazo(trazo_id)
+        if (
+            any(n["tipo_nodo"] == TipoNodoCuantificacion.PROTOTIPO_NODO.value for n in nodos)
+            and rol not in _ROLES_QUE_TOCAN_PROTOTIPO
+        ):
+            permitidos = ", ".join(r.value for r in _ROLES_QUE_TOCAN_PROTOTIPO)
+            raise GobiernoDeCuantificacionInvalido(
+                f"Esta área alimenta la cantidad de un prototipo_nodo: cambiarla exige "
+                f"{permitidos}; el rol {rol.value!r} no puede."
+            )
+        async with self._uow:
+            await self._trazos.eliminar(hueco_id)
+            recalculos = tuple(
+                [
+                    await _recalcular_nodo(
+                        tipo_nodo=TipoNodoCuantificacion(str(n["tipo_nodo"])),
+                        actividad_id=n["actividad_id"],
+                        prototipo_nodo_id=n["prototipo_nodo_id"],
+                        matriz_concepto_id=n.get("matriz_concepto_id"),
+                        enlaces=self._enlaces,
+                        actividades=self._actividades,
+                        prototipo_nodos=self._prototipo_nodos,
+                        desviaciones=self._desviaciones,
+                        detectada_en=detectada_en,
+                        matrices=self._matrices,
+                    )
+                    for n in nodos
+                ]
+            )
+            await self._uow.commit()
+        await _avisar_reaperturas(self._eventos, recalculos, usuario_id)
+        return TrazoEliminado(trazo_id=trazo_id, recalculos=recalculos)
+
+
+_TIPOS_DE_ANOTACION = ("nota", "texto", "flecha", "llamada")
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoFijarVistaDePlano:
+    plano_id: UUID
+    rotacion_grados: int
+    volteo_horizontal: bool
+    volteo_vertical: bool
+
+
+class FijarVistaDePlano:
+    """`PUT /planos/{id}/vista`: cómo se ve el plano —girado y/o en espejo— (migración 0087).
+
+    Es presentación: no toca la geometría de los trazos ni ninguna cantidad, así que no recalcula
+    nada y no pide más gobierno que poder trazar sobre el plano."""
+
+    def __init__(self, *, planos: RepositorioPlanos, uow: UnidadDeTrabajo) -> None:
+        self._planos = planos
+        self._uow = uow
+
+    async def ejecutar(self, cmd: ComandoFijarVistaDePlano) -> None:
+        if cmd.rotacion_grados not in (0, 90, 180, 270):
+            raise ErrorDeCuantificacion("El plano solo gira de 90 en 90 grados.")
+        if await self._planos.obtener(cmd.plano_id) is None:
+            raise PlanoNoEncontrado(
+                f"El plano {cmd.plano_id} no existe o está fuera de tu alcance."
+            )
+        async with self._uow:
+            await self._planos.fijar_vista(
+                cmd.plano_id,
+                rotacion_grados=cmd.rotacion_grados,
+                volteo_horizontal=cmd.volteo_horizontal,
+                volteo_vertical=cmd.volteo_vertical,
+            )
+            await self._uow.commit()
+
+
 class RegistrarNotaPlano:
     """Alta simple de una anotación sobre el plano (MODELO.md §1b): nunca
     produce cantidad, nunca tiene enlace."""
@@ -793,10 +1377,17 @@ class RegistrarNotaPlano:
 
     async def ejecutar(self, cmd: ComandoRegistrarNotaPlano) -> NotaPlanoRegistrada:
         texto = cmd.texto.strip()
-        if not texto:
+        if cmd.tipo not in _TIPOS_DE_ANOTACION:
+            raise ErrorDeCuantificacion(f"Tipo de anotación desconocido: {cmd.tipo!r}.")
+        # Una flecha puede ir sin palabras; todo lo demás necesita texto.
+        if not texto and cmd.tipo != "flecha":
             raise ErrorDeCuantificacion(
-                "La nota necesita texto: nota_plano.texto es not null "
+                "La anotación necesita texto: nota_plano.texto es not null "
                 "(MODELO.md §1b)."
+            )
+        if (cmd.tipo in ("flecha", "llamada")) != (cmd.destino_wkt is not None):
+            raise ErrorDeCuantificacion(
+                "Solo una flecha o una llamada apuntan a un destino, y las dos lo necesitan."
             )
 
         async with self._uow:
@@ -807,6 +1398,8 @@ class RegistrarNotaPlano:
                 autor_id=cmd.autor_id,
                 texto=texto,
                 actividad_id=cmd.actividad_id,
+                tipo=cmd.tipo,
+                destino_wkt=cmd.destino_wkt,
             )
             await self._uow.commit()
 
@@ -1031,6 +1624,7 @@ class ConsultarMatrices:
                     "descripcion": f["descripcion"],
                     "unidad": f["unidad"],
                     "cantidad_unitaria": f["unitaria"],
+                    "formula": f.get("formula"),
                     "cantidad_catalogo": catalogo,
                     "precio_unitario": f["precio_unitario"],
                     "cantidad_medida": n.cantidad_medida,
@@ -1041,6 +1635,7 @@ class ConsultarMatrices:
             )
         return {
             "actividad_id": actividad_id,
+            "concepto_id": arbol["concepto_id"],
             "concepto_clave": arbol["concepto_clave"],
             "descripcion": arbol["descripcion"],
             "cant_base": cant_base,

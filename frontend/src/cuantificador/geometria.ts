@@ -14,13 +14,43 @@
 
 export type Punto = readonly [number, number];
 
-export type Herramienta = 'seleccionar' | 'poligono' | 'linea' | 'punto' | 'nota' | 'escala';
+export type Herramienta =
+  | 'seleccionar'
+  | 'mano'
+  | 'zoom'
+  | 'poligono'
+  | 'rectangulo'
+  | 'circulo'
+  | 'elipse'
+  | 'contorno'
+  | 'rectangulo_l'
+  | 'circulo_l'
+  | 'elipse_l'
+  | 'arco'
+  | 'linea'
+  | 'polilinea'
+  | 'punto'
+  | 'copiar'
+  | 'hueco'
+  | 'borrar'
+  | 'nota'
+  | 'escala'
+  | 'enlace'
+  | 'conteo_auto';
 
 /**
- * Herramientas que dibujan una geometría que alimenta cantidades (no `seleccionar`,
- * `nota` ni `escala`: la escala marca dos puntos de referencia, no un trazo).
+ * Herramientas que dibujan una geometría que alimenta cantidades. No lo son: `seleccionar`,
+ * `mano` y `zoom` (mueven o eligen), `hueco` (resta de un área ya trazada), `borrar` (quita un
+ * trazo), `nota` ni `escala`
+ * (marca dos puntos de referencia, no un trazo).
  */
-export type HerramientaDeTrazo = Exclude<Herramienta, 'seleccionar' | 'nota' | 'escala'>;
+export type HerramientaDeTrazo = Exclude<
+  Herramienta,
+  'seleccionar' | 'mano' | 'zoom' | 'copiar' | 'hueco' | 'borrar' | 'nota' | 'escala' | 'enlace' | 'conteo_auto'
+>;
+
+/** La geometría que se guarda: lo que el servidor mide. Las herramientas de dibujo desembocan en una de estas. */
+export type GeometriaBase = 'poligono' | 'linea' | 'punto';
 
 export type MedidaDeTrazo = 'area' | 'perimetro' | 'longitud' | 'conteo';
 
@@ -46,7 +76,7 @@ export interface GeometriaGeoJson {
 }
 
 /** Cuántos puntos hacen falta para que la herramienta pueda cerrar el trazo. */
-export const PUNTOS_MINIMOS: Record<HerramientaDeTrazo, number> = {
+export const PUNTOS_MINIMOS: Record<GeometriaBase, number> = {
   poligono: 3,
   linea: 2,
   punto: 1,
@@ -60,13 +90,13 @@ export const PUNTOS_MINIMOS: Record<HerramientaDeTrazo, number> = {
  * formulario solo ofrece las que miden algo (`ST_Area`/`ST_Perimeter` miden
  * polígonos, `ST_Length` mide líneas, el conteo vale para cualquier forma).
  */
-export const MEDIDAS_POR_HERRAMIENTA: Record<HerramientaDeTrazo, readonly MedidaDeTrazo[]> = {
+export const MEDIDAS_POR_HERRAMIENTA: Record<GeometriaBase, readonly MedidaDeTrazo[]> = {
   poligono: ['area', 'perimetro', 'conteo'],
   linea: ['longitud', 'conteo'],
   punto: ['conteo'],
 };
 
-export function trazoCompleto(herramienta: HerramientaDeTrazo, puntos: readonly Punto[]): boolean {
+export function trazoCompleto(herramienta: GeometriaBase, puntos: readonly Punto[]): boolean {
   return puntos.length >= PUNTOS_MINIMOS[herramienta];
 }
 
@@ -89,7 +119,7 @@ export const PUNTOS_MINIMOS_DE_HUECO = 3;
  * otro, la geometría es inválida y el trazo se rechaza con su motivo.
  */
 export function aWkt(
-  herramienta: HerramientaDeTrazo,
+  herramienta: GeometriaBase,
   puntos: readonly Punto[],
   huecos: readonly (readonly Punto[])[] = [],
 ): string {
@@ -118,6 +148,16 @@ export function aWkt(
       return `POLYGON(${[puntos, ...huecos].map(cerrado).join(', ')})`;
     }
   }
+}
+
+/**
+ * Cuánto más mide una línea inclinada que su proyección en planta: √(1 + (p/100)²), con `p` la
+ * pendiente en % (desnivel / recorrido × 100). Sin pendiente (o `null`), 1. Es la misma fórmula
+ * con que el servidor mide (migración 0087).
+ */
+export function factorDePendiente(pendientePct: number | string | null | undefined): number {
+  const p = Number(pendientePct ?? 0);
+  return p > 0 ? Math.sqrt(1 + (p / 100) ** 2) : 1;
 }
 
 export function longitudLocal(puntos: readonly Punto[]): number {
@@ -153,7 +193,7 @@ export function perimetroLocal(puntos: readonly Punto[]): number {
  * calcula el servidor con PostGIS al registrar el trazo, y es la que cuenta.
  */
 export function medidaLocal(
-  herramienta: HerramientaDeTrazo,
+  herramienta: GeometriaBase,
   medida: MedidaDeTrazo,
   puntos: readonly Punto[],
   huecos: readonly (readonly Punto[])[] = [],
@@ -185,7 +225,7 @@ function aPuntos(valor: unknown): Punto[] {
   return Array.isArray(valor) ? valor.filter(esPunto).map((p) => [p[0], p[1]] as Punto) : [];
 }
 
-interface Parte {
+export interface Parte {
   readonly tipo: 'punto' | 'linea' | 'anillo';
   readonly puntos: Punto[];
   /** Solo en anillos: a qué polígono pertenece, para saber qué es exterior y qué hueco. */
@@ -225,6 +265,11 @@ function partes(geometria: GeometriaGeoJson): Parte[] {
     default:
       return [];
   }
+}
+
+/** Los anillos, líneas y puntos de una geometría, aplanados (para etiquetas, cotas y resúmenes). */
+export function partesDe(geometria: GeometriaGeoJson): Parte[] {
+  return partes(geometria);
 }
 
 /** Todos los vértices de la geometría. */
@@ -391,7 +436,7 @@ export function trazoEnPunto(
  * saber qué medidas tienen sentido sobre ella al enlazarla. `null` si no es una
  * de las tres formas que el visor sabe capturar.
  */
-export function herramientaDeGeometria(geometria: GeometriaGeoJson): HerramientaDeTrazo | null {
+export function herramientaDeGeometria(geometria: GeometriaGeoJson): GeometriaBase | null {
   switch (geometria.type) {
     case 'Polygon':
     case 'MultiPolygon':
@@ -413,14 +458,17 @@ export function herramientaDeGeometria(geometria: GeometriaGeoJson): Herramienta
  * (la más reciente, que es la que quedó dibujada encima).
  */
 export function notaEnPunto(
-  notas: readonly { readonly id: string; readonly punto: Punto }[],
+  notas: readonly { readonly id: string; readonly punto: Punto; readonly destino?: Punto | null }[],
   p: Punto,
   tolerancia: number,
 ): string | null {
   let elegida: string | null = null;
   let mejor = Infinity;
   for (const nota of notas) {
-    const d = Math.hypot(p[0] - nota.punto[0], p[1] - nota.punto[1]);
+    // Una flecha o una llamada se elige también por su cuerpo, no solo por donde nace.
+    const d = nota.destino
+      ? distanciaASegmento(p, nota.punto, nota.destino)
+      : Math.hypot(p[0] - nota.punto[0], p[1] - nota.punto[1]);
     if (d <= tolerancia && d <= mejor) {
       elegida = nota.id;
       mejor = d;
@@ -444,4 +492,71 @@ export function escalaPrevista(a: Punto, b: Punto, metros: number): number | nul
   const enPlano = distanciaEntre(a, b);
   if (!Number.isFinite(metros) || metros <= 0 || enPlano === 0) return null;
   return metros / enPlano;
+}
+
+// ── Medidas de un trazo ya guardado ───────────────────────────────────────
+
+/**
+ * Área de una geometría de polígono en unidades de plano², descontando los huecos.
+ * 0 si no hay polígono. Vista previa para el cálculo de volúmenes: la cantidad que
+ * cuenta sigue siendo la del servidor.
+ */
+export function areaDeGeometria(geometria: GeometriaGeoJson): number {
+  return partes(geometria)
+    .filter((p) => p.tipo === 'anillo')
+    .reduce((suma, p) => {
+      const area = areaLocal(p.puntos);
+      return p.hueco ? suma - area : suma + area;
+    }, 0);
+}
+
+/** Longitud de una geometría de línea en unidades de plano. 0 si no hay línea. */
+export function longitudDeGeometria(geometria: GeometriaGeoJson): number {
+  return partes(geometria)
+    .filter((p) => p.tipo === 'linea')
+    .reduce((suma, p) => suma + longitudLocal(p.puntos), 0);
+}
+
+// ── GeoJSON → WKT ─────────────────────────────────────────────────────────
+
+/**
+ * El WKT de una geometría GeoJSON del servidor, para volver a registrarla (rehacer un trazo que se
+ * borró). Cubre lo que el cuantificador guarda: puntos, líneas y polígonos con huecos, y los
+ * multipolígonos que salen de un hueco que parte un área. `null` si no la reconoce.
+ */
+export function geojsonAWkt(geometria: GeometriaGeoJson): string | null {
+  const par = (p: unknown): string | null =>
+    Array.isArray(p) && typeof p[0] === 'number' && typeof p[1] === 'number' ? `${p[0]} ${p[1]}` : null;
+  const lista = (ps: unknown): string | null => {
+    if (!Array.isArray(ps)) return null;
+    const partes = ps.map(par);
+    return partes.every((x) => x !== null) ? `(${partes.join(', ')})` : null;
+  };
+  const poligono = (anillos: unknown): string | null => {
+    if (!Array.isArray(anillos)) return null;
+    const partes = anillos.map(lista);
+    return partes.every((x) => x !== null) ? `(${partes.join(', ')})` : null;
+  };
+  const c = geometria.coordinates;
+  switch (geometria.type) {
+    case 'Point': {
+      const p = par(c);
+      return p === null ? null : `POINT(${p})`;
+    }
+    case 'LineString': {
+      const l = lista(c);
+      return l === null ? null : `LINESTRING${l}`;
+    }
+    case 'Polygon': {
+      const pg = poligono(c);
+      return pg === null ? null : `POLYGON${pg}`;
+    }
+    case 'MultiPolygon': {
+      if (!Array.isArray(c)) return null;
+      const partes = c.map(poligono);
+      return partes.every((x) => x !== null) ? `MULTIPOLYGON(${partes.join(', ')})` : null;
+    }
+    default:
+      return null;
+  }
 }

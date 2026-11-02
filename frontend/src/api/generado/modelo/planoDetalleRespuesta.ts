@@ -28,4 +28,8 @@ export interface PlanoDetalleRespuesta {
   /** Los dos puntos y la distancia real con que se calibró. */
   escala_referencia?: PlanoDetalleRespuestaEscalaReferencia;
   escala_calibrada_en?: PlanoDetalleRespuestaEscalaCalibradaEn;
+  /** Cuánto se gira el plano al verlo: 0, 90, 180 o 270 (0087). */
+  rotacion_grados?: number;
+  volteo_horizontal?: boolean;
+  volteo_vertical?: boolean;
 }

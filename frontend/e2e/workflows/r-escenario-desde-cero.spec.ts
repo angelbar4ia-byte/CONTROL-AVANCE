@@ -48,7 +48,7 @@ test.describe('Desde cero y rediseño · el paramétrico primero', () => {
     await alta.getByRole('button', { name: 'Crear y componer' }).click();
 
     await expect(control).toHaveURL(/cuantificador\?obra=/);
-    const arbol = control.getByRole('table', { name: 'Árbol de la cuantificación' });
+    const arbol = control.getByRole('tree', { name: 'Árbol de la cuantificación' });
     await expect(arbol).toContainText('0 de 1 medidos');
     const obras = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/obras');
     const obra = obras.find((o) => o.clave === clave)!;

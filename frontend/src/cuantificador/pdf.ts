@@ -118,3 +118,24 @@ export function useImagenDePdf(urlDelPdf: string | null): {
 
   return estado;
 }
+
+/** El texto de la primera hoja de un PDF y su tamaño en puntos (1/72 de pulgada): lo que lee la escala automática. */
+export async function textoDeLaHoja(urlDelPdf: string): Promise<{ textos: string[]; anchoPt: number; altoPt: number }> {
+  const [pdfjs, trabajador] = await Promise.all([
+    import('pdfjs-dist'),
+    import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+  ]);
+  pdfjs.GlobalWorkerOptions.workerSrc = trabajador.default;
+  const respuesta = await fetch(urlDelPdf);
+  if (!respuesta.ok) throw new Error(`No se pudo descargar el plano (HTTP ${respuesta.status}).`);
+  const documento = await pdfjs.getDocument({ data: await respuesta.arrayBuffer() }).promise;
+  try {
+    const pagina = await documento.getPage(1);
+    const vista = pagina.getViewport({ scale: 1 });
+    const contenido = await pagina.getTextContent();
+    const textos = contenido.items.flatMap((i) => ('str' in i && i.str.trim() !== '' ? [i.str] : []));
+    return { textos, anchoPt: vista.width, altoPt: vista.height };
+  } finally {
+    void documento.destroy();
+  }
+}

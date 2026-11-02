@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MatrizRespuestaUnidad } from "./matrizRespuestaUnidad";
+import type { MatrizRespuestaFormula } from "./matrizRespuestaFormula";
 import type { MatrizRespuestaCantidadMedida } from "./matrizRespuestaCantidadMedida";
 import type { MatrizRespuestaDiferencia } from "./matrizRespuestaDiferencia";
 
@@ -23,6 +24,8 @@ export interface MatrizRespuesta {
    * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
    */
   cantidad_unitaria: string;
+  /** Cómo se formó la cantidad unitaria (piezas ÷ largo × desperdicio), si no fue a mano. */
+  formula?: MatrizRespuestaFormula;
   /**
    * Lo que el catálogo implica para esta actividad.
    * @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$

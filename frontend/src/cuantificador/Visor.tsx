@@ -19,9 +19,21 @@
  *
  * El visor no sabe de la API: recibe los trazos ya cargados y avisa qué pasó
  * (`onPunto`, `onSeleccionar`). Quien lo usa decide qué hacer con cada cosa.
+ *
+ * ## Mover la vista
+ *
+ * La rueda acerca y aleja (centrada en el cursor), y arrastrar con el botón derecho o el del
+ * medio mueve el plano con cualquier herramienta. Con la herramienta Mano, y para un arrastre
+ * largo con el izquierdo, también. En una pantalla táctil, un dedo arrastra el plano y dos dedos
+ * lo acercan o alejan (pellizco) con el punto medio como centro. Con la herramienta Zoom un clic acerca y Mayús/Alt + clic aleja.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import type { Cota, EtiquetaDeMedida } from './etiquetas';
+import type { Forma as FormaPrevia } from './dibujo';
+import { NOMBRE_DE_REFERENCIA, type Referencia } from './referencias';
+import { cajaTransformada, transformacionDeVista, VISTA_NORMAL, vistaDeCaja, type VistaDelPlano } from './vista';
 
 import {
   VISTA_VACIA,
@@ -41,6 +53,10 @@ import {
 } from './geometria';
 
 const UMBRAL_ARRASTRE = 4;
+/** Cuánto zoom da cada píxel de rueda: una muesca (100) ≈ 6 %. Antes era un 15 % fijo por evento. */
+const SENSIBILIDAD_RUEDA = 0.0006;
+const SENSIBILIDAD_PELLIZCO = 0.01;
+const MAXIMO_POR_EVENTO = 250;
 /** Radio de captura del clic, en píxeles de pantalla. */
 const TOLERANCIA_PX = 8;
 
@@ -51,6 +67,35 @@ export interface TrazoVisible {
   readonly porRevisar: boolean;
   /** Aprobado por Control de obra: se dibuja en verde. */
   readonly aprobado: boolean;
+  /** Es de la medición activa (la capa sombra): se dibuja con un halo. */
+  readonly resaltado?: boolean;
+  /** El cuerpo de una línea con grosor (un muro), ya como anillo en coordenadas de plano. */
+  readonly banda?: readonly Punto[];
+}
+
+/** Un trazo de la versión anterior del plano, dibujado como fantasma (empalme de versiones). */
+export interface TrazoFantasma {
+  readonly id: string;
+  readonly geometry: GeometriaGeoJson;
+}
+
+/** Una propuesta por revisar (conteo o takeoff automático): se ve en naranja y no suma nada. */
+export interface PropuestaVisible {
+  readonly id: string;
+  readonly geometry: GeometriaGeoJson;
+  /** Está elegida para aceptarse o rechazarse; una descartada se ve atenuada. */
+  readonly elegida: boolean;
+}
+
+/** Una zona de la hoja que lleva a otra hoja (enlace entre hojas). */
+export interface EnlaceVisible {
+  readonly id: string;
+  readonly x: number;
+  readonly y: number;
+  readonly ancho: number;
+  readonly alto: number;
+  readonly etiqueta: string;
+  readonly destinoId: string;
 }
 
 export interface NotaVisible {
@@ -58,6 +103,9 @@ export interface NotaVisible {
   readonly punto: Punto;
   readonly texto: string;
   readonly porRevisar: boolean;
+  /** `nota` es el rombo; `texto` un rótulo; `flecha` y `llamada` apuntan a `destino`. */
+  readonly tipo?: 'nota' | 'texto' | 'flecha' | 'llamada';
+  readonly destino?: Punto | null;
 }
 
 /** Lo elegido en el plano: un trazo o una nota, nunca los dos. */
@@ -81,8 +129,53 @@ interface Props {
   readonly huecoEnCurso?: readonly Punto[];
   readonly onPunto: (p: Punto) => void;
   readonly onSeleccionar: (seleccion: Seleccion | null) => void;
+  /** El cuerpo de la línea que se está dibujando, si lleva grosor. */
+  readonly bandaEnCurso?: readonly Punto[];
+  /** La forma que se estamparía bajo el cursor (punto con forma). */
+  readonly fantasma?: readonly Punto[];
+  /** Puntos numerados, áreas y huecos («Mostrar medidas»). */
+  readonly etiquetas?: readonly EtiquetaDeMedida[];
+  /** Cotas de cada tramo («Cota»). */
+  readonly cotas?: readonly Cota[];
+  /** Dónde está el cursor sobre el plano (ya asistido); `null` al salir. Solo si alguien lo pide. */
+  readonly onMover?: (p: Punto | null) => void;
+  /**
+   * La ayuda de dibujo: recibe el punto bajo el cursor y cuánto vale un píxel en el plano, y devuelve
+   * el punto al que se pega (ortogonal, referencia a objetos) y a qué referencia. Con ella el visor
+   * dibuja la marca de la referencia y pone vértices en el punto ya asistido.
+   */
+  readonly asistir?: (p: Punto, porPixel: number) => { punto: Punto; referencia: Referencia | null };
+  /** La forma que resultaría del trazo en curso (círculo, rectángulo, arco…): vista previa. */
+  readonly previa?: FormaPrevia | null;
+  /** Los clics del trazo en curso, como marcas sueltas (sin unirlos con una línea). */
+  readonly marcas?: readonly Punto[];
   /** Cambia cuando hay que volver a encuadrar (otro plano). */
   readonly claveDePlano: string;
+  /** Cómo se ve el plano: girado y/o en espejo. Solo presentación. */
+  readonly vistaDelPlano?: VistaDelPlano;
+  /** La versión anterior del plano, como fantasma bajo los trazos (empalme de versiones). */
+  readonly empalme?: readonly TrazoFantasma[];
+  /** Cuánto se corre el fantasma para alinearlo con la versión nueva (unidades de plano). */
+  readonly empalmeDesfase?: Punto;
+  readonly empalmeElegidoId?: string | null;
+  /** Opacidad del fantasma, de 0 a 1. */
+  readonly empalmeOpacidad?: number;
+  /** Clic en un fantasma con Seleccionar: es el que se va a traer. */
+  readonly onElegirFantasma?: (id: string | null) => void;
+  /** Zonas que llevan a otra hoja. Con Seleccionar un clic salta; con Borrar, lo quita. */
+  readonly enlaces?: readonly EnlaceVisible[];
+  readonly onUsarEnlace?: (enlace: EnlaceVisible, accion: 'abrir' | 'quitar') => void;
+  /** Trazos propuestos por una herramienta automática. Un clic (con Seleccionar) los descarta o los elige. */
+  readonly propuestas?: readonly PropuestaVisible[];
+  readonly onAlternarPropuesta?: (id: string) => void;
+}
+
+/** El trazo de una flecha de `desde` a `hasta`: el cuerpo y la cabeza (de `cabeza` unidades de largo). */
+function flechaHacia(desde: Punto, hasta: Punto, cabeza: number): string {
+  const ang = Math.atan2(hasta[1] - desde[1], hasta[0] - desde[0]);
+  const lado = (delta: number): string =>
+    `L${hasta[0] - cabeza * Math.cos(ang + delta)} ${hasta[1] - cabeza * Math.sin(ang + delta)}`;
+  return `M${desde[0]} ${desde[1]}L${hasta[0]} ${hasta[1]}${lado(0.45)}M${hasta[0]} ${hasta[1]}${lado(-0.45)}`;
 }
 
 interface Gesto {
@@ -90,9 +183,20 @@ interface Gesto {
   readonly pantallaY: number;
   readonly vista: Vista;
   movido: boolean;
+  /** Botón derecho o del medio: solo mueve la vista, nunca pone un punto. */
+  soloMueve: boolean;
 }
 
 export function Visor({
+  empalme = [],
+  empalmeDesfase = [0, 0],
+  empalmeElegidoId = null,
+  empalmeOpacidad = 0.55,
+  onElegirFantasma,
+  enlaces = [],
+  onUsarEnlace,
+  propuestas = [],
+  onAlternarPropuesta,
   fondoUrl,
   trazos,
   notas,
@@ -103,22 +207,47 @@ export function Visor({
   huecoEnCurso = [],
   onPunto,
   onSeleccionar,
+  bandaEnCurso = [],
+  fantasma = [],
+  etiquetas = [],
+  cotas = [],
+  onMover,
+  asistir,
+  previa = null,
+  marcas = [],
   claveDePlano,
+  vistaDelPlano = VISTA_NORMAL,
 }: Props) {
   const svg = useRef<SVGSVGElement>(null);
   const gesto = useRef<Gesto | null>(null);
+  // Dedos sobre la pantalla (o el ratón): con dos, el gesto es un pellizco que acerca y aleja.
+  const punteros = useRef(new Map<number, { x: number; y: number }>());
+  const pinza = useRef<{ d0: number; v0: Vista; p0: Punto; m0: { x: number; y: number } } | null>(null);
   const [vista, setVista] = useState<Vista>(VISTA_VACIA);
   const [imagen, setImagen] = useState<{ ancho: number; alto: number } | null>(null);
   const [fondoRoto, setFondoRoto] = useState(false);
   const [anchoPantalla, setAnchoPantalla] = useState(1000);
+  const [referencia, setReferencia] = useState<Referencia | null>(null);
+  const cuadro = useRef<number | null>(null);
 
   // El fondo manda en el encuadre: si hay imagen, el plano *es* la imagen. Sin
   // ella (PDF, o R2 sin configurar) se encuadran los trazos.
+  const { rotacionGrados, volteoH, volteoV } = vistaDelPlano;
+  const T = useMemo(
+    () => transformacionDeVista({ rotacionGrados, volteoH, volteoV }),
+    [rotacionGrados, volteoH, volteoV],
+  );
   const encuadre = useMemo<Vista>(() => {
-    if (imagen) return { x: 0, y: 0, ancho: imagen.ancho, alto: imagen.alto };
+    if (imagen) {
+      return vistaDeCaja(cajaTransformada({ minX: 0, minY: 0, maxX: imagen.ancho, maxY: imagen.alto }, T));
+    }
     const caja = cajaDePuntos(trazos.flatMap((t) => puntosDe(t.geometry)));
-    return caja ? vistaQueEncuadra(caja) : VISTA_VACIA;
-  }, [imagen, trazos]);
+    if (!caja) return VISTA_VACIA;
+    const v = vistaQueEncuadra(caja);
+    return vistaDeCaja(
+      cajaTransformada({ minX: v.x, minY: v.y, maxX: v.x + v.ancho, maxY: v.y + v.alto }, T),
+    );
+  }, [imagen, trazos, T]);
 
   // Re-encuadrar al cambiar de plano y cuando llega lo que define el encuadre
   // (la imagen, o los primeros trazos: al abrir un plano los trazos llegan *después*
@@ -131,10 +260,10 @@ export function Visor({
   const hayTrazos = trazos.length > 0;
   useEffect(() => {
     vistaTocada.current = false;
-  }, [claveDePlano]);
+  }, [claveDePlano, rotacionGrados, volteoH, volteoV]);
   useEffect(() => {
     if (!vistaTocada.current) setVista(encuadreActual.current);
-  }, [claveDePlano, imagen, hayTrazos]);
+  }, [claveDePlano, imagen, hayTrazos, rotacionGrados, volteoH, volteoV]);
 
   useEffect(() => {
     setImagen(null);
@@ -162,8 +291,8 @@ export function Visor({
     return () => obs.disconnect();
   }, []);
 
-  /** Pantalla → coordenadas de plano. */
-  const aPlano = useCallback((clientX: number, clientY: number): Punto => {
+  /** Pantalla → coordenadas del `viewBox` (la vista, ya girada si el plano lo está). */
+  const aVista = useCallback((clientX: number, clientY: number): Punto => {
     const el = svg.current;
     const matriz = el?.getScreenCTM();
     if (!el || !matriz) return [0, 0];
@@ -173,20 +302,75 @@ export function Visor({
     const p = punto.matrixTransform(matriz.inverse());
     return [p.x, p.y];
   }, []);
+  /** Pantalla → coordenadas de plano: la vista, deshecho el giro y el espejo. */
+  const aPlano = useCallback(
+    (clientX: number, clientY: number): Punto => T.invertir(aVista(clientX, clientY)),
+    [aVista, T],
+  );
 
   // Unidades de plano por píxel de pantalla: lo que mantiene los marcadores y la
   // tolerancia del clic del mismo tamaño visual a cualquier zoom.
   const porPixel = vista.ancho / anchoPantalla;
 
   function alPresionar(e: React.PointerEvent<SVGSVGElement>) {
-    if (e.button !== 0) return;
+    if (e.button > 2) return;
     e.currentTarget.setPointerCapture?.(e.pointerId);
-    gesto.current = { pantallaX: e.clientX, pantallaY: e.clientY, vista, movido: false };
+    punteros.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (punteros.current.size === 2) {
+      // El segundo dedo convierte el gesto en pellizco: lo que había empezado ya no es un clic.
+      const [a, b] = [...punteros.current.values()] as [{ x: number; y: number }, { x: number; y: number }];
+      const m0 = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      pinza.current = {
+        d0: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
+        v0: vista,
+        p0: aVista(m0.x, m0.y),
+        m0,
+      };
+      if (gesto.current) gesto.current.movido = true;
+      return;
+    }
+    gesto.current = {
+      pantallaX: e.clientX,
+      pantallaY: e.clientY,
+      vista,
+      movido: false,
+      soloMueve: e.button !== 0,
+    };
   }
 
   function alMover(e: React.PointerEvent<SVGSVGElement>) {
+    if (punteros.current.has(e.pointerId)) {
+      punteros.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    const pz = pinza.current;
+    if (pz && punteros.current.size >= 2) {
+      const [a, b] = [...punteros.current.values()] as [{ x: number; y: number }, { x: number; y: number }];
+      const d = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+      const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      vistaTocada.current = true;
+      // Separar los dedos acerca (la vista se hace más chica); el punto que estaba bajo los
+      // dedos al empezar sigue bajo ellos aunque se muevan.
+      const acercada = zoomEn(pz.v0, pz.d0 / d, pz.p0);
+      const k = acercada.ancho / anchoPantalla;
+      setVista(desplazar(acercada, (m.x - pz.m0.x) * k, (m.y - pz.m0.y) * k));
+      return;
+    }
     const g = gesto.current;
-    if (!g) return;
+    if (!g) {
+      // Una sola actualización por cuadro: el cursor manda decenas de eventos por segundo.
+      const x = e.clientX;
+      const y = e.clientY;
+      if (cuadro.current === null) {
+        cuadro.current = requestAnimationFrame(() => {
+          cuadro.current = null;
+          const bruto = aPlano(x, y);
+          const asistido = asistir?.(bruto, porPixel);
+          setReferencia(asistido?.referencia ?? null);
+          onMover?.(asistido ? asistido.punto : bruto);
+        });
+      }
+      return;
+    }
     const dx = e.clientX - g.pantallaX;
     const dy = e.clientY - g.pantallaY;
     if (!g.movido && Math.hypot(dx, dy) < UMBRAL_ARRASTRE) return;
@@ -196,12 +380,31 @@ export function Visor({
     setVista(desplazar(g.vista, dx * escala, dy * escala));
   }
 
+  function alSoltarPuntero(e: React.PointerEvent<SVGSVGElement>) {
+    punteros.current.delete(e.pointerId);
+    if (pinza.current) {
+      if (punteros.current.size < 2) pinza.current = null;
+      gesto.current = null; // el dedo que queda no pone un vértice al levantarse
+      return true;
+    }
+    return false;
+  }
+
   function alSoltar(e: React.PointerEvent<SVGSVGElement>) {
+    if (alSoltarPuntero(e)) return;
     const g = gesto.current;
     gesto.current = null;
-    if (!g || g.movido) return;
-    const p = aPlano(e.clientX, e.clientY);
-    if (herramienta === 'seleccionar') {
+    if (!g || g.movido || g.soloMueve) return;
+    const bruto = aPlano(e.clientX, e.clientY);
+    const p = asistir && !['seleccionar', 'borrar', 'mano', 'zoom'].includes(herramienta) ? asistir(bruto, porPixel).punto : bruto;
+    if (herramienta === 'mano') return;
+    if (herramienta === 'zoom') {
+      vistaTocada.current = true;
+      const factor = e.shiftKey || e.altKey ? 1.5 : 1 / 1.5;
+      setVista((v) => zoomEn(v, factor, T.aplicar(p)));
+      return;
+    }
+    if (herramienta === 'seleccionar' || herramienta === 'borrar') {
       const tolerancia = TOLERANCIA_PX * porPixel;
       // Una nota es un punto diminuto sobre trazos que suelen ser polígonos
       // grandes: si se probara el trazo primero, dentro de un polígono siempre
@@ -220,16 +423,38 @@ export function Visor({
     }
   }
 
-  function alRodar(e: React.WheelEvent<SVGSVGElement>) {
-    // Sin `preventDefault` aquí: React registra `wheel` como pasivo. El scroll
-    // de la página se evita con `touch-action`/`overscroll` en el CSS del lienzo.
-    vistaTocada.current = true;
-    const factor = e.deltaY > 0 ? 1.15 : 1 / 1.15;
-    setVista((v) => zoomEn(v, factor, aPlano(e.clientX, e.clientY)));
-  }
+  // La rueda acerca o aleja con el cursor como centro. Se registra a mano, no con `onWheel` de
+  // React: React la registra como pasiva y entonces `preventDefault` no frena el desplazamiento
+  // de la página, que es lo que haría saltar el plano al hacer zoom.
+  useEffect(() => {
+    const el = svg.current;
+    if (!el) return;
+    function alRodar(e: WheelEvent) {
+      e.preventDefault();
+      vistaTocada.current = true;
+      // El zoom sigue a lo que se rueda, no a cuántos eventos llegan: una muesca del ratón
+      // (deltaY ≈ 100) acerca o aleja ~6 %, y un trackpad, que manda muchos eventos chicos,
+      // se siente continuo. El pellizco del trackpad llega como Ctrl + rueda, con deltas más
+      // chicos todavía, y se amplifica.
+      const pixeles = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      const sensibilidad = e.ctrlKey ? SENSIBILIDAD_PELLIZCO : SENSIBILIDAD_RUEDA;
+      const factor = Math.exp(Math.max(-MAXIMO_POR_EVENTO, Math.min(MAXIMO_POR_EVENTO, pixeles)) * sensibilidad);
+      setVista((v) => zoomEn(v, factor, aVista(e.clientX, e.clientY)));
+    }
+    el.addEventListener('wheel', alRodar, { passive: false });
+    return () => el.removeEventListener('wheel', alRodar);
+  }, [aVista]);
 
   const radio = 5 * porPixel;
-  const dibujando = herramienta !== 'seleccionar'; // incluye la nota: también es un clic de captura
+  const cursor =
+    herramienta === 'seleccionar' || herramienta === 'mano'
+      ? 'grab'
+      : herramienta === 'zoom'
+        ? 'zoom-in'
+        : herramienta === 'borrar'
+          ? 'pointer'
+          : 'crosshair'; // el resto captura un punto con el clic (incluida la nota)
+  const px = porPixel;
 
   return (
     <svg
@@ -243,25 +468,110 @@ export function Visor({
       onPointerDown={alPresionar}
       onPointerMove={alMover}
       onPointerUp={alSoltar}
-      onWheel={alRodar}
-      style={{ cursor: dibujando ? 'crosshair' : 'grab' }}
+      onPointerCancel={(e) => {
+        alSoltarPuntero(e);
+        gesto.current = null;
+      }}
+      onPointerLeave={() => {
+        setReferencia(null);
+        onMover?.(null);
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+      style={{ cursor }}
     >
+      <g transform={T.svg} data-testid="plano-girado" data-rotacion={rotacionGrados} data-volteo={`${volteoH ? 'h' : ''}${volteoV ? 'v' : ''}`}>
       {fondoUrl && imagen && !fondoRoto && (
         <image href={fondoUrl} x={0} y={0} width={imagen.ancho} height={imagen.alto} />
       )}
 
-      {trazos.map((t) => {
+      {empalme.length > 0 && (
+        <g
+          className="visor__empalme"
+          transform={`translate(${empalmeDesfase[0]} ${empalmeDesfase[1]})`}
+          data-testid="empalme"
+          style={{ opacity: empalmeOpacidad }}
+        >
+          {empalme.map((f) => (
+            <g
+              key={f.id}
+              className={f.id === empalmeElegidoId ? 'visor__fantasma is-elegido' : 'visor__fantasma'}
+              data-fantasma-id={f.id}
+              onPointerDown={(e) => {
+                // El visor captura el puntero al presionar y el clic ya no llega al fantasma: se elige aquí.
+                if (herramienta !== 'seleccionar' || e.button !== 0) return;
+                e.stopPropagation();
+                onElegirFantasma?.(f.id === empalmeElegidoId ? null : f.id);
+              }}
+            >
+              <path className="visor__fantasma-zona" d={rutaSvg(f.geometry)} vectorEffect="non-scaling-stroke" />
+              <path d={rutaSvg(f.geometry)} vectorEffect="non-scaling-stroke" />
+              {marcadoresDe(f.geometry).map((m, i) => (
+                <circle key={i} cx={m[0]} cy={m[1]} r={radio} />
+              ))}
+            </g>
+          ))}
+        </g>
+      )}
+
+      {propuestas.map((pr) => (
+        <g
+          key={pr.id}
+          className={pr.elegida ? 'visor__propuesta' : 'visor__propuesta is-descartada'}
+          data-propuesta-id={pr.id}
+          onPointerDown={(ev) => {
+            if (ev.button !== 0 || herramienta !== 'seleccionar') return;
+            ev.stopPropagation();
+            onAlternarPropuesta?.(pr.id);
+          }}
+        >
+          <path className="visor__propuesta-zona" d={rutaSvg(pr.geometry)} vectorEffect="non-scaling-stroke" />
+          <path d={rutaSvg(pr.geometry)} vectorEffect="non-scaling-stroke" />
+          {marcadoresDe(pr.geometry).map((m, i) => (
+            <circle key={i} cx={m[0]} cy={m[1]} r={radio * 1.2} />
+          ))}
+        </g>
+      ))}
+
+      {enlaces.map((e) => (
+        <g
+          key={e.id}
+          className="visor__enlace"
+          data-enlace-id={e.id}
+          onPointerDown={(ev) => {
+            // Un clic en la zona salta a la otra hoja (Seleccionar) o la quita (Borrar).
+            if (ev.button !== 0 || (herramienta !== 'seleccionar' && herramienta !== 'borrar')) return;
+            ev.stopPropagation();
+            onUsarEnlace?.(e, herramienta === 'borrar' ? 'quitar' : 'abrir');
+          }}
+        >
+          <title>{e.etiqueta}</title>
+          <rect x={e.x} y={e.y} width={e.ancho} height={e.alto} vectorEffect="non-scaling-stroke" />
+          <text x={e.x + 4 * px} y={e.y + 14 * px} fontSize={12 * px} transform={T.contragiro(e.x + 4 * px, e.y + 14 * px)}>
+            {e.etiqueta} ↗
+          </text>
+        </g>
+      ))}
+
+      {trazos.map((t, i) => {
         const elegido = seleccion?.tipo === 'trazo' && t.id === seleccion.id;
         const clase = [
           'visor__trazo',
           elegido && 'is-selected',
           t.porRevisar && 'is-por-revisar',
           t.aprobado && 'is-aprobado',
+          t.resaltado && 'is-medicion',
         ]
           .filter(Boolean)
           .join(' ');
         return (
-          <g key={t.id} className={clase} data-trazo-id={t.id}>
+          <g key={t.id} className={clase} data-trazo-id={t.id} style={{ ['--c-trazo' as string]: colorDeTrazo(i) }}>
+            {t.banda && t.banda.length > 2 && (
+              <polygon
+                className="visor__banda"
+                points={t.banda.map((q) => `${q[0]},${q[1]}`).join(' ')}
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
             <path d={rutaSvg(t.geometry)} vectorEffect="non-scaling-stroke" />
             {marcadoresDe(t.geometry).map((m, i) => (
               <circle key={i} cx={m[0]} cy={m[1]} r={radio} />
@@ -279,6 +589,21 @@ export function Visor({
           .filter(Boolean)
           .join(' ');
         const r = radio * 1.6;
+        const tipo = n.tipo ?? 'nota';
+        if (tipo !== 'nota') {
+          const cuerpo = n.destino ? flechaHacia(n.punto, n.destino, 11 * px) : null;
+          return (
+            <g key={n.id} className={`${clase} visor__anotacion`} data-nota-id={n.id} data-tipo={tipo}>
+              <title>{n.texto || 'Flecha'}</title>
+              {cuerpo && <path d={cuerpo} className="visor__flecha" />}
+              {tipo !== 'flecha' && n.texto && (
+                <text x={n.punto[0]} y={n.punto[1]} fontSize={13 * px} className="visor__rotulo" transform={T.contragiro(n.punto[0], n.punto[1])}>
+                  {n.texto}
+                </text>
+              )}
+            </g>
+          );
+        }
         return (
           <g key={n.id} className={clase} data-nota-id={n.id}>
             <title>{n.texto}</title>
@@ -311,6 +636,109 @@ export function Visor({
         </g>
       )}
 
+      {bandaEnCurso.length > 2 && (
+        <polygon
+          className="visor__banda is-borrador"
+          points={bandaEnCurso.map((q) => `${q[0]},${q[1]}`).join(' ')}
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+
+      {fantasma.length > 2 && (
+        <polygon
+          className="visor__fantasma"
+          data-testid="fantasma"
+          points={fantasma.map((q) => `${q[0]},${q[1]}`).join(' ')}
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+
+      {cotas.length > 0 && (
+        <g className="visor__cotas" data-testid="cotas" fontSize={11 * px}>
+          {cotas.map((c, i) => {
+            const dx = c.b[0] - c.a[0];
+            const dy = c.b[1] - c.a[1];
+            const largo = Math.hypot(dx, dy) || 1;
+            // La cota va desplazada del trazo para no taparlo: 12 px hacia la izquierda del tramo.
+            const nx = (dy / largo) * 12 * px;
+            const ny = (-dx / largo) * 12 * px;
+            const a = [c.a[0] + nx, c.a[1] + ny];
+            const b = [c.b[0] + nx, c.b[1] + ny];
+            const mx = (a[0]! + b[0]!) / 2;
+            const my = (a[1]! + b[1]!) / 2;
+            const ang = T.anguloEnPantalla(c.a, c.b);
+            const demasiadoCorta = largo < 28 * px;
+            return (
+              <g key={i}>
+                <line x1={c.a[0]} y1={c.a[1]} x2={a[0]} y2={a[1]} vectorEffect="non-scaling-stroke" />
+                <line x1={c.b[0]} y1={c.b[1]} x2={b[0]} y2={b[1]} vectorEffect="non-scaling-stroke" />
+                <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} vectorEffect="non-scaling-stroke" />
+                {!demasiadoCorta && (
+                  <text x={mx} y={my} textAnchor="middle" dy={-3 * px} transform={T.contragiro(mx!, my!, ang)}>
+                    {c.texto}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </g>
+      )}
+
+      {etiquetas.length > 0 && (
+        <g className="visor__etiquetas" data-testid="etiquetas" fontSize={11 * px}>
+          {etiquetas.map((e, i) =>
+            e.tipo === 'punto' ? (
+              <g key={i} className="visor__vertice" data-testid="punto-numerado">
+                <circle cx={e.punto[0]} cy={e.punto[1]} r={7 * px} />
+                <text x={e.punto[0]} y={e.punto[1]} textAnchor="middle" dominantBaseline="central" fontSize={9 * px} transform={T.contragiro(e.punto[0], e.punto[1])}>
+                  {e.texto}
+                </text>
+              </g>
+            ) : (
+              <text
+                key={i}
+                className={`visor__etiqueta visor__etiqueta--${e.tipo}`}
+                x={e.punto[0]}
+                y={e.punto[1]}
+                textAnchor="middle"
+                dominantBaseline="central"
+                style={{ strokeWidth: 3 * px }}
+                transform={T.contragiro(e.punto[0], e.punto[1])}
+              >
+                {e.texto}
+              </text>
+            ),
+          )}
+        </g>
+      )}
+
+      {previa && previa.puntos.length > 1 && (
+        <g className="visor__previa" data-testid="previa">
+          {previa.tipo === 'poligono' ? (
+            <polygon points={previa.puntos.map((q) => `${q[0]},${q[1]}`).join(' ')} vectorEffect="non-scaling-stroke" />
+          ) : (
+            <polyline points={previa.puntos.map((q) => `${q[0]},${q[1]}`).join(' ')} vectorEffect="non-scaling-stroke" />
+          )}
+        </g>
+      )}
+
+      {marcas.length > 0 && (
+        <g className="visor__borrador" data-testid="marcas">
+          {marcas.map((p, i) => (
+            <circle key={i} cx={p[0]} cy={p[1]} r={radio * (i === 0 ? 1.4 : 1)} />
+          ))}
+        </g>
+      )}
+
+      {referencia && (
+        <g className="visor__referencia" data-testid="referencia" data-tipo={referencia.tipo}>
+          {marcaDeReferencia(referencia, 7 * porPixel)}
+          <text x={referencia.punto[0] + 10 * porPixel} y={referencia.punto[1] - 10 * porPixel} fontSize={11 * porPixel} style={{ strokeWidth: 3 * porPixel }} transform={T.contragiro(referencia.punto[0] + 10 * porPixel, referencia.punto[1] - 10 * porPixel)}>
+            {NOMBRE_DE_REFERENCIA[referencia.tipo]}
+          </text>
+        </g>
+      )}
+
       {borrador.length > 0 && (
         <g className="visor__borrador" data-testid="borrador">
           <polyline
@@ -322,6 +750,31 @@ export function Visor({
           ))}
         </g>
       )}
+      </g>
     </svg>
   );
+}
+
+/** El símbolo de cada referencia, como en un programa de dibujo: cuadro, triángulo, círculo, equis… */
+function marcaDeReferencia(r: Referencia, t: number) {
+  const [x, y] = r.punto;
+  switch (r.tipo) {
+    case 'extremo':
+      return <rect x={x - t} y={y - t} width={2 * t} height={2 * t} vectorEffect="non-scaling-stroke" />;
+    case 'medio':
+      return <polygon points={`${x},${y - t} ${x + t},${y + t} ${x - t},${y + t}`} vectorEffect="non-scaling-stroke" />;
+    case 'centro':
+      return <circle cx={x} cy={y} r={t} vectorEffect="non-scaling-stroke" />;
+    case 'interseccion':
+      return <path d={`M${x - t} ${y - t}L${x + t} ${y + t}M${x - t} ${y + t}L${x + t} ${y - t}`} vectorEffect="non-scaling-stroke" />;
+    case 'perpendicular':
+      return <path d={`M${x - t} ${y + t}L${x - t} ${y - t}L${x + t} ${y - t}M${x - t} ${y}L${x} ${y}L${x} ${y - t}`} vectorEffect="non-scaling-stroke" />;
+    case 'cercano':
+      return <path d={`M${x - t} ${y - t}L${x + t} ${y - t}L${x - t} ${y + t}L${x + t} ${y + t}Z`} vectorEffect="non-scaling-stroke" />;
+  }
+}
+
+/** Un color distinto por trazo: el ángulo áureo reparte los tonos sin que dos vecinos se parezcan. */
+export function colorDeTrazo(indice: number): string {
+  return `hsl(${Math.round((indice * 137.508) % 360)} 68% 42%)`;
 }

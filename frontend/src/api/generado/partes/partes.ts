@@ -34,6 +34,8 @@ import type {
   CandadoPeticion,
   CargaDePartesRespuesta,
   CatalogoBaseRespuesta,
+  ConceptoNuevoPeticion,
+  ConceptoNuevoRespuesta,
   CotizacionPeticion,
   CotizacionRespuesta,
   DesfaseDePartesPeticion,
@@ -2369,6 +2371,131 @@ export const useAgregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPost = <
 > => {
   const mutationOptions =
     getAgregarActividadNuevaApiV1ObrasObraIdModificacionesNuevaPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Desde el cuantificador: nace adicional y sin cantidad, que llega midiendo.
+ * @summary Un concepto que no estaba en el catálogo: se da de alta y entra a la obra sin cantidad
+ */
+export const crearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost = (
+  obraId: string,
+  conceptoNuevoPeticion: ConceptoNuevoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ConceptoNuevoRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/conceptos-nuevos`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: conceptoNuevoPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof crearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost
+        >
+      >,
+      TError,
+      { obraId: string; data: ConceptoNuevoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof crearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost
+      >
+    >,
+    TError,
+    { obraId: string; data: ConceptoNuevoPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "crearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof crearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost
+        >
+      >,
+      { obraId: string; data: ConceptoNuevoPeticion }
+    > = (props) => {
+      const { obraId, data } = props ?? {};
+
+      return crearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost(
+        obraId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof crearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost
+      >
+    >
+  >;
+export type CrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPostMutationBody =
+  ConceptoNuevoPeticion;
+export type CrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPostMutationError =
+  void;
+
+/**
+ * @summary Un concepto que no estaba en el catálogo: se da de alta y entra a la obra sin cantidad
+ */
+export const useCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof crearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost
+        >
+      >,
+      TError,
+      { obraId: string; data: ConceptoNuevoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof crearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost>
+  >,
+  TError,
+  { obraId: string; data: ConceptoNuevoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPostMutationOptions(
       options,
     );
 

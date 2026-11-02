@@ -18,6 +18,7 @@ dominio lo recorre.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any
@@ -283,6 +284,79 @@ class RepositorioConceptosSQL:
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]
+
+    async def alcanza(self, desde: UUID, objetivo: UUID) -> bool:
+        """¿`objetivo` está dentro de la composición (a cualquier profundidad) de `desde`?
+
+        Es la pregunta del ciclo: antes de poner a `hijo` bajo `padre` hay que ver que `padre` no
+        esté ya dentro de `hijo`.
+        """
+        hay = (
+            await self._sesion.execute(
+                text(f"{_ALCANCE} select exists (select 1 from alcance where concepto_id = :objetivo)"),
+                {"ids": [str(desde)], "objetivo": str(objetivo)},
+            )
+        ).scalar_one()
+        return bool(hay)
+
+    async def matriz_directa(self, padre_id: UUID, hijo_id: UUID) -> dict[str, Any] | None:
+        """La fila viva (sin versión de CPU) que pone a `hijo` directamente bajo `padre`."""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    f"""
+                    select {_COLUMNAS_EXPLOSION} from explosion
+                     where concepto_id = :padre and concepto_hijo_id = :hijo
+                       and tipo_hijo = 'concepto' and cpu_id is null
+                    """
+                ),
+                {"padre": str(padre_id), "hijo": str(hijo_id)},
+            )
+        ).mappings().first()
+        return dict(fila) if fila is not None else None
+
+    async def poner_matriz(
+        self, padre_id: UUID, hijo_id: UUID, cantidad: Decimal, formula: dict[str, Any] | None = None
+    ) -> UUID:
+        """Alta o cambio de cantidad de una matriz directa. Devuelve el id de la fila.
+
+        `formula` es cómo se formó la cantidad (0094), o `None` si se capturó a mano; al cambiarla se reemplaza.
+        """
+        existente = await self.matriz_directa(padre_id, hijo_id)
+        carga = json.dumps(formula) if formula is not None else None
+        if existente is not None:
+            await self._sesion.execute(
+                text("update explosion set cantidad = :c, formula = cast(:f as jsonb) where id = :id"),
+                {"c": cantidad, "f": carga, "id": str(existente["id"])},
+            )
+            return UUID(str(existente["id"]))
+        return (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into explosion
+                        (org_id, concepto_id, cpu_id, tipo_hijo, concepto_hijo_id, categoria,
+                         cantidad, rendimiento, costo_unitario, importe, orden, formula)
+                    values (cast(current_setting('app.org_id') as uuid), :padre, null, 'concepto',
+                            :hijo, 'matriz', cast(:c as numeric), 0, 0, 0,
+                            coalesce((select max(orden) + 1 from explosion where concepto_id = :padre), 0),
+                            cast(:f as jsonb))
+                    returning id
+                    """
+                ),
+                {"padre": str(padre_id), "hijo": str(hijo_id), "c": cantidad, "f": carga},
+            )
+        ).scalar_one()
+
+    async def quitar_matriz(self, padre_id: UUID, hijo_id: UUID) -> bool:
+        resultado = await self._sesion.execute(
+            text(
+                "delete from explosion where concepto_id = :padre and concepto_hijo_id = :hijo "
+                "and tipo_hijo = 'concepto' and cpu_id is null"
+            ),
+            {"padre": str(padre_id), "hijo": str(hijo_id)},
+        )
+        return bool(resultado.rowcount)
 
     async def eliminar_explosion(self, concepto_id: UUID) -> None:
         """Borra la composición vigente del concepto.

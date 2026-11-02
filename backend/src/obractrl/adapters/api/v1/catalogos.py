@@ -39,6 +39,7 @@ from obractrl.adapters.api.casos_uso import (
     EliminarVersionDeCPUDep,
     EliminarVersionDeCuadrillaDep,
     ExplotarConceptoDep,
+    GestionarMatricesDeConceptoDep,
     ObtenerCPUDep,
     PublicarVersionCPUDep,
 )
@@ -64,7 +65,12 @@ from obractrl.application.casos_uso.gestionar_catalogos import (
     ComandoCrearUnidad,
     InsumoCreado,
 )
+from obractrl.application.casos_uso.matrices_de_concepto import (
+    ComandoPonerMatriz,
+    MatrizNueva,
+)
 from obractrl.domain.catalogos.apu import ExplosionCalculada, VersionCPU
+from obractrl.domain.catalogos.cantidad import FormulaDePiezasComerciales
 from obractrl.domain.shared.diccionario import (
     CategoriaExplosion,
     Rol,
@@ -78,6 +84,15 @@ router = APIRouter(tags=["catalogos"])
 
 CATALOGOS = Depends(exigir_rol(Rol.CONTROL_OBRA))
 """Catálogos y APU: Control de obra (§11.2, §5.1 "Configuración")."""
+
+LECTURA_PARA_ALTAS = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))
+"""Unidades, niveles y etapas: lo que Costos necesita para dar de alta un concepto desde el
+cuantificador (entrega 5). Solo lectura; escribir sigue siendo de Control de obra."""
+
+CONSULTA_CPU_Y_COSTOS = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE, Rol.COSTOS))
+PUBLICA_CPU = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))
+"""El costo del catálogo: Costos lo ve y publica una versión nueva cuando cambia la composición
+de un concepto (entrega 6, migración 0090)."""
 
 CONSULTA_CPU = Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE))
 """`GET /conceptos/{id}/cpu` y `/explosion`: C y SI (§11.2)."""
@@ -130,7 +145,7 @@ class UnidadRespuesta(BaseModel):
     "/unidades",
     response_model=list[UnidadRespuesta],
     summary="Catálogo de unidades",
-    dependencies=[CATALOGOS],
+    dependencies=[LECTURA_PARA_ALTAS],
 )
 async def listar_unidades(
     sesion: SesionRLS, incluir_inactivos: IncluirInactivos = False
@@ -626,7 +641,7 @@ class EtapaRespuesta(BaseModel):
     "/niveles",
     response_model=list[NivelRespuesta],
     summary="Catálogo de niveles de construcción",
-    dependencies=[CATALOGOS],
+    dependencies=[LECTURA_PARA_ALTAS],
 )
 async def listar_niveles(sesion: SesionRLS) -> list[NivelRespuesta]:
     """Lectura simple sin orquestación de dominio —como `GET /unidades`—
@@ -639,7 +654,7 @@ async def listar_niveles(sesion: SesionRLS) -> list[NivelRespuesta]:
     "/etapas",
     response_model=list[EtapaRespuesta],
     summary="Catálogo de etapas de construcción",
-    dependencies=[CATALOGOS],
+    dependencies=[LECTURA_PARA_ALTAS],
 )
 async def listar_etapas(sesion: SesionRLS) -> list[EtapaRespuesta]:
     filas = await RepositorioNivelesEtapasSQL(sesion).listar_etapas()
@@ -1051,7 +1066,7 @@ def _precio(precio: PrecioUnitario) -> PrecioUnitarioRespuesta:
     "/conceptos",
     response_model=list[ConceptoRespuesta],
     summary="Catálogo de conceptos",
-    dependencies=[CATALOGOS],
+    dependencies=[LECTURA_PARA_ALTAS],
 )
 async def listar_conceptos(
     sesion: SesionRLS,
@@ -1137,6 +1152,94 @@ async def crear_concepto(
     )
 
 
+class MatrizNuevaPeticion(BaseModel):
+    clave: str = Field(min_length=1, max_length=60)
+    descripcion: str = Field(min_length=1)
+    unidad_id: UUID
+
+
+class FormulaPeticion(BaseModel):
+    """Cantidad por piezas comerciales: `piezas ÷ largo × (1 + desperdicio %)` por unidad del concepto padre."""
+
+    piezas: Decimal = Field(gt=0, description="Piezas que lleva una unidad del concepto (4 varillas).")
+    largo: Decimal = Field(gt=0, description="Lo que mide una pieza comercial completa (una varilla: 12).")
+    desperdicio_pct: Decimal = Field(default=Decimal(0), ge=0, le=100, description="Por ejemplo 0.5.")
+
+
+class PonerMatrizPeticion(BaseModel):
+    cantidad: Decimal | None = Field(
+        default=None, gt=0, description="Cuánto lleva por unidad del concepto padre, capturada a mano."
+    )
+    formula: FormulaPeticion | None = Field(
+        default=None, description="O cómo se forma esa cantidad; el servidor la calcula. Una sola de las dos."
+    )
+    matriz_id: UUID | None = Field(default=None, description="Un concepto que ya existe…")
+    nueva: MatrizNuevaPeticion | None = Field(default=None, description="…o uno que nace aquí.")
+
+
+class MatrizPuestaRespuesta(BaseModel):
+    concepto_id: UUID
+    matriz_id: UUID
+    cantidad: Decimal
+    formula: dict[str, object] | None = Field(default=None, description="Cómo se formó la cantidad, si no fue a mano.")
+
+
+@router.post(
+    "/conceptos/{concepto_id}/matrices",
+    response_model=MatrizPuestaRespuesta,
+    summary="Poner una matriz bajo el concepto (o cambiarle la cantidad)",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))],
+    responses={
+        404: {"description": "El concepto no existe o está fuera de tu alcance."},
+        422: {"description": "Ciclo, clave repetida, cantidad que no suma o ni matriz ni nueva."},
+    },
+)
+async def poner_matriz_al_concepto(
+    concepto_id: UUID, peticion: PonerMatrizPeticion, caso_uso: GestionarMatricesDeConceptoDep
+) -> MatrizPuestaRespuesta:
+    """Cambia la composición del **catálogo**: vale para todas las obras que usen el concepto."""
+    return MatrizPuestaRespuesta(
+        **await caso_uso.poner(
+            ComandoPonerMatriz(
+                concepto_id=concepto_id,
+                cantidad=peticion.cantidad,
+                formula=(
+                    FormulaDePiezasComerciales(
+                        piezas=peticion.formula.piezas,
+                        largo=peticion.formula.largo,
+                        desperdicio_pct=peticion.formula.desperdicio_pct,
+                    )
+                    if peticion.formula
+                    else None
+                ),
+                hijo_id=peticion.matriz_id,
+                nueva=(
+                    MatrizNueva(
+                        clave=peticion.nueva.clave,
+                        descripcion=peticion.nueva.descripcion,
+                        unidad_id=peticion.nueva.unidad_id,
+                    )
+                    if peticion.nueva
+                    else None
+                ),
+            )
+        )
+    )
+
+
+@router.delete(
+    "/conceptos/{concepto_id}/matrices/{matriz_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Quitar una matriz del concepto",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.COSTOS))],
+    responses={404: {"description": "El concepto o esa matriz directa no existen."}},
+)
+async def quitar_matriz_del_concepto(
+    concepto_id: UUID, matriz_id: UUID, caso_uso: GestionarMatricesDeConceptoDep
+) -> None:
+    await caso_uso.quitar(concepto_id, matriz_id)
+
+
 @router.get(
     "/conceptos/{concepto_id}/explosion",
     response_model=ExplosionRespuesta,
@@ -1158,7 +1261,7 @@ async def explotar_concepto(
     "/conceptos/{concepto_id}/cpu",
     response_model=CPURespuesta,
     summary="CPU del concepto: versión vigente e historial",
-    dependencies=[CONSULTA_CPU],
+    dependencies=[CONSULTA_CPU_Y_COSTOS],
     responses={
         404: {"description": "El concepto no existe o está fuera de tu alcance."},
         422: {"description": "La composición tiene un ciclo (§7.3)."},
@@ -1198,7 +1301,7 @@ async def eliminar_version_de_cpu(
     response_model=VersionPublicadaRespuesta,
     status_code=status.HTTP_201_CREATED,
     summary="Publica una nueva versión del CPU",
-    dependencies=[CATALOGOS],
+    dependencies=[PUBLICA_CPU],
     responses={
         404: {"description": "El concepto no existe o está fuera de tu alcance."},
         422: {"description": "Composición cíclica o precio inválido (§7.3)."},

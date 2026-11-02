@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PresupuestoRespuestaPrototipoNombre } from "./presupuestoRespuestaPrototipoNombre";
-import type { PartidaRespuesta } from "./partidaRespuesta";
+import type { ObractrlAdaptersApiV1PresupuestoPartidaRespuesta } from "./obractrlAdaptersApiV1PresupuestoPartidaRespuesta";
 
 /**
  * El presupuesto vigente del prototipo que la obra instancia (§7.3).
@@ -21,5 +21,5 @@ export interface PresupuestoRespuesta {
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   monto_total: string;
   created_at: string;
-  partidas: PartidaRespuesta[];
+  partidas: ObractrlAdaptersApiV1PresupuestoPartidaRespuesta[];
 }

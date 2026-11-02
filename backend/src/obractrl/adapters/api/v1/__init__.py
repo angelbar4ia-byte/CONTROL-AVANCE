@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from obractrl.adapters.api.v1.arbol import router as router_arbol
 from obractrl.adapters.api.v1.avance import router as router_avance
 from obractrl.adapters.api.v1.bitacora import router as router_bitacora
 from obractrl.adapters.api.v1.cargas import router as router_cargas
@@ -29,6 +30,7 @@ from obractrl.adapters.api.v1.control_cambio import (
 from obractrl.adapters.api.v1.cuantificacion import router as router_cuantificacion
 from obractrl.adapters.api.v1.desviaciones import router as router_desviaciones
 from obractrl.adapters.api.v1.dispositivos import router as router_dispositivos
+from obractrl.adapters.api.v1.enlaces_de_hoja import router as router_enlaces_de_hoja
 from obractrl.adapters.api.v1.ensambles import router as router_ensambles
 from obractrl.adapters.api.v1.estimacion import router as router_estimacion
 from obractrl.adapters.api.v1.evaluaciones import router as router_evaluaciones
@@ -39,6 +41,7 @@ from obractrl.adapters.api.v1.identidad import router as router_identidad
 from obractrl.adapters.api.v1.incidencias import router as router_incidencias
 from obractrl.adapters.api.v1.insumos import router as router_insumos
 from obractrl.adapters.api.v1.materiales import router as router_materiales
+from obractrl.adapters.api.v1.mediciones import router as router_mediciones
 from obractrl.adapters.api.v1.obras import router as router_obras
 from obractrl.adapters.api.v1.organizacion import router as router_organizacion
 from obractrl.adapters.api.v1.partes import router as router_partes
@@ -46,6 +49,7 @@ from obractrl.adapters.api.v1.planeacion import router as router_planeacion
 from obractrl.adapters.api.v1.presupuesto import router as router_presupuesto
 from obractrl.adapters.api.v1.procesos import router as router_procesos
 from obractrl.adapters.api.v1.programacion import router as router_programacion
+from obractrl.adapters.api.v1.propuestas import router as router_propuestas
 from obractrl.adapters.api.v1.proyectos import router as router_proyectos
 from obractrl.adapters.api.v1.reportes import router as router_reportes
 from obractrl.adapters.api.v1.reprogramaciones import router as router_reprogramaciones
@@ -85,6 +89,10 @@ api_v1.include_router(router_evidencias)
 api_v1.include_router(router_cargas)
 api_v1.include_router(router_expediente)
 api_v1.include_router(router_cuantificacion)
+api_v1.include_router(router_mediciones)
+api_v1.include_router(router_enlaces_de_hoja)
+api_v1.include_router(router_propuestas)
+api_v1.include_router(router_arbol)
 api_v1.include_router(router_desviaciones)
 api_v1.include_router(router_reportes)
 api_v1.include_router(router_procesos)

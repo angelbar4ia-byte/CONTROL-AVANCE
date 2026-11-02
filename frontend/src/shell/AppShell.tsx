@@ -33,11 +33,12 @@
 
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Menu, Wifi, WifiOff, X } from 'lucide-react';
+import { Menu, PanelLeftClose, PanelLeftOpen, Wifi, WifiOff, X } from 'lucide-react';
 
 import { ALCANCE_ROL, NOMBRE_ROL, navegacionDe, tabsDe, type Rol } from './navegacion';
 import { useTiempoReal, type EstadoEnVivo } from '@/lib/tiempoReal';
 import { fmtSemana } from '@/lib/formato';
+import { useAjuste } from '@/lib/useAjuste';
 import { SelectorDensidad } from './SelectorDensidad';
 import { ProveedorDeVentanaCuantificador } from '@/cuantificador/VentanaCuantificador';
 
@@ -57,6 +58,15 @@ export function AppShell({ rol, usuario, semana, enLinea }: Props) {
   const [navAbierta, setNavAbierta] = useState(false);
   const ubicacion = useLocation();
 
+  // El menú se contrae a una tira de iconos (escritorio). El cuantificador es una
+  // pantalla de trabajo: ahí arranca contraído y con la cabecera más baja, para que
+  // el plano tenga el espacio. Cada caso recuerda lo que la persona eligió.
+  const enEstacion = ubicacion.pathname.startsWith('/cuantificador');
+  const [navMinGeneral, setNavMinGeneral] = useAjuste('nav-min', false);
+  const [navMinEstacion, setNavMinEstacion] = useAjuste('nav-min-estacion', true);
+  const navMin = enEstacion ? navMinEstacion : navMinGeneral;
+  const fijarNavMin = enEstacion ? setNavMinEstacion : setNavMinGeneral;
+
   // Navegar cierra el cajón. Sin esto, en un teléfono se toca una entrada, la
   // pantalla cambia detrás y el usuario sigue viendo el menú encima.
   useEffect(() => setNavAbierta(false), [ubicacion.pathname]);
@@ -74,7 +84,11 @@ export function AppShell({ rol, usuario, semana, enLinea }: Props) {
 
   return (
     <ProveedorDeVentanaCuantificador>
-    <div className={navAbierta ? 'app is-mobile-nav-open' : 'app'}>
+    <div
+      className={['app', navAbierta && 'is-mobile-nav-open', navMin && 'is-nav-min', enEstacion && 'app--estacion']
+        .filter(Boolean)
+        .join(' ')}
+    >
       <BarraSuperior
         rol={rol}
         usuario={usuario}
@@ -83,6 +97,8 @@ export function AppShell({ rol, usuario, semana, enLinea }: Props) {
         enVivo={enVivo}
         navAbierta={navAbierta}
         onAlternarNav={() => setNavAbierta((abierta) => !abierta)}
+        navMin={navMin}
+        onAlternarNavMin={() => fijarNavMin(!navMin)}
       />
 
       <Sidebar rol={rol} />
@@ -128,6 +144,7 @@ function Sidebar({ rol }: { readonly rol: Rol }) {
                 <NavLink
                   key={item.a}
                   to={item.a}
+                  title={item.etiqueta}
                   className={({ isActive }) =>
                     isActive ? 'sidebar__item is-active' : 'sidebar__item'
                   }
@@ -192,10 +209,14 @@ function BarraSuperior({
   enVivo,
   navAbierta,
   onAlternarNav,
+  navMin,
+  onAlternarNavMin,
 }: Props & {
   readonly enVivo: EstadoEnVivo;
   readonly navAbierta: boolean;
   readonly onAlternarNav: () => void;
+  readonly navMin: boolean;
+  readonly onAlternarNavMin: () => void;
 }) {
   return (
     <header className="topbar">
@@ -210,6 +231,18 @@ function BarraSuperior({
         onClick={onAlternarNav}
       >
         {navAbierta ? <X size={18} strokeWidth={1.6} /> : <Menu size={18} strokeWidth={1.6} />}
+      </button>
+
+      {/* Solo escritorio (`.topbar__rail-toggle`): contrae el menú a iconos. */}
+      <button
+        type="button"
+        className="btn btn--ghost btn--icon topbar__rail-toggle"
+        aria-label={navMin ? 'Expandir el menú lateral' : 'Contraer el menú lateral'}
+        aria-pressed={navMin}
+        title={navMin ? 'Expandir el menú lateral' : 'Contraer el menú lateral'}
+        onClick={onAlternarNavMin}
+      >
+        {navMin ? <PanelLeftOpen size={18} strokeWidth={1.6} /> : <PanelLeftClose size={18} strokeWidth={1.6} />}
       </button>
 
       <div className="topbar__brand">

@@ -47,22 +47,31 @@ from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field, model_validator
 
 from obractrl.adapters.api.casos_uso import (
+    AgregarHuecoDep,
     AprobarTrazoDep,
     CalibrarEscalaDePlanoDep,
     ConsultarCuantificacionDep,
     ConsultarMatricesDep,
+    EliminarTrazoDep,
+    FijarVistaDePlanoDep,
+    QuitarHuecoDep,
     ReemplazarEnlaceDep,
     RegistrarNotaPlanoDep,
     RegistrarPlanoDep,
     RegistrarTrazoConEnlacesDep,
+    TraerTrazoDep,
 )
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.application.casos_uso.cuantificar import (
+    ComandoAgregarHueco,
     ComandoAprobarTrazo,
     ComandoCalibrarEscala,
+    ComandoEliminarTrazo,
+    ComandoFijarVistaDePlano,
     ComandoReemplazarEnlace,
     ComandoRegistrarNotaPlano,
     ComandoRegistrarTrazo,
+    ComandoTraerTrazo,
     IntencionEnlace,
     NodoCuantificado,
     NuevoEnlace,
@@ -154,6 +163,23 @@ class IntencionEnlacePeticion(BaseModel):
         return self
 
 
+class FormaDeTrazo(BaseModel):
+    """Con qué plantilla y a qué tamaño se estampó un punto con forma (un castillo, una columna)."""
+
+    tipo: Literal["circulo", "cuadrado", "rectangulo", "triangulo", "hexagono", "libre"]
+    ancho_m: Decimal = Field(gt=0, le=1000)
+    alto_m: Decimal = Field(gt=0, le=1000)
+    rotacion_grados: Decimal = Field(default=Decimal(0), ge=-360, le=360)
+    nombre: str | None = Field(
+        default=None, max_length=80, description="El elemento que representa: castillo, columna..."
+    )
+    vertices: list[tuple[float, float]] | None = Field(
+        default=None,
+        max_length=200,
+        description="Solo en `libre`: el contorno normalizado a una caja de 1 × 1 centrada en el origen.",
+    )
+
+
 class TrazoPeticion(BaseModel):
     """Alta de un trazo con sus enlaces (MODELO.md §1b, Decisión 3 de 3:
     WKT para capturar un trazo nuevo mientras se dibuja)."""
@@ -169,6 +195,66 @@ class TrazoPeticion(BaseModel):
         ),
     )
     enlaces: list[IntencionEnlacePeticion] = Field(default_factory=list)
+    grosor_m: Decimal | None = Field(
+        default=None,
+        gt=0,
+        le=100,
+        description=(
+            "Grosor en metros de una **línea** (un muro de 0.15 o de 0.30 m). Con grosor, el "
+            "área de la línea es su largo × grosor. Va junto con `alineacion`."
+        ),
+    )
+    alineacion: Literal["centro", "izquierda", "derecha"] | None = Field(
+        default=None,
+        description=(
+            "De qué lado del eje dibujado queda el cuerpo de la línea, mirando en el sentido "
+            "en que se dibujó. Solo orienta al visor: el área no depende de ella."
+        ),
+    )
+    forma: FormaDeTrazo | None = Field(
+        default=None,
+        description="Plantilla con la que se estampó un polígono que nació de un punto con forma.",
+    )
+    medicion_id: UUID | None = Field(
+        default=None,
+        description=(
+            "La medición (capa sombra, 0088) a la que entra el trazo: hereda los enlaces de su medición "
+            "y de las que la contienen. Una medición solo admite trazos de su tipo."
+        ),
+    )
+    pendiente_pct: Decimal | None = Field(
+        default=None,
+        gt=0,
+        le=1000,
+        description=(
+            "Pendiente en % de una **línea** inclinada (desnivel / recorrido × 100): su longitud "
+            "real es la de la planta × √(1 + p²). Solo de una línea."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _grosor_y_alineacion_juntos(self) -> TrazoPeticion:
+        if (self.grosor_m is None) != (self.alineacion is None):
+            raise ValueError("`grosor_m` y `alineacion` van juntos o no va ninguno.")
+        return self
+
+
+class HuecoPeticion(BaseModel):
+    """Un hueco dentro de un área ya trazada (la ventana de un muro, el cubo de una escalera)."""
+
+    geometria_wkt: str = Field(
+        min_length=1, description="`POLYGON((...))` en coordenadas de plano, dentro del área."
+    )
+
+
+class TrazoEliminadoRespuesta(BaseModel):
+    trazo_id: UUID
+    recalculos: list[ResultadoRecalculoRespuesta]
+
+
+class HuecoRespuesta(BaseModel):
+    hueco_id: UUID
+    recalculos: list[ResultadoRecalculoRespuesta]
 
 
 class ResultadoRecalculoRespuesta(BaseModel):
@@ -207,8 +293,18 @@ class ReemplazarEnlacePeticion(BaseModel):
 class NotaPlanoPeticion(BaseModel):
     version_plano: int = Field(gt=0)
     ubicacion_wkt: str = Field(min_length=1, description="WKT de un punto, SRID 0.")
-    texto: str = Field(min_length=1)
+    texto: str = Field(default="", description="Vacío solo en una flecha.")
     actividad_id: UUID | None = None
+    tipo: Literal["nota", "texto", "flecha", "llamada"] = Field(
+        default="nota",
+        description=(
+            "`nota` (rombo con texto), `texto` (rótulo suelto), `flecha` (señala `destino_wkt`) "
+            "o `llamada` (texto con una flecha a `destino_wkt`). Ninguna produce cantidad."
+        ),
+    )
+    destino_wkt: str | None = Field(
+        default=None, description="WKT de un punto: a dónde apunta una flecha o una llamada."
+    )
 
 
 class NotaPlanoRespuesta(BaseModel):
@@ -285,6 +381,11 @@ async def registrar_trazo(
             geometria_wkt=peticion.geometria_wkt,
             autor_id=ctx.usuario_id,
             rol=Rol(ctx.rol),
+            grosor_m=peticion.grosor_m,
+            alineacion=peticion.alineacion,
+            forma=peticion.forma.model_dump(mode="json") if peticion.forma else None,
+            pendiente_pct=peticion.pendiente_pct,
+            medicion_id=peticion.medicion_id,
             enlaces=tuple(
                 IntencionEnlace(
                     medida=e.medida,
@@ -304,6 +405,98 @@ async def registrar_trazo(
         recalculos=[
             ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos
         ],
+    )
+
+
+@router.post(
+    "/trazos/{trazo_id}/huecos",
+    response_model=HuecoRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Abrir un hueco en un área ya trazada",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        403: {"description": "El área alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."},
+        404: {"description": "El trazo no existe o está fuera de tu alcance."},
+        422: {"description": "No es un área, el hueco no es un polígono válido o se sale del área."},
+    },
+)
+async def agregar_hueco(
+    trazo_id: UUID,
+    peticion: HuecoPeticion,
+    ctx: ContextoActual,
+    caso_uso: AgregarHuecoDep,
+) -> HuecoRespuesta:
+    """El hueco resta del área y del perímetro del trazo; el trazo no se modifica (es un trazo
+    hijo). Cada nodo que el área alimenta se recalcula, igual que al calibrar la escala."""
+    resultado = await caso_uso.ejecutar(
+        ComandoAgregarHueco(
+            trazo_id=trazo_id,
+            geometria_wkt=peticion.geometria_wkt,
+            autor_id=ctx.usuario_id,
+            rol=Rol(ctx.rol),
+        ),
+        detectada_en=datetime.now(UTC),
+    )
+    return HuecoRespuesta(
+        hueco_id=resultado.hueco_id,
+        recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos],
+    )
+
+
+@router.delete(
+    "/trazos/{trazo_id}",
+    response_model=TrazoEliminadoRespuesta,
+    summary="Borrar un trazo (punto, línea o área) con sus enlaces y huecos",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        403: {
+            "description": (
+                "No es un trazo tuyo sin aprobar (Control de obra y Super intendente borran "
+                "cualquiera), o alimenta un prototipo_nodo y el rol no puede tocarlo."
+            )
+        },
+        404: {"description": "El trazo no existe o está fuera de tu alcance."},
+    },
+)
+async def eliminar_trazo(
+    trazo_id: UUID, ctx: ContextoActual, caso_uso: EliminarTrazoDep
+) -> TrazoEliminadoRespuesta:
+    """Cada nodo que el trazo alimentaba se recalcula; si era su último trazo vuelve a «sin
+    medir» y no levanta una desviación."""
+    resultado = await caso_uso.ejecutar(
+        ComandoEliminarTrazo(trazo_id=trazo_id, usuario_id=ctx.usuario_id, rol=Rol(ctx.rol)),
+        detectada_en=datetime.now(UTC),
+    )
+    return TrazoEliminadoRespuesta(
+        trazo_id=resultado.trazo_id,
+        recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos],
+    )
+
+
+@router.delete(
+    "/trazos/{trazo_id}/huecos/{hueco_id}",
+    response_model=TrazoEliminadoRespuesta,
+    summary="Quitar un hueco de un área",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        403: {"description": "No es un trazo tuyo sin aprobar, o alimenta un prototipo_nodo."},
+        404: {"description": "El trazo o su hueco no existen o están fuera de tu alcance."},
+    },
+)
+async def quitar_hueco(
+    trazo_id: UUID, hueco_id: UUID, ctx: ContextoActual, caso_uso: QuitarHuecoDep
+) -> TrazoEliminadoRespuesta:
+    """El área vuelve a medir lo que medía sin ese hueco; sus nodos se recalculan."""
+    resultado = await caso_uso.ejecutar(
+        trazo_id=trazo_id,
+        hueco_id=hueco_id,
+        usuario_id=ctx.usuario_id,
+        rol=Rol(ctx.rol),
+        detectada_en=datetime.now(UTC),
+    )
+    return TrazoEliminadoRespuesta(
+        trazo_id=resultado.trazo_id,
+        recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos],
     )
 
 
@@ -373,6 +566,39 @@ async def calibrar_escala(
     )
 
 
+class VistaPeticion(BaseModel):
+    """Cómo se ve el plano (migración 0087). Solo presentación: ninguna cantidad cambia."""
+
+    rotacion_grados: Literal[0, 90, 180, 270] = 0
+    volteo_horizontal: bool = False
+    volteo_vertical: bool = False
+
+
+@router.put(
+    "/planos/{plano_id}/vista",
+    response_model=VistaPeticion,
+    summary="Girar o voltear el plano al verlo",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={404: {"description": "El plano no existe o está fuera de tu alcance."}},
+)
+async def fijar_vista(
+    plano_id: UUID,
+    peticion: VistaPeticion,
+    caso_uso: FijarVistaDePlanoDep,
+) -> VistaPeticion:
+    """La rotación y el espejo se guardan con el plano para que todos lo vean igual. No tocan
+    la geometría de los trazos ni las cantidades."""
+    await caso_uso.ejecutar(
+        ComandoFijarVistaDePlano(
+            plano_id=plano_id,
+            rotacion_grados=peticion.rotacion_grados,
+            volteo_horizontal=peticion.volteo_horizontal,
+            volteo_vertical=peticion.volteo_vertical,
+        )
+    )
+    return peticion
+
+
 @router.post(
     "/enlaces-cuantificacion/{enlace_id}/reemplazar",
     response_model=ResultadoRecalculoRespuesta,
@@ -415,6 +641,56 @@ async def reemplazar_enlace(
         detectada_en=datetime.now(UTC),
     )
     return ResultadoRecalculoRespuesta.desde_dominio(resultado)
+
+
+class TraerTrazoPeticion(BaseModel):
+    plano_destino_id: UUID = Field(description="La versión nueva del mismo plano.")
+    dx: Decimal = Field(default=Decimal(0), description="Cuánto se corre el trazo en X (unidades de plano).")
+    dy: Decimal = Field(default=Decimal(0), description="Cuánto se corre el trazo en Y (unidades de plano).")
+
+
+class TrazoTraidoRespuesta(BaseModel):
+    trazo_id: UUID
+    enlace_ids: list[UUID]
+    huecos: int
+    recalculos: list[ResultadoRecalculoRespuesta]
+
+
+@router.post(
+    "/trazos/{trazo_id}/traer",
+    response_model=TrazoTraidoRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Traer un trazo de una versión anterior del plano a la nueva",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        403: {"description": "El trazo mide un prototipo_nodo y el rol no puede tocarlo."},
+        404: {"description": "El trazo o el plano no existen o están fuera de tu alcance."},
+        422: {"description": "No son versiones del mismo plano, o va de la nueva a la anterior."},
+    },
+)
+async def traer_trazo(
+    trazo_id: UUID, peticion: TraerTrazoPeticion, ctx: ContextoActual, caso_uso: TraerTrazoDep
+) -> TrazoTraidoRespuesta:
+    """Empalme de versiones (acción explícita, nunca por cercanía): el trazo se repite en la versión
+    nueva —corrido `dx`, `dy`, con sus huecos y enlaces vigentes— y los enlaces del viejo dejan de
+    ser vigentes, así que lo medido no se cuenta dos veces. El viejo queda como evidencia."""
+    resultado = await caso_uso.ejecutar(
+        ComandoTraerTrazo(
+            trazo_id=trazo_id,
+            plano_destino_id=peticion.plano_destino_id,
+            usuario_id=ctx.usuario_id,
+            rol=Rol(ctx.rol),
+            dx=peticion.dx,
+            dy=peticion.dy,
+        ),
+        detectada_en=datetime.now(UTC),
+    )
+    return TrazoTraidoRespuesta(
+        trazo_id=resultado.trazo_id,
+        enlace_ids=list(resultado.enlace_ids),
+        huecos=resultado.huecos,
+        recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos],
+    )
 
 
 class TrazoAprobadoRespuesta(BaseModel):
@@ -482,6 +758,8 @@ async def registrar_nota_plano(
             autor_id=ctx.usuario_id,
             texto=peticion.texto,
             actividad_id=peticion.actividad_id,
+            tipo=peticion.tipo,
+            destino_wkt=peticion.destino_wkt,
         )
     )
     return NotaPlanoRespuesta(id=resultado.nota_id)
@@ -522,6 +800,11 @@ class PlanoDetalleRespuesta(BaseModel):
         description="Los dos puntos y la distancia real con que se calibró.",
     )
     escala_calibrada_en: datetime | None = None
+    rotacion_grados: int = Field(
+        default=0, description="Cuánto se gira el plano al verlo: 0, 90, 180 o 270 (0087)."
+    )
+    volteo_horizontal: bool = False
+    volteo_vertical: bool = False
 
 
 class EnlaceDeTrazoRespuesta(BaseModel):
@@ -553,6 +836,33 @@ class TrazoPropiedades(BaseModel):
         description="Control de obra que lo aprobó, o `null` si aún no está aprobado."
     )
     aprobado_en: datetime | None
+    grosor_m: Decimal | None = Field(
+        default=None, description="Grosor en metros de una línea (un muro); `null` si no tiene."
+    )
+    alineacion: Literal["centro", "izquierda", "derecha"] | None = None
+    pendiente_pct: Decimal | None = Field(
+        default=None, description="Pendiente en % de una línea inclinada; `null` = horizontal."
+    )
+    medicion_id: UUID | None = Field(
+        default=None, description="La medición a la que pertenece el trazo (0088); `null` = suelto."
+    )
+    forma: dict[str, Any] | None = Field(
+        default=None, description="Plantilla con la que se estampó un punto con forma."
+    )
+    n_huecos: int = Field(
+        default=0,
+        description="Huecos que tiene el área. Su geometría ya viene restada en `geometry`.",
+    )
+    propuesta: bool = Field(
+        default=False,
+        description="Propuesto por una herramienta automática y aún sin revisar: no suma cantidad (0092).",
+    )
+    propuesta_origen: Literal["conteo_auto", "takeoff"] | None = None
+    propuesta_actividad_id: UUID | None = Field(
+        default=None, description="El concepto para el que se propuso."
+    )
+    propuesta_medida: str | None = None
+    propuesta_confianza: Decimal | None = Field(default=None, description="De 0 a 1.")
     nodo_ids: list[UUID] = Field(
         description=(
             "Nodos a los que el trazo alimenta con un enlace **vigente**: lo que "
@@ -676,6 +986,17 @@ async def trazos_de_plano(
                     por_revisar=trazo["por_revisar"],
                     aprobado_por=trazo["aprobado_por"],
                     aprobado_en=trazo["aprobado_en"],
+                    grosor_m=trazo.get("grosor_m"),
+                    alineacion=trazo.get("alineacion"),
+                    pendiente_pct=trazo.get("pendiente_pct"),
+                    medicion_id=trazo.get("medicion_id"),
+                    forma=trazo.get("forma"),
+                    n_huecos=int(trazo.get("n_huecos") or 0),
+                    propuesta=bool(trazo.get("propuesta")),
+                    propuesta_origen=trazo.get("propuesta_origen"),
+                    propuesta_actividad_id=trazo.get("propuesta_actividad_id"),
+                    propuesta_medida=trazo.get("propuesta_medida"),
+                    propuesta_confianza=trazo.get("propuesta_confianza"),
                     nodo_ids=list(dict.fromkeys(e.nodo_id for e in enlaces if e.vigente)),
                     enlaces=enlaces,
                 ),
@@ -703,6 +1024,10 @@ class NotaPlanoDetalleRespuesta(BaseModel):
     )
     ubicacion: dict[str, Any] = Field(
         description="`Point` GeoJSON en **coordenadas de plano** (SRID 0), no lon/lat."
+    )
+    tipo: Literal["nota", "texto", "flecha", "llamada"] = "nota"
+    destino: dict[str, Any] | None = Field(
+        default=None, description="`Point` GeoJSON al que apunta una flecha o una llamada."
     )
 
 
@@ -786,6 +1111,9 @@ class MatrizRespuesta(BaseModel):
     descripcion: str
     unidad: str | None = None
     cantidad_unitaria: Decimal = Field(description="Por unidad de su matriz madre inmediata.")
+    formula: dict[str, Any] | None = Field(
+        default=None, description="Cómo se formó la cantidad unitaria (piezas ÷ largo × desperdicio), si no fue a mano."
+    )
     cantidad_catalogo: Decimal = Field(description="Lo que el catálogo implica para esta actividad.")
     precio_unitario: Decimal
     cantidad_medida: Decimal | None = Field(
@@ -796,6 +1124,9 @@ class MatrizRespuesta(BaseModel):
 
 class MatricesDeActividadRespuesta(BaseModel):
     actividad_id: UUID
+    concepto_id: UUID | None = Field(
+        default=None, description="El concepto madre: a él se le agregan matrices en el catálogo."
+    )
     concepto_clave: str | None = None
     descripcion: str
     cant_base: Decimal
