@@ -96,3 +96,22 @@ def test_la_unidad_de_las_lineas_sale_limpia_y_sin_altas_nuevas() -> None:
     assert "CUB " not in unidades
     assert None not in unidades
     assert not {"JOR", "(%)mo"} & unidades  # son de las cuadrillas, no de los conceptos
+
+
+def test_las_recetas_de_los_89_compuestos_se_agrupan_con_matriz_dentro_de_matriz() -> (
+    None
+):
+    from obractrl.domain.cargadores.cpu import agrupar_compuestos
+
+    enc, filas = _leer(_ANALISIS)
+    mapa = resolver_encabezados(enc, CPU_MATRIZ)
+    bloques, errores, _ = agrupar_compuestos(filas, mapa)
+    assert errores == ()
+    assert len(bloques) == 89  # 79 AUX + 8 MEZ + ZA1 + ZA2
+    assert sum(len(b.componentes) for b in bloques) == 267
+    claves = {str(b.encabezado.clave) for b in bloques}
+    dentro_de_compuesto = [
+        c for b in bloques for c in b.componentes if str(c.clave_insumo) in claves
+    ]
+    assert len(dentro_de_compuesto) == 12  # compuesto dentro de compuesto
+    assert all(b.encabezado.descripcion and b.encabezado.unidad for b in bloques)

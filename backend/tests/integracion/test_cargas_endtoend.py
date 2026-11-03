@@ -3370,8 +3370,10 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     assert {e.columna for e in resultado_cpu.errores} == {"clave_padre"}
     assert {e.valor for e in resultado_cpu.errores} == {"ACA-01070"}
     # Los 467 conceptos válidos ya existían (del árbol de presupuesto): la
-    # matriz los actualiza con su composición real, no los da de alta.
-    assert resultado_cpu.resumen.insertados == 0
+    # matriz los actualiza con su composición real, no los da de alta. Lo que
+    # sí da de alta son los 89 compuestos de material (79 AUX, 8 MEZ, ZA1 y
+    # ZA2): el mismo archivo trae su receta — matriz dentro de matriz.
+    assert resultado_cpu.resumen.insertados == 89
     assert resultado_cpu.resumen.actualizados == 467
 
     # Ningún pendiente `trabajo_sin_clase` sobrevive: las 460 filas
@@ -3392,9 +3394,72 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     # conteos que `tests/domain/test_cpu_opus_real.py::
     # test_los_componentes_cargados_cuadran_con_el_tipo_del_archivo`.
     conteo_categorias = await _conteo_explosion_por_categoria(escenario.org_id)
-    assert conteo_categorias.get("material") == 1692
-    assert conteo_categorias.get("flete") == 35
-    assert conteo_categorias.get("destajo") == 392
+    # 1692 + 250 / 35 + 16 / 392 + 1: las líneas de las recetas de los 89
+    # compuestos (250 material, 16 flete, 1 contrato) se suman a las de los
+    # conceptos.
+    assert conteo_categorias.get("material") == 1942
+    assert conteo_categorias.get("flete") == 51
+    assert conteo_categorias.get("destajo") == 393
     assert conteo_categorias.get("subcontrato") == 68
     assert conteo_categorias.get("trabajo", 0) == 0
     assert conteo_categorias.get("mano_obra", 0) == 0
+
+    # Matriz dentro de matriz: los 89 compuestos quedan como conceptos básicos
+    # con su propia receta (267 líneas), los renglones de los conceptos que
+    # los citan (251) y los de otros compuestos (12) apuntan a ellos como
+    # concepto hijo, y el recorrido recursivo llega hasta el insumo simple.
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with engine.begin() as conn:
+            org = {"org": str(escenario.org_id)}
+            basicos = (
+                await conn.execute(
+                    text("select count(*) from concepto where org_id = :org and tipo = 'basico'"),
+                    org,
+                )
+            ).scalar_one()
+            lineas_de_basicos = (
+                await conn.execute(
+                    text(
+                        "select count(*) from explosion e join concepto c on c.id = e.concepto_id "
+                        "join cpu p on p.id = e.cpu_id "
+                        "where c.org_id = :org and c.tipo = 'basico' and p.vigente"
+                    ),
+                    org,
+                )
+            ).scalar_one()
+            citas = (
+                await conn.execute(
+                    text(
+                        "select c.tipo::text as padre, count(*) as n from explosion e "
+                        "join concepto c on c.id = e.concepto_id "
+                        "join cpu p on p.id = e.cpu_id "
+                        "where c.org_id = :org and p.vigente and e.tipo_hijo = 'concepto' "
+                        "group by c.tipo"
+                    ),
+                    org,
+                )
+            ).mappings().all()
+            alcanza_insumo = (
+                await conn.execute(
+                    text(
+                        "with recursive r as ("
+                        " select e.concepto_hijo_id, e.insumo_id, 1 as n from explosion e "
+                        " join concepto c on c.id = e.concepto_id "
+                        " where c.org_id = :org and c.clave = 'AUX-50001'"
+                        " union all"
+                        " select e.concepto_hijo_id, e.insumo_id, r.n + 1 from explosion e "
+                        " join r on e.concepto_id = r.concepto_hijo_id where r.n < 8)"
+                        " select max(n) from r where insumo_id is not null"
+                    ),
+                    org,
+                )
+            ).scalar_one()
+    finally:
+        await engine.dispose()
+    assert basicos == 89
+    assert lineas_de_basicos == 267
+    # 251 y no 252: una de las dos filas de `ACA-01070` (que no cruza con el
+    # árbol y no se carga) citaba un compuesto.
+    assert {f["padre"]: f["n"] for f in citas} == {"concepto": 251, "basico": 12}
+    assert alcanza_insumo == 2  # losa nervada (AUX-50001) → nervadura (AUX-00040) → varilla

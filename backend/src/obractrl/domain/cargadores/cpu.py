@@ -59,7 +59,9 @@ __all__ = [
     "ConceptoCargado",
     "EncabezadoCargado",
     "FilasMatrizSinAgrupar",
+    "agrupar_compuestos",
     "agrupar_conceptos",
+    "descripciones_de_hijos",
 ]
 
 _TIPO_ENCABEZADO = "concepto"
@@ -200,8 +202,7 @@ class FilasMatrizSinAgrupar:
 def _clave_de(celda: object, *, columna: str) -> Clave:
     if esta_vacio(celda):
         raise ErrorEnFila(
-            f"{columna}: la fila no trae clave y la clave es única por "
-            f"catálogo (§3.3).",
+            f"{columna}: la fila no trae clave y la clave es única por catálogo (§3.3).",
             columna=columna,
         )
     try:
@@ -219,7 +220,9 @@ def _decimal_opcional(celda: object, *, columna: str) -> Decimal | None:
         raise ErrorEnFila(str(exc), columna=columna, valor=celda) from exc
 
 
-def _leer_encabezado(fila: Sequence[object], mapa: MapaColumnas, numero: int) -> EncabezadoCargado:
+def _leer_encabezado(
+    fila: Sequence[object], mapa: MapaColumnas, numero: int
+) -> EncabezadoCargado:
     descripcion = texto_limpio(mapa.valor(fila, "descripcion"))
     if not descripcion:
         raise ErrorEnFila(
@@ -393,6 +396,8 @@ def _agrupar_conceptos_matriz(
     mapa: MapaColumnas,
     descripciones_concepto: Mapping[str, tuple[str, str | None]],
     clase_trabajo: Mapping[str, CategoriaExplosion] | None = None,
+    *,
+    origen: str = "concepto",
 ) -> tuple[
     tuple[ConceptoCargado, ...],
     tuple[ErrorDeFila, ...],
@@ -443,10 +448,12 @@ def _agrupar_conceptos_matriz(
     pendientes: list[PendientePropuesto] = []
 
     for numero, fila in filas:
-        if normalizar(mapa.valor(fila, "origen")) != "concepto":
+        if normalizar(mapa.valor(fila, "origen")) != origen:
             continue
         try:
-            clave_padre = _clave_de(mapa.valor(fila, "clave_padre"), columna="clave_padre")
+            clave_padre = _clave_de(
+                mapa.valor(fila, "clave_padre"), columna="clave_padre"
+            )
         except ErrorEnFila as exc:
             errores.append(exc.con_fila(numero))
             continue
@@ -553,9 +560,67 @@ def _agrupar_conceptos_matriz(
                     )
                 )
 
-        bloques.append(ConceptoCargado(encabezado=encabezado, componentes=tuple(componentes)))
+        bloques.append(
+            ConceptoCargado(encabezado=encabezado, componentes=tuple(componentes))
+        )
 
     return tuple(bloques), tuple(errores), tuple(pendientes), 0
+
+
+def descripciones_de_hijos(
+    filas: Sequence[tuple[int, Sequence[object]]],
+    mapa: MapaColumnas,
+) -> dict[str, tuple[str, str | None]]:
+    """Clave → (descripción, unidad) de cada ``Clave Hijo`` de la matriz.
+
+    En la matriz nativa de OPUS ninguna fila describe al padre: la
+    descripción y la unidad de un **compuesto** (``AUX-``, ``MEZ-``, ``ZA1``…
+    — matriz dentro de matriz, `CONOCIMIENTO.md` §9) salen de las líneas
+    donde ese compuesto aparece como hijo. Gana la primera que trae
+    descripción; las 89 de los archivos reales traen una sola.
+    """
+    resultado: dict[str, tuple[str, str | None]] = {}
+    for _, fila in filas:
+        clave = texto_limpio(mapa.valor(fila, "clave_insumo"))
+        descripcion = texto_limpio(mapa.valor(fila, "descripcion"))
+        if not clave or not descripcion or clave in resultado:
+            continue
+        resultado[clave] = (descripcion, texto_limpio(mapa.valor(fila, "unidad")) or None)
+    return resultado
+
+
+def agrupar_compuestos(
+    filas: Sequence[tuple[int, Sequence[object]]],
+    mapa: MapaColumnas,
+    *,
+    descripciones: Mapping[str, tuple[str, str | None]] | None = None,
+    clase_trabajo: Mapping[str, CategoriaExplosion] | None = None,
+) -> tuple[
+    tuple[ConceptoCargado, ...],
+    tuple[ErrorDeFila, ...],
+    tuple[PendientePropuesto, ...],
+]:
+    """Recetas de los compuestos de material (``Origen = Material``) de la
+    matriz nativa de OPUS: la matriz dentro de la matriz (`CONOCIMIENTO.md`
+    §9, `CATALOGOS.md` §7).
+
+    Mismo agrupado que `agrupar_conceptos` en modo matriz, pero sobre las
+    filas ``Origen = Material``. Las cuadrillas (``Origen = ManoDeObra``) no
+    entran: las carga el cargador de cuadrillas y no forman el PU (D-12).
+    ``descripciones`` es opcional: sin ella se derivan de las líneas donde el
+    compuesto aparece como hijo (`descripciones_de_hijos`).
+    """
+    if "clave_padre" not in mapa.indices:
+        return (), (), ()
+    mapa_descripciones = (
+        descripciones
+        if descripciones is not None
+        else descripciones_de_hijos(filas, mapa)
+    )
+    bloques, errores, pendientes, _ = _agrupar_conceptos_matriz(
+        filas, mapa, mapa_descripciones, clase_trabajo, origen="material"
+    )
+    return bloques, errores, pendientes
 
 
 def agrupar_conceptos(

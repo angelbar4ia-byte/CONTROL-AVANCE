@@ -879,7 +879,7 @@ módulo (§12.11: aquí solo se resuelven columnas, no se decide el árbol)."""
 # fila", solo que la columna real se llama distinto.
 
 CPU_MATRIZ = EspecificacionArchivo(
-    tipo="CPU / Conceptos (matriz nativa de OPUS)",
+    tipo="Análisis de básicos conceptos (matriz nativa de OPUS)",
     archivo="ANALISIS_DE_BASICOS_CONCEPTOS.csv",
     hoja=None,
     obligatorias=("clave_padre", "clave_insumo", "descripcion", "cantidad", "tipo", "origen"),

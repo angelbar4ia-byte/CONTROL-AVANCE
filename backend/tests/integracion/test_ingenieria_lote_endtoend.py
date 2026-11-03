@@ -244,18 +244,19 @@ class TestCaminoConocidoIdentidadConfirmada:
 
         # Los destajos sin ningún candidato en la base real —directo o en
         # profundidad— caen en DESTAJO_SIN_CANDIDATO. MOS-2079 es el caso
-        # que CONOCIMIENTO.md §11.9 documenta; MOC-12010 se suma aquí
-        # porque su único candidato real vive en profundidad de un
-        # compuesto (`ZA1-000001`) cuya receta interna esta base no
-        # persiste (ver docstring del módulo) — nunca se autocorrige por
-        # proximidad, así que ambos quedan como pendiente, no como error.
+        # que CONOCIMIENTO.md §11.9 documenta y nunca se autocorrige por
+        # proximidad: queda como pendiente, no como error. MOC-12010 ya NO
+        # está aquí: su único candidato vive en profundidad del compuesto
+        # `ZA1-000001`, y el cargador «Análisis de básicos conceptos» ahora
+        # persiste la receta interna de los 89 compuestos (matriz dentro de
+        # matriz, D-612), así que la reversión lo encuentra.
         sin_candidato = {
             p["valor_origen"]
             for p in pendientes
             if p["tipo"] == str(TipoPendiente.DESTAJO_SIN_CANDIDATO)
         }
         assert "MOS-2079" in sin_candidato
-        assert "MOC-12010" in sin_candidato
+        assert "MOC-12010" not in sin_candidato
 
         # Lo que SÍ cierra exacto contra el presupuesto real (los cuatro
         # VARIOS de §11.9/D-489) no genera pendiente de ambigüedad.
