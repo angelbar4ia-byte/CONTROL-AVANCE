@@ -5,8 +5,11 @@ costo, crea su versión inicial con el PU congelado (MODELO §4, D-227). Las
 unidades y las familias que no existen se dan de alta (D-610).
 
 Alcance de esta versión (decidido con el usuario):
-- Solo altas. Una matriz que ya existe por clave **no se toca**: sus cambios
-  de costo o de descripción quedan pendientes de decidir, y se reportan.
+- Solo altas. Una matriz que ya existe por clave **no se toca**.
+- Los cambios de precio de una matriz existente **no se escriben ni se
+  proponen por cada cambio**. Solo se calculan como propuesta para revisar
+  cuando quien llama lo pide (`proponer_cambios=True`), y nunca se aplican
+  desde aquí (decisión del usuario).
 - Los conceptos auxiliares no entran (D-609): este aplicador recibe filas ya
   validadas por `validar_matriz_catalogo`, y el catálogo no trae `AUX`.
 - `dry_run=True` calcula el mismo resultado sin escribir nada.
@@ -16,11 +19,23 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
 from obractrl.domain.cargadores.matrices_catalogo import FilaMatrizCatalogo
 from obractrl.domain.shared.diccionario import TipoConcepto
+
+
+@dataclass(frozen=True)
+class PropuestaPrecio:
+    """Una matriz existente cuyo costo del catálogo difiere de su versión vigente.
+
+    Solo para revisar: no escribe nada. Se calcula bajo demanda."""
+
+    clave: str
+    pu_vigente: Decimal
+    pu_catalogo: Decimal
 
 
 @dataclass(frozen=True)
@@ -34,6 +49,7 @@ class ResultadoMatrices:
     familias_nuevas: tuple[str, ...] = ()
     versiones_creadas: int = 0
     dry_run: bool = True
+    propuestas_precio: tuple[PropuestaPrecio, ...] = ()
 
 
 @dataclass
@@ -57,7 +73,11 @@ class AplicadorMatricesCatalogo:
         self._versiones = versiones
 
     async def aplicar(
-        self, filas: Sequence[FilaMatrizCatalogo], *, dry_run: bool
+        self,
+        filas: Sequence[FilaMatrizCatalogo],
+        *,
+        dry_run: bool,
+        proponer_cambios: bool = False,
     ) -> ResultadoMatrices:
         vigentes = {
             str(f["clave"]): f for f in await self._conceptos.listar(solo_activos=False)
@@ -81,11 +101,16 @@ class AplicadorMatricesCatalogo:
         unidades_nuevas: list[str] = []
         familias_nuevas: list[str] = []
         versiones = 0
+        propuestas: list[PropuestaPrecio] = []
 
         for fila in filas:
             clave = str(fila.clave)
             if clave in vigentes:
                 ya.append(clave)
+                if proponer_cambios:
+                    propuesta = await self._propuesta_precio(vigentes[clave], fila)
+                    if propuesta is not None:
+                        propuestas.append(propuesta)
                 continue
 
             unidad_id = await self._unidad(fila.unidad, estado, unidades_nuevas, dry_run)
@@ -121,6 +146,26 @@ class AplicadorMatricesCatalogo:
             familias_nuevas=tuple(familias_nuevas),
             versiones_creadas=versiones,
             dry_run=dry_run,
+            propuestas_precio=tuple(propuestas),
+        )
+
+    async def _propuesta_precio(
+        self, concepto: dict[str, Any], fila: FilaMatrizCatalogo
+    ) -> PropuestaPrecio | None:
+        """Compara el costo del catálogo con la versión vigente (la de número mayor)."""
+        if fila.costo_unitario is None:
+            return None
+        versiones = await self._versiones.listar(concepto["id"])
+        if not versiones:
+            return None
+        vigente = max(versiones, key=lambda v: int(v["version"]))
+        pu_vigente = Decimal(str(vigente["pu"]))
+        if pu_vigente == fila.costo_unitario:
+            return None
+        return PropuestaPrecio(
+            clave=str(fila.clave),
+            pu_vigente=pu_vigente,
+            pu_catalogo=fila.costo_unitario,
         )
 
     async def _unidad(

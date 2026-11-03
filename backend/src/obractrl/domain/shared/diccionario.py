@@ -611,6 +611,24 @@ class TipoCarga(_Canonico):
     """
 
 
+ALIAS_TIPO_CARGA: dict[str, str] = {
+    # OPUS también llama «Contrato» al catálogo de trabajos (D-606, CATALOGOS.md §3):
+    # es el mismo catálogo, y el cargador reconoce ambos nombres.
+    "contrato": "trabajos",
+}
+
+
+def tipo_carga_con_alias(valor: object) -> object:
+    """Resuelve un nombre alterno de tipo de carga al canónico (sin distinguir mayúsculas).
+
+    Un valor sin alias se devuelve tal cual, para que la validación del enum
+    lo rechace como siempre."""
+    if not isinstance(valor, str):
+        return valor
+    llave = valor.strip().casefold()
+    return ALIAS_TIPO_CARGA.get(llave, valor)
+
+
 class EstatusCarga(_Canonico):
     PENDIENTE = "pendiente"
     VALIDANDO = "validando"

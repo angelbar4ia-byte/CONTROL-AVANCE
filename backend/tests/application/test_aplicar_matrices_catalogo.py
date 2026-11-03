@@ -173,6 +173,46 @@ async def test_familia_y_subfamilia_se_dan_de_alta_con_su_padre() -> None:
     assert f.filas["Muro"]["parent_id"] == f.filas["Albañilería"]["id"]
 
 
+@pytest.mark.asyncio
+async def test_sin_pedirlo_no_hay_propuestas_de_precio() -> None:
+    existente = [{"id": uuid4(), "clave": "ACA-01010"}]
+    ap, _, _, _, v = _aplicador(_Conceptos(existente))
+    r = await ap.aplicar([_fila("ACA-01010", costo="99.00")], dry_run=False)
+    assert r.propuestas_precio == ()
+    assert v.creadas == []
+
+
+@pytest.mark.asyncio
+async def test_pedido_el_cambio_de_precio_se_propone_sin_escribirlo() -> None:
+    cid = uuid4()
+    existente = [{"id": cid, "clave": "ACA-01010"}]
+    ap, c, _, _, v = _aplicador(_Conceptos(existente))
+    v.creadas.append({"concepto_id": cid, "version": 1, "pu": Decimal("71.71")})
+    r = await ap.aplicar(
+        [_fila("ACA-01010", costo="80.00")], dry_run=False, proponer_cambios=True
+    )
+    assert len(r.propuestas_precio) == 1
+    p = r.propuestas_precio[0]
+    assert (p.clave, p.pu_vigente, p.pu_catalogo) == (
+        "ACA-01010",
+        Decimal("71.71"),
+        Decimal("80.00"),
+    )
+    assert len(v.creadas) == 1  # solo la versión sembrada: no se escribió nada nuevo
+    assert c.creados == []
+
+
+@pytest.mark.asyncio
+async def test_si_el_precio_coincide_no_hay_propuesta() -> None:
+    cid = uuid4()
+    ap, _, _, _, v = _aplicador(_Conceptos([{"id": cid, "clave": "ACA-01010"}]))
+    v.creadas.append({"concepto_id": cid, "version": 1, "pu": Decimal("71.71")})
+    r = await ap.aplicar(
+        [_fila("ACA-01010", costo="71.71")], dry_run=False, proponer_cambios=True
+    )
+    assert r.propuestas_precio == ()
+
+
 _MATRICES = Path(
     "/home/user/cerebro-erp-construccion/1-mundo/opus/CATALOGO_DE_MATRICES.csv"
 )
