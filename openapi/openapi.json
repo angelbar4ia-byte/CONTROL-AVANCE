@@ -16347,7 +16347,7 @@
           },
           "tipo": {
             "$ref": "#/components/schemas/TipoCarga",
-            "description": "Tipo de carga (§8.2)."
+            "description": "Tipo de carga (§8.2). Acepta el alias «contrato» (D-606)."
           },
           "modo": {
             "$ref": "#/components/schemas/ModoCarga",
