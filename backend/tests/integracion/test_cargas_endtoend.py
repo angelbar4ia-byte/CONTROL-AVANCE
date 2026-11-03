@@ -3782,3 +3782,20 @@ async def test_la_semilla_liga_los_265_destajos_a_sus_cuadrillas_con_todas_sus_c
     assert k1["origen_rendimiento"] is not None and k1["ref_unidad"] == "M"
     assert k1["ref_costo_unitario"] == Decimal(130)
     assert sum(1 for f in ligados if (f["origen_rendimiento"] or "").startswith("completado")) == 5
+
+    # La vista de trabajos con cuadrilla (`GET /catalogos/destajos`): lo
+    # capturado y lo derivado, con los números del cerebro (CONOCIMIENTO §6.2).
+    from obractrl.adapters.api.v1.catalogos import DestajoRespuesta
+
+    async with sesion_con_rls(contexto_control) as sesion:
+        filas = await RepositorioInsumosSQL(sesion).destajos_con_cuadrilla()
+    vista = {f["clave"]: DestajoRespuesta.desde_fila(f) for f in filas}
+    assert len(filas) >= 265
+    assert not any(f["clave"].startswith("MOCA-") for f in filas)  # los puestos no son trabajos
+    k1_vista = vista["MOE-02020"]
+    assert k1_vista.cuadrilla_clave == "MOCU-005" and k1_vista.costo_cuadrilla == Decimal(1452)
+    assert k1_vista.rendimiento_calculado == Decimal("11.1692")  # 1,452 ÷ 130
+    assert k1_vista.razon_teorico_calculado == Decimal("1.0851")  # un cambio de salario
+    pintores = [v for v in vista.values() if v.cuadrilla_clave == "MOCU-023"]
+    assert len(pintores) == 25
+    assert all(abs(v.razon_teorico_calculado - Decimal("1.085")) < Decimal("0.005") for v in pintores)

@@ -2559,6 +2559,135 @@
         }
       }
     },
+    "/api/v1/destajos": {
+      "get": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Trabajos con su cuadrilla y rendimientos",
+        "description": "Las columnas del catálogo de cuadrilla y rendimiento (`CATALOGOS.md`\n§10): lo capturado (cuadrilla y rendimiento teórico) y lo derivado.",
+        "operationId": "listar_destajos_api_v1_destajos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cuadrilla_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Solo los trabajos de esta cuadrilla.",
+              "title": "Cuadrilla Id"
+            },
+            "description": "Solo los trabajos de esta cuadrilla."
+          },
+          {
+            "name": "sin_cuadrilla",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Solo los que todavía no tienen cuadrilla.",
+              "default": false,
+              "title": "Sin Cuadrilla"
+            },
+            "description": "Solo los que todavía no tienen cuadrilla."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DestajoRespuesta"
+                  },
+                  "title": "Response Listar Destajos Api V1 Destajos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/destajos/{insumo_id}/cuadrilla": {
+      "put": {
+        "tags": [
+          "catalogos"
+        ],
+        "summary": "Cuadrilla y rendimiento teórico de un trabajo",
+        "description": "La edición posterior a la semilla: «se cargan una sola vez y de ahí en\nadelante viven en el ERP y se editan ahí». Queda marcado como editado.",
+        "operationId": "asignar_cuadrilla_a_destajo_api_v1_destajos__insumo_id__cuadrilla_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "insumo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Insumo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CuadrillaDelDestajoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "El trabajo o la cuadrilla no existen."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/cuadrillas/{cuadrilla_id}/versiones": {
       "get": {
         "tags": [
@@ -19478,6 +19607,41 @@
         ],
         "title": "CriterioRespuesta"
       },
+      "CuadrillaDelDestajoPeticion": {
+        "properties": {
+          "cuadrilla_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Id"
+          },
+          "rendimiento_teorico": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendimiento Teorico"
+          }
+        },
+        "type": "object",
+        "title": "CuadrillaDelDestajoPeticion",
+        "description": "Los dos datos que OPUS no entrega y que viven en el ERP (`CATALOGOS.md`\n§10). `null` en uno lo quita: no saberlo es un estado real."
+      },
       "CuadrillaRespuesta": {
         "properties": {
           "id": {
@@ -19923,6 +20087,208 @@
           "importante_dias"
         ],
         "title": "DesfaseDePartesRespuesta"
+      },
+      "DestajoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoInsumo"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "precio": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio",
+            "description": "Precio del destajo (costo base)."
+          },
+          "familia_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Familia Id"
+          },
+          "cuadrilla_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Id"
+          },
+          "cuadrilla_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Clave"
+          },
+          "cuadrilla_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Nombre"
+          },
+          "costo_cuadrilla": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo Cuadrilla",
+            "description": "Lo que cuesta una jornada de la cuadrilla."
+          },
+          "rendimiento_teorico": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendimiento Teorico"
+          },
+          "rendimiento_calculado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendimiento Calculado",
+            "description": "Costo de la cuadrilla ÷ precio del destajo."
+          },
+          "jornadas_por_unidad": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jornadas Por Unidad",
+            "description": "Precio del destajo ÷ costo de la cuadrilla."
+          },
+          "razon_teorico_calculado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Razon Teorico Calculado",
+            "description": "Teórico ÷ calculado: cerca de 1, el precio concuerda."
+          },
+          "origen_rendimiento": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen Rendimiento"
+          },
+          "ref_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref Descripcion"
+          },
+          "ref_unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref Unidad"
+          },
+          "ref_costo_unitario": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref Costo Unitario"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "tipo",
+          "descripcion",
+          "precio"
+        ],
+        "title": "DestajoRespuesta",
+        "description": "Un trabajo con su cuadrilla y sus rendimientos (`CATALOGOS.md` §10,\n`CONOCIMIENTO.md` §6.2).\n\n``cuadrilla`` y ``rendimiento_teorico`` son los dos datos que se capturan\n(semilla y edición); el calculado, las jornadas por unidad y la razón se\nderivan y no se guardan."
       },
       "DesviacionRespuesta": {
         "properties": {

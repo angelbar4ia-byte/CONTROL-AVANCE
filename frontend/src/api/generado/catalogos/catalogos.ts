@@ -37,7 +37,9 @@ import type {
   CrearInsumoPeticion,
   CrearMaterialPeticion,
   CrearUnidadPeticion,
+  CuadrillaDelDestajoPeticion,
   CuadrillaRespuesta,
+  DestajoRespuesta,
   EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams,
   EtapaRespuesta,
   ExplosionRespuesta,
@@ -47,6 +49,7 @@ import type {
   ListarConceptosApiV1ConceptosGetParams,
   ListarContratistasApiV1ContratistasGetParams,
   ListarCuadrillasApiV1CuadrillasGetParams,
+  ListarDestajosApiV1DestajosGetParams,
   ListarFamiliasApiV1FamiliasGetParams,
   ListarInsumosApiV1InsumosGetParams,
   ListarMaterialesApiV1MaterialesGetParams,
@@ -3518,6 +3521,470 @@ export const useAsignarCostoDeJornadaApiV1CuadrillasCuadrillaIdCostoJornadaPut =
 
     return useMutation(mutationOptions, queryClient);
   };
+/**
+ * Las columnas del catálogo de cuadrilla y rendimiento (`CATALOGOS.md`
+§10): lo capturado (cuadrilla y rendimiento teórico) y lo derivado.
+ * @summary Trabajos con su cuadrilla y rendimientos
+ */
+export const listarDestajosApiV1DestajosGet = (
+  params?: ListarDestajosApiV1DestajosGetParams,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<DestajoRespuesta[]>(
+    { url: `/api/v1/destajos`, method: "GET", params, signal },
+    options,
+  );
+};
+
+export const getListarDestajosApiV1DestajosGetInfiniteQueryKey = (
+  params?: ListarDestajosApiV1DestajosGetParams,
+) => {
+  return ["infinite", `/api/v1/destajos`, ...(params ? [params] : [])] as const;
+};
+
+export const getListarDestajosApiV1DestajosGetQueryKey = (
+  params?: ListarDestajosApiV1DestajosGetParams,
+) => {
+  return [`/api/v1/destajos`, ...(params ? [params] : [])] as const;
+};
+
+export const getListarDestajosApiV1DestajosGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarDestajosApiV1DestajosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarDestajosApiV1DestajosGetInfiniteQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>
+  > = ({ signal }) =>
+    listarDestajosApiV1DestajosGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListarDestajosApiV1DestajosGetInfiniteQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>
+>;
+export type ListarDestajosApiV1DestajosGetInfiniteQueryError =
+  HTTPValidationError;
+
+export function useListarDestajosApiV1DestajosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarDestajosApiV1DestajosGetParams,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarDestajosApiV1DestajosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarDestajosApiV1DestajosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarDestajosApiV1DestajosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarDestajosApiV1DestajosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Trabajos con su cuadrilla y rendimientos
+ */
+
+export function useListarDestajosApiV1DestajosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  params?: ListarDestajosApiV1DestajosGetParams,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarDestajosApiV1DestajosGetInfiniteQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getListarDestajosApiV1DestajosGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarDestajosApiV1DestajosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListarDestajosApiV1DestajosGetQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>
+  > = ({ signal }) =>
+    listarDestajosApiV1DestajosGet(params, requestOptions, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListarDestajosApiV1DestajosGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>
+>;
+export type ListarDestajosApiV1DestajosGetQueryError = HTTPValidationError;
+
+export function useListarDestajosApiV1DestajosGet<
+  TData = Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | ListarDestajosApiV1DestajosGetParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarDestajosApiV1DestajosGet<
+  TData = Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarDestajosApiV1DestajosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarDestajosApiV1DestajosGet<
+  TData = Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarDestajosApiV1DestajosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Trabajos con su cuadrilla y rendimientos
+ */
+
+export function useListarDestajosApiV1DestajosGet<
+  TData = Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+  TError = HTTPValidationError,
+>(
+  params?: ListarDestajosApiV1DestajosGetParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarDestajosApiV1DestajosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarDestajosApiV1DestajosGetQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * La edición posterior a la semilla: «se cargan una sola vez y de ahí en
+adelante viven en el ERP y se editan ahí». Queda marcado como editado.
+ * @summary Cuadrilla y rendimiento teórico de un trabajo
+ */
+export const asignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPut = (
+  insumoId: string,
+  cuadrillaDelDestajoPeticion: CuadrillaDelDestajoPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/destajos/${insumoId}/cuadrilla`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: cuadrillaDelDestajoPeticion,
+    },
+    options,
+  );
+};
+
+export const getAsignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPutMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof asignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPut
+        >
+      >,
+      TError,
+      { insumoId: string; data: CuadrillaDelDestajoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof asignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPut
+      >
+    >,
+    TError,
+    { insumoId: string; data: CuadrillaDelDestajoPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "asignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof asignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPut
+        >
+      >,
+      { insumoId: string; data: CuadrillaDelDestajoPeticion }
+    > = (props) => {
+      const { insumoId, data } = props ?? {};
+
+      return asignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPut(
+        insumoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AsignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof asignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPut
+      >
+    >
+  >;
+export type AsignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPutMutationBody =
+  CuadrillaDelDestajoPeticion;
+export type AsignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPutMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Cuadrilla y rendimiento teórico de un trabajo
+ */
+export const useAsignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPut = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof asignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPut
+        >
+      >,
+      TError,
+      { insumoId: string; data: CuadrillaDelDestajoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof asignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPut>
+  >,
+  TError,
+  { insumoId: string; data: CuadrillaDelDestajoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getAsignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPutMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * Todas las versiones (§10.8): la carga de `CABECERAS_CUADRILLAS.xlsx`
 publica una nueva cada vez que la composición cambia.
