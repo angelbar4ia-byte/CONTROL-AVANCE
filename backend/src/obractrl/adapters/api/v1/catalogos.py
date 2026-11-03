@@ -26,7 +26,7 @@ from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from obractrl.adapters.api.casos_uso import (
@@ -71,6 +71,11 @@ from obractrl.application.casos_uso.matrices_de_concepto import (
 )
 from obractrl.domain.catalogos.apu import ExplosionCalculada, VersionCPU
 from obractrl.domain.catalogos.cantidad import FormulaDePiezasComerciales
+from obractrl.domain.catalogos.rendimientos import (
+    jornadas_por_unidad,
+    razon_teorico_calculado,
+    rendimiento_calculado,
+)
 from obractrl.domain.shared.diccionario import (
     CategoriaExplosion,
     Rol,
@@ -818,6 +823,138 @@ async def asignar_costo_de_jornada(
     """
     await RepositorioCuadrillasSQL(sesion).actualizar(
         cuadrilla_id, {"costo_jornada": peticion.costo_jornada}
+    )
+    await sesion.commit()
+
+
+class DestajoRespuesta(BaseModel):
+    """Un trabajo con su cuadrilla y sus rendimientos (`CATALOGOS.md` §10,
+    `CONOCIMIENTO.md` §6.2).
+
+    ``cuadrilla`` y ``rendimiento_teorico`` son los dos datos que se capturan
+    (semilla y edición); el calculado, las jornadas por unidad y la razón se
+    derivan y no se guardan.
+    """
+
+    id: UUID
+    clave: str
+    tipo: TipoInsumo
+    descripcion: str
+    unidad: str | None = None
+    precio: Decimal = Field(description="Precio del destajo (costo base).")
+    familia_id: UUID | None = None
+    cuadrilla_id: UUID | None = None
+    cuadrilla_clave: str | None = None
+    cuadrilla_nombre: str | None = None
+    costo_cuadrilla: Decimal | None = Field(
+        default=None, description="Lo que cuesta una jornada de la cuadrilla."
+    )
+    rendimiento_teorico: Decimal | None = None
+    rendimiento_calculado: Decimal | None = Field(
+        default=None, description="Costo de la cuadrilla ÷ precio del destajo."
+    )
+    jornadas_por_unidad: Decimal | None = Field(
+        default=None, description="Precio del destajo ÷ costo de la cuadrilla."
+    )
+    razon_teorico_calculado: Decimal | None = Field(
+        default=None, description="Teórico ÷ calculado: cerca de 1, el precio concuerda."
+    )
+    origen_rendimiento: str | None = None
+    ref_descripcion: str | None = None
+    ref_unidad: str | None = None
+    ref_costo_unitario: Decimal | None = None
+
+    @classmethod
+    def desde_fila(cls, fila: dict) -> DestajoRespuesta:
+        costo = fila.get("costo_cuadrilla")
+        precio = fila["costo_base"]
+        calculado = rendimiento_calculado(costo, precio)
+        return cls(
+            id=fila["id"],
+            clave=fila["clave"],
+            tipo=TipoInsumo(str(fila["tipo"])),
+            descripcion=fila["descripcion"],
+            unidad=fila.get("unidad"),
+            precio=precio,
+            familia_id=fila.get("familia_id"),
+            cuadrilla_id=fila.get("cuadrilla_id"),
+            cuadrilla_clave=fila.get("cuadrilla_clave"),
+            cuadrilla_nombre=fila.get("cuadrilla_nombre"),
+            costo_cuadrilla=costo,
+            rendimiento_teorico=fila.get("rendimiento_teorico"),
+            rendimiento_calculado=calculado,
+            jornadas_por_unidad=jornadas_por_unidad(costo, precio),
+            razon_teorico_calculado=razon_teorico_calculado(
+                fila.get("rendimiento_teorico"), calculado
+            ),
+            origen_rendimiento=fila.get("origen_rendimiento"),
+            ref_descripcion=fila.get("ref_descripcion"),
+            ref_unidad=fila.get("ref_unidad"),
+            ref_costo_unitario=fila.get("ref_costo_unitario"),
+        )
+
+
+@router.get(
+    "/destajos",
+    response_model=list[DestajoRespuesta],
+    summary="Trabajos con su cuadrilla y rendimientos",
+    dependencies=[CATALOGOS],
+)
+async def listar_destajos(
+    sesion: SesionRLS,
+    cuadrilla_id: Annotated[
+        UUID | None, Query(description="Solo los trabajos de esta cuadrilla.")
+    ] = None,
+    sin_cuadrilla: Annotated[
+        bool, Query(description="Solo los que todavía no tienen cuadrilla.")
+    ] = False,
+) -> list[DestajoRespuesta]:
+    """Las columnas del catálogo de cuadrilla y rendimiento (`CATALOGOS.md`
+    §10): lo capturado (cuadrilla y rendimiento teórico) y lo derivado."""
+    filas = await RepositorioInsumosSQL(sesion).destajos_con_cuadrilla()
+    if cuadrilla_id is not None:
+        filas = [f for f in filas if f["cuadrilla_id"] == cuadrilla_id]
+    if sin_cuadrilla:
+        filas = [f for f in filas if f["cuadrilla_id"] is None]
+    return [DestajoRespuesta.desde_fila(f) for f in filas]
+
+
+class CuadrillaDelDestajoPeticion(BaseModel):
+    """Los dos datos que OPUS no entrega y que viven en el ERP (`CATALOGOS.md`
+    §10). `null` en uno lo quita: no saberlo es un estado real."""
+
+    cuadrilla_id: UUID | None = None
+    rendimiento_teorico: Decimal | None = Field(default=None, gt=0)
+
+
+@router.put(
+    "/destajos/{insumo_id}/cuadrilla",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Cuadrilla y rendimiento teórico de un trabajo",
+    dependencies=[CATALOGOS],
+    responses={404: {"description": "El trabajo o la cuadrilla no existen."}},
+)
+async def asignar_cuadrilla_a_destajo(
+    insumo_id: UUID, peticion: CuadrillaDelDestajoPeticion, sesion: SesionRLS
+) -> None:
+    """La edición posterior a la semilla: «se cargan una sola vez y de ahí en
+    adelante viven en el ERP y se editan ahí». Queda marcado como editado."""
+    insumos = RepositorioInsumosSQL(sesion)
+    destajo = await insumos.obtener(insumo_id)
+    if destajo is None or str(destajo["tipo"]) not in ("mano_obra", "subcontrato", "acarreo"):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "El trabajo no existe en tu alcance.")
+    if (
+        peticion.cuadrilla_id is not None
+        and await RepositorioCuadrillasSQL(sesion).obtener(peticion.cuadrilla_id) is None
+    ):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "La cuadrilla no existe en tu alcance.")
+    await insumos.actualizar(
+        insumo_id,
+        {
+            "cuadrilla_id": peticion.cuadrilla_id,
+            "rendimiento_teorico": peticion.rendimiento_teorico,
+            "origen_rendimiento": "editado en el ERP",
+        },
     )
     await sesion.commit()
 

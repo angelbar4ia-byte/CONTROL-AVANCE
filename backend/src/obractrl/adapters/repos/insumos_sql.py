@@ -137,6 +137,41 @@ class RepositorioInsumosSQL:
             )
         ).scalar_one()
 
+    async def destajos_con_cuadrilla(self) -> list[dict[str, Any]]:
+        """Los trabajos (destajos, subcontratos, acarreos) con la cuadrilla
+        enlazada y su costo, para la vista del catálogo de cuadrilla y
+        rendimiento (`CATALOGOS.md` §10). Excluye los puestos del catálogo de
+        mano de obra (tienen su fila en `mano_de_obra_opus`).
+
+        El costo de la cuadrilla es el de su jornada; si no se capturó, el de
+        su versión vigente.
+        """
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select i.id, i.clave, i.tipo::text as tipo, i.descripcion,
+                           u.clave as unidad, i.costo_base, i.familia_id,
+                           i.cuadrilla_id, c.clave as cuadrilla_clave,
+                           c.nombre as cuadrilla_nombre,
+                           coalesce(c.costo_jornada, v.precio_unitario) as costo_cuadrilla,
+                           i.rendimiento_teorico, i.origen_rendimiento,
+                           i.ref_descripcion, i.ref_unidad, i.ref_costo_unitario
+                    from insumo i
+                    left join unidad u on u.id = i.unidad_id
+                    left join cuadrilla c on c.id = i.cuadrilla_id
+                    left join cuadrilla_version v
+                           on v.cuadrilla_id = c.id and v.vigente
+                    where i.tipo in ('mano_obra', 'subcontrato', 'acarreo')
+                      and not exists (
+                            select 1 from mano_de_obra_opus m where m.insumo_id = i.id)
+                    order by i.clave
+                    """
+                )
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
     async def crear_o_existente(self, datos: dict[str, Any]) -> UUID:
         """Como `crear`, pero idempotente por clave (§3.3, §8.7).
 
