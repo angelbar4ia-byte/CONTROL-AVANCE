@@ -3585,6 +3585,28 @@ async def test_el_catalogo_de_fletes_real_carga_con_su_propio_tipo_de_carga(
     assert {"PET-00002", "PET-00003", "PET-00015", "SER-00003"} <= set(insumos)
     assert all(str(insumos[c]["tipo"]) == "material" for c in ("PET-00002", "SER-00003"))
 
+    # Ninguna de las 12 columnas del archivo se ignora (D-616): C, Clave,
+    # Descripción, Comentarios, Unidad, Costo base M. N., Costo base M. E.,
+    # Costo unitario, Fecha, Familia, Subfamilia y Tipo.
+    tablas = insumos["MAD-00004"]  # «TABLAS (se les da 10 pza por lote)»
+    assert tablas["descripcion"] == "TABLAS (se les da 10 pza por lote)"
+    assert tablas["comentarios"] == "3"
+    assert tablas["costo_base"] == Decimal(198)
+    assert tablas["costo_base_me"] == Decimal(0)  # se conserva aunque sea cero
+    assert tablas["costo_unitario"] == Decimal(198)
+    assert str(tablas["fecha_costo"]) == "2023-08-01"
+    assert tablas["tipo_opus"] == "Flete"
+    assert tablas["desglosable"] is False
+    assert tablas["familia_id"] is not None and tablas["unidad_id"] is not None
+    familias = await _familias(contexto_control)
+    assert "Maderas" in familias and "Cimbra" in familias  # familia y subfamilia
+    assert familias["Cimbra"]["parent_id"] == familias["Maderas"]["id"]
+    assert tablas["familia_id"] == familias["Cimbra"]["id"]  # apunta a la subfamilia
+    # Los cinco apartados (tablas y materiales de prueba hidráulica) quedan
+    # marcados para revisar (D-189); los cuatro fletes de verdad, no.
+    marcados = {c for c, i in insumos.items() if i["revisar"]}
+    assert marcados == {"MAD-00004", "HID-00026", "SAN-00091", "SAN-00092", "HID-00038"}
+
     # Cargarlo otra vez no duplica nada.
     otra = await _cargar(
         contexto_control, TipoCarga.FLETES, _repaquetar_csv_como_xlsx(_FLETES_OPUS_CSV)

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 from obractrl.domain.cargadores.cabeceras import MapaColumnas
@@ -24,12 +25,22 @@ from obractrl.domain.shared.normalizacion import (
     ValorNoConvertible,
     a_booleano,
     a_decimal,
+    a_fecha,
     esta_vacio,
     texto_limpio,
 )
 from obractrl.domain.shared.valores import Clave
 
-__all__ = ["FilaMaterial", "validar_material"]
+__all__ = ["FLETES_APARTADOS", "FilaMaterial", "validar_material"]
+
+FLETES_APARTADOS: frozenset[str] = frozenset(
+    {"MAD-00004", "HID-00026", "SAN-00091", "SAN-00092", "HID-00038"}
+)
+"""Los cinco insumos de `CATALOGO_DE_FLETES` que traen `Tipo = Flete` pero no
+son fletes: tablas por lote y materiales de prueba hidráulica, apartados ahí
+para aislarlos (`CATALOGOS.md` §6). Se cargan tal cual dice el archivo y se
+marcan `revisar` (D-189): el insumo sigue reportando como material y no
+ensucia el costo de fletes."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +74,19 @@ class FilaMaterial:
     override existente."""
 
     tipo: TipoInsumo = TipoInsumo.MATERIAL
+
+    subfamilia: str | None = None
+    """Cuelga de ``familia`` en el árbol de familias."""
+    desglosable: bool = False
+    """Columna C del archivo: «+» = tiene matriz desglosable."""
+    comentarios: str | None = None
+    costo_base_me: Decimal | None = None
+    """Costo base en moneda extranjera; se conserva aunque venga en cero."""
+    costo_unitario: Decimal | None = None
+    """Valor independiente del costo base."""
+    fecha_costo: date | None = None
+    tipo_opus: str | None = None
+    """Columna Tipo del archivo, tal cual (Flete, Material...)."""
 
     fila: int = 0
     """Renglón del archivo. Viaja con el registro para que un pendiente pueda
@@ -129,6 +153,14 @@ def validar_material(
         except ValorNoConvertible as exc:
             raise ErrorEnFila(str(exc), columna="iva", valor=celda_iva) from exc
 
+    celda_fecha = mapa.valor(fila, "fecha_costo")
+    fecha_costo: date | None = None
+    if not esta_vacio(celda_fecha):
+        try:
+            fecha_costo = a_fecha(celda_fecha, campo="fecha_costo")
+        except ValorNoConvertible as exc:
+            raise ErrorEnFila(str(exc), columna="fecha_costo", valor=celda_fecha) from exc
+
     return FilaMaterial(
         clave=clave,
         descripcion=descripcion,
@@ -139,5 +171,12 @@ def validar_material(
         costo_ultimo=_decimal_opcional(fila, mapa, "costo_ultimo"),
         costo_promedio=_decimal_opcional(fila, mapa, "costo_promedio"),
         iva=iva,
+        subfamilia=texto_limpio(mapa.valor(fila, "subfamilia")) or None,
+        desglosable=texto_limpio(mapa.valor(fila, "desglosable")) == "+",
+        comentarios=texto_limpio(mapa.valor(fila, "comentarios")) or None,
+        costo_base_me=_decimal_opcional(fila, mapa, "costo_base_me"),
+        costo_unitario=_decimal_opcional(fila, mapa, "costo_unitario"),
+        fecha_costo=fecha_costo,
+        tipo_opus=texto_limpio(mapa.valor(fila, "tipo_opus")) or None,
         fila=numero,
     )

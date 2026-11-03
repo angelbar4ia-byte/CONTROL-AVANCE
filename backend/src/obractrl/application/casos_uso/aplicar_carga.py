@@ -74,7 +74,7 @@ from obractrl.domain.cargadores.ingenieria_lote import (
     TipoEstructuraIngenieria,
 )
 from obractrl.domain.cargadores.mano_de_obra import FilaManoObra
-from obractrl.domain.cargadores.materiales import FilaMaterial
+from obractrl.domain.cargadores.materiales import FLETES_APARTADOS, FilaMaterial
 from obractrl.domain.cargadores.niveles import FilaNivel
 from obractrl.domain.cargadores.presupuesto import (
     ArbolPrototipoCargado,
@@ -325,6 +325,13 @@ _CAMPOS_MATERIAL = (
     "costo_promedio_almacen",
     "costo_ultimo",
     "iva_aplica",
+    "desglosable",
+    "comentarios",
+    "costo_base_me",
+    "costo_unitario",
+    "fecha_costo",
+    "tipo_opus",
+    "revisar",
 )
 """Campos que este cargador gobierna. El diff solo mira estos: si el archivo
 no habla de un campo, cambiarlo no sería carga sino invención."""
@@ -391,6 +398,7 @@ class AplicadorMateriales:
         entrantes: dict[str, dict[str, Any]] = {}
         nuevas_unidades: dict[str, UUID | None] = {}
         nuevas_familias: dict[str, UUID | None] = {}
+        nuevas_subfamilias: dict[str, UUID | None] = {}
 
         for registro in lectura.registros:
             material: FilaMaterial = registro  # type: ignore[assignment]
@@ -443,6 +451,28 @@ class AplicadorMateriales:
                     crear=self._familias.crear_o_existente,
                     dry_run=dry_run,
                 )
+                if material.subfamilia:
+                    # La subfamilia cuelga de la familia en el árbol de
+                    # familias; el insumo apunta a la más específica.
+                    sub_clave = familias.resolver(material.subfamilia)
+                    if sub_clave is not None:
+                        familia_id = id_familia.get(sub_clave, familia_id)
+                    elif material.subfamilia not in nuevas_subfamilias:
+                        nuevas_subfamilias[material.subfamilia] = (
+                            None
+                            if dry_run
+                            else await self._familias.crear_o_existente(
+                                {
+                                    "clave": material.subfamilia,
+                                    "nombre": material.subfamilia,
+                                    "aplica_a": "material",
+                                    "parent_id": familia_id,
+                                }
+                            )
+                        )
+                        familia_id = nuevas_subfamilias[material.subfamilia] or familia_id
+                    else:
+                        familia_id = nuevas_subfamilias[material.subfamilia] or familia_id
 
             # Regla del cargador: **lo que el archivo no trae, no se toca**.
             # Un archivo sin columna de costo o sin casilla de IVA actualiza
@@ -464,6 +494,16 @@ class AplicadorMateriales:
                 ),
                 "costo_ultimo": _o_vigente(material.costo_ultimo, actual, "costo_ultimo"),
                 "iva_aplica": _o_vigente(material.iva, actual, "iva_aplica"),
+                # Las columnas del export de OPUS que antes se ignoraban
+                # (D-616): se guardan todas, tal cual vienen.
+                "desglosable": material.desglosable,
+                "comentarios": _o_vigente(material.comentarios, actual, "comentarios"),
+                "costo_base_me": _o_vigente(material.costo_base_me, actual, "costo_base_me"),
+                "costo_unitario": _o_vigente(material.costo_unitario, actual, "costo_unitario"),
+                "fecha_costo": _o_vigente(material.fecha_costo, actual, "fecha_costo"),
+                "tipo_opus": _o_vigente(material.tipo_opus, actual, "tipo_opus"),
+                "revisar": bool(actual.get("revisar"))
+                or (material.tipo_opus == "Flete" and material.llave in FLETES_APARTADOS),
             }
 
         vigentes = {
@@ -492,6 +532,13 @@ class AplicadorMateriales:
                         "costo_base_actualizado",
                         "costo_promedio_almacen",
                         "costo_ultimo",
+                        "desglosable",
+                        "comentarios",
+                        "costo_base_me",
+                        "costo_unitario",
+                        "fecha_costo",
+                        "tipo_opus",
+                        "revisar",
                     )
                     if alta.despues.get(campo) is not None
                 }

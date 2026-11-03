@@ -559,8 +559,27 @@ MATERIALES = EspecificacionArchivo(
         "costo_ultimo",
         "costo_promedio",
         "iva",
+        # Las 7 columnas del export nativo de OPUS que antes se ignoraban
+        # (D-616): C, Comentarios, Costo base M. E., Costo unitario, Fecha,
+        # Subfamilia y Tipo. `CATALOGO_DE_MATERIALES` y `CATALOGO_DE_FLETES`
+        # las traen igual.
+        "desglosable",
+        "comentarios",
+        "costo_base_me",
+        "costo_unitario",
+        "fecha_costo",
+        "subfamilia",
+        "tipo_opus",
     ),
     alias={
+        "c": "desglosable",
+        "comentarios": "comentarios",
+        "costo base m. e.": "costo_base_me",
+        "costo base m.e.": "costo_base_me",
+        "costo unitario": "costo_unitario",
+        "fecha": "fecha_costo",
+        "subfamilia": "subfamilia",
+        "tipo": "tipo_opus",
         "costo base": "costo_base",
         "costo_base": "costo_base",
         # El archivo real trae "COSTO BASE M.N." (moneda nacional): es el

@@ -193,6 +193,13 @@ _RESTAURAR: dict[str, str] = {
             factor_conversion      = coalesce(cast(a.j->>'factor_conversion' as numeric), 1),
             cuadrilla_id           = cast(a.j->>'cuadrilla_id' as uuid),
             rendimiento_teorico    = cast(a.j->>'rendimiento_teorico' as numeric),
+            desglosable            = coalesce(cast(a.j->>'desglosable' as boolean), false),
+            comentarios            = a.j->>'comentarios',
+            costo_base_me          = cast(a.j->>'costo_base_me' as numeric),
+            costo_unitario         = cast(a.j->>'costo_unitario' as numeric),
+            fecha_costo            = cast(a.j->>'fecha_costo' as date),
+            tipo_opus              = a.j->>'tipo_opus',
+            revisar                = coalesce(cast(a.j->>'revisar' as boolean), false),
             -- El modo Reemplazar da de baja lógica lo que el archivo ya no
             -- trae (§10.2); sin esta línea la reversa no la desharía.
             estatus                = cast(coalesce(a.j->>'estatus', 'activo') as estatus_registro)
