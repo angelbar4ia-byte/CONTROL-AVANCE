@@ -152,15 +152,15 @@ def validar_mano_obra(
 _CLASE_A_TIPO: dict[str, TipoInsumo] = {
     "destajo": TipoInsumo.MANO_OBRA,
     "subcontrato": TipoInsumo.SUBCONTRATO,
+    "acarreo": TipoInsumo.ACARREO,
 }
 """`Clase` del catálogo combinado de Trabajos (`CATALOGO_DE_TRABAJOS.csv`,
 §cabeceras.TRABAJOS_OPUS) → `TipoInsumo`.
 
-El archivo declara una tercera clase, `Acarreo`, sin una sola fila en el
-catálogo real (verificado). No se traduce por parecido a ninguna de las
-otras dos: si algún día aparece, `clase_de_trabajo` la rechaza como
-cualquier valor fuera de este vocabulario cerrado (§8.7, mismo criterio
-que `cpu.CATEGORIA_POR_TIPO_MATRIZ`), en vez de adivinar."""
+Tres clases: Destajo, Subcontrato y Acarreo. Acarreo no tiene filas en el
+catálogo real (verificado) y se acepta como tipo propio (`TipoInsumo.ACARREO`,
+migración 0095), decidido por el usuario; no se traduce a flete ni a otra
+clase por parecido."""
 
 
 _CATEGORIA_TRABAJO = "trabajo"
@@ -210,8 +210,8 @@ def clase_de_trabajo(fila: Sequence[object], mapa: MapaColumnas) -> TipoInsumo:
     candidatos = [v for v in valores if normalizar(v) != _CATEGORIA_TRABAJO]
     if len(candidatos) != 1:
         raise ErrorEnFila(
-            f"clase: se esperaba una sola clase de trabajo (Destajo o "
-            f"Subcontrato) y se encontraron {len(candidatos)} "
+            f"clase: se esperaba una sola clase de trabajo (Destajo, "
+            f"Subcontrato o Acarreo) y se encontraron {len(candidatos)} "
             f"({', '.join(candidatos) or 'ninguna'}).",
             columna="clase",
             valor=", ".join(candidatos) or None,
@@ -221,7 +221,7 @@ def clase_de_trabajo(fila: Sequence[object], mapa: MapaColumnas) -> TipoInsumo:
     tipo = _CLASE_A_TIPO.get(texto)
     if tipo is None:
         raise ErrorEnFila(
-            f"clase: {candidatos[0]!r} no es Destajo ni Subcontrato "
+            f"clase: {candidatos[0]!r} no es Destajo, Subcontrato ni Acarreo "
             f"(§cabeceras.TRABAJOS_OPUS).",
             columna="clase",
             valor=candidatos[0],

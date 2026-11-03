@@ -150,6 +150,7 @@ class TipoInsumo(_Canonico):
     EQUIPO = "equipo"
     HERRAMIENTA = "herramienta"
     SUBCONTRATO = "subcontrato"
+    ACARREO = "acarreo"
 
 
 class TipoConcepto(_Canonico):

@@ -1068,7 +1068,7 @@ class AplicadorManoObra:
 # (`CargadorManoObra`/`CargadorSubcontratos`); un aplicador propio contiene
 # cualquier equivocación de este archivo nuevo sin tocar esos dos.
 
-_TIPOS_DE_TRABAJO = (TipoInsumo.MANO_OBRA, TipoInsumo.SUBCONTRATO)
+_TIPOS_DE_TRABAJO = (TipoInsumo.MANO_OBRA, TipoInsumo.SUBCONTRATO, TipoInsumo.ACARREO)
 """Universo de este aplicador dentro del catálogo de insumos.
 
 `RepositorioInsumos.listar` (`application.puertos.repositorios`) solo

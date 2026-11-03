@@ -1,0 +1,3 @@
+-- down · 0095 · Acarreo como tipo de insumo
+-- El valor de enum se queda (Postgres no tiene drop value), mismo
+-- criterio que 0034 y los demás downs de tipos de insumo.

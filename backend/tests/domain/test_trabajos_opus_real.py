@@ -107,11 +107,11 @@ def test_los_subcontratos_son_las_6_claves_sub() -> None:
     }
 
 
-def test_clase_de_trabajo_rechaza_un_valor_fuera_del_vocabulario() -> None:
-    """`Acarreo` es una clase válida del archivo (§cabeceras.
-    TRABAJOS_OPUS) sin una sola fila en el catálogo real (verificado) —
-    y cualquier otro valor fuera de {Destajo, Subcontrato} se rechaza
-    igual, nunca se traduce por parecido."""
+def test_clase_de_trabajo_acepta_acarreo_como_tipo_propio() -> None:
+    """`Acarreo` es la tercera clase del archivo (§cabeceras.TRABAJOS_OPUS).
+    Sin filas en el catálogo real, pero aceptada como su propio tipo
+    (`TipoInsumo.ACARREO`, migración 0095): decisión del usuario, no una
+    traducción por parecido a flete ni a destajo."""
     encabezados, filas = _leer_csv(_TRABAJOS)
     mapa = resolver_encabezados(encabezados, TRABAJOS_OPUS)
     _, fila_real = filas[0]
@@ -120,8 +120,22 @@ def test_clase_de_trabajo_rechaza_un_valor_fuera_del_vocabulario() -> None:
     fila_con_acarreo = list(fila_real)
     fila_con_acarreo[posiciones_tipo[0]] = "Acarreo"
 
+    assert clase_de_trabajo(fila_con_acarreo, mapa) == TipoInsumo.ACARREO
+
+
+def test_clase_de_trabajo_rechaza_un_valor_fuera_del_vocabulario() -> None:
+    """Cualquier valor fuera de {Destajo, Subcontrato, Acarreo} se rechaza,
+    nunca se traduce por parecido."""
+    encabezados, filas = _leer_csv(_TRABAJOS)
+    mapa = resolver_encabezados(encabezados, TRABAJOS_OPUS)
+    _, fila_real = filas[0]
+
+    posiciones_tipo = mapa.series["clase"]
+    fila_con_flete = list(fila_real)
+    fila_con_flete[posiciones_tipo[0]] = "Flete"
+
     with pytest.raises(ErrorEnFila):
-        clase_de_trabajo(fila_con_acarreo, mapa)
+        clase_de_trabajo(fila_con_flete, mapa)
 
 
 def test_clase_de_trabajo_exige_la_categoria_trabajo_explicita() -> None:
