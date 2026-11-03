@@ -115,3 +115,45 @@ def test_las_recetas_de_los_89_compuestos_se_agrupan_con_matriz_dentro_de_matriz
     ]
     assert len(dentro_de_compuesto) == 12  # compuesto dentro de compuesto
     assert all(b.encabezado.descripcion and b.encabezado.unidad for b in bloques)
+
+
+def test_origen_y_tipo_del_archivo_real_son_coherentes() -> None:
+    from obractrl.domain.cargadores.cpu import validar_origen_y_tipo
+
+    enc, filas = _leer(_ANALISIS)
+    mapa = resolver_encabezados(enc, CPU_MATRIZ)
+    assert validar_origen_y_tipo(filas, mapa) == ()
+    cuentas = Counter(
+        (str(f[mapa.indices["origen"]]).strip(), str(f[mapa.indices["tipo"]]).strip())
+        for _, f in filas
+    )
+    assert cuentas == {
+        ("Concepto", "Material"): 1693,
+        ("Concepto", "Contrato"): 461,
+        ("Concepto", "Flete"): 35,
+        ("Material", "Material"): 250,
+        ("Material", "Flete"): 16,
+        ("Material", "Contrato"): 1,
+        ("ManoDeObra", "ManoDeObra"): 112,
+    }
+
+
+def test_un_origen_desconocido_o_una_pareja_incoherente_es_error_de_fila() -> None:
+    from obractrl.domain.cargadores.cpu import validar_origen_y_tipo
+
+    enc, filas = _leer(_ANALISIS)
+    mapa = resolver_encabezados(enc, CPU_MATRIZ)
+    io, it = mapa.indices["origen"], mapa.indices["tipo"]
+    malas = []
+    for numero, fila in filas[:3]:
+        fila = list(fila)
+        malas.append((numero, fila))
+    malas[0][1][io] = "Auxiliar"  # origen que no existe
+    malas[1][1][it] = "ManoDeObra"  # mano de obra directo bajo un concepto
+    malas[2][1][io], malas[2][1][it] = "ManoDeObra", "Material"  # cuadrilla con material
+    errores = validar_origen_y_tipo(malas, mapa)
+    assert [(e.fila, e.columna) for e in errores] == [
+        (malas[0][0], "origen"),
+        (malas[1][0], "tipo"),
+        (malas[2][0], "tipo"),
+    ]

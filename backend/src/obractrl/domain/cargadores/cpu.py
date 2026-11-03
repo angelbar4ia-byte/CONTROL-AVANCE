@@ -62,6 +62,7 @@ __all__ = [
     "agrupar_compuestos",
     "agrupar_conceptos",
     "descripciones_de_hijos",
+    "validar_origen_y_tipo",
 ]
 
 _TIPO_ENCABEZADO = "concepto"
@@ -567,6 +568,72 @@ def _agrupar_conceptos_matriz(
     return tuple(bloques), tuple(errores), tuple(pendientes), 0
 
 
+_ORIGENES_MATRIZ = frozenset({"concepto", "material", "manodeobra"})
+"""``Origen`` de la matriz nativa: la categoría del **padre** — a qué reporta el
+monto (`CONOCIMIENTO.md` §10.5). ``Concepto`` es la matriz de un concepto,
+``Material`` la de un compuesto de material (matriz dentro de matriz) y
+``ManoDeObra`` la de una cuadrilla."""
+
+_TIPOS_POR_ORIGEN: dict[str, frozenset[str]] = {
+    "concepto": frozenset({"material", "contrato", "flete"}),
+    "material": frozenset({"material", "contrato", "flete"}),
+    "manodeobra": frozenset({"manodeobra"}),
+}
+"""``Tipo`` permitido por ``Origen``: ``Tipo`` es la naturaleza del **hijo** (el
+ADN de la línea, que la explosión conserva hasta la hoja). En los archivos
+reales: Concepto → Material 1,693 · Contrato 461 · Flete 35; Material →
+Material 250 · Flete 16 · Contrato 1; ManoDeObra → ManoDeObra 112."""
+
+
+def validar_origen_y_tipo(
+    filas: Sequence[tuple[int, Sequence[object]]],
+    mapa: MapaColumnas,
+) -> tuple[ErrorDeFila, ...]:
+    """Una fila con ``Origen`` desconocido, o cuyo ``Tipo`` no cabe en su
+    ``Origen``, es error de fila — no se descarta en silencio.
+
+    Solo revisa lo que ningún otro paso revisa: un ``Tipo`` que no existe ya lo
+    reporta `_agrupar_conceptos_matriz`; aquí se atrapa el ``Origen`` que no
+    existe y la pareja incoherente (una cuadrilla con material, un concepto
+    con un hijo de mano de obra). Cuando el exportador cambie el vocabulario,
+    esto avisa en vez de cargar de menos.
+    """
+    errores: list[ErrorDeFila] = []
+    for numero, fila in filas:
+        crudo_origen = mapa.valor(fila, "origen")
+        origen = normalizar(crudo_origen)
+        if origen not in _ORIGENES_MATRIZ:
+            errores.append(
+                ErrorDeFila(
+                    fila=numero,
+                    columna="origen",
+                    valor=texto_limpio(crudo_origen),
+                    motivo=(
+                        f"origen: {texto_limpio(crudo_origen)!r} no es uno de los "
+                        f"valores de la matriz nativa de OPUS "
+                        f"(Concepto, Material, ManoDeObra)."
+                    ),
+                )
+            )
+            continue
+        crudo_tipo = mapa.valor(fila, "tipo")
+        tipo = normalizar(crudo_tipo)
+        if tipo in CATEGORIA_POR_TIPO_MATRIZ and tipo not in _TIPOS_POR_ORIGEN[origen]:
+            errores.append(
+                ErrorDeFila(
+                    fila=numero,
+                    columna="tipo",
+                    valor=texto_limpio(crudo_tipo),
+                    motivo=(
+                        f"tipo: {texto_limpio(crudo_tipo)!r} no cabe en "
+                        f"origen {texto_limpio(crudo_origen)!r} (la naturaleza del "
+                        f"hijo contra la categoría del padre, `CONOCIMIENTO.md` §10.5)."
+                    ),
+                )
+            )
+    return tuple(errores)
+
+
 def descripciones_de_hijos(
     filas: Sequence[tuple[int, Sequence[object]]],
     mapa: MapaColumnas,
@@ -656,7 +723,8 @@ def agrupar_conceptos(
     pendiente `TipoPendiente.TRABAJO_SIN_CLASE`.
     """
     if "clave_padre" in mapa.indices:
-        return _agrupar_conceptos_matriz(
+        bloques, errores, pendientes, omitidos = _agrupar_conceptos_matriz(
             filas, mapa, descripciones_concepto or {}, clase_trabajo
         )
+        return bloques, (*validar_origen_y_tipo(filas, mapa), *errores), pendientes, omitidos
     return _agrupar_conceptos_plano(filas, mapa)
