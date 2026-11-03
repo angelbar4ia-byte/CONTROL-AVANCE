@@ -63,6 +63,7 @@ from obractrl.domain.cargadores.cpu import (
     FilasMatrizSinAgrupar,
     agrupar_compuestos,
     agrupar_conceptos,
+    agrupar_cuadrillas_matriz,
 )
 from obractrl.domain.cargadores.cuadrillas import CuadrillaCargada
 from obractrl.domain.cargadores.etapas_constructivas import FilaEtapaConstructiva
@@ -2229,12 +2230,14 @@ class AplicadorCPU:
         unidades: RepositorioUnidades,
         familias: RepositorioFamilias,
         cargas: RepositorioCargas,
+        cuadrillas: RepositorioCuadrillas | None = None,
     ) -> None:
         self._conceptos = conceptos
         self._insumos = insumos
         self._unidades = unidades
         self._familias = familias
         self._cargas = cargas
+        self._cuadrillas = cuadrillas
 
     async def aplicar(  # noqa: C901 — el flujo del §9.2 es lineal, no ramificado
         self,
@@ -2302,6 +2305,7 @@ class AplicadorCPU:
 
         omitidos_de_agrupar = 0
         claves_compuesto: frozenset[str] = frozenset()
+        crudo_matriz: FilasMatrizSinAgrupar | None = None
         registros_cpu: tuple[ConceptoCargado, ...]
         primer_registro = lectura.registros[0] if lectura.registros else None
         if isinstance(primer_registro, FilasMatrizSinAgrupar):
@@ -2310,6 +2314,7 @@ class AplicadorCPU:
             # filas crudas para que se agrupen aquí, con los dos mapas que
             # solo la base puede dar (ver docstring de la clase).
             crudo = primer_registro
+            crudo_matriz = crudo
 
             # clave de concepto → (descripción, unidad real): de la tabla
             # `concepto` ya poblada (normalmente por el árbol de presupuesto
@@ -2691,6 +2696,27 @@ class AplicadorCPU:
                     )
                 )
 
+        cuadrillas_con_composicion = 0
+        if crudo_matriz is not None and self._cuadrillas is not None:
+            # Las 39 cuadrillas (`Origen = ManoDeObra`) se guardan en la tabla
+            # de cuadrillas, con su composición como versión (D-616).
+            (
+                operaciones_cuadrillas,
+                errores_cuadrillas,
+                pendientes_cuadrillas,
+                cuadrillas_con_composicion,
+            ) = await self._aplicar_cuadrillas(
+                crudo_matriz,
+                dry_run=dry_run,
+                insumos_por_clave=insumos_por_clave,
+                clave_de_insumo=clave_de_insumo,
+                costos_insumo=costos_insumo,
+                clave_de_unidad={f["id"]: str(f["clave"]) for f in unidades_filas},
+            )
+            operaciones.extend(operaciones_cuadrillas)
+            errores.extend(errores_cuadrillas)
+            pendientes.extend(pendientes_cuadrillas)
+
         return Aplicacion(
             diff=diff,
             operaciones=tuple(operaciones),
@@ -2704,8 +2730,148 @@ class AplicadorCPU:
                 "familias_creadas": len(nuevas_familias),
                 "familias_de_insumo_creadas": len(nuevas_familias_insumo),
                 "insumos_creados": len(nuevos_insumos),
+                "cuadrillas_con_composicion": cuadrillas_con_composicion,
             },
         )
+
+    async def _aplicar_cuadrillas(  # noqa: C901 — flujo lineal, igual que `aplicar`
+        self,
+        crudo: FilasMatrizSinAgrupar,
+        *,
+        dry_run: bool,
+        insumos_por_clave: dict[str, dict[str, Any]],
+        clave_de_insumo: dict[Any, str],
+        costos_insumo: dict[str, Decimal],
+        clave_de_unidad: dict[Any, str],
+    ) -> tuple[
+        list[dict[str, Any]], list[ErrorDeFila], list[PendientePropuesto], int
+    ]:
+        """Composición de las cuadrillas de la matriz (`Origen = ManoDeObra`):
+        una versión de la tabla de cuadrillas por cada una cuya composición
+        cambió, con sus integrantes (los puestos y la línea `%MO`)."""
+        assert self._cuadrillas is not None  # noqa: S101 — lo garantiza el llamador
+        operaciones: list[dict[str, Any]] = []
+        errores: list[ErrorDeFila] = []
+        pendientes: list[PendientePropuesto] = []
+
+        por_clave = {
+            str(f["clave"]): f for f in await self._cuadrillas.listar(solo_activos=False)
+        }
+        descripciones = {
+            clave: (str(f["nombre"]), clave_de_unidad.get(f.get("unidad_id")))
+            for clave, f in por_clave.items()
+        }
+        bloques, errores_agrupar, pendientes_agrupar = agrupar_cuadrillas_matriz(
+            crudo.filas, crudo.mapa, descripciones=descripciones
+        )
+        # Una cuadrilla que el catálogo de mano de obra no trae no se inventa
+        # (§10.3): se avisa una vez, no una por cada línea.
+        no_cruzan = {e.valor for e in errores_agrupar if e.columna == "clave_padre"}
+        errores.extend(e for e in errores_agrupar if e.columna != "clave_padre")
+        for clave in sorted(str(v) for v in no_cruzan):
+            pendientes.append(
+                _pendiente_de_mapeo("cuadrilla", clave, 0, critico=False)
+            )
+        pendientes.extend(pendientes_agrupar)
+
+        con_composicion = 0
+        for bloque in bloques:
+            cuadrilla = por_clave[bloque.llave]
+            componentes: list[Componente] = []
+            filas_integrantes: list[dict[str, Any]] = []
+            for comp in bloque.componentes:
+                clave_texto = str(comp.clave_insumo)
+                insumo = insumos_por_clave.get(clave_texto)
+                if insumo is None:
+                    insumo_id = (
+                        None
+                        if dry_run
+                        else await self._insumos.crear_o_existente(
+                            {
+                                "tipo": str(TipoInsumo.MANO_OBRA),
+                                "clave": clave_texto,
+                                "descripcion": comp.descripcion or clave_texto,
+                                "costo_base": comp.precio_unitario or Decimal(0),
+                            }
+                        )
+                    )
+                    insumos_por_clave[clave_texto] = {"id": insumo_id}
+                    clave_de_insumo[insumo_id] = clave_texto
+                    costos_insumo.setdefault(clave_texto, comp.precio_unitario or Decimal(0))
+                    insumo = insumos_por_clave[clave_texto]
+                try:
+                    componente = Componente(
+                        categoria=CategoriaExplosion.MANO_OBRA,
+                        cantidad=comp.cantidad,
+                        clave_insumo=clave_texto,
+                        costo_unitario=comp.precio_unitario or None,
+                    )
+                except ErrorDeAPU as exc:
+                    errores.append(
+                        ErrorDeFila(
+                            fila=comp.fila,
+                            columna="cantidad",
+                            valor=str(comp.cantidad),
+                            motivo=str(exc),
+                        )
+                    )
+                    continue
+                componentes.append(componente)
+                costo = (
+                    componente.costo_unitario
+                    if componente.costo_unitario is not None
+                    else costos_insumo.get(clave_texto, Decimal(0))
+                )
+                filas_integrantes.append(
+                    {
+                        "insumo_id": insumo["id"],
+                        "cantidad": componente.cantidad,
+                        "costo_unitario": costo,
+                        "importe": componente.cantidad * costo,
+                        "orden": len(filas_integrantes),
+                    }
+                )
+            if not componentes:
+                continue
+            try:
+                precio = calcular_cpu(
+                    bloque.llave,
+                    composiciones={bloque.llave: componentes},
+                    costos_insumo=costos_insumo,
+                )
+            except ErrorDeAPU as exc:
+                errores.append(
+                    ErrorDeFila(
+                        fila=bloque.encabezado.fila,
+                        columna="clave_padre",
+                        valor=bloque.llave,
+                        motivo=str(exc),
+                    )
+                )
+                continue
+
+            vigente = next(
+                (
+                    v
+                    for v in await self._cuadrillas.versiones(cuadrilla["id"])
+                    if v["vigente"]
+                ),
+                None,
+            )
+            if vigente is not None:
+                firma_vigente = _firma_cuadrilla(
+                    await self._cuadrillas.integrantes_de(vigente["id"]), clave_de_insumo
+                )
+                if firma_vigente == _firma_cuadrilla(filas_integrantes, clave_de_insumo):
+                    continue  # idéntico: no crea versión (§10.8)
+            con_composicion += 1
+            if not dry_run:
+                operaciones.extend(
+                    await _publicar_version_de_cuadrilla(
+                        self._cuadrillas, cuadrilla["id"], filas_integrantes, precio
+                    )
+                )
+        return operaciones, errores, pendientes, con_composicion
 
 
 async def _publicar_cpu_de_concepto(

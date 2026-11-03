@@ -2078,6 +2078,7 @@ class FabricaDeCargas:
                 unidades=RepositorioUnidadesSQL(sesion),
                 familias=RepositorioFamiliasSQL(sesion),
                 cargas=cargas,
+                cuadrillas=RepositorioCuadrillasSQL(sesion),
             )
         if tipo is TipoCarga.ALMACEN:
             tasa = await RepositorioConfiguracionSQL(sesion).decimal(

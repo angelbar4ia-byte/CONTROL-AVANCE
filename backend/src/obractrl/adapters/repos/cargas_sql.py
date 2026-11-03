@@ -135,6 +135,8 @@ _REFERENCIAS_EXTERNAS: tuple[tuple[str, str, str], ...] = (
     # que aquí el snapshot de las dos cargas nunca comparte `(tabla,
     # registro_id)`, porque lo que las liga es una FK, no la misma fila.
     ("explosion", "insumo_id", "insumo"),
+    # La cuadrilla guarda también su familia (catálogo de mano de obra, D-616).
+    ("cuadrilla", "familia_id", "familia"),
     ("cuadrilla_integrante", "insumo_id", "insumo"),
     ("salida_almacen", "insumo_id", "insumo"),
     ("actividad", "concepto_id", "concepto"),

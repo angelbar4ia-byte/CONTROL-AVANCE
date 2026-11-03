@@ -476,6 +476,7 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
             unidades=RepositorioUnidadesSQL(sesion),
             familias=RepositorioFamiliasSQL(sesion),
             cargas=cargas,
+            cuadrillas=RepositorioCuadrillasSQL(sesion),
         )
     if tipo in (TipoCarga.PROTOTIPOS, TipoCarga.PRESUPUESTO):
         return AplicadorDePrototipos(
@@ -3477,6 +3478,13 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     # `descripciones_concepto` desde `concepto` (recién poblado en el Paso 1)
     # y `clase_trabajo` desde `insumo` (recién poblado arriba), y agrupa con
     # `agrupar_conceptos` él mismo.
+    # El catálogo de mano de obra (puestos y las 39 cuadrillas) va antes: la
+    # matriz trae la composición de las cuadrillas (D-616).
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_MANO_DE_OBRA,
+        _repaquetar_csv_como_xlsx(_MANO_DE_OBRA_OPUS_CSV),
+    )
     resultado_cpu = await _cargar(
         contexto_control, TipoCarga.CPU, _archivo_cpu_matriz_opus_real()
     )
@@ -3523,6 +3531,20 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     assert conteo_categorias.get("subcontrato") == 68
     assert conteo_categorias.get("trabajo", 0) == 0
     assert conteo_categorias.get("mano_obra", 0) == 0
+
+    # Las 39 cuadrillas guardan su composición en la tabla de cuadrillas
+    # (D-616): una versión vigente cada una, con sus puestos y la línea %MO.
+    versiones = await _sql_admin(
+        "select c.clave, v.precio_unitario, "
+        "(select count(*) from cuadrilla_integrante i where i.cuadrilla_version_id = v.id) as n "
+        "from cuadrilla c join cuadrilla_version v on v.cuadrilla_id = c.id and v.vigente "
+        "where c.org_id = :org order by c.clave",
+        org=str(escenario.org_id),
+    )
+    assert len(versiones) == 39
+    assert sum(v["n"] for v in versiones) == 112  # las 112 líneas Origen = ManoDeObra
+    mocu_005 = next(v for v in versiones if v["clave"] == "MOCU-005")
+    assert mocu_005["precio_unitario"] == Decimal("1452")  # 760 + 560 + 10% de 1,320
 
     # Matriz dentro de matriz: los 89 compuestos quedan como conceptos básicos
     # con su propia receta (267 líneas), los renglones de los conceptos que

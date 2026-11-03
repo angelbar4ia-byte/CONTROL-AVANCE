@@ -61,6 +61,7 @@ __all__ = [
     "FilasMatrizSinAgrupar",
     "agrupar_compuestos",
     "agrupar_conceptos",
+    "agrupar_cuadrillas_matriz",
     "descripciones_de_hijos",
     "validar_origen_y_tipo",
 ]
@@ -686,6 +687,34 @@ def agrupar_compuestos(
     )
     bloques, errores, pendientes, _ = _agrupar_conceptos_matriz(
         filas, mapa, mapa_descripciones, clase_trabajo, origen="material"
+    )
+    return bloques, errores, pendientes
+
+
+def agrupar_cuadrillas_matriz(
+    filas: Sequence[tuple[int, Sequence[object]]],
+    mapa: MapaColumnas,
+    *,
+    descripciones: Mapping[str, tuple[str, str | None]],
+) -> tuple[
+    tuple[ConceptoCargado, ...],
+    tuple[ErrorDeFila, ...],
+    tuple[PendientePropuesto, ...],
+]:
+    """Composición de las cuadrillas (``Origen = ManoDeObra``) de la matriz
+    nativa de OPUS: cada ``MOCU-``/``CUAD-`` con sus puestos (``MOCA-``) en
+    jornales y la línea ``%MO`` del contratista (``cantidad 0.1`` sobre la
+    base ya calculada de la propia columna ``Costo``). Se guardan en la tabla
+    de cuadrillas (D-616), no como conceptos.
+
+    Ninguna fila describe a la cuadrilla (no es hijo de nadie): su nombre y su
+    unidad vienen de ``descripciones``, que arma quien llama a partir del
+    catálogo de mano de obra ya cargado.
+    """
+    if "clave_padre" not in mapa.indices:
+        return (), (), ()
+    bloques, errores, pendientes, _ = _agrupar_conceptos_matriz(
+        filas, mapa, descripciones, None, origen="manodeobra"
     )
     return bloques, errores, pendientes
 
