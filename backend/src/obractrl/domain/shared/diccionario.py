@@ -510,6 +510,12 @@ class TipoCarga(_Canonico):
     este mismo tipo)."""
 
     MATERIALES = "materiales"
+    FLETES = "fletes"
+    """`CATALOGO_DE_FLETES.csv` (9 filas): las mismas columnas que el catálogo
+    de materiales y el mismo destino (`insumo`, tipo material). Tipo de carga
+    propio para registrar, revertir y ver el lote con su nombre. Espejo en la
+    base: `database/migrations/20260814000097_carga_de_fletes.sql`."""
+
     CONTRATISTAS = "contratistas"
     UNIDADES = "unidades"
     FAMILIAS = "familias"

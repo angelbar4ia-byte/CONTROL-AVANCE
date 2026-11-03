@@ -382,7 +382,7 @@ async def catalogos(escenario: Escenario) -> AsyncIterator[Catalogos]:
 def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
     """Mismo cableado que `adapters/api/casos_uso.py::FabricaDeCargas`."""
     cargas = RepositorioCargasSQL(sesion)
-    if tipo is TipoCarga.MATERIALES:
+    if tipo in (TipoCarga.MATERIALES, TipoCarga.FLETES):
         return AplicadorMateriales(
             insumos=RepositorioInsumosSQL(sesion),
             unidades=RepositorioUnidadesSQL(sesion),
@@ -3463,3 +3463,30 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     # árbol y no se carga) citaba un compuesto.
     assert {f["padre"]: f["n"] for f in citas} == {"concepto": 251, "basico": 12}
     assert alcanza_insumo == 2  # losa nervada (AUX-50001) → nervadura (AUX-00040) → varilla
+
+
+_FLETES_OPUS_CSV = Path("/home/user/cerebro-erp-construccion/1-mundo/opus/CATALOGO_DE_FLETES.csv")
+
+
+@pytest.mark.skipif(not _FLETES_OPUS_CSV.exists(), reason="Archivo real de OPUS no disponible.")
+async def test_el_catalogo_de_fletes_real_carga_con_su_propio_tipo_de_carga(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """`CATALOGO_DE_FLETES.csv` (9 filas) por el pipeline real, como lote de
+    tipo `fletes`: mismas columnas y mismo destino que materiales (insumos de
+    tipo material), pero registrado y reversible con su propio nombre."""
+    resultado = await _cargar(
+        contexto_control, TipoCarga.FLETES, _repaquetar_csv_como_xlsx(_FLETES_OPUS_CSV)
+    )
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+    assert resultado.resumen.insertados == 9
+    insumos = await _insumos(contexto_control)
+    assert {"PET-00002", "PET-00003", "PET-00015", "SER-00003"} <= set(insumos)
+    assert all(str(insumos[c]["tipo"]) == "material" for c in ("PET-00002", "SER-00003"))
+
+    # Cargarlo otra vez no duplica nada.
+    otra = await _cargar(
+        contexto_control, TipoCarga.FLETES, _repaquetar_csv_como_xlsx(_FLETES_OPUS_CSV)
+    )
+    assert otra.resumen.insertados == 0

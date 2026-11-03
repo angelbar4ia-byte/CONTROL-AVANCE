@@ -100,6 +100,18 @@ class CargadorMateriales:
         )
 
 
+class CargadorFletes(CargadorMateriales):
+    """Catálogo de fletes — `CATALOGO_DE_FLETES.csv`.
+
+    Mismas columnas y mismo destino que el de materiales
+    (`cabeceras.MATERIALES`, verificado con el archivo real: los 9 fletes
+    cargan sin error): la diferencia es el tipo de carga, para que el lote
+    se registre y se revierta como lo que es.
+    """
+
+    tipo = TipoCarga.FLETES
+
+
 class CargadorManoObra:
     """Mano de obra / destajos — `CABECERAS_MANO_DE_OBRA.xlsx`, hoja
     `DESTAJOS` (§10.6)."""
@@ -638,6 +650,7 @@ def _es_fila_de_encabezados(fila: object) -> bool:
 
 CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.MATERIALES: CargadorMateriales,
+    TipoCarga.FLETES: CargadorFletes,
     TipoCarga.MANO_DE_OBRA: CargadorManoObra,
     TipoCarga.SUBCONTRATOS: CargadorSubcontratos,
     TipoCarga.TRABAJOS: CargadorTrabajos,

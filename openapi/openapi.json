@@ -30708,6 +30708,7 @@
         "enum": [
           "catalogo_conceptos",
           "materiales",
+          "fletes",
           "contratistas",
           "unidades",
           "familias",

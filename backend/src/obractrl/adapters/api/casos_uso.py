@@ -1969,7 +1969,7 @@ class FabricaDeCargas:
         sesion = self._sesion
         cargas = RepositorioCargasSQL(sesion)
 
-        if tipo is TipoCarga.MATERIALES:
+        if tipo in (TipoCarga.MATERIALES, TipoCarga.FLETES):
             return AplicadorMateriales(
                 insumos=RepositorioInsumosSQL(sesion),
                 unidades=RepositorioUnidadesSQL(sesion),

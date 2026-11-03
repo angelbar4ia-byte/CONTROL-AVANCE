@@ -18,6 +18,7 @@ const ETIQUETA_TIPO: Record<string, string> = {
   conceptos_auxiliares: 'Conceptos auxiliares',
   cpu: 'Análisis de básicos conceptos',
   materiales: 'Materiales',
+  fletes: 'Catálogo de fletes',
   mano_de_obra: 'Mano de obra / Destajos',
   subcontratos: 'Subcontratos',
   cuadrillas: 'Cuadrillas',
