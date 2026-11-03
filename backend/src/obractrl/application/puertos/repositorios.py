@@ -1837,3 +1837,30 @@ class RepositorioIngenieriaLoteInsumos(Protocol):
         `lote.insumos` del archivo actual en memoria, nunca re-consulta.
         """
         ...
+
+
+@runtime_checkable
+class RepositorioVersionesConcepto(Protocol):
+    """Versiones de un concepto con su PU congelado (MODELO §4, D-227; migración 0096).
+
+    `pu` se fija al crear la versión y no se recalcula: cambiarlo exige una
+    versión nueva. La versión inicial de una matriz nueva se crea con su costo.
+    """
+
+    async def crear(self, datos: dict) -> UUID:
+        """Alta de una versión. Claves: ``concepto_id``, ``version``, ``pu``,
+        y opcionales ``vigente_desde`` y ``huella``."""
+        ...
+
+    async def listar(self, concepto_id: UUID) -> list[dict]:
+        """Versiones del concepto, de la más antigua a la más reciente."""
+        ...
+
+
+@runtime_checkable
+class RepositorioManoDeObraOpus(Protocol):
+    """Detalle del cálculo del salario real por puesto o cuadrilla (D-616)."""
+
+    async def listar(self) -> list[dict]: ...
+
+    async def upsert(self, clave: str, datos: dict) -> tuple[UUID, bool]: ...

@@ -25,6 +25,7 @@ from obractrl.domain.shared.normalizacion import canonizar_encabezado, normaliza
 
 __all__ = [
     "ALMACEN",
+    "CATALOGO_MATRICES_OPUS",
     "COLUMNAS_CPU",
     "CONCEPTOS_AUXILIARES",
     "CONCEPTOS_BASE",
@@ -35,12 +36,14 @@ __all__ = [
     "FAMILIAS",
     "INGENIERIA_LOTE",
     "MANO_DE_OBRA",
+    "MANO_DE_OBRA_OPUS",
     "MAPA_CPU",
     "MATERIALES",
     "NIVELES",
     "PRESUPUESTO",
     "PROGRAMA_BASE",
     "PROTOTIPOS",
+    "SEMILLA_CUADRILLAS",
     "SUBCONTRATOS",
     "TRABAJOS_OPUS",
     "UNIDADES",
@@ -558,8 +561,27 @@ MATERIALES = EspecificacionArchivo(
         "costo_ultimo",
         "costo_promedio",
         "iva",
+        # Las 7 columnas del export nativo de OPUS que antes se ignoraban
+        # (D-616): C, Comentarios, Costo base M. E., Costo unitario, Fecha,
+        # Subfamilia y Tipo. `CATALOGO_DE_MATERIALES` y `CATALOGO_DE_FLETES`
+        # las traen igual.
+        "desglosable",
+        "comentarios",
+        "costo_base_me",
+        "costo_unitario",
+        "fecha_costo",
+        "subfamilia",
+        "tipo_opus",
     ),
     alias={
+        "c": "desglosable",
+        "comentarios": "comentarios",
+        "costo base m. e.": "costo_base_me",
+        "costo base m.e.": "costo_base_me",
+        "costo unitario": "costo_unitario",
+        "fecha": "fecha_costo",
+        "subfamilia": "subfamilia",
+        "tipo": "tipo_opus",
         "costo base": "costo_base",
         "costo_base": "costo_base",
         # El archivo real trae "COSTO BASE M.N." (moneda nacional): es el
@@ -652,6 +674,88 @@ SUBCONTRATOS = EspecificacionArchivo(
     opcionales=MANO_DE_OBRA.opcionales,
     alias=dict(MANO_DE_OBRA.alias),
 )
+
+# --- Catálogo de mano de obra, export nativo de OPUS (D-616) -------------
+#
+# `CATALOGO_DE_MANO_DE_OBRA.csv`: 97 filas y 36 columnas. 58 puestos
+# (MOCA-xxx) y las 39 cuadrillas (C = «+»: CUAD-001 y MOCU-xxx). Ninguna
+# columna se ignora: las 36 tienen su destino (insumo o cuadrilla, o
+# `mano_de_obra_opus` para las 28 del cálculo del salario real).
+
+MANO_DE_OBRA_OPUS = EspecificacionArchivo(
+    tipo="Catálogo de mano de obra (puestos y cuadrillas)",
+    archivo="CATALOGO_DE_MANO_DE_OBRA.csv",
+    hoja=None,
+    obligatorias=('clave', 'descripcion'),
+    opcionales=('desglosable', 'unidad', 'costo_unitario', 'salario_tabulado', 'salario_nominal_mn', 'utilizar_hoja_fsr', 'categoria_fsr', 'fsr', 'salario_nominal_me', 'salario_real', 'fecha_costo', 'familia', 'subfamilia', 'tipo_opus', 'factor_salario_base', 'sbc', 'excedente_tres_salarios', 'aplicacion_imss', 'cuota_fija', 'prestaciones_en_especie', 'prestaciones_en_dinero', 'invalidez_y_vida', 'cesantia_en_edad_avanzada', 'riesgos_de_trabajo', 'guarderias', 'sar', 'suma_prestaciones_imss', 'factor_cuota_patronal_imss', 'infonavit', 'impuesto_sobre_nomina', 'suma_prestaciones', 'obligacion_obrero_patronal', 'factor_de_salario_gravable', 'salario_gravable'),
+    alias={
+        "c": "desglosable",
+        "clave": "clave",
+        "descripcion": "descripcion",
+        "unidad": "unidad",
+        "costo unitario": "costo_unitario",
+        "salario tabulado": "salario_tabulado",
+        "salario nominal m.n.": "salario_nominal_mn",
+        "utilizar hoja de fsr": "utilizar_hoja_fsr",
+        "categoria de fsr": "categoria_fsr",
+        "fsr": "fsr",
+        "salario nominal m.e.": "salario_nominal_me",
+        "salario real": "salario_real",
+        "fecha": "fecha_costo",
+        "familia": "familia",
+        "subfamilia": "subfamilia",
+        "tipo": "tipo_opus",
+        "factor salario base": "factor_salario_base",
+        "s.b.c.": "sbc",
+        "excendente tres salarios": "excedente_tres_salarios",
+        "aplicacion imss": "aplicacion_imss",
+        "cuota fija": "cuota_fija",
+        "prestaciones en especie": "prestaciones_en_especie",
+        "prestaciones en dinero": "prestaciones_en_dinero",
+        "invalidez y vida": "invalidez_y_vida",
+        "cesantia en edad avanzada": "cesantia_en_edad_avanzada",
+        "riesgos de trabajo": "riesgos_de_trabajo",
+        "guarderias": "guarderias",
+        "sar": "sar",
+        "suma prestaciones imss": "suma_prestaciones_imss",
+        "factor cuota patronal imss": "factor_cuota_patronal_imss",
+        "infonavit": "infonavit",
+        "impuesto sobre nomina": "impuesto_sobre_nomina",
+        "suma prestaciones": "suma_prestaciones",
+        "obligacion obrero patronal": "obligacion_obrero_patronal",
+        "factor de salario gravable": "factor_de_salario_gravable",
+        "salario gravable": "salario_gravable",
+    },
+)
+"""Los 36 encabezados del export nativo, uno por campo canónico. El campo
+`desglosable` es la columna C y `tipo_opus` la columna Tipo."""
+
+# --- Semilla cuadrilla-rendimiento (D-616) -------------------------------
+#
+# `SEMILLA-cuadrilla-rendimiento.csv` (265 filas, 7 columnas): a qué cuadrilla
+# se liga cada destajo y su rendimiento teórico. Ninguna columna se ignora:
+# la liga y el rendimiento van a `insumo.cuadrilla_id` / `rendimiento_teorico`;
+# el Origen y las tres columnas de referencia, a sus propias columnas.
+
+SEMILLA_CUADRILLAS = EspecificacionArchivo(
+    tipo="Semilla de cuadrillas y rendimientos",
+    archivo="SEMILLA-cuadrilla-rendimiento.csv",
+    hoja=None,
+    obligatorias=("clave", "cuadrilla", "rendimiento_teorico"),
+    opcionales=("origen_rendimiento", "descripcion_ref", "unidad_ref", "costo_ref"),
+    alias={
+        "clave": "clave",
+        "cuadrilla": "cuadrilla",
+        "rendimiento teorico": "rendimiento_teorico",
+        "origen": "origen_rendimiento",
+        "descripcion (referencia)": "descripcion_ref",
+        "unidad (ref.)": "unidad_ref",
+        "costo unitario (ref.)": "costo_ref",
+    },
+)
+"""Las 7 columnas de la semilla. `Origen` queda en el campo `origen_rendimiento`
+(el nombre de la columna que lo guarda); no se llama `origen` para no chocar
+con el campo global homónimo (§8.6)."""
 
 # --- Trabajos: destajos + subcontratos, export nativo de OPUS -----------
 #
@@ -819,6 +923,7 @@ PRESUPUESTO = EspecificacionArchivo(
         "precio_unitario",
         "importe",
         "wbs",
+        "nivel_erp",
     ),
     alias={
         "indice": "indice",
@@ -835,6 +940,11 @@ PRESUPUESTO = EspecificacionArchivo(
         "clave": "clave_hijo",
         "importe": "importe",
         "wbs": "wbs",
+        # El exportador nativo de OPUS rotula el WBS «Ingenieria ERP» y el
+        # nivel del catálogo de niveles «Nivel ERP». Se conservan y se
+        # guardan aunque no se muestren (D-615); no son identidad.
+        "ingenieria erp": "wbs",
+        "nivel erp": "nivel_erp",
         # El archivo real del exportador de OPUS no trae `clave_padre`: la
         # cabecera literal es "Nivel " (con espacio al final — `normalizar`
         # colapsa espacios y la deja en "nivel"). Sin este alias, "nivel" no
@@ -878,7 +988,7 @@ módulo (§12.11: aquí solo se resuelven columnas, no se decide el árbol)."""
 # fila", solo que la columna real se llama distinto.
 
 CPU_MATRIZ = EspecificacionArchivo(
-    tipo="CPU / Conceptos (matriz nativa de OPUS)",
+    tipo="Análisis de básicos conceptos (matriz nativa de OPUS)",
     archivo="ANALISIS_DE_BASICOS_CONCEPTOS.csv",
     hoja=None,
     obligatorias=("clave_padre", "clave_insumo", "descripcion", "cantidad", "tipo", "origen"),
@@ -1013,3 +1123,48 @@ COLUMNAS_CPU: tuple[ColumnaPorLetra, ...] = (
 """Posiciones fijas del archivo de CPU (§10.6). No se resuelven por nombre."""
 
 MAPA_CPU = MapaColumnas(indices={c.campo: c.indice for c in COLUMNAS_CPU})
+
+
+# --------------------------------------------------------------------------- catálogo de matrices (D-610)
+#
+# `CATALOGO_DE_MATRICES.csv`: el catálogo de conceptos del sistema (también se
+# llama catálogo de conceptos, y sustituye al `CATALOGO_DE_CONCEPTOS` que la
+# documentación citaba). Trae las **11 columnas**, y se conservan todas (D-610).
+# `C` = `+` marca una matriz desglosable: su composición está en
+# `ANALISIS_DE_BASICOS_CONCEPTOS`. El costo es independiente de la composición.
+# Los conceptos auxiliares (`AUX`) no entran aquí (D-609).
+
+CATALOGO_MATRICES_OPUS = EspecificacionArchivo(
+    tipo="Catálogo de matrices (conceptos, export nativo de OPUS)",
+    archivo="CATALOGO_DE_MATRICES.csv",
+    hoja=None,
+    obligatorias=("clave", "descripcion", "unidad"),
+    opcionales=(
+        "matriz_desglosable",
+        "tipo",
+        "familia",
+        "subfamilia",
+        "costo_base",
+        "costo_base_me",
+        "costo_unitario",
+        "fecha",
+    ),
+    alias={
+        # "Costo base M. N." es el costo base; "Costo base M. E." y "Costo
+        # unitario" tienen su propio campo, sin pelear por el mismo alias.
+        "costo base m. n.": "costo_base",
+        "costo base m. e.": "costo_base_me",
+        "costo unitario": "costo_unitario",
+        # `C` es el marcador de matriz desglosable (`+`), no un costo.
+        "c": "matriz_desglosable",
+        # Las dos que el mapa global no conoce: se declaran para no perderlas.
+        "subfamilia": "subfamilia",
+        "fecha": "fecha",
+    },
+)
+"""Catálogo de matrices, export nativo de OPUS (`CATALOGO_DE_MATRICES.csv`).
+
+Las 11 columnas del archivo se declaran (D-610): nada se descarta en silencio.
+`subfamilia` está vacía en las 472 filas hoy, pero la columna se conserva para
+completarla después."""
+

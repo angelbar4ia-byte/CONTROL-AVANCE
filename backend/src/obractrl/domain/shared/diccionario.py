@@ -510,6 +510,22 @@ class TipoCarga(_Canonico):
     este mismo tipo)."""
 
     MATERIALES = "materiales"
+    CATALOGO_MANO_DE_OBRA = "catalogo_mano_de_obra"
+    """`CATALOGO_DE_MANO_DE_OBRA.csv` (97 filas, 36 columnas): 58 puestos
+    (insumos de mano de obra) y las 39 cuadrillas (C = «+»), con el cálculo
+    del salario real. Ninguna columna se ignora (D-616). Espejo en la base:
+    `database/migrations/20260814000102_catalogo_de_mano_de_obra_y_semilla.sql`."""
+
+    SEMILLA_CUADRILLA_RENDIMIENTO = "semilla_cuadrilla_rendimiento"
+    """`SEMILLA-cuadrilla-rendimiento.csv` (265 filas): a qué cuadrilla se
+    liga cada destajo y su rendimiento teórico (D-386, D-406, D-439)."""
+
+    FLETES = "fletes"
+    """`CATALOGO_DE_FLETES.csv` (9 filas): las mismas columnas que el catálogo
+    de materiales y el mismo destino (`insumo`, tipo material). Tipo de carga
+    propio para registrar, revertir y ver el lote con su nombre. Espejo en la
+    base: `database/migrations/20260814000097_carga_de_fletes.sql`."""
+
     CONTRATISTAS = "contratistas"
     UNIDADES = "unidades"
     FAMILIAS = "familias"
@@ -609,6 +625,24 @@ class TipoCarga(_Canonico):
     Espejo en la base:
     `database/migrations/20260814000056_carga_de_ingenieria_lote.sql`.
     """
+
+
+ALIAS_TIPO_CARGA: dict[str, str] = {
+    # OPUS también llama «Contrato» al catálogo de trabajos (D-606, CATALOGOS.md §3):
+    # es el mismo catálogo, y el cargador reconoce ambos nombres.
+    "contrato": "trabajos",
+}
+
+
+def tipo_carga_con_alias(valor: object) -> object:
+    """Resuelve un nombre alterno de tipo de carga al canónico (sin distinguir mayúsculas).
+
+    Un valor sin alias se devuelve tal cual, para que la validación del enum
+    lo rechace como siempre."""
+    if not isinstance(valor, str):
+        return valor
+    llave = valor.strip().casefold()
+    return ALIAS_TIPO_CARGA.get(llave, valor)
 
 
 class EstatusCarga(_Canonico):

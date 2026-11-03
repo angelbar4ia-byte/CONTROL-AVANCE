@@ -61,7 +61,9 @@ from obractrl.domain.cargadores.cpu import (
     ComponenteCargado,
     ConceptoCargado,
     FilasMatrizSinAgrupar,
+    agrupar_compuestos,
     agrupar_conceptos,
+    agrupar_cuadrillas_matriz,
 )
 from obractrl.domain.cargadores.cuadrillas import CuadrillaCargada
 from obractrl.domain.cargadores.etapas_constructivas import FilaEtapaConstructiva
@@ -73,13 +75,14 @@ from obractrl.domain.cargadores.ingenieria_lote import (
     TipoEstructuraIngenieria,
 )
 from obractrl.domain.cargadores.mano_de_obra import FilaManoObra
-from obractrl.domain.cargadores.materiales import FilaMaterial
+from obractrl.domain.cargadores.materiales import FLETES_APARTADOS, FilaMaterial
 from obractrl.domain.cargadores.niveles import FilaNivel
 from obractrl.domain.cargadores.presupuesto import (
     ArbolPrototipoCargado,
     NodoLeido,
     TipoNodoPresupuesto,
     es_etapa_con_componentes_directos,
+    nombre_y_m2_del_prototipo,
 )
 from obractrl.domain.cargadores.programa_base import (
     BloqueProgramaCargado,
@@ -323,6 +326,13 @@ _CAMPOS_MATERIAL = (
     "costo_promedio_almacen",
     "costo_ultimo",
     "iva_aplica",
+    "desglosable",
+    "comentarios",
+    "costo_base_me",
+    "costo_unitario",
+    "fecha_costo",
+    "tipo_opus",
+    "revisar",
 )
 """Campos que este cargador gobierna. El diff solo mira estos: si el archivo
 no habla de un campo, cambiarlo no sería carga sino invención."""
@@ -389,6 +399,7 @@ class AplicadorMateriales:
         entrantes: dict[str, dict[str, Any]] = {}
         nuevas_unidades: dict[str, UUID | None] = {}
         nuevas_familias: dict[str, UUID | None] = {}
+        nuevas_subfamilias: dict[str, UUID | None] = {}
 
         for registro in lectura.registros:
             material: FilaMaterial = registro  # type: ignore[assignment]
@@ -441,6 +452,28 @@ class AplicadorMateriales:
                     crear=self._familias.crear_o_existente,
                     dry_run=dry_run,
                 )
+                if material.subfamilia:
+                    # La subfamilia cuelga de la familia en el árbol de
+                    # familias; el insumo apunta a la más específica.
+                    sub_clave = familias.resolver(material.subfamilia)
+                    if sub_clave is not None:
+                        familia_id = id_familia.get(sub_clave, familia_id)
+                    elif material.subfamilia not in nuevas_subfamilias:
+                        nuevas_subfamilias[material.subfamilia] = (
+                            None
+                            if dry_run
+                            else await self._familias.crear_o_existente(
+                                {
+                                    "clave": material.subfamilia,
+                                    "nombre": material.subfamilia,
+                                    "aplica_a": "material",
+                                    "parent_id": familia_id,
+                                }
+                            )
+                        )
+                        familia_id = nuevas_subfamilias[material.subfamilia] or familia_id
+                    else:
+                        familia_id = nuevas_subfamilias[material.subfamilia] or familia_id
 
             # Regla del cargador: **lo que el archivo no trae, no se toca**.
             # Un archivo sin columna de costo o sin casilla de IVA actualiza
@@ -462,6 +495,16 @@ class AplicadorMateriales:
                 ),
                 "costo_ultimo": _o_vigente(material.costo_ultimo, actual, "costo_ultimo"),
                 "iva_aplica": _o_vigente(material.iva, actual, "iva_aplica"),
+                # Las columnas del export de OPUS que antes se ignoraban
+                # (D-616): se guardan todas, tal cual vienen.
+                "desglosable": material.desglosable,
+                "comentarios": _o_vigente(material.comentarios, actual, "comentarios"),
+                "costo_base_me": _o_vigente(material.costo_base_me, actual, "costo_base_me"),
+                "costo_unitario": _o_vigente(material.costo_unitario, actual, "costo_unitario"),
+                "fecha_costo": _o_vigente(material.fecha_costo, actual, "fecha_costo"),
+                "tipo_opus": _o_vigente(material.tipo_opus, actual, "tipo_opus"),
+                "revisar": bool(actual.get("revisar"))
+                or (material.tipo_opus == "Flete" and material.llave in FLETES_APARTADOS),
             }
 
         vigentes = {
@@ -490,6 +533,13 @@ class AplicadorMateriales:
                         "costo_base_actualizado",
                         "costo_promedio_almacen",
                         "costo_ultimo",
+                        "desglosable",
+                        "comentarios",
+                        "costo_base_me",
+                        "costo_unitario",
+                        "fecha_costo",
+                        "tipo_opus",
+                        "revisar",
                     )
                     if alta.despues.get(campo) is not None
                 }
@@ -2180,12 +2230,14 @@ class AplicadorCPU:
         unidades: RepositorioUnidades,
         familias: RepositorioFamilias,
         cargas: RepositorioCargas,
+        cuadrillas: RepositorioCuadrillas | None = None,
     ) -> None:
         self._conceptos = conceptos
         self._insumos = insumos
         self._unidades = unidades
         self._familias = familias
         self._cargas = cargas
+        self._cuadrillas = cuadrillas
 
     async def aplicar(  # noqa: C901 — el flujo del §9.2 es lineal, no ramificado
         self,
@@ -2252,6 +2304,8 @@ class AplicadorCPU:
         nuevos_insumos: dict[str, UUID | None] = {}
 
         omitidos_de_agrupar = 0
+        claves_compuesto: frozenset[str] = frozenset()
+        crudo_matriz: FilasMatrizSinAgrupar | None = None
         registros_cpu: tuple[ConceptoCargado, ...]
         primer_registro = lectura.registros[0] if lectura.registros else None
         if isinstance(primer_registro, FilasMatrizSinAgrupar):
@@ -2260,6 +2314,7 @@ class AplicadorCPU:
             # filas crudas para que se agrupen aquí, con los dos mapas que
             # solo la base puede dar (ver docstring de la clase).
             crudo = primer_registro
+            crudo_matriz = crudo
 
             # clave de concepto → (descripción, unidad real): de la tabla
             # `concepto` ya poblada (normalmente por el árbol de presupuesto
@@ -2309,6 +2364,19 @@ class AplicadorCPU:
             )
             errores.extend(errores_de_agrupar)
             pendientes.extend(pendientes_de_agrupar)
+            # Matriz dentro de matriz (`CONOCIMIENTO.md` §9): el mismo archivo
+            # trae también la receta de los compuestos de material
+            # (`Origen = Material`: AUX-, MEZ-, ZA1…). Se cargan como
+            # conceptos básicos y los renglones que los citan apuntan a ellos
+            # como concepto hijo, con su categoría de siempre (material).
+            # Las cuadrillas (`Origen = ManoDeObra`) las carga su cargador.
+            compuestos, errores_compuestos, pendientes_compuestos = agrupar_compuestos(
+                crudo.filas, crudo.mapa, clase_trabajo=clase_trabajo
+            )
+            errores.extend(errores_compuestos)
+            pendientes.extend(pendientes_compuestos)
+            claves_compuesto = frozenset(c.llave for c in compuestos)
+            registros_cpu = (*registros_cpu, *compuestos)
         else:
             registros_cpu = lectura.registros  # type: ignore[assignment]
 
@@ -2326,67 +2394,77 @@ class AplicadorCPU:
                 # canónica del catálogo — igual que antes de este cambio—;
                 # solo cuando no cruza (se va a dar de alta) `clave_insumo`
                 # es el propio texto del archivo, que es lo único que hay.
-                clave_insumo = insumos.resolver(clave_texto) or clave_texto
-
-                async def _dar_de_alta_insumo(
-                    _datos: dict[str, Any],
-                    *,
-                    _componente: ComponenteCargado = componente,
-                    clave: str = clave_texto,
-                ) -> UUID:
-                    unidad_insumo_id = None
-                    if _componente.unidad:
-                        unidad_insumo_id = await _resolver_o_dar_de_alta(
-                            _componente.unidad,
-                            homologador=unidades,
-                            id_por_clave=id_unidad,
-                            creadas=nuevas_unidades,
-                            crear=self._unidades.crear_o_existente,
-                            dry_run=dry_run,
-                        )
-                    familia_insumo_id = None
-                    if _componente.familia:
-                        familia_insumo_id = await _resolver_o_dar_de_alta(
-                            _componente.familia,
-                            homologador=familias_de_insumo,
-                            id_por_clave=id_familia_de_insumo,
-                            creadas=nuevas_familias_insumo,
-                            crear=self._familias.crear_o_existente,
-                            dry_run=dry_run,
-                        )
-                    return await self._insumos.crear_o_existente(
-                        {
-                            "tipo": str(_TIPO_INSUMO_POR_CATEGORIA[_componente.categoria]),
-                            "clave": clave,
-                            "descripcion": _componente.descripcion or clave,
-                            "unidad_id": unidad_insumo_id,
-                            "familia_id": familia_insumo_id,
-                            "costo_base": _componente.precio_unitario or Decimal(0),
-                        }
+                es_compuesto = clave_texto in claves_compuesto
+                if es_compuesto:
+                    # Matriz dentro de matriz: el hijo es otro concepto de este
+                    # mismo archivo, no un insumo que dar de alta.
+                    clave_insumo = clave_texto
+                    insumo_id = None
+                    costos_insumo.setdefault(
+                        clave_insumo, componente.precio_unitario or Decimal(0)
                     )
+                else:
+                    clave_insumo = insumos.resolver(clave_texto) or clave_texto
 
-                insumo_id = await _resolver_o_dar_de_alta_con_alerta(
-                    clave_texto,
-                    componente.descripcion,
-                    homologador=insumos,
-                    id_por_clave=id_insumo,
-                    filas_por_clave=insumos_por_clave,
-                    creadas=nuevos_insumos,
-                    crear=_dar_de_alta_insumo,
-                    entidad="insumo",
-                    fila=componente.fila,
-                    pendientes=pendientes,
-                    dry_run=dry_run,
-                )
-                if clave_insumo not in insumos_por_clave:
-                    # En `dry_run` sobre un insumo nuevo, `insumo_id` es
-                    # `None` (§9.3: la vista previa no escribe) — igual se
-                    # registra para que el `["id"]` de abajo no truene; nunca
-                    # se lee de verdad porque eso solo pasa dentro de
-                    # `if not dry_run:`.
-                    insumos_por_clave[clave_insumo] = {"id": insumo_id}
-                if clave_insumo not in costos_insumo:
-                    costos_insumo[clave_insumo] = componente.precio_unitario or Decimal(0)
+                    async def _dar_de_alta_insumo(
+                        _datos: dict[str, Any],
+                        *,
+                        _componente: ComponenteCargado = componente,
+                        clave: str = clave_texto,
+                    ) -> UUID:
+                        unidad_insumo_id = None
+                        if _componente.unidad:
+                            unidad_insumo_id = await _resolver_o_dar_de_alta(
+                                _componente.unidad,
+                                homologador=unidades,
+                                id_por_clave=id_unidad,
+                                creadas=nuevas_unidades,
+                                crear=self._unidades.crear_o_existente,
+                                dry_run=dry_run,
+                            )
+                        familia_insumo_id = None
+                        if _componente.familia:
+                            familia_insumo_id = await _resolver_o_dar_de_alta(
+                                _componente.familia,
+                                homologador=familias_de_insumo,
+                                id_por_clave=id_familia_de_insumo,
+                                creadas=nuevas_familias_insumo,
+                                crear=self._familias.crear_o_existente,
+                                dry_run=dry_run,
+                            )
+                        return await self._insumos.crear_o_existente(
+                            {
+                                "tipo": str(_TIPO_INSUMO_POR_CATEGORIA[_componente.categoria]),
+                                "clave": clave,
+                                "descripcion": _componente.descripcion or clave,
+                                "unidad_id": unidad_insumo_id,
+                                "familia_id": familia_insumo_id,
+                                "costo_base": _componente.precio_unitario or Decimal(0),
+                            }
+                        )
+
+                    insumo_id = await _resolver_o_dar_de_alta_con_alerta(
+                        clave_texto,
+                        componente.descripcion,
+                        homologador=insumos,
+                        id_por_clave=id_insumo,
+                        filas_por_clave=insumos_por_clave,
+                        creadas=nuevos_insumos,
+                        crear=_dar_de_alta_insumo,
+                        entidad="insumo",
+                        fila=componente.fila,
+                        pendientes=pendientes,
+                        dry_run=dry_run,
+                    )
+                    if clave_insumo not in insumos_por_clave:
+                        # En `dry_run` sobre un insumo nuevo, `insumo_id` es
+                        # `None` (§9.3: la vista previa no escribe) — igual se
+                        # registra para que el `["id"]` de abajo no truene; nunca
+                        # se lee de verdad porque eso solo pasa dentro de
+                        # `if not dry_run:`.
+                        insumos_por_clave[clave_insumo] = {"id": insumo_id}
+                    if clave_insumo not in costos_insumo:
+                        costos_insumo[clave_insumo] = componente.precio_unitario or Decimal(0)
                 try:
                     del_dominio = Componente(
                         categoria=componente.categoria,
@@ -2415,8 +2493,11 @@ class AplicadorCPU:
                 )
                 filas_explosion.append(
                     {
-                        "tipo_hijo": str(TipoHijoExplosion.INSUMO),
-                        "insumo_id": insumos_por_clave[clave_insumo]["id"],
+                        "tipo_hijo": str(
+                            TipoHijoExplosion.CONCEPTO if es_compuesto else TipoHijoExplosion.INSUMO
+                        ),
+                        "insumo_id": None if es_compuesto else insumos_por_clave[clave_insumo]["id"],
+                        "concepto_hijo_clave": clave_insumo if es_compuesto else None,
                         "categoria": str(componente.categoria),
                         # El §10.6 da una sola columna E ("rendimiento =
                         # CANTIDAD"), así que las dos del esquema (§7.3)
@@ -2507,6 +2588,7 @@ class AplicadorCPU:
                 _firma_explosion(
                     await self._conceptos.explosion_directa(vigente_fila["id"]),
                     clave_de_insumo,
+                    {f["id"]: str(f["clave"]) for f in conceptos_filas},
                 )
                 if clave in entrantes
                 else ""
@@ -2521,6 +2603,8 @@ class AplicadorCPU:
         diff = diferenciar(vigentes=vigentes, entrantes=entrantes, modo=modo)
 
         operaciones: list[dict[str, Any]] = []
+        ids_de_concepto: dict[str, UUID] = {}
+        por_publicar: list[tuple[UUID, dict[str, Any]]] = []
         if not dry_run:
             for cambio in (*diff.altas, *diff.cambios):
                 plan = planes[cambio.clave]
@@ -2529,7 +2613,11 @@ class AplicadorCPU:
                 if fila is None:
                     concepto_id = await self._conceptos.crear(
                         {
-                            "tipo": str(TipoConcepto.CONCEPTO),
+                            "tipo": str(
+                                TipoConcepto.BASICO
+                                if cambio.clave in claves_compuesto
+                                else TipoConcepto.CONCEPTO
+                            ),
                             "clave": cambio.clave,
                             "descripcion": cambio.despues["descripcion"],
                             "unidad_id": cambio.despues["unidad_id"],
@@ -2567,9 +2655,25 @@ class AplicadorCPU:
                         )
                     )
 
+                ids_de_concepto[cambio.clave] = concepto_id
+                por_publicar.append((concepto_id, plan))
+
+            # Segunda pasada: con todos los conceptos ya creados, el renglón
+            # que cita a otro (matriz dentro de matriz) puede apuntar a su id,
+            # sin importar en qué orden venía en el archivo.
+            for concepto_id, plan in por_publicar:
+                filas_publicables: list[dict[str, Any]] = []
+                for fila_explosion in plan["filas_explosion"]:
+                    fila_publicable = dict(fila_explosion)
+                    hijo = fila_publicable.pop("concepto_hijo_clave", None)
+                    if hijo is not None:
+                        fila_publicable["concepto_hijo_id"] = (
+                            ids_de_concepto.get(hijo) or por_clave[hijo]["id"]
+                        )
+                    filas_publicables.append(fila_publicable)
                 operaciones.extend(
                     await _publicar_cpu_de_concepto(
-                        self._conceptos, concepto_id, plan["filas_explosion"], plan["precio"]
+                        self._conceptos, concepto_id, filas_publicables, plan["precio"]
                     )
                 )
 
@@ -2592,6 +2696,27 @@ class AplicadorCPU:
                     )
                 )
 
+        cuadrillas_con_composicion = 0
+        if crudo_matriz is not None and self._cuadrillas is not None:
+            # Las 39 cuadrillas (`Origen = ManoDeObra`) se guardan en la tabla
+            # de cuadrillas, con su composición como versión (D-616).
+            (
+                operaciones_cuadrillas,
+                errores_cuadrillas,
+                pendientes_cuadrillas,
+                cuadrillas_con_composicion,
+            ) = await self._aplicar_cuadrillas(
+                crudo_matriz,
+                dry_run=dry_run,
+                insumos_por_clave=insumos_por_clave,
+                clave_de_insumo=clave_de_insumo,
+                costos_insumo=costos_insumo,
+                clave_de_unidad={f["id"]: str(f["clave"]) for f in unidades_filas},
+            )
+            operaciones.extend(operaciones_cuadrillas)
+            errores.extend(errores_cuadrillas)
+            pendientes.extend(pendientes_cuadrillas)
+
         return Aplicacion(
             diff=diff,
             operaciones=tuple(operaciones),
@@ -2605,8 +2730,148 @@ class AplicadorCPU:
                 "familias_creadas": len(nuevas_familias),
                 "familias_de_insumo_creadas": len(nuevas_familias_insumo),
                 "insumos_creados": len(nuevos_insumos),
+                "cuadrillas_con_composicion": cuadrillas_con_composicion,
             },
         )
+
+    async def _aplicar_cuadrillas(  # noqa: C901 — flujo lineal, igual que `aplicar`
+        self,
+        crudo: FilasMatrizSinAgrupar,
+        *,
+        dry_run: bool,
+        insumos_por_clave: dict[str, dict[str, Any]],
+        clave_de_insumo: dict[Any, str],
+        costos_insumo: dict[str, Decimal],
+        clave_de_unidad: dict[Any, str],
+    ) -> tuple[
+        list[dict[str, Any]], list[ErrorDeFila], list[PendientePropuesto], int
+    ]:
+        """Composición de las cuadrillas de la matriz (`Origen = ManoDeObra`):
+        una versión de la tabla de cuadrillas por cada una cuya composición
+        cambió, con sus integrantes (los puestos y la línea `%MO`)."""
+        assert self._cuadrillas is not None  # noqa: S101 — lo garantiza el llamador
+        operaciones: list[dict[str, Any]] = []
+        errores: list[ErrorDeFila] = []
+        pendientes: list[PendientePropuesto] = []
+
+        por_clave = {
+            str(f["clave"]): f for f in await self._cuadrillas.listar(solo_activos=False)
+        }
+        descripciones = {
+            clave: (str(f["nombre"]), clave_de_unidad.get(f.get("unidad_id")))
+            for clave, f in por_clave.items()
+        }
+        bloques, errores_agrupar, pendientes_agrupar = agrupar_cuadrillas_matriz(
+            crudo.filas, crudo.mapa, descripciones=descripciones
+        )
+        # Una cuadrilla que el catálogo de mano de obra no trae no se inventa
+        # (§10.3): se avisa una vez, no una por cada línea.
+        no_cruzan = {e.valor for e in errores_agrupar if e.columna == "clave_padre"}
+        errores.extend(e for e in errores_agrupar if e.columna != "clave_padre")
+        for clave in sorted(str(v) for v in no_cruzan):
+            pendientes.append(
+                _pendiente_de_mapeo("cuadrilla", clave, 0, critico=False)
+            )
+        pendientes.extend(pendientes_agrupar)
+
+        con_composicion = 0
+        for bloque in bloques:
+            cuadrilla = por_clave[bloque.llave]
+            componentes: list[Componente] = []
+            filas_integrantes: list[dict[str, Any]] = []
+            for comp in bloque.componentes:
+                clave_texto = str(comp.clave_insumo)
+                insumo = insumos_por_clave.get(clave_texto)
+                if insumo is None:
+                    insumo_id = (
+                        None
+                        if dry_run
+                        else await self._insumos.crear_o_existente(
+                            {
+                                "tipo": str(TipoInsumo.MANO_OBRA),
+                                "clave": clave_texto,
+                                "descripcion": comp.descripcion or clave_texto,
+                                "costo_base": comp.precio_unitario or Decimal(0),
+                            }
+                        )
+                    )
+                    insumos_por_clave[clave_texto] = {"id": insumo_id}
+                    clave_de_insumo[insumo_id] = clave_texto
+                    costos_insumo.setdefault(clave_texto, comp.precio_unitario or Decimal(0))
+                    insumo = insumos_por_clave[clave_texto]
+                try:
+                    componente = Componente(
+                        categoria=CategoriaExplosion.MANO_OBRA,
+                        cantidad=comp.cantidad,
+                        clave_insumo=clave_texto,
+                        costo_unitario=comp.precio_unitario or None,
+                    )
+                except ErrorDeAPU as exc:
+                    errores.append(
+                        ErrorDeFila(
+                            fila=comp.fila,
+                            columna="cantidad",
+                            valor=str(comp.cantidad),
+                            motivo=str(exc),
+                        )
+                    )
+                    continue
+                componentes.append(componente)
+                costo = (
+                    componente.costo_unitario
+                    if componente.costo_unitario is not None
+                    else costos_insumo.get(clave_texto, Decimal(0))
+                )
+                filas_integrantes.append(
+                    {
+                        "insumo_id": insumo["id"],
+                        "cantidad": componente.cantidad,
+                        "costo_unitario": costo,
+                        "importe": componente.cantidad * costo,
+                        "orden": len(filas_integrantes),
+                    }
+                )
+            if not componentes:
+                continue
+            try:
+                precio = calcular_cpu(
+                    bloque.llave,
+                    composiciones={bloque.llave: componentes},
+                    costos_insumo=costos_insumo,
+                )
+            except ErrorDeAPU as exc:
+                errores.append(
+                    ErrorDeFila(
+                        fila=bloque.encabezado.fila,
+                        columna="clave_padre",
+                        valor=bloque.llave,
+                        motivo=str(exc),
+                    )
+                )
+                continue
+
+            vigente = next(
+                (
+                    v
+                    for v in await self._cuadrillas.versiones(cuadrilla["id"])
+                    if v["vigente"]
+                ),
+                None,
+            )
+            if vigente is not None:
+                firma_vigente = _firma_cuadrilla(
+                    await self._cuadrillas.integrantes_de(vigente["id"]), clave_de_insumo
+                )
+                if firma_vigente == _firma_cuadrilla(filas_integrantes, clave_de_insumo):
+                    continue  # idéntico: no crea versión (§10.8)
+            con_composicion += 1
+            if not dry_run:
+                operaciones.extend(
+                    await _publicar_version_de_cuadrilla(
+                        self._cuadrillas, cuadrilla["id"], filas_integrantes, precio
+                    )
+                )
+        return operaciones, errores, pendientes, con_composicion
 
 
 async def _publicar_cpu_de_concepto(
@@ -2695,7 +2960,9 @@ def _version_de_dominio(fila: dict[str, Any]) -> VersionCPU:
 
 
 def _firma_explosion(
-    filas: list[dict[str, Any]], clave_de_insumo: dict[Any, str]
+    filas: list[dict[str, Any]],
+    clave_de_insumo: dict[Any, str],
+    clave_de_concepto: dict[Any, str] | None = None,
 ) -> str:
     """Composición como texto comparable, para saber si el APU cambió (§10.8).
 
@@ -2705,6 +2972,11 @@ def _firma_explosion(
     partes = []
     for fila in sorted(filas, key=lambda f: int(f.get("orden") or 0)):
         clave = clave_de_insumo.get(fila.get("insumo_id"), "")
+        if not clave:
+            # Matriz dentro de matriz: el renglón cita a otro concepto.
+            clave = fila.get("concepto_hijo_clave") or (clave_de_concepto or {}).get(
+                fila.get("concepto_hijo_id"), ""
+            )
         cantidad = Decimal(str(fila.get("cantidad") or 0)).normalize() + Decimal(0)
         costo = Decimal(str(fila.get("costo_unitario") or 0)).normalize() + Decimal(0)
         partes.append(f"{clave}:{fila.get('categoria')}:{cantidad}:{costo}")
@@ -3682,6 +3954,8 @@ class AplicadorPresupuesto:
         claves_actualizadas: set[str] = set()
         contadores = {
             "prototipos_tocados": 0,
+            "prototipos_creados": 0,
+            "prototipos_actualizados": 0,
             "nodos_creados": 0,
             "nodos_actualizados": 0,
             "conceptos_en_conflicto": 0,
@@ -3695,21 +3969,84 @@ class AplicadorPresupuesto:
 
         for registro in lectura.registros:
             arbol: ArbolPrototipoCargado = registro  # type: ignore[assignment]
+            # El catálogo de presupuesto forma los prototipos (D-614): cada
+            # `Capítulo` es uno, de todos los proyectos (`proyecto_id` nulo),
+            # con el nombre limpio y los m² que trae su descripción. Si ya
+            # existe se actualiza nombre y m²; niveles y recámaras no vienen
+            # en el archivo y se llenan en su pantalla, así que no se tocan.
+            nombre_prototipo, m2_prototipo = nombre_y_m2_del_prototipo(
+                arbol.raiz.descripcion or arbol.clave_prototipo
+            )
             prototipo = prototipo_por_clave.get(arbol.clave_prototipo)
-            if prototipo is None:
+            try:
+                dominio_prototipo = Prototipo.crear(
+                    clave=arbol.clave_prototipo,
+                    nombre=nombre_prototipo,
+                    m2=m2_prototipo if m2_prototipo is not None else (prototipo or {}).get("m2"),
+                )
+            except ErrorDeProyecto as exc:
                 errores.append(
                     ErrorDeFila(
                         fila=arbol.raiz.fila,
                         columna="clave_hijo",
                         valor=arbol.clave_prototipo,
-                        motivo=(
-                            f"El prototipo {arbol.clave_prototipo!r} no existe. "
-                            f"Carga primero este prototipo con Cargas → "
-                            f"Prototipos (§7.2)."
-                        ),
+                        motivo=str(exc),
                     )
                 )
                 continue
+            if prototipo is None:
+                prototipo = {
+                    "id": uuid4(),
+                    "clave": str(dominio_prototipo.clave),
+                    "nombre": dominio_prototipo.nombre,
+                    "m2": dominio_prototipo.m2,
+                    "niveles": None,
+                    "recamaras": None,
+                }
+                if not dry_run:
+                    prototipo["id"] = await self._prototipos.crear(
+                        {
+                            "proyecto_id": None,
+                            "clave": prototipo["clave"],
+                            "nombre": prototipo["nombre"],
+                            "m2": prototipo["m2"],
+                        }
+                    )
+                    operaciones.append(
+                        _operacion(
+                            "prototipo",
+                            prototipo["id"],
+                            "insert",
+                            despues={"clave": prototipo["clave"], "nombre": prototipo["nombre"]},
+                        )
+                    )
+                prototipo_por_clave[arbol.clave_prototipo] = prototipo
+                contadores["prototipos_creados"] += 1
+            elif (prototipo.get("nombre"), prototipo.get("m2")) != (
+                dominio_prototipo.nombre,
+                dominio_prototipo.m2,
+            ):
+                antes = {"nombre": prototipo.get("nombre"), "m2": prototipo.get("m2")}
+                if not dry_run:
+                    await self._prototipos.actualizar(
+                        prototipo["id"],
+                        {
+                            "nombre": dominio_prototipo.nombre,
+                            "m2": dominio_prototipo.m2,
+                            "niveles": prototipo.get("niveles"),
+                            "recamaras": prototipo.get("recamaras"),
+                        },
+                    )
+                    operaciones.append(
+                        _operacion(
+                            "prototipo",
+                            prototipo["id"],
+                            "update",
+                            antes=antes,
+                            despues={"nombre": dominio_prototipo.nombre, "m2": dominio_prototipo.m2},
+                        )
+                    )
+                contadores["prototipos_actualizados"] += 1
 
             contadores["prototipos_tocados"] += 1
             partidas: list[dict[str, Any]] = []
@@ -3720,8 +4057,9 @@ class AplicadorPresupuesto:
             # colgar de dos padres distintos dentro del mismo prototipo
             # (`uq_prototipo_nodo_posicion`, migración 0038) — indexar solo
             # por clave dejaría una de las dos ocurrencias sin su `anterior`.
+            self._ocurrencias = arbol.ocurrencias
             nodos_existentes = {
-                (f["parent_id"], str(f["clave"])): dict(f)
+                (f["parent_id"], str(f["clave"]), int(f.get("ocurrencia") or 1)): dict(f)
                 for f in await self._prototipo_nodos.por_prototipo(prototipo["id"])
                 if f["clave"]
             }
@@ -3854,7 +4192,7 @@ class AplicadorPresupuesto:
         nuevas_unidades: dict[str, UUID | None],
         catalogo_conceptos: dict[str, dict[str, Any]],
         firma_cache: dict[str, str],
-        nodos_existentes: dict[tuple[UUID | None, str], dict[str, Any]],
+        nodos_existentes: dict[tuple[UUID | None, str, int], dict[str, Any]],
         operaciones: list[dict[str, Any]],
         partidas: list[dict[str, Any]],
         errores: list[ErrorDeFila],
@@ -3922,7 +4260,7 @@ class AplicadorPresupuesto:
             )
             return
 
-        anterior = nodos_existentes.get((parent_id_db, nodo.clave))
+        anterior = nodos_existentes.get((parent_id_db, nodo.clave, self._ocurrencia(nodo)))
         es_alta = anterior is None
         contadores["nodos_creados" if es_alta else "nodos_actualizados"] += 1
 
@@ -3961,6 +4299,9 @@ class AplicadorPresupuesto:
                     "etapa_id": etapa_id_db,
                     "orden": nodo.indice or 0,
                     "cantidad": nodo.cantidad or 0,
+                    "ocurrencia": self._ocurrencia(nodo),
+                    "wbs": nodo.wbs,
+                    "nivel_erp": nodo.nivel_erp,
                 },
             )
             operaciones.append(
@@ -3970,7 +4311,7 @@ class AplicadorPresupuesto:
                     "insert" if es_alta else "update",
                     antes=_recorte(
                         anterior,
-                        ("parent_id", "tipo", "nombre", "concepto_id", "nivel_id", "etapa_id", "orden", "cantidad"),
+                        ("parent_id", "tipo", "nombre", "concepto_id", "nivel_id", "etapa_id", "orden", "cantidad", "wbs", "nivel_erp"),
                     )
                     if anterior
                     else None,
@@ -4026,7 +4367,7 @@ class AplicadorPresupuesto:
         nuevas_unidades: dict[str, UUID | None],
         catalogo_conceptos: dict[str, dict[str, Any]],
         firma_cache: dict[str, str],
-        nodos_existentes: dict[tuple[UUID | None, str], dict[str, Any]],
+        nodos_existentes: dict[tuple[UUID | None, str, int], dict[str, Any]],
         operaciones: list[dict[str, Any]],
         partidas: list[dict[str, Any]],
         errores: list[ErrorDeFila],
@@ -4464,6 +4805,10 @@ class AplicadorPresupuesto:
             contadores=contadores,
         )
 
+    def _ocurrencia(self, nodo: NodoLeido) -> int:
+        """Aparición de la clave del nodo bajo su mismo padre (D-615)."""
+        return getattr(self, "_ocurrencias", {}).get(nodo.fila, 1)
+
     async def _registrar_nodo_y_partida(
         self,
         *,
@@ -4473,7 +4818,7 @@ class AplicadorPresupuesto:
         parent_id_db: UUID | None,
         prototipo_id: UUID,
         dry_run: bool,
-        nodos_existentes: dict[tuple[UUID | None, str], dict[str, Any]],
+        nodos_existentes: dict[tuple[UUID | None, str, int], dict[str, Any]],
         operaciones: list[dict[str, Any]],
         partidas: list[dict[str, Any]],
         contadores: dict[str, int],
@@ -4486,7 +4831,7 @@ class AplicadorPresupuesto:
         contadores["partidas"] += 1
         cantidad_partida = nodo.cantidad if nodo.cantidad is not None else Decimal(1)
 
-        anterior_nodo = nodos_existentes.get((parent_id_db, nodo.clave))
+        anterior_nodo = nodos_existentes.get((parent_id_db, nodo.clave, self._ocurrencia(nodo)))
         contadores["nodos_creados" if anterior_nodo is None else "nodos_actualizados"] += 1
 
         if dry_run:
@@ -4502,6 +4847,9 @@ class AplicadorPresupuesto:
                 "concepto_id": concepto_id,
                 "orden": nodo.indice or 0,
                 "cantidad": cantidad_partida,
+                "ocurrencia": self._ocurrencia(nodo),
+                "wbs": nodo.wbs,
+                "nivel_erp": nodo.nivel_erp,
             },
         )
         operaciones.append(
@@ -4511,7 +4859,7 @@ class AplicadorPresupuesto:
                 "insert" if anterior_nodo is None else "update",
                 antes=_recorte(
                     anterior_nodo,
-                    ("parent_id", "tipo", "nombre", "concepto_id", "nivel_id", "etapa_id", "orden", "cantidad"),
+                    ("parent_id", "tipo", "nombre", "concepto_id", "nivel_id", "etapa_id", "orden", "cantidad", "wbs", "nivel_erp"),
                 )
                 if anterior_nodo
                 else None,
@@ -4778,24 +5126,16 @@ class AplicadorIngenieriaLote:
     (en `conocido`, la del prototipo asignado; en `diseno_nuevo`, la recién
     clonada) — lo que cambia es qué se hace con el resultado.
 
-    **Límite real, documentado explícito y no escondido en el código:** la
-    clase `COMPUESTO` de la reversión (un destajo que solo vive en la
-    matriz de un compuesto, CONOCIMIENTO.md §11.9, ej. `MOC-12010` dentro
-    de `ZA1-000001`) necesita `composiciones` con TODAS las líneas de la
-    matriz nativa de OPUS, también `Origen=Material`/`ManoDeObra` — la
-    receta interna del compuesto. `AplicadorCPU` (catálogo "Conceptos
-    CPU") descarta esas líneas a propósito (ver su docstring:
-    `_agrupar_conceptos_matriz`, "fuera de alcance de ese cargador"),
-    así que hoy ningún cargador persiste la receta interna de un compuesto
-    como su propio `concepto`/`Explosion`. Este aplicador reconstruye
-    `composiciones` desde `RepositorioConceptos.composicion_recursiva_de`
-    —la misma fuente que usa cualquier otro caso de uso de este repo,
-    `calcular_cpu.componentes_por_clave`— y por eso hereda ese mismo
-    límite: un destajo que solo existiera en la profundidad de un
-    compuesto cae en `SIN` en vez de `COMPUESTO` mientras ningún cargador
-    persista esa receta. No es un defecto introducido por esta entrega —es
-    una brecha ya existente en el catálogo, fuera del alcance que este
-    encargo pidió cerrar (`AplicadorCPU` no se tocó).
+    **La receta interna de un compuesto** (un destajo que solo vive en la
+    matriz de un compuesto, CONOCIMIENTO.md §11.9, ej. `MOC-12010` dentro de
+    `ZA1-000001`) la persiste `AplicadorCPU` en modo matriz («Análisis de
+    básicos conceptos», D-612): cada compuesto es un concepto `basico` y los
+    renglones que lo citan lo apuntan como concepto hijo. Este aplicador
+    reconstruye `composiciones` desde
+    `RepositorioConceptos.composicion_recursiva_de` —la misma fuente que usa
+    cualquier otro caso de uso de este repo, `calcular_cpu.componentes_por_
+    clave`— y por eso, con el análisis cargado, la clase `COMPUESTO` de la
+    reversión sí se alcanza; sin él cae en `SIN`.
 
     **Las cuatro estructuras, qué cambia en cada una** (ver el docstring de
     `domain.cargadores.ingenieria_lote` para el criterio de detección):

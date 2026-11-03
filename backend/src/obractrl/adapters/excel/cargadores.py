@@ -43,12 +43,14 @@ from obractrl.domain.cargadores.ingenieria_lote import (
     leer_ingenieria_lote,
 )
 from obractrl.domain.cargadores.mano_de_obra import validar_mano_obra, validar_trabajo
+from obractrl.domain.cargadores.mano_de_obra_catalogo import validar_mano_de_obra_opus
 from obractrl.domain.cargadores.materiales import validar_material
 from obractrl.domain.cargadores.niveles import validar_nivel
 from obractrl.domain.cargadores.presupuesto import construir_arboles
 from obractrl.domain.cargadores.programa_base import leer_programa_base
 from obractrl.domain.cargadores.prototipos import validar_prototipo
 from obractrl.domain.cargadores.reporte import ErrorEnFila, LecturaCarga
+from obractrl.domain.cargadores.semilla_cuadrillas import validar_semilla
 from obractrl.domain.cargadores.unidades import validar_unidad
 from obractrl.domain.shared.diccionario import TipoCarga, TipoInsumo
 from obractrl.domain.shared.normalizacion import canonizar_encabezado
@@ -96,6 +98,56 @@ class CargadorMateriales:
             contenido,
             self.especificacion,
             validar_material,
+            limites=self._limites,
+        )
+
+
+class CargadorFletes(CargadorMateriales):
+    """Catálogo de fletes — `CATALOGO_DE_FLETES.csv`.
+
+    Mismas columnas y mismo destino que el de materiales
+    (`cabeceras.MATERIALES`, verificado con el archivo real: los 9 fletes
+    cargan sin error): la diferencia es el tipo de carga, para que el lote
+    se registre y se revierta como lo que es.
+    """
+
+    tipo = TipoCarga.FLETES
+
+
+class CargadorCatalogoManoDeObra:
+    """Catálogo de mano de obra — `CATALOGO_DE_MANO_DE_OBRA.csv`: puestos y
+    las 39 cuadrillas, con las 36 columnas (D-616)."""
+
+    tipo = TipoCarga.CATALOGO_MANO_DE_OBRA
+    especificacion = cabeceras.MANO_DE_OBRA_OPUS
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            validar_mano_de_obra_opus,
+            limites=self._limites,
+        )
+
+
+class CargadorSemillaCuadrillas:
+    """Semilla cuadrilla-rendimiento — `SEMILLA-cuadrilla-rendimiento.csv`
+    (D-616)."""
+
+    tipo = TipoCarga.SEMILLA_CUADRILLA_RENDIMIENTO
+    especificacion = cabeceras.SEMILLA_CUADRILLAS
+
+    def __init__(self, *, limites: Limites = LIMITES) -> None:
+        self._limites = limites
+
+    def leer(self, contenido: bytes) -> LecturaCarga:
+        return leer_por_nombre(
+            contenido,
+            self.especificacion,
+            validar_semilla,
             limites=self._limites,
         )
 
@@ -638,6 +690,9 @@ def _es_fila_de_encabezados(fila: object) -> bool:
 
 CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.MATERIALES: CargadorMateriales,
+    TipoCarga.FLETES: CargadorFletes,
+    TipoCarga.CATALOGO_MANO_DE_OBRA: CargadorCatalogoManoDeObra,
+    TipoCarga.SEMILLA_CUADRILLA_RENDIMIENTO: CargadorSemillaCuadrillas,
     TipoCarga.MANO_DE_OBRA: CargadorManoObra,
     TipoCarga.SUBCONTRATOS: CargadorSubcontratos,
     TipoCarga.TRABAJOS: CargadorTrabajos,

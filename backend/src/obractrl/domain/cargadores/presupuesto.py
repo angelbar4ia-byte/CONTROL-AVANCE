@@ -35,9 +35,10 @@ Módulo puro (§12.11).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
-from dataclasses import dataclass
-from decimal import Decimal
+from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera, MapaColumnas
@@ -63,7 +64,43 @@ __all__ = [
     "TipoNodoPresupuesto",
     "construir_arboles",
     "es_etapa_con_componentes_directos",
+    "nombre_y_m2_del_prototipo",
 ]
+
+
+_M2_AL_FINAL = re.compile(r"\s*\(\s*([\d.,]+)\s*m\s*2\s*\)\s*$", re.IGNORECASE)
+
+
+def _ocurrencias_de(hijos: dict[int, list[NodoLeido]]) -> dict[int, int]:
+    resultado: dict[int, int] = {}
+    for lista in hijos.values():
+        vistas: dict[str, int] = {}
+        for hijo in lista:
+            vistas[hijo.clave] = vistas.get(hijo.clave, 0) + 1
+            resultado[hijo.fila] = vistas[hijo.clave]
+    return resultado
+
+
+def nombre_y_m2_del_prototipo(descripcion: str) -> tuple[str, Decimal | None]:
+    """Nombre limpio y m² de un prototipo a partir de la descripción de su
+    fila `Capítulo` (`CATALOGOS.md` §1: «ZAFIRO 1.0 (172 M2)»).
+
+    El archivo no trae el nombre ni los m² en columnas propias: vienen en el
+    texto. El nombre queda sin el «(172 M2)» y con solo la primera letra en
+    mayúscula («Zafiro 1.0», «Diamante sin chimenea»); los m², si el texto
+    los trae y son mayores que cero. D-614.
+    """
+    texto = " ".join(descripcion.split())
+    m2: Decimal | None = None
+    coincidencia = _M2_AL_FINAL.search(texto)
+    if coincidencia is not None:
+        try:
+            valor = Decimal(coincidencia.group(1).replace(",", ""))
+        except InvalidOperation:
+            valor = None
+        m2 = valor if valor is not None and valor > 0 else None
+        texto = texto[: coincidencia.start()].strip()
+    return (texto.capitalize() if texto else " ".join(descripcion.split())), m2
 
 
 class TipoNodoPresupuesto(StrEnum):
@@ -161,9 +198,15 @@ class NodoLeido:
     el formato histórico (con `clave_padre` explícita), que no trae esta
     columna."""
     wbs: str | None = None
-    """Columna WBS del archivo, si la trae (opcional, §7.4). Solo se usa
-    para comparar contra `_siguiente_wbs` y avisar si no coincide —nunca
-    para la identidad del nodo, esa la da `clave_padre` o `nivel`+posición."""
+    """Columna WBS del archivo, si la trae (opcional, §7.4; en el export
+    nativo de OPUS, «Ingenieria ERP»). Se conserva y se guarda tal cual
+    (D-615); nunca es la identidad del nodo, esa la da `clave_padre` o
+    `nivel`+posición. En el formato histórico (con `clave_padre`) además se
+    compara contra `_siguiente_wbs` para avisar si no coincide."""
+
+    nivel_erp: int | None = None
+    """«Nivel ERP» del archivo (llave al catálogo de niveles, 0..15). Se
+    conserva y se guarda; no es identidad (D-615)."""
 
     fila: int = 0
     """Renglón del archivo, para que un error de fila ligue al origen."""
@@ -195,6 +238,11 @@ class ArbolPrototipoCargado:
     nodos: dict[str, NodoLeido]
     """Clave → nodo. Atajo de consulta para el aplicador; no reemplaza a
     `hijos` para recorrer el árbol."""
+
+    ocurrencias: dict[int, int] = field(default_factory=dict)
+    """`fila` del nodo → aparición de su clave bajo su mismo padre (1, 2, ...).
+    La misma clave repetida bajo el mismo padre son nodos independientes, ni
+    se suman ni se funden (D-615): esto es lo que los distingue."""
 
     @property
     def llave(self) -> str:
@@ -346,6 +394,7 @@ def _leer_nodo(
         indice=_entero_opcional(mapa.valor(fila, "indice"), columna="indice"),
         nivel=nivel,
         wbs=texto_limpio(mapa.valor(fila, "wbs")) or None,
+        nivel_erp=_entero_opcional(mapa.valor(fila, "nivel_erp"), columna="nivel_erp"),
         fila=numero,
         es_hueco=es_placeholder,
     )
@@ -508,6 +557,7 @@ def construir_arboles(
             raiz=raiz,
             hijos={fila_padre: tuple(lista) for fila_padre, lista in hijos.items()},
             nodos=dict(ultimo_por_clave),
+            ocurrencias=_ocurrencias_de(hijos),
         )
         if arbol.llave in arboles:
             omitidos += 1
@@ -559,7 +609,11 @@ def construir_arboles(
             assert nodo.nivel is not None  # noqa: S101 — `_leer_nodo` ya lo exige en este modo
             nivel_wbs = nodo.nivel + 1
         wbs_calculado = _siguiente_wbs(contadores_wbs, nivel_wbs)
-        if nodo.wbs and nodo.wbs != wbs_calculado:
+        # Solo en el formato histórico: el WBS del export nativo de OPUS no
+        # sigue una regla deducible («la regla no se pudo deducir»,
+        # CATALOGOS.md §1), así que compararlo avisaría en cada fila sin ser
+        # un error del archivo.
+        if modo_clave_padre and nodo.wbs and nodo.wbs != wbs_calculado:
             # No crítico (§10.3): la fila se procesa igual, esto solo avisa
             # para que alguien decida si carga o corrige el archivo antes.
             pendientes.append(

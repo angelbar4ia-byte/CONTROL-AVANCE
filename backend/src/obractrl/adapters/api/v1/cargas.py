@@ -34,7 +34,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
 
 from obractrl.adapters.api.casos_uso import (
     ConsultarCargaDep,
@@ -52,7 +52,12 @@ from obractrl.application.casos_uso.gestionar_carga import (
     PendienteNoResoluble,
     ResultadoCarga,
 )
-from obractrl.domain.shared.diccionario import ModoCarga, Rol, TipoCarga
+from obractrl.domain.shared.diccionario import (
+    ModoCarga,
+    Rol,
+    TipoCarga,
+    tipo_carga_con_alias,
+)
 
 router = APIRouter(tags=["cargas"])
 
@@ -231,7 +236,11 @@ async def subir_carga(
     fabrica: FabricaDeCargasDep,
     ctx: ContextoActual,
     archivo: Annotated[UploadFile, File(description="Archivo .xlsx del §10.6.")],
-    tipo: Annotated[TipoCarga, Form(description="Tipo de carga (§8.2).")],
+    tipo: Annotated[
+        TipoCarga,
+        BeforeValidator(tipo_carga_con_alias),
+        Form(description="Tipo de carga (§8.2). Acepta el alias «contrato» (D-606)."),
+    ],
     modo: Annotated[ModoCarga, Form(description="Modo de carga (§10.2).")] = ModoCarga.ACTUALIZAR,
     dry_run: Annotated[
         bool, Form(description="Vista previa: valida y cuenta sin escribir (§10.2).")

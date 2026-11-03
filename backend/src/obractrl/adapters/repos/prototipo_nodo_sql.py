@@ -42,7 +42,7 @@ class RepositorioPrototipoNodoSQL:
                     """
                     select id, parent_id, tipo, nombre, clave, concepto_id,
                            nivel_id, etapa_id, orden, cantidad, ponderacion,
-                           modo_cantidad
+                           modo_cantidad, ocurrencia, wbs, nivel_erp
                       from prototipo_nodo
                      where org_id = cast(current_setting('app.org_id') as uuid)
                        and prototipo_id = :prototipo_id
@@ -130,6 +130,9 @@ class RepositorioPrototipoNodoSQL:
             "etapa_id": str(datos["etapa_id"]) if datos.get("etapa_id") else None,
             "orden": datos.get("orden", 0),
             "cantidad": datos.get("cantidad", 0),
+            "ocurrencia": datos.get("ocurrencia", 1),
+            "wbs": datos.get("wbs"),
+            "nivel_erp": datos.get("nivel_erp"),
         }
 
         if clave is None:
@@ -139,13 +142,14 @@ class RepositorioPrototipoNodoSQL:
                         """
                         insert into prototipo_nodo
                             (org_id, prototipo_id, parent_id, tipo, nombre, clave,
-                             concepto_id, nivel_id, etapa_id, orden, cantidad)
+                             concepto_id, nivel_id, etapa_id, orden, cantidad,
+                             wbs, nivel_erp)
                         values
                             (cast(current_setting('app.org_id') as uuid), :prototipo_id,
                              cast(:parent_id as uuid), cast(:tipo as tipo_prototipo_nodo),
                              :nombre, null, cast(:concepto_id as uuid),
                              cast(:nivel_id as uuid), cast(:etapa_id as uuid),
-                             :orden, :cantidad)
+                             :orden, :cantidad, :wbs, :nivel_erp)
                         returning id
                         """
                     ),
@@ -160,17 +164,18 @@ class RepositorioPrototipoNodoSQL:
                     """
                     insert into prototipo_nodo
                         (org_id, prototipo_id, parent_id, tipo, nombre, clave,
-                         concepto_id, nivel_id, etapa_id, orden, cantidad)
+                         concepto_id, nivel_id, etapa_id, orden, cantidad, ocurrencia,
+                         wbs, nivel_erp)
                     values
                         (cast(current_setting('app.org_id') as uuid), :prototipo_id,
                          cast(:parent_id as uuid), cast(:tipo as tipo_prototipo_nodo),
                          :nombre, :clave, cast(:concepto_id as uuid),
                          cast(:nivel_id as uuid), cast(:etapa_id as uuid),
-                         :orden, :cantidad)
+                         :orden, :cantidad, :ocurrencia, :wbs, :nivel_erp)
                     on conflict (
                         org_id, prototipo_id,
                         coalesce(parent_id, '00000000-0000-0000-0000-000000000000'::uuid),
-                        clave
+                        clave, ocurrencia
                     ) where clave is not null
                     do update set
                         parent_id   = excluded.parent_id,
@@ -180,7 +185,9 @@ class RepositorioPrototipoNodoSQL:
                         nivel_id    = excluded.nivel_id,
                         etapa_id    = excluded.etapa_id,
                         orden       = excluded.orden,
-                        cantidad    = excluded.cantidad
+                        cantidad    = excluded.cantidad,
+                        wbs         = excluded.wbs,
+                        nivel_erp   = excluded.nivel_erp
                     returning id, (xmax = 0) as es_alta
                     """
                 ),
@@ -216,7 +223,8 @@ class RepositorioPrototipoNodoSQL:
                 text(
                     """
                     select id, parent_id, tipo, nombre, clave, concepto_id,
-                           nivel_id, etapa_id, orden, cantidad, ponderacion
+                           nivel_id, etapa_id, orden, cantidad, ponderacion, ocurrencia,
+                           wbs, nivel_erp
                       from prototipo_nodo
                      where org_id = cast(current_setting('app.org_id') as uuid)
                        and prototipo_id = :origen_id
@@ -258,14 +266,16 @@ class RepositorioPrototipoNodoSQL:
                             insert into prototipo_nodo
                                 (org_id, prototipo_id, parent_id, tipo, nombre,
                                  clave, concepto_id, nivel_id, etapa_id, orden,
-                                 cantidad, ponderacion, modo_cantidad)
+                                 cantidad, ponderacion, modo_cantidad, ocurrencia,
+                                 wbs, nivel_erp)
                             values
                                 (cast(current_setting('app.org_id') as uuid),
                                  :destino_id, cast(:parent_id as uuid),
                                  cast(:tipo as tipo_prototipo_nodo), :nombre,
                                  :clave, cast(:concepto_id as uuid),
                                  cast(:nivel_id as uuid), cast(:etapa_id as uuid),
-                                 :orden, :cantidad, :ponderacion, 'heredada')
+                                 :orden, :cantidad, :ponderacion, 'heredada', :ocurrencia,
+                                 :wbs, :nivel_erp)
                             returning id
                             """
                         ),
@@ -295,6 +305,9 @@ class RepositorioPrototipoNodoSQL:
                             # los conceptos, sin cantidades: esas llegan midiendo.
                             "cantidad": 0 if sin_cantidades else fila_origen["cantidad"],
                             "ponderacion": fila_origen["ponderacion"],
+                            "ocurrencia": fila_origen["ocurrencia"],
+                            "wbs": fila_origen["wbs"],
+                            "nivel_erp": fila_origen["nivel_erp"],
                         },
                     )
                 ).one()

@@ -12,6 +12,9 @@ export type TipoCarga = (typeof TipoCarga)[keyof typeof TipoCarga];
 export const TipoCarga = {
   catalogo_conceptos: "catalogo_conceptos",
   materiales: "materiales",
+  catalogo_mano_de_obra: "catalogo_mano_de_obra",
+  semilla_cuadrilla_rendimiento: "semilla_cuadrilla_rendimiento",
+  fletes: "fletes",
   contratistas: "contratistas",
   unidades: "unidades",
   familias: "familias",

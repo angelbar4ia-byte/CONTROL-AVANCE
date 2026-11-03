@@ -57,7 +57,9 @@ class RepositorioPrototiposSQL:
                     """
                 ),
                 {
-                    "proyecto_id": str(datos["proyecto_id"]),
+                    "proyecto_id": (
+                        str(datos["proyecto_id"]) if datos.get("proyecto_id") else None
+                    ),
                     "clave": datos["clave"],
                     "nombre": datos["nombre"],
                     "m2": datos.get("m2"),
@@ -113,7 +115,10 @@ class RepositorioPrototiposSQL:
                     from prototipo
                     -- El cast del lado `is null` fija el tipo del parámetro;
                     -- sin él asyncpg levanta AmbiguousParameterError.
+                    -- Los prototipos de todos los proyectos (proyecto_id nulo,
+                    -- D-614) se ven desde cualquier proyecto.
                     where cast(:proyecto_id as uuid) is null
+                       or proyecto_id is null
                        or proyecto_id = cast(:proyecto_id as uuid)
                     order by clave
                     """

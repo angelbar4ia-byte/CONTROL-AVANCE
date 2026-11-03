@@ -67,6 +67,7 @@ from obractrl.adapters.repos.ingenieria_lote_insumos_sql import (
     RepositorioIngenieriaLoteInsumosSQL,
 )
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
+from obractrl.adapters.repos.mano_de_obra_opus_sql import RepositorioManoDeObraOpusSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
@@ -102,6 +103,10 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorPrototipos,
     AplicadorTrabajos,
     AplicadorUnidades,
+)
+from obractrl.application.casos_uso.aplicar_catalogo_mano_de_obra import (
+    AplicadorCatalogoManoDeObra,
+    AplicadorSemillaCuadrillas,
 )
 from obractrl.application.casos_uso.arbol import ArmarArbol
 from obractrl.application.casos_uso.calcular_cpu import (
@@ -1969,11 +1974,26 @@ class FabricaDeCargas:
         sesion = self._sesion
         cargas = RepositorioCargasSQL(sesion)
 
-        if tipo is TipoCarga.MATERIALES:
+        if tipo in (TipoCarga.MATERIALES, TipoCarga.FLETES):
             return AplicadorMateriales(
                 insumos=RepositorioInsumosSQL(sesion),
                 unidades=RepositorioUnidadesSQL(sesion),
                 familias=RepositorioFamiliasSQL(sesion),
+                cargas=cargas,
+            )
+        if tipo is TipoCarga.CATALOGO_MANO_DE_OBRA:
+            return AplicadorCatalogoManoDeObra(
+                insumos=RepositorioInsumosSQL(sesion),
+                cuadrillas=RepositorioCuadrillasSQL(sesion),
+                unidades=RepositorioUnidadesSQL(sesion),
+                familias=RepositorioFamiliasSQL(sesion),
+                detalle=RepositorioManoDeObraOpusSQL(sesion),
+                cargas=cargas,
+            )
+        if tipo is TipoCarga.SEMILLA_CUADRILLA_RENDIMIENTO:
+            return AplicadorSemillaCuadrillas(
+                insumos=RepositorioInsumosSQL(sesion),
+                cuadrillas=RepositorioCuadrillasSQL(sesion),
                 cargas=cargas,
             )
         if tipo is TipoCarga.MANO_DE_OBRA:
@@ -2058,6 +2078,7 @@ class FabricaDeCargas:
                 unidades=RepositorioUnidadesSQL(sesion),
                 familias=RepositorioFamiliasSQL(sesion),
                 cargas=cargas,
+                cuadrillas=RepositorioCuadrillasSQL(sesion),
             )
         if tipo is TipoCarga.ALMACEN:
             tasa = await RepositorioConfiguracionSQL(sesion).decimal(

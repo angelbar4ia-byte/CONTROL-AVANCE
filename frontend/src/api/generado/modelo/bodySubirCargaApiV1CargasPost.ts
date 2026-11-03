@@ -17,7 +17,7 @@ import type { BodySubirCargaApiV1CargasPostPrototipoId } from "./bodySubirCargaA
 export interface BodySubirCargaApiV1CargasPost {
   /** Archivo .xlsx del §10.6. */
   archivo: string;
-  /** Tipo de carga (§8.2). */
+  /** Tipo de carga (§8.2). Acepta el alias «contrato» (D-606). */
   tipo: TipoCarga;
   /** Modo de carga (§10.2). */
   modo?: ModoCarga;

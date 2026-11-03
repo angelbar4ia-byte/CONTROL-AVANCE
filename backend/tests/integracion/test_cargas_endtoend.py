@@ -37,6 +37,7 @@ from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.frentes_sql import RepositorioFrentesSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
+from obractrl.adapters.repos.mano_de_obra_opus_sql import RepositorioManoDeObraOpusSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
@@ -63,6 +64,10 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorPrototipos,
     AplicadorTrabajos,
     AplicadorUnidades,
+)
+from obractrl.application.casos_uso.aplicar_catalogo_mano_de_obra import (
+    AplicadorCatalogoManoDeObra,
+    AplicadorSemillaCuadrillas,
 )
 from obractrl.application.casos_uso.gestionar_carga import (
     CargaConDependientes,
@@ -382,7 +387,22 @@ async def catalogos(escenario: Escenario) -> AsyncIterator[Catalogos]:
 def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
     """Mismo cableado que `adapters/api/casos_uso.py::FabricaDeCargas`."""
     cargas = RepositorioCargasSQL(sesion)
-    if tipo is TipoCarga.MATERIALES:
+    if tipo is TipoCarga.CATALOGO_MANO_DE_OBRA:
+        return AplicadorCatalogoManoDeObra(
+            insumos=RepositorioInsumosSQL(sesion),
+            cuadrillas=RepositorioCuadrillasSQL(sesion),
+            unidades=RepositorioUnidadesSQL(sesion),
+            familias=RepositorioFamiliasSQL(sesion),
+            detalle=RepositorioManoDeObraOpusSQL(sesion),
+            cargas=cargas,
+        )
+    if tipo is TipoCarga.SEMILLA_CUADRILLA_RENDIMIENTO:
+        return AplicadorSemillaCuadrillas(
+            insumos=RepositorioInsumosSQL(sesion),
+            cuadrillas=RepositorioCuadrillasSQL(sesion),
+            cargas=cargas,
+        )
+    if tipo in (TipoCarga.MATERIALES, TipoCarga.FLETES):
         return AplicadorMateriales(
             insumos=RepositorioInsumosSQL(sesion),
             unidades=RepositorioUnidadesSQL(sesion),
@@ -456,6 +476,7 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
             unidades=RepositorioUnidadesSQL(sesion),
             familias=RepositorioFamiliasSQL(sesion),
             cargas=cargas,
+            cuadrillas=RepositorioCuadrillasSQL(sesion),
         )
     if tipo in (TipoCarga.PROTOTIPOS, TipoCarga.PRESUPUESTO):
         return AplicadorDePrototipos(
@@ -2978,9 +2999,11 @@ async def test_recargar_el_mismo_prototipo_conserva_los_ids_de_nodo(
         assert nodos_v1[clave]["id"] == nodos_v2[clave]["id"]
 
 
-async def test_prototipo_raiz_sin_match_es_error_critico_y_el_resto_sigue(
+async def test_prototipo_que_no_existe_lo_crea_el_catalogo_de_presupuesto(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
+    """D-614: el catálogo de presupuesto forma los prototipos. Uno que no
+    existía ya no es un error: nace de todos los proyectos, y el resto sigue."""
     await _con_insumo_alambre(contexto_control)
     await _con_prototipos(contexto_control, "CAS-50")
 
@@ -2989,16 +3012,74 @@ async def test_prototipo_raiz_sin_match_es_error_critico_y_el_resto_sigue(
         TipoCarga.PRESUPUESTO,
         _archivo_presupuesto(
             [
-                *_prototipo_simple("CAS-NOEXISTE", "EST-05", 5),
+                *_prototipo_simple("CAS-NUEVO", "EST-05", 5),
                 *_prototipo_simple("CAS-50", "EST-06", 5),
             ]
         ),
     )
 
-    assert resultado.resumen.errores == 1
+    assert resultado.resumen.errores == 0
+    prototipos = await _prototipos(contexto_control)
+    assert "CAS-NUEVO" in prototipos
+    assert prototipos["CAS-NUEVO"]["proyecto_id"] is None
     conceptos = await _conceptos(contexto_control)
+    assert "EST-05" in conceptos
     assert "EST-06" in conceptos
-    assert "EST-05" not in conceptos
+
+
+async def test_prototipo_existente_actualiza_nombre_y_m2_sin_tocar_niveles_ni_recamaras(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _con_insumo_alambre(contexto_control)
+    await _cargar(
+        contexto_control,
+        TipoCarga.PROTOTIPOS,
+        _archivo_prototipos([["PROY", "CAS-51", "Casa vieja", "100", "3", "2"]]),
+    )
+    filas = _prototipo_simple("CAS-51", "EST-51", 5)
+    filas[0][3] = "ZAFIRO 9 (150 M2)"
+
+    resultado = await _cargar(contexto_control, TipoCarga.PRESUPUESTO, _archivo_presupuesto(filas))
+
+    assert resultado.resumen.errores == 0
+    prototipo = (await _prototipos(contexto_control))["CAS-51"]
+    assert prototipo["nombre"] == "Zafiro 9"
+    assert prototipo["m2"] == Decimal(150)
+    assert (prototipo["niveles"], prototipo["recamaras"]) == (3, 2)
+
+
+async def test_un_concepto_repetido_bajo_el_mismo_padre_son_nodos_independientes(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """D-615: la misma clave dos veces bajo el mismo padre no se suma ni se
+    funde; cada aparición es su nodo, con su orden y su cantidad, y recargar
+    el archivo cae en los mismos nodos."""
+    await _con_insumo_alambre(contexto_control)
+    filas = _prototipo_simple("CAS-52", "EST-52", 5)
+    filas[3][5] = Decimal("2.65")
+    filas.append([1, "ECO-1", "EST-52", "Losa", None, Decimal("1.8"), 0, 0, "CONCEPTO"])
+    archivo = _archivo_presupuesto(filas)
+
+    primera = await _cargar(contexto_control, TipoCarga.PRESUPUESTO, archivo)
+    assert primera.resumen.errores == 0
+
+    async def _nodos_est_52() -> list[dict]:
+        prototipo = (await _prototipos(contexto_control))["CAS-52"]
+        async with sesion_con_rls(contexto_control) as sesion:
+            todos = await RepositorioPrototipoNodoSQL(sesion).por_prototipo(prototipo["id"])
+        return sorted(
+            (n for n in todos if n["clave"] == "EST-52"), key=lambda n: n["ocurrencia"]
+        )
+
+    nodos = await _nodos_est_52()
+    assert [n["ocurrencia"] for n in nodos] == [1, 2]
+    assert [Decimal(str(n["cantidad"])) for n in nodos] == [Decimal("2.65"), Decimal("1.8")]
+    assert nodos[0]["id"] != nodos[1]["id"]
+
+    segunda = await _cargar(contexto_control, TipoCarga.PRESUPUESTO, archivo)
+    assert segunda.resumen.errores == 0
+    otra_vez = await _nodos_est_52()
+    assert [n["id"] for n in otra_vez] == [n["id"] for n in nodos]
 
 
 async def test_presupuesto_no_soporta_el_modo_reemplazar(
@@ -3281,19 +3362,11 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     2568 de la matriz de CPU — por el pipeline real (`EjecutarCarga` →
     `cargador_para`/`AplicadorDeCarga` → Postgres), no por el dominio puro.
 
-    Paso 0: los 7 prototipos reales, por su alta plana (§7.2) — sin ellos
-    `AplicadorPresupuesto` rechaza el árbol entero por prototipo
-    desconocido (ver su docstring: "no da de alta prototipos").
+    Paso 0: no hace falta. El catálogo de presupuesto forma los prototipos
+    (D-614): sin ninguno cargado, el primer paso los crea de todos los
+    proyectos, con el nombre limpio y los m² que trae cada `Capítulo`.
     """
-    await _cargar(
-        contexto_control,
-        TipoCarga.PROTOTIPOS,
-        _archivo_prototipos(
-            [["PROY", clave, f"Prototipo {clave}", "", "", ""] for clave in _CLAVES_PROTOTIPOS_REALES]
-        ),
-    )
-    prototipos = await _prototipos(contexto_control)
-    assert set(_CLAVES_PROTOTIPOS_REALES) <= set(prototipos)
+    assert not set(_CLAVES_PROTOTIPOS_REALES) & set(await _prototipos(contexto_control))
 
     # Paso 1: el árbol de presupuesto real de los 7 prototipos — mismos
     # conteos ya verificados en `tests/domain/test_presupuesto_opus_real.py`
@@ -3311,20 +3384,68 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     # conceptos sin cambio y nodos repetidos entre prototipos, no los
     # huecos de `construir_arboles`— y no es 1:1 con el conteo del dominio.
 
+    prototipos = {
+        c: p
+        for c, p in (await _prototipos(contexto_control)).items()
+        if c in _CLAVES_PROTOTIPOS_REALES
+    }
+    assert set(prototipos) == set(_CLAVES_PROTOTIPOS_REALES)
+    assert all(p["proyecto_id"] is None for p in prototipos.values())  # de todos los proyectos
+    assert {c: (p["nombre"], p["m2"]) for c, p in prototipos.items()} == {
+        "CAS-00004": ("Zafiro 1.0", Decimal("172")),
+        "CAS-00003": ("Rubí", Decimal("207")),
+        "CAS-00006": ("Zafiro plus", Decimal("224")),
+        "CAS-00002": ("Jade", Decimal("230")),
+        "CAS-00005": ("Diamante sin chimenea", Decimal("239")),
+        "CAS-00007": ("Diamante con chimenea", Decimal("239")),
+        "CAS-00001": ("Oro 4.01 - 4 rec y 1 estudio", Decimal("300")),
+    }
+    assert all(p["niveles"] is None and p["recamaras"] is None for p in prototipos.values())
+
     conteo_nodos = await _conteo_prototipo_nodo_por_tipo(escenario.org_id)
     assert conteo_nodos.get("nivel") == 102
     assert conteo_nodos.get("etapa") == 318
     assert conteo_nodos.get("agrupador") == 238
-    # 2439, no 2445: `prototipo_nodo` tiene `UNIQUE (org_id, prototipo_id,
-    # parent_id, clave)` (migración 0038) y el archivo real trae 6 pares
-    # `(padre, clave de concepto)` genuinamente repetidos dentro del MISMO
-    # prototipo (verificado leyendo el árbol con Python: CAS-00002,
-    # CAS-00005, CAS-00006 ×3, CAS-00007) — el segundo hace upsert sobre el
-    # primero en vez de otra fila. `construir_arboles` no deduplica eso (no
-    # es su trabajo, §12.11: el dominio arma el árbol tal cual, la unicidad
-    # de fila es la base) y por eso los 2445 nodos CONCEPTO del árbol caen
-    # en 2439 filas distintas de `prototipo_nodo`.
-    assert conteo_nodos.get("concepto") == 2439
+    # 2445: los 6 pares `(padre, clave de concepto)` repetidos dentro del
+    # MISMO prototipo (CAS-00002, CAS-00005, CAS-00006 ×3, CAS-00007) son
+    # nodos independientes, sin sumar ni fundir (D-615, migración 0099): cada
+    # aparición tiene su `ocurrencia`.
+    assert conteo_nodos.get("concepto") == 2445
+
+    # El WBS («Ingenieria ERP») y el «Nivel ERP» del archivo se conservan y se
+    # guardan en cada nodo aunque no se muestren (D-615). Muestra real:
+    # NIV-00001 (Subcapítulo) trae 1010000 y nivel ERP 1; ECO-00001 (Nivel 2),
+    # 1010100 y 1; y el concepto EST-10010, 1010100 y 0.
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with engine.begin() as conn:
+            guardados = {
+                (f["clave"], f["wbs"], f["nivel_erp"])
+                for f in (
+                    await conn.execute(
+                        text(
+                            "select distinct clave, wbs, nivel_erp from prototipo_nodo "
+                            "where org_id = :org and clave in ('NIV-00001','ECO-00001','EST-10010')"
+                        ),
+                        {"org": str(escenario.org_id)},
+                    )
+                ).mappings()
+            }
+            con_wbs = (
+                await conn.execute(
+                    text(
+                        "select count(*) from prototipo_nodo where org_id = :org "
+                        "and clave is not null and wbs is not null"
+                    ),
+                    {"org": str(escenario.org_id)},
+                )
+            ).scalar_one()
+    finally:
+        await engine.dispose()
+    assert ("NIV-00001", "1010000", 1) in guardados
+    assert ("ECO-00001", "1010100", 1) in guardados
+    assert ("EST-10010", "1010100", 0) in guardados
+    assert con_wbs > 3000  # de 3,097 nodos, solo faltan los 16 renglones sin WBS
 
     conceptos_tras_presupuesto = await _conceptos(contexto_control)
     assert len(conceptos_tras_presupuesto) == 471  # conteo verificado del árbol real
@@ -3357,6 +3478,13 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     # `descripciones_concepto` desde `concepto` (recién poblado en el Paso 1)
     # y `clase_trabajo` desde `insumo` (recién poblado arriba), y agrupa con
     # `agrupar_conceptos` él mismo.
+    # El catálogo de mano de obra (puestos y las 39 cuadrillas) va antes: la
+    # matriz trae la composición de las cuadrillas (D-616).
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_MANO_DE_OBRA,
+        _repaquetar_csv_como_xlsx(_MANO_DE_OBRA_OPUS_CSV),
+    )
     resultado_cpu = await _cargar(
         contexto_control, TipoCarga.CPU, _archivo_cpu_matriz_opus_real()
     )
@@ -3370,8 +3498,10 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     assert {e.columna for e in resultado_cpu.errores} == {"clave_padre"}
     assert {e.valor for e in resultado_cpu.errores} == {"ACA-01070"}
     # Los 467 conceptos válidos ya existían (del árbol de presupuesto): la
-    # matriz los actualiza con su composición real, no los da de alta.
-    assert resultado_cpu.resumen.insertados == 0
+    # matriz los actualiza con su composición real, no los da de alta. Lo que
+    # sí da de alta son los 89 compuestos de material (79 AUX, 8 MEZ, ZA1 y
+    # ZA2): el mismo archivo trae su receta — matriz dentro de matriz.
+    assert resultado_cpu.resumen.insertados == 89
     assert resultado_cpu.resumen.actualizados == 467
 
     # Ningún pendiente `trabajo_sin_clase` sobrevive: las 460 filas
@@ -3392,9 +3522,263 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     # conteos que `tests/domain/test_cpu_opus_real.py::
     # test_los_componentes_cargados_cuadran_con_el_tipo_del_archivo`.
     conteo_categorias = await _conteo_explosion_por_categoria(escenario.org_id)
-    assert conteo_categorias.get("material") == 1692
-    assert conteo_categorias.get("flete") == 35
-    assert conteo_categorias.get("destajo") == 392
+    # 1692 + 250 / 35 + 16 / 392 + 1: las líneas de las recetas de los 89
+    # compuestos (250 material, 16 flete, 1 contrato) se suman a las de los
+    # conceptos.
+    assert conteo_categorias.get("material") == 1942
+    assert conteo_categorias.get("flete") == 51
+    assert conteo_categorias.get("destajo") == 393
     assert conteo_categorias.get("subcontrato") == 68
     assert conteo_categorias.get("trabajo", 0) == 0
     assert conteo_categorias.get("mano_obra", 0) == 0
+
+    # Las 39 cuadrillas guardan su composición en la tabla de cuadrillas
+    # (D-616): una versión vigente cada una, con sus puestos y la línea %MO.
+    versiones = await _sql_admin(
+        "select c.clave, v.precio_unitario, "
+        "(select count(*) from cuadrilla_integrante i where i.cuadrilla_version_id = v.id) as n "
+        "from cuadrilla c join cuadrilla_version v on v.cuadrilla_id = c.id and v.vigente "
+        "where c.org_id = :org order by c.clave",
+        org=str(escenario.org_id),
+    )
+    assert len(versiones) == 39
+    assert sum(v["n"] for v in versiones) == 112  # las 112 líneas Origen = ManoDeObra
+    mocu_005 = next(v for v in versiones if v["clave"] == "MOCU-005")
+    assert mocu_005["precio_unitario"] == Decimal("1452")  # 760 + 560 + 10% de 1,320
+
+    # Matriz dentro de matriz: los 89 compuestos quedan como conceptos básicos
+    # con su propia receta (267 líneas), los renglones de los conceptos que
+    # los citan (251) y los de otros compuestos (12) apuntan a ellos como
+    # concepto hijo, y el recorrido recursivo llega hasta el insumo simple.
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with engine.begin() as conn:
+            org = {"org": str(escenario.org_id)}
+            basicos = (
+                await conn.execute(
+                    text("select count(*) from concepto where org_id = :org and tipo = 'basico'"),
+                    org,
+                )
+            ).scalar_one()
+            lineas_de_basicos = (
+                await conn.execute(
+                    text(
+                        "select count(*) from explosion e join concepto c on c.id = e.concepto_id "
+                        "join cpu p on p.id = e.cpu_id "
+                        "where c.org_id = :org and c.tipo = 'basico' and p.vigente"
+                    ),
+                    org,
+                )
+            ).scalar_one()
+            citas = (
+                await conn.execute(
+                    text(
+                        "select c.tipo::text as padre, count(*) as n from explosion e "
+                        "join concepto c on c.id = e.concepto_id "
+                        "join cpu p on p.id = e.cpu_id "
+                        "where c.org_id = :org and p.vigente and e.tipo_hijo = 'concepto' "
+                        "group by c.tipo"
+                    ),
+                    org,
+                )
+            ).mappings().all()
+            alcanza_insumo = (
+                await conn.execute(
+                    text(
+                        "with recursive r as ("
+                        " select e.concepto_hijo_id, e.insumo_id, 1 as n from explosion e "
+                        " join concepto c on c.id = e.concepto_id "
+                        " where c.org_id = :org and c.clave = 'AUX-50001'"
+                        " union all"
+                        " select e.concepto_hijo_id, e.insumo_id, r.n + 1 from explosion e "
+                        " join r on e.concepto_id = r.concepto_hijo_id where r.n < 8)"
+                        " select max(n) from r where insumo_id is not null"
+                    ),
+                    org,
+                )
+            ).scalar_one()
+    finally:
+        await engine.dispose()
+    assert basicos == 89
+    assert lineas_de_basicos == 267
+    # 251 y no 252: una de las dos filas de `ACA-01070` (que no cruza con el
+    # árbol y no se carga) citaba un compuesto.
+    assert {f["padre"]: f["n"] for f in citas} == {"concepto": 251, "basico": 12}
+    assert alcanza_insumo == 2  # losa nervada (AUX-50001) → nervadura (AUX-00040) → varilla
+
+
+_FLETES_OPUS_CSV = Path("/home/user/cerebro-erp-construccion/1-mundo/opus/CATALOGO_DE_FLETES.csv")
+
+
+@pytest.mark.skipif(not _FLETES_OPUS_CSV.exists(), reason="Archivo real de OPUS no disponible.")
+async def test_el_catalogo_de_fletes_real_carga_con_su_propio_tipo_de_carga(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """`CATALOGO_DE_FLETES.csv` (9 filas) por el pipeline real, como lote de
+    tipo `fletes`: mismas columnas y mismo destino que materiales (insumos de
+    tipo material), pero registrado y reversible con su propio nombre."""
+    resultado = await _cargar(
+        contexto_control, TipoCarga.FLETES, _repaquetar_csv_como_xlsx(_FLETES_OPUS_CSV)
+    )
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+    assert resultado.resumen.insertados == 9
+    insumos = await _insumos(contexto_control)
+    assert {"PET-00002", "PET-00003", "PET-00015", "SER-00003"} <= set(insumos)
+    assert all(str(insumos[c]["tipo"]) == "material" for c in ("PET-00002", "SER-00003"))
+
+    # Ninguna de las 12 columnas del archivo se ignora (D-616): C, Clave,
+    # Descripción, Comentarios, Unidad, Costo base M. N., Costo base M. E.,
+    # Costo unitario, Fecha, Familia, Subfamilia y Tipo.
+    tablas = insumos["MAD-00004"]  # «TABLAS (se les da 10 pza por lote)»
+    assert tablas["descripcion"] == "TABLAS (se les da 10 pza por lote)"
+    assert tablas["comentarios"] == "3"
+    assert tablas["costo_base"] == Decimal(198)
+    assert tablas["costo_base_me"] == Decimal(0)  # se conserva aunque sea cero
+    assert tablas["costo_unitario"] == Decimal(198)
+    assert str(tablas["fecha_costo"]) == "2023-08-01"
+    assert tablas["tipo_opus"] == "Flete"
+    assert tablas["desglosable"] is False
+    assert tablas["familia_id"] is not None and tablas["unidad_id"] is not None
+    familias = await _familias(contexto_control)
+    assert "Maderas" in familias and "Cimbra" in familias  # familia y subfamilia
+    assert familias["Cimbra"]["parent_id"] == familias["Maderas"]["id"]
+    assert tablas["familia_id"] == familias["Cimbra"]["id"]  # apunta a la subfamilia
+    # Los cinco apartados (tablas y materiales de prueba hidráulica) quedan
+    # marcados para revisar (D-189); los cuatro fletes de verdad, no.
+    marcados = {c for c, i in insumos.items() if i["revisar"]}
+    assert marcados == {"MAD-00004", "HID-00026", "SAN-00091", "SAN-00092", "HID-00038"}
+
+    # Cargarlo otra vez no duplica nada.
+    otra = await _cargar(
+        contexto_control, TipoCarga.FLETES, _repaquetar_csv_como_xlsx(_FLETES_OPUS_CSV)
+    )
+    assert otra.resumen.insertados == 0
+
+
+_MANO_DE_OBRA_OPUS_CSV = Path(
+    "/home/user/cerebro-erp-construccion/1-mundo/opus/CATALOGO_DE_MANO_DE_OBRA.csv"
+)
+_SEMILLA_CSV = Path(
+    "/home/user/cerebro-erp-construccion/1-mundo/fuentes/semilla/SEMILLA-cuadrilla-rendimiento.csv"
+)
+
+
+async def _sql_admin(consulta: str, **parametros: object) -> list[dict]:
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with engine.begin() as conn:
+            return [dict(f) for f in (await conn.execute(text(consulta), parametros)).mappings()]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.skipif(not _MANO_DE_OBRA_OPUS_CSV.exists(), reason="Archivo real de OPUS no disponible.")
+async def test_el_catalogo_de_mano_de_obra_real_guarda_puestos_y_las_39_cuadrillas(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """Las 36 columnas del archivo: las 39 cuadrillas van a la tabla de
+    cuadrillas, los 58 puestos a insumos de mano de obra, y el cálculo del
+    salario real a `mano_de_obra_opus` (D-616)."""
+    archivo = _repaquetar_csv_como_xlsx(_MANO_DE_OBRA_OPUS_CSV)
+    resultado = await _cargar(contexto_control, TipoCarga.CATALOGO_MANO_DE_OBRA, archivo)
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+    assert resultado.resumen.insertados == 97
+
+    org = str(escenario.org_id)
+    cuadrillas = await _sql_admin(
+        "select clave, nombre, desglosable, tipo_opus, fecha_costo, costo_jornada, "
+        "unidad_id, familia_id from cuadrilla where org_id = :org and desglosable order by clave",
+        org=org,
+    )
+    assert len(cuadrillas) == 39
+    assert sum(1 for c in cuadrillas if c["clave"].startswith("MOCU-")) == 38
+    cuad_001 = next(c for c in cuadrillas if c["clave"] == "CUAD-001")
+    assert cuad_001["nombre"] == "Cuadrilla tareas pesadas compuesta por 1 oficial y dos peones"
+    assert cuad_001["costo_jornada"] == Decimal(2068)
+    assert cuad_001["tipo_opus"] == "Mano de Obra"
+    assert cuad_001["unidad_id"] is not None and cuad_001["familia_id"] is not None
+
+    puestos = await _sql_admin(
+        "select clave, descripcion, costo_base, costo_unitario, tipo_opus, desglosable, "
+        "fecha_costo, tipo::text as tipo from insumo "
+        "where org_id = :org and tipo_opus = 'Mano de Obra' order by clave",
+        org=org,
+    )
+    # 53 MOCA- y 5 MOCU- (MOCU-039 a MOCU-043 son puestos, no cuadrillas: C vacía).
+    assert len(puestos) == 58
+    assert all(p["tipo"] == "mano_obra" and p["desglosable"] is False for p in puestos)
+    peon = next(p for p in puestos if p["clave"] == "MOCA-001")
+    assert (peon["descripcion"], peon["costo_base"], peon["tipo_opus"]) == (
+        "Peón",
+        Decimal(560),
+        "Mano de Obra",
+    )
+    assert str(peon["fecha_costo"]) == "2023-01-09"
+
+    detalle = await _sql_admin(
+        "select * from mano_de_obra_opus where org_id = :org order by clave", org=org
+    )
+    assert len(detalle) == 97
+    assert sum(1 for d in detalle if d["cuadrilla_id"] is not None) == 39
+    moca_001 = next(d for d in detalle if d["clave"] == "MOCA-001")
+    assert moca_001["sbc"] == Decimal("587.54")
+    assert moca_001["factor_salario_base"] == Decimal("1.04918")
+    assert moca_001["salario_gravable"] == Decimal("763.36")
+    assert moca_001["suma_prestaciones_imss"] == Decimal("99.64")
+    assert moca_001["utilizar_hoja_fsr"] is False
+    # Ninguna de las 26 columnas numéricas queda sin valor en el archivo real.
+    from obractrl.domain.cargadores.mano_de_obra_catalogo import CAMPOS_DE_CALCULO
+
+    assert all(d[c] is not None for d in detalle for c in CAMPOS_DE_CALCULO)
+
+    familias = await _familias(contexto_control)
+    assert familias["Albañilería y Estructura"]["parent_id"] is not None  # subfamilia
+
+    # Cargarlo otra vez no cambia nada.
+    otra = await _cargar(contexto_control, TipoCarga.CATALOGO_MANO_DE_OBRA, archivo)
+    assert (otra.resumen.insertados, otra.resumen.actualizados) == (0, 0)
+
+
+@pytest.mark.skipif(
+    not (_SEMILLA_CSV.exists() and _MANO_DE_OBRA_OPUS_CSV.exists()),
+    reason="Archivos reales no disponibles.",
+)
+async def test_la_semilla_liga_los_265_destajos_a_sus_cuadrillas_con_todas_sus_columnas(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    await _cargar(
+        contexto_control, TipoCarga.TRABAJOS, _archivo_trabajos_opus_real()
+    )
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_MANO_DE_OBRA,
+        _repaquetar_csv_como_xlsx(_MANO_DE_OBRA_OPUS_CSV),
+    )
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.SEMILLA_CUADRILLA_RENDIMIENTO,
+        _repaquetar_csv_como_xlsx(_SEMILLA_CSV),
+    )
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+    assert resultado.resumen.actualizados == 265
+
+    org = str(escenario.org_id)
+    ligados = await _sql_admin(
+        "select i.clave, c.clave as cuadrilla, i.rendimiento_teorico, i.origen_rendimiento, "
+        "i.ref_descripcion, i.ref_unidad, i.ref_costo_unitario "
+        "from insumo i join cuadrilla c on c.id = i.cuadrilla_id "
+        "where i.org_id = :org and i.rendimiento_teorico is not null order by i.clave",
+        org=org,
+    )
+    assert len(ligados) == 265
+    assert len({f["cuadrilla"] for f in ligados}) == 14
+    k1 = next(f for f in ligados if f["clave"] == "MOE-02020")  # castillo K1
+    assert k1["cuadrilla"] == "MOCU-005"
+    assert k1["rendimiento_teorico"] == Decimal("12.12")
+    assert k1["origen_rendimiento"] is not None and k1["ref_unidad"] == "M"
+    assert k1["ref_costo_unitario"] == Decimal(130)
+    assert sum(1 for f in ligados if (f["origen_rendimiento"] or "").startswith("completado")) == 5
