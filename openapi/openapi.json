@@ -30837,7 +30837,8 @@
           "mano_obra",
           "equipo",
           "herramienta",
-          "subcontrato"
+          "subcontrato",
+          "acarreo"
         ],
         "title": "TipoInsumo"
       },

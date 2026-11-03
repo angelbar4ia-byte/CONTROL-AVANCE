@@ -15,4 +15,5 @@ export const TipoInsumo = {
   equipo: "equipo",
   herramienta: "herramienta",
   subcontrato: "subcontrato",
+  acarreo: "acarreo",
 } as const;
