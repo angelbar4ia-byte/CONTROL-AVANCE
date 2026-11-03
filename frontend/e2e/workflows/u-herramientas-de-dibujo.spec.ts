@@ -411,7 +411,7 @@ test.describe('Cuantificador · herramientas de dibujo', () => {
     await barra.getByRole('button', { name: 'Seleccionar', exact: true }).click();
     await funciones(page).getByRole('button', { name: 'Mostrar medidas', exact: true }).click();
     const etiqueta = page.getByTestId('etiquetas').locator('.visor__etiqueta--area').first();
-    await expect(etiqueta).toContainText('m²');
+    await expect(etiqueta).toContainText(/m[2²]/);
     const escrito = Number((await etiqueta.textContent())!.replace(/[^0-9.]/g, ''));
     expect(escrito).toBeCloseTo(Number(rect.properties.enlaces[0]!.cantidad), 1);
     // La cota de un lado: su largo en metros, el de las unidades por la escala.

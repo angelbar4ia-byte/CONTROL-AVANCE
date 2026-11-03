@@ -64,7 +64,7 @@ test.describe('Cuantificador · elementos con peso', () => {
       });
 
     await entrarComo(page, 'control');
-    await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
+    await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${acero.id}`);
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
     await page.getByRole('tab', { name: /Mediciones/ }).click();
     const panel = page.getByRole('region', { name: 'Mediciones del plano' });
@@ -74,14 +74,14 @@ test.describe('Cuantificador · elementos con peso', () => {
     const lista = panel.getByRole('list', { name: 'Elementos con peso' });
     await lista.getByLabel('Nombre del elemento nuevo').fill('Castillo K1');
     await lista.getByLabel(/Peso del elemento nuevo/).fill('38');
-    await panel.getByText('La capa sombra').click(); // salir de la fila: sin botón
+    await panel.getByText('Se crea sobre el concepto o la matriz').click(); // salir de la fila: sin botón
     await expect(lista.getByLabel('Peso de Castillo K1 (kg/pza)')).toHaveValue('38');
     await expect(guardado).toHaveText('Todo guardado');
 
     // --- 2. Una medición de conteo con ese elemento, asignada con el peso a un concepto en kg -------------------
     await panel.getByRole('button', { name: 'Nueva medición' }).click();
     await panel.getByLabel('Nombre de la medición').fill('Castillos K1');
-    await panel.getByLabel('Tipo de medición').selectOption('conteo');
+    await panel.getByLabel('Unidad de la medición').selectOption('pza');
     await panel.getByRole('button', { name: 'Crear medición' }).click();
     await expect(panel.getByRole('treeitem', { name: 'Castillos K1' })).toBeVisible();
     await panel.getByLabel('Elemento de Castillos K1').selectOption({ label: 'Castillo K1 · 38 kg/pza' });

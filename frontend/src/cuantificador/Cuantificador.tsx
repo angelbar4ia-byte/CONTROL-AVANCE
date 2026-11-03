@@ -119,7 +119,7 @@ import {
   formaDe,
   type HerramientaDeDibujo,
 } from './dibujo';
-import { centroide, cotasDe, etiquetasDeMedidas, sinCierre } from './etiquetas';
+import { centroide, cotasDe, etiquetasDeMedidas, fmtMedida, sinCierre } from './etiquetas';
 import {
   REFERENCIAS_POR_DEFECTO,
   buscarReferencia,
@@ -1408,15 +1408,19 @@ export function EspacioDeTrazo({
         : [],
     [mostrarMedidas, featuresVisibles],
   );
-  const nombresDeMatriz = useQueries({
+  const datosDeMatriz = useQueries({
     queries: actividadesConMatriz.map((id) =>
       getMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetQueryOptions(id),
     ),
     combine: (resultados) => {
-      const nombres = new Map<string, string>();
+      const nombres = new Map<string, { nombre: string; unidad: string | null }>();
       for (const r of resultados) {
-        const datos = r.data as unknown as { matrices?: readonly { concepto_id: string; clave: string; descripcion: string }[] } | undefined;
-        for (const m of datos?.matrices ?? []) nombres.set(m.concepto_id, `${m.clave} ${m.descripcion}`.trim());
+        const datos = r.data as unknown as
+          | { matrices?: readonly { concepto_id: string; clave: string; descripcion: string; unidad?: string | null }[] }
+          | undefined;
+        for (const m of datos?.matrices ?? []) {
+          nombres.set(m.concepto_id, { nombre: `${m.clave} ${m.descripcion}`.trim(), unidad: m.unidad ?? null });
+        }
       }
       return nombres;
     },
@@ -1433,10 +1437,21 @@ export function EspacioDeTrazo({
         ? `${asignada.concepto_clave} ${asignada.descripcion}`.trim()
         : '';
     const matriz = enlace?.matriz_concepto_id
-      ? (nombresDeMatriz.get(enlace.matriz_concepto_id) ?? '')
+      ? (datosDeMatriz.get(enlace.matriz_concepto_id)?.nombre ?? '')
       : (asignada?.matriz_clave ?? '');
     const partes = [concepto, matriz, medicion?.nombre ?? ''].filter((x) => x !== '');
     return partes.length > 0 ? partes.join(' · ') : undefined;
+  };
+  /** Lo que el trazo cuenta para su concepto o matriz, con la unidad de ese concepto: «2.40 m3», no la medida geométrica. */
+  const valorDelTrazo = (f: (typeof features)[number]): string | undefined => {
+    // Sin calibrar la cantidad está en unidades de plano: ponerle la unidad del concepto (m2) sería mentir; se queda en u².
+    if (escalaDelPlano === null) return undefined;
+    const enlace = f.properties.enlaces.find((e) => e.vigente && e.tipo_nodo !== 'prototipo_nodo');
+    if (!enlace) return undefined;
+    const unidad = enlace.matriz_concepto_id
+      ? datosDeMatriz.get(enlace.matriz_concepto_id)?.unidad
+      : porActividad.get(enlace.nodo_id)?.unidad;
+    return unidad ? `${fmtMedida(Number(enlace.cantidad))} ${unidad}` : undefined;
   };
   const etiquetas = useMemo(
     () =>
@@ -1455,6 +1470,7 @@ export function EspacioDeTrazo({
                 f.properties.pendiente_pct,
                 {
                   ...(tituloDelTrazo(f) ? { titulo: tituloDelTrazo(f) as string } : {}),
+                  ...(valorDelTrazo(f) ? { valor: valorDelTrazo(f) as string } : {}),
                   ...(f.properties.medicion_id && coloresDeMedicion.has(f.properties.medicion_id)
                     ? { color: coloresDeMedicion.get(f.properties.medicion_id) as string }
                     : {}),
@@ -1464,7 +1480,7 @@ export function EspacioDeTrazo({
           })()
         : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mostrarMedidas, featuresVisibles, escalaDelPlano, nombresDeMatriz, listaDeMediciones, coloresDeMedicion, porActividad],
+    [mostrarMedidas, featuresVisibles, escalaDelPlano, datosDeMatriz, listaDeMediciones, coloresDeMedicion, porActividad],
   );
   const cotas = useMemo(
     () => (mostrarCotas ? featuresVisibles.flatMap((f) => cotasDe(f.geometry, escalaDelPlano, f.properties.pendiente_pct)) : []),
@@ -1849,6 +1865,19 @@ export function EspacioDeTrazo({
             elementos={listaDeElementos}
             puedePonerPeso={puedePonerPeso}
             conceptoEnFoco={conceptoEnFoco}
+            destino={
+              conceptoEnFoco
+                ? {
+                    actividadId: conceptoEnFoco,
+                    ...(matrizActiva ? { matrizId: matrizActiva.id } : {}),
+                    nombre: matrizActiva
+                      ? `${matrizActiva.clave}`
+                      : `${actividadDeFoco?.concepto_clave ?? ''} ${actividadDeFoco?.descripcion ?? ''}`.trim(),
+                    unidad: unidadEnFoco ?? null,
+                  }
+                : null
+            }
+            onPedirDestino={() => setPestana('presupuesto')}
             activaId={medicionActivaId}
             onActivar={(m) => {
               setMedicionActivaId(m ? m.id : null);

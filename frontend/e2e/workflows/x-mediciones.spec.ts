@@ -64,11 +64,19 @@ test.describe('Cuantificador · mediciones', () => {
     };
 
     // --- 1. Una medición y su submedición ---------------------------------------------------------------
+    // Una medición se crea sobre un concepto o una matriz: sin ninguno elegido avisa y lleva al Presupuesto.
     await page.getByRole('tab', { name: /Mediciones/ }).click();
     await expect(panel).toContainText('Este plano aún no tiene mediciones');
     await panel.getByRole('button', { name: 'Nueva medición' }).click();
+    await expect(page.getByRole('status')).toContainText('Elige primero un concepto o una matriz');
+    await expect(page.getByRole('tab', { name: /Presupuesto/ })).toHaveAttribute('aria-selected', 'true');
+    // Con el concepto elegido: «Sobre …», nombre y unidad; se asigna a él al crearla.
+    await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${actividad!.id}`);
+    await page.getByRole('tab', { name: /Mediciones/ }).click();
+    await panel.getByRole('button', { name: 'Nueva medición' }).click();
+    await expect(panel.getByTestId('medicion-sobre')).toContainText('Sobre');
     await panel.getByLabel('Nombre de la medición').fill('Losa de cimentación');
-    await panel.getByLabel('Tipo de medición').selectOption('area');
+    await panel.getByLabel('Unidad de la medición').selectOption('m²');
     await panel.getByRole('button', { name: 'Crear medición' }).click();
     await expect(page.getByTestId('tipo-del-concepto')).toContainText('Losa de cimentación');
     await expect(barra.locator('[data-bloque="area"]')).toHaveClass(/is-resaltado/);
@@ -99,23 +107,17 @@ test.describe('Cuantificador · mediciones', () => {
     expect(t1!.properties.medicion_id).not.toBeNull();
     expect(t2!.properties.medicion_id).not.toBeNull();
     expect(t1!.properties.medicion_id).not.toBe(t2!.properties.medicion_id);
-    expect(t1!.properties.enlaces).toHaveLength(0); // suelto: no suma a ningún concepto
-    expect(await cantidad()).toBe(0);
+    expect(t1!.properties.enlaces).toHaveLength(1); // la losa nació asignada al concepto: sus recámaras suman solas
+    await expect.poll(cantidad).toBeGreaterThan(0);
 
-    // La losa suma lo de sus recámaras y dice que aún no alimenta nada.
+    // La losa suma lo de sus recámaras y ya alimenta al concepto.
     const losa = panel.getByRole('treeitem', { name: 'Losa de cimentación', exact: true });
-    await expect(losa.getByText('Sin asignar').first()).toBeVisible();
+    await expect(losa.getByText('Sin asignar')).toHaveCount(0);
     const valorLosa = Number((await losa.getByTestId('valor-de-medicion').first().textContent())!.replace(/[^\d.]/g, ''));
     expect(valorLosa).toBeGreaterThan(0);
 
-    // --- 2. Se asigna la losa a un concepto: suma las dos recámaras ----------------------------------------------
-    await panel.getByRole('button', { name: 'Asignar Losa de cimentación a un concepto' }).click();
-    const formulario = panel.getByRole('form', { name: 'Asignar Losa de cimentación' });
-    await formulario.getByRole('combobox').first().selectOption({ index: 1 });
-    await formulario.getByRole('button', { name: 'Asignar' }).click();
-    await expect(page.getByRole('status')).toContainText('2 trazos enlazados');
+    // --- 2. La cantidad del concepto es la de las dos recámaras ------------------------------------------------
     await expect.poll(cantidad).toBeCloseTo(valorLosa, 1); // la pantalla redondea a dos decimales
-    await expect(losa.getByText('Sin asignar')).toHaveCount(0);
 
     // Un trazo que entra después hereda el enlace de la losa: se enlaza solo.
     // La recámara 2 sigue siendo la medición activa (la última que se creó): ahí entra lo que se dibuje.
@@ -135,7 +137,7 @@ test.describe('Cuantificador · mediciones', () => {
     await page.getByRole('button', { name: 'Mostrar medidas', exact: true }).click();
     const rotulos = page.getByTestId('rotulo-de-medida');
     await expect(rotulos.first()).toBeVisible();
-    await expect(rotulos.filter({ hasText: 'Recámara 1' }).first()).toContainText(/(m|u)²/);
+    await expect(rotulos.filter({ hasText: 'Recámara 1' }).first()).toContainText(/u²/); // plano sin calibrar: en unidades de plano (calibrado, la unidad del concepto: ver u-herramientas-de-dibujo)
     await expect(rotulos.filter({ hasText: 'Recámara 1' }).first()).toContainText(/E2E|FIR|CIM|PLA|EXC/);
     await page.getByRole('button', { name: 'Mostrar medidas', exact: true }).click();
 

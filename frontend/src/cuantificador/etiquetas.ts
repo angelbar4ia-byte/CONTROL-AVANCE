@@ -87,7 +87,7 @@ export function etiquetasDeMedidas(
   grosorM: number | null = null,
   numeroDePunto: number | null = null,
   pendientePct: number | string | null = null,
-  rotulo: { readonly titulo?: string; readonly color?: string } = {},
+  rotulo: { readonly titulo?: string; readonly color?: string; readonly valor?: string } = {},
 ): EtiquetaDeMedida[] {
   const marca = {
     ...(rotulo.titulo ? { titulo: rotulo.titulo } : {}),
@@ -143,6 +143,11 @@ export function etiquetasDeMedidas(
           ? `${fmtMedida(largo)} ${lineal} × ${fmtMedida(grosorM)} = ${fmtMedida(largo * grosorM)} ${superficie}`
           : `${fmtMedida(largo)} ${lineal}${Number(pendientePct ?? 0) > 0 ? ` ↗ ${Number(pendientePct)} %` : ''}`,
     });
+  }
+  // Lo que cuenta el trazo para su concepto (con la unidad del concepto) manda sobre la medida geométrica.
+  if (rotulo.valor) {
+    const k = etiquetas.findIndex((e) => e.tipo === 'area' || e.tipo === 'longitud');
+    if (k >= 0) etiquetas[k] = { ...(etiquetas[k] as EtiquetaDeMedida), texto: rotulo.valor };
   }
   return etiquetas;
 }
