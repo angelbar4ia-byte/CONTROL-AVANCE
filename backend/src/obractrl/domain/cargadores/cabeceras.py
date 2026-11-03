@@ -36,12 +36,14 @@ __all__ = [
     "FAMILIAS",
     "INGENIERIA_LOTE",
     "MANO_DE_OBRA",
+    "MANO_DE_OBRA_OPUS",
     "MAPA_CPU",
     "MATERIALES",
     "NIVELES",
     "PRESUPUESTO",
     "PROGRAMA_BASE",
     "PROTOTIPOS",
+    "SEMILLA_CUADRILLAS",
     "SUBCONTRATOS",
     "TRABAJOS_OPUS",
     "UNIDADES",
@@ -672,6 +674,88 @@ SUBCONTRATOS = EspecificacionArchivo(
     opcionales=MANO_DE_OBRA.opcionales,
     alias=dict(MANO_DE_OBRA.alias),
 )
+
+# --- Catálogo de mano de obra, export nativo de OPUS (D-616) -------------
+#
+# `CATALOGO_DE_MANO_DE_OBRA.csv`: 97 filas y 36 columnas. 58 puestos
+# (MOCA-xxx) y las 39 cuadrillas (C = «+»: CUAD-001 y MOCU-xxx). Ninguna
+# columna se ignora: las 36 tienen su destino (insumo o cuadrilla, o
+# `mano_de_obra_opus` para las 28 del cálculo del salario real).
+
+MANO_DE_OBRA_OPUS = EspecificacionArchivo(
+    tipo="Catálogo de mano de obra (puestos y cuadrillas)",
+    archivo="CATALOGO_DE_MANO_DE_OBRA.csv",
+    hoja=None,
+    obligatorias=('clave', 'descripcion'),
+    opcionales=('desglosable', 'unidad', 'costo_unitario', 'salario_tabulado', 'salario_nominal_mn', 'utilizar_hoja_fsr', 'categoria_fsr', 'fsr', 'salario_nominal_me', 'salario_real', 'fecha_costo', 'familia', 'subfamilia', 'tipo_opus', 'factor_salario_base', 'sbc', 'excedente_tres_salarios', 'aplicacion_imss', 'cuota_fija', 'prestaciones_en_especie', 'prestaciones_en_dinero', 'invalidez_y_vida', 'cesantia_en_edad_avanzada', 'riesgos_de_trabajo', 'guarderias', 'sar', 'suma_prestaciones_imss', 'factor_cuota_patronal_imss', 'infonavit', 'impuesto_sobre_nomina', 'suma_prestaciones', 'obligacion_obrero_patronal', 'factor_de_salario_gravable', 'salario_gravable'),
+    alias={
+        "c": "desglosable",
+        "clave": "clave",
+        "descripcion": "descripcion",
+        "unidad": "unidad",
+        "costo unitario": "costo_unitario",
+        "salario tabulado": "salario_tabulado",
+        "salario nominal m.n.": "salario_nominal_mn",
+        "utilizar hoja de fsr": "utilizar_hoja_fsr",
+        "categoria de fsr": "categoria_fsr",
+        "fsr": "fsr",
+        "salario nominal m.e.": "salario_nominal_me",
+        "salario real": "salario_real",
+        "fecha": "fecha_costo",
+        "familia": "familia",
+        "subfamilia": "subfamilia",
+        "tipo": "tipo_opus",
+        "factor salario base": "factor_salario_base",
+        "s.b.c.": "sbc",
+        "excendente tres salarios": "excedente_tres_salarios",
+        "aplicacion imss": "aplicacion_imss",
+        "cuota fija": "cuota_fija",
+        "prestaciones en especie": "prestaciones_en_especie",
+        "prestaciones en dinero": "prestaciones_en_dinero",
+        "invalidez y vida": "invalidez_y_vida",
+        "cesantia en edad avanzada": "cesantia_en_edad_avanzada",
+        "riesgos de trabajo": "riesgos_de_trabajo",
+        "guarderias": "guarderias",
+        "sar": "sar",
+        "suma prestaciones imss": "suma_prestaciones_imss",
+        "factor cuota patronal imss": "factor_cuota_patronal_imss",
+        "infonavit": "infonavit",
+        "impuesto sobre nomina": "impuesto_sobre_nomina",
+        "suma prestaciones": "suma_prestaciones",
+        "obligacion obrero patronal": "obligacion_obrero_patronal",
+        "factor de salario gravable": "factor_de_salario_gravable",
+        "salario gravable": "salario_gravable",
+    },
+)
+"""Los 36 encabezados del export nativo, uno por campo canónico. El campo
+`desglosable` es la columna C y `tipo_opus` la columna Tipo."""
+
+# --- Semilla cuadrilla-rendimiento (D-616) -------------------------------
+#
+# `SEMILLA-cuadrilla-rendimiento.csv` (265 filas, 7 columnas): a qué cuadrilla
+# se liga cada destajo y su rendimiento teórico. Ninguna columna se ignora:
+# la liga y el rendimiento van a `insumo.cuadrilla_id` / `rendimiento_teorico`;
+# el Origen y las tres columnas de referencia, a sus propias columnas.
+
+SEMILLA_CUADRILLAS = EspecificacionArchivo(
+    tipo="Semilla de cuadrillas y rendimientos",
+    archivo="SEMILLA-cuadrilla-rendimiento.csv",
+    hoja=None,
+    obligatorias=("clave", "cuadrilla", "rendimiento_teorico"),
+    opcionales=("origen_rendimiento", "descripcion_ref", "unidad_ref", "costo_ref"),
+    alias={
+        "clave": "clave",
+        "cuadrilla": "cuadrilla",
+        "rendimiento teorico": "rendimiento_teorico",
+        "origen": "origen_rendimiento",
+        "descripcion (referencia)": "descripcion_ref",
+        "unidad (ref.)": "unidad_ref",
+        "costo unitario (ref.)": "costo_ref",
+    },
+)
+"""Las 7 columnas de la semilla. `Origen` queda en el campo `origen_rendimiento`
+(el nombre de la columna que lo guarda); no se llama `origen` para no chocar
+con el campo global homónimo (§8.6)."""
 
 # --- Trabajos: destajos + subcontratos, export nativo de OPUS -----------
 #

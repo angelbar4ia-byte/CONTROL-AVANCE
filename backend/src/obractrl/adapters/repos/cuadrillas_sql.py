@@ -35,7 +35,8 @@ from obractrl.application.puertos.repositorios import (
 __all__ = ["RepositorioCuadrillasSQL"]
 
 _COLUMNAS = """
-    id, clave, nombre, unidad_id, rendimiento, costo_jornada, estatus
+    id, clave, nombre, unidad_id, rendimiento, costo_jornada, estatus,
+    familia_id, desglosable, fecha_costo, tipo_opus
 """
 
 _CAMPOS_EDITABLES: dict[str, str] = {
@@ -47,6 +48,10 @@ _CAMPOS_EDITABLES: dict[str, str] = {
     # que el residente arma para un trabajo fuera de catálogo.
     "costo_jornada": "costo_jornada = cast(:costo_jornada as numeric)",
     "estatus": "estatus = cast(:estatus as estatus_registro)",
+    "familia_id": "familia_id = cast(:familia_id as uuid)",
+    "desglosable": "desglosable = cast(:desglosable as boolean)",
+    "fecha_costo": "fecha_costo = cast(:fecha_costo as date)",
+    "tipo_opus": "tipo_opus = :tipo_opus",
 }
 """Campos que una edición puede tocar. La `clave` no está: es la identidad
 del registro (§3.3)."""

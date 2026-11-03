@@ -510,6 +510,16 @@ class TipoCarga(_Canonico):
     este mismo tipo)."""
 
     MATERIALES = "materiales"
+    CATALOGO_MANO_DE_OBRA = "catalogo_mano_de_obra"
+    """`CATALOGO_DE_MANO_DE_OBRA.csv` (97 filas, 36 columnas): 58 puestos
+    (insumos de mano de obra) y las 39 cuadrillas (C = «+»), con el cálculo
+    del salario real. Ninguna columna se ignora (D-616). Espejo en la base:
+    `database/migrations/20260814000102_catalogo_de_mano_de_obra_y_semilla.sql`."""
+
+    SEMILLA_CUADRILLA_RENDIMIENTO = "semilla_cuadrilla_rendimiento"
+    """`SEMILLA-cuadrilla-rendimiento.csv` (265 filas): a qué cuadrilla se
+    liga cada destajo y su rendimiento teórico (D-386, D-406, D-439)."""
+
     FLETES = "fletes"
     """`CATALOGO_DE_FLETES.csv` (9 filas): las mismas columnas que el catálogo
     de materiales y el mismo destino (`insumo`, tipo material). Tipo de carga

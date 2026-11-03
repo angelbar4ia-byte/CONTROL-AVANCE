@@ -37,6 +37,7 @@ from obractrl.adapters.repos.cuadrillas_sql import RepositorioCuadrillasSQL
 from obractrl.adapters.repos.familias_sql import RepositorioFamiliasSQL
 from obractrl.adapters.repos.frentes_sql import RepositorioFrentesSQL
 from obractrl.adapters.repos.insumos_sql import RepositorioInsumosSQL
+from obractrl.adapters.repos.mano_de_obra_opus_sql import RepositorioManoDeObraOpusSQL
 from obractrl.adapters.repos.materiales_sql import RepositorioMaterialesSQL
 from obractrl.adapters.repos.niveles_etapas_sql import RepositorioNivelesEtapasSQL
 from obractrl.adapters.repos.obras_sql import RepositorioObrasSQL
@@ -63,6 +64,10 @@ from obractrl.application.casos_uso.aplicar_carga import (
     AplicadorPrototipos,
     AplicadorTrabajos,
     AplicadorUnidades,
+)
+from obractrl.application.casos_uso.aplicar_catalogo_mano_de_obra import (
+    AplicadorCatalogoManoDeObra,
+    AplicadorSemillaCuadrillas,
 )
 from obractrl.application.casos_uso.gestionar_carga import (
     CargaConDependientes,
@@ -382,6 +387,21 @@ async def catalogos(escenario: Escenario) -> AsyncIterator[Catalogos]:
 def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
     """Mismo cableado que `adapters/api/casos_uso.py::FabricaDeCargas`."""
     cargas = RepositorioCargasSQL(sesion)
+    if tipo is TipoCarga.CATALOGO_MANO_DE_OBRA:
+        return AplicadorCatalogoManoDeObra(
+            insumos=RepositorioInsumosSQL(sesion),
+            cuadrillas=RepositorioCuadrillasSQL(sesion),
+            unidades=RepositorioUnidadesSQL(sesion),
+            familias=RepositorioFamiliasSQL(sesion),
+            detalle=RepositorioManoDeObraOpusSQL(sesion),
+            cargas=cargas,
+        )
+    if tipo is TipoCarga.SEMILLA_CUADRILLA_RENDIMIENTO:
+        return AplicadorSemillaCuadrillas(
+            insumos=RepositorioInsumosSQL(sesion),
+            cuadrillas=RepositorioCuadrillasSQL(sesion),
+            cargas=cargas,
+        )
     if tipo in (TipoCarga.MATERIALES, TipoCarga.FLETES):
         return AplicadorMateriales(
             insumos=RepositorioInsumosSQL(sesion),
@@ -3612,3 +3632,131 @@ async def test_el_catalogo_de_fletes_real_carga_con_su_propio_tipo_de_carga(
         contexto_control, TipoCarga.FLETES, _repaquetar_csv_como_xlsx(_FLETES_OPUS_CSV)
     )
     assert otra.resumen.insertados == 0
+
+
+_MANO_DE_OBRA_OPUS_CSV = Path(
+    "/home/user/cerebro-erp-construccion/1-mundo/opus/CATALOGO_DE_MANO_DE_OBRA.csv"
+)
+_SEMILLA_CSV = Path(
+    "/home/user/cerebro-erp-construccion/1-mundo/fuentes/semilla/SEMILLA-cuadrilla-rendimiento.csv"
+)
+
+
+async def _sql_admin(consulta: str, **parametros: object) -> list[dict]:
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with engine.begin() as conn:
+            return [dict(f) for f in (await conn.execute(text(consulta), parametros)).mappings()]
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.skipif(not _MANO_DE_OBRA_OPUS_CSV.exists(), reason="Archivo real de OPUS no disponible.")
+async def test_el_catalogo_de_mano_de_obra_real_guarda_puestos_y_las_39_cuadrillas(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    """Las 36 columnas del archivo: las 39 cuadrillas van a la tabla de
+    cuadrillas, los 58 puestos a insumos de mano de obra, y el cálculo del
+    salario real a `mano_de_obra_opus` (D-616)."""
+    archivo = _repaquetar_csv_como_xlsx(_MANO_DE_OBRA_OPUS_CSV)
+    resultado = await _cargar(contexto_control, TipoCarga.CATALOGO_MANO_DE_OBRA, archivo)
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+    assert resultado.resumen.insertados == 97
+
+    org = str(escenario.org_id)
+    cuadrillas = await _sql_admin(
+        "select clave, nombre, desglosable, tipo_opus, fecha_costo, costo_jornada, "
+        "unidad_id, familia_id from cuadrilla where org_id = :org and desglosable order by clave",
+        org=org,
+    )
+    assert len(cuadrillas) == 39
+    assert sum(1 for c in cuadrillas if c["clave"].startswith("MOCU-")) == 38
+    cuad_001 = next(c for c in cuadrillas if c["clave"] == "CUAD-001")
+    assert cuad_001["nombre"] == "Cuadrilla tareas pesadas compuesta por 1 oficial y dos peones"
+    assert cuad_001["costo_jornada"] == Decimal(2068)
+    assert cuad_001["tipo_opus"] == "Mano de Obra"
+    assert cuad_001["unidad_id"] is not None and cuad_001["familia_id"] is not None
+
+    puestos = await _sql_admin(
+        "select clave, descripcion, costo_base, costo_unitario, tipo_opus, desglosable, "
+        "fecha_costo, tipo::text as tipo from insumo "
+        "where org_id = :org and tipo_opus = 'Mano de Obra' order by clave",
+        org=org,
+    )
+    # 53 MOCA- y 5 MOCU- (MOCU-039 a MOCU-043 son puestos, no cuadrillas: C vacía).
+    assert len(puestos) == 58
+    assert all(p["tipo"] == "mano_obra" and p["desglosable"] is False for p in puestos)
+    peon = next(p for p in puestos if p["clave"] == "MOCA-001")
+    assert (peon["descripcion"], peon["costo_base"], peon["tipo_opus"]) == (
+        "Peón",
+        Decimal(560),
+        "Mano de Obra",
+    )
+    assert str(peon["fecha_costo"]) == "2023-01-09"
+
+    detalle = await _sql_admin(
+        "select * from mano_de_obra_opus where org_id = :org order by clave", org=org
+    )
+    assert len(detalle) == 97
+    assert sum(1 for d in detalle if d["cuadrilla_id"] is not None) == 39
+    moca_001 = next(d for d in detalle if d["clave"] == "MOCA-001")
+    assert moca_001["sbc"] == Decimal("587.54")
+    assert moca_001["factor_salario_base"] == Decimal("1.04918")
+    assert moca_001["salario_gravable"] == Decimal("763.36")
+    assert moca_001["suma_prestaciones_imss"] == Decimal("99.64")
+    assert moca_001["utilizar_hoja_fsr"] is False
+    # Ninguna de las 26 columnas numéricas queda sin valor en el archivo real.
+    from obractrl.domain.cargadores.mano_de_obra_catalogo import CAMPOS_DE_CALCULO
+
+    assert all(d[c] is not None for d in detalle for c in CAMPOS_DE_CALCULO)
+
+    familias = await _familias(contexto_control)
+    assert familias["Albañilería y Estructura"]["parent_id"] is not None  # subfamilia
+
+    # Cargarlo otra vez no cambia nada.
+    otra = await _cargar(contexto_control, TipoCarga.CATALOGO_MANO_DE_OBRA, archivo)
+    assert (otra.resumen.insertados, otra.resumen.actualizados) == (0, 0)
+
+
+@pytest.mark.skipif(
+    not (_SEMILLA_CSV.exists() and _MANO_DE_OBRA_OPUS_CSV.exists()),
+    reason="Archivos reales no disponibles.",
+)
+async def test_la_semilla_liga_los_265_destajos_a_sus_cuadrillas_con_todas_sus_columnas(
+    escenario: Escenario, contexto_control: ContextoSesion
+) -> None:
+    await _cargar(
+        contexto_control, TipoCarga.TRABAJOS, _archivo_trabajos_opus_real()
+    )
+    await _cargar(
+        contexto_control,
+        TipoCarga.CATALOGO_MANO_DE_OBRA,
+        _repaquetar_csv_como_xlsx(_MANO_DE_OBRA_OPUS_CSV),
+    )
+
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.SEMILLA_CUADRILLA_RENDIMIENTO,
+        _repaquetar_csv_como_xlsx(_SEMILLA_CSV),
+    )
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.errores == 0
+    assert resultado.resumen.actualizados == 265
+
+    org = str(escenario.org_id)
+    ligados = await _sql_admin(
+        "select i.clave, c.clave as cuadrilla, i.rendimiento_teorico, i.origen_rendimiento, "
+        "i.ref_descripcion, i.ref_unidad, i.ref_costo_unitario "
+        "from insumo i join cuadrilla c on c.id = i.cuadrilla_id "
+        "where i.org_id = :org and i.rendimiento_teorico is not null order by i.clave",
+        org=org,
+    )
+    assert len(ligados) == 265
+    assert len({f["cuadrilla"] for f in ligados}) == 14
+    k1 = next(f for f in ligados if f["clave"] == "MOE-02020")  # castillo K1
+    assert k1["cuadrilla"] == "MOCU-005"
+    assert k1["rendimiento_teorico"] == Decimal("12.12")
+    assert k1["origen_rendimiento"] is not None and k1["ref_unidad"] == "M"
+    assert k1["ref_costo_unitario"] == Decimal(130)
+    assert sum(1 for f in ligados if (f["origen_rendimiento"] or "").startswith("completado")) == 5

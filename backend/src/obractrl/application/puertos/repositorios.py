@@ -1855,3 +1855,12 @@ class RepositorioVersionesConcepto(Protocol):
     async def listar(self, concepto_id: UUID) -> list[dict]:
         """Versiones del concepto, de la más antigua a la más reciente."""
         ...
+
+
+@runtime_checkable
+class RepositorioManoDeObraOpus(Protocol):
+    """Detalle del cálculo del salario real por puesto o cuadrilla (D-616)."""
+
+    async def listar(self) -> list[dict]: ...
+
+    async def upsert(self, clave: str, datos: dict) -> tuple[UUID, bool]: ...

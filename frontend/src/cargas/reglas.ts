@@ -22,6 +22,8 @@ const ETIQUETA_TIPO: Record<string, string> = {
   mano_de_obra: 'Mano de obra / Destajos',
   subcontratos: 'Subcontratos',
   cuadrillas: 'Cuadrillas',
+  catalogo_mano_de_obra: 'Catálogo de mano de obra (puestos y cuadrillas)',
+  semilla_cuadrilla_rendimiento: 'Semilla de cuadrillas y rendimientos',
   contratistas: 'Contratistas',
   unidades: 'Unidades',
   familias: 'Familias',

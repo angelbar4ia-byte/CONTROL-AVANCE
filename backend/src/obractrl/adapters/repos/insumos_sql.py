@@ -36,7 +36,8 @@ _COLUMNAS = """
     origen, iva_aplica, factor_conversion, estatus,
     cuadrilla_id, rendimiento_teorico, dias_entrega,
     desglosable, comentarios, costo_base_me, costo_unitario, fecha_costo,
-    tipo_opus, revisar
+    tipo_opus, revisar,
+    origen_rendimiento, ref_descripcion, ref_unidad, ref_costo_unitario
 """
 
 _CAMPOS_EDITABLES: dict[str, str] = {
@@ -67,6 +68,10 @@ _CAMPOS_EDITABLES: dict[str, str] = {
     "fecha_costo": "fecha_costo = cast(:fecha_costo as date)",
     "tipo_opus": "tipo_opus = :tipo_opus",
     "revisar": "revisar = cast(:revisar as boolean)",
+    "origen_rendimiento": "origen_rendimiento = :origen_rendimiento",
+    "ref_descripcion": "ref_descripcion = :ref_descripcion",
+    "ref_unidad": "ref_unidad = :ref_unidad",
+    "ref_costo_unitario": "ref_costo_unitario = cast(:ref_costo_unitario as numeric)",
 }
 """Campos que una edición puede tocar. La `clave` no está: es la identidad
 del registro (§3.3). El diccionario es también la lista blanca que evita

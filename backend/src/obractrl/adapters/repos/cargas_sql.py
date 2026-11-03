@@ -99,6 +99,7 @@ _ELIMINAR: dict[str, str] = {
         "cuadrilla",
         "cuadrilla_version",
         "cuadrilla_integrante",
+        "mano_de_obra_opus",
         "nivel",
         "etapa_constructiva",
         "unidad",
@@ -200,6 +201,11 @@ _RESTAURAR: dict[str, str] = {
             fecha_costo            = cast(a.j->>'fecha_costo' as date),
             tipo_opus              = a.j->>'tipo_opus',
             revisar                = coalesce(cast(a.j->>'revisar' as boolean), false),
+            -- Semilla de cuadrillas (D-616): solo si el snapshot los trae.
+            origen_rendimiento     = case when a.j ? 'origen_rendimiento' then a.j->>'origen_rendimiento' else insumo.origen_rendimiento end,
+            ref_descripcion        = case when a.j ? 'ref_descripcion' then a.j->>'ref_descripcion' else insumo.ref_descripcion end,
+            ref_unidad             = case when a.j ? 'ref_unidad' then a.j->>'ref_unidad' else insumo.ref_unidad end,
+            ref_costo_unitario     = case when a.j ? 'ref_costo_unitario' then cast(a.j->>'ref_costo_unitario' as numeric) else insumo.ref_costo_unitario end,
             -- El modo Reemplazar da de baja lógica lo que el archivo ya no
             -- trae (§10.2); sin esta línea la reversa no la desharía.
             estatus                = cast(coalesce(a.j->>'estatus', 'activo') as estatus_registro)
@@ -281,9 +287,51 @@ _RESTAURAR: dict[str, str] = {
         update cuadrilla set
             nombre    = a.j->>'nombre',
             unidad_id = cast(a.j->>'unidad_id' as uuid),
-            estatus   = cast(coalesce(a.j->>'estatus', 'activo') as estatus_registro)
+            estatus   = cast(coalesce(a.j->>'estatus', 'activo') as estatus_registro),
+            -- Lo que el catálogo de mano de obra de OPUS agrega (D-616); solo
+            -- se restaura si el snapshot lo trae.
+            familia_id  = case when a.j ? 'familia_id' then cast(a.j->>'familia_id' as uuid) else cuadrilla.familia_id end,
+            desglosable = case when a.j ? 'desglosable' then cast(a.j->>'desglosable' as boolean) else cuadrilla.desglosable end,
+            fecha_costo = case when a.j ? 'fecha_costo' then cast(a.j->>'fecha_costo' as date) else cuadrilla.fecha_costo end,
+            tipo_opus   = case when a.j ? 'tipo_opus' then a.j->>'tipo_opus' else cuadrilla.tipo_opus end,
+            costo_jornada = case when a.j ? 'costo_jornada' then cast(a.j->>'costo_jornada' as numeric) else cuadrilla.costo_jornada end
         from a
         where cuadrilla.id = cast(:id as uuid)
+    """,
+    "mano_de_obra_opus": """
+        with a as (select cast(:antes as jsonb) as j)
+        update mano_de_obra_opus set
+            utilizar_hoja_fsr = coalesce(cast(a.j->>'utilizar_hoja_fsr' as boolean), false),
+            categoria_fsr     = a.j->>'categoria_fsr',
+            fecha             = cast(a.j->>'fecha' as date),
+            costo_unitario                  = cast(a.j->>'costo_unitario' as numeric),
+            salario_tabulado                = cast(a.j->>'salario_tabulado' as numeric),
+            salario_nominal_mn              = cast(a.j->>'salario_nominal_mn' as numeric),
+            fsr                             = cast(a.j->>'fsr' as numeric),
+            salario_nominal_me              = cast(a.j->>'salario_nominal_me' as numeric),
+            salario_real                    = cast(a.j->>'salario_real' as numeric),
+            factor_salario_base             = cast(a.j->>'factor_salario_base' as numeric),
+            sbc                             = cast(a.j->>'sbc' as numeric),
+            excedente_tres_salarios         = cast(a.j->>'excedente_tres_salarios' as numeric),
+            aplicacion_imss                 = cast(a.j->>'aplicacion_imss' as numeric),
+            cuota_fija                      = cast(a.j->>'cuota_fija' as numeric),
+            prestaciones_en_especie         = cast(a.j->>'prestaciones_en_especie' as numeric),
+            prestaciones_en_dinero          = cast(a.j->>'prestaciones_en_dinero' as numeric),
+            invalidez_y_vida                = cast(a.j->>'invalidez_y_vida' as numeric),
+            cesantia_en_edad_avanzada       = cast(a.j->>'cesantia_en_edad_avanzada' as numeric),
+            riesgos_de_trabajo              = cast(a.j->>'riesgos_de_trabajo' as numeric),
+            guarderias                      = cast(a.j->>'guarderias' as numeric),
+            sar                             = cast(a.j->>'sar' as numeric),
+            suma_prestaciones_imss          = cast(a.j->>'suma_prestaciones_imss' as numeric),
+            factor_cuota_patronal_imss      = cast(a.j->>'factor_cuota_patronal_imss' as numeric),
+            infonavit                       = cast(a.j->>'infonavit' as numeric),
+            impuesto_sobre_nomina           = cast(a.j->>'impuesto_sobre_nomina' as numeric),
+            suma_prestaciones               = cast(a.j->>'suma_prestaciones' as numeric),
+            obligacion_obrero_patronal      = cast(a.j->>'obligacion_obrero_patronal' as numeric),
+            factor_de_salario_gravable      = cast(a.j->>'factor_de_salario_gravable' as numeric),
+            salario_gravable                = cast(a.j->>'salario_gravable' as numeric)
+        from a
+        where mano_de_obra_opus.id = cast(:id as uuid)
     """,
     "cuadrilla_version": """
         with a as (select cast(:antes as jsonb) as j)

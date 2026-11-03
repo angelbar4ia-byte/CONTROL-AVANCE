@@ -30715,6 +30715,8 @@
         "enum": [
           "catalogo_conceptos",
           "materiales",
+          "catalogo_mano_de_obra",
+          "semilla_cuadrilla_rendimiento",
           "fletes",
           "contratistas",
           "unidades",
