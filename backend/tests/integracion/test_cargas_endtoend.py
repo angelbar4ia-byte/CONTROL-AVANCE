@@ -2978,9 +2978,11 @@ async def test_recargar_el_mismo_prototipo_conserva_los_ids_de_nodo(
         assert nodos_v1[clave]["id"] == nodos_v2[clave]["id"]
 
 
-async def test_prototipo_raiz_sin_match_es_error_critico_y_el_resto_sigue(
+async def test_prototipo_que_no_existe_lo_crea_el_catalogo_de_presupuesto(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
+    """D-614: el catálogo de presupuesto forma los prototipos. Uno que no
+    existía ya no es un error: nace de todos los proyectos, y el resto sigue."""
     await _con_insumo_alambre(contexto_control)
     await _con_prototipos(contexto_control, "CAS-50")
 
@@ -2989,16 +2991,74 @@ async def test_prototipo_raiz_sin_match_es_error_critico_y_el_resto_sigue(
         TipoCarga.PRESUPUESTO,
         _archivo_presupuesto(
             [
-                *_prototipo_simple("CAS-NOEXISTE", "EST-05", 5),
+                *_prototipo_simple("CAS-NUEVO", "EST-05", 5),
                 *_prototipo_simple("CAS-50", "EST-06", 5),
             ]
         ),
     )
 
-    assert resultado.resumen.errores == 1
+    assert resultado.resumen.errores == 0
+    prototipos = await _prototipos(contexto_control)
+    assert "CAS-NUEVO" in prototipos
+    assert prototipos["CAS-NUEVO"]["proyecto_id"] is None
     conceptos = await _conceptos(contexto_control)
+    assert "EST-05" in conceptos
     assert "EST-06" in conceptos
-    assert "EST-05" not in conceptos
+
+
+async def test_prototipo_existente_actualiza_nombre_y_m2_sin_tocar_niveles_ni_recamaras(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    await _con_insumo_alambre(contexto_control)
+    await _cargar(
+        contexto_control,
+        TipoCarga.PROTOTIPOS,
+        _archivo_prototipos([["PROY", "CAS-51", "Casa vieja", "100", "3", "2"]]),
+    )
+    filas = _prototipo_simple("CAS-51", "EST-51", 5)
+    filas[0][3] = "ZAFIRO 9 (150 M2)"
+
+    resultado = await _cargar(contexto_control, TipoCarga.PRESUPUESTO, _archivo_presupuesto(filas))
+
+    assert resultado.resumen.errores == 0
+    prototipo = (await _prototipos(contexto_control))["CAS-51"]
+    assert prototipo["nombre"] == "Zafiro 9"
+    assert prototipo["m2"] == Decimal(150)
+    assert (prototipo["niveles"], prototipo["recamaras"]) == (3, 2)
+
+
+async def test_un_concepto_repetido_bajo_el_mismo_padre_son_nodos_independientes(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """D-615: la misma clave dos veces bajo el mismo padre no se suma ni se
+    funde; cada aparición es su nodo, con su orden y su cantidad, y recargar
+    el archivo cae en los mismos nodos."""
+    await _con_insumo_alambre(contexto_control)
+    filas = _prototipo_simple("CAS-52", "EST-52", 5)
+    filas[3][5] = Decimal("2.65")
+    filas.append([1, "ECO-1", "EST-52", "Losa", None, Decimal("1.8"), 0, 0, "CONCEPTO"])
+    archivo = _archivo_presupuesto(filas)
+
+    primera = await _cargar(contexto_control, TipoCarga.PRESUPUESTO, archivo)
+    assert primera.resumen.errores == 0
+
+    async def _nodos_est_52() -> list[dict]:
+        prototipo = (await _prototipos(contexto_control))["CAS-52"]
+        async with sesion_con_rls(contexto_control) as sesion:
+            todos = await RepositorioPrototipoNodoSQL(sesion).por_prototipo(prototipo["id"])
+        return sorted(
+            (n for n in todos if n["clave"] == "EST-52"), key=lambda n: n["ocurrencia"]
+        )
+
+    nodos = await _nodos_est_52()
+    assert [n["ocurrencia"] for n in nodos] == [1, 2]
+    assert [Decimal(str(n["cantidad"])) for n in nodos] == [Decimal("2.65"), Decimal("1.8")]
+    assert nodos[0]["id"] != nodos[1]["id"]
+
+    segunda = await _cargar(contexto_control, TipoCarga.PRESUPUESTO, archivo)
+    assert segunda.resumen.errores == 0
+    otra_vez = await _nodos_est_52()
+    assert [n["id"] for n in otra_vez] == [n["id"] for n in nodos]
 
 
 async def test_presupuesto_no_soporta_el_modo_reemplazar(
@@ -3325,16 +3385,46 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     assert conteo_nodos.get("nivel") == 102
     assert conteo_nodos.get("etapa") == 318
     assert conteo_nodos.get("agrupador") == 238
-    # 2439, no 2445: `prototipo_nodo` tiene `UNIQUE (org_id, prototipo_id,
-    # parent_id, clave)` (migración 0038) y el archivo real trae 6 pares
-    # `(padre, clave de concepto)` genuinamente repetidos dentro del MISMO
-    # prototipo (verificado leyendo el árbol con Python: CAS-00002,
-    # CAS-00005, CAS-00006 ×3, CAS-00007) — el segundo hace upsert sobre el
-    # primero en vez de otra fila. `construir_arboles` no deduplica eso (no
-    # es su trabajo, §12.11: el dominio arma el árbol tal cual, la unicidad
-    # de fila es la base) y por eso los 2445 nodos CONCEPTO del árbol caen
-    # en 2439 filas distintas de `prototipo_nodo`.
-    assert conteo_nodos.get("concepto") == 2439
+    # 2445: los 6 pares `(padre, clave de concepto)` repetidos dentro del
+    # MISMO prototipo (CAS-00002, CAS-00005, CAS-00006 ×3, CAS-00007) son
+    # nodos independientes, sin sumar ni fundir (D-615, migración 0099): cada
+    # aparición tiene su `ocurrencia`.
+    assert conteo_nodos.get("concepto") == 2445
+
+    # El WBS («Ingenieria ERP») y el «Nivel ERP» del archivo se conservan y se
+    # guardan en cada nodo aunque no se muestren (D-615). Muestra real:
+    # NIV-00001 (Subcapítulo) trae 1010000 y nivel ERP 1; ECO-00001 (Nivel 2),
+    # 1010100 y 1; y el concepto EST-10010, 1010100 y 0.
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with engine.begin() as conn:
+            guardados = {
+                (f["clave"], f["wbs"], f["nivel_erp"])
+                for f in (
+                    await conn.execute(
+                        text(
+                            "select distinct clave, wbs, nivel_erp from prototipo_nodo "
+                            "where org_id = :org and clave in ('NIV-00001','ECO-00001','EST-10010')"
+                        ),
+                        {"org": str(escenario.org_id)},
+                    )
+                ).mappings()
+            }
+            con_wbs = (
+                await conn.execute(
+                    text(
+                        "select count(*) from prototipo_nodo where org_id = :org "
+                        "and clave is not null and wbs is not null"
+                    ),
+                    {"org": str(escenario.org_id)},
+                )
+            ).scalar_one()
+    finally:
+        await engine.dispose()
+    assert ("NIV-00001", "1010000", 1) in guardados
+    assert ("ECO-00001", "1010100", 1) in guardados
+    assert ("EST-10010", "1010100", 0) in guardados
+    assert con_wbs > 3000  # de 3,097 nodos, solo faltan los 16 renglones sin WBS
 
     conceptos_tras_presupuesto = await _conceptos(contexto_control)
     assert len(conceptos_tras_presupuesto) == 471  # conteo verificado del árbol real

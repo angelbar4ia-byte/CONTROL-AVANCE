@@ -820,6 +820,7 @@ PRESUPUESTO = EspecificacionArchivo(
         "precio_unitario",
         "importe",
         "wbs",
+        "nivel_erp",
     ),
     alias={
         "indice": "indice",
@@ -836,6 +837,11 @@ PRESUPUESTO = EspecificacionArchivo(
         "clave": "clave_hijo",
         "importe": "importe",
         "wbs": "wbs",
+        # El exportador nativo de OPUS rotula el WBS «Ingenieria ERP» y el
+        # nivel del catálogo de niveles «Nivel ERP». Se conservan y se
+        # guardan aunque no se muestren (D-615); no son identidad.
+        "ingenieria erp": "wbs",
+        "nivel erp": "nivel_erp",
         # El archivo real del exportador de OPUS no trae `clave_padre`: la
         # cabecera literal es "Nivel " (con espacio al final — `normalizar`
         # colapsa espacios y la deja en "nivel"). Sin este alias, "nivel" no

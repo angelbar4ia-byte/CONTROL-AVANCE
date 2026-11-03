@@ -3844,8 +3844,9 @@ class AplicadorPresupuesto:
             # colgar de dos padres distintos dentro del mismo prototipo
             # (`uq_prototipo_nodo_posicion`, migración 0038) — indexar solo
             # por clave dejaría una de las dos ocurrencias sin su `anterior`.
+            self._ocurrencias = arbol.ocurrencias
             nodos_existentes = {
-                (f["parent_id"], str(f["clave"])): dict(f)
+                (f["parent_id"], str(f["clave"]), int(f.get("ocurrencia") or 1)): dict(f)
                 for f in await self._prototipo_nodos.por_prototipo(prototipo["id"])
                 if f["clave"]
             }
@@ -3978,7 +3979,7 @@ class AplicadorPresupuesto:
         nuevas_unidades: dict[str, UUID | None],
         catalogo_conceptos: dict[str, dict[str, Any]],
         firma_cache: dict[str, str],
-        nodos_existentes: dict[tuple[UUID | None, str], dict[str, Any]],
+        nodos_existentes: dict[tuple[UUID | None, str, int], dict[str, Any]],
         operaciones: list[dict[str, Any]],
         partidas: list[dict[str, Any]],
         errores: list[ErrorDeFila],
@@ -4046,7 +4047,7 @@ class AplicadorPresupuesto:
             )
             return
 
-        anterior = nodos_existentes.get((parent_id_db, nodo.clave))
+        anterior = nodos_existentes.get((parent_id_db, nodo.clave, self._ocurrencia(nodo)))
         es_alta = anterior is None
         contadores["nodos_creados" if es_alta else "nodos_actualizados"] += 1
 
@@ -4085,6 +4086,9 @@ class AplicadorPresupuesto:
                     "etapa_id": etapa_id_db,
                     "orden": nodo.indice or 0,
                     "cantidad": nodo.cantidad or 0,
+                    "ocurrencia": self._ocurrencia(nodo),
+                    "wbs": nodo.wbs,
+                    "nivel_erp": nodo.nivel_erp,
                 },
             )
             operaciones.append(
@@ -4094,7 +4098,7 @@ class AplicadorPresupuesto:
                     "insert" if es_alta else "update",
                     antes=_recorte(
                         anterior,
-                        ("parent_id", "tipo", "nombre", "concepto_id", "nivel_id", "etapa_id", "orden", "cantidad"),
+                        ("parent_id", "tipo", "nombre", "concepto_id", "nivel_id", "etapa_id", "orden", "cantidad", "wbs", "nivel_erp"),
                     )
                     if anterior
                     else None,
@@ -4150,7 +4154,7 @@ class AplicadorPresupuesto:
         nuevas_unidades: dict[str, UUID | None],
         catalogo_conceptos: dict[str, dict[str, Any]],
         firma_cache: dict[str, str],
-        nodos_existentes: dict[tuple[UUID | None, str], dict[str, Any]],
+        nodos_existentes: dict[tuple[UUID | None, str, int], dict[str, Any]],
         operaciones: list[dict[str, Any]],
         partidas: list[dict[str, Any]],
         errores: list[ErrorDeFila],
@@ -4588,6 +4592,10 @@ class AplicadorPresupuesto:
             contadores=contadores,
         )
 
+    def _ocurrencia(self, nodo: NodoLeido) -> int:
+        """Aparición de la clave del nodo bajo su mismo padre (D-615)."""
+        return getattr(self, "_ocurrencias", {}).get(nodo.fila, 1)
+
     async def _registrar_nodo_y_partida(
         self,
         *,
@@ -4597,7 +4605,7 @@ class AplicadorPresupuesto:
         parent_id_db: UUID | None,
         prototipo_id: UUID,
         dry_run: bool,
-        nodos_existentes: dict[tuple[UUID | None, str], dict[str, Any]],
+        nodos_existentes: dict[tuple[UUID | None, str, int], dict[str, Any]],
         operaciones: list[dict[str, Any]],
         partidas: list[dict[str, Any]],
         contadores: dict[str, int],
@@ -4610,7 +4618,7 @@ class AplicadorPresupuesto:
         contadores["partidas"] += 1
         cantidad_partida = nodo.cantidad if nodo.cantidad is not None else Decimal(1)
 
-        anterior_nodo = nodos_existentes.get((parent_id_db, nodo.clave))
+        anterior_nodo = nodos_existentes.get((parent_id_db, nodo.clave, self._ocurrencia(nodo)))
         contadores["nodos_creados" if anterior_nodo is None else "nodos_actualizados"] += 1
 
         if dry_run:
@@ -4626,6 +4634,9 @@ class AplicadorPresupuesto:
                 "concepto_id": concepto_id,
                 "orden": nodo.indice or 0,
                 "cantidad": cantidad_partida,
+                "ocurrencia": self._ocurrencia(nodo),
+                "wbs": nodo.wbs,
+                "nivel_erp": nodo.nivel_erp,
             },
         )
         operaciones.append(
@@ -4635,7 +4646,7 @@ class AplicadorPresupuesto:
                 "insert" if anterior_nodo is None else "update",
                 antes=_recorte(
                     anterior_nodo,
-                    ("parent_id", "tipo", "nombre", "concepto_id", "nivel_id", "etapa_id", "orden", "cantidad"),
+                    ("parent_id", "tipo", "nombre", "concepto_id", "nivel_id", "etapa_id", "orden", "cantidad", "wbs", "nivel_erp"),
                 )
                 if anterior_nodo
                 else None,

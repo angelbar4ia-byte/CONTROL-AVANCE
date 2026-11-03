@@ -307,6 +307,8 @@ _RESTAURAR: dict[str, str] = {
             etapa_id      = cast(a.j->>'etapa_id' as uuid),
             orden         = cast(a.j->>'orden' as integer),
             cantidad      = cast(a.j->>'cantidad' as numeric),
+            wbs           = a.j->>'wbs',
+            nivel_erp     = cast(a.j->>'nivel_erp' as smallint),
             -- `AplicadorIngenieriaLote` (camino "diseño_nuevo") es el único
             -- aplicador que hoy registraría un "update" sobre esta tabla;
             -- por ahora no lo hace (el alta en cascada del prototipo nuevo
