@@ -90,7 +90,9 @@ export function medidaDirecta(
   const elegir = (m: MedidaDeTrazo): MedidaDeTrazo | null => (admitidas.includes(m) ? m : null);
   switch (tipo) {
     case 'area':
-      return herramienta === 'poligono' ? elegir('area') : conGrosor ? elegir('area') : null;
+      // Un área se mide con un polígono; un muro con grosor, con su área; una línea sin grosor, con su largo × la
+      // altura y las caras por defecto (el aplanado de un muro): `factorDeLaMedida` pone ese factor.
+      return herramienta === 'poligono' ? elegir('area') : conGrosor ? elegir('area') : herramienta === 'linea' ? elegir('longitud') : null;
     case 'lineal':
       return herramienta === 'linea' ? elegir('longitud') : herramienta === 'poligono' ? elegir('perimetro') : null;
     case 'conteo':
@@ -98,4 +100,25 @@ export function medidaDirecta(
     default:
       return null; // volumen (se mide con área y espesor), derivada o sin tipo: se pregunta
   }
+}
+
+/** Altura por defecto de un muro (m) para convertir su largo en área: el aplanado, la pintura. Se afina en el detalle. */
+export const ALTURA_POR_DEFECTO_M = 2.6;
+/** Caras por defecto de un muro: las dos. */
+export const CARAS_POR_DEFECTO = 2;
+
+/**
+ * El factor del enlace directo. Casi siempre 1; una **línea sobre un concepto en m²** (sin grosor) mide su largo y lo
+ * convierte en área con la altura y las caras por defecto: largo × 2.6 × 2 = largo × 5.2.
+ */
+export function factorDeLaMedida(
+  tipo: TipoDeMedicion | null,
+  herramienta: GeometriaBase,
+  conGrosor: boolean,
+  medida: MedidaDeTrazo,
+): string {
+  if (tipo === 'area' && herramienta === 'linea' && !conGrosor && medida === 'longitud') {
+    return String(Number((ALTURA_POR_DEFECTO_M * CARAS_POR_DEFECTO).toFixed(6)));
+  }
+  return '1';
 }

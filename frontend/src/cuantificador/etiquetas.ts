@@ -14,6 +14,10 @@ export interface EtiquetaDeMedida {
   readonly tipo: 'punto' | 'area' | 'hueco' | 'longitud';
   readonly punto: Punto;
   readonly texto: string;
+  /** Qué se mide: «EST-10101 LOSA ENTREPISO 3.00 · MOE-10001 MO LOSA MACIZA · RECAMARA 1». Se escribe sobre la medida. */
+  readonly titulo?: string;
+  /** El color de la medición a la que pertenece el trazo. */
+  readonly color?: string;
 }
 
 export interface Cota {
@@ -83,7 +87,12 @@ export function etiquetasDeMedidas(
   grosorM: number | null = null,
   numeroDePunto: number | null = null,
   pendientePct: number | string | null = null,
+  rotulo: { readonly titulo?: string; readonly color?: string; readonly valor?: string } = {},
 ): EtiquetaDeMedida[] {
+  const marca = {
+    ...(rotulo.titulo ? { titulo: rotulo.titulo } : {}),
+    ...(rotulo.color ? { color: rotulo.color } : {}),
+  };
   const { lineal, superficie, k } = unidadesDeEscala(escala);
   const etiquetas: EtiquetaDeMedida[] = [];
   const partes = partesDe(geometria);
@@ -111,6 +120,7 @@ export function etiquetasDeMedidas(
       tipo: 'area',
       punto: centroide(anillo.puntos),
       texto: `${fmtMedida(area)} ${superficie}`,
+      ...marca,
     });
   }
   for (const hueco of huecos) {
@@ -126,12 +136,18 @@ export function etiquetasDeMedidas(
     const medio = linea.puntos[Math.floor(linea.puntos.length / 2)] as Punto;
     etiquetas.push({
       tipo: 'longitud',
+      ...marca,
       punto: linea.puntos.length === 2 ? puntoMedio(linea.puntos[0] as Punto, linea.puntos[1] as Punto) : medio,
       texto:
         grosorM !== null && escala !== null
           ? `${fmtMedida(largo)} ${lineal} × ${fmtMedida(grosorM)} = ${fmtMedida(largo * grosorM)} ${superficie}`
           : `${fmtMedida(largo)} ${lineal}${Number(pendientePct ?? 0) > 0 ? ` ↗ ${Number(pendientePct)} %` : ''}`,
     });
+  }
+  // Lo que cuenta el trazo para su concepto (con la unidad del concepto) manda sobre la medida geométrica.
+  if (rotulo.valor) {
+    const k = etiquetas.findIndex((e) => e.tipo === 'area' || e.tipo === 'longitud');
+    if (k >= 0) etiquetas[k] = { ...(etiquetas[k] as EtiquetaDeMedida), texto: rotulo.valor };
   }
   return etiquetas;
 }

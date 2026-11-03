@@ -67,6 +67,8 @@ export interface TrazoVisible {
   readonly porRevisar: boolean;
   /** Aprobado por Control de obra: se dibuja en verde. */
   readonly aprobado: boolean;
+  /** El color de su medición; sin medición se dibuja con el color de acento. */
+  readonly color?: string;
   /** Es de la medición activa (la capa sombra): se dibuja con un halo. */
   readonly resaltado?: boolean;
   /** El cuerpo de una línea con grosor (un muro), ya como anillo en coordenadas de plano. */
@@ -552,7 +554,7 @@ export function Visor({
         </g>
       ))}
 
-      {trazos.map((t, i) => {
+      {trazos.map((t) => {
         const elegido = seleccion?.tipo === 'trazo' && t.id === seleccion.id;
         const clase = [
           'visor__trazo',
@@ -564,7 +566,7 @@ export function Visor({
           .filter(Boolean)
           .join(' ');
         return (
-          <g key={t.id} className={clase} data-trazo-id={t.id} style={{ ['--c-trazo' as string]: colorDeTrazo(i) }}>
+          <g key={t.id} className={clase} data-trazo-id={t.id} style={t.color ? { ['--c-trazo' as string]: t.color } : undefined}>
             {t.banda && t.banda.length > 2 && (
               <polygon
                 className="visor__banda"
@@ -694,6 +696,8 @@ export function Visor({
                   {e.texto}
                 </text>
               </g>
+            ) : e.titulo ? (
+              <RotuloDeMedida key={i} e={e} px={px} contragiro={T.contragiro(e.punto[0], e.punto[1])} />
             ) : (
               <text
                 key={i}
@@ -774,7 +778,26 @@ function marcaDeReferencia(r: Referencia, t: number) {
   }
 }
 
-/** Un color distinto por trazo: el ángulo áureo reparte los tonos sin que dos vecinos se parezcan. */
-export function colorDeTrazo(indice: number): string {
-  return `hsl(${Math.round((indice * 137.508) % 360)} 68% 42%)`;
+/**
+ * La etiqueta de una medida con lo que se mide: arriba, en chico, «clave y concepto · matriz · medición»; debajo,
+ * la medida. Una píldora con el color de la medición a la izquierda, para leerla sin abrir nada.
+ */
+function RotuloDeMedida({ e, px, contragiro }: { readonly e: EtiquetaDeMedida; readonly px: number; readonly contragiro: string | undefined }) {
+  const titulo = e.titulo ?? '';
+  const ancho = (Math.max(titulo.length * 0.92, e.texto.length * 1.25) * 6.2 + 22) * px;
+  const alto = 33 * px;
+  const x = e.punto[0] - ancho / 2;
+  const y = e.punto[1] - alto / 2;
+  return (
+    <g className="visor__rotulo-medida" data-testid="rotulo-de-medida" transform={contragiro} style={e.color ? { ['--c-rotulo' as string]: e.color } : undefined}>
+      <rect className="visor__rotulo-caja" x={x} y={y} width={ancho} height={alto} rx={7 * px} ry={7 * px} style={{ strokeWidth: 1.2 * px }} />
+      <rect className="visor__rotulo-barra" x={x} y={y} width={5 * px} height={alto} rx={2.5 * px} />
+      <text className="visor__rotulo-titulo" x={x + 13 * px} y={y + 12 * px} fontSize={8.6 * px}>
+        {titulo}
+      </text>
+      <text className={`visor__rotulo-valor visor__etiqueta--${e.tipo}`} x={x + 13 * px} y={y + 26 * px} fontSize={12.5 * px}>
+        {e.texto}
+      </text>
+    </g>
+  );
 }

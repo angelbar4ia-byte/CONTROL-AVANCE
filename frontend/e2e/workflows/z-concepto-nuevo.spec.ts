@@ -37,6 +37,9 @@ test.describe('Cuantificador · concepto nuevo', () => {
     await entrarComo(page, 'control');
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}`);
 
+    // Los conceptos nacen en la pestaña «Árbol»; el Presupuesto solo elige y mide.
+    await expect(page.getByRole('button', { name: 'Nuevo concepto' })).toHaveCount(0);
+    await page.getByRole('tab', { name: /Árbol/ }).click();
     await page.getByRole('button', { name: 'Nuevo concepto' }).click();
     const forma = page.getByRole('form', { name: 'Nuevo concepto' });
     await forma.getByLabel('Clave').fill(`${clave}-FIR`);
@@ -74,6 +77,7 @@ test.describe('Cuantificador · concepto nuevo', () => {
     await entrarComo(page, 'residente');
     await page.goto(`/cuantificador?obra=${obra!.id}`);
     await expect(page.getByRole('tab', { name: /Presupuesto/ })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Árbol/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Nuevo concepto' })).toHaveCount(0);
   });
 
@@ -92,13 +96,14 @@ test.describe('Cuantificador · concepto nuevo', () => {
 
     await entrarComo(page, 'costos');
     await page.goto(`/cuantificador?obra=${obra.id}`);
+    await page.getByRole('tab', { name: /Árbol/ }).click();
     await page.getByRole('button', { name: 'Nuevo concepto' }).click();
     const forma = page.getByRole('form', { name: 'Nuevo concepto' });
     await forma.getByLabel('Clave').fill(`${clave}-X`);
     await forma.getByLabel('Descripción').fill('Concepto de Costos');
     await forma.getByLabel('Unidad').selectOption({ label: 'm2 · Metro cuadrado' });
-    // Sin planos no hay dónde mostrar el aviso; el concepto entra al árbol y queda activo.
+    // Sin planos no hay dónde mostrar el aviso; el concepto entra a la obra y queda en el árbol.
+    await page.getByRole('tab', { name: /Presupuesto/ }).click();
     await expect(page.getByRole('treeitem', { name: new RegExp(`${clave}-X`) })).toBeVisible();
-    await expect(page.getByText(/Actividad\s*$/).first()).toBeVisible();
   });
 });

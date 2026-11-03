@@ -9,7 +9,7 @@
  */
 
 import { Plus } from 'lucide-react';
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import {
@@ -30,6 +30,7 @@ import {
 import { useCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost } from '@/api/generado/partes/partes';
 import type { ActividadRespuesta } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
+import { MatricesDeActividad } from './MatricesDeActividad';
 import { NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
 
 interface Props {
@@ -100,6 +101,17 @@ function NuevaPartida({ obraId, etapaId, onCreada, onError }: {
     setAbierto(false);
   };
 
+  // Intro antes de que llegue la lista de conceptos no se pierde: queda pendiente y se aplica al cargar.
+  const [pendiente, setPendiente] = useState(false);
+  useEffect(() => {
+    if (pendiente && conceptos.data !== undefined) {
+      setPendiente(false);
+      void ponerExistente();
+    }
+    // `ponerExistente` lee el estado del render en que llegó la lista.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendiente, conceptos.data]);
+
   async function ponerExistente() {
     if (!existente) return;
     try {
@@ -142,7 +154,8 @@ function NuevaPartida({ obraId, etapaId, onCreada, onError }: {
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
-            void ponerExistente();
+            if (conceptos.data === undefined) setPendiente(true);
+            else void ponerExistente();
           }
         }}
       />
@@ -175,6 +188,7 @@ function NuevaPartida({ obraId, etapaId, onCreada, onError }: {
 }
 
 export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props) {
+  const [matricesAbiertas, setMatricesAbiertas] = useState<ReadonlySet<string>>(new Set());
   const niveles = useListarNivelesApiV1NivelesGet();
   const etapas = useListarEtapasApiV1EtapasGet();
   const unidades = useListarUnidadesApiV1UnidadesGet(undefined, { query: { staleTime: 60_000 } });
@@ -245,6 +259,7 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
 
   const filaDePartida = (a: ActividadRespuesta) => {
     const tipo = tipoDeMedicion(a.unidad);
+    const conMatrices = matricesAbiertas.has(a.id);
     return (
       <li key={a.id} className="arbol-edicion__partida" data-partida={a.concepto_clave ?? a.id}>
         <span className="arbol-edicion__concepto" title={String(a.descripcion ?? '')}>
@@ -279,6 +294,29 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
             </option>
           ))}
         </select>
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          style={{ gridColumn: '1 / -1', justifySelf: 'start' }}
+          aria-expanded={conMatrices}
+          aria-label={`Matrices de ${a.concepto_clave ?? 'la partida'}`}
+          title="Las matrices del concepto: agregarlas, quitarlas, su cantidad y su costo (cambia el catálogo)"
+          onClick={() =>
+            setMatricesAbiertas((actual) => {
+              const siguiente = new Set(actual);
+              if (siguiente.has(a.id)) siguiente.delete(a.id);
+              else siguiente.add(a.id);
+              return siguiente;
+            })
+          }
+        >
+          {conMatrices ? 'Ocultar matrices' : 'Matrices'}
+        </button>
+        {conMatrices && (
+          <div style={{ gridColumn: '1 / -1' }}>
+            <MatricesDeActividad actividadId={a.id} puedeEditar />
+          </div>
+        )}
       </li>
     );
   };

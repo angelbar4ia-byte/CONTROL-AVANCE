@@ -23,8 +23,10 @@ import type { ActividadRespuesta, ElementoRespuesta, MedicionRespuesta } from '@
 import { fmtNum } from '@/lib/formato';
 import { OpcionesDeMatriz } from './MatricesDeActividad';
 import { PanelDeElementos, UNIDAD_DEL_PESO } from './PanelDeElementos';
+import { tipoDeMedicion } from './tipos';
 import {
   arbolDeMediciones,
+  coloresDeMediciones,
   candidatasAMadre,
   MEDIDAS_ASIGNABLES,
   NOMBRE_DE_TIPO_DE_MEDICION,
@@ -42,11 +44,41 @@ interface Props {
   readonly puedePonerPeso: boolean;
   /** El concepto que se está midiendo en el árbol: trae elegido el destino de una asignación. */
   readonly conceptoEnFoco?: string;
+  /** Sobre qué se crea una medición: el concepto (o la matriz) elegido en el Presupuesto. Sin él no se crea. */
+  readonly destino?: DestinoDeMedicion | null;
+  /** Se pidió crear sin tener elegido un concepto o una matriz: la pantalla lleva al Presupuesto. */
+  readonly onPedirDestino?: () => void;
   readonly activaId: string | null;
   readonly onActivar: (medicion: MedicionRespuesta | null) => void;
   /** Algo cambió en el servidor: hay que volver a leer mediciones, trazos y cantidades. */
   readonly onCambio: (aviso?: string) => void;
   readonly onError: (mensaje: string) => void;
+}
+
+/** El concepto o la matriz sobre los que se crea una medición. */
+export interface DestinoDeMedicion {
+  readonly actividadId: string;
+  readonly matrizId?: string;
+  /** «EST-10101 LOSA ENTREPISO» o «MOE-10001 MO LOSA MACIZA». */
+  readonly nombre: string;
+  readonly unidad: string | null;
+}
+
+/** La unidad que se elige al crear una medición decide su tipo (m² y m³ miden con un área; ml, con una longitud; pza, con un conteo). */
+export const UNIDADES_DE_MEDICION: readonly { readonly valor: string; readonly nombre: string; readonly tipo: TipoDeMedicionSombra }[] = [
+  { valor: 'm²', nombre: 'm² · Metro cuadrado', tipo: 'area' },
+  { valor: 'm³', nombre: 'm³ · Metro cúbico', tipo: 'area' },
+  { valor: 'ml', nombre: 'ml · Metro lineal', tipo: 'lineal' },
+  { valor: 'pza', nombre: 'pza · Pieza', tipo: 'conteo' },
+];
+
+/** La unidad de la lista que más se parece a la del concepto (m2, M2, m², mts…); `m²` si no se sabe. */
+export function unidadDeMedicionPorDefecto(unidad: string | null | undefined): string {
+  const tipo = tipoDeMedicion(unidad);
+  if (tipo === 'lineal') return 'ml';
+  if (tipo === 'conteo') return 'pza';
+  if (tipo === 'volumen') return 'm³';
+  return 'm²';
 }
 
 function etiquetaActividad(a: ActividadRespuesta): string {
@@ -63,14 +95,19 @@ export function PanelDeMediciones({
   elementos,
   puedePonerPeso,
   conceptoEnFoco,
+  destino = null,
+  onPedirDestino,
   activaId,
   onActivar,
   onCambio,
   onError,
 }: Props) {
   const arbol = useMemo(() => arbolDeMediciones(mediciones), [mediciones]);
+  /** El mismo color con que se pinta la medición en el plano. */
+  const colores = useMemo(() => coloresDeMediciones(mediciones), [mediciones]);
   const [cerradas, setCerradas] = useState<ReadonlySet<string>>(new Set());
-  const [creando, setCreando] = useState<{ parentId: string | null; tipo: TipoDeMedicionSombra } | null>(null);
+  const [creando, setCreando] = useState<{ parentId: string | null; tipo: TipoDeMedicionSombra; unidad: string } | null>(null);
+  const asignarAlCrear = useAsignarMedicionApiV1MedicionesMedicionIdAsignacionesPost<ErrorApi>();
   const [nombreNuevo, setNombreNuevo] = useState('');
   const [renombrando, setRenombrando] = useState<{ id: string; nombre: string } | null>(null);
   const [asignando, setAsignando] = useState<string | null>(null);
@@ -100,7 +137,34 @@ export function PanelDeMediciones({
       });
       setCreando(null);
       setNombreNuevo('');
-      onCambio(`Medición «${nombreNuevo.trim()}» creada.`);
+      // Creada sobre un concepto o una matriz: se asigna a él en el mismo paso, con la medida que corresponde a su tipo.
+      let aviso = `Medición «${nombreNuevo.trim()}» creada.`;
+      if (destino && creando.parentId === null) {
+        // Solo se asigna sola si el concepto se mide igual que la medición (m² con área, ml con longitud, pza con conteo): un
+        // concepto en kg se mide con un elemento y su peso, y un volumen con un espesor; eso se asigna a mano.
+        const igual = tipoDeMedicion(destino.unidad) === (creando.tipo === 'area' ? 'area' : creando.tipo);
+        const medida = !igual ? null : creando.tipo === 'area' ? (creando.unidad === 'm²' ? 'area' : null) : creando.tipo === 'lineal' ? 'longitud' : 'conteo';
+        if (medida) {
+          try {
+            await asignarAlCrear.mutateAsync({
+              medicionId: r.id,
+              data: {
+                actividad_id: destino.actividadId,
+                matriz_concepto_id: destino.matrizId ?? null,
+                medida,
+                factor: '1',
+                usar_peso: false,
+              },
+            });
+            aviso = `Medición «${nombreNuevo.trim()}» creada sobre ${destino.nombre}: lo que dibujes suma ahí.`;
+          } catch (err) {
+            aviso = `Medición «${nombreNuevo.trim()}» creada, pero no se pudo asignar a ${destino.nombre}: ${err instanceof Error ? err.message : 'error'}.`;
+          }
+        } else {
+          aviso = `Medición «${nombreNuevo.trim()}» creada sobre ${destino.nombre}. Este concepto se mide distinto (volumen con espesor, o kg con un elemento y su peso): asígnala con su factor.`;
+        }
+      }
+      onCambio(aviso);
       const hecha: MedicionRespuesta = {
         id: r.id,
         parent_id: creando.parentId,
@@ -109,7 +173,7 @@ export function PanelDeMediciones({
         orden: 9999,
         n_trazos: 0,
         valor: '0',
-        unidad: creando.tipo === 'area' ? 'm²' : creando.tipo === 'lineal' ? 'm' : 'pza',
+        unidad: creando.unidad,
         asignaciones: [],
       };
       onActivar(hecha); // una medición recién hecha es la que se va a dibujar
@@ -200,6 +264,8 @@ export function PanelDeMediciones({
               </button>
             </form>
           ) : (
+            <>
+              <i className="arbol__color-medicion" data-testid="color-de-medicion" style={{ background: colores.get(m.id) }} aria-hidden />
             <button
               type="button"
               className="arbol__texto arbol__activar"
@@ -209,6 +275,7 @@ export function PanelDeMediciones({
             >
               {m.nombre}
             </button>
+            </>
           )}
           <span className="badge badge--outline" data-testid="tipo-de-medicion">
             {NOMBRE_DE_TIPO_DE_MEDICION[m.tipo]}
@@ -251,7 +318,7 @@ export function PanelDeMediciones({
               className="btn-icono btn-icono--chico"
               aria-label={`Agregar una submedición a ${m.nombre}`}
               title="Agregar una submedición (del mismo tipo)"
-              onClick={() => setCreando({ parentId: m.id, tipo: m.tipo })}
+              onClick={() => setCreando({ parentId: m.id, tipo: m.tipo, unidad: m.tipo === 'area' ? 'm²' : m.tipo === 'lineal' ? 'ml' : 'pza' })}
             >
               <Plus size={13} aria-hidden />
             </button>
@@ -338,12 +405,20 @@ export function PanelDeMediciones({
     <div className="mediciones" role="region" aria-label="Mediciones del plano">
       <div className="mediciones__cabeza">
         <span className="text-xs text-mute">
-          La capa sombra: se dibuja una vez y se asigna a uno o varios conceptos.
+          Se crea sobre el concepto o la matriz que elegiste: nombre, unidad y a trazar.
         </span>
         <button
           type="button"
           className="btn btn--sm btn--accent"
-          onClick={() => setCreando({ parentId: null, tipo: 'area' })}
+          onClick={() => {
+            if (!destino) {
+              onError('Elige primero un concepto o una matriz en el Presupuesto: la medición se crea sobre esa selección.');
+              onPedirDestino?.();
+              return;
+            }
+            const unidad = unidadDeMedicionPorDefecto(destino.unidad);
+            setCreando({ parentId: null, tipo: UNIDADES_DE_MEDICION.find((u) => u.valor === unidad)?.tipo ?? 'area', unidad });
+          }}
         >
           <Plus size={13} aria-hidden /> Nueva medición
         </button>
@@ -353,10 +428,15 @@ export function PanelDeMediciones({
 
       {creando && (
         <form className="mediciones__nueva" onSubmit={(e) => void alCrear(e)} aria-label="Nueva medición">
+          {destino && (
+            <div className="text-xs" data-testid="medicion-sobre">
+              Sobre <strong>{destino.nombre}</strong>
+            </div>
+          )}
           <input
             className="input"
             aria-label="Nombre de la medición"
-            placeholder={creando.parentId ? 'Recámara 1, Cocina…' : 'Losa de cimentación, Muros eje A…'}
+            placeholder="RECÁMARA 01, Cocina, Muros eje A…"
             value={nombreNuevo}
             autoFocus
             onChange={(e) => setNombreNuevo(e.target.value)}
@@ -364,20 +444,35 @@ export function PanelDeMediciones({
           <div className="row" style={{ gap: 4, flexWrap: 'wrap' }}>
             <select
               className="select"
-              aria-label="Tipo de medición"
-              value={creando.tipo}
+              aria-label="Unidad de la medición"
+              value={creando.unidad}
               disabled={creando.parentId !== null}
-              onChange={(e) => setCreando({ parentId: null, tipo: e.target.value as TipoDeMedicionSombra })}
+              onChange={(e) =>
+                setCreando({
+                  parentId: null,
+                  unidad: e.target.value,
+                  tipo: UNIDADES_DE_MEDICION.find((u) => u.valor === e.target.value)?.tipo ?? 'area',
+                })
+              }
             >
-              <option value="area">Área (m²)</option>
-              <option value="lineal">Lineal (m)</option>
-              <option value="conteo">Conteo (pza)</option>
+              {UNIDADES_DE_MEDICION.map((u) => (
+                <option key={u.valor} value={u.valor}>
+                  {u.nombre}
+                </option>
+              ))}
             </select>
             <select
               className="select"
               aria-label="Dentro de"
               value={creando.parentId ?? ''}
-              onChange={(e) => setCreando({ ...creando, parentId: e.target.value === '' ? null : e.target.value })}
+              onChange={(e) => {
+                const madre = mediciones.find((m) => m.id === e.target.value);
+                setCreando({
+                  ...creando,
+                  parentId: madre ? madre.id : null,
+                  ...(madre ? { tipo: madre.tipo, unidad: madre.tipo === 'area' ? 'm²' : madre.tipo === 'lineal' ? 'ml' : 'pza' } : {}),
+                });
+              }}
             >
               <option value="">Sola (en el nivel de arriba)</option>
               {candidatasAMadre(mediciones, creando.tipo).map((m) => (

@@ -21,7 +21,7 @@
  */
 
 import { PanelLeft, PanelRight, Upload } from 'lucide-react';
-import { useIsMutating } from '@tanstack/react-query';
+import { useIsMutating, useQueries } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
@@ -42,6 +42,7 @@ import {
   useFijarVistaApiV1PlanosPlanoIdVistaPut,
   useNotasDePlanoApiV1PlanosPlanoIdNotasGet,
   useTrazosDePlanoApiV1PlanosPlanoIdTrazosGet,
+  getMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetQueryOptions,
 } from '@/api/generado/cuantificacion/cuantificacion';
 import {
   getListarElementosApiV1ElementosGetQueryKey,
@@ -87,20 +88,20 @@ import { ErrorBanner } from '@/lib/ErrorBanner';
 import { SelectorObra } from '@/lib/SelectorObra';
 import { AltaNota } from './AltaNota';
 import { PanelDeMediciones } from './PanelDeMediciones';
-import { admiteGeometria, asignacionesEfectivas, idsDeRama } from './mediciones';
+import { admiteGeometria, asignacionesEfectivas, colorDeConcepto, coloresDeMediciones, idsDeRama } from './mediciones';
 import { OpcionesDeContorno } from './OpcionesDeContorno';
 import { OpcionesDeNota, type ClaseDeNota } from './OpcionesDeNota';
 import { bloqueDeTipo, NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
 import { girar, rotacionValida, type VistaDelPlano } from './vista';
+import { AltaDeConcepto } from './AltaDeConcepto';
 import { AltaPlano } from './AltaPlano';
 import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
-import { medidaDirecta, trazoPeticion } from './trazoPeticion';
+import { ALTURA_POR_DEFECTO_M, CARAS_POR_DEFECTO, factorDeLaMedida, medidaDirecta, trazoPeticion } from './trazoPeticion';
 import { motivoDeIncompatibilidad } from './mediciones';
 import { CalibrarEscala } from './CalibrarEscala';
 import { useAjuste, useAnchoAjustable } from '@/lib/useAjuste';
 import { SeparadorDeAncho } from './SeparadorDeAncho';
 import { arbolDeCuantificacion, trazosDeConceptos } from './arbol';
-import { AltaDeConcepto } from './AltaDeConcepto';
 import { ArbolPresupuesto } from './ArbolPresupuesto';
 import { Modal } from '@/lib/Modal';
 import { BarraDeFunciones, BarraDeTrazo, type ClaveDeInterruptor, type Interruptor } from './BarraDeHerramientas';
@@ -118,7 +119,7 @@ import {
   formaDe,
   type HerramientaDeDibujo,
 } from './dibujo';
-import { centroide, cotasDe, etiquetasDeMedidas, sinCierre } from './etiquetas';
+import { centroide, cotasDe, etiquetasDeMedidas, fmtMedida, sinCierre } from './etiquetas';
 import {
   REFERENCIAS_POR_DEFECTO,
   buscarReferencia,
@@ -448,6 +449,8 @@ export function EspacioDeTrazo({
     { query: { enabled: planoElegido !== '' } },
   );
   const listaDeMediciones = useMemo(() => medicionesConsulta.data ?? [], [medicionesConsulta.data]);
+  /** Cada medición lleva su color: el plano, el panel y la etiqueta de medida lo comparten. */
+  const coloresDeMedicion = useMemo(() => coloresDeMediciones(listaDeMediciones), [listaDeMediciones]);
   // Todo cambio llega a la API en el momento: no hay botón de guardar. Esto solo dice si algo va en camino.
   const guardandoAhora = useIsMutating() > 0;
   const meterEnMedicion = usePonerTrazoEnMedicionApiV1TrazosTrazoIdMedicionPut<ErrorApi>();
@@ -693,6 +696,13 @@ export function EspacioDeTrazo({
         porRevisar: f.properties.por_revisar,
         aprobado: f.properties.aprobado_en != null,
         resaltado: trazosDeLaMedicion.has(f.id),
+        // El color de su medición; sin medición, el de su concepto (para distinguir los trazos de cada concepto).
+        ...(() => {
+          const deMedicion = f.properties.medicion_id ? coloresDeMedicion.get(f.properties.medicion_id) : undefined;
+          const concepto = f.properties.enlaces.find((e) => e.vigente && e.tipo_nodo !== 'prototipo_nodo')?.nodo_id;
+          const color = deMedicion ?? (concepto ? colorDeConcepto(concepto) : undefined);
+          return color ? { color } : {};
+        })(),
         // El cuerpo de una línea con grosor (un muro), pintado con su alineación.
         banda:
           f.properties.grosor_m != null && f.properties.alineacion
@@ -703,7 +713,7 @@ export function EspacioDeTrazo({
               )
             : undefined,
       })),
-    [featuresVisibles, unidadesPorMetro, trazosDeLaMedicion],
+    [featuresVisibles, unidadesPorMetro, trazosDeLaMedicion, coloresDeMedicion],
   );
   const notasConsulta = useNotasDePlanoApiV1PlanosPlanoIdNotasGet<
     NotaPlanoDetalleRespuesta[],
@@ -1125,6 +1135,7 @@ export function EspacioDeTrazo({
       forma: conForma,
     };
     let data: TrazoPeticion | null = null;
+    let factor = '1';
     if (medicionActiva) {
       if (motivoDeIncompatibilidad(medicionActiva.tipo, tipo, conForma !== null) === null) {
         data = trazoPeticion({ ...base, medicionId: medicionActiva.id, enlaces: [] });
@@ -1132,9 +1143,10 @@ export function EspacioDeTrazo({
     } else if (conceptoEnFoco) {
       const medida = medidaDirecta(tipoDelConcepto, tipo, conGrosor, conForma !== null);
       if (medida) {
+        factor = factorDeLaMedida(tipoDelConcepto, tipo, conGrosor, medida);
         data = trazoPeticion({
           ...base,
-          enlaces: [{ actividadId: conceptoEnFoco, ...(matrizActiva ? { matrizId: matrizActiva.id } : {}), medida, factor: '1' }],
+          enlaces: [{ actividadId: conceptoEnFoco, ...(matrizActiva ? { matrizId: matrizActiva.id } : {}), medida, factor }],
         });
       }
     }
@@ -1142,7 +1154,16 @@ export function EspacioDeTrazo({
     const planoId = plano.id;
     const cuerpo = data;
     registrarTrazo.mutateAsync({ planoId, data: cuerpo }).then(
-      (r) => alGuardar(r, { planoId, data: cuerpo }),
+      (r) => {
+        alGuardar(r, { planoId, data: cuerpo });
+        if (factor !== '1') {
+          // Una línea sobre un concepto en m²: se dice cómo se convirtió el largo en área, y que se puede cambiar.
+          setAviso(
+            `Línea medida como área: largo × ${ALTURA_POR_DEFECTO_M} m de altura × ${CARAS_POR_DEFECTO} caras. ` +
+              `Cantidad medida del nodo: ${fmtNum(r.recalculos[0]?.cantidad_total)}. El factor se cambia en el detalle del trazo.`,
+          );
+        }
+      },
       () => abrirCajon(),
     );
   }
@@ -1378,6 +1399,60 @@ export function EspacioDeTrazo({
     },
   ];
 
+  // Para escribir «clave y concepto · matriz · medición» sobre cada medida se necesitan los nombres de las matrices
+  // de los conceptos que aparecen en los trazos; solo se piden con «Mostrar medidas» encendido.
+  const actividadesConMatriz = useMemo(
+    () =>
+      mostrarMedidas
+        ? [...new Set(featuresVisibles.flatMap((f) => f.properties.enlaces.filter((e) => e.matriz_concepto_id).map((e) => e.nodo_id)))]
+        : [],
+    [mostrarMedidas, featuresVisibles],
+  );
+  const datosDeMatriz = useQueries({
+    queries: actividadesConMatriz.map((id) =>
+      getMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGetQueryOptions(id),
+    ),
+    combine: (resultados) => {
+      const nombres = new Map<string, { nombre: string; unidad: string | null }>();
+      for (const r of resultados) {
+        const datos = r.data as unknown as
+          | { matrices?: readonly { concepto_id: string; clave: string; descripcion: string; unidad?: string | null }[] }
+          | undefined;
+        for (const m of datos?.matrices ?? []) {
+          nombres.set(m.concepto_id, { nombre: `${m.clave} ${m.descripcion}`.trim(), unidad: m.unidad ?? null });
+        }
+      }
+      return nombres;
+    },
+  });
+  /** «EST-10101 LOSA ENTREPISO 3.00 · MOE-10001 MO LOSA MACIZA · RECAMARA 1»: a qué concepto, matriz y medición pertenece el trazo. */
+  const tituloDelTrazo = (f: (typeof features)[number]): string | undefined => {
+    const enlace = f.properties.enlaces.find((e) => e.vigente && e.tipo_nodo !== 'prototipo_nodo');
+    const medicion = f.properties.medicion_id ? listaDeMediciones.find((m) => m.id === f.properties.medicion_id) : undefined;
+    const asignada = medicion?.asignaciones[0];
+    const actividad = enlace ? porActividad.get(enlace.nodo_id) : undefined;
+    const concepto = actividad
+      ? `${actividad.concepto_clave ?? ''} ${actividad.descripcion ?? ''}`.trim()
+      : asignada
+        ? `${asignada.concepto_clave} ${asignada.descripcion}`.trim()
+        : '';
+    const matriz = enlace?.matriz_concepto_id
+      ? (datosDeMatriz.get(enlace.matriz_concepto_id)?.nombre ?? '')
+      : (asignada?.matriz_clave ?? '');
+    const partes = [concepto, matriz, medicion?.nombre ?? ''].filter((x) => x !== '');
+    return partes.length > 0 ? partes.join(' · ') : undefined;
+  };
+  /** Lo que el trazo cuenta para su concepto o matriz, con la unidad de ese concepto: «2.40 m3», no la medida geométrica. */
+  const valorDelTrazo = (f: (typeof features)[number]): string | undefined => {
+    // Sin calibrar la cantidad está en unidades de plano: ponerle la unidad del concepto (m2) sería mentir; se queda en u².
+    if (escalaDelPlano === null) return undefined;
+    const enlace = f.properties.enlaces.find((e) => e.vigente && e.tipo_nodo !== 'prototipo_nodo');
+    if (!enlace) return undefined;
+    const unidad = enlace.matriz_concepto_id
+      ? datosDeMatriz.get(enlace.matriz_concepto_id)?.unidad
+      : porActividad.get(enlace.nodo_id)?.unidad;
+    return unidad ? `${fmtMedida(Number(enlace.cantidad))} ${unidad}` : undefined;
+  };
   const etiquetas = useMemo(
     () =>
       mostrarMedidas
@@ -1393,11 +1468,19 @@ export function EspacioDeTrazo({
                 f.properties.grosor_m != null ? Number(f.properties.grosor_m) : null,
                 esPunto ? (siguiente += 1) : null,
                 f.properties.pendiente_pct,
+                {
+                  ...(tituloDelTrazo(f) ? { titulo: tituloDelTrazo(f) as string } : {}),
+                  ...(valorDelTrazo(f) ? { valor: valorDelTrazo(f) as string } : {}),
+                  ...(f.properties.medicion_id && coloresDeMedicion.has(f.properties.medicion_id)
+                    ? { color: coloresDeMedicion.get(f.properties.medicion_id) as string }
+                    : {}),
+                },
               );
             });
           })()
         : [],
-    [mostrarMedidas, featuresVisibles, escalaDelPlano],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mostrarMedidas, featuresVisibles, escalaDelPlano, datosDeMatriz, listaDeMediciones, coloresDeMedicion, porActividad],
   );
   const cotas = useMemo(
     () => (mostrarCotas ? featuresVisibles.flatMap((f) => cotasDe(f.geometry, escalaDelPlano, f.properties.pendiente_pct)) : []),
@@ -1737,6 +1820,25 @@ export function EspacioDeTrazo({
       </div>
       {pestana === 'arbol' && puedePonerPeso ? (
         <div role="tabpanel" id="panel-arbol" aria-labelledby="pestana-arbol" className="estacion__panel-pestana">
+          <>
+          <div className="estacion__subencabezado">
+            <span className="estacion__subtitulo">Conceptos de la obra</span>
+            <AltaDeConcepto
+              obraId={obraId}
+              onError={(m) => setAviso(m)}
+              onCreado={(actividadId, claveNueva) => {
+                void queryClient.invalidateQueries({
+                  queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId),
+                });
+                void queryClient.invalidateQueries({
+                  queryKey: getActividadesDeObraApiV1ObrasObraIdActividadesGetQueryKey(obraId),
+                });
+                setMatrizActiva(null);
+                setConceptoActivo(actividadId);
+                setAviso(`Concepto ${claveNueva} creado: llega sin cantidad, se mide en el plano.`);
+              }}
+            />
+          </div>
           <PanelDelArbol
             obraId={obraId}
             actividades={actividades}
@@ -1751,6 +1853,7 @@ export function EspacioDeTrazo({
             }}
             onError={(m) => setAviso(m)}
           />
+          </>
         </div>
       ) : pestana === 'mediciones' ? (
         <div role="tabpanel" id="panel-mediciones" aria-labelledby="pestana-mediciones" className="estacion__panel-pestana">
@@ -1762,6 +1865,19 @@ export function EspacioDeTrazo({
             elementos={listaDeElementos}
             puedePonerPeso={puedePonerPeso}
             conceptoEnFoco={conceptoEnFoco}
+            destino={
+              conceptoEnFoco
+                ? {
+                    actividadId: conceptoEnFoco,
+                    ...(matrizActiva ? { matrizId: matrizActiva.id } : {}),
+                    nombre: matrizActiva
+                      ? `${matrizActiva.clave}`
+                      : `${actividadDeFoco?.concepto_clave ?? ''} ${actividadDeFoco?.descripcion ?? ''}`.trim(),
+                    unidad: unidadEnFoco ?? null,
+                  }
+                : null
+            }
+            onPedirDestino={() => setPestana('presupuesto')}
             activaId={medicionActivaId}
             onActivar={(m) => {
               setMedicionActivaId(m ? m.id : null);
@@ -1801,23 +1917,6 @@ export function EspacioDeTrazo({
             ? 'Medido contra la base'
             : `${elegidos.size} ${elegidos.size === 1 ? 'elegido' : 'elegidos'}`}
         </span>
-        {puedePonerPeso && (
-          <AltaDeConcepto
-            obraId={obraId}
-            onError={(m) => setAviso(m)}
-            onCreado={(actividadId, claveNueva) => {
-              void queryClient.invalidateQueries({
-                queryKey: getEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGetQueryKey(obraId),
-              });
-              void queryClient.invalidateQueries({
-                queryKey: getActividadesDeObraApiV1ObrasObraIdActividadesGetQueryKey(obraId),
-              });
-              setMatrizActiva(null);
-              setConceptoActivo(actividadId);
-              setAviso(`Concepto ${claveNueva} creado: llega sin cantidad, se mide en el plano.`);
-            }}
-          />
-        )}
         {elegidos.size > 0 && (
           <button
             type="button"
@@ -1851,7 +1950,6 @@ export function EspacioDeTrazo({
             setConceptoActivo((actual) => (actual === id && !matrizActiva ? null : id));
           }}
           matrizActivaId={matrizActiva?.id ?? null}
-          puedeEditarMatrices={puedePonerPeso}
           onActivarMatriz={(actividadId, m) => {
             if (matrizActiva?.id === m.id && conceptoActivo === actividadId) {
               setMatrizActiva(null);

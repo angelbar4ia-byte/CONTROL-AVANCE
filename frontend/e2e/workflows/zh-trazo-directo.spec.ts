@@ -2,7 +2,7 @@ import { entrarComo, expect, hayRoles, llamarApi, motivoSinRoles, test } from '.
 
 /**
  * Con un concepto elegido, cerrar la figura guarda el trazo solo (D-588): la cantidad cambia al cerrar,
- * sin cajón ni botón «Guardar trazo». Y cada trazo se pinta de un color distinto.
+ * sin cajón ni botón «Guardar trazo».
  */
 
 const ROLES_Z = ['control'] as const;
@@ -11,7 +11,7 @@ test.describe('Cuantificador · trazo directo', () => {
   test.skip(!hayRoles(...ROLES_Z), motivoSinRoles(...ROLES_Z));
   test.setTimeout(120_000);
 
-  test('un acabado elegido + un rectángulo suma su área y cada trazo lleva su color', async ({ page, request }) => {
+  test('un acabado elegido: el rectángulo suma su área y la línea su largo × altura × caras, sin cajón', async ({ page, request }) => {
     const clave = `DIR-${Date.now().toString(36).toUpperCase()}`;
     const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
     const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
@@ -57,10 +57,25 @@ test.describe('Cuantificador · trazo directo', () => {
     await rect(0.6, 0.55, 0.8, 0.75);
     await expect.poll(cantidad).toBeGreaterThan(unTrazo);
 
-    const colores = await page.locator('.visor__trazo').evaluateAll((gs) =>
-      gs.map((g) => getComputedStyle(g.querySelector('path')!).stroke),
+    // Sin medición, los trazos van del color de su concepto: el mismo que su muestra en el árbol.
+    await expect(page.locator('.visor__trazo')).toHaveCount(2);
+    const colorDelArbol = await page.getByTestId('color-del-concepto').first().evaluate((n) => getComputedStyle(n).backgroundColor);
+    const coloresDeTrazos = await page.locator('.visor__trazo path').evaluateAll((ns) => ns.map((n) => getComputedStyle(n).stroke));
+    expect(new Set(coloresDeTrazos)).toEqual(new Set([colorDelArbol]));
+
+    // Una línea sobre un concepto en m² mide su largo × altura (2.6 m) × caras (2): suma al concepto y se dice cómo.
+    const antesDeLinea = await cantidad();
+    await barra.getByRole('button', { name: 'Línea', exact: true }).click();
+    await clic(0.45, 0.85);
+    await clic(0.75, 0.85);
+    await expect(page.getByRole('dialog', { name: /Guardar/ })).toBeHidden();
+    await expect(page.getByRole('status')).toContainText('Línea medida como área');
+    await expect.poll(cantidad).toBeGreaterThan(antesDeLinea);
+    const trazos = await llamarApi<{ features: { geometry: { type: string }; properties: { enlaces: { medida: string; factor: string }[] } }[] }>(
+      request, 'control', 'GET', `/planos/${plano.id}/trazos`,
     );
-    expect(colores).toHaveLength(2);
-    expect(new Set(colores).size).toBe(2);
+    const linea = trazos.features.find((f) => f.geometry.type === 'LineString')!;
+    expect(linea.properties.enlaces[0]).toMatchObject({ medida: 'longitud' });
+    expect(Number(linea.properties.enlaces[0]!.factor)).toBeCloseTo(5.2, 6);
   });
 });

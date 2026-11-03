@@ -138,3 +138,20 @@ export function idsDeRama<T extends MedicionPlana>(lista: readonly T[], raizId: 
   }
   return ids;
 }
+
+/** El color de la medición número `indice`: el ángulo áureo reparte los tonos sin que dos vecinas se parezcan. */
+export function colorDeMedicion(indice: number): string {
+  return `hsl(${Math.round((indice * 137.508 + 215) % 360)} 66% 42%)`;
+}
+
+/** Un color propio por medición, estable mientras no se borre una anterior: lo usan el plano, el panel y la etiqueta. */
+export function coloresDeMediciones(lista: readonly { readonly id: string }[]): Map<string, string> {
+  return new Map(lista.map((m, i) => [m.id, colorDeMedicion(i)]));
+}
+
+/** El color de un concepto: estable (sale de su id) y distinto de un concepto a otro. Pinta sus trazos que aún no están en una medición. */
+export function colorDeConcepto(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i += 1) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return `hsl(${h % 360} 62% 44%)`;
+}
