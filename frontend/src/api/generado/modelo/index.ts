@@ -856,6 +856,7 @@ export type * from "./prototipoRespuesta";
 export type * from "./prototipoRespuestaM2";
 export type * from "./prototipoRespuestaNiveles";
 export type * from "./prototipoRespuestaPlantas";
+export type * from "./prototipoRespuestaProyectoId";
 export type * from "./prototipoRespuestaRecamaras";
 export type * from "./proyectoRespuesta";
 export type * from "./proyectoRespuestaFinEstimado";

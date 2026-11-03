@@ -3281,19 +3281,11 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     2568 de la matriz de CPU — por el pipeline real (`EjecutarCarga` →
     `cargador_para`/`AplicadorDeCarga` → Postgres), no por el dominio puro.
 
-    Paso 0: los 7 prototipos reales, por su alta plana (§7.2) — sin ellos
-    `AplicadorPresupuesto` rechaza el árbol entero por prototipo
-    desconocido (ver su docstring: "no da de alta prototipos").
+    Paso 0: no hace falta. El catálogo de presupuesto forma los prototipos
+    (D-614): sin ninguno cargado, el primer paso los crea de todos los
+    proyectos, con el nombre limpio y los m² que trae cada `Capítulo`.
     """
-    await _cargar(
-        contexto_control,
-        TipoCarga.PROTOTIPOS,
-        _archivo_prototipos(
-            [["PROY", clave, f"Prototipo {clave}", "", "", ""] for clave in _CLAVES_PROTOTIPOS_REALES]
-        ),
-    )
-    prototipos = await _prototipos(contexto_control)
-    assert set(_CLAVES_PROTOTIPOS_REALES) <= set(prototipos)
+    assert not set(_CLAVES_PROTOTIPOS_REALES) & set(await _prototipos(contexto_control))
 
     # Paso 1: el árbol de presupuesto real de los 7 prototipos — mismos
     # conteos ya verificados en `tests/domain/test_presupuesto_opus_real.py`
@@ -3310,6 +3302,24 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     # ese campo es `AplicadorPresupuesto.omitidos` —que cuenta otra cosa,
     # conceptos sin cambio y nodos repetidos entre prototipos, no los
     # huecos de `construir_arboles`— y no es 1:1 con el conteo del dominio.
+
+    prototipos = {
+        c: p
+        for c, p in (await _prototipos(contexto_control)).items()
+        if c in _CLAVES_PROTOTIPOS_REALES
+    }
+    assert set(prototipos) == set(_CLAVES_PROTOTIPOS_REALES)
+    assert all(p["proyecto_id"] is None for p in prototipos.values())  # de todos los proyectos
+    assert {c: (p["nombre"], p["m2"]) for c, p in prototipos.items()} == {
+        "CAS-00004": ("Zafiro 1.0", Decimal("172")),
+        "CAS-00003": ("Rubí", Decimal("207")),
+        "CAS-00006": ("Zafiro plus", Decimal("224")),
+        "CAS-00002": ("Jade", Decimal("230")),
+        "CAS-00005": ("Diamante sin chimenea", Decimal("239")),
+        "CAS-00007": ("Diamante con chimenea", Decimal("239")),
+        "CAS-00001": ("Oro 4.01 - 4 rec y 1 estudio", Decimal("300")),
+    }
+    assert all(p["niveles"] is None and p["recamaras"] is None for p in prototipos.values())
 
     conteo_nodos = await _conteo_prototipo_nodo_por_tipo(escenario.org_id)
     assert conteo_nodos.get("nivel") == 102

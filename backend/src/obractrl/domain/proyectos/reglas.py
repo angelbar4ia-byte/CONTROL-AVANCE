@@ -128,7 +128,8 @@ class Prototipo:
     contra la lista viva de Configuración.
     """
 
-    proyecto_id: str
+    proyecto_id: str | None
+    """``None`` = prototipo de todos los proyectos de la organización (D-614)."""
     clave: Clave
     nombre: str
     m2: Decimal | None = None
@@ -139,7 +140,7 @@ class Prototipo:
     def crear(
         cls,
         *,
-        proyecto_id: str,
+        proyecto_id: str | None = None,
         clave: str,
         nombre: str,
         m2: Decimal | None = None,
@@ -161,7 +162,9 @@ class Prototipo:
             )
 
         return cls(
-            proyecto_id=_exigir_referencia(proyecto_id, "proyecto_id"),
+            proyecto_id=(
+                _exigir_referencia(proyecto_id, "proyecto_id") if proyecto_id is not None else None
+            ),
             clave=clave_canonica,
             nombre=_exigir_texto(nombre, "nombre"),
             m2=_exigir_positivo(m2, "m2"),

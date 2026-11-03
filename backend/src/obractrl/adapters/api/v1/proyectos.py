@@ -217,7 +217,10 @@ class CrearPrototipoPeticion(BaseModel):
 
 class PrototipoRespuesta(BaseModel):
     id: UUID
-    proyecto_id: UUID
+    proyecto_id: UUID | None = Field(
+        default=None,
+        description="`null` = prototipo de todos los proyectos de la organización (D-614).",
+    )
     clave: str
     nombre: str
     m2: Decimal | None = None
@@ -233,7 +236,7 @@ class PrototipoRespuesta(BaseModel):
     ) -> PrototipoRespuesta:
         return cls(
             id=prototipo_id,
-            proyecto_id=UUID(prototipo.proyecto_id),
+            proyecto_id=UUID(prototipo.proyecto_id) if prototipo.proyecto_id else None,
             clave=str(prototipo.clave),
             nombre=prototipo.nombre,
             m2=prototipo.m2,

@@ -35,9 +35,10 @@ Módulo puro (§12.11).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 
 from obractrl.domain.cargadores.cabeceras import ErrorDeCabecera, MapaColumnas
@@ -63,7 +64,33 @@ __all__ = [
     "TipoNodoPresupuesto",
     "construir_arboles",
     "es_etapa_con_componentes_directos",
+    "nombre_y_m2_del_prototipo",
 ]
+
+
+_M2_AL_FINAL = re.compile(r"\s*\(\s*([\d.,]+)\s*m\s*2\s*\)\s*$", re.IGNORECASE)
+
+
+def nombre_y_m2_del_prototipo(descripcion: str) -> tuple[str, Decimal | None]:
+    """Nombre limpio y m² de un prototipo a partir de la descripción de su
+    fila `Capítulo` (`CATALOGOS.md` §1: «ZAFIRO 1.0 (172 M2)»).
+
+    El archivo no trae el nombre ni los m² en columnas propias: vienen en el
+    texto. El nombre queda sin el «(172 M2)» y con solo la primera letra en
+    mayúscula («Zafiro 1.0», «Diamante sin chimenea»); los m², si el texto
+    los trae y son mayores que cero. D-614.
+    """
+    texto = " ".join(descripcion.split())
+    m2: Decimal | None = None
+    coincidencia = _M2_AL_FINAL.search(texto)
+    if coincidencia is not None:
+        try:
+            valor = Decimal(coincidencia.group(1).replace(",", ""))
+        except InvalidOperation:
+            valor = None
+        m2 = valor if valor is not None and valor > 0 else None
+        texto = texto[: coincidencia.start()].strip()
+    return (texto.capitalize() if texto else " ".join(descripcion.split())), m2
 
 
 class TipoNodoPresupuesto(StrEnum):

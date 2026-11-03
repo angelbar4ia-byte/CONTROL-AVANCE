@@ -28172,9 +28172,17 @@
             "title": "Id"
           },
           "proyecto_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Proyecto Id"
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proyecto Id",
+            "description": "`null` = prototipo de todos los proyectos de la organización (D-614)."
           },
           "clave": {
             "type": "string",
@@ -28234,7 +28242,6 @@
         "type": "object",
         "required": [
           "id",
-          "proyecto_id",
           "clave",
           "nombre"
         ],

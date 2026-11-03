@@ -99,8 +99,8 @@ export default function Prototipos() {
     (error): error is ErrorApi => error !== null && error !== undefined && error.status !== 404,
   );
 
-  function proyectoDe(proyectoId: string): ProyectoRespuesta | undefined {
-    return proyectos.find((p) => p.id === proyectoId);
+  function proyectoDe(proyectoId: string | null | undefined): ProyectoRespuesta | undefined {
+    return proyectoId ? proyectos.find((p) => p.id === proyectoId) : undefined;
   }
 
   return (
@@ -191,7 +191,9 @@ export default function Prototipos() {
                       <td className="is-key mono">{prototipo.clave}</td>
                       <td>{prototipo.nombre}</td>
                       <td>
-                        {proyecto ? `${proyecto.clave} · ${proyecto.nombre}` : prototipo.proyecto_id}
+                        {proyecto
+                          ? `${proyecto.clave} · ${proyecto.nombre}`
+                          : (prototipo.proyecto_id ?? 'Todos los proyectos')}
                       </td>
                       <td className="is-num mono tnum">{fmtNum(prototipo.m2)}</td>
                       <td className="is-num mono tnum">{prototipo.niveles ?? '—'}</td>

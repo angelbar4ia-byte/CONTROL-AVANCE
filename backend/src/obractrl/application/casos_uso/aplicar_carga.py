@@ -81,6 +81,7 @@ from obractrl.domain.cargadores.presupuesto import (
     NodoLeido,
     TipoNodoPresupuesto,
     es_etapa_con_componentes_directos,
+    nombre_y_m2_del_prototipo,
 )
 from obractrl.domain.cargadores.programa_base import (
     BloqueProgramaCargado,
@@ -3740,6 +3741,8 @@ class AplicadorPresupuesto:
         claves_actualizadas: set[str] = set()
         contadores = {
             "prototipos_tocados": 0,
+            "prototipos_creados": 0,
+            "prototipos_actualizados": 0,
             "nodos_creados": 0,
             "nodos_actualizados": 0,
             "conceptos_en_conflicto": 0,
@@ -3753,21 +3756,84 @@ class AplicadorPresupuesto:
 
         for registro in lectura.registros:
             arbol: ArbolPrototipoCargado = registro  # type: ignore[assignment]
+            # El catálogo de presupuesto forma los prototipos (D-614): cada
+            # `Capítulo` es uno, de todos los proyectos (`proyecto_id` nulo),
+            # con el nombre limpio y los m² que trae su descripción. Si ya
+            # existe se actualiza nombre y m²; niveles y recámaras no vienen
+            # en el archivo y se llenan en su pantalla, así que no se tocan.
+            nombre_prototipo, m2_prototipo = nombre_y_m2_del_prototipo(
+                arbol.raiz.descripcion or arbol.clave_prototipo
+            )
             prototipo = prototipo_por_clave.get(arbol.clave_prototipo)
-            if prototipo is None:
+            try:
+                dominio_prototipo = Prototipo.crear(
+                    clave=arbol.clave_prototipo,
+                    nombre=nombre_prototipo,
+                    m2=m2_prototipo if m2_prototipo is not None else (prototipo or {}).get("m2"),
+                )
+            except ErrorDeProyecto as exc:
                 errores.append(
                     ErrorDeFila(
                         fila=arbol.raiz.fila,
                         columna="clave_hijo",
                         valor=arbol.clave_prototipo,
-                        motivo=(
-                            f"El prototipo {arbol.clave_prototipo!r} no existe. "
-                            f"Carga primero este prototipo con Cargas → "
-                            f"Prototipos (§7.2)."
-                        ),
+                        motivo=str(exc),
                     )
                 )
                 continue
+            if prototipo is None:
+                prototipo = {
+                    "id": uuid4(),
+                    "clave": str(dominio_prototipo.clave),
+                    "nombre": dominio_prototipo.nombre,
+                    "m2": dominio_prototipo.m2,
+                    "niveles": None,
+                    "recamaras": None,
+                }
+                if not dry_run:
+                    prototipo["id"] = await self._prototipos.crear(
+                        {
+                            "proyecto_id": None,
+                            "clave": prototipo["clave"],
+                            "nombre": prototipo["nombre"],
+                            "m2": prototipo["m2"],
+                        }
+                    )
+                    operaciones.append(
+                        _operacion(
+                            "prototipo",
+                            prototipo["id"],
+                            "insert",
+                            despues={"clave": prototipo["clave"], "nombre": prototipo["nombre"]},
+                        )
+                    )
+                prototipo_por_clave[arbol.clave_prototipo] = prototipo
+                contadores["prototipos_creados"] += 1
+            elif (prototipo.get("nombre"), prototipo.get("m2")) != (
+                dominio_prototipo.nombre,
+                dominio_prototipo.m2,
+            ):
+                antes = {"nombre": prototipo.get("nombre"), "m2": prototipo.get("m2")}
+                if not dry_run:
+                    await self._prototipos.actualizar(
+                        prototipo["id"],
+                        {
+                            "nombre": dominio_prototipo.nombre,
+                            "m2": dominio_prototipo.m2,
+                            "niveles": prototipo.get("niveles"),
+                            "recamaras": prototipo.get("recamaras"),
+                        },
+                    )
+                    operaciones.append(
+                        _operacion(
+                            "prototipo",
+                            prototipo["id"],
+                            "update",
+                            antes=antes,
+                            despues={"nombre": dominio_prototipo.nombre, "m2": dominio_prototipo.m2},
+                        )
+                    )
+                contadores["prototipos_actualizados"] += 1
 
             contadores["prototipos_tocados"] += 1
             partidas: list[dict[str, Any]] = []
