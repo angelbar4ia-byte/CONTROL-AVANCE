@@ -25,6 +25,7 @@ from obractrl.domain.shared.normalizacion import canonizar_encabezado, normaliza
 
 __all__ = [
     "ALMACEN",
+    "CATALOGO_MATRICES_OPUS",
     "COLUMNAS_CPU",
     "CONCEPTOS_AUXILIARES",
     "CONCEPTOS_BASE",
@@ -1013,3 +1014,48 @@ COLUMNAS_CPU: tuple[ColumnaPorLetra, ...] = (
 """Posiciones fijas del archivo de CPU (§10.6). No se resuelven por nombre."""
 
 MAPA_CPU = MapaColumnas(indices={c.campo: c.indice for c in COLUMNAS_CPU})
+
+
+# --------------------------------------------------------------------------- catálogo de matrices (D-610)
+#
+# `CATALOGO_DE_MATRICES.csv`: el catálogo de conceptos del sistema (también se
+# llama catálogo de conceptos, y sustituye al `CATALOGO_DE_CONCEPTOS` que la
+# documentación citaba). Trae las **11 columnas**, y se conservan todas (D-610).
+# `C` = `+` marca una matriz desglosable: su composición está en
+# `ANALISIS_DE_BASICOS_CONCEPTOS`. El costo es independiente de la composición.
+# Los conceptos auxiliares (`AUX`) no entran aquí (D-609).
+
+CATALOGO_MATRICES_OPUS = EspecificacionArchivo(
+    tipo="Catálogo de matrices (conceptos, export nativo de OPUS)",
+    archivo="CATALOGO_DE_MATRICES.csv",
+    hoja=None,
+    obligatorias=("clave", "descripcion", "unidad"),
+    opcionales=(
+        "matriz_desglosable",
+        "tipo",
+        "familia",
+        "subfamilia",
+        "costo_base",
+        "costo_base_me",
+        "costo_unitario",
+        "fecha",
+    ),
+    alias={
+        # "Costo base M. N." es el costo base; "Costo base M. E." y "Costo
+        # unitario" tienen su propio campo, sin pelear por el mismo alias.
+        "costo base m. n.": "costo_base",
+        "costo base m. e.": "costo_base_me",
+        "costo unitario": "costo_unitario",
+        # `C` es el marcador de matriz desglosable (`+`), no un costo.
+        "c": "matriz_desglosable",
+        # Las dos que el mapa global no conoce: se declaran para no perderlas.
+        "subfamilia": "subfamilia",
+        "fecha": "fecha",
+    },
+)
+"""Catálogo de matrices, export nativo de OPUS (`CATALOGO_DE_MATRICES.csv`).
+
+Las 11 columnas del archivo se declaran (D-610): nada se descarta en silencio.
+`subfamilia` está vacía en las 472 filas hoy, pero la columna se conserva para
+completarla después."""
+
