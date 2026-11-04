@@ -12,6 +12,8 @@ import type { ActividadRespuesta, NodoCuantificadoRespuesta } from '@/api/genera
 export interface HojaDelArbol {
   readonly id: string;
   readonly etiqueta: string;
+  /** Clave y descripción corta, para mostrar en una fila; la completa va en `etiqueta` (búsqueda y ayuda). */
+  readonly corta: string;
   readonly base: string;
   readonly medida: string | null;
   readonly diferencia: string | null;
@@ -78,6 +80,7 @@ export function arbolDeCuantificacion(
     etapa.hojas.push({
       id: a.id,
       etiqueta: [a.concepto_clave, a.descripcion].filter(Boolean).join(' · ') || 'Actividad',
+      corta: [a.concepto_clave, descripcionCorta(a.descripcion)].filter(Boolean).join(' · ') || 'Actividad',
       base: a.cant_base,
       medida: nodo ? nodo.cantidad_medida : null,
       diferencia: nodo ? (nodo.diferencia ?? null) : null,
@@ -142,4 +145,15 @@ export function idsDeNivel(nivel: NivelDelArbol): readonly string[] {
 
 export function idsDeEtapa(etapa: EtapaDelArbol): readonly string[] {
   return etapa.hojas.map((h) => h.id);
+}
+
+/**
+ * La descripción de un concepto de OPUS puede ocupar tres renglones; en una fila del árbol se muestra corta. Se
+ * corta en el último espacio antes de `maximo` y se le pone «…»; la completa queda en la ayuda de la fila.
+ */
+export function descripcionCorta(texto: string | null | undefined, maximo = 48): string {
+  const limpio = (texto ?? '').replace(/\s+/g, ' ').trim();
+  if (limpio.length <= maximo) return limpio;
+  const corte = limpio.lastIndexOf(' ', maximo);
+  return `${limpio.slice(0, corte > maximo * 0.5 ? corte : maximo).trimEnd()}…`;
 }

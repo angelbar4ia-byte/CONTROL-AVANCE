@@ -94,6 +94,7 @@ import { SelectorObra } from '@/lib/SelectorObra';
 import { AltaNota } from './AltaNota';
 import { EditorDeTrabajo } from './EditorDeTrabajo';
 import { PanelDeElementos } from './PanelDeElementos';
+import { PanelDeParametricos } from './PanelDeParametricos';
 import { PanelDeTrabajos, cuadrillasDeLosTrabajos, type TrabajoElegido } from './PanelDeTrabajos';
 import { PanelDeMediciones } from './PanelDeMediciones';
 import { TrazosDelPlano } from './TrazosDelPlano';
@@ -2071,6 +2072,13 @@ export function EspacioDeTrazo({
             puedePonerPeso={puedePonerPeso}
             onCambio={(aviso) => {
               void elementosConsulta.refetch();
+              if (aviso) setAviso(aviso);
+            }}
+            onError={(m) => setAviso(m)}
+          />
+          <PanelDeParametricos
+            puedeDefinir={puedePonerPeso}
+            onCambio={(aviso) => {
               if (aviso) setAviso(aviso);
             }}
             onError={(m) => setAviso(m)}

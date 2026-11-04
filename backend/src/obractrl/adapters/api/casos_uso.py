@@ -50,6 +50,9 @@ from obractrl.adapters.repos.desviaciones_sql import RepositorioDesviacionesSQL
 from obractrl.adapters.repos.ediciones_de_programa_sql import (
     RepositorioEdicionesDeProgramaSQL,
 )
+from obractrl.adapters.repos.elementos_parametricos_sql import (
+    RepositorioElementosParametricosSQL,
+)
 from obractrl.adapters.repos.ensambles_sql import RepositorioEnsamblesSQL
 from obractrl.adapters.repos.especialidades_sql import (
     RepositorioEspecialidadesSQL,
@@ -161,6 +164,9 @@ from obractrl.application.casos_uso.cuantificar import (
 )
 from obractrl.application.casos_uso.dar_de_alta_extra import DarDeAltaExtra
 from obractrl.application.casos_uso.elementos import GestionarElementos
+from obractrl.application.casos_uso.elementos_parametricos import (
+    GestionarElementosParametricos,
+)
 from obractrl.application.casos_uso.enlaces_de_hoja import GestionarEnlacesDeHoja
 from obractrl.application.casos_uso.exportar_estimacion import (
     ArmarReporteDeEstimacion,
@@ -429,6 +435,7 @@ __all__ = [
     "GenerarEstimacionDep",
     "GenerarObraDesdePrototipoDep",
     "GestionarElementosDep",
+    "GestionarElementosParametricosDep",
     "GestionarEnlacesDeHojaDep",
     "GestionarMatricesDeConceptoDep",
     "GestionarMedicionesDep",
@@ -891,6 +898,12 @@ def obtener_calibrar_escala(sesion: SesionRLS, ctx: ContextoActual) -> CalibrarE
     )
 
 
+def obtener_gestionar_elementos_parametricos(sesion: SesionRLS) -> GestionarElementosParametricos:
+    return GestionarElementosParametricos(
+        elementos=RepositorioElementosParametricosSQL(sesion), uow=UnidadDeTrabajoSQL(sesion)
+    )
+
+
 def obtener_gestionar_elementos(sesion: SesionRLS, ctx: ContextoActual) -> GestionarElementos:
     return GestionarElementos(
         elementos=RepositorioElementosSQL(sesion),
@@ -1109,6 +1122,9 @@ GestionarEnlacesDeHojaDep = Annotated[GestionarEnlacesDeHoja, Depends(obtener_ge
 ProponerTrazosDep = Annotated[ProponerTrazos, Depends(obtener_proponer_trazos)]
 AceptarPropuestasDep = Annotated[AceptarPropuestas, Depends(obtener_aceptar_propuestas)]
 RechazarPropuestasDep = Annotated[RechazarPropuestas, Depends(obtener_rechazar_propuestas)]
+GestionarElementosParametricosDep = Annotated[
+    GestionarElementosParametricos, Depends(obtener_gestionar_elementos_parametricos)
+]
 GestionarVanosDep = Annotated[GestionarVanos, Depends(obtener_gestionar_vanos)]
 ArmarArbolDep = Annotated[ArmarArbol, Depends(obtener_armar_arbol)]
 TraerTrazoDep = Annotated[TraerTrazoAOtraVersion, Depends(obtener_traer_trazo)]

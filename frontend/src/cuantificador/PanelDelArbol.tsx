@@ -31,6 +31,7 @@ import {
 import { useCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost } from '@/api/generado/partes/partes';
 import type { ActividadRespuesta } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
+import { descripcionCorta } from './arbol';
 import { MatricesDeActividad } from './MatricesDeActividad';
 import { NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
 
@@ -275,7 +276,7 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
     return (
       <li key={a.id} className="arbol-edicion__partida" data-partida={a.concepto_clave ?? a.id}>
         <span className="arbol-edicion__concepto" title={String(a.descripcion ?? '')}>
-          <span className="mono">{a.concepto_clave ?? '—'}</span> · {a.descripcion ?? ''}
+          <span className="mono">{a.concepto_clave ?? '—'}</span> · {descripcionCorta(a.descripcion)}
         </span>
         <select
           aria-label={`Unidad de ${a.concepto_clave ?? 'la partida'}`}

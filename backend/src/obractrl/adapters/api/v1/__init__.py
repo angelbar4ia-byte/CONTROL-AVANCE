@@ -30,6 +30,9 @@ from obractrl.adapters.api.v1.control_cambio import (
 from obractrl.adapters.api.v1.cuantificacion import router as router_cuantificacion
 from obractrl.adapters.api.v1.desviaciones import router as router_desviaciones
 from obractrl.adapters.api.v1.dispositivos import router as router_dispositivos
+from obractrl.adapters.api.v1.elementos_parametricos import (
+    router as router_elementos_parametricos,
+)
 from obractrl.adapters.api.v1.enlaces_de_hoja import router as router_enlaces_de_hoja
 from obractrl.adapters.api.v1.ensambles import router as router_ensambles
 from obractrl.adapters.api.v1.estimacion import router as router_estimacion
@@ -90,6 +93,7 @@ api_v1.include_router(router_cargas)
 api_v1.include_router(router_expediente)
 api_v1.include_router(router_cuantificacion)
 api_v1.include_router(router_mediciones)
+api_v1.include_router(router_elementos_parametricos)
 api_v1.include_router(router_enlaces_de_hoja)
 api_v1.include_router(router_propuestas)
 api_v1.include_router(router_arbol)
