@@ -22,7 +22,7 @@ import {
 import type { ActividadRespuesta, ElementoRespuesta, MedicionRespuesta } from '@/api/generado/modelo';
 import { fmtNum } from '@/lib/formato';
 import { OpcionesDeMatriz } from './MatricesDeActividad';
-import { PanelDeElementos, UNIDAD_DEL_PESO } from './PanelDeElementos';
+import { UNIDAD_DEL_PESO } from './PanelDeElementos';
 import { tipoDeMedicion } from './tipos';
 import {
   arbolDeMediciones,
@@ -39,9 +39,8 @@ interface Props {
   readonly mediciones: readonly MedicionRespuesta[];
   readonly cargando: boolean;
   readonly actividades: readonly ActividadRespuesta[];
-  /** Los elementos con peso (K1…) y si quien mira puede ponerles peso (Control de obra y Costos). */
+  /** Los elementos con peso (K1…), para elegir con cuál se mide una medición. Se editan en la pestaña Elementos. */
   readonly elementos: readonly ElementoRespuesta[];
-  readonly puedePonerPeso: boolean;
   /** El concepto que se está midiendo en el árbol: trae elegido el destino de una asignación. */
   readonly conceptoEnFoco?: string;
   /** Sobre qué se crea una medición: el concepto (o la matriz) elegido en el Presupuesto. Sin él no se crea. */
@@ -93,7 +92,6 @@ export function PanelDeMediciones({
   cargando,
   actividades,
   elementos,
-  puedePonerPeso,
   conceptoEnFoco,
   destino = null,
   onPedirDestino,
@@ -423,8 +421,6 @@ export function PanelDeMediciones({
           <Plus size={13} aria-hidden /> Nueva medición
         </button>
       </div>
-
-      <PanelDeElementos elementos={elementos} puedePonerPeso={puedePonerPeso} onCambio={onCambio} onError={onError} />
 
       {creando && (
         <form className="mediciones__nueva" onSubmit={(e) => void alCrear(e)} aria-label="Nueva medición">

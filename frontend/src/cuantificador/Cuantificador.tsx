@@ -87,7 +87,9 @@ import { fmtFecha, fmtNum } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { SelectorObra } from '@/lib/SelectorObra';
 import { AltaNota } from './AltaNota';
+import { PanelDeElementos } from './PanelDeElementos';
 import { PanelDeMediciones } from './PanelDeMediciones';
+import { TrazosDelPlano } from './TrazosDelPlano';
 import { admiteGeometria, asignacionesEfectivas, colorDeConcepto, coloresDeMediciones, idsDeRama } from './mediciones';
 import { OpcionesDeContorno } from './OpcionesDeContorno';
 import { OpcionesDeNota, type ClaseDeNota } from './OpcionesDeNota';
@@ -431,7 +433,7 @@ export function EspacioDeTrazo({
   const [volumenAbierto, setVolumenAbierto] = useState(false);
   const [arbolAbierto, setArbolAbierto] = useAjuste('arbol', !compacto);
   // La segunda pestaña del panel lateral: el navegador de planos (el presupuesto es la primera).
-  const [pestana, setPestana] = useState<'presupuesto' | 'planos' | 'mediciones' | 'arbol'>('presupuesto');
+  const [pestana, setPestana] = useState<'presupuesto' | 'planos' | 'mediciones' | 'trazos' | 'elementos' | 'arbol'>('presupuesto');
   /** La medición activa (la capa sombra): lo que se dibuja entra a ella. */
   const [medicionActivaId, setMedicionActivaId] = useState<string | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useAjuste('detalle', !compacto);
@@ -1321,6 +1323,16 @@ export function EspacioDeTrazo({
     tipo === 'prototipo_nodo'
       ? (porNodoDePrototipo.get(id) ?? `Nodo de prototipo ${id.slice(0, 8)}`)
       : etiquetaActividad(porActividad.get(id), id);
+  /** Lo que la pestaña «Trazos» necesita para nombrar y colorear cada trazo. */
+  const opcionesDeLaListaDeTrazos = {
+    nombreDeNodo,
+    nombreDeMedicion: (id: string) => listaDeMediciones.find((m) => m.id === id)?.nombre,
+    colorDe: (f: (typeof features)[number]) => {
+      const deMedicion = f.properties.medicion_id ? coloresDeMedicion.get(f.properties.medicion_id) : undefined;
+      const concepto = f.properties.enlaces.find((e) => e.vigente && e.tipo_nodo !== 'prototipo_nodo')?.nodo_id;
+      return deMedicion ?? (concepto ? colorDeConcepto(concepto) : undefined);
+    },
+  };
   const arbol = useMemo(
     () => arbolDeCuantificacion(actividades, estado.data ?? []),
     [actividades, estado.data],
@@ -1804,6 +1816,28 @@ export function EspacioDeTrazo({
         >
           Mediciones <span className="estacion__contador">{listaDeMediciones.length}</span>
         </button>
+        <button
+          type="button"
+          role="tab"
+          id="pestana-trazos"
+          aria-selected={pestana === 'trazos'}
+          aria-controls="panel-trazos"
+          className={pestana === 'trazos' ? 'estacion__pestana is-activa' : 'estacion__pestana'}
+          onClick={() => setPestana('trazos')}
+        >
+          Trazos <span className="estacion__contador">{features.length}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="pestana-elementos"
+          aria-selected={pestana === 'elementos'}
+          aria-controls="panel-elementos"
+          className={pestana === 'elementos' ? 'estacion__pestana is-activa' : 'estacion__pestana'}
+          onClick={() => setPestana('elementos')}
+        >
+          Elementos <span className="estacion__contador">{listaDeElementos.length}</span>
+        </button>
         {puedePonerPeso && (
           <button
             type="button"
@@ -1855,6 +1889,27 @@ export function EspacioDeTrazo({
           />
           </>
         </div>
+      ) : pestana === 'trazos' ? (
+        <div role="tabpanel" id="panel-trazos" aria-labelledby="pestana-trazos" className="estacion__panel-pestana">
+          <TrazosDelPlano
+            trazos={features}
+            elegidoId={seleccion?.tipo === 'trazo' ? seleccion.id : null}
+            opciones={opcionesDeLaListaDeTrazos}
+            onElegir={(trazoId) => setSeleccion({ tipo: 'trazo', id: trazoId })}
+          />
+        </div>
+      ) : pestana === 'elementos' ? (
+        <div role="tabpanel" id="panel-elementos" aria-labelledby="pestana-elementos" className="estacion__panel-pestana">
+          <PanelDeElementos
+            elementos={listaDeElementos}
+            puedePonerPeso={puedePonerPeso}
+            onCambio={(aviso) => {
+              void elementosConsulta.refetch();
+              if (aviso) setAviso(aviso);
+            }}
+            onError={(m) => setAviso(m)}
+          />
+        </div>
       ) : pestana === 'mediciones' ? (
         <div role="tabpanel" id="panel-mediciones" aria-labelledby="pestana-mediciones" className="estacion__panel-pestana">
           <PanelDeMediciones
@@ -1863,7 +1918,6 @@ export function EspacioDeTrazo({
             cargando={medicionesConsulta.isLoading}
             actividades={actividades}
             elementos={listaDeElementos}
-            puedePonerPeso={puedePonerPeso}
             conceptoEnFoco={conceptoEnFoco}
             destino={
               conceptoEnFoco

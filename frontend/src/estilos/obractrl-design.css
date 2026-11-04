@@ -2792,6 +2792,24 @@ a { color: inherit; text-decoration: none; }
 .estacion__pestana.is-activa { color: var(--c-accent-strong); border-bottom-color: var(--c-accent); }
 .estacion__pestana:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -2px; }
 .estacion__contador { font-family: var(--f-mono); font-size: var(--fs-xs); font-weight: 400; background: var(--c-elev); border-radius: 99px; padding: 0 6px; }
+/* Con seis o siete pestañas en un panel angosto, bajan a una segunda línea: ninguna queda escondida. */
+.estacion__pestanas { flex-wrap: wrap; }
+.estacion__pestana { flex: none; white-space: nowrap; padding-inline: 8px; }
+/* Pestaña «Trazos» */
+.trazos-plano { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.trazos-plano__lista { overflow: auto; padding: 0 8px 12px; }
+.trazos-plano__grupo { display: flex; align-items: center; gap: 6px; padding: 8px 4px 3px; font-size: var(--fs-xs); font-weight: 600; color: var(--c-text-2, var(--c-text)); }
+.trazos-plano__grupo > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.trazos-plano__grupo > span:last-child { margin-left: auto; font-weight: 400; }
+.trazos-plano__fila { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 6px 8px; border-radius: 7px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.trazos-plano__fila:hover { background: var(--c-elev); }
+.trazos-plano__fila.is-activa { background: var(--c-accent-soft, var(--c-elev)); outline: 1px solid var(--c-accent); }
+.trazos-plano__fila:focus-visible { outline: 2px solid var(--c-accent); }
+.trazos-plano__color { width: 8px; height: 26px; border-radius: 3px; }
+.trazos-plano__nombre { display: flex; flex-direction: column; min-width: 0; }
+.trazos-plano__nombre b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trazos-plano__nombre small { color: var(--c-mute, var(--c-text)); font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trazos-plano__cantidad { font-size: var(--fs-xs); white-space: nowrap; }
 .estacion__panel-pestana { display: flex; flex-direction: column; min-height: 0; flex: 1; overflow: auto; }
 .estacion__subencabezado { display: flex; align-items: center; padding: 6px 10px 0; flex: none; }
 .planos { display: flex; flex-direction: column; min-height: 0; }
