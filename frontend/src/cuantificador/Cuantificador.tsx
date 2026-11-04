@@ -159,6 +159,7 @@ import { ElementoDelTrazo } from './ElementoDelTrazo';
 import { MarcasDeUnidadDelTrazo } from './MarcasDeUnidadDelTrazo';
 import { VanosDelTrazo } from './VanosDelTrazo';
 import { claveSiguiente, vanoPorDefecto, type DatosDeVano } from './vanos';
+import { alternarEnSeleccion, trazosElegidos } from './seleccion';
 import { PanelVolumen } from './PanelVolumen';
 import { resumenDePantalla, type TrazoParaResumen } from './resumen';
 import { NuevaObra } from './NuevaObra';
@@ -167,6 +168,7 @@ import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Vi
 import {
   PUNTOS_MINIMOS_DE_HUECO,
   aWkt,
+  cajaDePuntos,
   gradosDeGiro,
   proyectarEnPolilinea,
   trasladar,
@@ -446,6 +448,8 @@ export function EspacioDeTrazo({
   const [guardando, setGuardando] = useState(false);
   const [subiendoPlano, setSubiendoPlano] = useState(false);
   const [seleccion, setSeleccion] = useState<Seleccion | null>(null);
+  /** Los demás trazos de una multiselección (Mayús o Ctrl + clic), además de `seleccion`. */
+  const [extras, setExtras] = useState<ReadonlySet<string>>(new Set());
   const [notaPunto, setNotaPunto] = useState<Punto | null>(null);
   /** Qué se anota con la herramienta Nota, y a dónde apunta si es una flecha o una llamada. */
   const [claseDeNota, setClaseDeNota] = useState<ClaseDeNota>('nota');
@@ -789,6 +793,14 @@ export function EspacioDeTrazo({
 
   const seleccionado =
     seleccion?.tipo === 'trazo' ? (features.find((f) => f.id === seleccion.id) ?? null) : null;
+  /** Todos los trazos elegidos (multiselección), el principal primero; los que ya no existen se descartan. */
+  const idsElegidos =
+    seleccionado === null
+      ? []
+      : trazosElegidos(String(seleccionado.id), extras).filter((id) => features.some((f) => String(f.id) === id));
+  useEffect(() => {
+    if (seleccion === null && extras.size > 0) setExtras(new Set());
+  }, [seleccion, extras]);
   const notaElegida =
     seleccion?.tipo === 'nota' ? (listaDeNotas.find((n) => n.id === seleccion.id) ?? null) : null;
   const enlaceAReemplazar = seleccionado?.properties.enlaces.find((e) => e.enlace_id === reemplazando);
@@ -936,7 +948,15 @@ export function EspacioDeTrazo({
   }
 
   /** Con la herramienta Borrar, un clic sobre un trazo pide confirmar su borrado; sobre nada, no hace nada. */
-  function alElegirEnElPlano(elegido: Seleccion | null) {
+  function alElegirEnElPlano(elegido: Seleccion | null, agregar = false) {
+    if (agregar && herramienta === 'seleccionar' && elegido?.tipo === 'trazo') {
+      const nuevos = alternarEnSeleccion(seleccion?.tipo === 'trazo' ? seleccion.id : null, extras, elegido.id);
+      setSeleccion(nuevos.principal === null ? null : { tipo: 'trazo', id: nuevos.principal });
+      setExtras(nuevos.extras);
+      return;
+    }
+    if (agregar && elegido === null) return; // Mayús + clic en vacío no suelta lo elegido
+    setExtras(new Set());
     if (herramienta === 'borrar') {
       if (elegido?.tipo === 'trazo') {
         setSeleccion(elegido);
@@ -1015,21 +1035,22 @@ export function EspacioDeTrazo({
   }
 
   /** Mueve el trazo elegido `dx`, `dy` (unidades del plano); se deshace con el desplazamiento opuesto. */
-  async function moverTrazo(id: string, dx: number, dy: number) {
-    if (dx === 0 && dy === 0) return;
+  async function moverTrazos(ids: readonly string[], dx: number, dy: number) {
+    if ((dx === 0 && dy === 0) || ids.length === 0) return;
+    const vigentes = () => ids.map(vigente);
     try {
-      await transformar.mutateAsync({ data: { trazo_ids: [id], dx, dy } });
+      await transformar.mutateAsync({ data: { trazo_ids: [...ids], dx, dy } });
       historial.registrar({
-        etiqueta: 'trazo movido',
+        etiqueta: ids.length === 1 ? 'trazo movido' : `${ids.length} trazos movidos`,
         deshacer: async () => {
-          await transformar.mutateAsync({ data: { trazo_ids: [vigente(id)], dx: -dx, dy: -dy } });
+          await transformar.mutateAsync({ data: { trazo_ids: vigentes(), dx: -dx, dy: -dy } });
         },
         rehacer: async () => {
-          await transformar.mutateAsync({ data: { trazo_ids: [vigente(id)], dx, dy } });
+          await transformar.mutateAsync({ data: { trazo_ids: vigentes(), dx, dy } });
         },
       });
       refrescarHistorial();
-      setAviso('Trazo movido. Sus medidas no cambian.');
+      setAviso(ids.length === 1 ? 'Trazo movido. Sus medidas no cambian.' : `${ids.length} trazos movidos juntos. Sus medidas no cambian.`);
       invalidarTrazos();
     } catch (err) {
       setAviso(`No se pudo mover el trazo: ${err instanceof Error ? err.message : 'error'}`);
@@ -1037,26 +1058,31 @@ export function EspacioDeTrazo({
   }
 
   /** Gira el trazo elegido `grados` (los del servidor) sobre su centro; el pivote devuelto permite deshacerlo exacto. */
-  async function girarTrazo(id: string, grados: number) {
-    if (grados === 0) return;
+  async function girarTrazo(ids: readonly string[], grados: number) {
+    if (grados === 0 || ids.length === 0) return;
+    // Varios trazos giran **juntos**, sobre el centro del conjunto; uno solo, sobre su propio centro.
+    const juntos = ids.length > 1 ? centroDeLosTrazos(ids) : null;
+    const vigentes = () => ids.map(vigente);
     try {
-      const r = await transformar.mutateAsync({ data: { trazo_ids: [id], grados } });
-      const pivote = r.trazos[0]?.pivote ?? null;
+      const r = await transformar.mutateAsync({
+        data: { trazo_ids: [...ids], grados, ...(juntos ? { pivote: juntos } : {}) },
+      });
+      const pivote = juntos ?? r.trazos[0]?.pivote ?? null;
       historial.registrar({
-        etiqueta: 'trazo girado',
+        etiqueta: ids.length === 1 ? 'trazo girado' : `${ids.length} trazos girados`,
         deshacer: async () => {
           await transformar.mutateAsync({
-            data: { trazo_ids: [vigente(id)], grados: -grados, ...(pivote ? { pivote } : {}) },
+            data: { trazo_ids: vigentes(), grados: -grados, ...(pivote ? { pivote } : {}) },
           });
         },
         rehacer: async () => {
           await transformar.mutateAsync({
-            data: { trazo_ids: [vigente(id)], grados, ...(pivote ? { pivote } : {}) },
+            data: { trazo_ids: vigentes(), grados, ...(pivote ? { pivote } : {}) },
           });
         },
       });
       refrescarHistorial();
-      setAviso('Trazo girado. Sus medidas no cambian.');
+      setAviso(ids.length === 1 ? 'Trazo girado. Sus medidas no cambian.' : `${ids.length} trazos girados juntos. Sus medidas no cambian.`);
       invalidarTrazos();
     } catch (err) {
       setAviso(`No se pudo girar el trazo: ${err instanceof Error ? err.message : 'error'}`);
@@ -1181,6 +1207,54 @@ export function EspacioDeTrazo({
     }
   }
 
+  /** El centro de la caja que contiene a los trazos dados: el pivote común al girarlos juntos. */
+  function centroDeLosTrazos(ids: readonly string[]): [number, number] | null {
+    const puntos = features
+      .filter((f) => ids.includes(String(f.id)))
+      .flatMap((f) => partesDe(f.geometry).flatMap((parte) => parte.puntos));
+    const caja = cajaDePuntos(puntos);
+    return caja ? [(caja.minX + caja.maxX) / 2, (caja.minY + caja.maxY) / 2] : null;
+  }
+
+  /** Borrar lo elegido: un trazo pide confirmación en su ventana; varios, juntos y con un solo deshacer. */
+  function pedirBorrado() {
+    if (idsElegidos.length > 1) void borrarVarios(idsElegidos);
+    else if (seleccionado) setPorBorrar(seleccionado.id as string);
+  }
+
+  async function borrarVarios(ids: readonly string[]) {
+    if (!window.confirm(`¿Borrar ${ids.length} trazos con sus enlaces y huecos? Las cantidades se recalculan; se puede deshacer.`)) return;
+    const planoDelTrazo = planoElegido;
+    const hechos: { id: string; data: TrazoPeticion }[] = [];
+    let fallo: string | null = null;
+    for (const id of ids) {
+      const feature = features.find((f) => f.id === id);
+      const wkt = feature ? geojsonAWkt(feature.geometry) : null;
+      try {
+        await eliminar.mutateAsync({ trazoId: id });
+        if (feature && wkt) hechos.push({ id, data: datosParaRecrear(feature, wkt) });
+      } catch (err) {
+        fallo = err instanceof Error ? err.message : 'error';
+        break;
+      }
+    }
+    if (hechos.length > 0) {
+      historial.registrar({
+        etiqueta: `${hechos.length} trazos borrados`,
+        deshacer: async () => {
+          for (const h of hechos) await recrear(h.id, planoDelTrazo, h.data);
+        },
+        rehacer: async () => {
+          for (const h of hechos) await eliminar.mutateAsync({ trazoId: vigente(h.id) });
+        },
+      });
+      refrescarHistorial();
+    }
+    setSeleccion(null);
+    setAviso(fallo ? `Se borraron ${hechos.length} de ${ids.length}; el resto falló: ${fallo}` : `${hechos.length} trazos borrados.`);
+    invalidarTrazos();
+  }
+
   function ponerCoordenadas(p: Punto | null) {
     const el = coordenadasRef.current;
     if (!el) return;
@@ -1199,7 +1273,11 @@ export function EspacioDeTrazo({
       setMenuDelTrazo(null);
       return;
     }
-    setSeleccion({ tipo: 'trazo', id });
+    // Un clic derecho sobre un trazo que ya es parte de la multiselección la conserva; sobre otro, la reemplaza.
+    if (!idsElegidos.includes(id)) {
+      setSeleccion({ tipo: 'trazo', id });
+      setExtras(new Set());
+    }
     setMenuDelTrazo({ id, x, y });
   }
 
@@ -1233,9 +1311,9 @@ export function EspacioDeTrazo({
       if (base === undefined) {
         setBorrador([p]);
       } else if (seleccionado !== null) {
-        const id = seleccionado.id as string;
+        const ids = idsElegidos;
         cambiarHerramienta('seleccionar');
-        void moverTrazo(id, p[0] - base[0], p[1] - base[1]);
+        void moverTrazos(ids, p[0] - base[0], p[1] - base[1]);
       }
       return;
     }
@@ -1779,7 +1857,7 @@ export function EspacioDeTrazo({
       if (destino?.isContentEditable) return;
       if ((e.key === 'Delete' || e.key === 'Backspace') && seleccionado && herramienta !== 'poligono' && herramienta !== 'linea' && herramienta !== 'hueco') {
         e.preventDefault();
-        setPorBorrar(seleccionado.id);
+        pedirBorrado();
         return;
       }
       const tecla = e.key.toLowerCase();
@@ -1917,6 +1995,11 @@ export function EspacioDeTrazo({
           </>
         ) : seleccionado ? (
           <>
+            {idsElegidos.length > 1 && (
+              <div className="badge badge--outline" role="status">
+                {idsElegidos.length} trazos elegidos · Mover, Girar y Borrar actúan sobre todos
+              </div>
+            )}
             <div className="text-sm">
               {seleccionado.properties.capa ?? 'Sin capa'} ·{' '}
               <span className="mono">{seleccionado.properties.fuente.toUpperCase()}</span>
@@ -2370,7 +2453,7 @@ export function EspacioDeTrazo({
                   seleccionado === null
                     ? 'Elige un trazo con Seleccionar para poder eliminarlo'
                     : 'Eliminar el trazo elegido (Supr)',
-                onClick: () => seleccionado && setPorBorrar(seleccionado.id),
+                onClick: () => pedirBorrado(),
               },
             ]}
             vista={[
@@ -2684,6 +2767,7 @@ export function EspacioDeTrazo({
                 onUsarEnlace={usarEnlace}
                 notas={notasVisibles}
                 seleccion={seleccion}
+                seleccionados={extras}
                 herramienta={herramienta}
                 borrador={polilineaEnCurso ? borrador : []}
                 marcas={polilineaEnCurso ? [] : borrador}
@@ -2757,6 +2841,7 @@ export function EspacioDeTrazo({
           <span ref={coordenadasRef} className="text-mute text-xs mono" role="status" aria-label="Coordenadas del cursor" />
           {seleccionado !== null && (herramienta === 'seleccionar' || herramienta === 'mover') && (
             <div className="estacion__dibujo row" role="group" aria-label="Mover y girar el trazo">
+              {idsElegidos.length > 1 && <span className="text-xs">{idsElegidos.length} trazos</span>}
               <button type="button" className="btn btn--ghost btn--sm" onClick={() => cambiarHerramienta('mover')}>
                 Mover
               </button>
@@ -2764,7 +2849,7 @@ export function EspacioDeTrazo({
                 type="button"
                 className="btn btn--ghost btn--sm"
                 aria-label="Girar 90° a la izquierda"
-                onClick={() => void girarTrazo(seleccionado.id as string, gradosDeGiro('izquierda', 90, vistaDelPlano))}
+                onClick={() => void girarTrazo(idsElegidos, gradosDeGiro('izquierda', 90, vistaDelPlano))}
               >
                 ↺ 90°
               </button>
@@ -2772,7 +2857,7 @@ export function EspacioDeTrazo({
                 type="button"
                 className="btn btn--ghost btn--sm"
                 aria-label="Girar 90° a la derecha"
-                onClick={() => void girarTrazo(seleccionado.id as string, gradosDeGiro('derecha', 90, vistaDelPlano))}
+                onClick={() => void girarTrazo(idsElegidos, gradosDeGiro('derecha', 90, vistaDelPlano))}
               >
                 ↻ 90°
               </button>
@@ -2789,7 +2874,7 @@ export function EspacioDeTrazo({
                 className="btn btn--ghost btn--sm"
                 aria-label="Girar el ángulo escrito a la derecha"
                 disabled={!Number.isFinite(Number(anguloLibre)) || Number(anguloLibre) === 0 || Math.abs(Number(anguloLibre)) > 360}
-                onClick={() => void girarTrazo(seleccionado.id as string, gradosDeGiro('derecha', Number(anguloLibre), vistaDelPlano))}
+                onClick={() => void girarTrazo(idsElegidos, gradosDeGiro('derecha', Number(anguloLibre), vistaDelPlano))}
               >
                 Girar ↻
               </button>
@@ -2976,7 +3061,7 @@ export function EspacioDeTrazo({
               className="btn btn--ghost btn--sm"
               onClick={() => {
                 setMenuDelTrazo(null);
-                void girarTrazo(seleccionado.id as string, gradosDeGiro('izquierda', 90, vistaDelPlano));
+                void girarTrazo(idsElegidos, gradosDeGiro('izquierda', 90, vistaDelPlano));
               }}
             >
               Girar 90° a la izquierda
@@ -2987,12 +3072,12 @@ export function EspacioDeTrazo({
               className="btn btn--ghost btn--sm"
               onClick={() => {
                 setMenuDelTrazo(null);
-                void girarTrazo(seleccionado.id as string, gradosDeGiro('derecha', 90, vistaDelPlano));
+                void girarTrazo(idsElegidos, gradosDeGiro('derecha', 90, vistaDelPlano));
               }}
             >
               Girar 90° a la derecha
             </button>
-            <button type="button" role="menuitem" className="btn btn--ghost btn--sm" onClick={() => { setMenuDelTrazo(null); setPorBorrar(seleccionado.id as string); }}>
+            <button type="button" role="menuitem" className="btn btn--ghost btn--sm" onClick={() => { setMenuDelTrazo(null); pedirBorrado(); }}>
               Borrar el trazo
             </button>
           </div>
