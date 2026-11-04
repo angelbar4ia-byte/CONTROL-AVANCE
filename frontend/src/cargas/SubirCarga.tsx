@@ -35,6 +35,7 @@ import {
   etiquetaConPaso,
   modoDestructivo,
   requiereAntes,
+  despuesDeSubir,
 } from './reglas';
 
 /**
@@ -188,6 +189,7 @@ export function SubirCarga({ tipoInicial, obraInicial, onCerrar, onAplicada }: P
               Cada tipo espera las cabeceras de su plantilla (§10.6). Descárgala
               desde la bandeja si no la tienes. Se suben en el orden de la lista.
               {requiereAntes(tipo) !== null && <> Antes necesita: {requiereAntes(tipo)}</>}
+              {despuesDeSubir(tipo) !== null && <> <strong>Ojo:</strong> {despuesDeSubir(tipo)}</>}
             </div>
           </div>
 
@@ -309,7 +311,7 @@ export function SubirCarga({ tipoInicial, obraInicial, onCerrar, onAplicada }: P
             />
           </div>
 
-          {previa && <ReportePrevia previa={previa} />}
+          {previa && <ReportePrevia previa={previa} tipo={tipo} />}
         </div>
 
         <div className="sheet__footer">
@@ -346,7 +348,7 @@ export function SubirCarga({ tipoInicial, obraInicial, onCerrar, onAplicada }: P
   );
 }
 
-function ReportePrevia({ previa }: { readonly previa: CargaRespuesta }) {
+function ReportePrevia({ previa, tipo }: { readonly previa: CargaRespuesta; readonly tipo: TipoCarga }) {
   const hayErrores = previa.errores.length > 0;
 
   return (
@@ -368,6 +370,17 @@ function ReportePrevia({ previa }: { readonly previa: CargaRespuesta }) {
             (§10.3).
           </div>
         )}
+
+        {tipo === TipoCarga.prototipos &&
+          previa.errores.length === 0 &&
+          previa.insertados === 0 &&
+          previa.actualizados === 0 && (
+            <div className="badge badge--info">
+              Aunque aquí diga que no actualiza nada, al aplicar el presupuesto toma los costos
+              vigentes de cada concepto y crea una versión nueva (la anterior se conserva). Los
+              números cuentan conceptos, no partidas ni precios.
+            </div>
+          )}
 
         {previa.reutilizada && (
           <div className="badge badge--info">
