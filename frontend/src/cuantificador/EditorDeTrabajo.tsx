@@ -110,9 +110,9 @@ function EditorDeDestajo({
         <Fila etiqueta="Concepto" valor={`${t.concepto_clave ?? '—'} · ${t.concepto_descripcion ?? ''}`} />
         <Fila etiqueta="Cantidad del concepto" valor={`${fmtNum(concepto.valor)} ${t.concepto_unidad ?? ''} (${concepto.fuente})`} />
         <Fila etiqueta="Cantidad del destajo" valor={`${fmtNum(c.cantidad)} ${unidad}${Number(t.factor) !== 1 ? ` · ${fmtNum(t.factor)} ${unidad} por ${t.concepto_unidad ?? 'unidad'}` : ''}`} />
-        <Fila etiqueta="Precio" valor={`${fmtMXN(t.precio)} por ${unidad}`} />
+        <Fila etiqueta="Precio" valor={`${fmtMXN(t.precio)}${unidad ? ` por ${unidad}` : ''}`} />
         <Fila etiqueta="Importe" valor={fmtMXN(c.importe)} />
-        <Fila etiqueta="Capacidad" valor={c.capacidadPorDia !== null ? `${fmtNum(c.capacidadPorDia)} ${unidad} por día (${c.origenDeLaCapacidad})` : '—'} />
+        <Fila etiqueta="Capacidad" valor={c.capacidadPorDia !== null ? `${fmtNum(c.capacidadPorDia)}${unidad ? ` ${unidad}` : ''} por día (${c.origenDeLaCapacidad})` : '—'} />
         <Fila etiqueta="Duración" valor={c.dias !== null ? `${fmtNum(c.dias)} días` : '—'} />
         <Fila etiqueta="Jornales de la cuadrilla" valor={fmtMXN(c.jornales)} />
         <Fila etiqueta="Importe − jornales" valor={fmtMXN(c.diferencia)} />
