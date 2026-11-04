@@ -17,15 +17,20 @@
 name: CI
 
 on:
+  # Un PR corre una vez por commit (antes corría dos: por el push y por el PR). `main` corre tras cada fusión.
+  # Una rama sin PR no gasta minutos. Los cambios solo de documentación no disparan nada.
   push:
-    branches: ['**']
+    branches: [main]
+    paths-ignore: ['**.md', 'MD/**']
   pull_request:
+    paths-ignore: ['**.md', 'MD/**']
 
 concurrency:
   # Un push nuevo cancela la corrida anterior de la misma rama: no sirve
   # esperar el resultado de un commit que ya quedó atrás.
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # En `main` no se cancela: así queda el registro de qué fusión rompió algo.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   backend:
