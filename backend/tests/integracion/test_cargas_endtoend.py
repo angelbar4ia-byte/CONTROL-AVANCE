@@ -3334,8 +3334,11 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     # conteos ya verificados en `tests/domain/test_presupuesto_opus_real.py`
     # (318 ETAPA + 238 AGRUPADOR + 2445 CONCEPTO + 102 NIVEL, 121 huecos
     # descartados), ahora contra Postgres real en vez de en memoria.
+    # Los MISMOS bytes se vuelven a subir después del análisis de básicos (abajo): lo que se
+    # prueba es que el atajo por huella no se los salta.
+    contenido_presupuesto = _archivo_presupuesto_opus_real()
     resultado_presupuesto = await _cargar(
-        contexto_control, TipoCarga.PRESUPUESTO, _archivo_presupuesto_opus_real()
+        contexto_control, TipoCarga.PRESUPUESTO, contenido_presupuesto
     )
     assert resultado_presupuesto.estatus is EstatusCarga.APLICADO
     assert resultado_presupuesto.resumen.errores == 0
@@ -3465,6 +3468,31 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     # ZA2): el mismo archivo trae su receta — matriz dentro de matriz.
     assert resultado_cpu.resumen.insertados == 89
     assert resultado_cpu.resumen.actualizados == 467
+
+    # El presupuesto se sube DOS veces (D-620): la primera, antes del análisis, dejó las partidas
+    # en $0 porque los conceptos no tenían receta. Subir el MISMO archivo otra vez —misma huella
+    # que la carga ya aplicada— no se salta: toma los costos vigentes y crea la versión 2.
+    consulta_versiones = (
+        "select p.version, p.vigente, count(*) as partidas, "
+        "count(*) filter (where pp.precio_unitario > 0) as con_precio, round(sum(pp.importe), 2) as monto "
+        "from presupuesto p join partida_presupuesto pp on pp.presupuesto_id = p.id "
+        "join prototipo t on t.id = p.prototipo_id "
+        "where p.org_id = :org and t.clave = 'CAS-00001' group by 1, 2 order by 1"
+    )
+    antes = await _sql_admin(consulta_versiones, org=str(escenario.org_id))
+    assert [(v["version"], v["vigente"], v["con_precio"]) for v in antes] == [(1, True, 0)]
+    segunda_pasada = await _cargar(contexto_control, TipoCarga.PRESUPUESTO, contenido_presupuesto)
+    assert segunda_pasada.estatus is EstatusCarga.APLICADO
+    assert segunda_pasada.reutilizada is False
+    assert segunda_pasada.carga_id != resultado_presupuesto.carga_id
+    versiones = await _sql_admin(consulta_versiones, org=str(escenario.org_id))
+    assert [(v["version"], v["vigente"]) for v in versiones] == [(1, False), (2, True)]
+    assert versiones[1]["partidas"] == versiones[1]["con_precio"] == 402
+    assert versiones[1]["monto"] > 0
+    # Una tercera pasada con el mismo archivo ya no cambia nada: mismo contenido, no hay versión 3.
+    await _cargar(contexto_control, TipoCarga.PRESUPUESTO, contenido_presupuesto)
+    versiones = await _sql_admin(consulta_versiones, org=str(escenario.org_id))
+    assert [(v["version"], v["vigente"]) for v in versiones] == [(1, False), (2, True)]
 
     # Ningún pendiente `trabajo_sin_clase` sobrevive: las 460 filas
     # `Tipo=Contrato` bajo un concepto válido cruzan al 100% contra
