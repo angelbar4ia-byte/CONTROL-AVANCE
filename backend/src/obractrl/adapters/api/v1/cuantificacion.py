@@ -54,6 +54,7 @@ from obractrl.adapters.api.casos_uso import (
     ConsultarMatricesDep,
     EliminarTrazoDep,
     FijarVistaDePlanoDep,
+    GestionarVanosDep,
     QuitarHuecoDep,
     ReemplazarEnlaceDep,
     RegistrarNotaPlanoDep,
@@ -65,6 +66,7 @@ from obractrl.adapters.api.casos_uso import (
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.application.casos_uso.cuantificar import (
     ComandoAgregarHueco,
+    ComandoAgregarVano,
     ComandoAprobarTrazo,
     ComandoCalibrarEscala,
     ComandoEliminarTrazo,
@@ -1227,3 +1229,93 @@ async def matrices_de_la_actividad(
     bastones), a cualquier profundidad (D-583). Medirlas ajusta el importe de la actividad sin
     tocar su cantidad base ni el catálogo."""
     return MatricesDeActividadRespuesta(**await caso_uso.ejecutar(actividad_id))
+
+
+class VanoPeticion(BaseModel):
+    """Una puerta, ventana o paso colocado sobre una línea."""
+
+    clave: str = Field(min_length=1, max_length=20)
+    tipo: Literal["puerta", "ventana", "cancel", "arco", "paso"]
+    ancho_m: Decimal = Field(gt=0, le=50)
+    alto_m: Decimal = Field(gt=0, le=50)
+    antepecho_m: Decimal = Field(default=Decimal(0), ge=0, le=50, description="Del piso al borde de abajo (ventanas).")
+    piezas: int = Field(default=1, ge=1, le=999)
+    posicion_m: Decimal | None = Field(default=None, ge=0, description="Distancia desde el inicio de la línea.")
+
+
+class VanoRespuesta(BaseModel):
+    id: UUID
+    clave: str
+    tipo: str
+    ancho_m: Decimal
+    alto_m: Decimal
+    antepecho_m: Decimal
+    piezas: int
+    posicion_m: Decimal | None
+    llega_al_piso: bool
+
+
+class VanoCambiadoRespuesta(BaseModel):
+    vano_id: UUID
+    recalculos: list[ResultadoRecalculoRespuesta]
+
+
+@router.get(
+    "/trazos/{trazo_id}/vanos",
+    response_model=list[VanoRespuesta],
+    summary="Los vanos colocados sobre una línea",
+    responses={404: {"description": "El trazo no existe o está fuera de tu alcance."}},
+)
+async def listar_vanos(trazo_id: UUID, caso_uso: GestionarVanosDep) -> list[VanoRespuesta]:
+    return [VanoRespuesta(**v) for v in await caso_uso.listar(trazo_id)]
+
+
+@router.post(
+    "/trazos/{trazo_id}/vanos",
+    response_model=VanoCambiadoRespuesta,
+    status_code=status.HTTP_201_CREATED,
+    summary="Colocar un vano (puerta, ventana, paso) sobre una línea",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        403: {"description": "La línea alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."},
+        404: {"description": "El trazo no existe o está fuera de tu alcance."},
+        422: {"description": "El trazo no es una línea o las medidas no valen."},
+    },
+)
+async def colocar_vano(
+    trazo_id: UUID, peticion: VanoPeticion, ctx: ContextoActual, caso_uso: GestionarVanosDep
+) -> VanoCambiadoRespuesta:
+    """Descuenta de lo que mide la línea: ancho × alto × piezas × caras en m², o su ancho en metros si llega al piso."""
+    r = await caso_uso.agregar(
+        ComandoAgregarVano(
+            trazo_id=trazo_id,
+            clave=peticion.clave,
+            tipo=peticion.tipo,
+            ancho_m=peticion.ancho_m,
+            alto_m=peticion.alto_m,
+            antepecho_m=peticion.antepecho_m,
+            piezas=peticion.piezas,
+            posicion_m=peticion.posicion_m,
+            autor_id=ctx.usuario_id,
+            rol=Rol(ctx.rol),
+        ),
+        detectada_en=datetime.now(UTC),
+    )
+    return VanoCambiadoRespuesta(
+        vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos]
+    )
+
+
+@router.delete(
+    "/vanos/{vano_id}",
+    response_model=VanoCambiadoRespuesta,
+    summary="Quitar un vano",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={404: {"description": "El vano no existe o está fuera de tu alcance."}},
+)
+async def quitar_vano(vano_id: UUID, ctx: ContextoActual, caso_uso: GestionarVanosDep) -> VanoCambiadoRespuesta:
+    """La línea vuelve a medir sin ese vano; sus nodos se recalculan."""
+    r = await caso_uso.quitar(vano_id, autor_id=ctx.usuario_id, rol=Rol(ctx.rol), detectada_en=datetime.now(UTC))
+    return VanoCambiadoRespuesta(
+        vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos]
+    )

@@ -51,6 +51,9 @@ import type {
   TrazoRespuesta,
   TrazoTraidoRespuesta,
   TrazosDePlanoRespuesta,
+  VanoCambiadoRespuesta,
+  VanoPeticion,
+  VanoRespuesta,
   VistaPeticion,
 } from ".././modelo";
 
@@ -3693,3 +3696,541 @@ export function useMatricesDeLaActividadApiV1ActividadesActividadIdMatricesGet<
 
   return query;
 }
+
+/**
+ * @summary Los vanos colocados sobre una línea
+ */
+export const listarVanosApiV1TrazosTrazoIdVanosGet = (
+  trazoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<VanoRespuesta[]>(
+    { url: `/api/v1/trazos/${trazoId}/vanos`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getListarVanosApiV1TrazosTrazoIdVanosGetInfiniteQueryKey = (
+  trazoId?: string,
+) => {
+  return ["infinite", `/api/v1/trazos/${trazoId}/vanos`] as const;
+};
+
+export const getListarVanosApiV1TrazosTrazoIdVanosGetQueryKey = (
+  trazoId?: string,
+) => {
+  return [`/api/v1/trazos/${trazoId}/vanos`] as const;
+};
+
+export const getListarVanosApiV1TrazosTrazoIdVanosGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarVanosApiV1TrazosTrazoIdVanosGetInfiniteQueryKey(trazoId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>
+  > = ({ signal }) =>
+    listarVanosApiV1TrazosTrazoIdVanosGet(trazoId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!trazoId,
+    ...queryOptions,
+  } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListarVanosApiV1TrazosTrazoIdVanosGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>
+  >;
+export type ListarVanosApiV1TrazosTrazoIdVanosGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useListarVanosApiV1TrazosTrazoIdVanosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarVanosApiV1TrazosTrazoIdVanosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarVanosApiV1TrazosTrazoIdVanosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los vanos colocados sobre una línea
+ */
+
+export function useListarVanosApiV1TrazosTrazoIdVanosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>
+  >,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getListarVanosApiV1TrazosTrazoIdVanosGetInfiniteQueryOptions(
+      trazoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getListarVanosApiV1TrazosTrazoIdVanosGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListarVanosApiV1TrazosTrazoIdVanosGetQueryKey(trazoId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>
+  > = ({ signal }) =>
+    listarVanosApiV1TrazosTrazoIdVanosGet(trazoId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!trazoId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListarVanosApiV1TrazosTrazoIdVanosGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>
+>;
+export type ListarVanosApiV1TrazosTrazoIdVanosGetQueryError =
+  void | HTTPValidationError;
+
+export function useListarVanosApiV1TrazosTrazoIdVanosGet<
+  TData = Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarVanosApiV1TrazosTrazoIdVanosGet<
+  TData = Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+          TError,
+          Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useListarVanosApiV1TrazosTrazoIdVanosGet<
+  TData = Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los vanos colocados sobre una línea
+ */
+
+export function useListarVanosApiV1TrazosTrazoIdVanosGet<
+  TData = Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+  TError = void | HTTPValidationError,
+>(
+  trazoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof listarVanosApiV1TrazosTrazoIdVanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getListarVanosApiV1TrazosTrazoIdVanosGetQueryOptions(
+    trazoId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Descuenta de lo que mide la línea: ancho × alto × piezas × caras en m², o su ancho en metros si llega al piso.
+ * @summary Colocar un vano (puerta, ventana, paso) sobre una línea
+ */
+export const colocarVanoApiV1TrazosTrazoIdVanosPost = (
+  trazoId: string,
+  vanoPeticion: VanoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<VanoCambiadoRespuesta>(
+    {
+      url: `/api/v1/trazos/${trazoId}/vanos`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: vanoPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getColocarVanoApiV1TrazosTrazoIdVanosPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof colocarVanoApiV1TrazosTrazoIdVanosPost>>,
+    TError,
+    { trazoId: string; data: VanoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof colocarVanoApiV1TrazosTrazoIdVanosPost>>,
+  TError,
+  { trazoId: string; data: VanoPeticion },
+  TContext
+> => {
+  const mutationKey = ["colocarVanoApiV1TrazosTrazoIdVanosPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof colocarVanoApiV1TrazosTrazoIdVanosPost>>,
+    { trazoId: string; data: VanoPeticion }
+  > = (props) => {
+    const { trazoId, data } = props ?? {};
+
+    return colocarVanoApiV1TrazosTrazoIdVanosPost(
+      trazoId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ColocarVanoApiV1TrazosTrazoIdVanosPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof colocarVanoApiV1TrazosTrazoIdVanosPost>>
+>;
+export type ColocarVanoApiV1TrazosTrazoIdVanosPostMutationBody = VanoPeticion;
+export type ColocarVanoApiV1TrazosTrazoIdVanosPostMutationError = void;
+
+/**
+ * @summary Colocar un vano (puerta, ventana, paso) sobre una línea
+ */
+export const useColocarVanoApiV1TrazosTrazoIdVanosPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof colocarVanoApiV1TrazosTrazoIdVanosPost>>,
+      TError,
+      { trazoId: string; data: VanoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof colocarVanoApiV1TrazosTrazoIdVanosPost>>,
+  TError,
+  { trazoId: string; data: VanoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getColocarVanoApiV1TrazosTrazoIdVanosPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * La línea vuelve a medir sin ese vano; sus nodos se recalculan.
+ * @summary Quitar un vano
+ */
+export const quitarVanoApiV1VanosVanoIdDelete = (
+  vanoId: string,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<VanoCambiadoRespuesta>(
+    { url: `/api/v1/vanos/${vanoId}`, method: "DELETE" },
+    options,
+  );
+};
+
+export const getQuitarVanoApiV1VanosVanoIdDeleteMutationOptions = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof quitarVanoApiV1VanosVanoIdDelete>>,
+    TError,
+    { vanoId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof quitarVanoApiV1VanosVanoIdDelete>>,
+  TError,
+  { vanoId: string },
+  TContext
+> => {
+  const mutationKey = ["quitarVanoApiV1VanosVanoIdDelete"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof quitarVanoApiV1VanosVanoIdDelete>>,
+    { vanoId: string }
+  > = (props) => {
+    const { vanoId } = props ?? {};
+
+    return quitarVanoApiV1VanosVanoIdDelete(vanoId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type QuitarVanoApiV1VanosVanoIdDeleteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof quitarVanoApiV1VanosVanoIdDelete>>
+>;
+
+export type QuitarVanoApiV1VanosVanoIdDeleteMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Quitar un vano
+ */
+export const useQuitarVanoApiV1VanosVanoIdDelete = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof quitarVanoApiV1VanosVanoIdDelete>>,
+      TError,
+      { vanoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof quitarVanoApiV1VanosVanoIdDelete>>,
+  TError,
+  { vanoId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getQuitarVanoApiV1VanosVanoIdDeleteMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};

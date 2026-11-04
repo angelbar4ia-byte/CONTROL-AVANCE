@@ -152,6 +152,7 @@ import { OpcionesDeEmpalme } from './OpcionesDeEmpalme';
 import { PanelDelArbol } from './PanelDelArbol';
 import { PanelDePropuestas } from './PanelDePropuestas';
 import { ProponerEscala } from './ProponerEscala';
+import { VanosDelTrazo } from './VanosDelTrazo';
 import { PanelVolumen } from './PanelVolumen';
 import { resumenDePantalla, type TrazoParaResumen } from './resumen';
 import { NuevaObra } from './NuevaObra';
@@ -1830,6 +1831,17 @@ export function EspacioDeTrazo({
                 )
               }
             />
+            {seleccionado.geometry.type === 'LineString' && (
+              <VanosDelTrazo
+                trazoId={seleccionado.id as string}
+                puedeEditar
+                onCambio={(aviso) => {
+                  setAviso(aviso);
+                  invalidarTrazos();
+                }}
+                onError={(m) => setAviso(m)}
+              />
+            )}
             <div className="row">
               {seleccionado.properties.aprobado_en ? (
                 <span className="badge badge--ok">

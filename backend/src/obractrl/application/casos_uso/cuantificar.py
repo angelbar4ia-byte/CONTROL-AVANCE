@@ -97,6 +97,7 @@ __all__ = [
     "AgregarHuecoATrazo",
     "CalibrarEscalaDePlano",
     "ComandoAgregarHueco",
+    "ComandoAgregarVano",
     "ComandoCalibrarEscala",
     "ComandoEliminarTrazo",
     "ComandoFijarVistaDePlano",
@@ -110,6 +111,7 @@ __all__ = [
     "ErrorDeCuantificacion",
     "EscalaCalibrada",
     "FijarVistaDePlano",
+    "GestionarVanos",
     "GobiernoDeCuantificacionInvalido",
     "HuecoAgregado",
     "IntencionEnlace",
@@ -127,6 +129,7 @@ __all__ = [
     "TrazoEliminado",
     "TrazoRegistrado",
     "TrazoTransformado",
+    "VanoCambiado",
 ]
 
 _ROLES_QUE_TOCAN_PROTOTIPO = (Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE)
@@ -205,6 +208,26 @@ class ComandoAgregarHueco:
     geometria_wkt: str
     autor_id: UUID
     rol: Rol
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoAgregarVano:
+    trazo_id: UUID
+    clave: str
+    tipo: str
+    ancho_m: Decimal
+    alto_m: Decimal
+    antepecho_m: Decimal
+    piezas: int
+    posicion_m: Decimal | None
+    autor_id: UUID
+    rol: Rol
+
+
+@dataclass(frozen=True, slots=True)
+class VanoCambiado:
+    vano_id: UUID
+    recalculos: tuple[Any, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -1186,6 +1209,89 @@ class AgregarHuecoATrazo:
 
         await _avisar_reaperturas(self._eventos, recalculos, cmd.autor_id)
         return HuecoAgregado(hueco_id=hueco_id, recalculos=recalculos)
+
+
+class GestionarVanos(AgregarHuecoATrazo):
+    """Coloca o quita un vano (puerta, ventana, paso) sobre una línea.
+
+    Cambia lo que la línea mide (el servidor lo descuenta al medir, 0103), así que cada nodo que la línea
+    alimenta se **recalcula**, igual que con un hueco; y si alimenta un `prototipo_nodo` tiene el mismo gobierno.
+    """
+
+    async def _cambiar(
+        self, trazo_id: UUID, rol: Rol, autor_id: UUID, detectada_en: datetime, accion: Any
+    ) -> VanoCambiado:
+        nodos = await self._enlaces.nodos_vigentes_de_trazo(trazo_id)
+        if (
+            any(n["tipo_nodo"] == TipoNodoCuantificacion.PROTOTIPO_NODO.value for n in nodos)
+            and rol not in _ROLES_QUE_TOCAN_PROTOTIPO
+        ):
+            permitidos = ", ".join(r.value for r in _ROLES_QUE_TOCAN_PROTOTIPO)
+            raise GobiernoDeCuantificacionInvalido(
+                f"Esta línea alimenta la cantidad de un prototipo_nodo: cambiarle un vano la cambia, y eso exige "
+                f"{permitidos}; el rol {rol.value!r} no puede."
+            )
+        async with self._uow:
+            vano_id = await accion()
+            recalculos = tuple(
+                [
+                    await _recalcular_nodo(
+                        tipo_nodo=TipoNodoCuantificacion(str(n["tipo_nodo"])),
+                        actividad_id=n["actividad_id"],
+                        prototipo_nodo_id=n["prototipo_nodo_id"],
+                        matriz_concepto_id=n.get("matriz_concepto_id"),
+                        enlaces=self._enlaces,
+                        actividades=self._actividades,
+                        prototipo_nodos=self._prototipo_nodos,
+                        desviaciones=self._desviaciones,
+                        detectada_en=detectada_en,
+                        matrices=self._matrices,
+                    )
+                    for n in nodos
+                ]
+            )
+            await self._uow.commit()
+        await _avisar_reaperturas(self._eventos, recalculos, autor_id)
+        return VanoCambiado(vano_id=vano_id, recalculos=recalculos)
+
+    async def agregar(self, cmd: ComandoAgregarVano, *, detectada_en: datetime) -> VanoCambiado:
+        if await self._trazos.obtener(cmd.trazo_id) is None:
+            raise TrazoNoEncontrado(f"El trazo {cmd.trazo_id} no existe o no está en tu alcance.")
+        if not await self._trazos.es_linea(cmd.trazo_id):
+            raise ErrorDeCuantificacion("Un vano se coloca sobre una línea (un muro).")
+
+        async def crear() -> UUID:
+            return await self._trazos.crear_vano(
+                trazo_id=cmd.trazo_id,
+                clave=cmd.clave.strip(),
+                tipo=cmd.tipo,
+                ancho_m=cmd.ancho_m,
+                alto_m=cmd.alto_m,
+                antepecho_m=cmd.antepecho_m,
+                piezas=cmd.piezas,
+                posicion_m=cmd.posicion_m,
+                autor_id=cmd.autor_id,
+            )
+
+        return await self._cambiar(cmd.trazo_id, cmd.rol, cmd.autor_id, detectada_en, crear)
+
+    async def quitar(
+        self, vano_id: UUID, *, autor_id: UUID, rol: Rol, detectada_en: datetime
+    ) -> VanoCambiado:
+        trazo_id = await self._trazos.trazo_del_vano(vano_id)
+        if trazo_id is None:
+            raise TrazoNoEncontrado(f"El vano {vano_id} no existe o está fuera de tu alcance.")
+
+        async def borrar() -> UUID:
+            await self._trazos.quitar_vano(vano_id)
+            return vano_id
+
+        return await self._cambiar(trazo_id, rol, autor_id, detectada_en, borrar)
+
+    async def listar(self, trazo_id: UUID) -> list[dict[str, Any]]:
+        if await self._trazos.obtener(trazo_id) is None:
+            raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
+        return await self._trazos.vanos_de_trazo(trazo_id)
 
 
 class EliminarTrazo:

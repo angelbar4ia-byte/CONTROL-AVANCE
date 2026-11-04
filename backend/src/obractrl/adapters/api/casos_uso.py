@@ -150,6 +150,7 @@ from obractrl.application.casos_uso.cuantificar import (
     ConsultarMatrices,
     EliminarTrazo,
     FijarVistaDePlano,
+    GestionarVanos,
     QuitarHueco,
     ReemplazarEnlace,
     RegistrarNotaPlano,
@@ -431,6 +432,7 @@ __all__ = [
     "GestionarEnlacesDeHojaDep",
     "GestionarMatricesDeConceptoDep",
     "GestionarMedicionesDep",
+    "GestionarVanosDep",
     "IniciarObraDep",
     "InstanciarProgramaObraDep",
     "MarcarParteIndependienteDep",
@@ -829,6 +831,19 @@ def obtener_agregar_hueco(sesion: SesionRLS, ctx: ContextoActual) -> AgregarHuec
     )
 
 
+def obtener_gestionar_vanos(sesion: SesionRLS, ctx: ContextoActual) -> GestionarVanos:
+    return GestionarVanos(
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+        eventos=_bus_de_partes(sesion, ctx),
+        matrices=RepositorioMatricesSQL(sesion),
+    )
+
+
 def obtener_eliminar_trazo(sesion: SesionRLS, ctx: ContextoActual) -> EliminarTrazo:
     return EliminarTrazo(
         trazos=RepositorioTrazosSQL(sesion),
@@ -1094,6 +1109,7 @@ GestionarEnlacesDeHojaDep = Annotated[GestionarEnlacesDeHoja, Depends(obtener_ge
 ProponerTrazosDep = Annotated[ProponerTrazos, Depends(obtener_proponer_trazos)]
 AceptarPropuestasDep = Annotated[AceptarPropuestas, Depends(obtener_aceptar_propuestas)]
 RechazarPropuestasDep = Annotated[RechazarPropuestas, Depends(obtener_rechazar_propuestas)]
+GestionarVanosDep = Annotated[GestionarVanos, Depends(obtener_gestionar_vanos)]
 ArmarArbolDep = Annotated[ArmarArbol, Depends(obtener_armar_arbol)]
 TraerTrazoDep = Annotated[TraerTrazoAOtraVersion, Depends(obtener_traer_trazo)]
 CalibrarEscalaDePlanoDep = Annotated[

@@ -1,0 +1,135 @@
+/**
+ * Los vanos de una línea (un muro): puertas, ventanas, cancel, arcos y pasos. Cada vano descuenta de lo que
+ * mide la línea —ancho × alto × piezas × caras en m², o su ancho en metros si llega al piso— y el servidor
+ * recalcula las cantidades al colocarlo o quitarlo. Sin botón de guardar en las medidas: «Colocar» crea el vano.
+ */
+
+import { useState } from 'react';
+
+import type { ErrorApi } from '@/api/cliente';
+import {
+  getListarVanosApiV1TrazosTrazoIdVanosGetQueryKey,
+  useColocarVanoApiV1TrazosTrazoIdVanosPost,
+  useListarVanosApiV1TrazosTrazoIdVanosGet,
+  useQuitarVanoApiV1VanosVanoIdDelete,
+} from '@/api/generado/cuantificacion/cuantificacion';
+import { queryClient } from '@/app/queryClient';
+
+import { CARAS_POR_DEFECTO } from './trazoPeticion';
+import { TIPOS_DE_VANO, claveSiguiente, descuentoDelVano, type TipoDeVano } from './vanos';
+
+interface Props {
+  readonly trazoId: string;
+  readonly puedeEditar: boolean;
+  /** Cambió lo que mide la línea: hay que volver a leer trazos y cantidades. */
+  readonly onCambio: (aviso: string) => void;
+  readonly onError: (mensaje: string) => void;
+}
+
+export function VanosDelTrazo({ trazoId, puedeEditar, onCambio, onError }: Props) {
+  const vanos = useListarVanosApiV1TrazosTrazoIdVanosGet(trazoId);
+  const colocar = useColocarVanoApiV1TrazosTrazoIdVanosPost<ErrorApi>();
+  const quitar = useQuitarVanoApiV1VanosVanoIdDelete<ErrorApi>();
+  const [tipo, setTipo] = useState<TipoDeVano>('puerta');
+  const [ancho, setAncho] = useState(String(TIPOS_DE_VANO.puerta.ancho));
+  const [alto, setAlto] = useState(String(TIPOS_DE_VANO.puerta.alto));
+  const [antepecho, setAntepecho] = useState('0');
+  const [piezas, setPiezas] = useState('1');
+
+  const lista = vanos.data ?? [];
+  const recargar = () =>
+    void queryClient.invalidateQueries({ queryKey: getListarVanosApiV1TrazosTrazoIdVanosGetQueryKey(trazoId) });
+
+  function elegirTipo(nuevo: TipoDeVano) {
+    setTipo(nuevo);
+    setAncho(String(TIPOS_DE_VANO[nuevo].ancho));
+    setAlto(String(TIPOS_DE_VANO[nuevo].alto));
+    setAntepecho(String(TIPOS_DE_VANO[nuevo].antepecho));
+  }
+
+  const n = (texto: string) => Number(texto.replace(',', '.'));
+  const valido = n(ancho) > 0 && n(alto) > 0 && n(antepecho) >= 0 && Number.isInteger(n(piezas)) && n(piezas) >= 1;
+
+  async function ponerVano() {
+    if (!valido) return;
+    try {
+      await colocar.mutateAsync({
+        trazoId,
+        data: {
+          clave: claveSiguiente(tipo, lista.map((v) => v.clave)),
+          tipo,
+          ancho_m: n(ancho),
+          alto_m: n(alto),
+          antepecho_m: n(antepecho),
+          piezas: n(piezas),
+        },
+      });
+      recargar();
+      onCambio(`${TIPOS_DE_VANO[tipo].nombre} colocada: descuenta de lo que mide el muro.`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo colocar el vano.');
+    }
+  }
+
+  async function quitarVano(id: string, clave: string) {
+    try {
+      await quitar.mutateAsync({ vanoId: id });
+      recargar();
+      onCambio(`${clave} quitado: el muro vuelve a medir ese descuento.`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo quitar el vano.');
+    }
+  }
+
+  return (
+    <div role="group" aria-label="Vanos del muro" style={{ display: 'grid', gap: 4 }}>
+      <div className="text-xs text-mute">Vanos · descuentan lo que mide el muro</div>
+      {lista.length === 0 && <div className="text-mute text-xs">Sin vanos.</div>}
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 2 }}>
+        {lista.map((v) => (
+          <li key={v.id} className="row" data-vano={v.clave}>
+            <span className="mono text-xs">
+              {Number(v.piezas) > 1 ? `${v.piezas} × ` : ''}
+              {v.clave}
+            </span>
+            <span className="text-mute text-xs">
+              {Number(v.ancho_m)} × {Number(v.alto_m)} m · −
+              {descuentoDelVano(Number(v.ancho_m), Number(v.alto_m), v.piezas, CARAS_POR_DEFECTO).toFixed(2)} m²
+            </span>
+            {puedeEditar && (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                aria-label={`Quitar ${v.clave}`}
+                disabled={quitar.isPending}
+                onClick={() => void quitarVano(v.id, v.clave)}
+              >
+                Quitar
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {puedeEditar && (
+        <div className="arbol-edicion__alta" role="group" aria-label="Colocar un vano">
+          <select aria-label="Tipo de vano" value={tipo} onChange={(e) => elegirTipo(e.target.value as TipoDeVano)}>
+            {(Object.keys(TIPOS_DE_VANO) as TipoDeVano[]).map((k) => (
+              <option key={k} value={k}>
+                {TIPOS_DE_VANO[k].nombre}
+              </option>
+            ))}
+          </select>
+          <input aria-label="Ancho del vano (m)" inputMode="decimal" style={{ width: 48 }} value={ancho} onChange={(e) => setAncho(e.target.value)} />
+          <input aria-label="Alto del vano (m)" inputMode="decimal" style={{ width: 48 }} value={alto} onChange={(e) => setAlto(e.target.value)} />
+          {tipo === 'ventana' && (
+            <input aria-label="Del piso a la ventana (m)" inputMode="decimal" style={{ width: 48 }} value={antepecho} onChange={(e) => setAntepecho(e.target.value)} />
+          )}
+          <input aria-label="Piezas idénticas" inputMode="numeric" style={{ width: 36 }} value={piezas} onChange={(e) => setPiezas(e.target.value)} />
+          <button type="button" className="btn btn--sm" disabled={!valido || colocar.isPending} onClick={() => void ponerVano()}>
+            Colocar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

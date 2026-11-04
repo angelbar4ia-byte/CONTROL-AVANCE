@@ -135,6 +135,30 @@ class RepositorioTrazos(Protocol):
         pivote usado cuando giró (lo necesita quien quiera deshacerlo), o `None` si solo movió."""
         ...
 
+    async def es_linea(self, trazo_id: UUID) -> bool:
+        """Si el trazo es una línea (un muro): lo único donde se coloca un vano."""
+        ...
+
+    async def crear_vano(
+        self,
+        *,
+        trazo_id: UUID,
+        clave: str,
+        tipo: str,
+        ancho_m: Decimal,
+        alto_m: Decimal,
+        antepecho_m: Decimal,
+        piezas: int,
+        posicion_m: Decimal | None,
+        autor_id: UUID,
+    ) -> UUID: ...
+
+    async def trazo_del_vano(self, vano_id: UUID) -> UUID | None: ...
+
+    async def quitar_vano(self, vano_id: UUID) -> None: ...
+
+    async def vanos_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]: ...
+
     async def crear_hueco(self, *, trazo_id: UUID, geometria_wkt: str, autor_id: UUID) -> UUID:
         """Un hueco es un trazo hijo (`hueco_de`) que resta del área del padre; sin enlaces."""
         ...
