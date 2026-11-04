@@ -59,6 +59,7 @@ __all__ = [
     "CARGADORES",
     "CargadorAlmacen",
     "CargadorCPU",
+    "CargadorCatalogoManoDeObra",
     "CargadorConceptosAuxiliares",
     "CargadorConceptosBase",
     "CargadorContratistas",
@@ -66,7 +67,6 @@ __all__ = [
     "CargadorEtapasConstructivas",
     "CargadorFamilias",
     "CargadorIngenieriaLote",
-    "CargadorManoObra",
     "CargadorMateriales",
     "CargadorNiveles",
     "CargadorPresupuesto",
@@ -115,10 +115,11 @@ class CargadorFletes(CargadorMateriales):
 
 
 class CargadorCatalogoManoDeObra:
-    """Catálogo de mano de obra — `CATALOGO_DE_MANO_DE_OBRA.csv`: puestos y
-    las 39 cuadrillas, con las 36 columnas (D-616)."""
+    """Mano de obra — `CATALOGO_DE_MANO_DE_OBRA` (export nativo de OPUS):
+    puestos y las 39 cuadrillas, con las 36 columnas (D-616). Lee la hoja
+    activa, sea cual sea su nombre."""
 
-    tipo = TipoCarga.CATALOGO_MANO_DE_OBRA
+    tipo = TipoCarga.MANO_DE_OBRA
     especificacion = cabeceras.MANO_DE_OBRA_OPUS
 
     def __init__(self, *, limites: Limites = LIMITES) -> None:
@@ -148,25 +149,6 @@ class CargadorSemillaCuadrillas:
             contenido,
             self.especificacion,
             validar_semilla,
-            limites=self._limites,
-        )
-
-
-class CargadorManoObra:
-    """Mano de obra / destajos — `CABECERAS_MANO_DE_OBRA.xlsx`, hoja
-    `DESTAJOS` (§10.6)."""
-
-    tipo = TipoCarga.MANO_DE_OBRA
-    especificacion = cabeceras.MANO_DE_OBRA
-
-    def __init__(self, *, limites: Limites = LIMITES) -> None:
-        self._limites = limites
-
-    def leer(self, contenido: bytes) -> LecturaCarga:
-        return leer_por_nombre(
-            contenido,
-            self.especificacion,
-            validar_mano_obra,
             limites=self._limites,
         )
 
@@ -691,9 +673,8 @@ def _es_fila_de_encabezados(fila: object) -> bool:
 CARGADORES: dict[TipoCarga, type] = {
     TipoCarga.MATERIALES: CargadorMateriales,
     TipoCarga.FLETES: CargadorFletes,
-    TipoCarga.CATALOGO_MANO_DE_OBRA: CargadorCatalogoManoDeObra,
+    TipoCarga.MANO_DE_OBRA: CargadorCatalogoManoDeObra,
     TipoCarga.SEMILLA_CUADRILLA_RENDIMIENTO: CargadorSemillaCuadrillas,
-    TipoCarga.MANO_DE_OBRA: CargadorManoObra,
     TipoCarga.SUBCONTRATOS: CargadorSubcontratos,
     TipoCarga.TRABAJOS: CargadorTrabajos,
     TipoCarga.CUADRILLAS: CargadorCuadrillas,

@@ -1981,7 +1981,7 @@ class FabricaDeCargas:
                 familias=RepositorioFamiliasSQL(sesion),
                 cargas=cargas,
             )
-        if tipo is TipoCarga.CATALOGO_MANO_DE_OBRA:
+        if tipo is TipoCarga.MANO_DE_OBRA:
             return AplicadorCatalogoManoDeObra(
                 insumos=RepositorioInsumosSQL(sesion),
                 cuadrillas=RepositorioCuadrillasSQL(sesion),
@@ -1993,14 +1993,6 @@ class FabricaDeCargas:
         if tipo is TipoCarga.SEMILLA_CUADRILLA_RENDIMIENTO:
             return AplicadorSemillaCuadrillas(
                 insumos=RepositorioInsumosSQL(sesion),
-                cuadrillas=RepositorioCuadrillasSQL(sesion),
-                cargas=cargas,
-            )
-        if tipo is TipoCarga.MANO_DE_OBRA:
-            return AplicadorManoObra(
-                insumos=RepositorioInsumosSQL(sesion),
-                unidades=RepositorioUnidadesSQL(sesion),
-                familias=RepositorioFamiliasSQL(sesion),
                 cuadrillas=RepositorioCuadrillasSQL(sesion),
                 cargas=cargas,
             )
