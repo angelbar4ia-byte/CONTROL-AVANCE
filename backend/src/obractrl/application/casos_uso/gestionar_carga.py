@@ -16,7 +16,8 @@ Tres operaciones:
 
 **Idempotencia (§10.8, §12.3).** Antes de aplicar se busca una carga del
 mismo tipo, ya aplicada y no revertida, con el mismo hash de archivo: si
-existe, no se crea versión ni se toca el catálogo. Y aunque el hash difiera,
+existe, no se crea versión ni se toca el catálogo (salvo el árbol de presupuesto, cuyo
+resultado depende también de los costos vigentes: ahí decide el contenido). Y aunque el hash difiera,
 si el diff sale vacío tampoco se genera versión — "si es idéntico, no crea
 versión" es sobre el **contenido**, no sobre el archivo.
 """
@@ -188,16 +189,24 @@ class EjecutarCarga:
     async def ejecutar(self, cmd: ComandoEjecutarCarga) -> ResultadoCarga:
         huella = hashlib.sha256(cmd.contenido).hexdigest()
 
+        lectura = None
         if not cmd.dry_run:
             previa = await self._cargas.buscar_aplicada_por_hash(
                 tipo=str(cmd.tipo), archivo_hash=huella
             )
             if previa is not None:
-                return _resultado_reutilizado(previa)
+                # Salvo que el resultado dependa de algo que no es el archivo: el árbol de
+                # presupuesto toma los costos vigentes del catálogo, así que subirlo otra vez
+                # —ya con el análisis de básicos— no es repetir lo mismo.
+                lectura = self._lector.leer(cmd.contenido)
+                depende = getattr(self._aplicador, "resultado_depende_del_catalogo", None)
+                if depende is None or not depende(lectura):
+                    return _resultado_reutilizado(previa)
 
         # Parsear **antes** de abrir el lote: si el archivo ni siquiera se
         # puede leer (`ErrorDeArchivo`), no hay nada que registrar.
-        lectura = self._lector.leer(cmd.contenido)
+        if lectura is None:
+            lectura = self._lector.leer(cmd.contenido)
 
         carga_id = await self._cargas.crear(
             tipo=str(cmd.tipo),
