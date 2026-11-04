@@ -13,9 +13,10 @@
  * desde Catálogos, no borrado.
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
+  useAprobarPendientesEnLoteApiV1PendientesAprobarLotePost,
   useBandejaGlobalApiV1PendientesGet,
   useResolverPendienteApiV1PendientesPendienteIdResolverPost,
 } from '@/api/generado/cargas/cargas';
@@ -28,6 +29,8 @@ export default function Pendientes() {
   const [soloAbiertos, setSoloAbiertos] = useState(true);
   const [rechazando, setRechazando] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [marcados, setMarcados] = useState<ReadonlySet<string>>(new Set());
+  const [confirmando, setConfirmando] = useState<'marcados' | 'no_criticos' | null>(null);
 
   const bandejaQ = useBandejaGlobalApiV1PendientesGet<PendienteBandejaRespuesta[], ErrorApi>({
     solo_abiertos: soloAbiertos,
@@ -41,7 +44,58 @@ export default function Pendientes() {
     },
   });
 
+  const lote = useAprobarPendientesEnLoteApiV1PendientesAprobarLotePost<ErrorApi>({
+    mutation: {
+      onSuccess: (r) => {
+        setConfirmando(null);
+        setMarcados(new Set());
+        setAviso(
+          r.omitidos > 0
+            ? `${r.aprobados} aprobados; ${r.omitidos} ya estaban resueltos.`
+            : `${r.aprobados} ${r.aprobados === 1 ? 'pendiente aprobado' : 'pendientes aprobados'}.`,
+        );
+        void bandejaQ.refetch();
+      },
+    },
+  });
+
   const pendientes = bandejaQ.data ?? [];
+  // Solo se marca lo que sigue abierto: lo resuelto no se vuelve a resolver (§10.3).
+  const abiertos = pendientes.filter((p) => !p.resuelto);
+  const marcadosVisibles = abiertos.filter((p) => marcados.has(p.id));
+  const criticosMarcados = marcadosVisibles.filter((p) => p.critico).length;
+  const noCriticosAbiertos = abiertos.filter((p) => !p.critico).length;
+  const todosMarcados = abiertos.length > 0 && marcadosVisibles.length === abiertos.length;
+  const casillaTodos = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (casillaTodos.current) {
+      casillaTodos.current.indeterminate = marcadosVisibles.length > 0 && !todosMarcados;
+    }
+  });
+
+  function marcar(id: string, valor: boolean) {
+    setConfirmando(null);
+    setMarcados((actual) => {
+      const siguiente = new Set(actual);
+      if (valor) siguiente.add(id);
+      else siguiente.delete(id);
+      return siguiente;
+    });
+  }
+
+  function marcarTodos(valor: boolean) {
+    setConfirmando(null);
+    setMarcados(valor ? new Set(abiertos.map((p) => p.id)) : new Set());
+  }
+
+  function aprobarLote() {
+    setAviso(null);
+    if (confirmando === 'marcados') {
+      lote.mutate({ data: { ids: marcadosVisibles.map((p) => p.id) } });
+    } else if (confirmando === 'no_criticos') {
+      lote.mutate({ data: { solo_no_criticos: true } });
+    }
+  }
 
   function aprobar(id: string) {
     setAviso(null);
@@ -87,6 +141,11 @@ export default function Pendientes() {
           <ErrorBanner mensaje={resolver.error.message} />
         </div>
       )}
+      {lote.error && (
+        <div className="mb-8">
+          <ErrorBanner mensaje={lote.error.message} />
+        </div>
+      )}
 
       <div className="filterbar">
         <label className="row gap-4" style={{ alignItems: 'center' }}>
@@ -97,6 +156,56 @@ export default function Pendientes() {
           />
           <span className="text-sm text-mute">Solo lo que falta confirmar</span>
         </label>
+        <div className="row gap-8" style={{ marginLeft: 'auto', alignItems: 'center' }}>
+          {confirmando === null ? (
+            <>
+              <button
+                type="button"
+                className="btn btn--sm btn--primary"
+                disabled={marcadosVisibles.length === 0 || lote.isPending}
+                onClick={() => setConfirmando('marcados')}
+              >
+                Aprobar seleccionados ({marcadosVisibles.length})
+              </button>
+              <button
+                type="button"
+                className="btn btn--sm"
+                disabled={noCriticosAbiertos === 0 || lote.isPending}
+                onClick={() => setConfirmando('no_criticos')}
+              >
+                Aprobar no críticos ({noCriticosAbiertos})
+              </button>
+            </>
+          ) : (
+            <div className="row gap-8" role="alertdialog" aria-label="Confirmar aprobación en lote" style={{ alignItems: 'center' }}>
+              <span className="text-sm">
+                {confirmando === 'marcados'
+                  ? `¿Aprobar ${marcadosVisibles.length} ${marcadosVisibles.length === 1 ? 'pendiente' : 'pendientes'}?${
+                      criticosMarcados > 0
+                        ? ` ${criticosMarcados} ${criticosMarcados === 1 ? 'es crítico' : 'son críticos'}.`
+                        : ''
+                    }`
+                  : `¿Aprobar los ${noCriticosAbiertos} pendientes no críticos? Los críticos se quedan abiertos.`}
+              </span>
+              <button
+                type="button"
+                className="btn btn--sm btn--primary"
+                disabled={lote.isPending}
+                onClick={aprobarLote}
+              >
+                {lote.isPending ? 'Aprobando…' : 'Sí, aprobar'}
+              </button>
+              <button
+                type="button"
+                className="btn btn--sm"
+                disabled={lote.isPending}
+                onClick={() => setConfirmando(null)}
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="table-wrap">
@@ -104,6 +213,16 @@ export default function Pendientes() {
           <table className="table">
             <thead>
               <tr>
+                <th style={{ width: 32 }}>
+                  <input
+                    ref={casillaTodos}
+                    type="checkbox"
+                    aria-label="Seleccionar todos los pendientes abiertos"
+                    checked={todosMarcados}
+                    disabled={abiertos.length === 0}
+                    onChange={(e) => marcarTodos(e.target.checked)}
+                  />
+                </th>
                 <th>Tipo</th>
                 <th>Entidad</th>
                 <th>Valor del archivo</th>
@@ -116,7 +235,7 @@ export default function Pendientes() {
             <tbody>
               {bandejaQ.isLoading ? (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <div className="text-mute text-sm" style={{ padding: '24px 0' }}>
                       Cargando…
                     </div>
@@ -124,7 +243,7 @@ export default function Pendientes() {
                 </tr>
               ) : pendientes.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <div className="text-mute text-sm" style={{ padding: '24px 0' }}>
                       Nada esperando confirmación.
                     </div>
@@ -133,6 +252,16 @@ export default function Pendientes() {
               ) : (
                 pendientes.map((pendiente) => (
                   <tr key={pendiente.id}>
+                    <td>
+                      {!pendiente.resuelto && (
+                        <input
+                          type="checkbox"
+                          aria-label={`Seleccionar ${pendiente.valor_origen ?? pendiente.id}`}
+                          checked={marcados.has(pendiente.id)}
+                          onChange={(e) => marcar(pendiente.id, e.target.checked)}
+                        />
+                      )}
+                    </td>
                     <td>{etiquetaTipoPendiente(pendiente.tipo)}</td>
                     <td className="text-mute text-sm">{pendiente.entidad ?? '—'}</td>
                     <td className="mono">{pendiente.valor_origen ?? '—'}</td>

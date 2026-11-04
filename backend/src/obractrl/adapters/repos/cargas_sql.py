@@ -845,6 +845,41 @@ class RepositorioCargasSQL:
         ).mappings().first()
         return dict(fila) if fila is not None else None
 
+    async def aprobar_pendientes(
+        self,
+        *,
+        ids: list[UUID] | None,
+        solo_no_criticos: bool,
+        usuario_id: UUID | None,
+        nota: str | None,
+    ) -> int:
+        """Aprobar en lote (§10.3): un solo `update`, con la misma guarda de
+        `not resuelto` que `resolver_pendiente`. Sin ids ni `solo_no_criticos`
+        no toca nada: pedir «todos» sin decirlo no existe."""
+        if ids is None and not solo_no_criticos:
+            return 0
+        filtro = "id = any(cast(:ids as uuid[]))" if ids is not None else "not critico"
+        resultado = await self._sesion.execute(
+            text(
+                f"""
+                update pendiente set
+                    resuelto     = true,
+                    resuelto_por = cast(:usuario_id as uuid),
+                    resuelto_en  = now(),
+                    resolucion   = jsonb_build_object(
+                        'accion', 'aprobado', 'nota', cast(:nota as text)
+                    )
+                where not resuelto and {filtro}
+                """
+            ),
+            {
+                "usuario_id": str(usuario_id) if usuario_id else None,
+                "nota": nota,
+                **({"ids": [str(i) for i in ids]} if ids is not None else {}),
+            },
+        )
+        return int(resultado.rowcount)
+
     # --- Mapeos confirmados (§10.3) --------------------------------------
 
     async def mapeos(self, entidad: str) -> dict[str, str]:

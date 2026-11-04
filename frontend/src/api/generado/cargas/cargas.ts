@@ -26,6 +26,8 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AprobarLotePeticion,
+  AprobarLoteRespuesta,
   BandejaDeCargaApiV1CargasCargaIdPendientesGetParams,
   BandejaGlobalApiV1PendientesGetParams,
   BodySubirCargaApiV1CargasPost,
@@ -2285,6 +2287,121 @@ export const useResolverPendienteApiV1PendientesPendienteIdResolverPost = <
 > => {
   const mutationOptions =
     getResolverPendienteApiV1PendientesPendienteIdResolverPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Aprobar solo cierra el pendiente (lo que el cargador hizo ya está hecho), así que el
+lote es seguro; todo va en una transacción. Resolver es de una sola vez: lo ya resuelto
+se omite sin pisar la primera resolución.
+ * @summary Aprobar varios pendientes a la vez
+ */
+export const aprobarPendientesEnLoteApiV1PendientesAprobarLotePost = (
+  aprobarLotePeticion: AprobarLotePeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<AprobarLoteRespuesta>(
+    {
+      url: `/api/v1/pendientes/aprobar-lote`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: aprobarLotePeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getAprobarPendientesEnLoteApiV1PendientesAprobarLotePostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof aprobarPendientesEnLoteApiV1PendientesAprobarLotePost>
+      >,
+      TError,
+      { data: AprobarLotePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof aprobarPendientesEnLoteApiV1PendientesAprobarLotePost>
+    >,
+    TError,
+    { data: AprobarLotePeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "aprobarPendientesEnLoteApiV1PendientesAprobarLotePost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof aprobarPendientesEnLoteApiV1PendientesAprobarLotePost>
+      >,
+      { data: AprobarLotePeticion }
+    > = (props) => {
+      const { data } = props ?? {};
+
+      return aprobarPendientesEnLoteApiV1PendientesAprobarLotePost(
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AprobarPendientesEnLoteApiV1PendientesAprobarLotePostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof aprobarPendientesEnLoteApiV1PendientesAprobarLotePost>
+    >
+  >;
+export type AprobarPendientesEnLoteApiV1PendientesAprobarLotePostMutationBody =
+  AprobarLotePeticion;
+export type AprobarPendientesEnLoteApiV1PendientesAprobarLotePostMutationError =
+  void;
+
+/**
+ * @summary Aprobar varios pendientes a la vez
+ */
+export const useAprobarPendientesEnLoteApiV1PendientesAprobarLotePost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof aprobarPendientesEnLoteApiV1PendientesAprobarLotePost>
+      >,
+      TError,
+      { data: AprobarLotePeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof aprobarPendientesEnLoteApiV1PendientesAprobarLotePost>
+  >,
+  TError,
+  { data: AprobarLotePeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getAprobarPendientesEnLoteApiV1PendientesAprobarLotePostMutationOptions(
       options,
     );
 

@@ -42,6 +42,7 @@ from obractrl.domain.cargadores.reporte import ErrorDeFila, ResumenCarga, TipoPe
 from obractrl.domain.shared.diccionario import EstatusCarga, ModoCarga, TipoCarga
 
 __all__ = [
+    "AprobarPendientesEnLote",
     "CargaConDependientes",
     "CargaNoEliminable",
     "CargaNoEncontrada",
@@ -566,3 +567,45 @@ class ResolverPendiente:
             await self._uow.commit()
 
         return fila
+
+
+class AprobarPendientesEnLote:
+    """Aprobar varios pendientes de la bandeja a la vez (§10.3).
+
+    Dos formas, nunca las dos: una lista de `ids` (lo que la persona marcó) o
+    «todos los no críticos». Aprobar solo cierra el pendiente —lo que el
+    cargador hizo ya está hecho—, así que el lote no tiene efectos secundarios;
+    por eso rechazar no tiene versión en lote (da de baja conceptos).
+    Todo en una transacción: o se cierran todos los pendientes pedidos o ninguno.
+    """
+
+    MAXIMO = 5000
+
+    def __init__(self, *, cargas: RepositorioCargas, uow: UnidadDeTrabajo) -> None:
+        self._cargas = cargas
+        self._uow = uow
+
+    async def ejecutar(
+        self,
+        *,
+        ids: list[UUID] | None,
+        solo_no_criticos: bool,
+        usuario_id: UUID | None,
+        nota: str | None = None,
+    ) -> int:
+        if ids is not None and solo_no_criticos:
+            raise ValueError("Pide una lista de pendientes o «todos los no críticos», no las dos.")
+        if ids is None and not solo_no_criticos:
+            raise ValueError("Falta decir cuáles aprobar: una lista o «todos los no críticos».")
+        if ids is not None:
+            ids = list(dict.fromkeys(ids))
+            if not ids:
+                raise ValueError("La lista de pendientes está vacía.")
+            if len(ids) > self.MAXIMO:
+                raise ValueError(f"Máximo {self.MAXIMO} pendientes por lote.")
+        async with self._uow:
+            cerrados = await self._cargas.aprobar_pendientes(
+                ids=ids, solo_no_criticos=solo_no_criticos, usuario_id=usuario_id, nota=nota
+            )
+            await self._uow.commit()
+        return cerrados
