@@ -77,9 +77,15 @@ test.describe('Cuantificador · árbol editable', () => {
 
     // --- 2. Cambiar la unidad cambia cómo se mide --------------------------------------------------------------
     await expect(partida).toContainText('Área');
+    // De m² a pieza cruza de tipo de medición (D-623): pide una equivalencia y, al aprobarla, nace una versión del concepto.
     await partida.getByLabel(`Unidad de FIR-${sufijo}`).selectOption({ label: 'pza' });
-    await expect(partida).toContainText('Conteo');
-    await expect.poll(async () => (await partidas()).find((p) => p.concepto_clave === `FIR-${sufijo}`)?.unidad).toBe('pza');
+    const cambio = partida.getByRole('group', { name: `Cambiar la unidad de FIR-${sufijo}` });
+    await expect(cambio).toContainText('cruza de tipo de medición');
+    await cambio.getByLabel('Equivalencia').fill('2');
+    await cambio.getByRole('button', { name: 'Aprobar' }).click();
+    const version = arbol.locator(`[data-partida="FIR-${sufijo}-PZA"]`);
+    await expect(version).toContainText('Conteo');
+    await expect.poll(async () => (await partidas()).find((p) => p.concepto_clave === `FIR-${sufijo}-PZA`)?.unidad).toBe('pza');
 
     // --- 3. Un concepto nuevo como partida, y moverlo de etapa -------------------------------------------------
     await etapa.getByRole('button', { name: 'Agregar partida' }).click();

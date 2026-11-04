@@ -157,6 +157,9 @@ _REFERENCIAS_EXTERNAS: tuple[tuple[str, str, str], ...] = (
     ("desviacion", "concepto_id", "concepto"),
     ("obra", "prototipo_id", "prototipo"),
     ("actividad", "cuadrilla_id", "cuadrilla"),
+    # Un cambio de unidad guarda las unidades de antes y de después (0106, D-623): sin cascada.
+    ("cambio_de_unidad", "unidad_anterior_id", "unidad"),
+    ("cambio_de_unidad", "unidad_nueva_id", "unidad"),
     ("insumo", "cuadrilla_id", "cuadrilla"),
     ("prototipo_nodo", "nivel_id", "nivel"),
     ("actividad", "nivel_id", "nivel"),

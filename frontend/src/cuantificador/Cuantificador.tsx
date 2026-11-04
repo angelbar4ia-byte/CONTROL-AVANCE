@@ -1996,7 +1996,7 @@ export function EspacioDeTrazo({
         ) : seleccionado ? (
           <>
             {idsElegidos.length > 1 && (
-              <div className="badge badge--outline" role="status">
+              <div className="badge badge--outline" data-testid="trazos-elegidos">
                 {idsElegidos.length} trazos elegidos · Mover, Girar y Borrar actúan sobre todos
               </div>
             )}
@@ -2844,7 +2844,7 @@ export function EspacioDeTrazo({
 
       {plano !== undefined && (
         <div className="estacion__estado" aria-label="Estado del plano">
-          <span ref={coordenadasRef} className="text-mute text-xs mono" role="status" aria-label="Coordenadas del cursor" />
+          <span ref={coordenadasRef} className="text-mute text-xs mono" data-testid="coordenadas-del-cursor" title="Coordenadas del cursor" />
           {seleccionado !== null && (herramienta === 'seleccionar' || herramienta === 'mover') && (
             <div className="estacion__dibujo row" role="group" aria-label="Mover y girar el trazo">
               {idsElegidos.length > 1 && <span className="text-xs">{idsElegidos.length} trazos</span>}
