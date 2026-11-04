@@ -178,3 +178,18 @@ async def mover_partida(
     return UbicacionRespuesta(
         **await caso_uso.mover_partida(actividad_id, peticion.etapa_id)
     )
+
+
+@router.delete(
+    "/actividades/{actividad_id}/partida",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Quitar una partida que todavía no se usa",
+    responses={
+        404: {"description": "La partida no existe o está fuera de tu alcance."},
+        409: {
+            "description": "Tiene avance, trazos, estimaciones, o la parte ya está asignada."
+        },
+    },
+)
+async def quitar_partida(actividad_id: UUID, caso_uso: ArmarArbolDep) -> None:
+    await caso_uso.quitar_partida(actividad_id)

@@ -204,3 +204,25 @@ class ArmarArbol:
             )
             await self._uow.commit()
         return {"actividad_id": actividad_id, "etapa_id": etapa_id, "nivel_id": nivel_id}
+
+    async def quitar_partida(self, actividad_id: UUID) -> dict[str, Any]:
+        """Borra una partida que todavía no se usa: sin avance, sin trazos, sin estimaciones, en una parte sin asignar."""
+        actividad = await self._arbol.actividad(actividad_id)
+        if actividad is None:
+            raise ActividadNoProgramable(
+                f"Actividad {actividad_id} no encontrada en tu alcance."
+            )
+        if actividad["cant_ejecutada"] and Decimal(str(actividad["cant_ejecutada"])) > 0:
+            raise ErrorDeParte("La partida ya tiene avance ejecutado: no se quita.")
+        estados = await self._partes.estados_de_obra(actividad["obra_id"])
+        if estados.get(_parte(actividad["etapa_id"])) == EstadoDeParte.ASIGNADA.value:
+            raise ErrorDeParte(
+                "La parte ya está asignada: quitarle una partida es control de cambio."
+            )
+        motivo = await self._arbol.motivo_para_no_quitar(actividad_id)
+        if motivo is not None:
+            raise ErrorDeParte(motivo)
+        async with self._uow:
+            await self._arbol.quitar_actividad(actividad_id)
+            await self._uow.commit()
+        return {"actividad_id": actividad_id}

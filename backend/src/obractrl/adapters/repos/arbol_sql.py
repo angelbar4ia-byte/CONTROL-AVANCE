@@ -208,3 +208,36 @@ class RepositorioArbolSQL:
                 "i": str(actividad_id),
             },
         )
+
+    async def motivo_para_no_quitar(self, actividad_id: UUID) -> str | None:
+        """Por qué una partida no se puede quitar sin perder trabajo ajeno; `None` si se puede."""
+        fila = (
+            (
+                await self._sesion.execute(
+                    text(
+                        """
+                    select
+                      exists (select 1 from enlace_cuantificacion
+                               where actividad_id = :i and vigente) as trazos,
+                      exists (select 1 from estimacion_concepto where actividad_id = :i) as estimada,
+                      exists (select 1 from control_cambio_linea where sustituye_a = :i) as sustituida
+                    """
+                    ),
+                    {"i": str(actividad_id)},
+                )
+            )
+            .mappings()
+            .one()
+        )
+        if fila["trazos"]:
+            return "La partida tiene trazos medidos: bórralos antes de quitarla."
+        if fila["estimada"]:
+            return "La partida ya está en una estimación: no se quita."
+        if fila["sustituida"]:
+            return "Un control de cambio sustituye a esta partida: no se quita."
+        return None
+
+    async def quitar_actividad(self, actividad_id: UUID) -> None:
+        await self._sesion.execute(
+            text("delete from actividad where id = :i"), {"i": str(actividad_id)}
+        )

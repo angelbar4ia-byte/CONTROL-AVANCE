@@ -11845,6 +11845,53 @@
         }
       }
     },
+    "/api/v1/actividades/{actividad_id}/partida": {
+      "delete": {
+        "tags": [
+          "arbol"
+        ],
+        "summary": "Quitar una partida que todavía no se usa",
+        "operationId": "quitar_partida_api_v1_actividades__actividad_id__partida_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La partida no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "Tiene avance, trazos, estimaciones, o la parte ya está asignada."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/desviaciones": {
       "get": {
         "tags": [

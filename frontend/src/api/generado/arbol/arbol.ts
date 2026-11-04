@@ -15,6 +15,7 @@ import type {
 
 import type {
   EtapaPeticion,
+  HTTPValidationError,
   IdCreado,
   NivelPeticion,
   ObractrlAdaptersApiV1ArbolPartidaRespuesta,
@@ -535,6 +536,110 @@ export const useMoverPartidaApiV1ActividadesActividadIdUbicacionPut = <
 > => {
   const mutationOptions =
     getMoverPartidaApiV1ActividadesActividadIdUbicacionPutMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Quitar una partida que todavía no se usa
+ */
+export const quitarPartidaApiV1ActividadesActividadIdPartidaDelete = (
+  actividadId: string,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    { url: `/api/v1/actividades/${actividadId}/partida`, method: "DELETE" },
+    options,
+  );
+};
+
+export const getQuitarPartidaApiV1ActividadesActividadIdPartidaDeleteMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof quitarPartidaApiV1ActividadesActividadIdPartidaDelete>
+      >,
+      TError,
+      { actividadId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof quitarPartidaApiV1ActividadesActividadIdPartidaDelete>
+    >,
+    TError,
+    { actividadId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "quitarPartidaApiV1ActividadesActividadIdPartidaDelete",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof quitarPartidaApiV1ActividadesActividadIdPartidaDelete>
+      >,
+      { actividadId: string }
+    > = (props) => {
+      const { actividadId } = props ?? {};
+
+      return quitarPartidaApiV1ActividadesActividadIdPartidaDelete(
+        actividadId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type QuitarPartidaApiV1ActividadesActividadIdPartidaDeleteMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof quitarPartidaApiV1ActividadesActividadIdPartidaDelete>
+    >
+  >;
+
+export type QuitarPartidaApiV1ActividadesActividadIdPartidaDeleteMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Quitar una partida que todavía no se usa
+ */
+export const useQuitarPartidaApiV1ActividadesActividadIdPartidaDelete = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof quitarPartidaApiV1ActividadesActividadIdPartidaDelete>
+      >,
+      TError,
+      { actividadId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof quitarPartidaApiV1ActividadesActividadIdPartidaDelete>
+  >,
+  TError,
+  { actividadId: string },
+  TContext
+> => {
+  const mutationOptions =
+    getQuitarPartidaApiV1ActividadesActividadIdPartidaDeleteMutationOptions(
       options,
     );
 
