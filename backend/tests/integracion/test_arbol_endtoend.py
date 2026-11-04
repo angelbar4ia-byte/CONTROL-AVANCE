@@ -158,3 +158,25 @@ async def test_el_residente_no_arma_el_arbol(escenario: Escenario, catalogo: dic
     assert (
         await residente.put(f"/api/v1/conceptos/{catalogo['c1']}/unidad", json={"unidad_id": str(catalogo["ml"])})
     ).status_code == 403
+
+
+async def test_quitar_una_partida_sin_uso_y_no_la_que_ya_trabaja(
+    escenario: Escenario, catalogo: dict, control: httpx.AsyncClient, residente: httpx.AsyncClient
+) -> None:
+    r = await control.post(f"/api/v1/obras/{escenario.obra_id}/partidas", json={"concepto_id": str(catalogo["c1"])})
+    assert r.status_code == 201, r.text
+    actividad = r.json()["actividad_id"]
+    # El residente no arma el árbol.
+    assert (await residente.delete(f"/api/v1/actividades/{actividad}/partida")).status_code == 403
+
+    # Con avance ejecutado no se quita.
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    async with engine.begin() as conn:
+        await conn.execute(text("update actividad set cant_ejecutada = 2 where id = :a"), {"a": actividad})
+    assert (await control.delete(f"/api/v1/actividades/{actividad}/partida")).status_code == 409
+    async with engine.begin() as conn:
+        await conn.execute(text("update actividad set cant_ejecutada = 0 where id = :a"), {"a": actividad})
+    await engine.dispose()
+
+    assert (await control.delete(f"/api/v1/actividades/{actividad}/partida")).status_code == 204
+    assert (await control.delete(f"/api/v1/actividades/{actividad}/partida")).status_code == 404

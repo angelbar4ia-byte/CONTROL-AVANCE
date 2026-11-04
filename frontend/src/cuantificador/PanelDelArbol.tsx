@@ -26,6 +26,7 @@ import {
   useCrearEtapaApiV1EtapasPost,
   useCrearNivelApiV1NivelesPost,
   useMoverPartidaApiV1ActividadesActividadIdUbicacionPut,
+  useQuitarPartidaApiV1ActividadesActividadIdPartidaDelete,
 } from '@/api/generado/arbol/arbol';
 import { useCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost } from '@/api/generado/partes/partes';
 import type { ActividadRespuesta } from '@/api/generado/modelo';
@@ -196,6 +197,7 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
   const crearEtapa = useCrearEtapaApiV1EtapasPost<ErrorApi>();
   const cambiarUnidad = useCambiarUnidadDelConceptoApiV1ConceptosConceptoIdUnidadPut<ErrorApi>();
   const mover = useMoverPartidaApiV1ActividadesActividadIdUbicacionPut<ErrorApi>();
+  const quitar = useQuitarPartidaApiV1ActividadesActividadIdPartidaDelete<ErrorApi>();
 
   const unidadPorClave = useMemo(() => new Map((unidades.data ?? []).map((u) => [u.clave, u.id])), [unidades.data]);
   const partidasPorEtapa = useMemo(() => {
@@ -257,6 +259,16 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
     }
   }
 
+  async function quitarPartida(a: ActividadRespuesta) {
+    if (!window.confirm(`¿Quitar la partida ${a.concepto_clave ?? ''} de la obra? El concepto sigue en el catálogo.`)) return;
+    try {
+      await quitar.mutateAsync({ actividadId: a.id });
+      onCambio(`${a.concepto_clave ?? 'La partida'} quitada de la obra.`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo quitar la partida.');
+    }
+  }
+
   const filaDePartida = (a: ActividadRespuesta) => {
     const tipo = tipoDeMedicion(a.unidad);
     const conMatrices = matricesAbiertas.has(a.id);
@@ -311,6 +323,16 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
           }
         >
           {conMatrices ? 'Ocultar matrices' : 'Matrices'}
+        </button>
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          style={{ justifySelf: 'start' }}
+          aria-label={`Quitar ${a.concepto_clave ?? 'la partida'}`}
+          title="Quita la partida de la obra; solo si no tiene trazos, avance ni estimaciones"
+          onClick={() => void quitarPartida(a)}
+        >
+          Quitar
         </button>
         {conMatrices && (
           <div style={{ gridColumn: '1 / -1' }}>
