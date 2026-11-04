@@ -11531,6 +11531,196 @@
         }
       }
     },
+    "/api/v1/elementos-parametricos/tipos": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Los tipos de elemento paramétrico y sus parámetros por defecto",
+        "operationId": "tipos_de_elemento_api_v1_elementos_parametricos_tipos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TipoDeElementoRespuesta"
+                  },
+                  "type": "array",
+                  "title": "Response Tipos De Elemento Api V1 Elementos Parametricos Tipos Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Los elementos paramétricos de la organización, con la receta de una muestra",
+        "operationId": "listar_elementos_parametricos_api_v1_elementos_parametricos_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ElementoParametricoRespuesta"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Elementos Parametricos Api V1 Elementos Parametricos Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Crear un elemento paramétrico",
+        "operationId": "crear_elemento_parametrico_api_v1_elementos_parametricos_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementoParametricoPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementoParametricoCreado"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo definen Control de obra y Costos."
+          },
+          "422": {
+            "description": "Clave repetida o un parámetro que no vale."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}": {
+      "patch": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Cambiar la clave, el nombre o algunos parámetros de un elemento paramétrico",
+        "operationId": "actualizar_elemento_parametrico_api_v1_elementos_parametricos__elemento_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementoParametricoCambio"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Lo definen Control de obra y Costos."
+          },
+          "404": {
+            "description": "El elemento no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Clave repetida o un parámetro que no vale."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Borrar un elemento paramétrico",
+        "operationId": "eliminar_elemento_parametrico_api_v1_elementos_parametricos__elemento_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Lo definen Control de obra y Costos."
+          },
+          "404": {
+            "description": "El elemento no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/enlaces": {
       "get": {
         "tags": [
@@ -21289,6 +21479,155 @@
         ],
         "title": "ElementoDeMedicion"
       },
+      "ElementoParametricoCambio": {
+        "properties": {
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "parametros": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parametros",
+            "description": "Solo los que cambian."
+          }
+        },
+        "type": "object",
+        "title": "ElementoParametricoCambio"
+      },
+      "ElementoParametricoCreado": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ElementoParametricoCreado"
+      },
+      "ElementoParametricoPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "castillo",
+              "lineal",
+              "zapata",
+              "losa"
+            ],
+            "title": "Tipo"
+          },
+          "parametros": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Parametros",
+            "description": "Los que falten toman el valor por defecto del tipo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "nombre",
+          "tipo"
+        ],
+        "title": "ElementoParametricoPeticion"
+      },
+      "ElementoParametricoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "castillo",
+              "lineal",
+              "zapata",
+              "losa"
+            ],
+            "title": "Tipo"
+          },
+          "parametros": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Parametros"
+          },
+          "receta": {
+            "$ref": "#/components/schemas/RecetaRespuesta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "nombre",
+          "tipo",
+          "parametros",
+          "receta"
+        ],
+        "title": "ElementoParametricoRespuesta"
+      },
       "ElementoPeticion": {
         "properties": {
           "nombre": {
@@ -29222,6 +29561,71 @@
         "type": "object",
         "title": "PublicarCPUPeticion"
       },
+      "RecetaRespuesta": {
+        "properties": {
+          "unidad": {
+            "type": "string",
+            "title": "Unidad",
+            "description": "La unidad de cálculo de la muestra: pza, ml o m²."
+          },
+          "concreto": {
+            "type": "number",
+            "title": "Concreto",
+            "description": "m³ por muestra."
+          },
+          "acero_kg": {
+            "type": "number",
+            "title": "Acero Kg"
+          },
+          "estribos_kg": {
+            "type": "number",
+            "title": "Estribos Kg"
+          },
+          "n_estribos": {
+            "type": "number",
+            "title": "N Estribos"
+          },
+          "long_estribo_m": {
+            "type": "number",
+            "title": "Long Estribo M"
+          },
+          "n_amarres": {
+            "type": "number",
+            "title": "N Amarres"
+          },
+          "alambre_kg": {
+            "type": "number",
+            "title": "Alambre Kg"
+          },
+          "varas": {
+            "type": "number",
+            "title": "Varas",
+            "description": "Varas comerciales de 12 m por muestra."
+          },
+          "cimbra_m2": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Cimbra M2",
+            "description": "m² de cimbra por número de lados."
+          }
+        },
+        "type": "object",
+        "required": [
+          "unidad",
+          "concreto",
+          "acero_kg",
+          "estribos_kg",
+          "n_estribos",
+          "long_estribo_m",
+          "n_amarres",
+          "alambre_kg",
+          "varas",
+          "cimbra_m2"
+        ],
+        "title": "RecetaRespuesta"
+      },
       "RechazarCierreDeFrentePeticion": {
         "properties": {
           "motivo": {
@@ -31618,6 +32022,38 @@
           "alta_catalogo"
         ],
         "title": "TipoControlCambio"
+      },
+      "TipoDeElementoRespuesta": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "castillo",
+              "lineal",
+              "zapata",
+              "losa"
+            ],
+            "title": "Tipo"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "parametros_por_defecto": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Parametros Por Defecto"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo",
+          "unidad",
+          "parametros_por_defecto"
+        ],
+        "title": "TipoDeElementoRespuesta"
       },
       "TipoDeReporteRespuesta": {
         "properties": {
