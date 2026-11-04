@@ -188,11 +188,11 @@ export function ArbolPresupuesto({
                                       aria-pressed={hoja.id === actividadFocoId}
                                       onClick={() => onActivar(hoja.id)}
                                     >
-                                      {hoja.etiqueta}
+                                      {hoja.corta}
                                     </button>
                                   ) : (
                                     <span className="arbol__texto" title={hoja.etiqueta}>
-                                      {hoja.etiqueta}
+                                      {hoja.corta}
                                     </span>
                                   )}
                                   <span className="arbol__meta">

@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ActividadRespuesta, NodoCuantificadoRespuesta } from '@/api/generado/modelo';
-import { arbolDeCuantificacion } from '@/cuantificador/arbol';
+import { arbolDeCuantificacion, descripcionCorta } from '@/cuantificador/arbol';
 
 const act = (id: string, extra: Partial<ActividadRespuesta>): ActividadRespuesta =>
   ({ id, cant_base: '0', ...extra }) as ActividadRespuesta;
@@ -59,5 +59,22 @@ describe('el árbol del cuantificador', () => {
   it('un enlace reemplazado ya no cuenta como medido', () => {
     const arbol = arbolDeCuantificacion(ACTIVIDADES, [medido('a3', '12', '10', 0)]);
     expect(arbol.flatMap((n) => n.etapas).flatMap((e) => e.hojas).filter((h) => h.medido)).toHaveLength(0);
+  });
+});
+
+describe('descripcionCorta', () => {
+  it('deja intacta una descripción corta', () => {
+    expect(descripcionCorta('Firme de concreto')).toBe('Firme de concreto');
+  });
+  it('corta una larga en una palabra completa y pone «…»', () => {
+    const larga = 'Suministro y colocación de aplanado fino acabado rústico en muros interiores y exteriores con mortero';
+    const c = descripcionCorta(larga, 48);
+    expect(c.endsWith('…')).toBe(true);
+    expect(c.length).toBeLessThanOrEqual(49);
+    expect(larga.startsWith(c.slice(0, -1))).toBe(true);
+  });
+  it('tolera nulos y espacios repetidos', () => {
+    expect(descripcionCorta(null)).toBe('');
+    expect(descripcionCorta('  a   b ')).toBe('a b');
   });
 });
