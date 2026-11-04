@@ -141,6 +141,13 @@ interface Props {
   readonly cotas?: readonly Cota[];
   /** Dónde está el cursor sobre el plano (ya asistido); `null` al salir. Solo si alguien lo pide. */
   readonly onMover?: (p: Punto | null) => void;
+  /** Dónde está el cursor (plano, sin asistir) para mostrar sus coordenadas; no vuelve a pintar nada por sí mismo. */
+  readonly onCoordenadas?: (p: Punto | null) => void;
+  /**
+   * Clic derecho **sin arrastre** (el arrastre con el derecho mueve el plano): el trazo bajo el cursor, o `null`, y dónde
+   * está el cursor en pantalla, para abrir el menú del trazo.
+   */
+  readonly onMenu?: (trazoId: string | null, x: number, y: number) => void;
   /**
    * La ayuda de dibujo: recibe el punto bajo el cursor y cuánto vale un píxel en el plano, y devuelve
    * el punto al que se pega (ortogonal, referencia a objetos) y a qué referencia. Con ella el visor
@@ -214,6 +221,8 @@ export function Visor({
   etiquetas = [],
   cotas = [],
   onMover,
+  onCoordenadas,
+  onMenu,
   asistir,
   previa = null,
   marcas = [],
@@ -369,6 +378,7 @@ export function Visor({
           const asistido = asistir?.(bruto, porPixel);
           setReferencia(asistido?.referencia ?? null);
           onMover?.(asistido ? asistido.punto : bruto);
+          onCoordenadas?.(bruto);
         });
       }
       return;
@@ -396,6 +406,11 @@ export function Visor({
     if (alSoltarPuntero(e)) return;
     const g = gesto.current;
     gesto.current = null;
+    if (g && !g.movido && g.soloMueve && e.button === 2 && onMenu) {
+      const sobre = trazoEnPunto(trazos, aPlano(e.clientX, e.clientY), TOLERANCIA_PX * porPixel);
+      onMenu(sobre, e.clientX, e.clientY);
+      return;
+    }
     if (!g || g.movido || g.soloMueve) return;
     const bruto = aPlano(e.clientX, e.clientY);
     const p = asistir && !['seleccionar', 'borrar', 'mano', 'zoom'].includes(herramienta) ? asistir(bruto, porPixel).punto : bruto;
@@ -477,6 +492,7 @@ export function Visor({
       onPointerLeave={() => {
         setReferencia(null);
         onMover?.(null);
+        onCoordenadas?.(null);
       }}
       onContextMenu={(e) => e.preventDefault()}
       style={{ cursor }}

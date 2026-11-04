@@ -409,6 +409,10 @@ export function EspacioDeTrazo({
   const [aGuardar, setAGuardar] = useState<{ tipo: GeometriaBase; puntos: readonly Punto[] } | null>(null);
   /** El trazo que se está por borrar, a la espera de que se confirme. */
   const [porBorrar, setPorBorrar] = useState<string | null>(null);
+  /** El menú del trazo (clic derecho sin arrastre): qué trazo y dónde se abrió en pantalla. */
+  const [menuDelTrazo, setMenuDelTrazo] = useState<{ id: string; x: number; y: number } | null>(null);
+  /** El rótulo de coordenadas se escribe directo en el DOM: el cursor manda decenas de eventos por segundo. */
+  const coordenadasRef = useRef<HTMLSpanElement | null>(null);
   const [mostrarMedidas, setMostrarMedidas] = useState(false);
   const [mostrarCotas, setMostrarCotas] = useState(false);
   const [datosAbiertos, setDatosAbiertos] = useState(false);
@@ -1111,6 +1115,28 @@ export function EspacioDeTrazo({
     }
   }
 
+  function ponerCoordenadas(p: Punto | null) {
+    const el = coordenadasRef.current;
+    if (!el) return;
+    if (p === null) {
+      el.textContent = '';
+      return;
+    }
+    // Con el plano calibrado, metros; sin calibrar, unidades de plano. El eje y crece hacia abajo, como el plano.
+    const k = escalaDelPlano !== null && escalaDelPlano > 0 ? escalaDelPlano : 1;
+    const u = escalaDelPlano !== null && escalaDelPlano > 0 ? 'm' : 'u';
+    el.textContent = `x ${(p[0] * k).toFixed(2)} · y ${(p[1] * k).toFixed(2)} ${u}`;
+  }
+
+  function abrirMenuDelTrazo(id: string | null, x: number, y: number) {
+    if (id === null || !['seleccionar', 'mover'].includes(herramienta)) {
+      setMenuDelTrazo(null);
+      return;
+    }
+    setSeleccion({ tipo: 'trazo', id });
+    setMenuDelTrazo({ id, x, y });
+  }
+
   function alPunto(p: Punto) {
     setAviso(null);
     if (herramienta === 'nota') {
@@ -1349,6 +1375,15 @@ export function EspacioDeTrazo({
       setAviso(err instanceof Error ? err.message : 'No se pudo abrir el hueco.');
     }
   }
+
+  useEffect(() => {
+    if (menuDelTrazo === null) return;
+    const cerrar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuDelTrazo(null);
+    };
+    window.addEventListener('keydown', cerrar);
+    return () => window.removeEventListener('keydown', cerrar);
+  }, [menuDelTrazo]);
 
   // Atajos mientras se dibuja. El efecto se rearma con cada cambio del borrador:
   // los manejadores leen el estado de este render, no uno viejo.
@@ -2587,6 +2622,8 @@ export function EspacioDeTrazo({
                 etiquetas={etiquetas}
                 cotas={cotas}
                 onMover={asistida ? setCursor : undefined}
+                onCoordenadas={ponerCoordenadas}
+                onMenu={abrirMenuDelTrazo}
                 onPunto={alPunto}
                 onSeleccionar={alElegirEnElPlano}
               />
@@ -2643,6 +2680,7 @@ export function EspacioDeTrazo({
 
       {plano !== undefined && (
         <div className="estacion__estado" aria-label="Estado del plano">
+          <span ref={coordenadasRef} className="text-mute text-xs mono" role="status" aria-label="Coordenadas del cursor" />
           {seleccionado !== null && (herramienta === 'seleccionar' || herramienta === 'mover') && (
             <div className="estacion__dibujo row" role="group" aria-label="Mover y girar el trazo">
               <button type="button" className="btn btn--ghost btn--sm" onClick={() => cambiarHerramienta('mover')}>
@@ -2823,6 +2861,64 @@ export function EspacioDeTrazo({
         </div>
       )}
 
+      {menuDelTrazo !== null && seleccionado !== null && seleccionado.id === menuDelTrazo.id && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+          onPointerDown={() => setMenuDelTrazo(null)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setMenuDelTrazo(null);
+          }}
+        >
+          <div
+            role="menu"
+            aria-label="Opciones del trazo"
+            onPointerDown={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              left: Math.min(menuDelTrazo.x, window.innerWidth - 200),
+              top: Math.min(menuDelTrazo.y, window.innerHeight - 170),
+              width: 190,
+              display: 'grid',
+              gap: 2,
+              padding: 6,
+              border: '1px solid var(--line, #ccc)',
+              borderRadius: 10,
+              background: 'var(--panel, #fff)',
+              boxShadow: '0 6px 24px rgb(0 0 0 / .18)',
+            }}
+          >
+            <button type="button" role="menuitem" className="btn btn--ghost btn--sm" onClick={() => { setMenuDelTrazo(null); cambiarHerramienta('mover'); }}>
+              Mover
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="btn btn--ghost btn--sm"
+              onClick={() => {
+                setMenuDelTrazo(null);
+                void girarTrazo(seleccionado.id as string, gradosDeGiro('izquierda', 90, vistaDelPlano));
+              }}
+            >
+              Girar 90° a la izquierda
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="btn btn--ghost btn--sm"
+              onClick={() => {
+                setMenuDelTrazo(null);
+                void girarTrazo(seleccionado.id as string, gradosDeGiro('derecha', 90, vistaDelPlano));
+              }}
+            >
+              Girar 90° a la derecha
+            </button>
+            <button type="button" role="menuitem" className="btn btn--ghost btn--sm" onClick={() => { setMenuDelTrazo(null); setPorBorrar(seleccionado.id as string); }}>
+              Borrar el trazo
+            </button>
+          </div>
+        </div>
+      )}
       {porBorrar !== null && (
         <Modal titulo="Borrar trazo" onCerrar={() => setPorBorrar(null)}>
           <div className="sheet__body col gap-12">
