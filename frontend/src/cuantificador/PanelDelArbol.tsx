@@ -32,6 +32,7 @@ import { useCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost } from '@/a
 import type { ActividadRespuesta } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
 import { descripcionCorta } from './arbol';
+import { CambioDeUnidadDelConcepto } from './CambioDeUnidadDelConcepto';
 import { MatricesDeActividad } from './MatricesDeActividad';
 import { NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
 
@@ -191,6 +192,8 @@ function NuevaPartida({ obraId, etapaId, onCreada, onError }: {
 
 export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props) {
   const [matricesAbiertas, setMatricesAbiertas] = useState<ReadonlySet<string>>(new Set());
+  /** Un cambio de unidad que cruza de tipo en curso: pide equivalencia en vez de cambiarse directo. */
+  const [cambioDeUnidad, setCambioDeUnidad] = useState<{ actividad: ActividadRespuesta; unidadId: string } | null>(null);
   const niveles = useListarNivelesApiV1NivelesGet();
   const etapas = useListarEtapasApiV1EtapasGet();
   const unidades = useListarUnidadesApiV1UnidadesGet(undefined, { query: { staleTime: 60_000 } });
@@ -240,6 +243,14 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
   }
   async function conUnidad(a: ActividadRespuesta, unidadId: string) {
     if (!a.concepto_id || unidadId === '') return;
+    const destino = (unidades.data ?? []).find((u) => u.id === unidadId);
+    const tipoActual = tipoDeMedicion(a.unidad);
+    const tipoNuevo = tipoDeMedicion(destino?.clave);
+    if (destino && tipoNuevo !== tipoActual) {
+      // Cruza de tipo (pieza, longitud, área): pide equivalencia y crea una versión del concepto.
+      setCambioDeUnidad({ actividad: a, unidadId });
+      return;
+    }
     try {
       const r = await cambiarUnidad.mutateAsync({ conceptoId: a.concepto_id, data: { unidad_id: unidadId } });
       onCambio(
@@ -335,6 +346,22 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
         >
           Quitar
         </button>
+        {cambioDeUnidad?.actividad.id === a.id && a.concepto_id && (
+          <div style={{ gridColumn: '1 / -1' }}>
+            <CambioDeUnidadDelConcepto
+              conceptoId={a.concepto_id}
+              clave={a.concepto_clave ?? 'El concepto'}
+              unidadActual={a.unidad ?? 'sin unidad'}
+              unidadId={cambioDeUnidad.unidadId}
+              unidadNueva={(unidades.data ?? []).find((u) => u.id === cambioDeUnidad.unidadId)?.clave ?? ''}
+              onListo={(aviso) => {
+                setCambioDeUnidad(null);
+                if (aviso) onCambio(aviso);
+              }}
+              onError={onError}
+            />
+          </div>
+        )}
         {conMatrices && (
           <div style={{ gridColumn: '1 / -1' }}>
             <MatricesDeActividad actividadId={a.id} puedeEditar />

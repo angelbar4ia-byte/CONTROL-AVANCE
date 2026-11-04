@@ -154,6 +154,7 @@ import { PanelDelArbol } from './PanelDelArbol';
 import { PanelDePropuestas } from './PanelDePropuestas';
 import { ProponerEscala } from './ProponerEscala';
 import { ElementoDelTrazo } from './ElementoDelTrazo';
+import { MarcasDeUnidadDelTrazo } from './MarcasDeUnidadDelTrazo';
 import { VanosDelTrazo } from './VanosDelTrazo';
 import { PanelVolumen } from './PanelVolumen';
 import { resumenDePantalla, type TrazoParaResumen } from './resumen';
@@ -1868,6 +1869,7 @@ export function EspacioDeTrazo({
                 )
               }
             />
+            <MarcasDeUnidadDelTrazo trazoId={seleccionado.id as string} />
             <ElementoDelTrazo
               planoId={planoElegido}
               trazoId={seleccionado.id as string}

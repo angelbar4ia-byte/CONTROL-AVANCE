@@ -78,3 +78,12 @@ describe('descripcionCorta', () => {
     expect(descripcionCorta('  a   b ')).toBe('a b');
   });
 });
+
+import { textoDeEquivalencia } from '@/cuantificador/CambioDeUnidadDelConcepto';
+
+describe('equivalencia de un cambio de unidad', () => {
+  it('se lee en el sentido en que se divide', () => {
+    expect(textoDeEquivalencia('pza', 'm²', 'area')).toBe('m² por cada pza');
+    expect(textoDeEquivalencia('m²', 'pza', 'conteo')).toBe('m² por cada pza');
+  });
+});

@@ -26,6 +26,7 @@ from obractrl.application.casos_uso.generar_obra_desde_prototipo import ObraNoEn
 from obractrl.application.casos_uso.gestionar_programacion import ActividadNoProgramable
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
 from obractrl.domain.catalogos.reglas import ErrorDeCatalogo
+from obractrl.domain.cuantificacion.cambio_de_unidad import cruza_de_tipo
 from obractrl.domain.cuantificacion.unidades import medidas_que_caben, tipo_de_unidad
 from obractrl.domain.partes.estado import ErrorDeParte, EstadoDeParte
 
@@ -108,6 +109,11 @@ class ArmarArbol:
         anterior = concepto["unidad_clave"]
         tipo_anterior = tipo_de_unidad(anterior)
         tipo_nuevo = tipo_de_unidad(unidad["clave"])
+        if concepto["unidad_id"] != unidad_id and cruza_de_tipo(tipo_anterior, tipo_nuevo) and tipo_nuevo is not None:
+            raise ErrorDeCatalogo(
+                "Cambiar a una unidad de otro tipo de medición (pieza, longitud, área) pide una equivalencia y crea una "
+                "versión del concepto: propón el cambio de unidad."
+            )
         if concepto["unidad_id"] != unidad_id:
             caben = medidas_que_caben(tipo_nuevo)
             if caben is not None:

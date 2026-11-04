@@ -11818,6 +11818,309 @@
         }
       }
     },
+    "/api/v1/conceptos/{concepto_id}/cambio-de-unidad": {
+      "post": {
+        "tags": [
+          "cambio de unidad"
+        ],
+        "summary": "Proponer cambiar la unidad de un concepto a otro tipo de medición",
+        "operationId": "proponer_cambio_api_v1_conceptos__concepto_id__cambio_de_unidad_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambioDeUnidadPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CambioDeUnidadRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo proponen y aprueban Control de obra y Costos."
+          },
+          "404": {
+            "description": "El concepto o el cambio no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El cambio no cruza de tipo, ya hay uno por resolver o falta la equivalencia."
+          }
+        }
+      }
+    },
+    "/api/v1/cambios-de-unidad/{cambio_id}": {
+      "get": {
+        "tags": [
+          "cambio de unidad"
+        ],
+        "summary": "Ver un cambio de unidad",
+        "operationId": "ver_cambio_api_v1_cambios_de_unidad__cambio_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cambio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cambio Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CambioDeUnidadRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo proponen y aprueban Control de obra y Costos."
+          },
+          "404": {
+            "description": "El concepto o el cambio no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El cambio no cruza de tipo, ya hay uno por resolver o falta la equivalencia."
+          }
+        }
+      }
+    },
+    "/api/v1/cambios-de-unidad/{cambio_id}/equivalencia": {
+      "put": {
+        "tags": [
+          "cambio de unidad"
+        ],
+        "summary": "Teclear la equivalencia de un cambio por resolver",
+        "operationId": "teclear_equivalencia_api_v1_cambios_de_unidad__cambio_id__equivalencia_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cambio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cambio Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EquivalenciaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CambioDeUnidadRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo proponen y aprueban Control de obra y Costos."
+          },
+          "404": {
+            "description": "El concepto o el cambio no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El cambio no cruza de tipo, ya hay uno por resolver o falta la equivalencia."
+          }
+        }
+      }
+    },
+    "/api/v1/cambios-de-unidad/{cambio_id}/aprobar": {
+      "post": {
+        "tags": [
+          "cambio de unidad"
+        ],
+        "summary": "Aprobar el cambio: nace una versión del concepto con las cantidades convertidas",
+        "operationId": "aprobar_cambio_api_v1_cambios_de_unidad__cambio_id__aprobar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cambio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cambio Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoDelCambioRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo proponen y aprueban Control de obra y Costos."
+          },
+          "404": {
+            "description": "El concepto o el cambio no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El cambio no cruza de tipo, ya hay uno por resolver o falta la equivalencia."
+          },
+          "409": {
+            "description": "Todas las partidas están asignadas o con avance."
+          }
+        }
+      }
+    },
+    "/api/v1/cambios-de-unidad/{cambio_id}/rechazar": {
+      "post": {
+        "tags": [
+          "cambio de unidad"
+        ],
+        "summary": "Rechazar el cambio de unidad",
+        "operationId": "rechazar_cambio_api_v1_cambios_de_unidad__cambio_id__rechazar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cambio_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cambio Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Lo proponen y aprueban Control de obra y Costos."
+          },
+          "404": {
+            "description": "El concepto o el cambio no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El cambio no cruza de tipo, ya hay uno por resolver o falta la equivalencia."
+          }
+        }
+      }
+    },
+    "/api/v1/trazos/{trazo_id}/cambios-de-unidad": {
+      "get": {
+        "tags": [
+          "cambio de unidad"
+        ],
+        "summary": "Qué enlaces de un trazo se rehicieron por un cambio de unidad",
+        "operationId": "marcas_del_trazo_api_v1_trazos__trazo_id__cambios_de_unidad_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MarcaDeCambioRespuesta"
+                  },
+                  "title": "Response Marcas Del Trazo Api V1 Trazos  Trazo Id  Cambios De Unidad Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/enlaces": {
       "get": {
         "tags": [
@@ -17528,6 +17831,149 @@
         ],
         "title": "CambiarEstatusPeticion"
       },
+      "CambioDeUnidadPeticion": {
+        "properties": {
+          "unidad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unidad Id"
+          },
+          "equivalencia": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equivalencia",
+            "description": "Unidades nuevas por una antigua (48 m² por pieza). Sin ella se busca en el destajo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "unidad_id"
+        ],
+        "title": "CambioDeUnidadPeticion"
+      },
+      "CambioDeUnidadRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "concepto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Concepto Id"
+          },
+          "concepto_nuevo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Nuevo Id"
+          },
+          "unidad_anterior_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Anterior Id"
+          },
+          "unidad_nueva_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Unidad Nueva Id"
+          },
+          "tipo_anterior": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Anterior"
+          },
+          "tipo_nuevo": {
+            "type": "string",
+            "title": "Tipo Nuevo"
+          },
+          "equivalencia": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equivalencia"
+          },
+          "origen_equivalencia": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen Equivalencia",
+            "description": "destajo, tecleada o medida."
+          },
+          "estado": {
+            "type": "string",
+            "title": "Estado"
+          },
+          "partidas": {
+            "type": "integer",
+            "title": "Partidas",
+            "description": "Cuántas partidas usan el concepto."
+          },
+          "partidas_bloqueadas": {
+            "type": "integer",
+            "title": "Partidas Bloqueadas",
+            "description": "Cuántas están asignadas o con avance y no se tocan."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "concepto_id",
+          "concepto_nuevo_id",
+          "unidad_anterior_id",
+          "unidad_nueva_id",
+          "tipo_anterior",
+          "tipo_nuevo",
+          "equivalencia",
+          "origen_equivalencia",
+          "estado",
+          "partidas",
+          "partidas_bloqueadas"
+        ],
+        "title": "CambioDeUnidadRespuesta"
+      },
       "CandadoPeticion": {
         "properties": {
           "activo": {
@@ -22277,6 +22723,28 @@
         "title": "EntradaBitacora",
         "description": "Un renglón: quién, cuándo, qué y sobre qué (§7.9)."
       },
+      "EquivalenciaPeticion": {
+        "properties": {
+          "equivalencia": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Equivalencia"
+          }
+        },
+        "type": "object",
+        "required": [
+          "equivalencia"
+        ],
+        "title": "EquivalenciaPeticion"
+      },
       "ErrorDeFilaRespuesta": {
         "properties": {
           "fila": {
@@ -25835,6 +26303,109 @@
         ],
         "title": "LoteRespuesta",
         "description": "Estado de un lote ya registrado (§9.4)."
+      },
+      "MarcaDeCambioRespuesta": {
+        "properties": {
+          "enlace_viejo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Enlace Viejo Id"
+          },
+          "enlace_nuevo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enlace Nuevo Id"
+          },
+          "medida_vieja": {
+            "type": "string",
+            "title": "Medida Vieja"
+          },
+          "medida_nueva": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medida Nueva"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          },
+          "unidad_anterior": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad Anterior"
+          },
+          "unidad_nueva": {
+            "type": "string",
+            "title": "Unidad Nueva"
+          },
+          "tipo_anterior": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Anterior"
+          },
+          "tipo_nuevo": {
+            "type": "string",
+            "title": "Tipo Nuevo"
+          },
+          "equivalencia": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equivalencia"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enlace_viejo_id",
+          "enlace_nuevo_id",
+          "medida_vieja",
+          "medida_nueva",
+          "nota",
+          "unidad_anterior",
+          "unidad_nueva",
+          "tipo_anterior",
+          "tipo_nuevo",
+          "equivalencia"
+        ],
+        "title": "MarcaDeCambioRespuesta"
       },
       "MatricesDeActividadRespuesta": {
         "properties": {
@@ -31491,6 +32062,45 @@
           "valor"
         ],
         "title": "RespuestaItem"
+      },
+      "ResultadoDelCambioRespuesta": {
+        "properties": {
+          "concepto_nuevo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Concepto Nuevo Id"
+          },
+          "clave_nueva": {
+            "type": "string",
+            "title": "Clave Nueva"
+          },
+          "partidas_movidas": {
+            "type": "integer",
+            "title": "Partidas Movidas"
+          },
+          "partidas_bloqueadas": {
+            "type": "integer",
+            "title": "Partidas Bloqueadas"
+          },
+          "enlaces_rehechos": {
+            "type": "integer",
+            "title": "Enlaces Rehechos"
+          },
+          "enlaces_sin_medida": {
+            "type": "integer",
+            "title": "Enlaces Sin Medida"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto_nuevo_id",
+          "clave_nueva",
+          "partidas_movidas",
+          "partidas_bloqueadas",
+          "enlaces_rehechos",
+          "enlaces_sin_medida"
+        ],
+        "title": "ResultadoDelCambioRespuesta"
       },
       "ResultadoRecalculoRespuesta": {
         "properties": {
