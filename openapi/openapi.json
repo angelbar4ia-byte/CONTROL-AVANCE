@@ -1180,6 +1180,53 @@
         }
       }
     },
+    "/api/v1/prototipos/{prototipo_id}": {
+      "patch": {
+        "tags": [
+          "proyectos"
+        ],
+        "summary": "Niveles (plantas) y recámaras de un prototipo",
+        "operationId": "editar_prototipo_api_v1_prototipos__prototipo_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "prototipo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Prototipo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditarPrototipoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "El prototipo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Una casa tiene 1 o 2 niveles; las recámaras no son negativas."
+          }
+        }
+      }
+    },
     "/api/v1/prototipos/{prototipo_id}/nodos": {
       "get": {
         "tags": [
@@ -20713,6 +20760,37 @@
         "type": "object",
         "title": "EditarFrentePeticion",
         "description": "Solo lo que cambia. La `clave` no está: es la identidad (§3.3)."
+      },
+      "EditarPrototipoPeticion": {
+        "properties": {
+          "niveles": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Niveles",
+            "description": "1 o 2: son las plantas del prototipo (planta baja y alta)."
+          },
+          "recamaras": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recamaras"
+          }
+        },
+        "type": "object",
+        "title": "EditarPrototipoPeticion",
+        "description": "Solo viaja lo que cambia: lo que no viene no se toca; `null` lo deja sin decir."
       },
       "EfectoRespuesta": {
         "properties": {

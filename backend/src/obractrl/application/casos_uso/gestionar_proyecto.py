@@ -15,6 +15,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
+from obractrl.application.casos_uso.gestionar_partes import PrototipoNoEncontrado
 from obractrl.application.puertos.repositorios import (
     RepositorioClusters,
     RepositorioPrototipos,
@@ -31,6 +32,7 @@ __all__ = [
     "CrearCluster",
     "CrearPrototipo",
     "CrearProyecto",
+    "EditarNivelesYRecamaras",
     "ErrorDeProyecto",
     "PrototipoCreado",
     "ProyectoCreado",
@@ -168,3 +170,32 @@ class CrearPrototipo:
             )
             await self._uow.commit()
         return PrototipoCreado(id=prototipo_id, prototipo=prototipo)
+
+
+class EditarNivelesYRecamaras:
+    """`PATCH /prototipos/{id}` — niveles (= plantas, 1 o 2) y recámaras.
+
+    Solo cambia lo que viene en la petición; `None` explícito lo deja sin
+    decir. Los niveles son las plantas del cerebro (baja y alta; el roof garden
+    no cuenta), así que son 1 o 2.
+    """
+
+    def __init__(
+        self, *, prototipos: RepositorioPrototipos, uow: UnidadDeTrabajo
+    ) -> None:
+        self._prototipos = prototipos
+        self._uow = uow
+
+    async def ejecutar(self, prototipo_id: UUID, campos: dict[str, int | None]) -> None:
+        niveles = campos.get("niveles")
+        if "niveles" in campos and niveles is not None and niveles not in (1, 2):
+            raise ErrorDeProyecto(f"Una casa tiene 1 o 2 niveles, no {niveles}.")
+        recamaras = campos.get("recamaras")
+        if "recamaras" in campos and recamaras is not None and recamaras < 0:
+            raise ErrorDeProyecto(f"Las recámaras no pueden ser negativas: {recamaras}.")
+        async with self._uow:
+            if not await self._prototipos.fijar_niveles_y_recamaras(prototipo_id, campos):
+                raise PrototipoNoEncontrado(
+                    f"Prototipo {prototipo_id} no encontrado en tu alcance."
+                )
+            await self._uow.commit()

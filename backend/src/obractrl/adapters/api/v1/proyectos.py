@@ -25,6 +25,7 @@ from obractrl.adapters.api.casos_uso import (
     CrearClusterDep,
     CrearPrototipoDep,
     CrearProyectoDep,
+    EditarNivelesYRecamarasDep,
 )
 from obractrl.adapters.api.dependencias import SesionRLS, exigir_rol
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
@@ -293,6 +294,31 @@ async def crear_prototipo(
         )
     )
     return PrototipoRespuesta.desde_dominio(creado.id, creado.prototipo)
+
+
+class EditarPrototipoPeticion(BaseModel):
+    """Solo viaja lo que cambia: lo que no viene no se toca; `null` lo deja sin decir."""
+
+    niveles: int | None = Field(
+        default=None, description="1 o 2: son las plantas del prototipo (planta baja y alta)."
+    )
+    recamaras: int | None = Field(default=None, ge=0)
+
+
+@router.patch(
+    "/prototipos/{prototipo_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Niveles (plantas) y recámaras de un prototipo",
+    dependencies=[CONFIGURA],
+    responses={
+        404: {"description": "El prototipo no existe o está fuera de tu alcance."},
+        422: {"description": "Una casa tiene 1 o 2 niveles; las recámaras no son negativas."},
+    },
+)
+async def editar_prototipo(
+    prototipo_id: UUID, peticion: EditarPrototipoPeticion, caso_uso: EditarNivelesYRecamarasDep
+) -> None:
+    await caso_uso.ejecutar(prototipo_id, peticion.model_dump(exclude_unset=True))
 
 
 class NodoPrototipoRespuesta(BaseModel):

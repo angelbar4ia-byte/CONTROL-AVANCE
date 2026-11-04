@@ -36,6 +36,7 @@ import type {
   UnidadRespuesta,
 } from '@/api/generado/modelo';
 import { fmtMXN, fmtNum, fmtPct } from '@/lib/formato';
+import { CeldasNivelesYRecamaras } from '@/proyectos/NivelesYRecamaras';
 import type { Resultado } from './busqueda';
 import { soloPorDescripcion } from './busqueda';
 import {
@@ -606,7 +607,10 @@ export function TablaPrototipos({
   resultados,
   proyectos,
   cargando,
+  puedeEditar = false,
 }: {
+  /** Control de obra y Super intendente llenan niveles y recámaras aquí. */
+  readonly puedeEditar?: boolean;
   readonly resultados: readonly Resultado<PrototipoRespuesta>[];
   /** Para resolver la clave/nombre del proyecto al que pertenece (§7.2). */
   readonly proyectos: readonly ProyectoRespuesta[];
@@ -629,8 +633,7 @@ export function TablaPrototipos({
               {proyecto ? `${proyecto.clave} · ${proyecto.nombre}` : '—'}
             </td>
             <td className="is-num tnum">{fmtNum(item.m2)}</td>
-            <td className="is-num tnum">{item.niveles ?? '—'}</td>
-            <td className="is-num tnum">{item.recamaras ?? '—'}</td>
+            <CeldasNivelesYRecamaras prototipo={item} editable={puedeEditar} />
           </tr>
         );
       })}
