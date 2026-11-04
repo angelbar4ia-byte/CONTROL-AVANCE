@@ -62,7 +62,20 @@ _DESCUENTO_DE_VANOS_SQL = """
            * 2 / nullif(e.factor, 0)
     end
 """
-_MEDIDA_VALOR_SQL = f"""
+_VANOS_DISPONIBLES = False
+"""Se vuelve `True` cuando la tabla `vano` (0103) ya existe y no se vuelve a preguntar."""
+
+
+async def _medida_valor_sql(sesion: AsyncSession) -> str:
+    """La fórmula de `medida_valor`. Descuenta los vanos solo si la tabla existe: un despliegue del código puede
+    llegar antes que la migración 0103 (expand → contract) y no debe tumbar toda lectura de trazos."""
+    global _VANOS_DISPONIBLES
+    if not _VANOS_DISPONIBLES:
+        _VANOS_DISPONIBLES = bool(
+            (await sesion.execute(text("select to_regclass('public.vano') is not null"))).scalar_one()
+        )
+    descuento = _DESCUENTO_DE_VANOS_SQL if _VANOS_DISPONIBLES else "0"
+    return f"""
     case e.medida
       when 'area'      then case
                               when t.grosor_m is not null
@@ -71,7 +84,7 @@ _MEDIDA_VALOR_SQL = f"""
                             end
       when 'perimetro'  then ST_Perimeter({_GEOMETRIA_SQL}) * {_ESCALA_SQL}
       when 'longitud'   then greatest(
-                              ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * {_PENDIENTE_SQL} - {_DESCUENTO_DE_VANOS_SQL},
+                              ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * {_PENDIENTE_SQL} - {descuento},
                               0)
       when 'conteo'     then 1
     end
@@ -684,7 +697,7 @@ class RepositorioTrazosSQL:
                     f"""
                     select e.id, e.trazo_id, e.tipo_nodo, e.actividad_id,
                            e.prototipo_nodo_id, e.matriz_concepto_id, e.medida, e.factor,
-                           e.vigente, {_MEDIDA_VALOR_SQL} as medida_valor
+                           e.vigente, {await _medida_valor_sql(self._sesion)} as medida_valor
                       from enlace_cuantificacion e
                       join trazo t on t.id = e.trazo_id
                       join plano p on p.id = t.plano_id
@@ -804,7 +817,7 @@ class RepositorioEnlacesCuantificacionSQL:
                 text(
                     f"""
                     select e.id, e.vigente, e.factor,
-                           {_MEDIDA_VALOR_SQL} as medida_valor
+                           {await _medida_valor_sql(self._sesion)} as medida_valor
                       from enlace_cuantificacion e
                       join trazo t on t.id = e.trazo_id
                       join plano p on p.id = t.plano_id
@@ -897,7 +910,7 @@ class RepositorioEnlacesCuantificacionSQL:
                     f"""
                     select e.id, e.tipo_nodo, e.actividad_id,
                            e.prototipo_nodo_id, e.matriz_concepto_id, e.medida, e.factor, e.vigente,
-                           {_MEDIDA_VALOR_SQL} as medida_valor,
+                           {await _medida_valor_sql(self._sesion)} as medida_valor,
                            (t.version_plano < p.version) as por_revisar,
                            coalesce(a.descripcion, pn.nombre) as descripcion,
                            coalesce(a.cant_base, pn.cantidad) as cant_base

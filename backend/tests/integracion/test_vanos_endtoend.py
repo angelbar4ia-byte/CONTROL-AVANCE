@@ -116,3 +116,23 @@ async def test_un_vano_solo_va_en_una_linea_y_valida_sus_medidas(escenario: Esce
     assert (await control.post(f"/api/v1/trazos/{muro}/vanos", json={**PUERTA, "ancho_m": "0"})).status_code == 422
     assert (await control.post(f"/api/v1/trazos/{uuid.uuid4()}/vanos", json=PUERTA)).status_code == 404
     assert (await control.delete(f"/api/v1/vanos/{uuid.uuid4()}")).status_code == 404
+
+
+async def test_sin_la_tabla_de_vanos_se_sigue_midiendo(escenario: Escenario, control: httpx.AsyncClient) -> None:
+    """Un despliegue del código antes de la migración 0103 no tumba la lectura de trazos (expand → contract)."""
+    from obractrl.adapters.repos import cuantificacion_sql as repo
+
+    plano, muro = await _muro(control, escenario, "longitud", "5.2")
+    motor = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with motor.begin() as conn:
+            await conn.execute(text("alter table vano rename to vano_oculta"))
+        repo._VANOS_DISPONIBLES = False
+        r = await control.get(f"/api/v1/planos/{plano}/trazos")
+        assert r.status_code == 200, r.text
+        assert next(f for f in r.json()["features"] if f["id"] == muro)["properties"]["enlaces"][0]["cantidad"] is not None
+    finally:
+        async with motor.begin() as conn:
+            await conn.execute(text("alter table vano_oculta rename to vano"))
+        await motor.dispose()
+        repo._VANOS_DISPONIBLES = False
