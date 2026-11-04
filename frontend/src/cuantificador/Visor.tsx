@@ -23,8 +23,9 @@
  * ## Mover la vista
  *
  * La rueda acerca y aleja (centrada en el cursor), y arrastrar con el botón derecho o el del
- * medio mueve el plano con cualquier herramienta. Con la herramienta Mano, y para un arrastre
- * largo con el izquierdo, también. En una pantalla táctil, un dedo arrastra el plano y dos dedos
+ * medio mueve el plano con cualquier herramienta, y con la herramienta Mano también el izquierdo.
+ * Con Seleccionar, arrastrar con el izquierdo (ratón o lápiz) dibuja una ventana de selección: hacia abajo
+ * elige lo que cubre por completo; hacia arriba, lo que toca. En una pantalla táctil, un dedo arrastra el plano y dos dedos
  * lo acercan o alejan (pellizco) con el punto medio como centro. Con la herramienta Zoom un clic acerca y Mayús/Alt + clic aleja.
  */
 
