@@ -13,6 +13,7 @@ import {
   MODOS,
   TIPOS,
   descripcionModo,
+  etiquetaConPaso,
   etiquetaEstatus,
   etiquetaModo,
   etiquetaTipo,
@@ -141,5 +142,23 @@ describe('resumen tolerante', () => {
 
   it('un resumen vacío se lee como ceros', () => {
     expect(resumenDe(lote({ resumen: {} })).filas).toBe(0);
+  });
+});
+
+describe('orden de subida de los archivos', () => {
+  it('el selector sigue el orden de carga y numera los pasos', () => {
+    const e = (t: string) => TIPOS.indexOf(t as (typeof TIPOS)[number]);
+    expect(e('materiales')).toBeLessThan(e('trabajos'));
+    expect(e('trabajos')).toBeLessThan(e('semilla_cuadrilla_rendimiento'));
+    expect(e('mano_de_obra')).toBeLessThan(e('semilla_cuadrilla_rendimiento'));
+    expect(e('prototipos')).toBeLessThan(e('cpu'));
+    expect(e('cpu')).toBeLessThan(e('almacen'));
+    expect(etiquetaConPaso('unidades')).toBe('1. Unidades');
+    expect(etiquetaConPaso('catalogo_conceptos')).toMatch(/^Otros · /);
+  });
+
+  it('el archivo de presupuesto se sube por «Presupuesto y prototipos»', () => {
+    expect(TIPOS).not.toContain('presupuesto');
+    expect(etiquetaTipo('prototipos')).toMatch(/Presupuesto/);
   });
 });
