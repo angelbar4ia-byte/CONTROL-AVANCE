@@ -35,6 +35,7 @@ import {
   etiquetaConPaso,
   modoDestructivo,
   requiereAntes,
+  despuesDeSubir,
 } from './reglas';
 
 /**
@@ -188,6 +189,7 @@ export function SubirCarga({ tipoInicial, obraInicial, onCerrar, onAplicada }: P
               Cada tipo espera las cabeceras de su plantilla (§10.6). Descárgala
               desde la bandeja si no la tienes. Se suben en el orden de la lista.
               {requiereAntes(tipo) !== null && <> Antes necesita: {requiereAntes(tipo)}</>}
+              {despuesDeSubir(tipo) !== null && <> <strong>Ojo:</strong> {despuesDeSubir(tipo)}</>}
             </div>
           </div>
 

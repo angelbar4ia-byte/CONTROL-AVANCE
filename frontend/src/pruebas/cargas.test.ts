@@ -13,6 +13,7 @@ import {
   MODOS,
   TIPOS,
   descripcionModo,
+  despuesDeSubir,
   etiquetaConPaso,
   etiquetaEstatus,
   etiquetaModo,
@@ -160,5 +161,13 @@ describe('orden de subida de los archivos', () => {
   it('el archivo de presupuesto se sube por «Presupuesto y prototipos»', () => {
     expect(TIPOS).not.toContain('presupuesto');
     expect(etiquetaTipo('prototipos')).toMatch(/Presupuesto/);
+  });
+});
+
+describe('el presupuesto se sube dos veces', () => {
+  it('el selector avisa, en los dos tipos, que el presupuesto se repite tras el análisis de básicos', () => {
+    expect(despuesDeSubir('prototipos')).toMatch(/otra vez/);
+    expect(despuesDeSubir('cpu')).toMatch(/vuelve a subir/);
+    expect(despuesDeSubir('materiales')).toBeNull();
   });
 });

@@ -91,6 +91,24 @@ export function requiereAntes(tipo: string): string | null {
   return REQUIERE_ANTES[tipo] ?? null;
 }
 
+/**
+ * Lo que hay que hacer **después** de subir un tipo. El presupuesto guarda cada partida con el
+ * costo que el concepto tenía al subirlo y no lo recalcula solo (`pu` se fija al crear la
+ * versión): la primera vez los conceptos aún no tienen receta y todo queda en $0. Subirlo de
+ * nuevo, ya con el análisis de básicos, toma el costo vigente y crea una versión nueva del
+ * presupuesto (la anterior se conserva). No se puede evitar el primer paso: el análisis de
+ * básicos necesita que los conceptos del presupuesto ya existan.
+ */
+const DESPUES_DE_SUBIR: Record<string, string> = {
+  prototipos:
+    'Después del análisis de básicos, súbelo otra vez: la primera vez las partidas quedan en $0 porque los conceptos aún no tienen receta.',
+  cpu: 'Después vuelve a subir «Presupuesto y prototipos» para que el presupuesto tome los costos (si no, quedan en $0).',
+};
+
+export function despuesDeSubir(tipo: string): string | null {
+  return DESPUES_DE_SUBIR[tipo] ?? null;
+}
+
 function posicion(tipo: string): number {
   const i = ORDEN_DE_CARGA.indexOf(tipo);
   return i === -1 ? ORDEN_DE_CARGA.length : i;
