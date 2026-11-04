@@ -52,6 +52,7 @@ import {
   useListarMedicionesApiV1PlanosPlanoIdMedicionesGet,
 } from '@/api/generado/mediciones/mediciones';
 import type {
+  CuadrillaRespuesta,
   ElementoRespuesta,
   MedicionRespuesta,
   TrazoPeticion,
@@ -63,6 +64,7 @@ import type {
   NotaPlanoDetalleRespuesta,
   PlanoDetalleRespuesta,
   TrazoRespuesta,
+  TrabajoDeObraRespuesta,
   TrazosDePlanoRespuesta,
 } from '@/api/generado/modelo';
 import {
@@ -71,6 +73,8 @@ import {
   useListarEnlacesDeHojaApiV1PlanosPlanoIdEnlacesGet,
 } from '@/api/generado/enlaces-de-hoja/enlaces-de-hoja';
 import { useListarObrasApiV1ObrasGet } from '@/api/generado/obras/obras';
+import { useTrabajosDeObraApiV1ObrasObraIdTrabajosGet } from '@/api/generado/torre/torre';
+import { useListarCuadrillasApiV1CuadrillasGet } from '@/api/generado/catalogos/catalogos';
 import {
   useAceptarPropuestasApiV1PlanosPlanoIdPropuestasAceptarPost,
   useRechazarPropuestasApiV1PlanosPlanoIdPropuestasRechazarPost,
@@ -87,7 +91,9 @@ import { fmtFecha, fmtNum } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { SelectorObra } from '@/lib/SelectorObra';
 import { AltaNota } from './AltaNota';
+import { EditorDeTrabajo } from './EditorDeTrabajo';
 import { PanelDeElementos } from './PanelDeElementos';
+import { PanelDeTrabajos, cuadrillasDeLosTrabajos, type TrabajoElegido } from './PanelDeTrabajos';
 import { PanelDeMediciones } from './PanelDeMediciones';
 import { TrazosDelPlano } from './TrazosDelPlano';
 import { admiteGeometria, asignacionesEfectivas, colorDeConcepto, coloresDeMediciones, idsDeRama } from './mediciones';
@@ -433,7 +439,7 @@ export function EspacioDeTrazo({
   const [volumenAbierto, setVolumenAbierto] = useState(false);
   const [arbolAbierto, setArbolAbierto] = useAjuste('arbol', !compacto);
   // La segunda pestaña del panel lateral: el navegador de planos (el presupuesto es la primera).
-  const [pestana, setPestana] = useState<'presupuesto' | 'planos' | 'mediciones' | 'trazos' | 'elementos' | 'arbol'>('presupuesto');
+  const [pestana, setPestana] = useState<'presupuesto' | 'planos' | 'mediciones' | 'trazos' | 'elementos' | 'trabajos' | 'arbol'>('presupuesto');
   /** La medición activa (la capa sombra): lo que se dibuja entra a ella. */
   const [medicionActivaId, setMedicionActivaId] = useState<string | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useAjuste('detalle', !compacto);
@@ -460,6 +466,11 @@ export function EspacioDeTrazo({
   const listaDeElementos = useMemo(() => elementosConsulta.data ?? [], [elementosConsulta.data]);
   /** El peso de un elemento cambia cantidades de presupuesto (kg y ton): lo ponen Control de obra y Costos. */
   const puedePonerPeso = sesion?.rol === 'control_obra' || sesion?.rol === 'costos';
+  // Trabajos: el costo de una cuadrilla es del catálogo de costos, así que lo ven Control de obra, Super
+  // intendente y Costos; solo Control de obra lo edita (las rutas de edición son suyas).
+  const puedeVerTrabajos = sesion?.rol === 'control_obra' || sesion?.rol === 'super_intendente' || sesion?.rol === 'costos';
+  const puedeEditarTrabajos = sesion?.rol === 'control_obra';
+  const [trabajoElegido, setTrabajoElegido] = useState<TrabajoElegido | null>(null);
   const medicionActiva = medicionActivaId ? (listaDeMediciones.find((m) => m.id === medicionActivaId) ?? null) : null;
 
   // Al llegar la lista, se abre el primer plano para no dejar al usuario frente
@@ -516,6 +527,21 @@ export function EspacioDeTrazo({
     NodoCuantificadoRespuesta[],
     ErrorApi
   >(obraId, { query: { enabled: obraId !== '' } });
+  const trabajosConsulta = useTrabajosDeObraApiV1ObrasObraIdTrabajosGet<TrabajoDeObraRespuesta[], ErrorApi>(
+    obraId,
+    { query: { enabled: obraId !== '' && puedeVerTrabajos } },
+  );
+  const listaDeTrabajos = useMemo(() => trabajosConsulta.data ?? [], [trabajosConsulta.data]);
+  const cuadrillasConsulta = useListarCuadrillasApiV1CuadrillasGet<CuadrillaRespuesta[], ErrorApi>(undefined, {
+    query: { enabled: puedeEditarTrabajos && pestana === 'trabajos' },
+  });
+  const cuadrillasDelCatalogo = useMemo(() => cuadrillasConsulta.data ?? [], [cuadrillasConsulta.data]);
+  const cuadrillasDeLaObra = useMemo(() => cuadrillasDeLosTrabajos(listaDeTrabajos), [listaDeTrabajos]);
+  /** Lo medido de cada actividad: con la cantidad presupuestada, da la del concepto en Trabajos. */
+  const medidaPorActividad = useMemo(
+    () => new Map((estado.data ?? []).filter((n) => n.tipo_nodo === 'actividad').map((n) => [n.nodo_id, n.cantidad_medida])),
+    [estado.data],
+  );
   const actividadesConsulta = useActividadesDeObraApiV1ObrasObraIdActividadesGet<
     ActividadRespuesta[],
     ErrorApi
@@ -1652,14 +1678,37 @@ export function EspacioDeTrazo({
   const detalle = (
     <aside className="estacion__detalle" aria-label="Detalle">
       <div className="estacion__titulo">
-        {seleccionado
+        {pestana === 'trabajos' && trabajoElegido && puedeVerTrabajos
+          ? trabajoElegido.tipo === 'cuadrilla'
+            ? 'Trabajo · cuadrilla'
+            : 'Trabajo · destajo'
+          : seleccionado
           ? 'Trazo elegido'
           : notaElegida
             ? `${NOMBRE_DE_ANOTACION[notaElegida.tipo ?? 'nota']} elegida`
             : 'Trazos del plano'}
       </div>
       <div className="estacion__detalle-cuerpo col">
-        {notaElegida ? (
+        {pestana === 'trabajos' && trabajoElegido && puedeVerTrabajos ? (
+          <EditorDeTrabajo
+            elegido={trabajoElegido}
+            trabajos={listaDeTrabajos}
+            cuadrillasDeLaObra={cuadrillasDeLaObra}
+            cuadrillasDelCatalogo={cuadrillasDelCatalogo}
+            medidaPorActividad={medidaPorActividad}
+            puedeEditar={puedeEditarTrabajos}
+            onCambio={(mensaje) => {
+              void trabajosConsulta.refetch();
+              void cuadrillasConsulta.refetch();
+              setAviso(mensaje);
+            }}
+            onError={(m) => setAviso(m)}
+            onVerConcepto={(actividadId) => {
+              setPestana('presupuesto');
+              setConceptoActivo(actividadId);
+            }}
+          />
+        ) : notaElegida ? (
           <>
             <div className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>
               {notaElegida.texto}
@@ -1838,6 +1887,19 @@ export function EspacioDeTrazo({
         >
           Elementos <span className="estacion__contador">{listaDeElementos.length}</span>
         </button>
+        {puedeVerTrabajos && (
+          <button
+            type="button"
+            role="tab"
+            id="pestana-trabajos"
+            aria-selected={pestana === 'trabajos'}
+            aria-controls="panel-trabajos"
+            className={pestana === 'trabajos' ? 'estacion__pestana is-activa' : 'estacion__pestana'}
+            onClick={() => setPestana('trabajos')}
+          >
+            Trabajos <span className="estacion__contador">{listaDeTrabajos.length}</span>
+          </button>
+        )}
         {puedePonerPeso && (
           <button
             type="button"
@@ -1896,6 +1958,16 @@ export function EspacioDeTrazo({
             elegidoId={seleccion?.tipo === 'trazo' ? seleccion.id : null}
             opciones={opcionesDeLaListaDeTrazos}
             onElegir={(trazoId) => setSeleccion({ tipo: 'trazo', id: trazoId })}
+          />
+        </div>
+      ) : pestana === 'trabajos' && puedeVerTrabajos ? (
+        <div role="tabpanel" id="panel-trabajos" aria-labelledby="pestana-trabajos" className="estacion__panel-pestana">
+          <PanelDeTrabajos
+            trabajos={listaDeTrabajos}
+            medidaPorActividad={medidaPorActividad}
+            elegido={trabajoElegido}
+            cargando={trabajosConsulta.isLoading}
+            onElegir={setTrabajoElegido}
           />
         </div>
       ) : pestana === 'elementos' ? (

@@ -34,6 +34,11 @@ from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS, exigir
 from obractrl.adapters.api.idempotencia import Idempotencia
 from obractrl.adapters.repos.torre_sql import RepositorioTorreSQL
 from obractrl.application.casos_uso.dar_de_alta_extra import ComandoDarDeAltaExtra
+from obractrl.domain.catalogos.rendimientos import (
+    jornadas_por_unidad,
+    razon_teorico_calculado,
+    rendimiento_calculado,
+)
 from obractrl.domain.obras.extra_catalogo import ActividadExtra
 from obractrl.domain.obras.precio_armado import (
     LineaDeCuadrilla,
@@ -293,6 +298,72 @@ async def actividades_de_obra(
         estatus=estatus.value if estatus else None,
         solo_criticas=solo_criticas,
     )
+
+
+class TrabajoDeObraRespuesta(BaseModel):
+    """Un destajo (o subcontrato) de la receta de un concepto de la obra, con su cuadrilla.
+
+    Los datos capturados son la cuadrilla y el rendimiento teórico; el calculado, las jornadas por
+    unidad y la razón se derivan (`CATALOGOS.md` §10). La cantidad del destajo es la del concepto ×
+    `factor`, y la del concepto la pone la pantalla: lo medido en el plano o, si no hay, lo
+    presupuestado.
+    """
+
+    actividad_id: UUID
+    concepto_id: UUID
+    concepto_clave: str | None = None
+    concepto_descripcion: str | None = None
+    concepto_unidad: str | None = None
+    cantidad_presupuestada: Decimal | None = None
+    insumo_id: UUID
+    clave: str
+    descripcion: str
+    unidad: str | None = None
+    precio: Decimal = Field(description="Precio del destajo (costo base).")
+    factor: Decimal = Field(description="Unidades del destajo por cada unidad del concepto.")
+    categoria: str
+    cuadrilla_id: UUID | None = None
+    cuadrilla_clave: str | None = None
+    cuadrilla_nombre: str | None = None
+    costo_cuadrilla: Decimal | None = Field(
+        default=None, description="Lo que cuesta una jornada de la cuadrilla."
+    )
+    rendimiento_teorico: Decimal | None = None
+    rendimiento_calculado: Decimal | None = Field(
+        default=None, description="Costo de la cuadrilla ÷ precio del destajo."
+    )
+    jornadas_por_unidad: Decimal | None = None
+    razon_teorico_calculado: Decimal | None = None
+    origen_rendimiento: str | None = None
+
+    @classmethod
+    def desde_fila(cls, fila: dict) -> TrabajoDeObraRespuesta:
+        costo = fila.get("costo_cuadrilla")
+        precio = fila["precio"]
+        calculado = rendimiento_calculado(costo, precio)
+        return cls(
+            **fila,
+            rendimiento_calculado=calculado,
+            jornadas_por_unidad=jornadas_por_unidad(costo, precio),
+            razon_teorico_calculado=razon_teorico_calculado(
+                fila.get("rendimiento_teorico"), calculado
+            ),
+        )
+
+
+@router.get(
+    "/obras/{obra_id}/trabajos",
+    response_model=list[TrabajoDeObraRespuesta],
+    summary="Destajos y cuadrillas de los conceptos de una obra",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE, Rol.COSTOS))],
+)
+async def trabajos_de_obra(obra_id: UUID, sesion: SesionRLS) -> list[TrabajoDeObraRespuesta]:
+    """La pestaña Trabajos del cuantificador: por cada concepto de la obra, los destajos de su receta
+    con la cuadrilla y el rendimiento de cada uno. Una obra fuera del alcance devuelve lista vacía
+    (RLS), igual que sus actividades. Control de obra, Super intendente y Costos: el costo de una
+    cuadrilla es del catálogo de costos."""
+    filas = await RepositorioTorreSQL(sesion).trabajos_de_obra(obra_id)
+    return [TrabajoDeObraRespuesta.desde_fila(f) for f in filas]
 
 
 @router.get(

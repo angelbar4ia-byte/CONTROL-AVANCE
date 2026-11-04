@@ -760,6 +760,59 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/trabajos": {
+      "get": {
+        "tags": [
+          "torre"
+        ],
+        "summary": "Destajos y cuadrillas de los conceptos de una obra",
+        "description": "La pestaña Trabajos del cuantificador: por cada concepto de la obra, los destajos de su receta\ncon la cuadrilla y el rendimiento de cada uno. Una obra fuera del alcance devuelve lista vacía\n(RLS), igual que sus actividades. Control de obra, Super intendente y Costos: el costo de una\ncuadrilla es del catálogo de costos.",
+        "operationId": "trabajos_de_obra_api_v1_obras__obra_id__trabajos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TrabajoDeObraRespuesta"
+                  },
+                  "title": "Response Trabajos De Obra Api V1 Obras  Obra Id  Trabajos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/actividades/{actividad_id}": {
       "get": {
         "tags": [
@@ -31404,6 +31457,225 @@
           "obra"
         ],
         "title": "TipoSemana"
+      },
+      "TrabajoDeObraRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "concepto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Concepto Id"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "concepto_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Descripcion"
+          },
+          "concepto_unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Unidad"
+          },
+          "cantidad_presupuestada": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Presupuestada"
+          },
+          "insumo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Insumo Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "precio": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Precio",
+            "description": "Precio del destajo (costo base)."
+          },
+          "factor": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Factor",
+            "description": "Unidades del destajo por cada unidad del concepto."
+          },
+          "categoria": {
+            "type": "string",
+            "title": "Categoria"
+          },
+          "cuadrilla_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Id"
+          },
+          "cuadrilla_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Clave"
+          },
+          "cuadrilla_nombre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuadrilla Nombre"
+          },
+          "costo_cuadrilla": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo Cuadrilla",
+            "description": "Lo que cuesta una jornada de la cuadrilla."
+          },
+          "rendimiento_teorico": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendimiento Teorico"
+          },
+          "rendimiento_calculado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rendimiento Calculado",
+            "description": "Costo de la cuadrilla ÷ precio del destajo."
+          },
+          "jornadas_por_unidad": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jornadas Por Unidad"
+          },
+          "razon_teorico_calculado": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Razon Teorico Calculado"
+          },
+          "origen_rendimiento": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origen Rendimiento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "concepto_id",
+          "insumo_id",
+          "clave",
+          "descripcion",
+          "precio",
+          "factor",
+          "categoria"
+        ],
+        "title": "TrabajoDeObraRespuesta",
+        "description": "Un destajo (o subcontrato) de la receta de un concepto de la obra, con su cuadrilla.\n\nLos datos capturados son la cuadrilla y el rendimiento teórico; el calculado, las jornadas por\nunidad y la razón se derivan (`CATALOGOS.md` §10). La cantidad del destajo es la del concepto ×\n`factor`, y la del concepto la pone la pantalla: lo medido en el plano o, si no hay, lo\npresupuestado."
       },
       "TrabajoRespuesta": {
         "properties": {
