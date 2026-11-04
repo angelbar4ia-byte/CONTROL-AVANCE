@@ -241,3 +241,22 @@ class RepositorioArbolSQL:
         await self._sesion.execute(
             text("delete from actividad where id = :i"), {"i": str(actividad_id)}
         )
+
+    async def ajustar_nivel(self, nivel_id: UUID, *, descripcion: str | None, orden: int | None) -> bool:
+        r = await self._sesion.execute(
+            text(
+                "update nivel set descripcion = coalesce(:d, descripcion), orden = coalesce(:o, orden) where id = :i"
+            ),
+            {"i": str(nivel_id), "d": descripcion, "o": orden},
+        )
+        return bool(r.rowcount)
+
+    async def ajustar_etapa(self, etapa_id: UUID, *, descripcion: str | None, orden: int | None) -> bool:
+        r = await self._sesion.execute(
+            text(
+                "update etapa_constructiva set descripcion = coalesce(:d, descripcion), orden = coalesce(:o, orden) "
+                "where id = :i"
+            ),
+            {"i": str(etapa_id), "d": descripcion, "o": orden},
+        )
+        return bool(r.rowcount)

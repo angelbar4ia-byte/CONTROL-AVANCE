@@ -87,3 +87,20 @@ describe('equivalencia de un cambio de unidad', () => {
     expect(textoDeEquivalencia('m²', 'pza', 'conteo')).toBe('m² por cada pza');
   });
 });
+
+import { reordenar } from '@/cuantificador/arbol';
+
+describe('reordenar niveles, etapas y partidas', () => {
+  it('subir un lugar intercambia con el de arriba y numera a todos', () => {
+    const r = reordenar(['a', 'b', 'c'], 'c', 'up');
+    expect([...(r ?? [])]).toEqual([['a', 1], ['c', 2], ['b', 3]]);
+  });
+  it('bajar el primero lo pasa al segundo lugar', () => {
+    expect(reordenar(['a', 'b'], 'a', 'down')?.get('a')).toBe(2);
+  });
+  it('en el extremo no hay nada que cambiar', () => {
+    expect(reordenar(['a', 'b'], 'a', 'up')).toBeNull();
+    expect(reordenar(['a', 'b'], 'b', 'down')).toBeNull();
+    expect(reordenar(['a', 'b'], 'zzz', 'up')).toBeNull();
+  });
+});

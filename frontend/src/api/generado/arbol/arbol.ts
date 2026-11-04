@@ -14,6 +14,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AjusteDeNivelOEtapa,
   EtapaPeticion,
   HTTPValidationError,
   IdCreado,
@@ -642,6 +643,190 @@ export const useQuitarPartidaApiV1ActividadesActividadIdPartidaDelete = <
     getQuitarPartidaApiV1ActividadesActividadIdPartidaDeleteMutationOptions(
       options,
     );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Renombrar un nivel o cambiar su lugar
+ */
+export const ajustarNivelApiV1NivelesNivelIdPatch = (
+  nivelId: string,
+  ajusteDeNivelOEtapa: AjusteDeNivelOEtapa,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/niveles/${nivelId}`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: ajusteDeNivelOEtapa,
+    },
+    options,
+  );
+};
+
+export const getAjustarNivelApiV1NivelesNivelIdPatchMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof ajustarNivelApiV1NivelesNivelIdPatch>>,
+    TError,
+    { nivelId: string; data: AjusteDeNivelOEtapa },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof ajustarNivelApiV1NivelesNivelIdPatch>>,
+  TError,
+  { nivelId: string; data: AjusteDeNivelOEtapa },
+  TContext
+> => {
+  const mutationKey = ["ajustarNivelApiV1NivelesNivelIdPatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof ajustarNivelApiV1NivelesNivelIdPatch>>,
+    { nivelId: string; data: AjusteDeNivelOEtapa }
+  > = (props) => {
+    const { nivelId, data } = props ?? {};
+
+    return ajustarNivelApiV1NivelesNivelIdPatch(nivelId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AjustarNivelApiV1NivelesNivelIdPatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof ajustarNivelApiV1NivelesNivelIdPatch>>
+>;
+export type AjustarNivelApiV1NivelesNivelIdPatchMutationBody =
+  AjusteDeNivelOEtapa;
+export type AjustarNivelApiV1NivelesNivelIdPatchMutationError = void;
+
+/**
+ * @summary Renombrar un nivel o cambiar su lugar
+ */
+export const useAjustarNivelApiV1NivelesNivelIdPatch = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof ajustarNivelApiV1NivelesNivelIdPatch>>,
+      TError,
+      { nivelId: string; data: AjusteDeNivelOEtapa },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof ajustarNivelApiV1NivelesNivelIdPatch>>,
+  TError,
+  { nivelId: string; data: AjusteDeNivelOEtapa },
+  TContext
+> => {
+  const mutationOptions =
+    getAjustarNivelApiV1NivelesNivelIdPatchMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Renombrar una etapa o cambiar su lugar
+ */
+export const ajustarEtapaApiV1EtapasEtapaIdPatch = (
+  etapaId: string,
+  ajusteDeNivelOEtapa: AjusteDeNivelOEtapa,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/etapas/${etapaId}`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: ajusteDeNivelOEtapa,
+    },
+    options,
+  );
+};
+
+export const getAjustarEtapaApiV1EtapasEtapaIdPatchMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof ajustarEtapaApiV1EtapasEtapaIdPatch>>,
+    TError,
+    { etapaId: string; data: AjusteDeNivelOEtapa },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof ajustarEtapaApiV1EtapasEtapaIdPatch>>,
+  TError,
+  { etapaId: string; data: AjusteDeNivelOEtapa },
+  TContext
+> => {
+  const mutationKey = ["ajustarEtapaApiV1EtapasEtapaIdPatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof ajustarEtapaApiV1EtapasEtapaIdPatch>>,
+    { etapaId: string; data: AjusteDeNivelOEtapa }
+  > = (props) => {
+    const { etapaId, data } = props ?? {};
+
+    return ajustarEtapaApiV1EtapasEtapaIdPatch(etapaId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AjustarEtapaApiV1EtapasEtapaIdPatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof ajustarEtapaApiV1EtapasEtapaIdPatch>>
+>;
+export type AjustarEtapaApiV1EtapasEtapaIdPatchMutationBody =
+  AjusteDeNivelOEtapa;
+export type AjustarEtapaApiV1EtapasEtapaIdPatchMutationError = void;
+
+/**
+ * @summary Renombrar una etapa o cambiar su lugar
+ */
+export const useAjustarEtapaApiV1EtapasEtapaIdPatch = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof ajustarEtapaApiV1EtapasEtapaIdPatch>>,
+      TError,
+      { etapaId: string; data: AjusteDeNivelOEtapa },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof ajustarEtapaApiV1EtapasEtapaIdPatch>>,
+  TError,
+  { etapaId: string; data: AjusteDeNivelOEtapa },
+  TContext
+> => {
+  const mutationOptions =
+    getAjustarEtapaApiV1EtapasEtapaIdPatchMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };

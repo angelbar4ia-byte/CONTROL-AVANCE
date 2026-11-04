@@ -193,3 +193,28 @@ async def mover_partida(
 )
 async def quitar_partida(actividad_id: UUID, caso_uso: ArmarArbolDep) -> None:
     await caso_uso.quitar_partida(actividad_id)
+
+
+class AjusteDeNivelOEtapa(BaseModel):
+    descripcion: str | None = Field(default=None, min_length=1, description="El nombre nuevo.")
+    orden: int | None = Field(default=None, ge=0, le=32000, description="Su lugar entre los demás (menor, primero).")
+
+
+@router.patch(
+    "/niveles/{nivel_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Renombrar un nivel o cambiar su lugar",
+    responses={422: {"description": "El nivel no existe o el nombre está vacío."}},
+)
+async def ajustar_nivel(nivel_id: UUID, peticion: AjusteDeNivelOEtapa, caso_uso: ArmarArbolDep) -> None:
+    await caso_uso.ajustar_nivel(nivel_id, descripcion=peticion.descripcion, orden=peticion.orden)
+
+
+@router.patch(
+    "/etapas/{etapa_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Renombrar una etapa o cambiar su lugar",
+    responses={422: {"description": "La etapa no existe o el nombre está vacío."}},
+)
+async def ajustar_etapa(etapa_id: UUID, peticion: AjusteDeNivelOEtapa, caso_uso: ArmarArbolDep) -> None:
+    await caso_uso.ajustar_etapa(etapa_id, descripcion=peticion.descripcion, orden=peticion.orden)

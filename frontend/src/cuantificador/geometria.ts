@@ -616,3 +616,60 @@ export function proyectarEnPolilinea(
   }
   return mejor;
 }
+
+/** Un trazo reducido a lo que importa para elegirlo con una ventana: sus puntos y si cierra (un área). */
+export interface TrazoParaVentana {
+  readonly id: string;
+  readonly puntos: readonly Punto[];
+  readonly cerrada: boolean;
+}
+
+const enCaja = (q: Punto, c: Caja): boolean => q[0] >= c.minX && q[0] <= c.maxX && q[1] >= c.minY && q[1] <= c.maxY;
+
+function seCruzan(a: Punto, b: Punto, c: Punto, d: Punto): boolean {
+  const o = (p: Punto, q: Punto, r: Punto) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+  return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
+}
+
+/** ¿El punto cae dentro del polígono cerrado `p`? (par-impar) */
+function dentroDelPoligono(q: Punto, p: readonly Punto[]): boolean {
+  let dentro = false;
+  for (let i = 0, j = p.length - 1; i < p.length; j = i, i += 1) {
+    const a = p[i] as Punto;
+    const b = p[j] as Punto;
+    if (a[1] > q[1] !== b[1] > q[1] && q[0] < ((b[0] - a[0]) * (q[1] - a[1])) / (b[1] - a[1]) + a[0]) dentro = !dentro;
+  }
+  return dentro;
+}
+
+/** El trazo está **entero** dentro de la ventana. */
+export function ventanaCubre(t: TrazoParaVentana, caja: Caja): boolean {
+  return t.puntos.length > 0 && t.puntos.every((q) => enCaja(q, caja));
+}
+
+/** El trazo **toca** la ventana: un punto suyo dentro, un lado que la cruza, o la ventana entera dentro de su área. */
+export function ventanaToca(t: TrazoParaVentana, caja: Caja): boolean {
+  const p = t.puntos;
+  if (p.some((q) => enCaja(q, caja))) return true;
+  const esquinas: Punto[] = [
+    [caja.minX, caja.minY],
+    [caja.maxX, caja.minY],
+    [caja.maxX, caja.maxY],
+    [caja.minX, caja.maxY],
+  ];
+  const lados = t.cerrada ? p.length : p.length - 1;
+  for (let i = 0; i < lados; i += 1) {
+    const a = p[i] as Punto;
+    const b = p[(i + 1) % p.length] as Punto;
+    for (let j = 0; j < 4; j += 1) if (seCruzan(a, b, esquinas[j] as Punto, esquinas[(j + 1) % 4] as Punto)) return true;
+  }
+  return t.cerrada && dentroDelPoligono(esquinas[0] as Punto, p);
+}
+
+/**
+ * Selección por ventana (como en un programa de dibujo): arrastrando **hacia abajo** se elige solo lo que la ventana
+ * cubre por completo; **hacia arriba**, todo lo que toca.
+ */
+export function trazosEnVentana(trazos: readonly TrazoParaVentana[], caja: Caja, haciaAbajo: boolean): string[] {
+  return trazos.filter((t) => (haciaAbajo ? ventanaCubre(t, caja) : ventanaToca(t, caja))).map((t) => t.id);
+}

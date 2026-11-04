@@ -157,3 +157,16 @@ export function descripcionCorta(texto: string | null | undefined, maximo = 48):
   const corte = limpio.lastIndexOf(' ', maximo);
   return `${limpio.slice(0, corte > maximo * 0.5 ? corte : maximo).trimEnd()}…`;
 }
+
+/**
+ * Cambia de lugar un elemento entre sus hermanos: devuelve el `orden` (1, 2, 3…) que le toca a cada uno **solo si
+ * algo cambia**. `dir`: `up` lo sube un lugar, `down` lo baja. `null` si ya está en el extremo.
+ */
+export function reordenar(ids: readonly string[], id: string, dir: 'up' | 'down'): ReadonlyMap<string, number> | null {
+  const i = ids.indexOf(id);
+  const j = dir === 'up' ? i - 1 : i + 1;
+  if (i === -1 || j < 0 || j >= ids.length) return null;
+  const nuevo = [...ids];
+  [nuevo[i], nuevo[j]] = [nuevo[j] as string, nuevo[i] as string];
+  return new Map(nuevo.map((x, k) => [x, k + 1]));
+}

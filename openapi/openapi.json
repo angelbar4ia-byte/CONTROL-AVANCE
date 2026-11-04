@@ -12752,6 +12752,94 @@
         }
       }
     },
+    "/api/v1/niveles/{nivel_id}": {
+      "patch": {
+        "tags": [
+          "arbol"
+        ],
+        "summary": "Renombrar un nivel o cambiar su lugar",
+        "operationId": "ajustar_nivel_api_v1_niveles__nivel_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "nivel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Nivel Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AjusteDeNivelOEtapa"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "El nivel no existe o el nombre está vacío."
+          }
+        }
+      }
+    },
+    "/api/v1/etapas/{etapa_id}": {
+      "patch": {
+        "tags": [
+          "arbol"
+        ],
+        "summary": "Renombrar una etapa o cambiar su lugar",
+        "operationId": "ajustar_etapa_api_v1_etapas__etapa_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "etapa_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Etapa Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AjusteDeNivelOEtapa"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "La etapa no existe o el nombre está vacío."
+          }
+        }
+      }
+    },
     "/api/v1/obras/{obra_id}/desviaciones": {
       "get": {
         "tags": [
@@ -16975,6 +17063,39 @@
           "respuestas"
         ],
         "title": "AgregarRespuestasPeticion"
+      },
+      "AjusteDeNivelOEtapa": {
+        "properties": {
+          "descripcion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Descripcion",
+            "description": "El nombre nuevo."
+          },
+          "orden": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 32000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden",
+            "description": "Su lugar entre los demás (menor, primero)."
+          }
+        },
+        "type": "object",
+        "title": "AjusteDeNivelOEtapa"
       },
       "AlcancePeticion": {
         "properties": {

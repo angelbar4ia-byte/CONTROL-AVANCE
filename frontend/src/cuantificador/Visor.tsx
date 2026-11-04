@@ -23,8 +23,9 @@
  * ## Mover la vista
  *
  * La rueda acerca y aleja (centrada en el cursor), y arrastrar con el botón derecho o el del
- * medio mueve el plano con cualquier herramienta. Con la herramienta Mano, y para un arrastre
- * largo con el izquierdo, también. En una pantalla táctil, un dedo arrastra el plano y dos dedos
+ * medio mueve el plano con cualquier herramienta, y con la herramienta Mano también el izquierdo.
+ * Con Seleccionar, arrastrar con el izquierdo (ratón o lápiz) dibuja una ventana de selección: hacia abajo
+ * elige lo que cubre por completo; hacia arriba, lo que toca. En una pantalla táctil, un dedo arrastra el plano y dos dedos
  * lo acercan o alejan (pellizco) con el punto medio como centro. Con la herramienta Zoom un clic acerca y Mayús/Alt + clic aleja.
  */
 
@@ -43,12 +44,15 @@ import {
   puntosDe,
   rutaSvg,
   notaEnPunto,
+  partesDe,
   trazoEnPunto,
+  trazosEnVentana,
   vistaQueEncuadra,
   zoomEn,
   type GeometriaGeoJson,
   type Herramienta,
   type Punto,
+  type TrazoParaVentana,
   type Vista,
 } from './geometria';
 
@@ -146,6 +150,8 @@ interface Props {
   readonly onSeleccionar: (seleccion: Seleccion | null, agregar?: boolean) => void;
   /** Los demás trazos elegidos (multiselección), además de `seleccion`. */
   readonly seleccionados?: ReadonlySet<string>;
+  /** Selección por ventana: los trazos que cubre (arrastrando hacia abajo) o toca (hacia arriba). `agregar`: con Mayús o Ctrl. */
+  readonly onSeleccionarVarios?: (ids: readonly string[], agregar: boolean) => void;
   /** El cuerpo de la línea que se está dibujando, si lleva grosor. */
   readonly bandaEnCurso?: readonly Punto[];
   /** La forma que se estamparía bajo el cursor (punto con forma). */
@@ -211,6 +217,8 @@ interface Gesto {
   movido: boolean;
   /** Botón derecho o del medio: solo mueve la vista, nunca pone un punto. */
   soloMueve: boolean;
+  /** El arrastre con Seleccionar dibuja una ventana de selección en vez de mover el plano. */
+  ventana?: boolean;
 }
 
 export function Visor({
@@ -228,6 +236,7 @@ export function Visor({
   notas,
   seleccion,
   seleccionados,
+  onSeleccionarVarios,
   herramienta,
   borrador,
   huecos = [],
@@ -250,6 +259,8 @@ export function Visor({
 }: Props) {
   const svg = useRef<SVGSVGElement>(null);
   const gesto = useRef<Gesto | null>(null);
+  /** La ventana de selección en curso, en coordenadas de vista (las del SVG). */
+  const [ventana, setVentana] = useState<{ x0: number; y0: number; x1: number; y1: number; abajo: boolean } | null>(null);
   // Dedos sobre la pantalla (o el ratón): con dos, el gesto es un pellizco que acerca y aleja.
   const punteros = useRef(new Map<number, { x: number; y: number }>());
   const pinza = useRef<{ d0: number; v0: Vista; p0: Punto; m0: { x: number; y: number } } | null>(null);
@@ -406,6 +417,15 @@ export function Visor({
     const dy = e.clientY - g.pantallaY;
     if (!g.movido && Math.hypot(dx, dy) < UMBRAL_ARRASTRE) return;
     g.movido = true;
+    // Con Seleccionar, el arrastre del botón izquierdo (ratón o lápiz) dibuja una ventana; el plano se mueve con el
+    // botón derecho o el del medio, con la herramienta Mano o con un dedo.
+    if (onSeleccionarVarios && herramienta === 'seleccionar' && !g.soloMueve && e.pointerType !== 'touch') {
+      g.ventana = true;
+      const a = aVista(g.pantallaX, g.pantallaY);
+      const b = aVista(e.clientX, e.clientY);
+      setVentana({ x0: a[0], y0: a[1], x1: b[0], y1: b[1], abajo: e.clientY > g.pantallaY });
+      return;
+    }
     vistaTocada.current = true;
     const escala = g.vista.ancho / anchoPantalla;
     setVista(desplazar(g.vista, dx * escala, dy * escala));
@@ -428,6 +448,21 @@ export function Visor({
     if (g && !g.movido && g.soloMueve && e.button === 2 && onMenu) {
       const sobre = trazoEnPunto(trazos, aPlano(e.clientX, e.clientY), TOLERANCIA_PX * porPixel);
       onMenu(sobre, e.clientX, e.clientY);
+      return;
+    }
+    if (g?.ventana && onSeleccionarVarios) {
+      const a = aVista(g.pantallaX, g.pantallaY);
+      const b = aVista(e.clientX, e.clientY);
+      const caja = { minX: Math.min(a[0], b[0]), minY: Math.min(a[1], b[1]), maxX: Math.max(a[0], b[0]), maxY: Math.max(a[1], b[1]) };
+      // Los puntos de cada trazo, en coordenadas de vista (con el giro y el espejo aplicados).
+      const candidatos: TrazoParaVentana[] = trazos.flatMap((t) =>
+        partesDe(t.geometry)
+          .filter((parte) => !parte.hueco)
+          .map((parte) => ({ id: t.id, puntos: parte.puntos.map((q) => T.aplicar(q)), cerrada: parte.tipo === 'anillo' })),
+      );
+      const ids = [...new Set(trazosEnVentana(candidatos, caja, e.clientY > g.pantallaY))];
+      setVentana(null);
+      onSeleccionarVarios(ids, e.shiftKey || e.ctrlKey || e.metaKey);
       return;
     }
     if (!g || g.movido || g.soloMueve) return;
@@ -508,6 +543,7 @@ export function Visor({
       onPointerCancel={(e) => {
         alSoltarPuntero(e);
         gesto.current = null;
+        setVentana(null);
       }}
       onPointerLeave={() => {
         setReferencia(null);
@@ -822,6 +858,17 @@ export function Visor({
         </g>
       )}
       </g>
+      {ventana && (
+        <rect
+          className={ventana.abajo ? 'visor__ventana' : 'visor__ventana visor__ventana--toca'}
+          data-testid="ventana-de-seleccion"
+          x={Math.min(ventana.x0, ventana.x1)}
+          y={Math.min(ventana.y0, ventana.y1)}
+          width={Math.abs(ventana.x1 - ventana.x0)}
+          height={Math.abs(ventana.y1 - ventana.y0)}
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
     </svg>
   );
 }

@@ -157,3 +157,25 @@ async def test_quitar_una_partida_sin_uso_y_no_la_que_ya_trabaja(
 
     assert (await control.delete(f"/api/v1/actividades/{actividad}/partida")).status_code == 204
     assert (await control.delete(f"/api/v1/actividades/{actividad}/partida")).status_code == 404
+
+
+async def test_renombrar_y_reordenar_niveles_y_etapas(
+    escenario: Escenario, catalogo: dict, control: httpx.AsyncClient, residente: httpx.AsyncClient
+) -> None:
+    a = (await control.post("/api/v1/niveles", json={"clave": "na", "descripcion": "Alfa"})).json()["id"]
+    b = (await control.post("/api/v1/niveles", json={"clave": "nb", "descripcion": "Beta"})).json()["id"]
+    e = (await control.post("/api/v1/etapas", json={"nivel_id": a, "clave": "ea", "descripcion": "Cim"})).json()["id"]
+
+    # Sin orden, salen por clave; con orden, Beta pasa adelante.
+    assert [n["clave"] for n in (await control.get("/api/v1/niveles")).json()] == ["NA", "NB"]
+    assert (await control.patch(f"/api/v1/niveles/{b}", json={"orden": 1, "descripcion": "Beta 2"})).status_code == 204
+    assert (await control.patch(f"/api/v1/niveles/{a}", json={"orden": 2})).status_code == 204
+    lista = (await control.get("/api/v1/niveles")).json()
+    assert [n["clave"] for n in lista] == ["NB", "NA"] and lista[0]["descripcion"] == "Beta 2"
+
+    assert (await control.patch(f"/api/v1/etapas/{e}", json={"descripcion": "Cimentación"})).status_code == 204
+    assert next(x for x in (await control.get("/api/v1/etapas")).json() if x["id"] == e)["descripcion"] == "Cimentación"
+
+    assert (await control.patch(f"/api/v1/niveles/{uuid.uuid4()}", json={"orden": 1})).status_code == 422
+    assert (await control.patch(f"/api/v1/etapas/{e}", json={"descripcion": ""})).status_code == 422
+    assert (await residente.patch(f"/api/v1/niveles/{a}", json={"orden": 5})).status_code == 403
