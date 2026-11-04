@@ -30,6 +30,7 @@ import {
   TIPOS,
   etiquetaEstatus,
   etiquetaModo,
+  etiquetaConPaso,
   etiquetaTipo,
   resumenDe,
   tonoEstatus,
@@ -125,7 +126,7 @@ export default function Cargas() {
               disabled={bajando !== null}
               onClick={() => void bajarPlantilla(t)}
             >
-              {bajando === t ? 'Bajando…' : etiquetaTipo(t)}
+              {bajando === t ? 'Bajando…' : etiquetaConPaso(t)}
             </button>
           ))}
         </div>
@@ -153,7 +154,7 @@ export default function Cargas() {
                 setVerAnteriores(false);
               }}
             >
-              {etiquetaTipo(t)}
+              {etiquetaConPaso(t)}
             </button>
           ))}
         </div>

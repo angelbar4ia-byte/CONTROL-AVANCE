@@ -32,8 +32,9 @@ import {
   tiposParaRol,
   descripcionModo,
   etiquetaModo,
-  etiquetaTipo,
+  etiquetaConPaso,
   modoDestructivo,
+  requiereAntes,
 } from './reglas';
 
 /**
@@ -179,13 +180,14 @@ export function SubirCarga({ tipoInicial, obraInicial, onCerrar, onAplicada }: P
             >
               {tipos.map((t) => (
                 <option key={t} value={t}>
-                  {etiquetaTipo(t)}
+                  {etiquetaConPaso(t)}
                 </option>
               ))}
             </select>
             <div className="field__hint">
               Cada tipo espera las cabeceras de su plantilla (§10.6). Descárgala
-              desde la bandeja si no la tienes.
+              desde la bandeja si no la tienes. Se suben en el orden de la lista.
+              {requiereAntes(tipo) !== null && <> Antes necesita: {requiereAntes(tipo)}</>}
             </div>
           </div>
 

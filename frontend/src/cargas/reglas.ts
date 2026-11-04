@@ -32,7 +32,7 @@ const ETIQUETA_TIPO: Record<string, string> = {
   programa_base: 'Programa base',
   obras: 'Obras',
   almacen: 'Salidas de almacén',
-  prototipos: 'Prototipos (alta masiva)',
+  prototipos: 'Presupuesto y prototipos (catálogo de presupuesto)',
   trabajos: 'Catálogo de trabajos (destajo/subcontrato)',
   ingenieria_lote: 'Ingeniería del lote',
 };
@@ -49,9 +49,62 @@ const TIPOS_CUBIERTOS_POR_OTRO: readonly string[] = ['presupuesto'];
  * error que se quiso quitar.
  */
 
-export const TIPOS: readonly TipoCarga[] = Object.values(TipoCarga).filter(
-  (tipo) => !TIPOS_CUBIERTOS_POR_OTRO.includes(tipo),
-);
+/**
+ * Orden en que se suben los archivos de OPUS: cada paso solo necesita lo que
+ * ya cargaron los anteriores. Los primeros once son el arranque del catálogo;
+ * siguen los que dependen de una obra o de un proyecto; al final, los tipos
+ * que el servidor acepta pero ya no son parte del camino normal.
+ *
+ * - Semilla de cuadrillas: liga cada destajo (trabajos) con su cuadrilla
+ *   (catálogo de mano de obra); falla si falta alguno.
+ * - Presupuesto y prototipos: arma el árbol de conceptos del que cuelga el
+ *   análisis de básicos (su `clave_padre` debe existir).
+ * - Análisis de básicos: lleva materiales, trabajos y cuadrillas ya cargados.
+ */
+const ORDEN_DE_CARGA: readonly string[] = [
+  'unidades',
+  'familias',
+  'niveles',
+  'etapas_constructivas',
+  'materiales',
+  'fletes',
+  'trabajos',
+  'mano_de_obra',
+  'semilla_cuadrilla_rendimiento',
+  'prototipos',
+  'cpu',
+  'contratistas',
+  'programa_base',
+  'obras',
+  'ingenieria_lote',
+  'almacen',
+];
+
+/** Lo que debe estar cargado antes de subir cada tipo (texto de ayuda). */
+const REQUIERE_ANTES: Record<string, string> = {
+  semilla_cuadrilla_rendimiento: 'Catálogo de trabajos y catálogo de mano de obra.',
+  prototipos: 'Nada: es el árbol de conceptos del que cuelga el análisis de básicos.',
+  cpu: 'Presupuesto y prototipos, materiales, fletes, trabajos y catálogo de mano de obra.',
+};
+
+export function requiereAntes(tipo: string): string | null {
+  return REQUIERE_ANTES[tipo] ?? null;
+}
+
+function posicion(tipo: string): number {
+  const i = ORDEN_DE_CARGA.indexOf(tipo);
+  return i === -1 ? ORDEN_DE_CARGA.length : i;
+}
+
+export const TIPOS: readonly TipoCarga[] = Object.values(TipoCarga)
+  .filter((tipo) => !TIPOS_CUBIERTOS_POR_OTRO.includes(tipo))
+  .sort((a, b) => posicion(a) - posicion(b));
+
+/** «5. Materiales»: el número es el paso en que se sube; sin número, fuera del camino normal. */
+export function etiquetaConPaso(tipo: string): string {
+  const i = ORDEN_DE_CARGA.indexOf(tipo);
+  return i === -1 ? `Otros · ${etiquetaTipo(tipo)}` : `${i + 1}. ${etiquetaTipo(tipo)}`;
+}
 export const MODOS: readonly ModoCarga[] = Object.values(ModoCarga);
 
 export function etiquetaTipo(tipo: string): string {
