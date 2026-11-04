@@ -10081,6 +10081,59 @@
         }
       }
     },
+    "/api/v1/trazos/transformar": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Mover o girar trazos, con sus huecos",
+        "description": "Un largo o un área no cambian al mover o girar: las cantidades de los enlaces siguen iguales.\nTodo o nada: si uno de los trazos no se puede tocar, no se mueve ninguno.",
+        "operationId": "transformar_trazos_api_v1_trazos_transformar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransformarTrazosPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransformarTrazosRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No es un trazo tuyo sin aprobar (Control de obra y Super intendente tocan cualquiera), o alimenta un prototipo_nodo y el rol no puede tocarlo."
+          },
+          "404": {
+            "description": "Un trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/trazos/{trazo_id}/huecos/{hueco_id}": {
       "delete": {
         "tags": [
@@ -31776,6 +31829,120 @@
         "title": "TramoDTO",
         "description": "Un segmento de una actividad interrumpida (§7.6).\n\nLista vacía = actividad continua, el caso normal. Con tramos, la\n`duracion_dias` de la actividad es la **suma** de sus tramos —los días de\ntrabajo— y lo que ocupa en el calendario es\n`max(offset_dias + duracion_dias)`, que es lo que el CPM encadena."
       },
+      "TransformarTrazosPeticion": {
+        "properties": {
+          "trazo_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Trazo Ids"
+          },
+          "dx": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Dx",
+            "default": "0"
+          },
+          "dy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Dy",
+            "default": "0"
+          },
+          "grados": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 360.0,
+                "minimum": -360.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Grados",
+            "default": "0"
+          },
+          "pivote": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string",
+                        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string",
+                        "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                      }
+                    ]
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pivote"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_ids"
+        ],
+        "title": "TransformarTrazosPeticion",
+        "description": "Mover `(dx, dy)` o girar `grados`: una cosa o la otra.\n\nLas coordenadas son las del plano. `grados` es el giro en ese sistema (positivo de +x hacia +y);\nqué es «izquierda» en pantalla lo decide la vista del plano, y de eso se ocupa quien llama.\nSin `pivote` cada trazo gira sobre el centro de su propia caja; con él, todos giran juntos\nalrededor de ese punto."
+      },
+      "TransformarTrazosRespuesta": {
+        "properties": {
+          "trazos": {
+            "items": {
+              "$ref": "#/components/schemas/TrazoTransformadoRespuesta"
+            },
+            "type": "array",
+            "title": "Trazos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazos"
+        ],
+        "title": "TransformarTrazosRespuesta"
+      },
       "TransicionDeParteRespuesta": {
         "properties": {
           "id": {
@@ -32387,6 +32554,44 @@
           "recalculos"
         ],
         "title": "TrazoTraidoRespuesta"
+      },
+      "TrazoTransformadoRespuesta": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "pivote": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pivote",
+            "description": "El centro usado al girar; sirve para deshacer el giro."
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id"
+        ],
+        "title": "TrazoTransformadoRespuesta"
       },
       "TrazosDePlanoRespuesta": {
         "properties": {

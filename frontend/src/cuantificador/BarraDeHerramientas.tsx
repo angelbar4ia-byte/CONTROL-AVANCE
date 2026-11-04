@@ -22,6 +22,7 @@ import {
   Layers,
   Link2,
   MapPin,
+  Move,
   MousePointer,
   Pentagon,
   Redo2,
@@ -91,6 +92,7 @@ const ICONOS: Record<Herramienta, Icono> = {
   elipse_l: IconoElipse,
   punto: MapPin,
   copiar: CopyPlus,
+  mover: Move,
   hueco: SquareMinus,
   borrar: Eraser,
   escala: Ruler,
@@ -116,6 +118,7 @@ export const ETIQUETAS: Record<Herramienta, string> = {
   elipse_l: 'Elipse (recorrido)',
   punto: 'Punto',
   copiar: 'Copiar en lote',
+  mover: 'Mover',
   hueco: 'Hueco',
   borrar: 'Borrar',
   escala: 'Calibrar escala',
@@ -141,6 +144,7 @@ export const ATAJOS: Record<Herramienta, string> = {
   elipse_l: '',
   punto: 'O',
   copiar: 'K',
+  mover: 'M',
   hueco: 'U',
   borrar: 'B',
   escala: 'E',
@@ -162,7 +166,7 @@ const BLOQUES: readonly { readonly clave: BloqueDeBarra; readonly titulo?: strin
   { clave: 'area', titulo: 'Área', herramientas: ['poligono', 'rectangulo', 'circulo', 'elipse', 'contorno', 'hueco'] },
   { clave: 'lineal', titulo: 'Lineal', herramientas: ['linea', 'polilinea', 'arco', 'rectangulo_l', 'circulo_l', 'elipse_l'] },
   { clave: 'conteo', titulo: 'Conteo', herramientas: ['punto', 'copiar', 'conteo_auto'] },
-  { clave: 'otros', herramientas: ['nota', 'enlace', 'borrar'] },
+  { clave: 'otros', herramientas: ['mover', 'nota', 'enlace', 'borrar'] },
 ];
 
 export interface Accion {

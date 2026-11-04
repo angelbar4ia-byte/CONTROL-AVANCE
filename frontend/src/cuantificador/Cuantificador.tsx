@@ -35,6 +35,7 @@ import {
   useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost,
   useTraerTrazoApiV1TrazosTrazoIdTraerPost,
   useEliminarTrazoApiV1TrazosTrazoIdDelete,
+  useTransformarTrazosApiV1TrazosTransformarPost,
   useAprobarTrazoApiV1TrazosTrazoIdAprobarPost,
   useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet,
   useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet,
@@ -159,6 +160,8 @@ import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Vi
 import {
   PUNTOS_MINIMOS_DE_HUECO,
   aWkt,
+  gradosDeGiro,
+  trasladar,
   geojsonAWkt,
   areaDeGeometria,
   type GeometriaBase,
@@ -191,6 +194,7 @@ const HERRAMIENTAS: readonly Herramienta[] = [
   'elipse_l',
   'punto',
   'copiar',
+  'mover',
   'hueco',
   'borrar',
   'escala',
@@ -234,6 +238,7 @@ const ATAJOS: Readonly<Record<string, Herramienta>> = {
   w: 'contorno',
   o: 'punto',
   k: 'copiar',
+  m: 'mover',
   e: 'escala',
   n: 'nota',
 };
@@ -805,7 +810,7 @@ export function EspacioDeTrazo({
   /** Las que se cierran solas al dar el último clic; las demás terminan con Enter. */
   const clicsDeLaForma = forma && forma !== 'punto' ? CLICS_DE_FORMA[forma] : undefined;
   /** Dónde funcionan las ayudas: al dibujar, abrir un hueco, estampar un punto y calibrar. */
-  const asistida = forma !== null || herramienta === 'hueco' || herramienta === 'escala' || herramienta === 'copiar';
+  const asistida = forma !== null || herramienta === 'hueco' || herramienta === 'escala' || herramienta === 'copiar' || herramienta === 'mover';
   /** Solo los tramos rectos se alinean a un ángulo (no las curvas ni los rectángulos, ni la calibración, que mide una distancia cualquiera). */
   const usaOrtogonal =
     herramienta === 'poligono' ||
@@ -834,6 +839,8 @@ export function EspacioDeTrazo({
   const eliminar = useEliminarTrazoApiV1TrazosTrazoIdDelete<ErrorApi>();
   const registrarTrazo = useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost<ErrorApi>();
   const quitarHueco = useQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete<ErrorApi>();
+  const transformar = useTransformarTrazosApiV1TrazosTransformarPost<ErrorApi>();
+  const [anguloLibre, setAnguloLibre] = useState('15');
 
   const refrescarHistorial = () => setVersionHistorial((v) => v + 1);
   /** El id con el que existe hoy un trazo, si se recreó una o varias veces al deshacer y rehacer. */
@@ -976,6 +983,55 @@ export function EspacioDeTrazo({
     }
   }
 
+  /** Mueve el trazo elegido `dx`, `dy` (unidades del plano); se deshace con el desplazamiento opuesto. */
+  async function moverTrazo(id: string, dx: number, dy: number) {
+    if (dx === 0 && dy === 0) return;
+    try {
+      await transformar.mutateAsync({ data: { trazo_ids: [id], dx, dy } });
+      historial.registrar({
+        etiqueta: 'trazo movido',
+        deshacer: async () => {
+          await transformar.mutateAsync({ data: { trazo_ids: [vigente(id)], dx: -dx, dy: -dy } });
+        },
+        rehacer: async () => {
+          await transformar.mutateAsync({ data: { trazo_ids: [vigente(id)], dx, dy } });
+        },
+      });
+      refrescarHistorial();
+      setAviso('Trazo movido. Sus medidas no cambian.');
+      invalidarTrazos();
+    } catch (err) {
+      setAviso(`No se pudo mover el trazo: ${err instanceof Error ? err.message : 'error'}`);
+    }
+  }
+
+  /** Gira el trazo elegido `grados` (los del servidor) sobre su centro; el pivote devuelto permite deshacerlo exacto. */
+  async function girarTrazo(id: string, grados: number) {
+    if (grados === 0) return;
+    try {
+      const r = await transformar.mutateAsync({ data: { trazo_ids: [id], grados } });
+      const pivote = r.trazos[0]?.pivote ?? null;
+      historial.registrar({
+        etiqueta: 'trazo girado',
+        deshacer: async () => {
+          await transformar.mutateAsync({
+            data: { trazo_ids: [vigente(id)], grados: -grados, ...(pivote ? { pivote } : {}) },
+          });
+        },
+        rehacer: async () => {
+          await transformar.mutateAsync({
+            data: { trazo_ids: [vigente(id)], grados, ...(pivote ? { pivote } : {}) },
+          });
+        },
+      });
+      refrescarHistorial();
+      setAviso('Trazo girado. Sus medidas no cambian.');
+      invalidarTrazos();
+    } catch (err) {
+      setAviso(`No se pudo girar el trazo: ${err instanceof Error ? err.message : 'error'}`);
+    }
+  }
+
   /** Una copia de la pieza elegida centrada en `p`: mismos enlaces, misma forma, sin abrir el cajón. */
   async function copiarPieza(p: Punto) {
     if (piezaElegida === null) return;
@@ -1037,13 +1093,17 @@ export function EspacioDeTrazo({
       setAviso('Para copiar en lote, primero elige con Seleccionar el punto o la pieza que quieres repetir.');
       return;
     }
+    if (nueva === 'mover' && seleccionado === null) {
+      setAviso('Para mover, primero elige el trazo con Seleccionar.');
+      return;
+    }
     copias.current = 0;
     setHerramienta(nueva);
     limpiarDibujo();
     setCursor(null);
     setAviso(null);
     // Moverse, acercar y abrir un hueco no sueltan lo elegido: el hueco se abre sobre ello.
-    if (nueva !== 'seleccionar' && nueva !== 'mano' && nueva !== 'zoom' && nueva !== 'hueco' && nueva !== 'copiar' && nueva !== 'borrar') {
+    if (nueva !== 'seleccionar' && nueva !== 'mano' && nueva !== 'zoom' && nueva !== 'hueco' && nueva !== 'copiar' && nueva !== 'mover' && nueva !== 'borrar') {
       setSeleccion(null);
     }
   }
@@ -1066,6 +1126,18 @@ export function EspacioDeTrazo({
     }
     if (herramienta === 'copiar') {
       void copiarPieza(p);
+      return;
+    }
+    if (herramienta === 'mover') {
+      // Dos clics: el punto base y el destino. Al segundo se mueve y se vuelve a Seleccionar.
+      const base = borrador[0];
+      if (base === undefined) {
+        setBorrador([p]);
+      } else if (seleccionado !== null) {
+        const id = seleccionado.id as string;
+        cambiarHerramienta('seleccionar');
+        void moverTrazo(id, p[0] - base[0], p[1] - base[1]);
+      }
       return;
     }
     if (herramienta === 'escala') {
@@ -1278,7 +1350,7 @@ export function EspacioDeTrazo({
   // Atajos mientras se dibuja. El efecto se rearma con cada cambio del borrador:
   // los manejadores leen el estado de este render, no uno viejo.
   useEffect(() => {
-    const dibujando = forma !== null || herramienta === 'hueco' || herramienta === 'copiar' || herramienta === 'nota';
+    const dibujando = forma !== null || herramienta === 'hueco' || herramienta === 'copiar' || herramienta === 'mover' || herramienta === 'nota';
     if (!dibujando || guardando || subiendoPlano || notaPunto !== null || reemplazando !== null) return;
     function alTeclear(e: KeyboardEvent) {
       const destino = e.target as HTMLElement | null;
@@ -1294,8 +1366,9 @@ export function EspacioDeTrazo({
       } else if (e.key.toLowerCase() === 't' && herramienta === 'contorno') {
         setModoContorno((m) => (m === 'recto' ? 'arco' : 'recto'));
       } else if (e.key === 'Escape') {
-        if (herramienta === 'copiar') cambiarHerramienta('seleccionar');
-        else limpiarDibujo();
+        if (herramienta === 'copiar' || (herramienta === 'mover' && borrador.length === 0)) {
+          cambiarHerramienta('seleccionar');
+        } else limpiarDibujo();
       }
     }
     window.addEventListener('keydown', alTeclear);
@@ -1548,6 +1621,15 @@ export function EspacioDeTrazo({
       const anillo = partesDe(piezaElegida.geometry).find((x) => x.tipo === 'anillo' && !x.hueco);
       if (centro && anillo) {
         return sinCierre(anillo.puntos).map((v) => [v[0] + cursor[0] - centro[0], v[1] + cursor[1] - centro[1]] as Punto);
+      }
+    }
+    // Mover: el contorno del trazo elegido, desplazado lo que va del punto base al cursor.
+    if (herramienta === 'mover' && seleccionado !== null && borrador[0] !== undefined && cursor !== null) {
+      const anillo = partesDe(seleccionado.geometry).find((x) => x.tipo === 'anillo' && !x.hueco);
+      if (anillo) {
+        const dx = cursor[0] - borrador[0][0];
+        const dy = cursor[1] - borrador[0][1];
+        return sinCierre(anillo.puntos).map((v) => trasladar(v, dx, dy));
       }
     }
     return [];
@@ -2115,6 +2197,7 @@ export function EspacioDeTrazo({
               ...(fondoUrl === null
                 ? { conteo_auto: 'El conteo automático busca en la imagen del plano: este plano no tiene una (imagen o PDF)' }
                 : {}),
+              ...(seleccionado === null ? { mover: 'Para mover, primero elige el trazo con Seleccionar' } : {}),
               ...(piezaElegida === null
                 ? { copiar: 'Para copiar en lote, primero elige con Seleccionar el punto o la pieza que quieres repetir' }
                 : {}),
@@ -2531,8 +2614,55 @@ export function EspacioDeTrazo({
 
       {plano !== undefined && (
         <div className="estacion__estado" aria-label="Estado del plano">
-          {(forma || herramienta === 'hueco' || herramienta === 'escala' || herramienta === 'copiar' || herramienta === 'enlace' || herramienta === 'conteo_auto') && (
+          {seleccionado !== null && (herramienta === 'seleccionar' || herramienta === 'mover') && (
+            <div className="estacion__dibujo row" role="group" aria-label="Mover y girar el trazo">
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => cambiarHerramienta('mover')}>
+                Mover
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                aria-label="Girar 90° a la izquierda"
+                onClick={() => void girarTrazo(seleccionado.id as string, gradosDeGiro('izquierda', 90, vistaDelPlano))}
+              >
+                ↺ 90°
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                aria-label="Girar 90° a la derecha"
+                onClick={() => void girarTrazo(seleccionado.id as string, gradosDeGiro('derecha', 90, vistaDelPlano))}
+              >
+                ↻ 90°
+              </button>
+              <input
+                className="input"
+                aria-label="Ángulo de giro (grados)"
+                inputMode="decimal"
+                style={{ width: 52 }}
+                value={anguloLibre}
+                onChange={(e) => setAnguloLibre(e.target.value)}
+              />
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                aria-label="Girar el ángulo escrito a la derecha"
+                disabled={!Number.isFinite(Number(anguloLibre)) || Number(anguloLibre) === 0 || Math.abs(Number(anguloLibre)) > 360}
+                onClick={() => void girarTrazo(seleccionado.id as string, gradosDeGiro('derecha', Number(anguloLibre), vistaDelPlano))}
+              >
+                Girar ↻
+              </button>
+            </div>
+          )}
+          {(forma || herramienta === 'hueco' || herramienta === 'escala' || herramienta === 'copiar' || herramienta === 'mover' || herramienta === 'enlace' || herramienta === 'conteo_auto') && (
             <div className="estacion__dibujo row" role="group" aria-label="Trazo en curso">
+              {herramienta === 'mover' && (
+                <span className="text-mute text-xs">
+                  {borrador.length === 0
+                    ? 'Mover: clic en el punto base'
+                    : 'Clic en el destino · Esc cancela'}
+                </span>
+              )}
               {herramienta === 'copiar' && (
                 <span className="text-mute text-xs">
                   Copiar en lote: clic donde va cada copia · {copias.current}{' '}

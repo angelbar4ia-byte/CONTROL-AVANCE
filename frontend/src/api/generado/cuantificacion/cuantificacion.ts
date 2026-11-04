@@ -43,6 +43,8 @@ import type {
   ReemplazarEnlacePeticion,
   ResultadoRecalculoRespuesta,
   TraerTrazoPeticion,
+  TransformarTrazosPeticion,
+  TransformarTrazosRespuesta,
   TrazoAprobadoRespuesta,
   TrazoEliminadoRespuesta,
   TrazoPeticion,
@@ -1155,6 +1157,103 @@ export const useEliminarTrazoApiV1TrazosTrazoIdDelete = <
 > => {
   const mutationOptions =
     getEliminarTrazoApiV1TrazosTrazoIdDeleteMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Un largo o un área no cambian al mover o girar: las cantidades de los enlaces siguen iguales.
+Todo o nada: si uno de los trazos no se puede tocar, no se mueve ninguno.
+ * @summary Mover o girar trazos, con sus huecos
+ */
+export const transformarTrazosApiV1TrazosTransformarPost = (
+  transformarTrazosPeticion: TransformarTrazosPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<TransformarTrazosRespuesta>(
+    {
+      url: `/api/v1/trazos/transformar`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: transformarTrazosPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getTransformarTrazosApiV1TrazosTransformarPostMutationOptions = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof transformarTrazosApiV1TrazosTransformarPost>>,
+    TError,
+    { data: TransformarTrazosPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof transformarTrazosApiV1TrazosTransformarPost>>,
+  TError,
+  { data: TransformarTrazosPeticion },
+  TContext
+> => {
+  const mutationKey = ["transformarTrazosApiV1TrazosTransformarPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof transformarTrazosApiV1TrazosTransformarPost>>,
+    { data: TransformarTrazosPeticion }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return transformarTrazosApiV1TrazosTransformarPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TransformarTrazosApiV1TrazosTransformarPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof transformarTrazosApiV1TrazosTransformarPost>>
+  >;
+export type TransformarTrazosApiV1TrazosTransformarPostMutationBody =
+  TransformarTrazosPeticion;
+export type TransformarTrazosApiV1TrazosTransformarPostMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Mover o girar trazos, con sus huecos
+ */
+export const useTransformarTrazosApiV1TrazosTransformarPost = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof transformarTrazosApiV1TrazosTransformarPost>>,
+      TError,
+      { data: TransformarTrazosPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof transformarTrazosApiV1TrazosTransformarPost>>,
+  TError,
+  { data: TransformarTrazosPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getTransformarTrazosApiV1TrazosTransformarPostMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
