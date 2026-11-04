@@ -60,6 +60,18 @@ const MAXIMO_POR_EVENTO = 250;
 /** Radio de captura del clic, en píxeles de pantalla. */
 const TOLERANCIA_PX = 8;
 
+/** Un vano (puerta, ventana…) sobre un muro: dónde va, hacia dónde corre el muro ahí y cuánto mide de ancho (unidades de plano). */
+export interface VanoVisible {
+  readonly id: string;
+  readonly x: number;
+  readonly y: number;
+  readonly angulo: number;
+  readonly anchoPlano: number;
+  readonly clave: string;
+  readonly tipo: string;
+  readonly piezas: number;
+}
+
 export interface TrazoVisible {
   readonly id: string;
   readonly geometry: GeometriaGeoJson;
@@ -141,6 +153,8 @@ interface Props {
   readonly cotas?: readonly Cota[];
   /** Dónde está el cursor sobre el plano (ya asistido); `null` al salir. Solo si alguien lo pide. */
   readonly onMover?: (p: Punto | null) => void;
+  /** Los vanos del plano, dibujados sobre sus muros. */
+  readonly vanos?: readonly VanoVisible[];
   /** Dónde está el cursor (plano, sin asistir) para mostrar sus coordenadas; no vuelve a pintar nada por sí mismo. */
   readonly onCoordenadas?: (p: Punto | null) => void;
   /**
@@ -221,6 +235,7 @@ export function Visor({
   etiquetas = [],
   cotas = [],
   onMover,
+  vanos = [],
   onCoordenadas,
   onMenu,
   asistir,
@@ -597,6 +612,37 @@ export function Visor({
           </g>
         );
       })}
+
+      <g className="visor__vanos" data-testid="vanos">
+        {vanos.map((v) => {
+          const alto = 10 * px;
+          return (
+            <g key={v.id} data-vano-id={v.id} data-tipo={v.tipo}>
+              <g transform={`translate(${v.x} ${v.y}) rotate(${v.angulo})`}>
+                <rect
+                  className={v.tipo === 'ventana' ? 'visor__vano visor__vano--ventana' : 'visor__vano'}
+                  x={-v.anchoPlano / 2}
+                  y={-alto / 2}
+                  width={v.anchoPlano}
+                  height={alto}
+                  vectorEffect="non-scaling-stroke"
+                />
+              </g>
+              <text
+                className="visor__rotulo"
+                x={v.x}
+                y={v.y - 9 * px}
+                textAnchor="middle"
+                fontSize={10 * px}
+                transform={T.contragiro(v.x, v.y - 9 * px)}
+              >
+                {v.piezas > 1 ? `${v.piezas}× ` : ''}
+                {v.clave}
+              </text>
+            </g>
+          );
+        })}
+      </g>
 
       {notas.map((n) => {
         const clase = [

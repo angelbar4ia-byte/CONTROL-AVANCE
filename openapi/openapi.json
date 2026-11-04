@@ -10938,6 +10938,113 @@
         }
       }
     },
+    "/api/v1/planos/{plano_id}/vanos": {
+      "get": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Los vanos de un plano, con el punto donde van para dibujarlos",
+        "operationId": "vanos_del_plano_api_v1_planos__plano_id__vanos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VanoEnPlanoRespuesta"
+                  },
+                  "title": "Response Vanos Del Plano Api V1 Planos  Plano Id  Vanos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vanos/{vano_id}/posicion": {
+      "patch": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Correr un vano por su muro",
+        "description": "Dónde está el vano no cambia lo que mide la línea: no recalcula cantidades.",
+        "operationId": "mover_vano_api_v1_vanos__vano_id__posicion_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Vano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VanoPosicionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "El vano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/mediciones": {
       "get": {
         "tags": [
@@ -34694,6 +34801,89 @@
         ],
         "title": "VanoCambiadoRespuesta"
       },
+      "VanoEnPlanoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "ancho_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ancho M"
+          },
+          "alto_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Alto M"
+          },
+          "piezas": {
+            "type": "integer",
+            "title": "Piezas"
+          },
+          "posicion_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posicion M"
+          },
+          "x": {
+            "type": "number",
+            "title": "X",
+            "description": "Dónde va, en coordenadas del plano."
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "angulo": {
+            "type": "number",
+            "title": "Angulo",
+            "description": "Hacia dónde corre el muro en ese punto, en grados (eje y hacia abajo)."
+          },
+          "ancho_plano": {
+            "type": "number",
+            "title": "Ancho Plano",
+            "description": "Ancho del vano en unidades de plano."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "trazo_id",
+          "clave",
+          "tipo",
+          "ancho_m",
+          "alto_m",
+          "piezas",
+          "posicion_m",
+          "x",
+          "y",
+          "angulo",
+          "ancho_plano"
+        ],
+        "title": "VanoEnPlanoRespuesta"
+      },
       "VanoPeticion": {
         "properties": {
           "clave": {
@@ -34791,6 +34981,29 @@
         ],
         "title": "VanoPeticion",
         "description": "Una puerta, ventana o paso colocado sobre una línea."
+      },
+      "VanoPosicionPeticion": {
+        "properties": {
+          "posicion_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Posicion M",
+            "description": "Metros desde el inicio de la línea."
+          }
+        },
+        "type": "object",
+        "required": [
+          "posicion_m"
+        ],
+        "title": "VanoPosicionPeticion"
       },
       "VanoRespuesta": {
         "properties": {

@@ -3,6 +3,21 @@
  * descuento real lo calcula el servidor al medir: aquí solo se muestra.
  */
 
+/** Lo que se va a colocar: el tipo y sus medidas, sin la clave (esa la da el consecutivo al colocarlo). */
+export interface DatosDeVano {
+  readonly tipo: TipoDeVano;
+  readonly ancho: number;
+  readonly alto: number;
+  readonly antepecho: number;
+  readonly piezas: number;
+}
+
+/** Los datos de un tipo con sus medidas por defecto. */
+export function vanoPorDefecto(tipo: TipoDeVano): DatosDeVano {
+  const d = TIPOS_DE_VANO[tipo];
+  return { tipo, ancho: d.ancho, alto: d.alto, antepecho: d.antepecho, piezas: 1 };
+}
+
 export type TipoDeVano = 'puerta' | 'ventana' | 'cancel' | 'arco' | 'paso';
 
 export interface DatosDeTipoDeVano {

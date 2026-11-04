@@ -18,3 +18,12 @@ describe('vanos de un muro', () => {
     expect(Object.entries(TIPOS_DE_VANO).filter(([, d]) => !d.llegaAlPiso).map(([k]) => k)).toEqual(['ventana']);
   });
 });
+
+import { vanoPorDefecto } from '@/cuantificador/vanos';
+
+describe('vano por colocar', () => {
+  it('toma las medidas por defecto del tipo', () => {
+    expect(vanoPorDefecto('ventana')).toEqual({ tipo: 'ventana', ancho: 1.2, alto: 1.2, antepecho: 0.9, piezas: 1 });
+    expect(vanoPorDefecto('puerta').antepecho).toBe(0);
+  });
+});

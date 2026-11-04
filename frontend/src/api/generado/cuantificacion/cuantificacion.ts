@@ -52,7 +52,9 @@ import type {
   TrazoTraidoRespuesta,
   TrazosDePlanoRespuesta,
   VanoCambiadoRespuesta,
+  VanoEnPlanoRespuesta,
   VanoPeticion,
+  VanoPosicionPeticion,
   VanoRespuesta,
   VistaPeticion,
 } from ".././modelo";
@@ -4231,6 +4233,452 @@ export const useQuitarVanoApiV1VanosVanoIdDelete = <
 > => {
   const mutationOptions =
     getQuitarVanoApiV1VanosVanoIdDeleteMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Los vanos de un plano, con el punto donde van para dibujarlos
+ */
+export const vanosDelPlanoApiV1PlanosPlanoIdVanosGet = (
+  planoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<VanoEnPlanoRespuesta[]>(
+    { url: `/api/v1/planos/${planoId}/vanos`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getVanosDelPlanoApiV1PlanosPlanoIdVanosGetInfiniteQueryKey = (
+  planoId?: string,
+) => {
+  return ["infinite", `/api/v1/planos/${planoId}/vanos`] as const;
+};
+
+export const getVanosDelPlanoApiV1PlanosPlanoIdVanosGetQueryKey = (
+  planoId?: string,
+) => {
+  return [`/api/v1/planos/${planoId}/vanos`] as const;
+};
+
+export const getVanosDelPlanoApiV1PlanosPlanoIdVanosGetInfiniteQueryOptions = <
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getVanosDelPlanoApiV1PlanosPlanoIdVanosGetInfiniteQueryKey(planoId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>
+  > = ({ signal }) =>
+    vanosDelPlanoApiV1PlanosPlanoIdVanosGet(planoId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!planoId,
+    ...queryOptions,
+  } as UseInfiniteQueryOptions<
+    Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type VanosDelPlanoApiV1PlanosPlanoIdVanosGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>
+  >;
+export type VanosDelPlanoApiV1PlanosPlanoIdVanosGetInfiniteQueryError =
+  HTTPValidationError;
+
+export function useVanosDelPlanoApiV1PlanosPlanoIdVanosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+          TError,
+          Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVanosDelPlanoApiV1PlanosPlanoIdVanosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+          TError,
+          Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVanosDelPlanoApiV1PlanosPlanoIdVanosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los vanos de un plano, con el punto donde van para dibujarlos
+ */
+
+export function useVanosDelPlanoApiV1PlanosPlanoIdVanosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getVanosDelPlanoApiV1PlanosPlanoIdVanosGetInfiniteQueryOptions(
+      planoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getVanosDelPlanoApiV1PlanosPlanoIdVanosGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getVanosDelPlanoApiV1PlanosPlanoIdVanosGetQueryKey(planoId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>
+  > = ({ signal }) =>
+    vanosDelPlanoApiV1PlanosPlanoIdVanosGet(planoId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!planoId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type VanosDelPlanoApiV1PlanosPlanoIdVanosGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>
+>;
+export type VanosDelPlanoApiV1PlanosPlanoIdVanosGetQueryError =
+  HTTPValidationError;
+
+export function useVanosDelPlanoApiV1PlanosPlanoIdVanosGet<
+  TData = Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+          TError,
+          Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVanosDelPlanoApiV1PlanosPlanoIdVanosGet<
+  TData = Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+          TError,
+          Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useVanosDelPlanoApiV1PlanosPlanoIdVanosGet<
+  TData = Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los vanos de un plano, con el punto donde van para dibujarlos
+ */
+
+export function useVanosDelPlanoApiV1PlanosPlanoIdVanosGet<
+  TData = Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof vanosDelPlanoApiV1PlanosPlanoIdVanosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getVanosDelPlanoApiV1PlanosPlanoIdVanosGetQueryOptions(
+    planoId,
+    options,
+  );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Dónde está el vano no cambia lo que mide la línea: no recalcula cantidades.
+ * @summary Correr un vano por su muro
+ */
+export const moverVanoApiV1VanosVanoIdPosicionPatch = (
+  vanoId: string,
+  vanoPosicionPeticion: VanoPosicionPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/vanos/${vanoId}/posicion`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: vanoPosicionPeticion,
+    },
+    options,
+  );
+};
+
+export const getMoverVanoApiV1VanosVanoIdPosicionPatchMutationOptions = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof moverVanoApiV1VanosVanoIdPosicionPatch>>,
+    TError,
+    { vanoId: string; data: VanoPosicionPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof moverVanoApiV1VanosVanoIdPosicionPatch>>,
+  TError,
+  { vanoId: string; data: VanoPosicionPeticion },
+  TContext
+> => {
+  const mutationKey = ["moverVanoApiV1VanosVanoIdPosicionPatch"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof moverVanoApiV1VanosVanoIdPosicionPatch>>,
+    { vanoId: string; data: VanoPosicionPeticion }
+  > = (props) => {
+    const { vanoId, data } = props ?? {};
+
+    return moverVanoApiV1VanosVanoIdPosicionPatch(vanoId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MoverVanoApiV1VanosVanoIdPosicionPatchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof moverVanoApiV1VanosVanoIdPosicionPatch>>
+>;
+export type MoverVanoApiV1VanosVanoIdPosicionPatchMutationBody =
+  VanoPosicionPeticion;
+export type MoverVanoApiV1VanosVanoIdPosicionPatchMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Correr un vano por su muro
+ */
+export const useMoverVanoApiV1VanosVanoIdPosicionPatch = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof moverVanoApiV1VanosVanoIdPosicionPatch>>,
+      TError,
+      { vanoId: string; data: VanoPosicionPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof moverVanoApiV1VanosVanoIdPosicionPatch>>,
+  TError,
+  { vanoId: string; data: VanoPosicionPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getMoverVanoApiV1VanosVanoIdPosicionPatchMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
