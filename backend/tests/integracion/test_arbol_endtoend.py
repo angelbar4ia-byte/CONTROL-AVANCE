@@ -109,38 +109,15 @@ async def test_claves_repetidas_y_validaciones(escenario: Escenario, catalogo: d
     ).status_code == 404
 
 
-async def test_cambiar_la_unidad_cambia_el_tipo_y_respeta_lo_ya_medido(
+async def test_cambiar_a_otro_tipo_de_medicion_pide_equivalencia_y_no_se_hace_en_el_lugar(
     escenario: Escenario, catalogo: dict, control: httpx.AsyncClient
 ) -> None:
+    """Pasar de m² a pieza o a metros cruza de tipo (D-623): ya no se cambia en el lugar, se propone con equivalencia."""
     url = f"/api/v1/conceptos/{catalogo['c1']}/unidad"
-    r = await control.put(url, json={"unidad_id": str(catalogo["pza"])})
-    assert r.status_code == 200, r.text
-    assert (r.json()["tipo_anterior"], r.json()["tipo_nuevo"]) == ("area", "conteo")
-
-    # Con un trazo de área enlazado, ya no se puede pasar a lineal… ni a conteo.
-    await control.put(url, json={"unidad_id": str(catalogo["m2"])})
-    engine = create_async_engine(DATABASE_URL_ADMIN)
-    async with engine.begin() as conn:
-        await conn.execute(
-            text("update actividad set concepto_id = :c where id = :a"),
-            {"c": str(catalogo["c1"]), "a": str(escenario.actividad_id)},
-        )
-    await engine.dispose()
-    plano = (await control.post(f"/api/v1/obras/{escenario.obra_id}/planos", json={"nombre": "P", "archivo_url": "r2://p"})).json()["id"]
-    t = await control.post(
-        f"/api/v1/planos/{plano}/trazos",
-        json={
-            "version_plano": 1,
-            "geometria_wkt": "POLYGON((0 0,10 0,10 10,0 10,0 0))",
-            "fuente": "pdf",
-            "enlaces": [{"actividad_id": str(escenario.actividad_id), "medida": "area", "factor": "1"}],
-        },
-    )
-    assert t.status_code == 201, t.text
-    bloqueado = await control.put(url, json={"unidad_id": str(catalogo["pza"])})
-    assert bloqueado.status_code == 422, bloqueado.text
-    assert "area" in bloqueado.text
-    # A una unidad del mismo tipo sí (ml no, pero m2 → m2 es el mismo).
+    cruza = await control.put(url, json={"unidad_id": str(catalogo["pza"])})
+    assert cruza.status_code == 422, cruza.text
+    assert "equivalencia" in cruza.text
+    # La misma unidad (o una del mismo tipo) sigue cambiándose directo.
     assert (await control.put(url, json={"unidad_id": str(catalogo["m2"])})).status_code == 200
 
 
@@ -149,7 +126,7 @@ async def test_costos_arma_el_arbol_con_su_rol_real(escenario: Escenario, catalo
     assert n.status_code == 201, n.text
     e = await costos.post("/api/v1/etapas", json={"nivel_id": n.json()["id"], "clave": "cse", "descripcion": "Etapa"})
     assert e.status_code == 201, e.text
-    r = await costos.put(f"/api/v1/conceptos/{catalogo['c1']}/unidad", json={"unidad_id": str(catalogo["ml"])})
+    r = await costos.put(f"/api/v1/conceptos/{catalogo['c1']}/unidad", json={"unidad_id": str(catalogo["m2"])})
     assert r.status_code == 200, r.text
 
 

@@ -24,6 +24,7 @@ from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
 from obractrl.adapters.repos.arbol_sql import RepositorioArbolSQL
 from obractrl.adapters.repos.asignaciones_sql import RepositorioAsignacionesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
+from obractrl.adapters.repos.cambio_de_unidad_sql import RepositorioCambioDeUnidadSQL
 from obractrl.adapters.repos.cargas_sql import RepositorioCargasSQL
 from obractrl.adapters.repos.cierres_frente_sql import RepositorioCierresDeFrenteSQL
 from obractrl.adapters.repos.cierres_obra_sql import RepositorioCierresDeObraSQL
@@ -117,6 +118,7 @@ from obractrl.application.casos_uso.calcular_cpu import (
     ObtenerCPU,
     PublicarVersionCPU,
 )
+from obractrl.application.casos_uso.cambio_de_unidad import CambioDeUnidad
 from obractrl.application.casos_uso.capturar_avance import CapturarAvance
 from obractrl.application.casos_uso.comprobar_excedente import (
     ConsultarComprobaciones,
@@ -365,6 +367,7 @@ __all__ = [
     "AutorizarCierreDep",
     "CalibrarEscalaDePlanoDep",
     "CambiarEstadoDePartesDep",
+    "CambioDeUnidadDep",
     "CapturarAvanceDep",
     "CapturarCausaDeDesviacionDep",
     "CerrarIncidenciaDep",
@@ -997,6 +1000,20 @@ def obtener_rechazar_propuestas(sesion: SesionRLS) -> RechazarPropuestas:
     return RechazarPropuestas(trazos=RepositorioTrazosSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
 
 
+def obtener_cambio_de_unidad(sesion: SesionRLS) -> CambioDeUnidad:
+    return CambioDeUnidad(
+        arbol=RepositorioArbolSQL(sesion),
+        cambios=RepositorioCambioDeUnidadSQL(sesion),
+        partes=RepositorioPartesSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        actividades=RepositorioActividadesSQL(sesion),
+        prototipo_nodos=RepositorioPrototipoNodoSQL(sesion),
+        desviaciones=RepositorioDesviacionesSQL(sesion),
+        matrices=RepositorioMatricesSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_armar_arbol(sesion: SesionRLS) -> ArmarArbol:
     return ArmarArbol(
         arbol=RepositorioArbolSQL(sesion),
@@ -1126,6 +1143,7 @@ GestionarElementosParametricosDep = Annotated[
     GestionarElementosParametricos, Depends(obtener_gestionar_elementos_parametricos)
 ]
 GestionarVanosDep = Annotated[GestionarVanos, Depends(obtener_gestionar_vanos)]
+CambioDeUnidadDep = Annotated[CambioDeUnidad, Depends(obtener_cambio_de_unidad)]
 ArmarArbolDep = Annotated[ArmarArbol, Depends(obtener_armar_arbol)]
 TraerTrazoDep = Annotated[TraerTrazoAOtraVersion, Depends(obtener_traer_trazo)]
 CalibrarEscalaDePlanoDep = Annotated[
