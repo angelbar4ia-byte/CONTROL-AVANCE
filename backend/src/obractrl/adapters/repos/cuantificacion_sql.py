@@ -317,6 +317,65 @@ class RepositorioTrazosSQL:
         """Borra el trazo; sus enlaces y sus huecos se van con él (`on delete cascade`)."""
         await self._sesion.execute(text("delete from trazo where id = :id"), {"id": str(trazo_id)})
 
+    async def transformar(
+        self,
+        trazo_id: UUID,
+        *,
+        dx: Decimal,
+        dy: Decimal,
+        grados: Decimal,
+        pivote: tuple[Decimal, Decimal] | None,
+    ) -> tuple[Decimal, Decimal] | None:
+        """Mover o girar un trazo con sus huecos (`hueco_de`). Un largo o un área no cambian al
+        mover ni al girar, así que las cantidades de sus enlaces siguen siendo las mismas."""
+        id_ = str(trazo_id)
+        if grados == 0:
+            await self._sesion.execute(
+                text(
+                    """
+                    update trazo set geometria = ST_Translate(geometria, :dx, :dy)
+                    where id = :id or hueco_de = :id
+                    """
+                ),
+                {"id": id_, "dx": float(dx), "dy": float(dy)},
+            )
+            return None
+        if pivote is None:
+            centro = (
+                await self._sesion.execute(
+                    text(
+                        """
+                        select ST_X(c) as x, ST_Y(c) as y
+                        from (select ST_Centroid(ST_Envelope(geometria)) as c
+                              from trazo where id = :id) t
+                        """
+                    ),
+                    {"id": id_},
+                )
+            ).mappings().one()
+            pivote = (Decimal(str(centro["x"])), Decimal(str(centro["y"])))
+        await self._sesion.execute(
+            text(
+                """
+                update trazo set
+                    geometria = ST_Rotate(geometria, radians(cast(:g as double precision)), :px, :py),
+                    -- el giro de una forma estampada se suma a su rotación, dentro de [-180, 180)
+                    forma = case
+                        when forma is not null and forma ? 'rotacion_grados'
+                        then jsonb_set(
+                            forma, '{rotacion_grados}',
+                            to_jsonb(round(
+                                (mod(mod((forma->>'rotacion_grados')::numeric + cast(:gn as numeric) + 180, 360) + 360, 360) - 180)::numeric,
+                                4))
+                        )
+                        else forma end
+                where id = :id or hueco_de = :id
+                """
+            ),
+            {"id": id_, "g": float(grados), "gn": float(grados), "px": float(pivote[0]), "py": float(pivote[1])},
+        )
+        return pivote
+
     async def crear_hueco(
         self, *, trazo_id: UUID, geometria_wkt: str, autor_id: UUID
     ) -> UUID:

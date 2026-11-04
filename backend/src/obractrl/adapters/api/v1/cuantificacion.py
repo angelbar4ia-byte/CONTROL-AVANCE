@@ -60,6 +60,7 @@ from obractrl.adapters.api.casos_uso import (
     RegistrarPlanoDep,
     RegistrarTrazoConEnlacesDep,
     TraerTrazoDep,
+    TransformarTrazosDep,
 )
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
 from obractrl.application.casos_uso.cuantificar import (
@@ -72,6 +73,7 @@ from obractrl.application.casos_uso.cuantificar import (
     ComandoRegistrarNotaPlano,
     ComandoRegistrarTrazo,
     ComandoTraerTrazo,
+    ComandoTransformarTrazos,
     IntencionEnlace,
     NodoCuantificado,
     NuevoEnlace,
@@ -250,6 +252,43 @@ class HuecoPeticion(BaseModel):
 class TrazoEliminadoRespuesta(BaseModel):
     trazo_id: UUID
     recalculos: list[ResultadoRecalculoRespuesta]
+
+
+class TransformarTrazosPeticion(BaseModel):
+    """Mover `(dx, dy)` o girar `grados`: una cosa o la otra.
+
+    Las coordenadas son las del plano. `grados` es el giro en ese sistema (positivo de +x hacia +y);
+    qué es «izquierda» en pantalla lo decide la vista del plano, y de eso se ocupa quien llama.
+    Sin `pivote` cada trazo gira sobre el centro de su propia caja; con él, todos giran juntos
+    alrededor de ese punto.
+    """
+
+    trazo_ids: list[UUID] = Field(min_length=1, max_length=200)
+    dx: Decimal = Decimal(0)
+    dy: Decimal = Decimal(0)
+    grados: Decimal = Field(default=Decimal(0), ge=-360, le=360)
+    pivote: tuple[Decimal, Decimal] | None = None
+
+    @model_validator(mode="after")
+    def _una_cosa(self) -> TransformarTrazosPeticion:
+        mueve = self.dx != 0 or self.dy != 0
+        gira = self.grados != 0
+        if mueve and gira:
+            raise ValueError("Pide mover o girar, no las dos cosas a la vez.")
+        if not mueve and not gira:
+            raise ValueError("No hay nada que hacer: pide un desplazamiento o un giro.")
+        return self
+
+
+class TrazoTransformadoRespuesta(BaseModel):
+    trazo_id: UUID
+    pivote: tuple[Decimal, Decimal] | None = Field(
+        default=None, description="El centro usado al girar; sirve para deshacer el giro."
+    )
+
+
+class TransformarTrazosRespuesta(BaseModel):
+    trazos: list[TrazoTransformadoRespuesta]
 
 
 class HuecoRespuesta(BaseModel):
@@ -470,6 +509,42 @@ async def eliminar_trazo(
     return TrazoEliminadoRespuesta(
         trazo_id=resultado.trazo_id,
         recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos],
+    )
+
+
+@router.post(
+    "/trazos/transformar",
+    response_model=TransformarTrazosRespuesta,
+    summary="Mover o girar trazos, con sus huecos",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        403: {
+            "description": (
+                "No es un trazo tuyo sin aprobar (Control de obra y Super intendente tocan "
+                "cualquiera), o alimenta un prototipo_nodo y el rol no puede tocarlo."
+            )
+        },
+        404: {"description": "Un trazo no existe o está fuera de tu alcance."},
+    },
+)
+async def transformar_trazos(
+    peticion: TransformarTrazosPeticion, ctx: ContextoActual, caso_uso: TransformarTrazosDep
+) -> TransformarTrazosRespuesta:
+    """Un largo o un área no cambian al mover o girar: las cantidades de los enlaces siguen iguales.
+    Todo o nada: si uno de los trazos no se puede tocar, no se mueve ninguno."""
+    resultado = await caso_uso.ejecutar(
+        ComandoTransformarTrazos(
+            trazo_ids=tuple(peticion.trazo_ids),
+            usuario_id=ctx.usuario_id,
+            rol=Rol(ctx.rol),
+            dx=peticion.dx,
+            dy=peticion.dy,
+            grados=peticion.grados,
+            pivote=peticion.pivote,
+        )
+    )
+    return TransformarTrazosRespuesta(
+        trazos=[TrazoTransformadoRespuesta(trazo_id=t.trazo_id, pivote=t.pivote) for t in resultado]
     )
 
 

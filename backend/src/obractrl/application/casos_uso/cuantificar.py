@@ -103,6 +103,7 @@ __all__ = [
     "ComandoReemplazarEnlace",
     "ComandoRegistrarNotaPlano",
     "ComandoRegistrarTrazo",
+    "ComandoTransformarTrazos",
     "ConsultarCuantificacion",
     "EliminarTrazo",
     "EnlaceNoEncontrado",
@@ -122,8 +123,10 @@ __all__ = [
     "RegistrarPlano",
     "RegistrarTrazoConEnlaces",
     "ResultadoDeRecalculo",
+    "TransformarTrazos",
     "TrazoEliminado",
     "TrazoRegistrado",
+    "TrazoTransformado",
 ]
 
 _ROLES_QUE_TOCAN_PROTOTIPO = (Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE)
@@ -209,6 +212,25 @@ class ComandoEliminarTrazo:
     trazo_id: UUID
     usuario_id: UUID
     rol: Rol
+
+
+@dataclass(frozen=True, slots=True)
+class ComandoTransformarTrazos:
+    """Mover `(dx, dy)` o girar `grados` (positivo de +x hacia +y, en el sistema del plano)."""
+
+    trazo_ids: tuple[UUID, ...]
+    usuario_id: UUID
+    rol: Rol
+    dx: Decimal = Decimal(0)
+    dy: Decimal = Decimal(0)
+    grados: Decimal = Decimal(0)
+    pivote: tuple[Decimal, Decimal] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class TrazoTransformado:
+    trazo_id: UUID
+    pivote: tuple[Decimal, Decimal] | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -1645,3 +1667,58 @@ class ConsultarMatrices:
             "medidas": ajuste.medidas,
             "matrices": matrices,
         }
+
+
+class TransformarTrazos:
+    """Mueve o gira trazos, con sus huecos, sin cambiar su cantidad.
+
+    Mismo gobierno que borrar: Control de obra y Super intendente cualquiera; los demás roles,
+    solo un trazo suyo que aún no esté aprobado (aprobar deja constancia de una revisión). Un trazo
+    que alimenta un `prototipo_nodo` exige Control de obra o Super intendente. Todo o nada: si
+    uno de los trazos no se puede tocar, no se mueve ninguno. Un largo o un área no cambian al
+    mover ni al girar, así que no hay nada que recalcular.
+    """
+
+    def __init__(
+        self,
+        *,
+        trazos: RepositorioTrazos,
+        enlaces: RepositorioEnlacesCuantificacion,
+        uow: UnidadDeTrabajo,
+    ) -> None:
+        self._trazos = trazos
+        self._enlaces = enlaces
+        self._uow = uow
+
+    async def ejecutar(self, cmd: ComandoTransformarTrazos) -> list[TrazoTransformado]:
+        for trazo_id in cmd.trazo_ids:
+            trazo = await self._trazos.obtener(trazo_id)
+            if trazo is None or trazo.get("hueco_de") is not None:
+                raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
+            if cmd.rol not in _ROLES_QUE_TOCAN_PROTOTIPO and (
+                trazo.get("autor_id") != cmd.usuario_id or trazo.get("aprobado_por") is not None
+            ):
+                raise GobiernoDeCuantificacionInvalido(
+                    "Solo puedes mover o girar un trazo tuyo que todavía no esté aprobado; "
+                    "Control de obra y Super intendente tocan cualquiera."
+                )
+            nodos = await self._enlaces.nodos_vigentes_de_trazo(trazo_id)
+            if (
+                any(n["tipo_nodo"] == TipoNodoCuantificacion.PROTOTIPO_NODO.value for n in nodos)
+                and cmd.rol not in _ROLES_QUE_TOCAN_PROTOTIPO
+            ):
+                permitidos = ", ".join(r.value for r in _ROLES_QUE_TOCAN_PROTOTIPO)
+                raise GobiernoDeCuantificacionInvalido(
+                    f"Este trazo alimenta la cantidad de un prototipo_nodo: tocarlo exige "
+                    f"{permitidos}; el rol {cmd.rol.value!r} no puede."
+                )
+
+        resultado: list[TrazoTransformado] = []
+        async with self._uow:
+            for trazo_id in cmd.trazo_ids:
+                pivote = await self._trazos.transformar(
+                    trazo_id, dx=cmd.dx, dy=cmd.dy, grados=cmd.grados, pivote=cmd.pivote
+                )
+                resultado.append(TrazoTransformado(trazo_id=trazo_id, pivote=pivote))
+            await self._uow.commit()
+        return resultado
