@@ -8,6 +8,9 @@ import {
   distanciaA,
   distanciaEntre,
   escalaPrevista,
+  girarAlrededor,
+  gradosDeGiro,
+  trasladar,
   herramientaDeGeometria,
   marcadoresDe,
   notaEnPunto,
@@ -275,5 +278,31 @@ describe('polígono con hueco (descuento de aberturas)', () => {
 
   it('el trazo SVG lleva los dos anillos, cada uno cerrado', () => {
     expect(rutaSvg(conHueco).match(/Z/g)).toHaveLength(2);
+  });
+});
+
+describe('mover y girar (menú del trazo)', () => {
+  const sinVolteo = { volteoH: false, volteoV: false };
+  it('girar a la derecha es horario: +grados del servidor, y a la izquierda su opuesto', () => {
+    expect(gradosDeGiro('derecha', 90, sinVolteo)).toBe(90);
+    expect(gradosDeGiro('izquierda', 90, sinVolteo)).toBe(-90);
+  });
+  it('un solo volteo de la vista invierte el sentido; dos no', () => {
+    expect(gradosDeGiro('derecha', 90, { volteoH: true, volteoV: false })).toBe(-90);
+    expect(gradosDeGiro('derecha', 90, { volteoH: true, volteoV: true })).toBe(90);
+  });
+  it('girar 90° alrededor de (5,2) lleva (7,2) a (5,4), como ST_Rotate', () => {
+    const [x, y] = girarAlrededor([7, 2], [5, 2], 90);
+    expect(x).toBeCloseTo(5);
+    expect(y).toBeCloseTo(4);
+  });
+  it('girar y deshacer devuelve el punto', () => {
+    const g = girarAlrededor([3, 9], [1, 1], 37);
+    const [x, y] = girarAlrededor(g, [1, 1], -37);
+    expect(x).toBeCloseTo(3);
+    expect(y).toBeCloseTo(9);
+  });
+  it('trasladar suma el desplazamiento', () => {
+    expect(trasladar([1, 2], 3, -4)).toEqual([4, -2]);
   });
 });

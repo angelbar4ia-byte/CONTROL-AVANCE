@@ -156,6 +156,7 @@ from obractrl.application.casos_uso.cuantificar import (
     RegistrarPlano,
     RegistrarTrazoConEnlaces,
     TraerTrazoAOtraVersion,
+    TransformarTrazos,
 )
 from obractrl.application.casos_uso.dar_de_alta_extra import DarDeAltaExtra
 from obractrl.application.casos_uso.elementos import GestionarElementos
@@ -469,6 +470,7 @@ __all__ = [
     "SolicitarCierreDeFrenteDep",
     "SolicitarCierreDep",
     "TraerTrazoDep",
+    "TransformarTrazosDep",
     "ValidarCierreDeFrenteDep",
     "ValidarCierreDep",
     "ValidarEstimacionDep",
@@ -840,6 +842,14 @@ def obtener_eliminar_trazo(sesion: SesionRLS, ctx: ContextoActual) -> EliminarTr
     )
 
 
+def obtener_transformar_trazos(sesion: SesionRLS) -> TransformarTrazos:
+    return TransformarTrazos(
+        trazos=RepositorioTrazosSQL(sesion),
+        enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_quitar_hueco(sesion: SesionRLS, ctx: ContextoActual) -> QuitarHueco:
     return QuitarHueco(
         trazos=RepositorioTrazosSQL(sesion),
@@ -1069,6 +1079,7 @@ DeclararPerdidaDeExcedenteDep = Annotated[
 AprobarTrazoDep = Annotated[AprobarTrazo, Depends(obtener_aprobar_trazo)]
 AgregarHuecoDep = Annotated[AgregarHuecoATrazo, Depends(obtener_agregar_hueco)]
 EliminarTrazoDep = Annotated[EliminarTrazo, Depends(obtener_eliminar_trazo)]
+TransformarTrazosDep = Annotated[TransformarTrazos, Depends(obtener_transformar_trazos)]
 QuitarHuecoDep = Annotated[QuitarHueco, Depends(obtener_quitar_hueco)]
 ConsultarMatricesDep = Annotated[ConsultarMatrices, Depends(obtener_consultar_matrices)]
 ConsultarCuantificacionDep = Annotated[

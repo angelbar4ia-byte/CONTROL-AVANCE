@@ -119,6 +119,22 @@ class RepositorioTrazos(Protocol):
         """Borra el trazo con sus enlaces y huecos (cascada)."""
         ...
 
+    async def transformar(
+        self,
+        trazo_id: UUID,
+        *,
+        dx: Decimal,
+        dy: Decimal,
+        grados: Decimal,
+        pivote: tuple[Decimal, Decimal] | None,
+    ) -> tuple[Decimal, Decimal] | None:
+        """Mueve el trazo `(dx, dy)` unidades de plano, o lo gira `grados` alrededor de `pivote`
+        (el centro de su caja si no se da), **junto con sus huecos**. Una cosa o la otra: con
+        `grados` distinto de cero gira y `dx`, `dy` se ignoran. Un punto con forma recibe también el
+        giro en `forma.rotacion_grados`, para que copiarlo conserve su orientación. Devuelve el
+        pivote usado cuando giró (lo necesita quien quiera deshacerlo), o `None` si solo movió."""
+        ...
+
     async def crear_hueco(self, *, trazo_id: UUID, geometria_wkt: str, autor_id: UUID) -> UUID:
         """Un hueco es un trazo hijo (`hueco_de`) que resta del área del padre; sin enlaces."""
         ...

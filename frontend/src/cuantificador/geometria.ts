@@ -31,6 +31,7 @@ export type Herramienta =
   | 'polilinea'
   | 'punto'
   | 'copiar'
+  | 'mover'
   | 'hueco'
   | 'borrar'
   | 'nota'
@@ -46,7 +47,7 @@ export type Herramienta =
  */
 export type HerramientaDeTrazo = Exclude<
   Herramienta,
-  'seleccionar' | 'mano' | 'zoom' | 'copiar' | 'hueco' | 'borrar' | 'nota' | 'escala' | 'enlace' | 'conteo_auto'
+  'seleccionar' | 'mano' | 'zoom' | 'copiar' | 'mover' | 'hueco' | 'borrar' | 'nota' | 'escala' | 'enlace' | 'conteo_auto'
 >;
 
 /** La geometría que se guarda: lo que el servidor mide. Las herramientas de dibujo desembocan en una de estas. */
@@ -559,4 +560,30 @@ export function geojsonAWkt(geometria: GeometriaGeoJson): string | null {
     default:
       return null;
   }
+}
+
+/**
+ * Cuánto girar (grados que entiende el servidor) para que la pieza gire `grados` hacia el lado
+ * pedido **tal como se ve**. El servidor gira de +x hacia +y; con el eje y hacia abajo eso es el
+ * sentido de las manecillas del reloj. Una vista en espejo (un solo volteo) invierte el sentido.
+ */
+export function gradosDeGiro(lado: 'izquierda' | 'derecha', grados: number, vista: { volteoH: boolean; volteoV: boolean }): number {
+  const enEspejo = vista.volteoH !== vista.volteoV;
+  const horario = lado === 'derecha' !== enEspejo;
+  return horario ? grados : -grados;
+}
+
+/** El punto `p` trasladado `dx`, `dy`. */
+export function trasladar(p: Punto, dx: number, dy: number): Punto {
+  return [p[0] + dx, p[1] + dy];
+}
+
+/** El punto `p` girado `grados` alrededor de `pivote`, igual que `ST_Rotate` del servidor. */
+export function girarAlrededor(p: Punto, pivote: Punto, grados: number): Punto {
+  const r = (grados * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  const x = p[0] - pivote[0];
+  const y = p[1] - pivote[1];
+  return [pivote[0] + x * c - y * s, pivote[1] + x * s + y * c];
 }
