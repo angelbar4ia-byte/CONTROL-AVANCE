@@ -277,6 +277,7 @@ from obractrl.application.casos_uso.gestionar_proyecto import (
     CrearCluster,
     CrearPrototipo,
     CrearProyecto,
+    EditarNivelesYRecamaras,
 )
 from obractrl.application.casos_uso.gestionar_reprogramacion import (
     AplicarReprogramacion,
@@ -404,6 +405,7 @@ __all__ = [
     "CrearUsuarioDep",
     "DarDeAltaExtraDep",
     "DeclararPerdidaDeExcedenteDep",
+    "EditarNivelesYRecamarasDep",
     "EditarProgramacionActividadDep",
     "EliminarCargaDep",
     "EliminarTrazoDep",
@@ -1128,6 +1130,16 @@ def obtener_crear_prototipo(sesion: SesionRLS) -> CrearPrototipo:
     )
 
 
+def obtener_editar_niveles_y_recamaras(sesion: SesionRLS) -> EditarNivelesYRecamaras:
+    return EditarNivelesYRecamaras(
+        prototipos=RepositorioPrototiposSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
+EditarNivelesYRecamarasDep = Annotated[
+    EditarNivelesYRecamaras, Depends(obtener_editar_niveles_y_recamaras)
+]
 CrearProyectoDep = Annotated[CrearProyecto, Depends(obtener_crear_proyecto)]
 CrearClusterDep = Annotated[CrearCluster, Depends(obtener_crear_cluster)]
 CrearPrototipoDep = Annotated[CrearPrototipo, Depends(obtener_crear_prototipo)]

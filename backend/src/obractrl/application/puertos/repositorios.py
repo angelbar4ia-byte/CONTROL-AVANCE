@@ -327,6 +327,16 @@ class RepositorioPrototipos(Protocol):
     # endpoint PATCH todavía, así que este método no tiene otro llamador.
     async def actualizar(self, prototipo_id: UUID, campos: dict) -> None: ...
 
+    async def fijar_niveles_y_recamaras(
+        self, prototipo_id: UUID, campos: dict
+    ) -> bool:
+        """Edición individual desde la pantalla: solo las llaves que vienen.
+
+        `niveles` se guarda también como `plantas` (son el mismo dato). Devuelve
+        `False` si el prototipo no existe o está fuera de alcance (RLS).
+        """
+        ...
+
 
 @runtime_checkable
 class RepositorioPrototipoNodo(Protocol):

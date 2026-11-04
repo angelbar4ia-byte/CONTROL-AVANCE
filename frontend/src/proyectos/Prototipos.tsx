@@ -27,6 +27,7 @@ import { ErrorBanner } from '@/lib/ErrorBanner';
 import { fmtNum } from '@/lib/formato';
 import { AltaPrototipo } from './AltaPrototipo';
 import { ArbolPrototipo } from './ArbolPrototipo';
+import { CeldasNivelesYRecamaras } from './NivelesYRecamaras';
 import { armarArbolPrototipo } from './nodosPrototipo';
 import { puedeConfigurarEstructura } from './reglas';
 
@@ -196,8 +197,7 @@ export default function Prototipos() {
                           : (prototipo.proyecto_id ?? 'Todos los proyectos')}
                       </td>
                       <td className="is-num mono tnum">{fmtNum(prototipo.m2)}</td>
-                      <td className="is-num mono tnum">{prototipo.niveles ?? '—'}</td>
-                      <td className="is-num mono tnum">{prototipo.recamaras ?? '—'}</td>
+                      <CeldasNivelesYRecamaras prototipo={prototipo} editable={administra} />
                       <td>
                         <button
                           type="button"

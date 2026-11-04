@@ -80,6 +80,7 @@ import type {
 } from '@/api/generado/modelo';
 import type { ErrorApi } from '@/api/cliente';
 import { useSesion } from '@/app/sesion';
+import { puedeConfigurarEstructura } from '@/proyectos/reglas';
 import { ErrorBanner } from '@/lib/ErrorBanner';
 import { buscarPorClave } from './busqueda';
 import { AltaConcepto } from './AltaConcepto';
@@ -762,6 +763,7 @@ export default function Catalogos() {
             resultados={resPrototipos}
             proyectos={proyectos}
             cargando={prototiposQ.isLoading}
+            puedeEditar={puedeConfigurarEstructura(rol)}
           />
         )}
       </div>

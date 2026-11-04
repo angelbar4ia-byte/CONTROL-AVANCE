@@ -106,6 +106,26 @@ class RepositorioPrototiposSQL:
             },
         )
 
+    async def fijar_niveles_y_recamaras(
+        self, prototipo_id: UUID, campos: dict[str, Any]
+    ) -> bool:
+        """Solo toca lo que viene en `campos`; `niveles` y `plantas` van juntos."""
+        asignaciones: list[str] = []
+        parametros: dict[str, Any] = {"id": str(prototipo_id)}
+        if "niveles" in campos:
+            asignaciones += ["niveles = :niveles", "plantas = :niveles"]
+            parametros["niveles"] = campos["niveles"]
+        if "recamaras" in campos:
+            asignaciones.append("recamaras = :recamaras")
+            parametros["recamaras"] = campos["recamaras"]
+        if not asignaciones:
+            return await self.obtener(prototipo_id) is not None
+        resultado = await self._sesion.execute(
+            text(f"update prototipo set {', '.join(asignaciones)} where id = :id"),
+            parametros,
+        )
+        return resultado.rowcount > 0
+
     async def listar(self, proyecto_id: UUID | None = None) -> list[dict[str, Any]]:
         filas = (
             await self._sesion.execute(

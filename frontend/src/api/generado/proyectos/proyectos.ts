@@ -35,6 +35,7 @@ import type {
   CrearProyectoPeticion,
   EditarEspecialidadPeticion,
   EditarFrentePeticion,
+  EditarPrototipoPeticion,
   EspecialidadRespuesta,
   EtapasDelFrentePeticion,
   FrenteRespuesta,
@@ -1321,6 +1322,107 @@ export const useCrearPrototipoApiV1PrototiposPost = <
 > => {
   const mutationOptions =
     getCrearPrototipoApiV1PrototiposPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Niveles (plantas) y recámaras de un prototipo
+ */
+export const editarPrototipoApiV1PrototiposPrototipoIdPatch = (
+  prototipoId: string,
+  editarPrototipoPeticion: EditarPrototipoPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/prototipos/${prototipoId}`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: editarPrototipoPeticion,
+    },
+    options,
+  );
+};
+
+export const getEditarPrototipoApiV1PrototiposPrototipoIdPatchMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof editarPrototipoApiV1PrototiposPrototipoIdPatch>
+      >,
+      TError,
+      { prototipoId: string; data: EditarPrototipoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<ReturnType<typeof editarPrototipoApiV1PrototiposPrototipoIdPatch>>,
+    TError,
+    { prototipoId: string; data: EditarPrototipoPeticion },
+    TContext
+  > => {
+    const mutationKey = ["editarPrototipoApiV1PrototiposPrototipoIdPatch"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof editarPrototipoApiV1PrototiposPrototipoIdPatch>
+      >,
+      { prototipoId: string; data: EditarPrototipoPeticion }
+    > = (props) => {
+      const { prototipoId, data } = props ?? {};
+
+      return editarPrototipoApiV1PrototiposPrototipoIdPatch(
+        prototipoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type EditarPrototipoApiV1PrototiposPrototipoIdPatchMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof editarPrototipoApiV1PrototiposPrototipoIdPatch>>
+  >;
+export type EditarPrototipoApiV1PrototiposPrototipoIdPatchMutationBody =
+  EditarPrototipoPeticion;
+export type EditarPrototipoApiV1PrototiposPrototipoIdPatchMutationError = void;
+
+/**
+ * @summary Niveles (plantas) y recámaras de un prototipo
+ */
+export const useEditarPrototipoApiV1PrototiposPrototipoIdPatch = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof editarPrototipoApiV1PrototiposPrototipoIdPatch>
+      >,
+      TError,
+      { prototipoId: string; data: EditarPrototipoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof editarPrototipoApiV1PrototiposPrototipoIdPatch>>,
+  TError,
+  { prototipoId: string; data: EditarPrototipoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getEditarPrototipoApiV1PrototiposPrototipoIdPatchMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
