@@ -1288,6 +1288,19 @@ class GestionarVanos(AgregarHuecoATrazo):
 
         return await self._cambiar(trazo_id, rol, autor_id, detectada_en, borrar)
 
+    async def del_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
+        return await self._trazos.vanos_del_plano(plano_id)
+
+    async def mover(self, vano_id: UUID, posicion_m: Decimal) -> None:
+        """Corre un vano por su muro. Dónde está no cambia lo que mide, así que no recalcula nada."""
+        if await self._trazos.trazo_del_vano(vano_id) is None:
+            raise TrazoNoEncontrado(f"El vano {vano_id} no existe o está fuera de tu alcance.")
+        if posicion_m < 0:
+            raise ErrorDeCuantificacion("La posición del vano no puede ser negativa.")
+        async with self._uow:
+            await self._trazos.mover_vano(vano_id, posicion_m)
+            await self._uow.commit()
+
     async def listar(self, trazo_id: UUID) -> list[dict[str, Any]]:
         if await self._trazos.obtener(trazo_id) is None:
             raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")

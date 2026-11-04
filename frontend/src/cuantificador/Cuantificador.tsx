@@ -36,6 +36,8 @@ import {
   useTraerTrazoApiV1TrazosTrazoIdTraerPost,
   useEliminarTrazoApiV1TrazosTrazoIdDelete,
   useTransformarTrazosApiV1TrazosTransformarPost,
+  useColocarVanoApiV1TrazosTrazoIdVanosPost,
+  useVanosDelPlanoApiV1PlanosPlanoIdVanosGet,
   useAprobarTrazoApiV1TrazosTrazoIdAprobarPost,
   useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet,
   useEstadoDeCuantificacionApiV1ObrasObraIdCuantificacionGet,
@@ -156,6 +158,7 @@ import { ProponerEscala } from './ProponerEscala';
 import { ElementoDelTrazo } from './ElementoDelTrazo';
 import { MarcasDeUnidadDelTrazo } from './MarcasDeUnidadDelTrazo';
 import { VanosDelTrazo } from './VanosDelTrazo';
+import { claveSiguiente, vanoPorDefecto, type DatosDeVano } from './vanos';
 import { PanelVolumen } from './PanelVolumen';
 import { resumenDePantalla, type TrazoParaResumen } from './resumen';
 import { NuevaObra } from './NuevaObra';
@@ -165,6 +168,7 @@ import {
   PUNTOS_MINIMOS_DE_HUECO,
   aWkt,
   gradosDeGiro,
+  proyectarEnPolilinea,
   trasladar,
   geojsonAWkt,
   areaDeGeometria,
@@ -199,6 +203,7 @@ const HERRAMIENTAS: readonly Herramienta[] = [
   'punto',
   'copiar',
   'mover',
+  'vano',
   'hueco',
   'borrar',
   'escala',
@@ -243,6 +248,7 @@ const ATAJOS: Readonly<Record<string, Herramienta>> = {
   o: 'punto',
   k: 'copiar',
   m: 'mover',
+  g: 'vano',
   e: 'escala',
   n: 'nota',
 };
@@ -848,6 +854,23 @@ export function EspacioDeTrazo({
   const registrarTrazo = useRegistrarTrazoApiV1PlanosPlanoIdTrazosPost<ErrorApi>();
   const quitarHueco = useQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete<ErrorApi>();
   const transformar = useTransformarTrazosApiV1TrazosTransformarPost<ErrorApi>();
+  const colocarVano = useColocarVanoApiV1TrazosTrazoIdVanosPost<ErrorApi>();
+  const [vanoPorColocar, setVanoPorColocar] = useState<DatosDeVano | null>(null);
+  const vanosConsulta = useVanosDelPlanoApiV1PlanosPlanoIdVanosGet(planoElegido, {
+    query: { enabled: planoElegido !== '', retry: false },
+  });
+  /** Los vanos del plano ya listos para dibujar: el ancho viene en unidades de plano. */
+  const vanosVisibles = (vanosConsulta.data ?? []).map((v) => ({
+    id: v.id,
+    trazoId: v.trazo_id,
+    x: v.x,
+    y: v.y,
+    angulo: v.angulo,
+    anchoPlano: v.ancho_plano,
+    clave: v.clave,
+    tipo: v.tipo,
+    piezas: v.piezas,
+  }));
   const [anguloLibre, setAnguloLibre] = useState('15');
 
   const refrescarHistorial = () => setVersionHistorial((v) => v + 1);
@@ -1101,6 +1124,10 @@ export function EspacioDeTrazo({
       setAviso('Para copiar en lote, primero elige con Seleccionar el punto o la pieza que quieres repetir.');
       return;
     }
+    if (nueva === 'vano' && seleccionado?.geometry.type !== 'LineString') {
+      setAviso('Para colocar un vano, primero elige con Seleccionar el muro (una línea) donde va.');
+      return;
+    }
     if (nueva === 'mover' && seleccionado === null) {
       setAviso('Para mover, primero elige el trazo con Seleccionar.');
       return;
@@ -1111,8 +1138,46 @@ export function EspacioDeTrazo({
     setCursor(null);
     setAviso(null);
     // Moverse, acercar y abrir un hueco no sueltan lo elegido: el hueco se abre sobre ello.
-    if (nueva !== 'seleccionar' && nueva !== 'mano' && nueva !== 'zoom' && nueva !== 'hueco' && nueva !== 'copiar' && nueva !== 'mover' && nueva !== 'borrar') {
+    if (nueva !== 'seleccionar' && nueva !== 'mano' && nueva !== 'zoom' && nueva !== 'hueco' && nueva !== 'copiar' && nueva !== 'mover' && nueva !== 'vano' && nueva !== 'borrar') {
       setSeleccion(null);
+    }
+  }
+
+  /** El vano que se va a colocar con la herramienta Vano (el que se escribió en el panel, o una puerta por defecto). */
+  function prepararVano(datos: DatosDeVano) {
+    setVanoPorColocar(datos);
+    cambiarHerramienta('vano');
+    setVanoPorColocar(datos);
+  }
+
+  /** Un clic con la herramienta Vano: lo pone en el muro elegido, en el punto de la línea más cercano al clic. */
+  async function colocarVanoEn(p: Punto) {
+    if (seleccionado === null || seleccionado.geometry.type !== 'LineString') return;
+    const coordenadas = (seleccionado.geometry as { coordinates?: unknown }).coordinates;
+    const linea = Array.isArray(coordenadas) ? (coordenadas as number[][]).map((c) => [c[0], c[1]] as Punto) : [];
+    const sobre = proyectarEnPolilinea(p, linea);
+    if (sobre === null) return;
+    const datos = vanoPorColocar ?? vanoPorDefecto('puerta');
+    const trazoId = seleccionado.id as string;
+    const existentes = vanosVisibles.filter((v) => v.trazoId === trazoId).map((v) => v.clave);
+    try {
+      await colocarVano.mutateAsync({
+        trazoId,
+        data: {
+          clave: claveSiguiente(datos.tipo, existentes),
+          tipo: datos.tipo,
+          ancho_m: datos.ancho,
+          alto_m: datos.alto,
+          antepecho_m: datos.antepecho,
+          piezas: datos.piezas,
+          posicion_m: sobre.distancia * (escalaDelPlano !== null && escalaDelPlano > 0 ? escalaDelPlano : 1),
+        },
+      });
+      void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/vanos') });
+      invalidarTrazos();
+      setAviso('Vano colocado: descuenta de lo que mide el muro. Sigue dando clic para otro; Esc termina.');
+    } catch (err) {
+      setAviso(`No se pudo colocar el vano: ${err instanceof Error ? err.message : 'error'}`);
     }
   }
 
@@ -1156,6 +1221,10 @@ export function EspacioDeTrazo({
     }
     if (herramienta === 'copiar') {
       void copiarPieza(p);
+      return;
+    }
+    if (herramienta === 'vano') {
+      void colocarVanoEn(p);
       return;
     }
     if (herramienta === 'mover') {
@@ -1389,7 +1458,7 @@ export function EspacioDeTrazo({
   // Atajos mientras se dibuja. El efecto se rearma con cada cambio del borrador:
   // los manejadores leen el estado de este render, no uno viejo.
   useEffect(() => {
-    const dibujando = forma !== null || herramienta === 'hueco' || herramienta === 'copiar' || herramienta === 'mover' || herramienta === 'nota';
+    const dibujando = forma !== null || herramienta === 'hueco' || herramienta === 'copiar' || herramienta === 'mover' || herramienta === 'vano' || herramienta === 'nota';
     if (!dibujando || guardando || subiendoPlano || notaPunto !== null || reemplazando !== null) return;
     function alTeclear(e: KeyboardEvent) {
       const destino = e.target as HTMLElement | null;
@@ -1405,7 +1474,7 @@ export function EspacioDeTrazo({
       } else if (e.key.toLowerCase() === 't' && herramienta === 'contorno') {
         setModoContorno((m) => (m === 'recto' ? 'arco' : 'recto'));
       } else if (e.key === 'Escape') {
-        if (herramienta === 'copiar' || (herramienta === 'mover' && borrador.length === 0)) {
+        if (herramienta === 'copiar' || herramienta === 'vano' || (herramienta === 'mover' && borrador.length === 0)) {
           cambiarHerramienta('seleccionar');
         } else limpiarDibujo();
       }
@@ -1881,6 +1950,7 @@ export function EspacioDeTrazo({
               <VanosDelTrazo
                 trazoId={seleccionado.id as string}
                 puedeEditar
+                onColocarEnPlano={prepararVano}
                 onCambio={(aviso) => {
                   setAviso(aviso);
                   invalidarTrazos();
@@ -2263,6 +2333,7 @@ export function EspacioDeTrazo({
               ...(fondoUrl === null
                 ? { conteo_auto: 'El conteo automático busca en la imagen del plano: este plano no tiene una (imagen o PDF)' }
                 : {}),
+              ...(seleccionado?.geometry.type !== 'LineString' ? { vano: 'Para colocar un vano, primero elige el muro (una línea) con Seleccionar' } : {}),
               ...(seleccionado === null ? { mover: 'Para mover, primero elige el trazo con Seleccionar' } : {}),
               ...(piezaElegida === null
                 ? { copiar: 'Para copiar en lote, primero elige con Seleccionar el punto o la pieza que quieres repetir' }
@@ -2626,6 +2697,7 @@ export function EspacioDeTrazo({
                 onMover={asistida ? setCursor : undefined}
                 onCoordenadas={ponerCoordenadas}
                 onMenu={abrirMenuDelTrazo}
+                vanos={vanosVisibles}
                 onPunto={alPunto}
                 onSeleccionar={alElegirEnElPlano}
               />
@@ -2723,8 +2795,13 @@ export function EspacioDeTrazo({
               </button>
             </div>
           )}
-          {(forma || herramienta === 'hueco' || herramienta === 'escala' || herramienta === 'copiar' || herramienta === 'mover' || herramienta === 'enlace' || herramienta === 'conteo_auto') && (
+          {(forma || herramienta === 'hueco' || herramienta === 'escala' || herramienta === 'copiar' || herramienta === 'mover' || herramienta === 'vano' || herramienta === 'enlace' || herramienta === 'conteo_auto') && (
             <div className="estacion__dibujo row" role="group" aria-label="Trazo en curso">
+              {herramienta === 'vano' && (
+                <span className="text-mute text-xs">
+                  Vano ({(vanoPorColocar ?? vanoPorDefecto('puerta')).tipo}): clic sobre el muro donde va · Esc termina
+                </span>
+              )}
               {herramienta === 'mover' && (
                 <span className="text-mute text-xs">
                   {borrador.length === 0

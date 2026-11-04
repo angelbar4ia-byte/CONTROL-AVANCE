@@ -32,6 +32,7 @@ export type Herramienta =
   | 'punto'
   | 'copiar'
   | 'mover'
+  | 'vano'
   | 'hueco'
   | 'borrar'
   | 'nota'
@@ -47,7 +48,7 @@ export type Herramienta =
  */
 export type HerramientaDeTrazo = Exclude<
   Herramienta,
-  'seleccionar' | 'mano' | 'zoom' | 'copiar' | 'mover' | 'hueco' | 'borrar' | 'nota' | 'escala' | 'enlace' | 'conteo_auto'
+  'seleccionar' | 'mano' | 'zoom' | 'copiar' | 'mover' | 'vano' | 'hueco' | 'borrar' | 'nota' | 'escala' | 'enlace' | 'conteo_auto'
 >;
 
 /** La geometría que se guarda: lo que el servidor mide. Las herramientas de dibujo desembocan en una de estas. */
@@ -586,4 +587,32 @@ export function girarAlrededor(p: Punto, pivote: Punto, grados: number): Punto {
   const x = p[0] - pivote[0];
   const y = p[1] - pivote[1];
   return [pivote[0] + x * c - y * s, pivote[1] + x * s + y * c];
+}
+
+/**
+ * Dónde cae un punto sobre una polilínea: la distancia a lo largo de ella desde su inicio (en unidades de plano), el
+ * punto más cercano y cuánto se separa de la línea. Sirve para colocar un vano sobre el muro con un clic.
+ */
+export function proyectarEnPolilinea(
+  p: Punto,
+  linea: readonly Punto[],
+): { readonly distancia: number; readonly punto: Punto; readonly separacion: number } | null {
+  let mejor: { distancia: number; punto: Punto; separacion: number } | null = null;
+  let acumulado = 0;
+  for (let i = 0; i + 1 < linea.length; i += 1) {
+    const a = linea[i] as Punto;
+    const b = linea[i + 1] as Punto;
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const largo2 = dx * dx + dy * dy;
+    const largo = Math.sqrt(largo2);
+    const t = largo2 === 0 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / largo2));
+    const q: Punto = [a[0] + t * dx, a[1] + t * dy];
+    const separacion = Math.hypot(p[0] - q[0], p[1] - q[1]);
+    if (mejor === null || separacion < mejor.separacion) {
+      mejor = { distancia: acumulado + t * largo, punto: q, separacion };
+    }
+    acumulado += largo;
+  }
+  return mejor;
 }

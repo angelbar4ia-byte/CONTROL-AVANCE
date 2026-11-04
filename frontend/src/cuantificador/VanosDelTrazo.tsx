@@ -16,17 +16,19 @@ import {
 import { queryClient } from '@/app/queryClient';
 
 import { CARAS_POR_DEFECTO } from './trazoPeticion';
-import { TIPOS_DE_VANO, claveSiguiente, descuentoDelVano, type TipoDeVano } from './vanos';
+import { TIPOS_DE_VANO, claveSiguiente, descuentoDelVano, type DatosDeVano, type TipoDeVano } from './vanos';
 
 interface Props {
   readonly trazoId: string;
   readonly puedeEditar: boolean;
+  /** Pide elegir en el plano dónde va, con los datos que están escritos. */
+  readonly onColocarEnPlano?: (datos: DatosDeVano) => void;
   /** Cambió lo que mide la línea: hay que volver a leer trazos y cantidades. */
   readonly onCambio: (aviso: string) => void;
   readonly onError: (mensaje: string) => void;
 }
 
-export function VanosDelTrazo({ trazoId, puedeEditar, onCambio, onError }: Props) {
+export function VanosDelTrazo({ trazoId, puedeEditar, onColocarEnPlano, onCambio, onError }: Props) {
   const vanos = useListarVanosApiV1TrazosTrazoIdVanosGet(trazoId);
   const colocar = useColocarVanoApiV1TrazosTrazoIdVanosPost<ErrorApi>();
   const quitar = useQuitarVanoApiV1VanosVanoIdDelete<ErrorApi>();
@@ -37,8 +39,11 @@ export function VanosDelTrazo({ trazoId, puedeEditar, onCambio, onError }: Props
   const [piezas, setPiezas] = useState('1');
 
   const lista = vanos.data ?? [];
-  const recargar = () =>
+  const recargar = () => {
     void queryClient.invalidateQueries({ queryKey: getListarVanosApiV1TrazosTrazoIdVanosGetQueryKey(trazoId) });
+    // Los vanos que se dibujan sobre el plano también cambian.
+    void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/vanos') });
+  };
 
   function elegirTipo(nuevo: TipoDeVano) {
     setTipo(nuevo);
@@ -128,6 +133,17 @@ export function VanosDelTrazo({ trazoId, puedeEditar, onCambio, onError }: Props
           <button type="button" className="btn btn--sm" disabled={!valido || colocar.isPending} onClick={() => void ponerVano()}>
             Colocar
           </button>
+          {onColocarEnPlano && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              disabled={!valido}
+              title="Eliges en el plano el punto del muro donde va"
+              onClick={() => onColocarEnPlano({ tipo, ancho: n(ancho), alto: n(alto), antepecho: n(antepecho), piezas: n(piezas) })}
+            >
+              En el plano
+            </button>
+          )}
         </div>
       )}
     </div>

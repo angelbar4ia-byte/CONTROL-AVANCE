@@ -450,6 +450,51 @@ class RepositorioTrazosSQL:
         ).scalar_one()
         return UUID(str(fila))
 
+    async def vanos_del_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
+        """Los vanos de las líneas de un plano, con el punto del plano donde van y hacia dónde corre el muro en ese punto.
+
+        `posicion_m` se mide en metros desde el inicio de la línea (con la escala del plano; sin calibrar, en unidades
+        de plano); sin posición, el vano va a la mitad. `ancho_plano` es el ancho del vano en unidades de plano.
+        """
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    with base as (
+                      select v.id, v.trazo_id, v.clave, v.tipo, v.ancho_m, v.alto_m, v.piezas, v.posicion_m,
+                             t.geometria as g, coalesce(p.escala_m_por_unidad, 1) as escala,
+                             ST_Length(t.geometria) as largo
+                        from vano v
+                        join trazo t on t.id = v.trazo_id
+                        join plano p on p.id = t.plano_id
+                       where t.plano_id = :plano and ST_GeometryType(t.geometria) = 'ST_LineString' and ST_Length(t.geometria) > 0
+                    ), f as (
+                      select *, case when posicion_m is null then 0.5
+                                     else least(1.0, greatest(0.0, (posicion_m / escala) / largo)) end as fr
+                        from base
+                    ), pts as (
+                      select *, ST_LineInterpolatePoint(g, fr) as c,
+                             ST_LineInterpolatePoint(g, least(1.0, fr + 0.001)) as d,
+                             ST_LineInterpolatePoint(g, greatest(0.0, fr - 0.001)) as a
+                        from f
+                    )
+                    select id, trazo_id, clave, tipo, ancho_m, alto_m, piezas, posicion_m,
+                           ST_X(c) as x, ST_Y(c) as y,
+                           degrees(atan2(ST_Y(d) - ST_Y(a), ST_X(d) - ST_X(a))) as angulo,
+                           ancho_m / escala as ancho_plano
+                      from pts order by trazo_id, fr
+                    """
+                ),
+                {"plano": str(plano_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def mover_vano(self, vano_id: UUID, posicion_m: Decimal) -> None:
+        await self._sesion.execute(
+            text("update vano set posicion_m = :p where id = :id"), {"p": posicion_m, "id": str(vano_id)}
+        )
+
     async def trazo_del_vano(self, vano_id: UUID) -> UUID | None:
         fila = (
             await self._sesion.execute(

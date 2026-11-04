@@ -136,3 +136,24 @@ async def test_sin_la_tabla_de_vanos_se_sigue_midiendo(escenario: Escenario, con
             await conn.execute(text("alter table vano_oculta rename to vano"))
         await motor.dispose()
         repo._VANOS_DISPONIBLES = False
+
+
+async def test_los_vanos_del_plano_traen_donde_van_y_se_corren_por_el_muro(escenario: Escenario, control: httpx.AsyncClient) -> None:
+    plano, muro = await _muro(control, escenario, "longitud", "5.2")  # LINESTRING(0 0, 10 0)
+    centrada = (await control.post(f"/api/v1/trazos/{muro}/vanos", json=PUERTA)).json()["vano_id"]
+    al_final = (await control.post(f"/api/v1/trazos/{muro}/vanos", json={**VENTANA, "posicion_m": "8"})).json()["vano_id"]
+
+    vanos = {v["id"]: v for v in (await control.get(f"/api/v1/planos/{plano}/vanos")).json()}
+    # Sin posición va a la mitad del muro (5 m); el muro corre de izquierda a derecha (0°).
+    assert vanos[centrada]["x"] == pytest.approx(5.0) and vanos[centrada]["y"] == pytest.approx(0.0)
+    assert vanos[centrada]["angulo"] == pytest.approx(0.0, abs=0.01) and vanos[centrada]["ancho_plano"] == pytest.approx(0.9)
+    assert vanos[al_final]["x"] == pytest.approx(8.0)
+
+    # Correrlo no cambia lo que mide el muro.
+    antes = _total(await control.post(f"/api/v1/trazos/{muro}/vanos", json={**PUERTA, "clave": "P-09", "ancho_m": "0.9"}))
+    assert (await control.patch(f"/api/v1/vanos/{centrada}/posicion", json={"posicion_m": "2.5"})).status_code == 204
+    despues = (await control.get(f"/api/v1/planos/{plano}/vanos")).json()
+    assert next(v for v in despues if v["id"] == centrada)["x"] == pytest.approx(2.5)
+    assert antes is not None
+    assert (await control.patch(f"/api/v1/vanos/{uuid.uuid4()}/posicion", json={"posicion_m": "1"})).status_code == 404
+    assert (await control.patch(f"/api/v1/vanos/{centrada}/posicion", json={"posicion_m": "-1"})).status_code == 422

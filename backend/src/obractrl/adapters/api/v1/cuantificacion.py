@@ -1319,3 +1319,43 @@ async def quitar_vano(vano_id: UUID, ctx: ContextoActual, caso_uso: GestionarVan
     return VanoCambiadoRespuesta(
         vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos]
     )
+
+
+class VanoEnPlanoRespuesta(BaseModel):
+    id: UUID
+    trazo_id: UUID
+    clave: str
+    tipo: str
+    ancho_m: Decimal
+    alto_m: Decimal
+    piezas: int
+    posicion_m: Decimal | None
+    x: float = Field(description="Dónde va, en coordenadas del plano.")
+    y: float
+    angulo: float = Field(description="Hacia dónde corre el muro en ese punto, en grados (eje y hacia abajo).")
+    ancho_plano: float = Field(description="Ancho del vano en unidades de plano.")
+
+
+class VanoPosicionPeticion(BaseModel):
+    posicion_m: Decimal = Field(ge=0, description="Metros desde el inicio de la línea.")
+
+
+@router.get(
+    "/planos/{plano_id}/vanos",
+    response_model=list[VanoEnPlanoRespuesta],
+    summary="Los vanos de un plano, con el punto donde van para dibujarlos",
+)
+async def vanos_del_plano(plano_id: UUID, caso_uso: GestionarVanosDep) -> list[VanoEnPlanoRespuesta]:
+    return [VanoEnPlanoRespuesta(**v) for v in await caso_uso.del_plano(plano_id)]
+
+
+@router.patch(
+    "/vanos/{vano_id}/posicion",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Correr un vano por su muro",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={404: {"description": "El vano no existe o está fuera de tu alcance."}},
+)
+async def mover_vano(vano_id: UUID, peticion: VanoPosicionPeticion, caso_uso: GestionarVanosDep) -> None:
+    """Dónde está el vano no cambia lo que mide la línea: no recalcula cantidades."""
+    await caso_uso.mover(vano_id, peticion.posicion_m)

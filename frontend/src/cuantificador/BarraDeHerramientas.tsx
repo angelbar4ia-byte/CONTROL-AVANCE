@@ -13,6 +13,7 @@ import {
   Box,
   Circle,
   CopyPlus,
+  DoorOpen,
   Eraser,
   Eye,
   FlipHorizontal2,
@@ -93,6 +94,7 @@ const ICONOS: Record<Herramienta, Icono> = {
   punto: MapPin,
   copiar: CopyPlus,
   mover: Move,
+  vano: DoorOpen,
   hueco: SquareMinus,
   borrar: Eraser,
   escala: Ruler,
@@ -119,6 +121,7 @@ export const ETIQUETAS: Record<Herramienta, string> = {
   punto: 'Punto',
   copiar: 'Copiar en lote',
   mover: 'Mover',
+  vano: 'Vano (puerta, ventana…)',
   hueco: 'Hueco',
   borrar: 'Borrar',
   escala: 'Calibrar escala',
@@ -145,6 +148,7 @@ export const ATAJOS: Record<Herramienta, string> = {
   punto: 'O',
   copiar: 'K',
   mover: 'M',
+  vano: 'G',
   hueco: 'U',
   borrar: 'B',
   escala: 'E',
@@ -166,7 +170,7 @@ const BLOQUES: readonly { readonly clave: BloqueDeBarra; readonly titulo?: strin
   { clave: 'area', titulo: 'Área', herramientas: ['poligono', 'rectangulo', 'circulo', 'elipse', 'contorno', 'hueco'] },
   { clave: 'lineal', titulo: 'Lineal', herramientas: ['linea', 'polilinea', 'arco', 'rectangulo_l', 'circulo_l', 'elipse_l'] },
   { clave: 'conteo', titulo: 'Conteo', herramientas: ['punto', 'copiar', 'conteo_auto'] },
-  { clave: 'otros', herramientas: ['mover', 'nota', 'enlace', 'borrar'] },
+  { clave: 'otros', herramientas: ['mover', 'vano', 'nota', 'enlace', 'borrar'] },
 ];
 
 export interface Accion {

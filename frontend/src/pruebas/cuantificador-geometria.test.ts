@@ -9,6 +9,7 @@ import {
   distanciaEntre,
   escalaPrevista,
   girarAlrededor,
+  proyectarEnPolilinea,
   gradosDeGiro,
   trasladar,
   herramientaDeGeometria,
@@ -304,5 +305,26 @@ describe('mover y girar (menú del trazo)', () => {
   });
   it('trasladar suma el desplazamiento', () => {
     expect(trasladar([1, 2], 3, -4)).toEqual([4, -2]);
+  });
+});
+
+describe('proyectar un clic sobre un muro (vanos)', () => {
+  it('cae en el punto más cercano y mide la distancia desde el inicio', () => {
+    const r = proyectarEnPolilinea([4, 3], [[0, 0], [10, 0]]);
+    expect(r?.punto).toEqual([4, 0]);
+    expect(r?.distancia).toBeCloseTo(4);
+    expect(r?.separacion).toBeCloseTo(3);
+  });
+  it('en una polilínea suma los tramos anteriores', () => {
+    const r = proyectarEnPolilinea([10, 2], [[0, 0], [10, 0], [10, 5]]);
+    expect(r?.punto[0]).toBeCloseTo(10);
+    expect(r?.punto[1]).toBeCloseTo(2);
+    expect(r?.distancia).toBeCloseTo(12);
+  });
+  it('un clic pasado el final se queda en el extremo', () => {
+    expect(proyectarEnPolilinea([15, 0], [[0, 0], [10, 0]])?.distancia).toBeCloseTo(10);
+  });
+  it('una línea sin tramos no tiene proyección', () => {
+    expect(proyectarEnPolilinea([1, 1], [[0, 0]])).toBeNull();
   });
 });
