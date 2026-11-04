@@ -172,7 +172,7 @@ export function AltaObra({
             deshabilitado={esUrba || clusterId === ''}
             pista={
               clusterId === ''
-                ? 'Elige primero el cluster: los prototipos son del proyecto (§7.2).'
+                ? 'Elige primero el cluster: salen los prototipos del proyecto y los de todos los proyectos (§7.2).'
                 : 'Es el árbol que recorre la generación de actividades (§11.3 A.2).'
             }
           />

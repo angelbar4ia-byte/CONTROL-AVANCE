@@ -215,6 +215,17 @@ describe('filtros y selects encadenados', () => {
     expect(prototiposDeProyecto(prototipos, 'p1').map((p) => p.clave)).toEqual(['CAS-A']);
     expect(prototiposDeProyecto(prototipos, null)).toEqual([]);
   });
+
+  it('los prototipos de todos los proyectos se ofrecen en cualquier proyecto', () => {
+    const prototipos: readonly PrototipoRespuesta[] = [
+      { id: 'pr1', proyecto_id: 'p1', clave: 'CAS-A', nombre: 'Modelo A' },
+      { id: 'pr2', proyecto_id: 'p2', clave: 'CAS-B', nombre: 'Modelo B' },
+      { id: 'pr3', proyecto_id: null, clave: 'CAS-00001', nombre: 'Zafiro 1.0' },
+    ];
+    expect(prototiposDeProyecto(prototipos, 'p1').map((p) => p.clave)).toEqual(['CAS-A', 'CAS-00001']);
+    expect(prototiposDeProyecto(prototipos, 'p2').map((p) => p.clave)).toEqual(['CAS-B', 'CAS-00001']);
+    expect(prototiposDeProyecto(prototipos, null)).toEqual([]);
+  });
 });
 
 describe('formulario ↔ DTO (§11.2)', () => {

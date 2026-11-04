@@ -111,14 +111,18 @@ export function proyectoDeCluster(
 }
 
 /**
- * Prototipos del proyecto indicado (§7.2: el prototipo cuelga del proyecto).
- * Con `proyectoId` en `null` no se puede acotar todavía, y devolver todos
- * dejaría elegir un prototipo de otro proyecto: mejor lista vacía.
+ * Prototipos que se pueden elegir en el proyecto indicado: los del proyecto y
+ * los **de todos los proyectos** (`proyecto_id` nulo, D-614: así nacen los del
+ * catálogo de presupuesto). Con `proyectoId` en `null` no se puede acotar
+ * todavía, y devolver todos dejaría elegir un prototipo de otro proyecto:
+ * mejor lista vacía.
  */
 export function prototiposDeProyecto(
   prototipos: readonly PrototipoRespuesta[],
   proyectoId: string | null,
 ): readonly PrototipoRespuesta[] {
   if (proyectoId === null) return [];
-  return prototipos.filter((prototipo) => prototipo.proyecto_id === proyectoId);
+  return prototipos.filter(
+    (prototipo) => prototipo.proyecto_id === proyectoId || prototipo.proyecto_id == null,
+  );
 }
