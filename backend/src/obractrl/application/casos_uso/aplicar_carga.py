@@ -4093,7 +4093,11 @@ class AplicadorPresupuesto:
                     claves_actualizadas=claves_actualizadas,
                 )
 
-            if not dry_run and partidas:
+            if not dry_run and partidas and await self._igual_a_la_vigente(prototipo["id"], partidas):
+                # Mismo contenido que la versión vigente (mismas partidas, cantidades y
+                # precios): no se crea versión, igual que un catálogo sin cambios (§10.8).
+                contadores["versiones_sin_cambio"] = contadores.get("versiones_sin_cambio", 0) + 1
+            elif not dry_run and partidas:
                 version = await self._presupuestos.crear_version(
                     prototipo["id"], origen="excel", carga_id=carga_id
                 )
@@ -4171,6 +4175,28 @@ class AplicadorPresupuesto:
                 "etapas_con_nivel_derivado": etapas_con_nivel,
             },
         )
+
+    async def _igual_a_la_vigente(self, prototipo_id: UUID, partidas: list[dict[str, Any]]) -> bool:
+        """¿Las partidas que traería esta carga son las de la versión vigente?
+
+        Comparan nodo, concepto, cantidad y precio. Sin esto, volver a subir el mismo
+        archivo crearía una versión idéntica cada vez; y sin el atajo por huella (que no
+        aplica al árbol, ver `EjecutarCarga`) el único freno a las versiones repetidas es este.
+        """
+        cabecera = await self._presupuestos.vigente_de_prototipo(prototipo_id)
+        if cabecera is None:
+            return False
+        actuales = await self._presupuestos.partidas(UUID(str(cabecera["id"])))
+
+        def firma(p: dict[str, Any]) -> tuple[str, str, Decimal, Decimal]:
+            return (
+                str(p["prototipo_nodo_id"]),
+                str(p["concepto_id"]),
+                Decimal(str(p["cantidad"])),
+                Decimal(str(p["precio_unitario"])),
+            )
+
+        return sorted(map(firma, actuales)) == sorted(map(firma, partidas))
 
     async def _procesar_subarbol(
         self,
@@ -4893,6 +4919,16 @@ class AplicadorDePrototipos:
     ) -> None:
         self._plano = plano
         self._ingenieria = ingenieria
+
+    def resultado_depende_del_catalogo(self, lectura: LecturaCarga) -> bool:
+        """El árbol de presupuesto guarda cada partida con el costo vigente de su concepto,
+        que cambia sin que cambie el archivo (al subir el análisis de básicos). Por eso el
+        mismo archivo, ya aplicado, no es motivo para saltarse la carga: lo que decide si
+        hay versión nueva es el contenido (`AplicadorPresupuesto._igual_a_la_vigente`).
+        El alta plana de prototipos no depende de nada fuera del archivo."""
+        return bool(lectura.registros) and isinstance(
+            lectura.registros[0], ArbolPrototipoCargado
+        )
 
     async def aplicar(
         self,
