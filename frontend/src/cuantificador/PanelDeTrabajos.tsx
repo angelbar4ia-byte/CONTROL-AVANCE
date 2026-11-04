@@ -161,24 +161,24 @@ export function PanelDeTrabajos({ trabajos, medidaPorActividad, elegido, cargand
             {cuadrillas.map((q) => {
               const activo = elegido?.tipo === 'cuadrilla' && elegido.id === q.id;
               return (
-                <button
-                  key={q.id}
-                  type="button"
-                  role="listitem"
-                  className={`trazos-plano__fila trabajos-panel__fila${activo ? ' is-activa' : ''}`}
-                  aria-current={activo ? 'true' : undefined}
-                  onClick={() => onElegir({ tipo: 'cuadrilla', id: q.id })}
-                >
-                  <span aria-hidden>·</span>
-                  <span className="trazos-plano__nombre">
-                    <b>{q.nombre}</b>
-                    <small>
-                      {q.costoJornada !== null ? `${fmtMXN(q.costoJornada)}/día` : 'costo por día sin capturar'} · {q.trabajaEn.length}{' '}
-                      {q.trabajaEn.length === 1 ? 'destajo' : 'destajos'}
-                    </small>
-                  </span>
-                  <span />
-                </button>
+                <div key={q.id} role="listitem">
+                  <button
+                    type="button"
+                    className={`trazos-plano__fila trabajos-panel__fila${activo ? ' is-activa' : ''}`}
+                    aria-current={activo ? 'true' : undefined}
+                    onClick={() => onElegir({ tipo: 'cuadrilla', id: q.id })}
+                  >
+                    <span aria-hidden>·</span>
+                    <span className="trazos-plano__nombre">
+                      <b>{q.nombre}</b>
+                      <small>
+                        {q.costoJornada !== null ? `${fmtMXN(q.costoJornada)}/día` : 'costo por día sin capturar'} · {q.trabajaEn.length}{' '}
+                        {q.trabajaEn.length === 1 ? 'destajo' : 'destajos'}
+                      </small>
+                    </span>
+                    <span />
+                  </button>
+                </div>
               );
             })}
           </div>
