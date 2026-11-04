@@ -364,3 +364,32 @@ class RepositorioArbolDeObraSQL:
                 ).scalar_one()
             )
         )
+
+    async def trabajo_real_de_la_obra(self, obra_id: UUID) -> str | None:
+        """Lo que ya no es diseño: avance ejecutado, registros de avance o estimaciones; `None` si no hay nada de eso."""
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select exists (select 1 from actividad where obra_id = :o and cant_ejecutada > 0) as avance,
+                           exists (select 1 from registro_avance where obra_id = :o) as registros,
+                           exists (select 1 from estimacion where obra_id = :o) as estimaciones
+                    """
+                ),
+                {"o": str(obra_id)},
+            )
+        ).mappings().one()
+        if fila["avance"] or fila["registros"]:
+            return "La obra ya tiene avance ejecutado."
+        if fila["estimaciones"]:
+            return "La obra ya tiene estimaciones."
+        return None
+
+    async def eliminar_obra(self, obra_id: UUID, prototipo_id: UUID, borrar_prototipo: bool) -> None:
+        """Borra la obra (todo lo suyo cae en cascada) y, si era un prototipo de un solo uso, también ese prototipo."""
+        await self._sesion.execute(text("delete from obra where id = :o"), {"o": str(obra_id)})
+        if borrar_prototipo:
+            await self._sesion.execute(
+                text("delete from prototipo where id = :p and de_una_obra and not exists (select 1 from obra where prototipo_id = :p)"),
+                {"p": str(prototipo_id)},
+            )

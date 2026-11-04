@@ -39,6 +39,7 @@ import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Sheet } from '@/lib/Sheet';
 import type { Rol } from '@/shell/navegacion';
 import { useArranqueDeLaObraApiV1ObrasObraIdArranqueGet } from '@/api/generado/partes/partes';
+import { useEliminarObraApiV1ObrasObraIdEliminarPost } from '@/api/generado/arbol-de-la-obra/arbol-de-la-obra';
 import { InstanciarPrograma } from '@/programacion/InstanciarPrograma';
 import { CampoSelect, CampoTexto } from './Campos';
 import { cambiosDeObra, formularioDeObra, hayCambios } from './formulario';
@@ -70,6 +71,19 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
   // Requisito de la junta: ¿todo validado? Avisa; lo que impide es asignar (el candado).
   const arranque = useArranqueDeLaObraApiV1ObrasObraIdArranqueGet(obra.id);
   const [error, setError] = useState<{ mensaje: string; campo?: string } | null>(null);
+  /** Eliminar una obra en diseño pide dos confirmaciones: la ventana y escribir su clave (D-624). */
+  const [eliminando, setEliminando] = useState(false);
+  const [claveEscrita, setClaveEscrita] = useState('');
+  const eliminar = useEliminarObraApiV1ObrasObraIdEliminarPost<ErrorApi>({
+    mutation: {
+      onSuccess: () => {
+        setError(null);
+        onCambiada();
+        onCerrar();
+      },
+      onError: (err) => setError({ mensaje: err.message, campo: err.campo }),
+    },
+  });
 
   // Una clave por (método, ruta): generar la obra A y la obra B son
   // operaciones distintas, y reintentar la A reusa la suya (regla 1 del
@@ -392,6 +406,45 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
                     )}
                   </div>
                 </>
+              )}
+
+              {editable && (
+                <div role="group" aria-label="Eliminar la obra" style={{ display: 'grid', gap: 6 }}>
+                  {!eliminando ? (
+                    <button
+                      type="button"
+                      className="btn btn--danger"
+                      title="Solo mientras la obra sigue en diseño: nada programado ni asignado, sin avance."
+                      onClick={() => {
+                        if (window.confirm(`¿Eliminar la obra ${obra.clave}? Se borran sus planos, trazos, partidas y programa, y su árbol propio. No se puede deshacer.`)) {
+                          setEliminando(true);
+                        }
+                      }}
+                    >
+                      Eliminar obra
+                    </button>
+                  ) : (
+                    <>
+                      <label className="text-sm">
+                        Para confirmar, escribe la clave de la obra: <span className="mono">{obra.clave}</span>
+                        <input aria-label="Clave de la obra para confirmar" value={claveEscrita} onChange={(e) => setClaveEscrita(e.target.value)} />
+                      </label>
+                      <div className="row" style={{ gap: 6 }}>
+                        <button
+                          type="button"
+                          className="btn btn--danger"
+                          disabled={eliminar.isPending || claveEscrita.trim().toUpperCase() !== obra.clave.trim().toUpperCase()}
+                          onClick={() => eliminar.mutate({ obraId: obra.id, data: { clave: claveEscrita } })}
+                        >
+                          {eliminar.isPending ? 'Eliminando…' : 'Eliminar definitivamente'}
+                        </button>
+                        <button type="button" className="btn" onClick={() => { setEliminando(false); setClaveEscrita(''); }}>
+                          Cancelar
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
 
               {generada && (

@@ -171,3 +171,44 @@ async def test_una_parte_asignada_no_se_clona_ni_se_edita(escenario: Escenario, 
     finally:
         await motor.dispose()
     assert (await control.post(f"{ruta}/propio")).status_code == 409
+
+
+async def test_eliminar_una_obra_en_diseno_pide_la_clave_y_se_lleva_su_arbol_propio(
+    escenario: Escenario, base: dict, control: httpx.AsyncClient, residente: httpx.AsyncClient
+) -> None:
+    ruta = f"/api/v1/obras/{escenario.obra_id}"
+    await control.post(f"{ruta}/arbol/propio")  # la obra tiene su árbol propio
+    propio = (await control.get(f"{ruta}/arbol")).json()["prototipo_id"]
+
+    assert (await residente.post(f"{ruta}/eliminar", json={"clave": "OBRA 01"})).status_code == 403
+    # La segunda confirmación: la clave escrita.
+    assert (await control.post(f"{ruta}/eliminar", json={"clave": "otra"})).status_code == 422
+    assert (await control.get(f"{ruta}/arbol")).status_code == 200  # sigue ahí
+
+    assert (await control.post(f"{ruta}/eliminar", json={"clave": "obra 01"})).status_code == 204
+    assert (await control.get(f"{ruta}/arbol")).status_code == 404
+    motor = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with motor.connect() as c:
+            assert (await c.execute(text("select count(*) from prototipo where id = :p"), {"p": propio})).scalar_one() == 0
+            assert (await c.execute(text("select count(*) from prototipo where id = :p"), {"p": str(escenario.prototipo_id)})).scalar_one() == 1
+    finally:
+        await motor.dispose()
+
+
+async def test_una_obra_programada_o_con_avance_ya_no_se_elimina(escenario: Escenario, base: dict, control: httpx.AsyncClient) -> None:
+    ruta = f"/api/v1/obras/{escenario.obra_id}/eliminar"
+    motor = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with motor.begin() as c:
+            await c.execute(text("update actividad set cant_ejecutada = 1 where id = :a"), {"a": str(escenario.actividad_id)})
+        assert (await control.post(ruta, json={"clave": "OBRA 01"})).status_code == 409  # avance: ya no es diseño
+        async with motor.begin() as c:
+            await c.execute(text("update actividad set cant_ejecutada = 0 where id = :a"), {"a": str(escenario.actividad_id)})
+            await c.execute(
+                text("insert into parte_estado (org_id, obra_id, clave, estado) values (:o, :ob, 'sin_etapa', 'programada')"),
+                {"o": str(escenario.org_id), "ob": str(escenario.obra_id)},
+            )
+        assert (await control.post(ruta, json={"clave": "OBRA 01"})).status_code == 409  # programada: contratada
+    finally:
+        await motor.dispose()

@@ -30,6 +30,7 @@ import type {
   ArbolDeLaObraRespuesta,
   ArbolPropioCreadoRespuesta,
   ConfirmarVersionPeticion,
+  EliminarObraPeticion,
   NodoCreadoRespuesta,
   NodoPeticion,
 } from ".././modelo";
@@ -1033,3 +1034,103 @@ export const useActivarVersionApiV1ObrasObraIdArbolVersionesPresupuestoIdActivar
 
     return useMutation(mutationOptions, queryClient);
   };
+/**
+ * Borra la obra con todo lo suyo (planos, trazos, partidas, programa); si tenía un árbol propio, también ese árbol.
+ * @summary Eliminar una obra que sigue en diseño (nada programado ni asignado)
+ */
+export const eliminarObraApiV1ObrasObraIdEliminarPost = (
+  obraId: string,
+  eliminarObraPeticion: EliminarObraPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/obras/${obraId}/eliminar`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: eliminarObraPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getEliminarObraApiV1ObrasObraIdEliminarPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof eliminarObraApiV1ObrasObraIdEliminarPost>>,
+    TError,
+    { obraId: string; data: EliminarObraPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof eliminarObraApiV1ObrasObraIdEliminarPost>>,
+  TError,
+  { obraId: string; data: EliminarObraPeticion },
+  TContext
+> => {
+  const mutationKey = ["eliminarObraApiV1ObrasObraIdEliminarPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof eliminarObraApiV1ObrasObraIdEliminarPost>>,
+    { obraId: string; data: EliminarObraPeticion }
+  > = (props) => {
+    const { obraId, data } = props ?? {};
+
+    return eliminarObraApiV1ObrasObraIdEliminarPost(
+      obraId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EliminarObraApiV1ObrasObraIdEliminarPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof eliminarObraApiV1ObrasObraIdEliminarPost>>
+  >;
+export type EliminarObraApiV1ObrasObraIdEliminarPostMutationBody =
+  EliminarObraPeticion;
+export type EliminarObraApiV1ObrasObraIdEliminarPostMutationError = void;
+
+/**
+ * @summary Eliminar una obra que sigue en diseño (nada programado ni asignado)
+ */
+export const useEliminarObraApiV1ObrasObraIdEliminarPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof eliminarObraApiV1ObrasObraIdEliminarPost>>,
+      TError,
+      { obraId: string; data: EliminarObraPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof eliminarObraApiV1ObrasObraIdEliminarPost>>,
+  TError,
+  { obraId: string; data: EliminarObraPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getEliminarObraApiV1ObrasObraIdEliminarPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};

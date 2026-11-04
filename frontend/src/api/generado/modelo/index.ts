@@ -435,6 +435,7 @@ export type * from "./elementoPuestoEnMedicionElementoId";
 export type * from "./elementoRespuesta";
 export * from "./elementoRespuestaTipo";
 export type * from "./elementosDelPlanoRespuesta";
+export type * from "./eliminarObraPeticion";
 export type * from "./eliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams";
 export type * from "./enlaceDeHojaCreado";
 export type * from "./enlaceDeHojaPeticion";

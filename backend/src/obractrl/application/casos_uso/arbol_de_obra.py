@@ -16,7 +16,10 @@ from obractrl.application.puertos.repositorios import UnidadDeTrabajo
 from obractrl.domain.catalogos.reglas import ErrorDeCatalogo
 from obractrl.domain.partes.estado import ErrorDeParte, EstadoDeParte
 
-__all__ = ["ArbolDeObra"]
+__all__ = ["ESTADOS_QUE_YA_SON_CONTRATO", "ArbolDeObra"]
+
+# Una obra en diseño no tiene nada contratado: solo cuando una parte se programa se considera contratada (D-624).
+ESTADOS_QUE_YA_SON_CONTRATO = (EstadoDeParte.PROGRAMADA.value, EstadoDeParte.ASIGNADA.value)
 
 _HIJO_DE = {"nivel": None, "etapa": "nivel", "concepto": "etapa"}
 
@@ -169,4 +172,21 @@ class ArbolDeObra:
             raise ErrorDeCatalogo("Solo una versión confirmada se fija como activa: confirma primero el borrador.")
         async with self._uow:
             await self._arbol.activar(presupuesto_id, obra["prototipo_id"])
+            await self._uow.commit()
+
+    async def eliminar_obra(self, obra_id: UUID, clave_confirmada: str) -> None:
+        """Borra una obra que sigue en diseño. Pide la clave escrita: la segunda confirmación (la primera es de la pantalla)."""
+        obra = await self._obra(obra_id)
+        estados = await self._partes.estados_de_obra(obra_id)
+        if any(e in ESTADOS_QUE_YA_SON_CONTRATO for e in estados.values()):
+            raise ErrorDeParte(
+                "La obra ya tiene partes programadas o asignadas: dejó de ser diseño y no se elimina desde aquí."
+            )
+        trabajo = await self._arbol.trabajo_real_de_la_obra(obra_id)
+        if trabajo is not None:
+            raise ErrorDeParte(f"{trabajo} Dejó de ser diseño y no se elimina desde aquí.")
+        if clave_confirmada.strip().upper() != str(obra["clave"]).strip().upper():
+            raise ErrorDeCatalogo(f"Para eliminarla escribe su clave exacta: {obra['clave']}.")
+        async with self._uow:
+            await self._arbol.eliminar_obra(obra_id, obra["prototipo_id"], bool(obra["de_una_obra"]))
             await self._uow.commit()

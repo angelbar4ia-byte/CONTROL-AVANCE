@@ -165,3 +165,23 @@ async def confirmar_version(obra_id: UUID, peticion: ConfirmarVersionPeticion, c
 )
 async def activar_version(obra_id: UUID, presupuesto_id: UUID, caso_uso: ArbolDeObraDep) -> None:
     await caso_uso.activar(obra_id, presupuesto_id)
+
+
+class EliminarObraPeticion(BaseModel):
+    clave: str = Field(min_length=1, description="La clave de la obra, escrita: la segunda confirmación.")
+
+
+@router.post(
+    "/obras/{obra_id}/eliminar",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar una obra que sigue en diseño (nada programado ni asignado)",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
+    responses={
+        **_RESPUESTAS,
+        409: {"description": "La obra ya tiene partes programadas o asignadas, avance o estimaciones."},
+        422: {"description": "La clave escrita no es la de la obra."},
+    },
+)
+async def eliminar_obra(obra_id: UUID, peticion: EliminarObraPeticion, caso_uso: ArbolDeObraDep) -> None:
+    """Borra la obra con todo lo suyo (planos, trazos, partidas, programa); si tenía un árbol propio, también ese árbol."""
+    await caso_uso.eliminar_obra(obra_id, peticion.clave)
