@@ -10775,6 +10775,169 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/vanos": {
+      "get": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Los vanos colocados sobre una línea",
+        "operationId": "listar_vanos_api_v1_trazos__trazo_id__vanos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VanoRespuesta"
+                  },
+                  "title": "Response Listar Vanos Api V1 Trazos  Trazo Id  Vanos Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Colocar un vano (puerta, ventana, paso) sobre una línea",
+        "description": "Descuenta de lo que mide la línea: ancho × alto × piezas × caras en m², o su ancho en metros si llega al piso.",
+        "operationId": "colocar_vano_api_v1_trazos__trazo_id__vanos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VanoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VanoCambiadoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "La línea alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "El trazo no es una línea o las medidas no valen."
+          }
+        }
+      }
+    },
+    "/api/v1/vanos/{vano_id}": {
+      "delete": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Quitar un vano",
+        "description": "La línea vuelve a medir sin ese vano; sus nodos se recalculan.",
+        "operationId": "quitar_vano_api_v1_vanos__vano_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Vano Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VanoCambiadoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El vano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/mediciones": {
       "get": {
         "tags": [
@@ -33191,6 +33354,191 @@
           "medido"
         ],
         "title": "ValuacionRespuesta"
+      },
+      "VanoCambiadoRespuesta": {
+        "properties": {
+          "vano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vano Id"
+          },
+          "recalculos": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+            },
+            "type": "array",
+            "title": "Recalculos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vano_id",
+          "recalculos"
+        ],
+        "title": "VanoCambiadoRespuesta"
+      },
+      "VanoPeticion": {
+        "properties": {
+          "clave": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Clave"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "puerta",
+              "ventana",
+              "cancel",
+              "arco",
+              "paso"
+            ],
+            "title": "Tipo"
+          },
+          "ancho_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Ancho M"
+          },
+          "alto_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Alto M"
+          },
+          "antepecho_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Antepecho M",
+            "description": "Del piso al borde de abajo (ventanas).",
+            "default": "0"
+          },
+          "piezas": {
+            "type": "integer",
+            "maximum": 999.0,
+            "minimum": 1.0,
+            "title": "Piezas",
+            "default": 1
+          },
+          "posicion_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posicion M",
+            "description": "Distancia desde el inicio de la línea."
+          }
+        },
+        "type": "object",
+        "required": [
+          "clave",
+          "tipo",
+          "ancho_m",
+          "alto_m"
+        ],
+        "title": "VanoPeticion",
+        "description": "Una puerta, ventana o paso colocado sobre una línea."
+      },
+      "VanoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "ancho_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ancho M"
+          },
+          "alto_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Alto M"
+          },
+          "antepecho_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Antepecho M"
+          },
+          "piezas": {
+            "type": "integer",
+            "title": "Piezas"
+          },
+          "posicion_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Posicion M"
+          },
+          "llega_al_piso": {
+            "type": "boolean",
+            "title": "Llega Al Piso"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "clave",
+          "tipo",
+          "ancho_m",
+          "alto_m",
+          "antepecho_m",
+          "piezas",
+          "posicion_m",
+          "llega_al_piso"
+        ],
+        "title": "VanoRespuesta"
       },
       "VersionCPURespuesta": {
         "properties": {

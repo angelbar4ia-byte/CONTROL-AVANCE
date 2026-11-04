@@ -51,6 +51,17 @@ _ESCALA_SQL = "coalesce(p.escala_m_por_unidad, 1)"
 _GEOMETRIA_SQL = "app.geometria_efectiva(t.id, t.geometria)"
 # Una línea inclinada mide más que su proyección en planta: × √(1 + (pendiente/100)²) (0087).
 _PENDIENTE_SQL = "sqrt(1 + power(coalesce(t.pendiente_pct, 0) / 100.0, 2))"
+# Los vanos de la línea (0103) descuentan lo que mide, en las unidades de `medida_valor` (metros de largo):
+# con factor 1 (concepto en ml) se resta el ancho de los que llegan al piso; con un factor de área
+# (largo × altura × caras) se resta el área del vano × las 2 caras por defecto, dividida entre ese factor, para
+# que `medida_valor × factor` baje exactamente ancho × alto × piezas × caras.
+_DESCUENTO_DE_VANOS_SQL = """
+    case when e.factor = 1
+      then coalesce((select sum(v.ancho_m * v.piezas) from vano v where v.trazo_id = t.id and v.llega_al_piso), 0)
+      else coalesce((select sum(v.ancho_m * v.alto_m * v.piezas) from vano v where v.trazo_id = t.id), 0)
+           * 2 / nullif(e.factor, 0)
+    end
+"""
 _MEDIDA_VALOR_SQL = f"""
     case e.medida
       when 'area'      then case
@@ -59,7 +70,9 @@ _MEDIDA_VALOR_SQL = f"""
                               else ST_Area({_GEOMETRIA_SQL}) * power({_ESCALA_SQL}, 2)
                             end
       when 'perimetro'  then ST_Perimeter({_GEOMETRIA_SQL}) * {_ESCALA_SQL}
-      when 'longitud'   then ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * {_PENDIENTE_SQL}
+      when 'longitud'   then greatest(
+                              ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * {_PENDIENTE_SQL} - {_DESCUENTO_DE_VANOS_SQL},
+                              0)
       when 'conteo'     then 1
     end
 """
@@ -375,6 +388,79 @@ class RepositorioTrazosSQL:
             {"id": id_, "g": float(grados), "gn": float(grados), "px": float(pivote[0]), "py": float(pivote[1])},
         )
         return pivote
+
+    async def es_linea(self, trazo_id: UUID) -> bool:
+        return bool(
+            (
+                await self._sesion.execute(
+                    text("select ST_GeometryType(geometria) = 'ST_LineString' from trazo where id = :id"),
+                    {"id": str(trazo_id)},
+                )
+            ).scalar_one_or_none()
+        )
+
+    async def crear_vano(
+        self,
+        *,
+        trazo_id: UUID,
+        clave: str,
+        tipo: str,
+        ancho_m: Decimal,
+        alto_m: Decimal,
+        antepecho_m: Decimal,
+        piezas: int,
+        posicion_m: Decimal | None,
+        autor_id: UUID,
+    ) -> UUID:
+        fila = (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into vano (org_id, trazo_id, clave, tipo, ancho_m, alto_m, antepecho_m, piezas, posicion_m, autor_id)
+                    select t.org_id, t.id, :clave, :tipo, :ancho, :alto, :antepecho, :piezas, :posicion, :autor
+                      from trazo t where t.id = :trazo
+                    returning id
+                    """
+                ),
+                {
+                    "trazo": str(trazo_id),
+                    "clave": clave,
+                    "tipo": tipo,
+                    "ancho": ancho_m,
+                    "alto": alto_m,
+                    "antepecho": antepecho_m,
+                    "piezas": piezas,
+                    "posicion": posicion_m,
+                    "autor": str(autor_id),
+                },
+            )
+        ).scalar_one()
+        return UUID(str(fila))
+
+    async def trazo_del_vano(self, vano_id: UUID) -> UUID | None:
+        fila = (
+            await self._sesion.execute(
+                text("select trazo_id from vano where id = :id"), {"id": str(vano_id)}
+            )
+        ).scalar_one_or_none()
+        return UUID(str(fila)) if fila is not None else None
+
+    async def quitar_vano(self, vano_id: UUID) -> None:
+        await self._sesion.execute(text("delete from vano where id = :id"), {"id": str(vano_id)})
+
+    async def vanos_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select id, clave, tipo, ancho_m, alto_m, antepecho_m, piezas, posicion_m, llega_al_piso
+                      from vano where trazo_id = :t order by created_at, id
+                    """
+                ),
+                {"t": str(trazo_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
 
     async def crear_hueco(
         self, *, trazo_id: UUID, geometria_wkt: str, autor_id: UUID
