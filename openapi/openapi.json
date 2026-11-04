@@ -12228,6 +12228,388 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/arbol": {
+      "get": {
+        "tags": [
+          "arbol de la obra"
+        ],
+        "summary": "El árbol de la obra y las versiones de su presupuesto",
+        "operationId": "ver_arbol_api_v1_obras__obra_id__arbol_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArbolDeLaObraRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo hacen Control de obra y Costos."
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La parte ya está asignada, o el nodo ya generó partidas."
+          },
+          "422": {
+            "description": "El nodo no va ahí, falta un dato, o la obra no tiene árbol propio."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/arbol/propio": {
+      "post": {
+        "tags": [
+          "arbol de la obra"
+        ],
+        "summary": "Crear el árbol propio de la obra: se clona el del prototipo y su presupuesto vigente",
+        "description": "El prototipo base no se toca; la obra pasa a la copia y sus partidas se re-ligan a los nodos copiados.",
+        "operationId": "crear_arbol_propio_api_v1_obras__obra_id__arbol_propio_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArbolPropioCreadoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo hacen Control de obra y Costos."
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La parte ya está asignada, o el nodo ya generó partidas."
+          },
+          "422": {
+            "description": "El nodo no va ahí, falta un dato, o la obra no tiene árbol propio."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/arbol/nodos": {
+      "post": {
+        "tags": [
+          "arbol de la obra"
+        ],
+        "summary": "Agregar un nivel, una etapa o un concepto al árbol propio",
+        "description": "El primer cambio crea el borrador del presupuesto. Un concepto entra sin cantidad y con su precio vigente.",
+        "operationId": "agregar_nodo_api_v1_obras__obra_id__arbol_nodos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodoCreadoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo hacen Control de obra y Costos."
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La parte ya está asignada, o el nodo ya generó partidas."
+          },
+          "422": {
+            "description": "El nodo no va ahí, falta un dato, o la obra no tiene árbol propio."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/arbol/nodos/{nodo_id}": {
+      "patch": {
+        "tags": [
+          "arbol de la obra"
+        ],
+        "summary": "Renombrar un nodo o cambiar su lugar entre sus hermanos",
+        "operationId": "ajustar_nodo_api_v1_obras__obra_id__arbol_nodos__nodo_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "nodo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Nodo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AjusteDeNodoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Lo hacen Control de obra y Costos."
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La parte ya está asignada, o el nodo ya generó partidas."
+          },
+          "422": {
+            "description": "El nodo no va ahí, falta un dato, o la obra no tiene árbol propio."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "arbol de la obra"
+        ],
+        "summary": "Quitar un nodo (con todo lo que cuelga de él) del árbol propio",
+        "operationId": "quitar_nodo_api_v1_obras__obra_id__arbol_nodos__nodo_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "nodo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Nodo Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Lo hacen Control de obra y Costos."
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La parte ya está asignada, o el nodo ya generó partidas."
+          },
+          "422": {
+            "description": "El nodo no va ahí, falta un dato, o la obra no tiene árbol propio."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/arbol/versiones/confirmar": {
+      "post": {
+        "tags": [
+          "arbol de la obra"
+        ],
+        "summary": "Confirmar el borrador del presupuesto: queda fijo",
+        "operationId": "confirmar_version_api_v1_obras__obra_id__arbol_versiones_confirmar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmarVersionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Lo hacen Control de obra y Costos."
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La parte ya está asignada, o el nodo ya generó partidas."
+          },
+          "422": {
+            "description": "El nodo no va ahí, falta un dato, o la obra no tiene árbol propio."
+          }
+        }
+      }
+    },
+    "/api/v1/obras/{obra_id}/arbol/versiones/{presupuesto_id}/activar": {
+      "post": {
+        "tags": [
+          "arbol de la obra"
+        ],
+        "summary": "Fijar una versión confirmada como la activa del presupuesto de la obra",
+        "operationId": "activar_version_api_v1_obras__obra_id__arbol_versiones__presupuesto_id__activar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          },
+          {
+            "name": "presupuesto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Presupuesto Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Lo hacen Control de obra y Costos."
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La parte ya está asignada, o el nodo ya generó partidas."
+          },
+          "422": {
+            "description": "El nodo no va ahí, falta un dato, o la obra no tiene árbol propio."
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/enlaces": {
       "get": {
         "tags": [
@@ -17097,6 +17479,38 @@
         "type": "object",
         "title": "AjusteDeNivelOEtapa"
       },
+      "AjusteDeNodoPeticion": {
+        "properties": {
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "orden": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden"
+          }
+        },
+        "type": "object",
+        "title": "AjusteDeNodoPeticion"
+      },
       "AlcancePeticion": {
         "properties": {
           "gente": {
@@ -17332,6 +17746,65 @@
         ],
         "title": "AprobarLoteRespuesta"
       },
+      "ArbolDeLaObraRespuesta": {
+        "properties": {
+          "propio": {
+            "type": "boolean",
+            "title": "Propio",
+            "description": "La obra tiene su árbol propio (editable); si no, usa el del prototipo base."
+          },
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "prototipo_clave": {
+            "type": "string",
+            "title": "Prototipo Clave"
+          },
+          "prototipo_nombre": {
+            "type": "string",
+            "title": "Prototipo Nombre"
+          },
+          "borrador_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Borrador Id"
+          },
+          "versiones": {
+            "items": {
+              "$ref": "#/components/schemas/VersionDelPresupuestoRespuesta"
+            },
+            "type": "array",
+            "title": "Versiones"
+          },
+          "nodos": {
+            "items": {
+              "$ref": "#/components/schemas/NodoDeArbolDeObraRespuesta"
+            },
+            "type": "array",
+            "title": "Nodos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "propio",
+          "prototipo_id",
+          "prototipo_clave",
+          "prototipo_nombre",
+          "borrador_id",
+          "versiones",
+          "nodos"
+        ],
+        "title": "ArbolDeLaObraRespuesta"
+      },
       "ArbolDeProgramaRespuesta": {
         "properties": {
           "obra_id": {
@@ -17380,6 +17853,35 @@
         ],
         "title": "ArbolDeProgramaRespuesta",
         "description": "§11.2 `GET /obras/{id}/programa/arbol`: el cronograma como árbol WBS."
+      },
+      "ArbolPropioCreadoRespuesta": {
+        "properties": {
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nodos": {
+            "type": "integer",
+            "title": "Nodos"
+          },
+          "partidas_religadas": {
+            "type": "integer",
+            "title": "Partidas Religadas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prototipo_id",
+          "clave",
+          "nodos",
+          "partidas_religadas"
+        ],
+        "title": "ArbolPropioCreadoRespuesta"
       },
       "ArchivoDePlanoRespuesta": {
         "properties": {
@@ -19385,6 +19887,25 @@
         },
         "type": "object",
         "title": "ConfirmarPeticion"
+      },
+      "ConfirmarVersionPeticion": {
+        "properties": {
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota",
+            "description": "Lo que cambió («se agregó la cocina»)."
+          }
+        },
+        "type": "object",
+        "title": "ConfirmarVersionPeticion"
       },
       "ConflictoJerarquiaRespuesta": {
         "properties": {
@@ -27236,6 +27757,20 @@
         ],
         "title": "NivelRespuesta"
       },
+      "NodoCreadoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "NodoCreadoRespuesta"
+      },
       "NodoCuantificadoRespuesta": {
         "properties": {
           "tipo_nodo": {
@@ -27315,6 +27850,122 @@
           "trazos_por_revisar"
         ],
         "title": "NodoCuantificadoRespuesta"
+      },
+      "NodoDeArbolDeObraRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "tipo": {
+            "type": "string",
+            "title": "Tipo"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          },
+          "concepto_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Clave"
+          },
+          "concepto_descripcion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Descripcion"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "orden": {
+            "type": "integer",
+            "title": "Orden"
+          },
+          "cantidad": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "parent_id",
+          "tipo",
+          "nombre",
+          "clave",
+          "concepto_id",
+          "concepto_clave",
+          "concepto_descripcion",
+          "unidad",
+          "orden",
+          "cantidad"
+        ],
+        "title": "NodoDeArbolDeObraRespuesta"
       },
       "NodoDelArbolRespuesta": {
         "properties": {
@@ -27433,6 +28084,60 @@
         ],
         "title": "NodoDelArbolRespuesta",
         "description": "Un renglón del Gantt jerárquico (§7.4, §6).\n\nLos nodos `nivel` y `etapa` son **barras resumen derivadas**, no\nactividades: el residente sigue capturando sólo en conceptos y estas se\nrecalculan de sus hojas en cada lectura (§7.6). Por eso no traen id de\nactividad ni estatus — no son una fila de `actividad` y no deben poder\neditarse como si lo fueran."
+      },
+      "NodoPeticion": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "nivel",
+              "etapa",
+              "concepto"
+            ],
+            "title": "Tipo"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "concepto_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Concepto Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo"
+        ],
+        "title": "NodoPeticion"
       },
       "NodoProgramadoRespuesta": {
         "properties": {
@@ -35253,6 +35958,62 @@
           "vigente"
         ],
         "title": "VersionCuadrillaRespuesta"
+      },
+      "VersionDelPresupuestoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "borrador",
+              "confirmada"
+            ],
+            "title": "Estado"
+          },
+          "vigente": {
+            "type": "boolean",
+            "title": "Vigente"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          },
+          "monto_total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monto Total"
+          },
+          "partidas": {
+            "type": "integer",
+            "title": "Partidas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "version",
+          "estado",
+          "vigente",
+          "nota",
+          "monto_total",
+          "partidas"
+        ],
+        "title": "VersionDelPresupuestoRespuesta"
       },
       "VersionPublicadaRespuesta": {
         "properties": {

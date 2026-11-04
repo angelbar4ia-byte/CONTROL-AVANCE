@@ -21,6 +21,7 @@ from obractrl.adapters.api.avisos import suscribir_avisos
 from obractrl.adapters.api.dependencias import ContextoActual, SesionRLS
 from obractrl.adapters.excel.cargadores import TipoDeCargaSinCargador, cargador_para
 from obractrl.adapters.repos.actividades_sql import RepositorioActividadesSQL
+from obractrl.adapters.repos.arbol_de_obra_sql import RepositorioArbolDeObraSQL
 from obractrl.adapters.repos.arbol_sql import RepositorioArbolSQL
 from obractrl.adapters.repos.asignaciones_sql import RepositorioAsignacionesSQL
 from obractrl.adapters.repos.calendario_sql import RepositorioCalendarioSQL
@@ -113,6 +114,7 @@ from obractrl.application.casos_uso.aplicar_catalogo_mano_de_obra import (
     AplicadorSemillaCuadrillas,
 )
 from obractrl.application.casos_uso.arbol import ArmarArbol
+from obractrl.application.casos_uso.arbol_de_obra import ArbolDeObra
 from obractrl.application.casos_uso.calcular_cpu import (
     ExplotarConcepto,
     ObtenerCPU,
@@ -359,6 +361,7 @@ __all__ = [
     "AprobarCierreDeFrenteDep",
     "AprobarPendientesEnLoteDep",
     "AprobarTrazoDep",
+    "ArbolDeObraDep",
     "ArmarArbolDep",
     "ArmarExpedienteDep",
     "ArmarReporteDeEstimacionDep",
@@ -1000,6 +1003,10 @@ def obtener_rechazar_propuestas(sesion: SesionRLS) -> RechazarPropuestas:
     return RechazarPropuestas(trazos=RepositorioTrazosSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
 
 
+def obtener_arbol_de_obra(sesion: SesionRLS) -> ArbolDeObra:
+    return ArbolDeObra(arbol=RepositorioArbolDeObraSQL(sesion), partes=RepositorioPartesSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
+
+
 def obtener_cambio_de_unidad(sesion: SesionRLS) -> CambioDeUnidad:
     return CambioDeUnidad(
         arbol=RepositorioArbolSQL(sesion),
@@ -1143,6 +1150,7 @@ GestionarElementosParametricosDep = Annotated[
     GestionarElementosParametricos, Depends(obtener_gestionar_elementos_parametricos)
 ]
 GestionarVanosDep = Annotated[GestionarVanos, Depends(obtener_gestionar_vanos)]
+ArbolDeObraDep = Annotated[ArbolDeObra, Depends(obtener_arbol_de_obra)]
 CambioDeUnidadDep = Annotated[CambioDeUnidad, Depends(obtener_cambio_de_unidad)]
 ArmarArbolDep = Annotated[ArmarArbol, Depends(obtener_armar_arbol)]
 TraerTrazoDep = Annotated[TraerTrazoAOtraVersion, Depends(obtener_traer_trazo)]
