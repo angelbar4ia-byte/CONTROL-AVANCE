@@ -11721,6 +11721,103 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/elemento-parametrico": {
+      "put": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Marcar un trazo como un elemento paramétrico, o quitarle la marca",
+        "description": "Un punto es una pieza (castillo, zapata), una línea son sus metros (trabe, cadena) y un área son sus m² (losa).",
+        "operationId": "poner_elemento_en_trazo_api_v1_trazos__trazo_id__elemento_parametrico_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ElementoEnTrazoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "El trazo o el elemento no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "El elemento se coloca con otra geometría, o la cimbra no tiene esos lados."
+          }
+        }
+      }
+    },
+    "/api/v1/planos/{plano_id}/elementos-parametricos": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Lo que llevan en total los elementos paramétricos colocados en un plano",
+        "description": "La receta de una muestra × lo que aporta cada trazo (1 pieza, sus metros o sus m², con la escala calibrada).",
+        "operationId": "elementos_del_plano_api_v1_planos__plano_id__elementos_parametricos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElementosDelPlanoRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/enlaces": {
       "get": {
         "tags": [
@@ -21479,6 +21576,39 @@
         ],
         "title": "ElementoDeMedicion"
       },
+      "ElementoEnTrazoPeticion": {
+        "properties": {
+          "elemento_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elemento Id",
+            "description": "`null` le quita el elemento al trazo."
+          },
+          "lados_cimbra": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lados Cimbra",
+            "description": "Fija a mano los lados de cimbra de esta pieza."
+          }
+        },
+        "type": "object",
+        "title": "ElementoEnTrazoPeticion"
+      },
       "ElementoParametricoCambio": {
         "properties": {
           "clave": {
@@ -21727,6 +21857,30 @@
           "n_mediciones"
         ],
         "title": "ElementoRespuesta"
+      },
+      "ElementosDelPlanoRespuesta": {
+        "properties": {
+          "totales": {
+            "items": {
+              "$ref": "#/components/schemas/TotalDeElementoRespuesta"
+            },
+            "type": "array",
+            "title": "Totales"
+          },
+          "trazos": {
+            "items": {
+              "$ref": "#/components/schemas/TrazoConElementoRespuesta"
+            },
+            "type": "array",
+            "title": "Trazos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "totales",
+          "trazos"
+        ],
+        "title": "ElementosDelPlanoRespuesta"
       },
       "EnlaceDeHojaCreado": {
         "properties": {
@@ -32157,6 +32311,91 @@
         ],
         "title": "TipoSemana"
       },
+      "TotalDeElementoRespuesta": {
+        "properties": {
+          "elemento_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Elemento Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "nombre": {
+            "type": "string",
+            "title": "Nombre"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "castillo",
+              "lineal",
+              "zapata",
+              "losa"
+            ],
+            "title": "Tipo"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "colocados": {
+            "type": "integer",
+            "title": "Colocados",
+            "description": "Cuántos trazos del plano son este elemento."
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad",
+            "description": "Piezas, metros o m² que suman, según la unidad."
+          },
+          "concreto_m3": {
+            "type": "number",
+            "title": "Concreto M3"
+          },
+          "acero_kg": {
+            "type": "number",
+            "title": "Acero Kg"
+          },
+          "estribos_kg": {
+            "type": "number",
+            "title": "Estribos Kg"
+          },
+          "alambre_kg": {
+            "type": "number",
+            "title": "Alambre Kg"
+          },
+          "cimbra_m2": {
+            "type": "number",
+            "title": "Cimbra M2"
+          },
+          "cimbra_por_lados": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Cimbra Por Lados"
+          }
+        },
+        "type": "object",
+        "required": [
+          "elemento_id",
+          "clave",
+          "nombre",
+          "tipo",
+          "unidad",
+          "colocados",
+          "cantidad",
+          "concreto_m3",
+          "acero_kg",
+          "estribos_kg",
+          "alambre_kg",
+          "cimbra_m2",
+          "cimbra_por_lados"
+        ],
+        "title": "TotalDeElementoRespuesta"
+      },
       "TrabajoDeObraRespuesta": {
         "properties": {
           "actividad_id": {
@@ -32693,6 +32932,38 @@
           "ya_estaba_aprobado"
         ],
         "title": "TrazoAprobadoRespuesta"
+      },
+      "TrazoConElementoRespuesta": {
+        "properties": {
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "elemento_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Elemento Id"
+          },
+          "lados_cimbra": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lados Cimbra"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazo_id",
+          "elemento_id",
+          "lados_cimbra"
+        ],
+        "title": "TrazoConElementoRespuesta"
       },
       "TrazoEliminadoRespuesta": {
         "properties": {

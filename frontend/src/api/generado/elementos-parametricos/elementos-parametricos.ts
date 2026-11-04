@@ -26,10 +26,12 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ElementoEnTrazoPeticion,
   ElementoParametricoCambio,
   ElementoParametricoCreado,
   ElementoParametricoPeticion,
   ElementoParametricoRespuesta,
+  ElementosDelPlanoRespuesta,
   HTTPValidationError,
   TipoDeElementoRespuesta,
 } from ".././modelo";
@@ -1245,3 +1247,637 @@ export const useEliminarElementoParametricoApiV1ElementosParametricosElementoIdD
 
     return useMutation(mutationOptions, queryClient);
   };
+/**
+ * Un punto es una pieza (castillo, zapata), una línea son sus metros (trabe, cadena) y un área son sus m² (losa).
+ * @summary Marcar un trazo como un elemento paramétrico, o quitarle la marca
+ */
+export const ponerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut = (
+  trazoId: string,
+  elementoEnTrazoPeticion: ElementoEnTrazoPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/trazos/${trazoId}/elemento-parametrico`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: elementoEnTrazoPeticion,
+    },
+    options,
+  );
+};
+
+export const getPonerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPutMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof ponerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut
+        >
+      >,
+      TError,
+      { trazoId: string; data: ElementoEnTrazoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof ponerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut
+      >
+    >,
+    TError,
+    { trazoId: string; data: ElementoEnTrazoPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "ponerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof ponerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut
+        >
+      >,
+      { trazoId: string; data: ElementoEnTrazoPeticion }
+    > = (props) => {
+      const { trazoId, data } = props ?? {};
+
+      return ponerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut(
+        trazoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type PonerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof ponerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut
+      >
+    >
+  >;
+export type PonerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPutMutationBody =
+  ElementoEnTrazoPeticion;
+export type PonerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPutMutationError =
+  void;
+
+/**
+ * @summary Marcar un trazo como un elemento paramétrico, o quitarle la marca
+ */
+export const usePonerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof ponerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut
+        >
+      >,
+      TError,
+      { trazoId: string; data: ElementoEnTrazoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<
+      typeof ponerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut
+    >
+  >,
+  TError,
+  { trazoId: string; data: ElementoEnTrazoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getPonerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPutMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * La receta de una muestra × lo que aporta cada trazo (1 pieza, sus metros o sus m², con la escala calibrada).
+ * @summary Lo que llevan en total los elementos paramétricos colocados en un plano
+ */
+export const elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet = (
+  planoId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ElementosDelPlanoRespuesta>(
+    {
+      url: `/api/v1/planos/${planoId}/elementos-parametricos`,
+      method: "GET",
+      signal,
+    },
+    options,
+  );
+};
+
+export const getElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetInfiniteQueryKey =
+  (planoId?: string) => {
+    return [
+      "infinite",
+      `/api/v1/planos/${planoId}/elementos-parametricos`,
+    ] as const;
+  };
+
+export const getElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetQueryKey =
+  (planoId?: string) => {
+    return [`/api/v1/planos/${planoId}/elementos-parametricos`] as const;
+  };
+
+export const getElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+        >
+      >
+    >,
+    TError = HTTPValidationError,
+  >(
+    planoId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetInfiniteQueryKey(
+        planoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+        >
+      >
+    > = ({ signal }) =>
+      elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet(
+        planoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!planoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+      >
+    >
+  >;
+export type ElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetInfiniteQueryError =
+  HTTPValidationError;
+
+export function useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Lo que llevan en total los elementos paramétricos colocados en un plano
+ */
+
+export function useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetInfiniteQueryOptions(
+      planoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+      >
+    >,
+    TError = HTTPValidationError,
+  >(
+    planoId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetQueryKey(
+        planoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+        >
+      >
+    > = ({ signal }) =>
+      elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet(
+        planoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!planoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+      >
+    >
+  >;
+export type ElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetQueryError =
+  HTTPValidationError;
+
+export function useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Lo que llevan en total los elementos paramétricos colocados en un plano
+ */
+
+export function useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof elementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetQueryOptions(
+      planoId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}

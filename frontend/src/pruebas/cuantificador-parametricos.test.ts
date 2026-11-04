@@ -44,3 +44,20 @@ describe('elementos paramétricos', () => {
     expect(formatoDeReceta(2, 2)).toBe('2');
   });
 });
+
+import { ladosDeCimbra, tiposParaGeometria } from '@/cuantificador/parametricos';
+
+describe('colocar un elemento en el plano', () => {
+  it('cada geometría admite los elementos que le tocan', () => {
+    expect(tiposParaGeometria('Point')).toEqual(['castillo', 'zapata']);
+    expect(tiposParaGeometria('LineString')).toEqual(['lineal']);
+    expect(tiposParaGeometria('Polygon')).toEqual(['losa']);
+    expect(tiposParaGeometria('MultiPoint')).toEqual([]);
+  });
+  it('solo castillo y trabe dejan fijar los lados de cimbra', () => {
+    expect(ladosDeCimbra('castillo')).toEqual([4, 3, 2]);
+    expect(ladosDeCimbra('lineal')).toEqual([3, 2]);
+    expect(ladosDeCimbra('zapata')).toEqual([]);
+    expect(ladosDeCimbra('losa')).toEqual([]);
+  });
+});

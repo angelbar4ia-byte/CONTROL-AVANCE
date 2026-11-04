@@ -153,6 +153,7 @@ import { OpcionesDeEmpalme } from './OpcionesDeEmpalme';
 import { PanelDelArbol } from './PanelDelArbol';
 import { PanelDePropuestas } from './PanelDePropuestas';
 import { ProponerEscala } from './ProponerEscala';
+import { ElementoDelTrazo } from './ElementoDelTrazo';
 import { VanosDelTrazo } from './VanosDelTrazo';
 import { PanelVolumen } from './PanelVolumen';
 import { resumenDePantalla, type TrazoParaResumen } from './resumen';
@@ -1832,6 +1833,13 @@ export function EspacioDeTrazo({
                 )
               }
             />
+            <ElementoDelTrazo
+              planoId={planoElegido}
+              trazoId={seleccionado.id as string}
+              geometria={String(seleccionado.geometry.type)}
+              onCambio={(aviso) => setAviso(aviso)}
+              onError={(m) => setAviso(m)}
+            />
             {seleccionado.geometry.type === 'LineString' && (
               <VanosDelTrazo
                 trazoId={seleccionado.id as string}
@@ -2077,6 +2085,7 @@ export function EspacioDeTrazo({
             onError={(m) => setAviso(m)}
           />
           <PanelDeParametricos
+            planoId={planoElegido}
             puedeDefinir={puedePonerPeso}
             onCambio={(aviso) => {
               if (aviso) setAviso(aviso);
