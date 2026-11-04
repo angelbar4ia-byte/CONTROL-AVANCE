@@ -66,17 +66,18 @@ test.describe('Cuantificador · elementos con peso', () => {
     await entrarComo(page, 'control');
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${acero.id}`);
     const barra = page.getByRole('toolbar', { name: 'Herramientas de trazo' });
-    await page.getByRole('tab', { name: /Mediciones/ }).click();
     const panel = page.getByRole('region', { name: 'Mediciones del plano' });
     const guardado = page.getByTestId('autoguardado');
 
-    // --- 1. El elemento se crea solo, al salir de la fila ------------------------------------------------------
-    const lista = panel.getByRole('list', { name: 'Elementos con peso' });
+    // --- 1. El elemento se crea solo, al salir de la fila (pestaña Elementos) --------------------------------------
+    await page.getByRole('tab', { name: /^Elementos/ }).click();
+    const lista = page.getByRole('list', { name: 'Elementos con peso' });
     await lista.getByLabel('Nombre del elemento nuevo').fill('Castillo K1');
     await lista.getByLabel(/Peso del elemento nuevo/).fill('38');
-    await panel.getByText('Se crea sobre el concepto o la matriz').click(); // salir de la fila: sin botón
+    await page.getByText('Los cambios se guardan solos').click(); // salir de la fila: sin botón
     await expect(lista.getByLabel('Peso de Castillo K1 (kg/pza)')).toHaveValue('38');
     await expect(guardado).toHaveText('Todo guardado');
+    await page.getByRole('tab', { name: /^Mediciones/ }).click();
 
     // --- 2. Una medición de conteo con ese elemento, asignada con el peso a un concepto en kg -------------------
     await panel.getByRole('button', { name: 'Nueva medición' }).click();
@@ -162,7 +163,7 @@ test.describe('Cuantificador · elementos con peso', () => {
 
     await entrarComo(page, 'residente');
     await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano!.id}`);
-    await page.getByRole('tab', { name: /Mediciones/ }).click();
+    await page.getByRole('tab', { name: /^Elementos/ }).click();
     const lista = page.getByRole('list', { name: 'Elementos con peso' });
     await expect(lista).toContainText(nombre);
     await expect(lista).toContainText('12.5');
