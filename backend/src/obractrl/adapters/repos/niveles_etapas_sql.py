@@ -78,7 +78,7 @@ class RepositorioNivelesEtapasSQL:
     async def listar_niveles(self) -> list[dict[str, Any]]:
         filas = (
             await self._sesion.execute(
-                text("select id, clave, descripcion, orden, importe from nivel order by clave")
+                text("select id, clave, descripcion, orden, importe from nivel order by orden, clave")
             )
         ).mappings().all()
         return [dict(fila) for fila in filas]
@@ -111,7 +111,7 @@ class RepositorioNivelesEtapasSQL:
                 text(
                     "select id, nivel_id, frente_id, clave, descripcion, orden, "
                     "       ponderacion, importe "
-                    "from etapa_constructiva order by clave"
+                    "from etapa_constructiva order by orden, clave"
                 )
             )
         ).mappings().all()

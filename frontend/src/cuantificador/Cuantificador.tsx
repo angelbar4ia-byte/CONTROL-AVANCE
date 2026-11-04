@@ -2768,6 +2768,12 @@ export function EspacioDeTrazo({
                 notas={notasVisibles}
                 seleccion={seleccion}
                 seleccionados={extras}
+                onSeleccionarVarios={(ids, agregar) => {
+                  const nuevos = agregar ? [...idsElegidos, ...ids.filter((id) => !idsElegidos.includes(id))] : [...ids];
+                  setSeleccion(nuevos[0] === undefined ? null : { tipo: 'trazo', id: nuevos[0] });
+                  setExtras(new Set(nuevos.slice(1)));
+                  if (nuevos.length > 1) setAviso(`${nuevos.length} trazos elegidos con la ventana.`);
+                }}
                 herramienta={herramienta}
                 borrador={polilineaEnCurso ? borrador : []}
                 marcas={polilineaEnCurso ? [] : borrador}

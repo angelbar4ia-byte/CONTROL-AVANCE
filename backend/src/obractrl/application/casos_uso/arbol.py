@@ -232,3 +232,27 @@ class ArmarArbol:
             await self._arbol.quitar_actividad(actividad_id)
             await self._uow.commit()
         return {"actividad_id": actividad_id}
+
+    async def ajustar_nivel(self, nivel_id: UUID, *, descripcion: str | None, orden: int | None) -> None:
+        """Renombra un nivel o cambia su lugar entre los demás. Es del catálogo: vale para todas las obras."""
+        descripcion = self._descripcion(descripcion, "nivel")
+        async with self._uow:
+            if not await self._arbol.ajustar_nivel(nivel_id, descripcion=descripcion, orden=orden):
+                raise ErrorDeCatalogo("El nivel no existe o está fuera de tu alcance.")
+            await self._uow.commit()
+
+    async def ajustar_etapa(self, etapa_id: UUID, *, descripcion: str | None, orden: int | None) -> None:
+        descripcion = self._descripcion(descripcion, "etapa")
+        async with self._uow:
+            if not await self._arbol.ajustar_etapa(etapa_id, descripcion=descripcion, orden=orden):
+                raise ErrorDeCatalogo("La etapa no existe o está fuera de tu alcance.")
+            await self._uow.commit()
+
+    @staticmethod
+    def _descripcion(descripcion: str | None, que: str) -> str | None:
+        if descripcion is None:
+            return None
+        limpia = " ".join(descripcion.split())
+        if not limpia:
+            raise ErrorDeCatalogo(f"El {que} necesita una descripción.")
+        return limpia

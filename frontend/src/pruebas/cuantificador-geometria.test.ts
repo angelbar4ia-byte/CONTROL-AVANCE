@@ -10,6 +10,9 @@ import {
   escalaPrevista,
   girarAlrededor,
   proyectarEnPolilinea,
+  trazosEnVentana,
+  ventanaToca,
+  ventanaCubre,
   gradosDeGiro,
   trasladar,
   herramientaDeGeometria,
@@ -326,5 +329,31 @@ describe('proyectar un clic sobre un muro (vanos)', () => {
   });
   it('una línea sin tramos no tiene proyección', () => {
     expect(proyectarEnPolilinea([1, 1], [[0, 0]])).toBeNull();
+  });
+});
+
+describe('selección por ventana', () => {
+  const caja = { minX: 0, minY: 0, maxX: 10, maxY: 10 };
+  const dentro = { id: 'dentro', puntos: [[2, 2], [4, 4]] as [number, number][], cerrada: false };
+  const cruza = { id: 'cruza', puntos: [[5, 5], [20, 5]] as [number, number][], cerrada: false };
+  const fuera = { id: 'fuera', puntos: [[30, 30], [40, 40]] as [number, number][], cerrada: false };
+  const grande = { id: 'grande', puntos: [[-5, -5], [20, -5], [20, 20], [-5, 20]] as [number, number][], cerrada: true };
+  const atraviesa = { id: 'atraviesa', puntos: [[-5, 5], [20, 5]] as [number, number][], cerrada: false };
+
+  it('hacia abajo solo elige lo que la ventana cubre por completo', () => {
+    expect(trazosEnVentana([dentro, cruza, fuera, grande], caja, true)).toEqual(['dentro']);
+  });
+  it('hacia arriba elige todo lo que toca', () => {
+    expect(trazosEnVentana([dentro, cruza, fuera, grande], caja, false)).toEqual(['dentro', 'cruza', 'grande']);
+  });
+  it('una línea que atraviesa la ventana sin tener un punto dentro también cuenta al tocar', () => {
+    expect(ventanaToca(atraviesa, caja)).toBe(true);
+    expect(ventanaCubre(atraviesa, caja)).toBe(false);
+  });
+  it('un área que contiene toda la ventana la toca aunque ninguno de sus lados la cruce', () => {
+    expect(ventanaToca(grande, caja)).toBe(true);
+  });
+  it('lo que está lejos no se elige de ninguna manera', () => {
+    expect(trazosEnVentana([fuera], caja, false)).toEqual([]);
   });
 });

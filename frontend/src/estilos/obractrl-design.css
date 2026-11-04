@@ -2964,3 +2964,7 @@ a { color: inherit; text-decoration: none; }
 .visor__vanos { pointer-events: none; }
 .visor__vano { fill: var(--panel, #fff); fill-opacity: .85; stroke: var(--accent, #2563eb); stroke-width: 1.5; pointer-events: none; }
 .visor__vano--ventana { fill-opacity: .35; stroke-dasharray: 3 2; }
+
+/* Ventana de selección del visor: azul y sólida si solo elige lo que cubre por completo; verde y punteada si elige lo que toca. */
+.visor__ventana { fill: var(--accent, #2563eb); fill-opacity: .08; stroke: var(--accent, #2563eb); stroke-width: 1; pointer-events: none; }
+.visor__ventana--toca { fill: var(--c-ok, #16a34a); stroke: var(--c-ok, #16a34a); stroke-dasharray: 5 3; }

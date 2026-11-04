@@ -24,6 +24,8 @@ import {
   useAgregarPartidaApiV1ObrasObraIdPartidasPost,
   useCambiarUnidadDelConceptoApiV1ConceptosConceptoIdUnidadPut,
   useCrearEtapaApiV1EtapasPost,
+  useAjustarEtapaApiV1EtapasEtapaIdPatch,
+  useAjustarNivelApiV1NivelesNivelIdPatch,
   useCrearNivelApiV1NivelesPost,
   useMoverPartidaApiV1ActividadesActividadIdUbicacionPut,
   useQuitarPartidaApiV1ActividadesActividadIdPartidaDelete,
@@ -31,7 +33,7 @@ import {
 import { useCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost } from '@/api/generado/partes/partes';
 import type { ActividadRespuesta } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
-import { descripcionCorta } from './arbol';
+import { descripcionCorta, reordenar } from './arbol';
 import { CambioDeUnidadDelConcepto } from './CambioDeUnidadDelConcepto';
 import { MatricesDeActividad } from './MatricesDeActividad';
 import { NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
@@ -199,6 +201,10 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
   const unidades = useListarUnidadesApiV1UnidadesGet(undefined, { query: { staleTime: 60_000 } });
   const crearNivel = useCrearNivelApiV1NivelesPost<ErrorApi>();
   const crearEtapa = useCrearEtapaApiV1EtapasPost<ErrorApi>();
+  const ajustarNivel = useAjustarNivelApiV1NivelesNivelIdPatch<ErrorApi>();
+  const ajustarEtapa = useAjustarEtapaApiV1EtapasEtapaIdPatch<ErrorApi>();
+  /** El nivel o la etapa cuyo nombre se está escribiendo (doble clic), con lo escrito. */
+  const [renombrando, setRenombrando] = useState<{ clave: string; texto: string } | null>(null);
   const cambiarUnidad = useCambiarUnidadDelConceptoApiV1ConceptosConceptoIdUnidadPut<ErrorApi>();
   const mover = useMoverPartidaApiV1ActividadesActividadIdUbicacionPut<ErrorApi>();
   const quitar = useQuitarPartidaApiV1ActividadesActividadIdPartidaDelete<ErrorApi>();
@@ -220,6 +226,76 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
     void queryClient.invalidateQueries({ queryKey: getListarNivelesApiV1NivelesGetQueryKey() });
     void queryClient.invalidateQueries({ queryKey: getListarEtapasApiV1EtapasGetQueryKey() });
   };
+
+  /** Sube o baja un nivel o una etapa entre sus hermanos. Es del catálogo: vale para todas las obras. */
+  async function cambiarLugar(tipo: 'nivel' | 'etapa', id: string, hermanos: readonly string[], dir: 'up' | 'down') {
+    const nuevos = reordenar(hermanos, id, dir);
+    if (nuevos === null) {
+      onError('Ya está en ese extremo.');
+      return;
+    }
+    try {
+      for (const [hermano, orden] of nuevos) {
+        const actual = tipo === 'nivel' ? niveles.data?.find((n) => n.id === hermano)?.orden : etapas.data?.find((e) => e.id === hermano)?.orden;
+        if (actual === orden) continue;
+        if (tipo === 'nivel') await ajustarNivel.mutateAsync({ nivelId: hermano, data: { orden } });
+        else await ajustarEtapa.mutateAsync({ etapaId: hermano, data: { orden } });
+      }
+      recargar();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo cambiar el lugar.');
+    }
+  }
+
+  async function guardarNombre(tipo: 'nivel' | 'etapa', id: string, original: string) {
+    const nuevo = renombrando?.texto.trim() ?? '';
+    setRenombrando(null);
+    if (nuevo === '' || nuevo === original) return;
+    try {
+      if (tipo === 'nivel') await ajustarNivel.mutateAsync({ nivelId: id, data: { descripcion: nuevo } });
+      else await ajustarEtapa.mutateAsync({ etapaId: id, data: { descripcion: nuevo } });
+      recargar();
+      onCambio(`${tipo === 'nivel' ? 'Nivel' : 'Etapa'} renombrado.`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo renombrar.');
+    }
+  }
+
+  /** El nombre de un nivel o etapa: se lee como texto; con doble clic se escribe, Intro guarda y Esc cancela. */
+  const nombreEditable = (tipo: 'nivel' | 'etapa', id: string, descripcion: string) => {
+    const llave = `${tipo}:${id}`;
+    if (renombrando?.clave === llave) {
+      return (
+        <input
+          aria-label={`Nombre del ${tipo}`}
+          autoFocus
+          value={renombrando.texto}
+          onChange={(e) => setRenombrando({ clave: llave, texto: e.target.value })}
+          onBlur={() => void guardarNombre(tipo, id, descripcion)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+            if (e.key === 'Escape') setRenombrando(null);
+          }}
+        />
+      );
+    }
+    return (
+      <span className="text-mute" title="Doble clic para renombrar" onDoubleClick={() => setRenombrando({ clave: llave, texto: descripcion })}>
+        {descripcion}
+      </span>
+    );
+  };
+
+  const flechas = (tipo: 'nivel' | 'etapa', id: string, hermanos: readonly string[], nombre: string) => (
+    <span className="row" style={{ gap: 2 }}>
+      <button type="button" className="btn btn--ghost btn--sm" aria-label={`Subir ${nombre}`} title="Subir" onClick={() => void cambiarLugar(tipo, id, hermanos, 'up')}>
+        ↑
+      </button>
+      <button type="button" className="btn btn--ghost btn--sm" aria-label={`Bajar ${nombre}`} title="Bajar" onClick={() => void cambiarLugar(tipo, id, hermanos, 'down')}>
+        ↓
+      </button>
+    </span>
+  );
 
   async function nuevoNivel(clave: string, descripcion: string) {
     try {
@@ -384,14 +460,16 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
         {(niveles.data ?? []).map((n) => (
           <li key={n.id} data-nivel={n.clave}>
             <div className="arbol-edicion__titulo">
-              <strong>{n.clave}</strong> <span className="text-mute">{n.descripcion}</span>
+              <strong>{n.clave}</strong> {nombreEditable('nivel', n.id, n.descripcion)}
+              {flechas('nivel', n.id, (niveles.data ?? []).map((x) => x.id), n.clave)}
               <Alta etiqueta={`Nueva etapa en ${n.clave}`} campos={['Clave', 'Descripción']} ocupado={crearEtapa.isPending} onCrear={(c, d) => nuevaEtapa(n.id, c, d)} />
             </div>
             <ul aria-label={`Etapas de ${n.clave}`}>
               {(etapasPorNivel.get(n.id) ?? []).map((e) => (
                 <li key={e.id} data-etapa={e.clave}>
                   <div className="arbol-edicion__titulo">
-                    <strong>{e.clave}</strong> <span className="text-mute">{e.descripcion}</span>
+                    <strong>{e.clave}</strong> {nombreEditable('etapa', e.id, e.descripcion)}
+                    {flechas('etapa', e.id, (etapasPorNivel.get(n.id) ?? []).map((x) => x.id), e.clave)}
                     <NuevaPartida obraId={obraId} etapaId={e.id} onCreada={onCambio} onError={onError} />
                   </div>
                   <ul aria-label={`Partidas de ${e.clave}`}>{(partidasPorEtapa.get(e.id) ?? []).map(filaDePartida)}</ul>
