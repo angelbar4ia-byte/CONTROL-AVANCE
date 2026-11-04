@@ -110,6 +110,7 @@ test.describe('Cuantificador · elementos con peso', () => {
     await expect(panel.getByRole('treeitem', { name: 'Castillos K1' }).getByText(/ACE-K1 .* peso/)).toBeVisible();
 
     // --- Cambiar el peso: sin botón, y lo asignado se rehace --------------------------------------------------------
+    await page.getByRole('tab', { name: /^Elementos/ }).click(); // el peso se edita en la pestaña Elementos
     const peso = lista.getByLabel('Peso de Castillo K1 (kg/pza)');
     await peso.fill('40');
     await peso.press('Enter');
