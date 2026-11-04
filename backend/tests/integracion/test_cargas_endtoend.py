@@ -186,10 +186,6 @@ _CABECERAS_MANO_OBRA = [
 `DESCTRIPCIÓN` es el typo real del archivo, no del test."""
 
 
-def _archivo_mano_obra(filas: list[list[object]]) -> bytes:
-    return _libro([_CABECERAS_MANO_OBRA, *filas], hoja="DESTAJOS")
-
-
 def _archivo_subcontratos(filas: list[list[object]]) -> bytes:
     """`catalogo_de_SUBCONTRATOS.xlsx`: mismas cabeceras que mano de obra,
     hoja propia (`SUBCONTRATOS`, no `DESTAJOS`)."""
@@ -387,7 +383,7 @@ async def catalogos(escenario: Escenario) -> AsyncIterator[Catalogos]:
 def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
     """Mismo cableado que `adapters/api/casos_uso.py::FabricaDeCargas`."""
     cargas = RepositorioCargasSQL(sesion)
-    if tipo is TipoCarga.CATALOGO_MANO_DE_OBRA:
+    if tipo is TipoCarga.MANO_DE_OBRA:
         return AplicadorCatalogoManoDeObra(
             insumos=RepositorioInsumosSQL(sesion),
             cuadrillas=RepositorioCuadrillasSQL(sesion),
@@ -407,14 +403,6 @@ def _aplicador(tipo: TipoCarga, sesion: AsyncSession) -> AplicadorDeCarga:
             insumos=RepositorioInsumosSQL(sesion),
             unidades=RepositorioUnidadesSQL(sesion),
             familias=RepositorioFamiliasSQL(sesion),
-            cargas=cargas,
-        )
-    if tipo is TipoCarga.MANO_DE_OBRA:
-        return AplicadorManoObra(
-            insumos=RepositorioInsumosSQL(sesion),
-            unidades=RepositorioUnidadesSQL(sesion),
-            familias=RepositorioFamiliasSQL(sesion),
-            cuadrillas=RepositorioCuadrillasSQL(sesion),
             cargas=cargas,
         )
     if tipo is TipoCarga.SUBCONTRATOS:
@@ -1395,52 +1383,6 @@ async def test_reemplazar_familias_da_de_baja_lo_que_el_archivo_ya_no_trae(
     assert familias["CEM"]["estatus"] == "inactivo"
 
 
-# --- Mano de obra / Destajos (§10.6 `CABECERAS_MANO_DE_OBRA.xlsx`) -------
-
-
-async def test_carga_de_mano_de_obra_alimenta_el_catalogo_de_insumos(
-    catalogos: Catalogos, contexto_control: ContextoSesion
-) -> None:
-    """Un destajo es un `Insumo` con `tipo='mano_obra'` (§7.3). La cuadrilla
-    nueva se da de alta sola —mismo criterio que unidad/familia (§8.7)— y
-    "asume" el rendimiento teórico que trae el archivo."""
-    resultado = await _cargar(
-        contexto_control,
-        TipoCarga.MANO_DE_OBRA,
-        _archivo_mano_obra(
-            [
-                [
-                    # Sin "CLAVE UNIDAD" a propósito: esta fila prueba que
-                    # "UNIDAD" solo (texto libre) sigue resolviendo contra el
-                    # catálogo ya sembrado (§8.7) cuando el archivo no separa
-                    # clave de nombre — ver `test_clave_unidad_...` para el
-                    # caso con la columna presente.
-                    "Individual", "US-01", "dest-01", "Aplanado fino", "", "ton",
-                    "CUAD-01", "12.5", None, "85.30", "CEM",
-                ]
-            ]
-        ),
-    )
-
-    assert resultado.estatus is EstatusCarga.APLICADO
-    assert resultado.resumen.insertados == 1
-    assert resultado.pendientes == 0
-
-    catalogo = await _insumos(contexto_control)
-    destajo = catalogo["DEST-01"]
-    assert destajo["tipo"] == "mano_obra"
-    assert destajo["descripcion"] == "Aplanado fino"
-    assert destajo["unidad_id"] == catalogos.unidad_id
-    assert destajo["familia_id"] == catalogos.familia_id
-    assert destajo["costo_base"] == Decimal("85.3000")
-    assert destajo["rendimiento_teorico"] == Decimal("12.500000")
-
-    cuadrillas = await _cuadrillas(contexto_control)
-    assert "CUAD-01" in cuadrillas
-    assert destajo["cuadrilla_id"] == cuadrillas["CUAD-01"]["id"]
-    assert cuadrillas["CUAD-01"]["rendimiento"] == Decimal("12.500000")
-
-
 # --- Subcontratos (§10.6 `catalogo_de_SUBCONTRATOS.xlsx`) ----------------
 
 
@@ -1474,41 +1416,61 @@ async def test_carga_de_subcontratos_alimenta_el_catalogo_de_insumos_como_subcon
     assert subcontrato["costo_base"] == Decimal("1500.0000")
 
 
-async def test_recargar_mano_de_obra_actualiza_el_rendimiento_de_la_cuadrilla(
+async def test_un_subcontrato_con_cuadrilla_la_da_de_alta_y_asume_su_rendimiento(
+    catalogos: Catalogos, contexto_control: ContextoSesion
+) -> None:
+    """El aplicador compartido (`AplicadorManoObra`): la cuadrilla nueva se da
+    de alta sola —mismo criterio que unidad/familia (§8.7)— y "asume" el
+    rendimiento teórico que trae el archivo. (Antes lo probaba la plantilla
+    de la hoja `DESTAJOS`, que dejó de ser el cargador de mano de obra: D-618.)"""
+    resultado = await _cargar(
+        contexto_control,
+        TipoCarga.SUBCONTRATOS,
+        _archivo_subcontratos(
+            [["Subcontrato", "US-01", "dest-01", "Aplanado fino", "", "ton", "CUAD-01", "12.5", None, "85.30", "CEM"]]
+        ),
+    )
+
+    assert resultado.estatus is EstatusCarga.APLICADO
+    assert resultado.resumen.insertados == 1
+    catalogo = await _insumos(contexto_control)
+    destajo = catalogo["DEST-01"]
+    assert destajo["tipo"] == "subcontrato"
+    assert destajo["rendimiento_teorico"] == Decimal("12.500000")
+    cuadrillas = await _cuadrillas(contexto_control)
+    assert destajo["cuadrilla_id"] == cuadrillas["CUAD-01"]["id"]
+    assert cuadrillas["CUAD-01"]["rendimiento"] == Decimal("12.500000")
+
+
+async def test_recargar_con_cuadrilla_actualiza_el_rendimiento_de_la_cuadrilla(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
     """"La cuadrilla asume el rendimiento" del destajo que se le asigna: una
     recarga con otro rendimiento lo actualiza, no crea otra cuadrilla."""
-    await _cargar(
-        contexto_control,
-        TipoCarga.MANO_DE_OBRA,
-        _archivo_mano_obra(
-            [["Individual", "US-01", "dest-01", "Aplanado fino", "UN-01", "ton", "CUAD-01", "10", None, "80", "CEM"]]
-        ),
-    )
-    await _cargar(
-        contexto_control,
-        TipoCarga.MANO_DE_OBRA,
-        _archivo_mano_obra(
-            [["Individual", "US-01", "dest-01", "Aplanado fino", "UN-01", "ton", "CUAD-01", "15", None, "80", "CEM"]]
-        ),
-    )
+    for rendimiento in ("10", "15"):
+        await _cargar(
+            contexto_control,
+            TipoCarga.SUBCONTRATOS,
+            _archivo_subcontratos(
+                [["Subcontrato", "US-01", "dest-01", "Aplanado fino", "UN-01", "ton", "CUAD-01", rendimiento, None, "80", "CEM"]]
+            ),
+        )
 
     cuadrillas = await _cuadrillas(contexto_control)
     assert len(cuadrillas) == 1
     assert cuadrillas["CUAD-01"]["rendimiento"] == Decimal("15.000000")
 
 
-async def test_revertir_mano_de_obra_deja_el_insumo_sin_cuadrilla_ni_rendimiento(
+async def test_revertir_la_carga_con_cuadrilla_deja_el_insumo_sin_cuadrilla_ni_rendimiento(
     catalogos: Catalogos, contexto_control: ContextoSesion
 ) -> None:
     """§10.8: la reversa del alta borra el insumo entero; no hay nada que
     "dejar en null" porque el registro nunca existió antes de este lote."""
     resultado = await _cargar(
         contexto_control,
-        TipoCarga.MANO_DE_OBRA,
-        _archivo_mano_obra(
-            [["Individual", "US-01", "dest-01", "Aplanado fino", "UN-01", "ton", "CUAD-01", "10", None, "80", "CEM"]]
+        TipoCarga.SUBCONTRATOS,
+        _archivo_subcontratos(
+            [["Subcontrato", "US-01", "dest-01", "Aplanado fino", "UN-01", "ton", "CUAD-01", "10", None, "80", "CEM"]]
         ),
     )
 
@@ -3482,7 +3444,7 @@ async def test_el_rollout_real_completo_sube_presupuesto_trabajos_y_cpu_matriz(
     # matriz trae la composición de las cuadrillas (D-616).
     await _cargar(
         contexto_control,
-        TipoCarga.CATALOGO_MANO_DE_OBRA,
+        TipoCarga.MANO_DE_OBRA,
         _repaquetar_csv_como_xlsx(_MANO_DE_OBRA_OPUS_CSV),
     )
     resultado_cpu = await _cargar(
@@ -3659,6 +3621,7 @@ async def test_el_catalogo_de_fletes_real_carga_con_su_propio_tipo_de_carga(
 _MANO_DE_OBRA_OPUS_CSV = Path(
     "/home/user/cerebro-erp-construccion/1-mundo/opus/CATALOGO_DE_MANO_DE_OBRA.csv"
 )
+_MANO_DE_OBRA_OPUS_XLSX = _MANO_DE_OBRA_OPUS_CSV.with_suffix(".xlsx")
 _SEMILLA_CSV = Path(
     "/home/user/cerebro-erp-construccion/1-mundo/fuentes/semilla/SEMILLA-cuadrilla-rendimiento.csv"
 )
@@ -3680,8 +3643,14 @@ async def test_el_catalogo_de_mano_de_obra_real_guarda_puestos_y_las_39_cuadrill
     """Las 36 columnas del archivo: las 39 cuadrillas van a la tabla de
     cuadrillas, los 58 puestos a insumos de mano de obra, y el cálculo del
     salario real a `mano_de_obra_opus` (D-616)."""
-    archivo = _repaquetar_csv_como_xlsx(_MANO_DE_OBRA_OPUS_CSV)
-    resultado = await _cargar(contexto_control, TipoCarga.CATALOGO_MANO_DE_OBRA, archivo)
+    # El libro real de OPUS, tal cual lo sube el usuario: su única hoja se llama
+    # «Hoja1», no `DESTAJOS` (el formato viejo de este tipo de carga, D-618).
+    archivo = (
+        _MANO_DE_OBRA_OPUS_XLSX.read_bytes()
+        if _MANO_DE_OBRA_OPUS_XLSX.exists()
+        else _repaquetar_csv_como_xlsx(_MANO_DE_OBRA_OPUS_CSV)
+    )
+    resultado = await _cargar(contexto_control, TipoCarga.MANO_DE_OBRA, archivo)
     assert resultado.estatus is EstatusCarga.APLICADO
     assert resultado.resumen.errores == 0
     assert resultado.resumen.insertados == 97
@@ -3737,7 +3706,7 @@ async def test_el_catalogo_de_mano_de_obra_real_guarda_puestos_y_las_39_cuadrill
     assert familias["Albañilería y Estructura"]["parent_id"] is not None  # subfamilia
 
     # Cargarlo otra vez no cambia nada.
-    otra = await _cargar(contexto_control, TipoCarga.CATALOGO_MANO_DE_OBRA, archivo)
+    otra = await _cargar(contexto_control, TipoCarga.MANO_DE_OBRA, archivo)
     assert (otra.resumen.insertados, otra.resumen.actualizados) == (0, 0)
 
 
@@ -3753,7 +3722,7 @@ async def test_la_semilla_liga_los_265_destajos_a_sus_cuadrillas_con_todas_sus_c
     )
     await _cargar(
         contexto_control,
-        TipoCarga.CATALOGO_MANO_DE_OBRA,
+        TipoCarga.MANO_DE_OBRA,
         _repaquetar_csv_como_xlsx(_MANO_DE_OBRA_OPUS_CSV),
     )
 

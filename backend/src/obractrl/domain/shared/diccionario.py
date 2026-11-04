@@ -510,12 +510,6 @@ class TipoCarga(_Canonico):
     este mismo tipo)."""
 
     MATERIALES = "materiales"
-    CATALOGO_MANO_DE_OBRA = "catalogo_mano_de_obra"
-    """`CATALOGO_DE_MANO_DE_OBRA.csv` (97 filas, 36 columnas): 58 puestos
-    (insumos de mano de obra) y las 39 cuadrillas (C = «+»), con el cálculo
-    del salario real. Ninguna columna se ignora (D-616). Espejo en la base:
-    `database/migrations/20260814000102_catalogo_de_mano_de_obra_y_semilla.sql`."""
-
     SEMILLA_CUADRILLA_RENDIMIENTO = "semilla_cuadrilla_rendimiento"
     """`SEMILLA-cuadrilla-rendimiento.csv` (265 filas): a qué cuadrilla se
     liga cada destajo y su rendimiento teórico (D-386, D-406, D-439)."""
@@ -552,11 +546,13 @@ class TipoCarga(_Canonico):
     """
 
     MANO_DE_OBRA = "mano_de_obra"
-    """`CABECERAS_MANO_DE_OBRA.xlsx` (hoja `DESTAJOS`, §10.6): "clave,
-    clave_usuario, descripción, unidad, cuadrilla, rendimiento_teórico/
-    real, costo_unitario, familia". Alimenta el catálogo de insumos con
-    `tipo=mano_obra` — hasta ahora solo `MATERIALES` lo hacía. Espejo en la
-    base: `database/migrations/20260814000031_carga_de_mano_de_obra.sql`.
+    """`CATALOGO_DE_MANO_DE_OBRA` (export nativo de OPUS, 97 filas y 36
+    columnas): los 58 puestos (insumos de mano de obra) y las 39 cuadrillas
+    (C = «+»), con el cálculo del salario real. Ninguna columna se ignora
+    (D-616). Antes este tipo leía la plantilla `CABECERAS_MANO_DE_OBRA.xlsx`
+    (hoja `DESTAJOS`, §10.6); los destajos ya vienen de `TRABAJOS` (D-618).
+    Espejo en la base: `20260814000031_carga_de_mano_de_obra.sql`; las
+    tablas del catálogo, `20260814000102_catalogo_de_mano_de_obra_y_semilla.sql`.
     """
 
     CUADRILLAS = "cuadrillas"
