@@ -117,3 +117,18 @@ export function lineasDeReceta(
   );
   return filas;
 }
+
+/** Qué elementos se pueden colocar en un trazo según su geometría: un punto es una pieza, una línea son metros, un área son m². */
+export function tiposParaGeometria(geometria: string): readonly TipoParametrico[] {
+  if (geometria === 'Point') return ['castillo', 'zapata'];
+  if (geometria === 'LineString') return ['lineal'];
+  if (geometria === 'Polygon') return ['losa'];
+  return [];
+}
+
+/** Los lados de cimbra que ofrece cada tipo (una pieza fija el suyo a mano). */
+export function ladosDeCimbra(tipo: TipoParametrico): readonly number[] {
+  if (tipo === 'castillo') return [4, 3, 2];
+  if (tipo === 'lineal') return [3, 2];
+  return [];
+}

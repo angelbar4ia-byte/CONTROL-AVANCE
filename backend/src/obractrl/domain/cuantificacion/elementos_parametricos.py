@@ -17,6 +17,7 @@ from typing import Any
 from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
 
 __all__ = [
+    "GEOMETRIA_DEL_TIPO",
     "PARAMETROS_POR_TIPO",
     "PESO_ALAMBRE_KG_M",
     "PESO_VARILLA_KG_M",
@@ -24,12 +25,15 @@ __all__ = [
     "UNIDAD_DE_CALCULO",
     "VARA_COMERCIAL_M",
     "ErrorDeElementoParametrico",
+    "lados_por_defecto",
     "normalizar_parametros",
     "receta",
 ]
 
 TIPOS_DE_ELEMENTO = ("castillo", "lineal", "zapata", "losa")
 UNIDAD_DE_CALCULO = {"castillo": "pza", "lineal": "ml", "zapata": "pza", "losa": "m²"}
+# Con qué se coloca en el plano: la pieza con un Punto, los lineales con su eje, la losa con su área (D-604 §7).
+GEOMETRIA_DEL_TIPO = {"castillo": "punto", "lineal": "linea", "zapata": "punto", "losa": "area"}
 
 VARA_COMERCIAL_M = 12.0
 # kg por metro por número de varilla (octavos de pulgada) y por calibre de alambre recocido.
@@ -97,6 +101,14 @@ def normalizar_parametros(tipo: str, parametros: dict[str, Any]) -> dict[str, An
             raise ErrorDeElementoParametrico("La losa lleva 1 o 2 lechos de acero.")
         salida[clave] = valor
     return salida
+
+
+def lados_por_defecto(tipo: str, parametros: dict[str, Any]) -> int:
+    """Los lados de cimbra con que cuenta una pieza si nadie los fijó: 4 en castillo y zapata (aislados), los del
+    elemento en trabe y cadena (3 o 2), 1 cara en la losa."""
+    if tipo == "lineal":
+        return int(parametros["lados"])
+    return 1 if tipo == "losa" else 4
 
 
 def receta(tipo: str, parametros: dict[str, Any]) -> dict[str, Any]:

@@ -13,6 +13,7 @@ import { useState, type KeyboardEvent } from 'react';
 import type { ErrorApi } from '@/api/cliente';
 import {
   getListarElementosParametricosApiV1ElementosParametricosGetQueryKey,
+  useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet,
   useActualizarElementoParametricoApiV1ElementosParametricosElementoIdPatch,
   useCrearElementoParametricoApiV1ElementosParametricosPost,
   useEliminarElementoParametricoApiV1ElementosParametricosElementoIdDelete,
@@ -21,10 +22,12 @@ import {
 import type { ElementoParametricoRespuesta } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
 
-import { CAMPOS_POR_TIPO, NOMBRE_DEL_TIPO, lineasDeReceta, type TipoParametrico } from './parametricos';
+import { CAMPOS_POR_TIPO, NOMBRE_DEL_TIPO, formatoDeReceta, lineasDeReceta, type TipoParametrico } from './parametricos';
 import { numeroTecleado } from './volumen';
 
 interface Props {
+  /** El plano elegido: de él salen los totales de lo colocado. */
+  readonly planoId: string;
   readonly puedeDefinir: boolean;
   readonly onCambio: (aviso?: string) => void;
   readonly onError: (mensaje: string) => void;
@@ -34,8 +37,9 @@ function enEnter(e: KeyboardEvent<HTMLInputElement>) {
   if (e.key === 'Enter') e.currentTarget.blur();
 }
 
-export function PanelDeParametricos({ puedeDefinir, onCambio, onError }: Props) {
+export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError }: Props) {
   const consulta = useListarElementosParametricosApiV1ElementosParametricosGet();
+  const delPlano = useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet(planoId, { query: { enabled: planoId !== '' } });
   const crear = useCrearElementoParametricoApiV1ElementosParametricosPost<ErrorApi>();
   const actualizar = useActualizarElementoParametricoApiV1ElementosParametricosElementoIdPatch<ErrorApi>();
   const eliminar = useEliminarElementoParametricoApiV1ElementosParametricosElementoIdDelete<ErrorApi>();
@@ -96,6 +100,18 @@ export function PanelDeParametricos({ puedeDefinir, onCambio, onError }: Props) 
         Una pieza con sus medidas y su armado: de una muestra salen concreto, acero, estribos, alambre y cimbra. La cimbra se
         da por número de lados (un castillo aislado lleva 4, junto a un vano 3, en un muro continuo 2).
       </p>
+      {(delPlano.data?.totales.length ?? 0) > 0 && (
+        <div role="group" aria-label="Lo colocado en este plano" style={{ display: 'grid', gap: 2 }}>
+          <div className="text-xs text-mute">En este plano</div>
+          {delPlano.data?.totales.map((t) => (
+            <div key={t.elemento_id} className="text-xs" data-colocado={t.clave}>
+              <span className="mono">{t.clave}</span> · {t.colocados} {t.colocados === 1 ? 'trazo' : 'trazos'} · {formatoDeReceta(t.cantidad, 2)} {t.unidad}
+              {' — '}concreto {formatoDeReceta(t.concreto_m3, 3)} m³ · acero {formatoDeReceta(t.acero_kg, 1)} kg · estribos {formatoDeReceta(t.estribos_kg, 1)} kg · alambre{' '}
+              {formatoDeReceta(t.alambre_kg, 2)} kg · cimbra {formatoDeReceta(t.cimbra_m2, 2)} m²
+            </div>
+          ))}
+        </div>
+      )}
       {elementos.length === 0 && !consulta.isLoading && <div className="text-mute text-xs">Aún no hay elementos paramétricos.</div>}
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
         {elementos.map((e) => {

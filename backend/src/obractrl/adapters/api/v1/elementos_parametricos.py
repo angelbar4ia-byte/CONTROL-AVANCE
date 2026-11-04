@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from obractrl.adapters.api.casos_uso import GestionarElementosParametricosDep
 from obractrl.adapters.api.dependencias import ContextoActual, exigir_rol
+from obractrl.adapters.api.v1.cuantificacion import ROLES_QUE_TRAZAN
 from obractrl.application.casos_uso.elementos_parametricos import (
     ComandoCrearElementoParametrico,
 )
@@ -174,3 +175,69 @@ async def actualizar_elemento_parametrico(
 )
 async def eliminar_elemento_parametrico(elemento_id: UUID, caso_uso: GestionarElementosParametricosDep) -> None:
     await caso_uso.eliminar(elemento_id)
+
+
+class ElementoEnTrazoPeticion(BaseModel):
+    elemento_id: UUID | None = Field(default=None, description="`null` le quita el elemento al trazo.")
+    lados_cimbra: int | None = Field(default=None, ge=1, le=4, description="Fija a mano los lados de cimbra de esta pieza.")
+
+
+class TotalDeElementoRespuesta(BaseModel):
+    elemento_id: UUID
+    clave: str
+    nombre: str
+    tipo: TipoDeElementoParametrico
+    unidad: str
+    colocados: int = Field(description="Cuántos trazos del plano son este elemento.")
+    cantidad: float = Field(description="Piezas, metros o m² que suman, según la unidad.")
+    concreto_m3: float
+    acero_kg: float
+    estribos_kg: float
+    alambre_kg: float
+    cimbra_m2: float
+    cimbra_por_lados: dict[str, float]
+
+
+class TrazoConElementoRespuesta(BaseModel):
+    trazo_id: UUID
+    elemento_id: UUID
+    lados_cimbra: int | None
+
+
+class ElementosDelPlanoRespuesta(BaseModel):
+    totales: list[TotalDeElementoRespuesta]
+    trazos: list[TrazoConElementoRespuesta]
+
+
+@router.put(
+    "/trazos/{trazo_id}/elemento-parametrico",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Marcar un trazo como un elemento paramétrico, o quitarle la marca",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        404: {"description": "El trazo o el elemento no existen o están fuera de tu alcance."},
+        422: {"description": "El elemento se coloca con otra geometría, o la cimbra no tiene esos lados."},
+    },
+)
+async def poner_elemento_en_trazo(
+    trazo_id: UUID, peticion: ElementoEnTrazoPeticion, caso_uso: GestionarElementosParametricosDep
+) -> None:
+    """Un punto es una pieza (castillo, zapata), una línea son sus metros (trabe, cadena) y un área son sus m² (losa)."""
+    await caso_uso.poner_en_trazo(trazo_id, peticion.elemento_id, peticion.lados_cimbra)
+
+
+@router.get(
+    "/planos/{plano_id}/elementos-parametricos",
+    response_model=ElementosDelPlanoRespuesta,
+    summary="Lo que llevan en total los elementos paramétricos colocados en un plano",
+)
+async def elementos_del_plano(plano_id: UUID, caso_uso: GestionarElementosParametricosDep) -> ElementosDelPlanoRespuesta:
+    """La receta de una muestra × lo que aporta cada trazo (1 pieza, sus metros o sus m², con la escala calibrada)."""
+    r = await caso_uso.totales_del_plano(plano_id)
+    return ElementosDelPlanoRespuesta(
+        totales=[
+            TotalDeElementoRespuesta(**{**t, "cimbra_por_lados": {str(k): v for k, v in t["cimbra_por_lados"].items()}})
+            for t in r["totales"]
+        ],
+        trazos=[TrazoConElementoRespuesta(**t) for t in r["trazos"]],
+    )
