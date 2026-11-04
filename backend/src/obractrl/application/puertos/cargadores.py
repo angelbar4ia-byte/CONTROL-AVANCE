@@ -128,6 +128,20 @@ class RepositorioCargas(Protocol):
         no existe o ya estaba resuelto — resolver es de una sola vez."""
         ...
 
+    async def aprobar_pendientes(
+        self,
+        *,
+        ids: list[UUID] | None,
+        solo_no_criticos: bool,
+        usuario_id: UUID | None,
+        nota: str | None,
+    ) -> int:
+        """Aprueba de una vez los pendientes abiertos que pida el lote: los de
+        `ids`, o todos los no críticos si `solo_no_criticos`. Devuelve cuántos
+        cerró; los que ya estaban resueltos o no se ven no cuentan (la misma
+        guarda de una sola vez de `resolver_pendiente`)."""
+        ...
+
     async def mapeos(self, entidad: str) -> dict[str, str]:
         """Alias → clave canónica ya confirmados para esa entidad (§10.3).
 

@@ -168,6 +168,7 @@ from obractrl.application.casos_uso.generar_obra_desde_prototipo import (
     RevertirGeneracionDeObra,
 )
 from obractrl.application.casos_uso.gestionar_carga import (
+    AprobarPendientesEnLote,
     ConsultarCarga,
     EjecutarCarga,
     EliminarCarga,
@@ -346,6 +347,7 @@ __all__ = [
     "AgregarRespuestasDep",
     "AplicarReprogramacionDep",
     "AprobarCierreDeFrenteDep",
+    "AprobarPendientesEnLoteDep",
     "AprobarTrazoDep",
     "ArmarArbolDep",
     "ArmarExpedienteDep",
@@ -1937,6 +1939,13 @@ def obtener_resolver_pendiente(sesion: SesionRLS) -> ResolverPendiente:
     )
 
 
+def obtener_aprobar_pendientes_en_lote(sesion: SesionRLS) -> AprobarPendientesEnLote:
+    return AprobarPendientesEnLote(
+        cargas=RepositorioCargasSQL(sesion),
+        uow=UnidadDeTrabajoSQL(sesion),
+    )
+
+
 def obtener_reiniciar_organizacion(sesion: SesionRLS) -> ReiniciarOrganizacion:
     return ReiniciarOrganizacion(
         organizacion=RepositorioOrganizacionSQL(sesion),
@@ -1951,6 +1960,9 @@ RevertirCargaEnCadenaDep = Annotated[
 ]
 EliminarCargaDep = Annotated[EliminarCarga, Depends(obtener_eliminar_carga)]
 ResolverPendienteDep = Annotated[ResolverPendiente, Depends(obtener_resolver_pendiente)]
+AprobarPendientesEnLoteDep = Annotated[
+    AprobarPendientesEnLote, Depends(obtener_aprobar_pendientes_en_lote)
+]
 ReiniciarOrganizacionDep = Annotated[
     ReiniciarOrganizacion, Depends(obtener_reiniciar_organizacion)
 ]

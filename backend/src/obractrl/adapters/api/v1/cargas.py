@@ -37,6 +37,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, BeforeValidator, Field
 
 from obractrl.adapters.api.casos_uso import (
+    AprobarPendientesEnLoteDep,
     ConsultarCargaDep,
     EliminarCargaDep,
     FabricaDeCargasDep,
@@ -182,6 +183,29 @@ class ResolverPendientePeticion(BaseModel):
 
     aprobado: bool
     nota: str | None = Field(default=None, max_length=500)
+
+
+class AprobarLotePeticion(BaseModel):
+    """Aprobar varios pendientes a la vez: los que se marcaron, o todos los no críticos.
+
+    Una forma o la otra, nunca las dos. Rechazar no tiene versión en lote: da de baja el
+    concepto, y eso se decide de uno en uno.
+    """
+
+    ids: list[UUID] | None = Field(
+        default=None, max_length=5000, description="Los pendientes marcados en la pantalla."
+    )
+    solo_no_criticos: bool = Field(
+        default=False, description="Todos los pendientes abiertos que no son críticos."
+    )
+    nota: str | None = Field(default=None, max_length=500)
+
+
+class AprobarLoteRespuesta(BaseModel):
+    aprobados: int = Field(description="Cuántos cerró de verdad.")
+    omitidos: int = Field(
+        description="Los marcados que ya estaban resueltos o no se ven (0 con «no críticos»)."
+    )
 
 
 class ReversaRespuesta(BaseModel):
@@ -478,6 +502,34 @@ async def resolver_pendiente(
     except PendienteNoResoluble as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     return PendienteBandejaRespuesta.desde_fila(fila)
+
+
+@router.post(
+    "/pendientes/aprobar-lote",
+    response_model=AprobarLoteRespuesta,
+    summary="Aprobar varios pendientes a la vez",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
+    responses={422: {"description": "Hay que pedir una lista o «todos los no críticos», no las dos."}},
+)
+async def aprobar_pendientes_en_lote(
+    peticion: AprobarLotePeticion,
+    caso_uso: AprobarPendientesEnLoteDep,
+    ctx: ContextoActual,
+) -> AprobarLoteRespuesta:
+    """Aprobar solo cierra el pendiente (lo que el cargador hizo ya está hecho), así que el
+    lote es seguro; todo va en una transacción. Resolver es de una sola vez: lo ya resuelto
+    se omite sin pisar la primera resolución."""
+    try:
+        cerrados = await caso_uso.ejecutar(
+            ids=peticion.ids,
+            solo_no_criticos=peticion.solo_no_criticos,
+            usuario_id=ctx.usuario_id,
+            nota=peticion.nota,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    pedidos = len(set(peticion.ids)) if peticion.ids is not None else cerrados
+    return AprobarLoteRespuesta(aprobados=cerrados, omitidos=max(pedidos - cerrados, 0))
 
 
 @router.post(

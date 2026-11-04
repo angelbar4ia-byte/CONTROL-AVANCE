@@ -9360,6 +9360,46 @@
         }
       }
     },
+    "/api/v1/pendientes/aprobar-lote": {
+      "post": {
+        "tags": [
+          "cargas"
+        ],
+        "summary": "Aprobar varios pendientes a la vez",
+        "description": "Aprobar solo cierra el pendiente (lo que el cargador hizo ya está hecho), así que el\nlote es seguro; todo va en una transacción. Resolver es de una sola vez: lo ya resuelto\nse omite sin pisar la primera resolución.",
+        "operationId": "aprobar_pendientes_en_lote_api_v1_pendientes_aprobar_lote_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AprobarLotePeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AprobarLoteRespuesta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Hay que pedir una lista o «todos los no críticos», no las dos."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/cargas/{carga_id}/revertir": {
       "post": {
         "tags": [
@@ -16095,6 +16135,68 @@
           "alertas"
         ],
         "title": "AlertasDePartesRespuesta"
+      },
+      "AprobarLotePeticion": {
+        "properties": {
+          "ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array",
+                "maxItems": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ids",
+            "description": "Los pendientes marcados en la pantalla."
+          },
+          "solo_no_criticos": {
+            "type": "boolean",
+            "title": "Solo No Criticos",
+            "description": "Todos los pendientes abiertos que no son críticos.",
+            "default": false
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "type": "object",
+        "title": "AprobarLotePeticion",
+        "description": "Aprobar varios pendientes a la vez: los que se marcaron, o todos los no críticos.\n\nUna forma o la otra, nunca las dos. Rechazar no tiene versión en lote: da de baja el\nconcepto, y eso se decide de uno en uno."
+      },
+      "AprobarLoteRespuesta": {
+        "properties": {
+          "aprobados": {
+            "type": "integer",
+            "title": "Aprobados",
+            "description": "Cuántos cerró de verdad."
+          },
+          "omitidos": {
+            "type": "integer",
+            "title": "Omitidos",
+            "description": "Los marcados que ya estaban resueltos o no se ven (0 con «no críticos»)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "aprobados",
+          "omitidos"
+        ],
+        "title": "AprobarLoteRespuesta"
       },
       "ArbolDeProgramaRespuesta": {
         "properties": {
