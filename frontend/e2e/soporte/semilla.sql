@@ -152,6 +152,24 @@ cross join (select id, descripcion from concepto
 join cpu p on p.concepto_id = c.id and p.vigente
 where o.org_id = :org_id;
 
+-- Trabajos (pestaña del cuantificador): el cimiento trae en su receta un destajo con cuadrilla y
+-- rendimiento, y un subcontrato sin cuadrilla. Cuadrilla a 1,500 por día; rendimiento teórico 16 por día.
+insert into cuadrilla (org_id, clave, nombre, costo_jornada)
+values (:org_id, 'CUA-E2E', 'Cuadrilla de mampostería', 1500);
+insert into insumo (org_id, tipo, clave, descripcion, costo_base, cuadrilla_id, rendimiento_teorico, origen_rendimiento)
+select :org_id, 'mano_obra', 'MOA-E2E-01', 'Mampostería a destajo', 100, c.id, 16, 'semilla'
+from cuadrilla c where c.org_id = :org_id and c.clave = 'CUA-E2E';
+insert into insumo (org_id, tipo, clave, descripcion, costo_base)
+values (:org_id, 'subcontrato', 'SUB-E2E-01', 'Remate a subcontrato', 55);
+insert into explosion (org_id, concepto_id, tipo_hijo, insumo_id, categoria, cantidad, orden)
+select :org_id, k.id, 'insumo', i.id,
+       (case i.clave when 'MOA-E2E-01' then 'destajo' else 'subcontrato' end)::categoria_explosion,
+       case i.clave when 'MOA-E2E-01' then 1 else 2 end,
+       case i.clave when 'MOA-E2E-01' then 0 else 1 end
+from concepto k, insumo i
+where k.org_id = :org_id and k.clave = 'E2E-CIM'
+  and i.org_id = :org_id and i.clave in ('MOA-E2E-01', 'SUB-E2E-01');
+
 commit;
 
 select 'semilla e2e lista: ' || count(*) || ' actividades en ' ||

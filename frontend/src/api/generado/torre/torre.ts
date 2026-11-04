@@ -36,6 +36,7 @@ import type {
   HTTPValidationError,
   PrecioArmadoRespuesta,
   TorreDeControlApiV1TorreGetParams,
+  TrabajoDeObraRespuesta,
 } from ".././modelo";
 
 import { peticion } from "../../cliente";
@@ -817,6 +818,363 @@ export function useActividadesDeObraApiV1ObrasObraIdActividadesGet<
       params,
       options,
     );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * La pestaña Trabajos del cuantificador: por cada concepto de la obra, los destajos de su receta
+con la cuadrilla y el rendimiento de cada uno. Una obra fuera del alcance devuelve lista vacía
+(RLS), igual que sus actividades. Control de obra, Super intendente y Costos: el costo de una
+cuadrilla es del catálogo de costos.
+ * @summary Destajos y cuadrillas de los conceptos de una obra
+ */
+export const trabajosDeObraApiV1ObrasObraIdTrabajosGet = (
+  obraId: string,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<TrabajoDeObraRespuesta[]>(
+    { url: `/api/v1/obras/${obraId}/trabajos`, method: "GET", signal },
+    options,
+  );
+};
+
+export const getTrabajosDeObraApiV1ObrasObraIdTrabajosGetInfiniteQueryKey = (
+  obraId?: string,
+) => {
+  return ["infinite", `/api/v1/obras/${obraId}/trabajos`] as const;
+};
+
+export const getTrabajosDeObraApiV1ObrasObraIdTrabajosGetQueryKey = (
+  obraId?: string,
+) => {
+  return [`/api/v1/obras/${obraId}/trabajos`] as const;
+};
+
+export const getTrabajosDeObraApiV1ObrasObraIdTrabajosGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>
+    >,
+    TError = HTTPValidationError,
+  >(
+    obraId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getTrabajosDeObraApiV1ObrasObraIdTrabajosGetInfiniteQueryKey(obraId);
+
+    const queryFn: QueryFunction<
+      Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>
+    > = ({ signal }) =>
+      trabajosDeObraApiV1ObrasObraIdTrabajosGet(obraId, requestOptions, signal);
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!obraId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type TrabajosDeObraApiV1ObrasObraIdTrabajosGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>
+  >;
+export type TrabajosDeObraApiV1ObrasObraIdTrabajosGetInfiniteQueryError =
+  HTTPValidationError;
+
+export function useTrabajosDeObraApiV1ObrasObraIdTrabajosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+          TError,
+          Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useTrabajosDeObraApiV1ObrasObraIdTrabajosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+          TError,
+          Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useTrabajosDeObraApiV1ObrasObraIdTrabajosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Destajos y cuadrillas de los conceptos de una obra
+ */
+
+export function useTrabajosDeObraApiV1ObrasObraIdTrabajosGetInfinite<
+  TData = InfiniteData<
+    Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>
+  >,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getTrabajosDeObraApiV1ObrasObraIdTrabajosGetInfiniteQueryOptions(
+      obraId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getTrabajosDeObraApiV1ObrasObraIdTrabajosGetQueryOptions = <
+  TData = Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getTrabajosDeObraApiV1ObrasObraIdTrabajosGetQueryKey(obraId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>
+  > = ({ signal }) =>
+    trabajosDeObraApiV1ObrasObraIdTrabajosGet(obraId, requestOptions, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!obraId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type TrabajosDeObraApiV1ObrasObraIdTrabajosGetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>
+>;
+export type TrabajosDeObraApiV1ObrasObraIdTrabajosGetQueryError =
+  HTTPValidationError;
+
+export function useTrabajosDeObraApiV1ObrasObraIdTrabajosGet<
+  TData = Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+          TError,
+          Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useTrabajosDeObraApiV1ObrasObraIdTrabajosGet<
+  TData = Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+          TError,
+          Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useTrabajosDeObraApiV1ObrasObraIdTrabajosGet<
+  TData = Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Destajos y cuadrillas de los conceptos de una obra
+ */
+
+export function useTrabajosDeObraApiV1ObrasObraIdTrabajosGet<
+  TData = Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+  TError = HTTPValidationError,
+>(
+  obraId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof trabajosDeObraApiV1ObrasObraIdTrabajosGet>>,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getTrabajosDeObraApiV1ObrasObraIdTrabajosGetQueryOptions(
+    obraId,
+    options,
+  );
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<
     TData,

@@ -154,6 +154,52 @@ class RepositorioTorreSQL:
         ).mappings().all()
         return [dict(fila) for fila in filas]
 
+    async def trabajos_de_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Los destajos y subcontratos de cada concepto de la obra, con su cuadrilla.
+
+        Una fila por (actividad, línea de destajo de la receta del concepto). La receta es la
+        `explosion` propia del concepto —sin recursión: los compuestos son de material—; el
+        costo de la cuadrilla es el de su jornada o, si no se capturó, el de su versión vigente
+        (mismo criterio que `RepositorioInsumosSQL.destajos_con_cuadrilla`). La cantidad
+        medida no viene aquí: la pantalla la toma del estado de cuantificación.
+        """
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select act.id as actividad_id, act.concepto_id,
+                           con.clave as concepto_clave,
+                           coalesce(act.descripcion, con.descripcion) as concepto_descripcion,
+                           uni.clave as concepto_unidad,
+                           act.cant_base as cantidad_presupuestada,
+                           i.id as insumo_id, i.clave, i.descripcion,
+                           iu.clave as unidad, i.costo_base as precio,
+                           e.cantidad as factor, e.categoria::text as categoria,
+                           i.cuadrilla_id, c.clave as cuadrilla_clave,
+                           c.nombre as cuadrilla_nombre,
+                           coalesce(c.costo_jornada, v.precio_unitario) as costo_cuadrilla,
+                           i.rendimiento_teorico, i.origen_rendimiento
+                    from actividad act
+                    join concepto con on con.id = act.concepto_id
+                    left join unidad uni on uni.id = con.unidad_id
+                    join explosion e
+                      on e.concepto_id = act.concepto_id
+                     and e.tipo_hijo = 'insumo'
+                     and e.categoria in ('destajo', 'subcontrato')
+                    join insumo i on i.id = e.insumo_id
+                    left join unidad iu on iu.id = i.unidad_id
+                    left join cuadrilla c on c.id = i.cuadrilla_id
+                    left join cuadrilla_version v
+                           on v.cuadrilla_id = c.id and v.vigente
+                    where act.obra_id = :obra_id
+                    order by con.clave, e.orden, i.clave
+                    """
+                ),
+                {"obra_id": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(fila) for fila in filas]
+
     async def actividades_de_obra(
         self,
         obra_id: UUID,
