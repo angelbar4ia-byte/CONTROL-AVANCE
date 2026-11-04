@@ -142,7 +142,10 @@ interface Props {
   /** El hueco que se está dibujando ahora. */
   readonly huecoEnCurso?: readonly Punto[];
   readonly onPunto: (p: Punto) => void;
-  readonly onSeleccionar: (seleccion: Seleccion | null) => void;
+  /** `agregar`: con Mayús o Ctrl, suma o quita el trazo de la selección en vez de reemplazarla. */
+  readonly onSeleccionar: (seleccion: Seleccion | null, agregar?: boolean) => void;
+  /** Los demás trazos elegidos (multiselección), además de `seleccion`. */
+  readonly seleccionados?: ReadonlySet<string>;
   /** El cuerpo de la línea que se está dibujando, si lleva grosor. */
   readonly bandaEnCurso?: readonly Punto[];
   /** La forma que se estamparía bajo el cursor (punto con forma). */
@@ -224,6 +227,7 @@ export function Visor({
   trazos,
   notas,
   seleccion,
+  seleccionados,
   herramienta,
   borrador,
   huecos = [],
@@ -449,6 +453,7 @@ export function Visor({
           : trazo !== null
             ? { tipo: 'trazo', id: trazo }
             : null,
+        herramienta === 'seleccionar' && (e.shiftKey || e.ctrlKey || e.metaKey),
       );
     } else {
       onPunto(p);
@@ -586,7 +591,7 @@ export function Visor({
       ))}
 
       {trazos.map((t) => {
-        const elegido = seleccion?.tipo === 'trazo' && t.id === seleccion.id;
+        const elegido = (seleccion?.tipo === 'trazo' && t.id === seleccion.id) || (seleccionados?.has(t.id) ?? false);
         const clase = [
           'visor__trazo',
           elegido && 'is-selected',
