@@ -727,17 +727,22 @@ export function EspacioDeTrazo({
     if (ids.length === 0 || trayendo) return;
     setTrayendo(true);
     let hechos = 0;
+    let distintos = 0;
     try {
       for (const id of ids) {
-        await traerTrazo.mutateAsync({
+        const traido = await traerTrazo.mutateAsync({
           trazoId: id,
           data: { plano_destino_id: planoElegido, dx: String(desfaseDeTexto(empalmeDx)), dy: String(desfaseDeTexto(empalmeDy)) },
         });
         hechos += 1;
+        if (traido.cambio_la_medida) distintos += 1;
         setTraidos((t) => new Set(t).add(id));
       }
       setFantasmaElegido(null);
-      setAviso(hechos === 1 ? 'Trazo traído a esta versión.' : `${hechos} trazos traídos a esta versión.`);
+      setAviso(
+        (hechos === 1 ? 'Trazo traído a esta versión.' : `${hechos} trazos traídos a esta versión.`) +
+          (distintos > 0 ? ` ${distintos} cambió su medida respecto a la versión anterior: revísalo.` : ''),
+      );
     } catch (err) {
       setAviso(
         `${hechos > 0 ? `Se trajeron ${hechos}; ` : ''}no se pudo traer el siguiente: ${err instanceof Error ? err.message : 'error'}`,

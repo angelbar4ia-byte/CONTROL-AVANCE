@@ -737,11 +737,23 @@ class TraerTrazoPeticion(BaseModel):
     dy: Decimal = Field(default=Decimal(0), description="Cuánto se corre el trazo en Y (unidades de plano).")
 
 
+class ComparacionDeMedida(BaseModel):
+    medida: str
+    antes: Decimal
+    despues: Decimal
+    igual: bool = Field(description="`true` si la medida no cambió entre las dos revisiones del plano.")
+
+
 class TrazoTraidoRespuesta(BaseModel):
     trazo_id: UUID
     enlace_ids: list[UUID]
     huecos: int
     recalculos: list[ResultadoRecalculoRespuesta]
+    comparacion: list[ComparacionDeMedida] = Field(
+        default_factory=list,
+        description="D-113: lo medido antes contra lo retrazado en la revisión nueva, por medida.",
+    )
+    cambio_la_medida: bool = Field(default=False, description="`true` si alguna medida difiere: hay que revisarla.")
 
 
 @router.post(
@@ -778,6 +790,11 @@ async def traer_trazo(
         enlace_ids=list(resultado.enlace_ids),
         huecos=resultado.huecos,
         recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos],
+        comparacion=[
+            ComparacionDeMedida(medida=m, antes=a, despues=d, igual=abs(a - d) < Decimal("0.0001"))
+            for m, a, d in resultado.comparacion
+        ],
+        cambio_la_medida=any(abs(a - d) >= Decimal("0.0001") for _m, a, d in resultado.comparacion),
     )
 
 

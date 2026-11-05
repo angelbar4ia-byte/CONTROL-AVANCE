@@ -6,10 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ResultadoRecalculoRespuesta } from "./resultadoRecalculoRespuesta";
+import type { ComparacionDeMedida } from "./comparacionDeMedida";
 
 export interface TrazoTraidoRespuesta {
   trazo_id: string;
   enlace_ids: string[];
   huecos: number;
   recalculos: ResultadoRecalculoRespuesta[];
+  /** D-113: lo medido antes contra lo retrazado en la revisión nueva, por medida. */
+  comparacion?: ComparacionDeMedida[];
+  /** `true` si alguna medida difiere: hay que revisarla. */
+  cambio_la_medida?: boolean;
 }

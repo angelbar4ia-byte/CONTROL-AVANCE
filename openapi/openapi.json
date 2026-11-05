@@ -21152,6 +21152,37 @@
         ],
         "title": "CohorteItemRespuesta"
       },
+      "ComparacionDeMedida": {
+        "properties": {
+          "medida": {
+            "type": "string",
+            "title": "Medida"
+          },
+          "antes": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Antes"
+          },
+          "despues": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Despues"
+          },
+          "igual": {
+            "type": "boolean",
+            "title": "Igual",
+            "description": "`true` si la medida no cambió entre las dos revisiones del plano."
+          }
+        },
+        "type": "object",
+        "required": [
+          "medida",
+          "antes",
+          "despues",
+          "igual"
+        ],
+        "title": "ComparacionDeMedida"
+      },
       "ConceptoDelElementoRespuesta": {
         "properties": {
           "concepto_id": {
@@ -37918,6 +37949,20 @@
             },
             "type": "array",
             "title": "Recalculos"
+          },
+          "comparacion": {
+            "items": {
+              "$ref": "#/components/schemas/ComparacionDeMedida"
+            },
+            "type": "array",
+            "title": "Comparacion",
+            "description": "D-113: lo medido antes contra lo retrazado en la revisión nueva, por medida."
+          },
+          "cambio_la_medida": {
+            "type": "boolean",
+            "title": "Cambio La Medida",
+            "description": "`true` si alguna medida difiere: hay que revisarla.",
+            "default": false
           }
         },
         "type": "object",

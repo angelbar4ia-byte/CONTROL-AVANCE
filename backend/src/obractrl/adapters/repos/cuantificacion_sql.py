@@ -1416,10 +1416,13 @@ class RepositorioEnlacesCuantificacionSQL:
         filas = (
             await self._sesion.execute(
                 text(
-                    """
+                    f"""
                     select e.id, e.tipo_nodo, e.actividad_id, e.prototipo_nodo_id,
-                           e.matriz_concepto_id, e.medida, e.factor
+                           e.matriz_concepto_id, e.medida, e.factor,
+                           {await _medida_valor_sql(self._sesion)} as medida_valor
                       from enlace_cuantificacion e
+                      join trazo t on t.id = e.trazo_id
+                      join plano p on p.id = t.plano_id
                      where e.trazo_id = :trazo_id and e.vigente
                      order by e.created_at, e.id
                     """
