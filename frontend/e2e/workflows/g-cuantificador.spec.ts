@@ -60,7 +60,6 @@ async function obraPropia(request: APIRequestContext, prefijo: string) {
     residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
     clave,
   });
-  await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
   return { id: obra.id, clave };
 }
 

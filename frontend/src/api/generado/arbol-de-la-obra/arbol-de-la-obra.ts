@@ -29,6 +29,7 @@ import type {
   AjusteDeNodoPeticion,
   ArbolDeLaObraRespuesta,
   ArbolPropioCreadoRespuesta,
+  CambiarPrototipoPeticion,
   ConfirmarVersionPeticion,
   EliminarObraPeticion,
   NodoCreadoRespuesta,
@@ -1233,6 +1234,106 @@ export const useReiniciarObraApiV1ObrasObraIdReiniciarPost = <
 > => {
   const mutationOptions =
     getReiniciarObraApiV1ObrasObraIdReiniciarPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Lo diseñado se borra (como al reiniciar) y la obra pasa al prototipo elegido; su árbol propio, si tenía, se borra.
+ * @summary Cambiar el prototipo de una obra que sigue en diseño
+ */
+export const cambiarPrototipoApiV1ObrasObraIdPrototipoPost = (
+  obraId: string,
+  cambiarPrototipoPeticion: CambiarPrototipoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ObraReiniciadaRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/prototipo`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: cambiarPrototipoPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getCambiarPrototipoApiV1ObrasObraIdPrototipoPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cambiarPrototipoApiV1ObrasObraIdPrototipoPost>>,
+    TError,
+    { obraId: string; data: CambiarPrototipoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cambiarPrototipoApiV1ObrasObraIdPrototipoPost>>,
+  TError,
+  { obraId: string; data: CambiarPrototipoPeticion },
+  TContext
+> => {
+  const mutationKey = ["cambiarPrototipoApiV1ObrasObraIdPrototipoPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cambiarPrototipoApiV1ObrasObraIdPrototipoPost>>,
+    { obraId: string; data: CambiarPrototipoPeticion }
+  > = (props) => {
+    const { obraId, data } = props ?? {};
+
+    return cambiarPrototipoApiV1ObrasObraIdPrototipoPost(
+      obraId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CambiarPrototipoApiV1ObrasObraIdPrototipoPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof cambiarPrototipoApiV1ObrasObraIdPrototipoPost>>
+  >;
+export type CambiarPrototipoApiV1ObrasObraIdPrototipoPostMutationBody =
+  CambiarPrototipoPeticion;
+export type CambiarPrototipoApiV1ObrasObraIdPrototipoPostMutationError = void;
+
+/**
+ * @summary Cambiar el prototipo de una obra que sigue en diseño
+ */
+export const useCambiarPrototipoApiV1ObrasObraIdPrototipoPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof cambiarPrototipoApiV1ObrasObraIdPrototipoPost>>,
+      TError,
+      { obraId: string; data: CambiarPrototipoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof cambiarPrototipoApiV1ObrasObraIdPrototipoPost>>,
+  TError,
+  { obraId: string; data: CambiarPrototipoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCambiarPrototipoApiV1ObrasObraIdPrototipoPostMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };

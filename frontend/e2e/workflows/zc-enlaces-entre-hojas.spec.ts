@@ -26,7 +26,6 @@ test.describe('Cuantificador · enlaces entre hojas', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const planta = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
       nombre: 'Planta general',
       archivo_url: 'planos/planta.dwg',

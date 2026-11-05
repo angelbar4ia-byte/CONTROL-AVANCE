@@ -38,6 +38,7 @@ from obractrl.adapters.api.casos_uso import (
     FijarPlantasDePrototipoDep,
     MarcarParteIndependienteDep,
     ModificarActividadDep,
+    PrepararObraNuevaDep,
     RedisenarParteDep,
     ResponderCotizacionDep,
 )
@@ -696,21 +697,22 @@ async def catalogos_base(caso_uso: ConsultarCatalogosBaseDep) -> list[CatalogoBa
     },
 )
 async def crear_obra_desde_catalogo_base(
-    peticion: ObraNuevaPeticion, caso_uso: CrearObraDesdeCatalogoBaseDep
+    peticion: ObraNuevaPeticion, caso_uso: CrearObraDesdeCatalogoBaseDep, preparar: PrepararObraNuevaDep
 ) -> ObraNuevaRespuesta:
     """Escenario «Nuevo» (D-571): una obra cuyo proyecto es diferente de todos los prototipos.
     Se crea la obra y se forma su catálogo con la estructura y los conceptos del prototipo de 1 o
     de 2 plantas, **sin cantidades**: llegan midiendo, y lo medido es el presupuesto."""
-    return ObraNuevaRespuesta(
-        **await caso_uso.ejecutar(
-            ComandoCrearObraDesdeCatalogoBase(
-                cluster_id=peticion.cluster_id,
-                clave=peticion.clave,
-                plantas=peticion.plantas,
-                residente_id=peticion.residente_id,
-            )
+    creada = await caso_uso.ejecutar(
+        ComandoCrearObraDesdeCatalogoBase(
+            cluster_id=peticion.cluster_id,
+            clave=peticion.clave,
+            plantas=peticion.plantas,
+            residente_id=peticion.residente_id,
         )
     )
+    # Estas dos entradas ya generan sus partidas al terminar (la pantalla lo hace): aquí solo se guarda cómo arrancó.
+    await preparar.ejecutar(creada["obra_id"], "catalogo_base", generar=False)
+    return ObraNuevaRespuesta(**creada)
 
 
 @router.post(
@@ -722,21 +724,21 @@ async def crear_obra_desde_catalogo_base(
     responses={**_NO_ENCONTRADO, 422: {"description": "Plantas o clave inválidas."}},
 )
 async def crear_obra_desde_cero(
-    peticion: ObraDesdeCeroPeticion, caso_uso: CrearObraDesdeCeroDep
+    peticion: ObraDesdeCeroPeticion, caso_uso: CrearObraDesdeCeroDep, preparar: PrepararObraNuevaDep
 ) -> ObraDesdeCeroRespuesta:
     """Escenario 4 (D-578): sin obra anterior de dónde copiar. Nace con un prototipo de un solo
     uso vacío y su presupuesto; los ensambles (uno por tipo de espacio, D-579) componen la
     estructura con cantidades estimadas, y después se mide por partes."""
-    return ObraDesdeCeroRespuesta(
-        **await caso_uso.ejecutar(
-            ComandoCrearObraDesdeCero(
-                cluster_id=peticion.cluster_id,
-                clave=peticion.clave,
-                plantas=peticion.plantas,
-                residente_id=peticion.residente_id,
-            )
+    creada = await caso_uso.ejecutar(
+        ComandoCrearObraDesdeCero(
+            cluster_id=peticion.cluster_id,
+            clave=peticion.clave,
+            plantas=peticion.plantas,
+            residente_id=peticion.residente_id,
         )
     )
+    await preparar.ejecutar(creada["obra_id"], "desde_cero", generar=False)
+    return ObraDesdeCeroRespuesta(**creada)
 
 
 @router.get(

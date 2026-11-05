@@ -28,7 +28,6 @@ test.describe('Cuantificador · concepto nuevo', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const plano = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
       nombre: 'Nuevos',
       archivo_url: 'planos/nuevos.dwg',
@@ -92,7 +91,6 @@ test.describe('Cuantificador · concepto nuevo', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
 
     await entrarComo(page, 'costos');
     await page.goto(`/cuantificador?obra=${obra.id}`);

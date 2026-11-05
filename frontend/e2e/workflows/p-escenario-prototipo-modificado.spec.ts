@@ -32,7 +32,6 @@ test.describe('Prototipo modificado · cambios y adicionales', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const { partes } = await llamarApi<{ partes: { clave: string; nombre: string; tipo: string }[] }>(
       request,
       'control',

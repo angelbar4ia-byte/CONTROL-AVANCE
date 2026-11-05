@@ -8,7 +8,7 @@
  * rechazar. La regla sigue siendo del backend.
  */
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 
 import { useCrearObraApiV1ObrasPost } from '@/api/generado/obras/obras';
 import { useListarUsuariosApiV1UsuariosGet } from '@/api/generado/usuarios/usuarios';
@@ -33,6 +33,8 @@ interface Props {
   readonly clusterInicial?: string;
   readonly onCerrar: () => void;
   readonly onCreada: () => void;
+  /** El selector «Parte de» del Creador de obra, cuando este cuadro vive dentro de él. */
+  readonly origen?: ReactNode;
 }
 
 /** `PROYECTO · CLUSTER — nombre`, para no confundir clusters homónimos. */
@@ -54,6 +56,7 @@ export function AltaObra({
   clusterInicial = '',
   onCerrar,
   onCreada,
+  origen,
 }: Props) {
   const [clusterId, setClusterId] = useState(clusterInicial);
   const [clave, setClave] = useState('');
@@ -115,6 +118,7 @@ export function AltaObra({
     <Modal titulo="Nueva obra" onCerrar={onCerrar}>
       <form onSubmit={alEnviar}>
         <div className="sheet__body col gap-12">
+          {origen}
           <CampoSelect
             id="obra-cluster"
             etiqueta="Cluster"

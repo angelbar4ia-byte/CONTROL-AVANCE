@@ -27,7 +27,6 @@ test.describe('Cuantificador · propuestas por revisar', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const [actividad] = await llamarApi<{ id: string }[]>(request, 'control', 'GET', `/obras/${obra.id}/actividades`);
     const plano = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
       nombre: 'Salidas',

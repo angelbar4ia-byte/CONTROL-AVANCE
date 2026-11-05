@@ -35,7 +35,6 @@ test.describe('Partes · cada una a su paso', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const { partes } = await llamarApi<{ partes: { clave: string; nombre: string }[] }>(
       request,
       'control',
@@ -130,7 +129,6 @@ test.describe('Partes · cada una a su paso', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const { partes } = await llamarApi<{ partes: { clave: string; nombre: string }[] }>(
       request,
       'control',

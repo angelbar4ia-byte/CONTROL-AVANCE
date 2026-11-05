@@ -34,7 +34,6 @@ test.describe('Hojas matriz · medir la matriz dentro del concepto', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
 
     // Una losa (matriz madre) de 10 m² a $1,000, dada de alta como trabajo extra.
     const conceptos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/conceptos');

@@ -69,6 +69,8 @@ class ArbolDeObra:
             "prototipo_id": pid,
             "prototipo_clave": obra["prototipo_clave"],
             "prototipo_nombre": obra["prototipo_nombre"],
+            "forma_de_arranque": await self._arbol.forma_de_arranque(obra_id),
+            "partidas": await self._arbol.partidas_de_la_obra(obra_id),
             "borrador_id": borrador["id"] if borrador else None,
             "versiones": await self._arbol.versiones(pid),
             "nodos": await self._arbol.nodos(pid),
@@ -202,3 +204,27 @@ class ArbolDeObra:
         trabajo = await self._arbol.trabajo_real_de_la_obra(obra_id)
         if trabajo is not None:
             raise ErrorDeParte(f"{trabajo} Dejó de ser diseño.")
+
+    async def fijar_forma_de_arranque(self, obra_id: UUID, forma: str) -> None:
+        """Por dónde se creó la obra. Solo informativa: no cambia ninguna regla (D-626)."""
+        async with self._uow:
+            await self._arbol.fijar_forma_de_arranque(obra_id, forma)
+            await self._uow.commit()
+
+    async def cambiar_prototipo(self, obra_id: UUID, prototipo_id: UUID, clave_confirmada: str) -> dict[str, int]:
+        """Cambia el prototipo de una obra en diseño. Borra lo diseñado como al reiniciar: las partidas se generan de nuevo."""
+        obra = await self._obra(obra_id)
+        await self._exigir_en_diseno(obra_id)
+        if clave_confirmada.strip().upper() != str(obra["clave"]).strip().upper():
+            raise ErrorDeCatalogo(f"Para cambiar el prototipo escribe la clave exacta de la obra: {obra['clave']}.")
+        destino = await self._arbol.prototipo(prototipo_id)
+        if destino is None:
+            raise ErrorDeCatalogo("El prototipo no existe o está fuera de tu alcance.")
+        if destino["de_una_obra"]:
+            raise ErrorDeCatalogo("Ese prototipo es de otra obra: elige uno del catálogo.")
+        if destino["id"] == obra["prototipo_id"]:
+            raise ErrorDeCatalogo("La obra ya usa ese prototipo.")
+        async with self._uow:
+            resumen = await self._arbol.reiniciar_obra(obra_id, obra["prototipo_id"], prototipo_id)
+            await self._uow.commit()
+        return resumen

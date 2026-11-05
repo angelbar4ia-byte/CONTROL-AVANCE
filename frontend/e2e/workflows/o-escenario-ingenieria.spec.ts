@@ -26,8 +26,8 @@ test.describe('Escenario ingeniería · entrar por Presupuesto', () => {
     const control = await (await browser.newContext()).newPage();
     await entrarComo(control, 'control');
 
-    // --- 1. La obra se crea desde Presupuesto -------------------------------------------------
-    await control.goto('/presupuesto');
+    // --- 1. La obra se crea desde el Creador de obra -------------------------------------------------
+    await control.goto('/obras');
     await control.getByRole('button', { name: 'Nueva obra' }).click();
     const alta = control.getByRole('dialog');
     await alta.getByLabel('Cluster').selectOption({ label: 'PROY-E2E · CLU-E2E — Cluster E2E' });
@@ -37,9 +37,9 @@ test.describe('Escenario ingeniería · entrar por Presupuesto', () => {
     await alta.getByLabel('Residente').selectOption({ label: 'Rosa Residente' });
     await alta.getByRole('button', { name: 'Crear obra' }).click();
     await expect(control.getByRole('status')).toContainText('Obra creada');
+    await control.goto('/presupuesto');
     const obras = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/obras');
     const obra = obras.find((o) => o.clave === clave)!;
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
 
     // --- 2. Dos caminos para la ingeniería ----------------------------------------------------
     await control.getByRole('button', { name: 'Cargar ingeniería' }).click();

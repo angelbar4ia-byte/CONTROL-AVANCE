@@ -69,16 +69,10 @@ test.describe('§8.3 · El recorrido de una obra', () => {
     expect(obra.estatus).toBe('pendiente');
     expect(Number(obra.avance_pct)).toBe(0);
 
-    const generada = await llamarApi<{ n_actividades: number }>(
-      request,
-      'control',
-      'POST',
-      `/obras/${obra.id}/generar`,
-      { modo_pago: 'destajo' },
-    );
-    expect(generada.n_actividades).toBe(3);
+    // Las partidas se generan solas al crear la obra (D-626).
 
     const actividades = await llamarApi<ActividadApi[]>(request, 'residente', 'GET', `/obras/${obra.id}/actividades`);
+    expect(actividades).toHaveLength(3);
     const por = (clave: string) => actividades.find((a) => a.concepto_clave === clave)!;
     const excavacion = por('E2E-EXC');
     const plantilla = por('E2E-PLA');

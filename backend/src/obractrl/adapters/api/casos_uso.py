@@ -318,6 +318,7 @@ from obractrl.application.casos_uso.notificar_partes import NotificarPartes
 from obractrl.application.casos_uso.notificar_reprogramacion import (
     NotificarReprogramacion,
 )
+from obractrl.application.casos_uso.preparar_obra_nueva import PrepararObraNueva
 from obractrl.application.casos_uso.propuestas import (
     AceptarPropuestas,
     ProponerTrazos,
@@ -453,6 +454,7 @@ __all__ = [
     "ObservarReprogramacionDep",
     "ObtenerCPUDep",
     "ParticiparEnCierreDep",
+    "PrepararObraNuevaDep",
     "ProgramarIncidenciaDep",
     "ProgramarNodoDelArbolDep",
     "ProponerReprogramacionDep",
@@ -1007,6 +1009,10 @@ def obtener_arbol_de_obra(sesion: SesionRLS) -> ArbolDeObra:
     return ArbolDeObra(arbol=RepositorioArbolDeObraSQL(sesion), partes=RepositorioPartesSQL(sesion), uow=UnidadDeTrabajoSQL(sesion))
 
 
+def obtener_preparar_obra_nueva(sesion: SesionRLS) -> PrepararObraNueva:
+    return PrepararObraNueva(arbol=obtener_arbol_de_obra(sesion), generar=obtener_generar_obra(sesion))
+
+
 def obtener_cambio_de_unidad(sesion: SesionRLS) -> CambioDeUnidad:
     return CambioDeUnidad(
         arbol=RepositorioArbolSQL(sesion),
@@ -1150,6 +1156,7 @@ GestionarElementosParametricosDep = Annotated[
     GestionarElementosParametricos, Depends(obtener_gestionar_elementos_parametricos)
 ]
 GestionarVanosDep = Annotated[GestionarVanos, Depends(obtener_gestionar_vanos)]
+PrepararObraNuevaDep = Annotated[PrepararObraNueva, Depends(obtener_preparar_obra_nueva)]
 ArbolDeObraDep = Annotated[ArbolDeObra, Depends(obtener_arbol_de_obra)]
 CambioDeUnidadDep = Annotated[CambioDeUnidad, Depends(obtener_cambio_de_unidad)]
 ArmarArbolDep = Annotated[ArmarArbol, Depends(obtener_armar_arbol)]

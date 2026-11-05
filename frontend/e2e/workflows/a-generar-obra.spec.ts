@@ -44,21 +44,15 @@ test.describe('§11.3 A · Generación de obra desde prototipo', () => {
 
     await expect(page.getByRole('status')).toHaveText('Obra creada');
 
-    // 2. Abrir la obra desde el árbol y generar (A.2).
+    // 2. Abrir la obra desde el árbol: sus partidas ya se generaron solas al crearla (A.2, D-626).
     await page.getByRole('button', { name: /CLU-E2E Cluster E2E/ }).click();
     await page.getByRole('button', { name: new RegExp(`^${clave} Pendiente`) }).click();
 
     const panel = page.getByRole('dialog', { name: clave });
-    await expect(panel.getByRole('heading', { name: 'Generar desde prototipo' })).toBeVisible();
-    await panel.getByRole('button', { name: 'Generar actividades' }).click();
-
-    // 3. El resultado dice cuántas actividades salieron y sobre qué programa.
-    //    El prototipo sembrado tiene tres conceptos hoja.
-    await expect(panel.getByRole('status')).toContainText(/Generada 3 actividades · programa [0-9a-f]{8}/);
-
-    // Generada la obra, el botón de generar da paso a «Deshacer»: generar dos
-    // veces duplicaría las actividades.
-    await expect(panel.getByRole('button', { name: 'Deshacer' })).toBeVisible();
+    // 3. El prototipo sembrado tiene tres conceptos hoja; no queda nada por generar a mano.
+    await expect(panel.getByText('Partidas', { exact: true })).toBeVisible();
+    await expect(panel.getByText('Arrancó como')).toBeVisible();
+    await expect(panel.getByRole('heading', { name: 'Generar desde prototipo' })).toHaveCount(0);
 
     // 4. La junta de arranque: la obra pasa de «Pendiente» a «Iniciada» y su
     //    fecha es el arranque del cronograma. Es una marca de una sola vez: la

@@ -30,7 +30,6 @@ test.describe('Cuantificador · takeoff automático', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave: `TAK-${sufijo}`,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const nueva = (concepto: string, descripcion: string) =>
       llamarApi<{ id: string }>(request, 'residente', 'POST', '/actividades', {
         obra_id: obra.id,

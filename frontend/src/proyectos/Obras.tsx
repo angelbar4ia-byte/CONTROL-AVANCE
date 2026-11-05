@@ -27,6 +27,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   useListarClustersApiV1ClustersGet,
@@ -52,7 +53,7 @@ import { PanelObra } from './PanelObra';
 import { AltaProyecto } from './AltaProyecto';
 import { AltaCluster } from './AltaCluster';
 import { AltaPrototipo } from './AltaPrototipo';
-import { AltaObra } from './AltaObra';
+import { CreadorDeObra } from './CreadorDeObra';
 import { AltaMasivaObras } from './AltaMasivaObras';
 import { etiquetaEstatusObra, puedeAdministrarObras, puedeConfigurarEstructura } from './reglas';
 
@@ -82,6 +83,7 @@ type Dialogo =
 
 export default function Obras() {
   const { sesion } = useSesion();
+  const navegar = useNavigate();
   const rol = sesion?.rol ?? null;
   const configura = rol !== null && puedeConfigurarEstructura(rol);
   const administraObras = rol !== null && puedeAdministrarObras(rol);
@@ -352,16 +354,18 @@ export default function Obras() {
       )}
 
       {dialogo?.tipo === 'obra' && (
-        <AltaObra
+        <CreadorDeObra
           proyectos={proyectos}
           clusters={clusters}
           prototipos={prototipos}
           clusterInicial={dialogo.clusterId}
           onCerrar={cerrarDialogo}
-          onCreada={() => {
+          onCreada={(obraId) => {
             cerrarDialogo();
             setAviso('Obra creada');
             refrescarObras();
+            // Una obra nueva (catálogo base o desde cero) se forma midiendo: se abre en el cuantificador.
+            if (obraId !== undefined) navegar(`/cuantificador?obra=${obraId}`);
           }}
         />
       )}

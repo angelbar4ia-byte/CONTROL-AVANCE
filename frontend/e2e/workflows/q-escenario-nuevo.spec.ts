@@ -26,10 +26,11 @@ test.describe('Escenario nuevo · entrar por el cuantificador', () => {
     const control = await (await browser.newContext()).newPage();
     await entrarComo(control, 'control');
 
-    // --- 1. La obra se crea desde el cuantificador ------------------------------------------------
-    await control.goto('/cuantificador');
+    // --- 1. La obra se crea desde el Creador de obra ------------------------------------------------
+    await control.goto('/obras');
     await control.getByRole('button', { name: 'Nueva obra' }).click();
-    const alta = control.getByRole('dialog', { name: 'Nueva obra desde el cuantificador' });
+    const alta = control.getByRole('dialog', { name: 'Nueva obra' });
+    await alta.getByLabel('Parte de').selectOption('nueva');
     await alta.getByLabel('Cluster').selectOption({ label: 'PROY-E2E · CLU-E2E — Cluster E2E' });
     await alta.getByLabel('Clave').fill(clave);
     await expect(alta.getByText(/Plazo base 28 semanas/)).toBeVisible();

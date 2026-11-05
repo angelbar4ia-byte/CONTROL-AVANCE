@@ -231,7 +231,7 @@ async def test_reiniciar_una_obra_borra_lo_disenado_y_vuelve_al_prototipo_base(
     assert (await control.post(f"{ruta}/reiniciar", json={"clave": "mal"})).status_code == 422
     r = await control.post(f"{ruta}/reiniciar", json={"clave": "OBRA 01"})
     assert r.status_code == 200, r.text
-    assert r.json() == {"trazos": 1, "actividades": 1, "volvio_al_base": True}
+    assert r.json() == {"trazos": 1, "actividades": 1, "volvio_al_base": True, "actividades_generadas": 0, "motivo_sin_generar": None}
 
     # La obra sigue ahí, con su plano, de vuelta en el prototipo base; la copia desapareció y no quedan partidas ni trazos.
     arbol = (await control.get(f"{ruta}/arbol")).json()
@@ -244,3 +244,56 @@ async def test_reiniciar_una_obra_borra_lo_disenado_y_vuelve_al_prototipo_base(
             assert (await c.execute(text("select count(*) from actividad where obra_id = :o"), {"o": str(escenario.obra_id)})).scalar_one() == 0
     finally:
         await motor.dispose()
+
+
+async def test_cambiar_de_prototipo_una_obra_en_diseno_y_la_forma_de_arranque_es_solo_informativa(
+    escenario: Escenario, base: dict, control: httpx.AsyncClient
+) -> None:
+    ruta = f"/api/v1/obras/{escenario.obra_id}"
+    # La forma de arranque aparece en el árbol (vacía mientras nadie la fije).
+    assert "forma_de_arranque" in (await control.get(f"{ruta}/arbol")).json()
+
+    otro = uuid.uuid4()
+    motor = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with motor.begin() as c:
+            await c.execute(
+                text(
+                    "insert into prototipo (id, org_id, proyecto_id, clave, nombre) "
+                    "select :i, org_id, proyecto_id, 'CAS-2', 'Otro prototipo' from prototipo where id = :p"
+                ),
+                {"i": str(otro), "p": str(escenario.prototipo_id)},
+            )
+        assert (await control.post(f"{ruta}/prototipo", json={"prototipo_id": str(otro), "clave": "mal"})).status_code == 422
+        mismo = {"prototipo_id": str(escenario.prototipo_id), "clave": "OBRA 01"}
+        assert (await control.post(f"{ruta}/prototipo", json=mismo)).status_code == 422  # ya usa ese
+        r = await control.post(f"{ruta}/prototipo", json={"prototipo_id": str(otro), "clave": "OBRA 01"})
+        assert r.status_code == 200, r.text
+        assert r.json()["actividades"] == 1 and r.json()["volvio_al_base"] is True
+        assert r.json()["actividades_generadas"] == 0 and r.json()["motivo_sin_generar"]  # el otro prototipo está vacío
+        assert (await control.get(f"{ruta}/arbol")).json()["prototipo_id"] == str(otro)
+
+        # Con una parte programada la obra ya está contratada: no cambia de prototipo.
+        async with motor.begin() as c:
+            await c.execute(
+                text("insert into parte_estado (org_id, obra_id, clave, estado) values (:o, :ob, 'sin_etapa', 'asignada')"),
+                {"o": str(escenario.org_id), "ob": str(escenario.obra_id)},
+            )
+        vuelta = {"prototipo_id": str(escenario.prototipo_id), "clave": "OBRA 01"}
+        assert (await control.post(f"{ruta}/prototipo", json=vuelta)).status_code == 409
+    finally:
+        await motor.dispose()
+
+
+async def test_toda_obra_nueva_guarda_su_forma_de_arranque_y_reporta_sus_partidas(
+    escenario: Escenario, base: dict, control: httpx.AsyncClient
+) -> None:
+    cuerpo = {"cluster_id": str(escenario.cluster_id), "clave": "NUEVA 01", "prototipo_id": str(escenario.prototipo_id)}
+    r = await control.post("/api/v1/obras", json=cuerpo)
+    assert r.status_code == 201, r.text
+    nueva = r.json()
+    # Las partidas se generan solas, o se dice por qué no (nunca falla el alta por eso).
+    assert "actividades_generadas" in nueva and "motivo_sin_generar" in nueva
+    assert nueva["actividades_generadas"] > 0 or nueva["motivo_sin_generar"]
+    arbol = (await control.get(f"/api/v1/obras/{nueva['id']}/arbol")).json()
+    assert arbol["forma_de_arranque"] == "prototipo"

@@ -48,7 +48,6 @@ test.describe('Cierre de frente · el segundo candado del cierre', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const actividades = await llamarApi<ActividadApi[]>(request, 'residente', 'GET', `/obras/${obra.id}/actividades`);
 
     const avanzar = async (fraccion: number) => {

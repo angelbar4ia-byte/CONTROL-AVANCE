@@ -40,7 +40,6 @@ test.describe('Cuantificador · escala automática', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const pdf = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
       nombre: 'Con escala',
       archivo_url: 'e2e/escala.pdf',

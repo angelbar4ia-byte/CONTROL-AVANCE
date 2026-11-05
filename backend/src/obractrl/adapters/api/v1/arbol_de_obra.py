@@ -13,7 +13,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 
-from obractrl.adapters.api.casos_uso import ArbolDeObraDep
+from obractrl.adapters.api.casos_uso import ArbolDeObraDep, PrepararObraNuevaDep
 from obractrl.adapters.api.dependencias import exigir_rol
 from obractrl.domain.shared.diccionario import Rol
 
@@ -57,6 +57,10 @@ class ArbolDeLaObraRespuesta(BaseModel):
     prototipo_id: UUID
     prototipo_clave: str
     prototipo_nombre: str
+    partidas: int = Field(default=0, description="Partidas (actividades) que ya tiene la obra.")
+    forma_de_arranque: Literal["prototipo", "catalogo_base", "ingenieria", "desde_cero"] | None = Field(
+        default=None, description="Por dónde se creó la obra; solo informativa."
+    )
     borrador_id: UUID | None
     versiones: list[VersionDelPresupuestoRespuesta]
     nodos: list[NodoDeArbolDeObraRespuesta]
@@ -188,6 +192,8 @@ async def eliminar_obra(obra_id: UUID, peticion: EliminarObraPeticion, caso_uso:
 
 
 class ObraReiniciadaRespuesta(BaseModel):
+    actividades_generadas: int = Field(default=0, description="Partidas generadas de nuevo (al cambiar de prototipo).")
+    motivo_sin_generar: str | None = Field(default=None, description="Por qué no se generaron, si no se pudo.")
     trazos: int = Field(description="Trazos borrados de los planos.")
     actividades: int = Field(description="Partidas borradas.")
     volvio_al_base: bool = Field(description="La obra volvió al prototipo base y su árbol propio se borró.")
@@ -209,3 +215,28 @@ async def reiniciar_obra(obra_id: UUID, peticion: EliminarObraPeticion, caso_uso
     Si tenía un árbol propio copiado de un prototipo base, vuelve a ese prototipo."""
     r = await caso_uso.reiniciar_obra(obra_id, peticion.clave)
     return ObraReiniciadaRespuesta(trazos=r["trazos"], actividades=r["actividades"], volvio_al_base=bool(r["volvio_al_base"]))
+
+
+class CambiarPrototipoPeticion(BaseModel):
+    prototipo_id: UUID
+    clave: str = Field(min_length=1, description="La clave de la obra, escrita: la confirmación.")
+
+
+@router.post(
+    "/obras/{obra_id}/prototipo",
+    response_model=ObraReiniciadaRespuesta,
+    summary="Cambiar el prototipo de una obra que sigue en diseño",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
+    responses={
+        **_RESPUESTAS,
+        409: {"description": "La obra ya tiene partes programadas o asignadas, avance o estimaciones."},
+        422: {"description": "La clave escrita no es la de la obra, o el prototipo no sirve."},
+    },
+)
+async def cambiar_prototipo(
+    obra_id: UUID, peticion: CambiarPrototipoPeticion, caso_uso: ArbolDeObraDep, preparar: PrepararObraNuevaDep
+) -> ObraReiniciadaRespuesta:
+    """Lo diseñado se borra (como al reiniciar) y la obra pasa al prototipo elegido; su árbol propio, si tenía, se borra."""
+    r = await caso_uso.cambiar_prototipo(obra_id, peticion.prototipo_id, peticion.clave)
+    nuevo = await preparar.generar_partidas(obra_id)
+    return ObraReiniciadaRespuesta(trazos=r["trazos"], actividades=r["actividades"], volvio_al_base=True, **nuevo)

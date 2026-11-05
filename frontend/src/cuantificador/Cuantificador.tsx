@@ -89,6 +89,7 @@ import {
 } from '@/api/generado/torre/torre';
 import { queryClient } from '@/app/queryClient';
 import { useSesion } from '@/app/sesion';
+import { CambiarPrototipo } from '@/proyectos/CambiarPrototipo';
 import { useSearchParams } from 'react-router-dom';
 import { fmtFecha, fmtNum } from '@/lib/formato';
 import { ErrorBanner } from '@/lib/ErrorBanner';
@@ -162,7 +163,6 @@ import { claveSiguiente, vanoPorDefecto, type DatosDeVano } from './vanos';
 import { alternarEnSeleccion, trazosElegidos } from './seleccion';
 import { PanelVolumen } from './PanelVolumen';
 import { resumenDePantalla, type TrazoParaResumen } from './resumen';
-import { NuevaObra } from './NuevaObra';
 import { ReemplazarEnlace } from './ReemplazarEnlace';
 import { Visor, type NotaVisible, type Seleccion, type TrazoVisible } from './Visor';
 import {
@@ -3338,9 +3338,10 @@ export function EspacioDeTrazo({
  */
 export default function Cuantificador() {
   const [busqueda, setBusqueda] = useSearchParams();
-  const { sesion } = useSesion();
-  const [creandoObra, setCreandoObra] = useState(false);
   const obraId = busqueda.get('obra') ?? '';
+  const { sesion } = useSesion();
+  const [cambiandoPrototipo, setCambiandoPrototipo] = useState(false);
+  const [avisoPrototipo, setAvisoPrototipo] = useState<string | null>(null);
   const selectorDeObra = (
     <div className="estacion__obra">
       <SelectorObra
@@ -3351,11 +3352,11 @@ export default function Cuantificador() {
       />
     </div>
   );
-  // La entrada del escenario «Nuevo»: la obra se crea desde aquí (Control de obra, §11.2).
-  const nuevaObra =
-    sesion?.rol === 'control_obra' ? (
-      <button type="button" className="btn btn--sm" onClick={() => setCreandoObra(true)}>
-        Nueva obra
+  // El prototipo se cambia aquí mientras la obra sigue en diseño; lo que se modifique alimenta el presupuesto.
+  const cambiarPrototipo =
+    sesion?.rol === 'control_obra' && obraId !== '' ? (
+      <button type="button" className="btn btn--sm" onClick={() => setCambiandoPrototipo(true)}>
+        Cambiar prototipo
       </button>
     ) : null;
 
@@ -3365,7 +3366,6 @@ export default function Cuantificador() {
         <>
           <div className="estacion__cabecera">
             {selectorDeObra}
-            {nuevaObra}
           </div>
           <div className="empty">
             <div className="empty-title">Elige una obra</div>
@@ -3379,19 +3379,22 @@ export default function Cuantificador() {
           cabecera={
             <>
               {selectorDeObra}
-              {nuevaObra}
+              {cambiarPrototipo}
             </>
           }
           planoInicial={busqueda.get('plano') ?? undefined}
           actividadFocoId={busqueda.get('actividad') ?? undefined}
         />
       )}
-      {creandoObra && (
-        <NuevaObra
-          onCerrar={() => setCreandoObra(false)}
-          onCreada={(id) => {
-            setCreandoObra(false);
-            setBusqueda({ obra: id });
+      {avisoPrototipo && <div className="text-sm">{avisoPrototipo}</div>}
+      {cambiandoPrototipo && (
+        <CambiarPrototipo
+          obraId={obraId}
+          onCerrar={() => setCambiandoPrototipo(false)}
+          onCambiado={(texto) => {
+            setCambiandoPrototipo(false);
+            setAvisoPrototipo(texto);
+            void queryClient.invalidateQueries();
           }}
         />
       )}
