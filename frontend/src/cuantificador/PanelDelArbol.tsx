@@ -347,7 +347,10 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
       onCambio(
         `${a.concepto_clave ?? 'El concepto'} ahora es ${r.unidad_nueva}` +
           (r.tipo_nuevo ? ` y se mide como ${NOMBRE_DE_TIPO[r.tipo_nuevo as keyof typeof NOMBRE_DE_TIPO] ?? r.tipo_nuevo}` : '') +
-          '. Vale para todas las obras.',
+          '. Vale para todas las obras.' +
+          ((r.enlaces_por_revisar ?? 0) > 0
+            ? ` ${r.enlaces_por_revisar} enlace(s) ya no caben en la unidad nueva y quedaron por revisar.`
+            : ''),
       );
     } catch (err) {
       onError(err instanceof Error ? err.message : 'No se pudo cambiar la unidad.');

@@ -1424,6 +1424,12 @@ export function EspacioDeTrazo({
 
   /** Borrar lo elegido: un trazo pide confirmación en su ventana; varios, juntos y con un solo deshacer. */
   function pedirBorrado() {
+    // Un vano elegido se quita sin pedir confirmación: se deshace con Ctrl+Z.
+    if (vanoElegido) {
+      setVanoElegidoId(null);
+      void accionesDeVano.quitar(vanoElegido);
+      return;
+    }
     if (idsElegidos.length > 1) void borrarVarios(idsElegidos);
     else if (seleccionado) setPorBorrar(seleccionado.id as string);
   }
@@ -1474,8 +1480,34 @@ export function EspacioDeTrazo({
     el.textContent = `x ${(p[0] * k).toFixed(2)} · y ${(p[1] * k).toFixed(2)} ${u}`;
   }
 
+  /**
+   * El clic derecho (sin arrastre) con una herramienta de dibujo: termina la figura abierta (polilínea, polígono, contorno,
+   * hueco) como Intro, o cancela la que está a medias como Esc. Sin nada en curso no hace nada.
+   */
+  function clicDerechoDeDibujo() {
+    if (herramienta === 'hueco') {
+      if (huecoEnCurso.length >= PUNTOS_MINIMOS_DE_HUECO) void cerrarHueco();
+      else setHuecoEnCurso([]);
+      return;
+    }
+    if (borrador.length === 0) return;
+    const abierta = forma !== null && forma !== 'punto' && clicsDeLaForma === undefined;
+    const alcanza =
+      forma === 'contorno' ? borrador.length >= 3 : forma !== null && forma !== 'punto' && trazoCompleto(GEOMETRIA_DE[forma as HerramientaDeDibujo], borrador);
+    if (abierta && alcanza) {
+      terminar();
+      return;
+    }
+    limpiarDibujo();
+  }
+
   function abrirMenuDelTrazo(id: string | null, x: number, y: number) {
-    if (id === null || !['seleccionar', 'mover'].includes(herramienta)) {
+    if (!['seleccionar', 'mover'].includes(herramienta)) {
+      clicDerechoDeDibujo();
+      setMenuDelTrazo(null);
+      return;
+    }
+    if (id === null) {
       setMenuDelTrazo(null);
       return;
     }
@@ -2163,7 +2195,7 @@ export function EspacioDeTrazo({
       const destino = e.target as HTMLElement | null;
       if (destino && /^(INPUT|SELECT|TEXTAREA)$/.test(destino.tagName)) return;
       if (destino?.isContentEditable) return;
-      if ((e.key === 'Delete' || e.key === 'Backspace') && seleccionado && herramienta !== 'poligono' && herramienta !== 'linea' && herramienta !== 'hueco') {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && (seleccionado || vanoElegido) && herramienta !== 'poligono' && herramienta !== 'linea' && herramienta !== 'hueco') {
         e.preventDefault();
         pedirBorrado();
         return;
@@ -2179,7 +2211,7 @@ export function EspacioDeTrazo({
     return () => window.removeEventListener('keydown', alTeclear);
     // `cambiarHerramienta` lee estado del render: se rearma con él.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hayCajon, puedeAnotar, borrador, areaElegida, seleccionado, herramienta, mostrarMedidas, mostrarCotas, datosAbiertos]);
+  }, [hayCajon, puedeAnotar, borrador, areaElegida, seleccionado, vanoElegido, herramienta, mostrarMedidas, mostrarCotas, datosAbiertos]);
 
   // Al cambiar de plano se olvida lo que se podía deshacer y la medición activa: ya no es lo que se está viendo.
   useEffect(() => {
@@ -2856,10 +2888,10 @@ export function EspacioDeTrazo({
               {
                 clave: 'eliminar',
                 etiqueta: 'Eliminar selección',
-                deshabilitado: seleccionado === null,
+                deshabilitado: seleccionado === null && vanoElegido === null,
                 descripcion:
-                  seleccionado === null
-                    ? 'Elige un trazo con Seleccionar para poder eliminarlo'
+                  seleccionado === null && vanoElegido === null
+                    ? 'Elige un trazo o un vano con Seleccionar para poder eliminarlo'
                     : 'Eliminar el trazo elegido (Supr)',
                 onClick: () => pedirBorrado(),
               },
@@ -3215,6 +3247,10 @@ export function EspacioDeTrazo({
                 onElegirVano={elegirVano}
                 onAjustarVano={ajustarVano}
                 onSoltarVano={moviendoVano ? soltarVanoEn : null}
+                onBorrarVano={(id) => {
+                  const v = (vanosConsulta.data ?? []).find((x) => x.id === id);
+                  if (v) void accionesDeVano.quitar(v);
+                }}
                 onMenuVano={(id, x, y) => {
                   elegirVano(id);
                   setMenuDelVano({ id, x, y });

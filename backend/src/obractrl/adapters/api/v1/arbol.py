@@ -47,6 +47,9 @@ class UnidadCambiadaRespuesta(BaseModel):
         default=None, description="area, lineal, conteo, volumen o derivada."
     )
     tipo_nuevo: str | None = None
+    enlaces_por_revisar: int = Field(
+        default=0, description="Enlaces cuya medida ya no cabe en la unidad nueva: quedan marcados por revisar (D-601)."
+    )
 
 
 class PartidaPeticion(BaseModel):
@@ -116,7 +119,7 @@ async def crear_etapa(peticion: EtapaPeticion, caso_uso: ArmarArbolDep) -> IdCre
     responses={
         404: {"description": "El concepto no existe o está fuera de tu alcance."},
         422: {
-            "description": "El concepto ya mide con algo que la unidad nueva no admite, o la unidad no existe."
+            "description": "La unidad no existe o cruza de tipo de medición (eso pide una equivalencia)."
         },
     },
 )
@@ -131,6 +134,7 @@ async def cambiar_unidad_del_concepto(
         unidad_nueva=r.unidad_nueva,
         tipo_anterior=r.tipo_anterior,
         tipo_nuevo=r.tipo_nuevo,
+        enlaces_por_revisar=r.enlaces_por_revisar,
     )
 
 

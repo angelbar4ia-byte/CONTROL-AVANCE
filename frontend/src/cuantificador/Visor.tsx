@@ -186,6 +186,8 @@ interface Props {
   ) => void;
   /** Con «Mover…» del menú del vano: el siguiente clic en el plano es el lugar nuevo del vano elegido. */
   readonly onSoltarVano?: ((p: Punto) => void) | null;
+  /** Con la herramienta Borrar, un clic sobre un vano lo quita (no el muro que lo lleva). */
+  readonly onBorrarVano?: (id: string) => void;
   /** Clic derecho (sin arrastre) sobre un vano: dónde, en pantalla, para abrir su menú. */
   readonly onMenuVano?: (id: string, x: number, y: number) => void;
   /** Dónde está el cursor (plano, sin asistir) para mostrar sus coordenadas; no vuelve a pintar nada por sí mismo. */
@@ -277,6 +279,7 @@ export function Visor({
   onElegirVano,
   onAjustarVano,
   onMenuVano,
+  onBorrarVano,
   onSoltarVano = null,
   onCoordenadas,
   onMenu,
@@ -564,6 +567,12 @@ export function Visor({
         return;
       }
     }
+    if (g && !g.movido && g.soloMueve && e.button === 2 && herramienta === 'zoom') {
+      // Con Zoom el clic derecho aleja (el izquierdo acerca).
+      vistaTocada.current = true;
+      setVista((v) => zoomEn(v, 1.5, T.aplicar(aPlano(e.clientX, e.clientY))));
+      return;
+    }
     if (g && !g.movido && g.soloMueve && e.button === 2 && onMenu) {
       const sobre = trazoEnPunto(trazos, aPlano(e.clientX, e.clientY), TOLERANCIA_PX * porPixel);
       onMenu(sobre, e.clientX, e.clientY);
@@ -803,7 +812,13 @@ export function Visor({
               data-tipo={v.tipo}
               className={elegido ? 'visor__vano-grupo is-elegido' : 'visor__vano-grupo'}
               onPointerDown={(e) => {
-                if (herramienta !== 'seleccionar' || e.button !== 0) return;
+                if (e.button !== 0) return;
+                if (herramienta === 'borrar') {
+                  e.stopPropagation();
+                  onBorrarVano?.(v.id);
+                  return;
+                }
+                if (herramienta !== 'seleccionar') return;
                 e.stopPropagation();
                 onElegirVano?.(v.id);
               }}

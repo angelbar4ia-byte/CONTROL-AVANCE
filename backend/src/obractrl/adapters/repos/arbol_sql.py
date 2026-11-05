@@ -122,6 +122,47 @@ class RepositorioArbolSQL:
             {"u": str(unidad_id), "c": str(concepto_id)},
         )
 
+    async def marcar_enlaces_que_no_caben(
+        self, *, concepto_id: UUID, unidad_anterior_id: UUID | None, unidad_nueva_id: UUID, tipo_anterior: str | None,
+        tipo_nuevo: str, ajenas: list[str],
+    ) -> int:
+        """Al cambiar la unidad dentro del mismo tipo (D-601, F-12): los enlaces vigentes cuya medida ya no cabe se **marcan
+        por revisar** (como en D-623) sin quitarlos ni bloquear el cambio. Devuelve cuántos."""
+        cambio = (
+            await self._sesion.execute(
+                text(
+                    """
+                    insert into cambio_de_unidad (org_id, concepto_id, unidad_anterior_id, unidad_nueva_id, tipo_anterior,
+                                                  tipo_nuevo, estado, resuelto_en)
+                    values (app.current_org_id(), :c, :ua, :un, :ta, :tn, 'aprobado', now())
+                    returning id
+                    """
+                ),
+                {"c": str(concepto_id), "ua": str(unidad_anterior_id) if unidad_anterior_id else None, "un": str(unidad_nueva_id),
+                 "ta": tipo_anterior, "tn": tipo_nuevo},
+            )
+        ).scalar_one()
+        marcados = (
+            await self._sesion.execute(
+                text(
+                    """
+                    with ins as (
+                      insert into cambio_de_unidad_enlace (org_id, cambio_id, trazo_id, enlace_viejo_id, enlace_nuevo_id,
+                                                           medida_vieja, medida_nueva, nota)
+                      select app.current_org_id(), cast(:cambio as uuid), e.trazo_id, e.id, null, e.medida::text, null,
+                             'Cambio de unidad: la medida ya no cabe en la unidad nueva; revísala'
+                        from enlace_cuantificacion e join actividad a on a.id = e.actividad_id
+                       where a.concepto_id = :c and e.vigente and e.medida::text = any(cast(:ajenas as text[]))
+                      returning 1
+                    )
+                    select count(*) from ins
+                    """
+                ),
+                {"cambio": str(cambio), "c": str(concepto_id), "ajenas": ajenas},
+            )
+        ).scalar_one()
+        return int(marcados)
+
     async def medidas_vigentes_del_concepto(self, concepto_id: UUID) -> list[str]:
         """Con qué medidas de trazo está midiendo hoy el concepto (en cualquier obra)."""
         filas = (

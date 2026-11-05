@@ -58,4 +58,55 @@ test.describe('Cuantificador · hoja de la puerta', () => {
     await page.keyboard.press('Control+z');
     await expect.poll(async () => (await hoja()).apertura_grados).toBe(90);
   });
+
+  test('una puerta se borra con Supr y con la herramienta Borrar, y se deshace', async ({ page, request }) => {
+    const sufijo = Date.now().toString(36).toUpperCase();
+    const clusters = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/clusters');
+    const prototipos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/prototipos');
+    const obra = await llamarApi<{ id: string }>(request, 'control', 'POST', '/obras', {
+      cluster_id: clusters.find((c) => c.clave === 'CLU-E2E')!.id,
+      prototipo_id: prototipos.find((p) => p.clave === 'CAS-E2E')!.id,
+      clave: `BOR-${sufijo}`,
+    });
+    const [actividad] = await llamarApi<{ id: string }[]>(request, 'control', 'GET', `/obras/${obra.id}/actividades`);
+    const plano = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
+      nombre: 'Puertas',
+      archivo_url: 'planos/puertas.dwg',
+    });
+    const trazo = await llamarApi<{ trazo_id: string }>(request, 'control', 'POST', `/planos/${plano.id}/trazos`, {
+      version_plano: 1,
+      fuente: 'pdf',
+      geometria_wkt: 'LINESTRING(0 0, 10 0)',
+      enlaces: [{ medida: 'longitud', factor: '1', actividad_id: actividad!.id }],
+    });
+    await llamarApi(request, 'control', 'POST', `/trazos/${trazo.trazo_id}/vanos`, {
+      clave: 'P-01', tipo: 'puerta', ancho_m: '0.9', alto_m: '2.1', antepecho_m: '0', piezas: 1, posicion_m: '5',
+    });
+    const vanos = async () => (await llamarApi<VanoEnPlano[]>(request, 'control', 'GET', `/planos/${plano.id}/vanos`)).length;
+    expect(await vanos()).toBe(1);
+
+    await entrarComo(page, 'control');
+    await page.goto(`/cuantificador?obra=${obra.id}&plano=${plano.id}&actividad=${actividad!.id}`);
+    const centro = async () => {
+      const caja = (await page.locator('[data-vano-id] .visor__vano-zona').first().boundingBox())!;
+      return [caja.x + caja.width / 2, caja.y + caja.height / 2] as const;
+    };
+
+    // --- 1. Seleccionar la puerta y pulsar Supr ---------------------------------------------------------------------
+    const [x1, y1] = await centro();
+    await page.mouse.click(x1, y1);
+    await expect(page.getByRole('group', { name: 'Elemento colocado' })).toBeVisible();
+    await page.keyboard.press('Delete');
+    await expect.poll(vanos).toBe(0);
+    await page.keyboard.press('Control+z');
+    await expect.poll(vanos).toBe(1);
+
+    // --- 2. La herramienta Borrar quita la puerta, no el muro ---------------------------------------------------------
+    await page.getByRole('toolbar', { name: 'Herramientas de trazo' }).getByRole('button', { name: 'Borrar', exact: true }).click();
+    const [x2, y2] = await centro();
+    await page.mouse.click(x2, y2);
+    await expect.poll(vanos).toBe(0);
+    await expect(page.locator('.visor__trazo')).toHaveCount(1); // el muro sigue
+    await expect(page.getByRole('dialog', { name: /Borrar trazo/ })).toHaveCount(0);
+  });
 });
