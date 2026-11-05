@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { VanoRespuestaPosicionM } from "./vanoRespuestaPosicionM";
+import type { VanoRespuestaLadoMuro } from "./vanoRespuestaLadoMuro";
 import type { VanoRespuestaBisagra } from "./vanoRespuestaBisagra";
 import type { VanoRespuestaLadoHoja } from "./vanoRespuestaLadoHoja";
 
@@ -22,6 +23,7 @@ export interface VanoRespuesta {
   piezas: number;
   posicion_m: VanoRespuestaPosicionM;
   llega_al_piso: boolean;
+  lado_muro?: VanoRespuestaLadoMuro;
   /** Extremo donde van las bisagras: 1 el inicial, -1 el otro. */
   bisagra?: VanoRespuestaBisagra;
   /** Hacia qué lado del muro abre la hoja. */

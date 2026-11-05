@@ -1242,7 +1242,8 @@ class VanoPeticion(BaseModel):
     alto_m: Decimal = Field(gt=0, le=50)
     antepecho_m: Decimal = Field(default=Decimal(0), ge=0, le=50, description="Del piso al borde de abajo (ventanas).")
     piezas: int = Field(default=1, ge=1, le=999)
-    posicion_m: Decimal | None = Field(default=None, ge=0, description="Distancia desde el inicio de la línea.")
+    posicion_m: Decimal | None = Field(default=None, ge=0, description="Distancia desde el inicio de la línea (o del borde de un área).")
+    lado_muro: Literal[-1, 0, 1] = Field(default=0, description="De qué cara del muro cae el clic; solo afecta el dibujo.")
 
 
 class VanoRespuesta(BaseModel):
@@ -1255,6 +1256,7 @@ class VanoRespuesta(BaseModel):
     piezas: int
     posicion_m: Decimal | None
     llega_al_piso: bool
+    lado_muro: Literal[-1, 0, 1] = 0
     bisagra: Literal[-1, 1] = Field(default=1, description="Extremo donde van las bisagras: 1 el inicial, -1 el otro.")
     lado_hoja: Literal[-1, 1] = Field(default=1, description="Hacia qué lado del muro abre la hoja.")
     apertura_grados: int = Field(default=90, ge=0, le=180, description="Cuánto está abierta la hoja al dibujarla.")
@@ -1303,6 +1305,7 @@ async def colocar_vano(
             posicion_m=peticion.posicion_m,
             autor_id=ctx.usuario_id,
             rol=Rol(ctx.rol),
+            lado_muro=peticion.lado_muro,
         ),
         detectada_en=datetime.now(UTC),
     )
@@ -1661,6 +1664,8 @@ class VanoEnPlanoRespuesta(BaseModel):
     bisagra: Literal[-1, 1] = 1
     lado_hoja: Literal[-1, 1] = 1
     apertura_grados: int = 90
+    lado_muro: Literal[-1, 0, 1] = 0
+    grosor_plano: float = Field(default=0, description="Grosor del muro en unidades de plano (0 si no tiene).")
     x: float = Field(description="Dónde va, en coordenadas del plano.")
     y: float
     angulo: float = Field(description="Hacia dónde corre el muro en ese punto, en grados (eje y hacia abajo).")

@@ -12806,6 +12806,208 @@
         }
       }
     },
+    "/api/v1/vanos-version": {
+      "get": {
+        "tags": [
+          "vanos catalogo"
+        ],
+        "summary": "Las versiones de vano del catálogo",
+        "description": "Si la organización aún no tiene ninguna, nace con las de partida (P-01…P-03, V-01, V-02, C-01, A-01, PS-01).",
+        "operationId": "listar_versiones_api_v1_vanos_version_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "puerta",
+                    "ventana",
+                    "cancel",
+                    "arco",
+                    "paso"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tipo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VersionDeVanoRespuesta"
+                  },
+                  "title": "Response Listar Versiones Api V1 Vanos Version Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "vanos catalogo"
+        ],
+        "summary": "Una versión nueva copiando la elegida",
+        "operationId": "crear_version_api_v1_vanos_version_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionNuevaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionDeVanoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La versión a copiar no existe."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vanos-version/{version_id}": {
+      "patch": {
+        "tags": [
+          "vanos catalogo"
+        ],
+        "summary": "Cambiar la clave o las medidas de una versión (cambia el catálogo)",
+        "operationId": "cambiar_version_api_v1_vanos_version__version_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Version Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionCambioPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionDeVanoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La versión no existe."
+          },
+          "422": {
+            "description": "Esa clave ya existe."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "vanos catalogo"
+        ],
+        "summary": "Quitar una versión del catálogo (queda al menos una de cada tipo)",
+        "operationId": "quitar_version_api_v1_vanos_version__version_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "La versión no existe."
+          },
+          "422": {
+            "description": "Es la única de su tipo."
+          }
+        }
+      }
+    },
     "/api/v1/conceptos/{concepto_id}/cambio-de-unidad": {
       "post": {
         "tags": [
@@ -38145,6 +38347,22 @@
             "title": "Apertura Grados",
             "default": 90
           },
+          "lado_muro": {
+            "type": "integer",
+            "enum": [
+              -1,
+              0,
+              1
+            ],
+            "title": "Lado Muro",
+            "default": 0
+          },
+          "grosor_plano": {
+            "type": "number",
+            "title": "Grosor Plano",
+            "description": "Grosor del muro en unidades de plano (0 si no tiene).",
+            "default": 0
+          },
           "x": {
             "type": "number",
             "title": "X",
@@ -38267,7 +38485,18 @@
               }
             ],
             "title": "Posicion M",
-            "description": "Distancia desde el inicio de la línea."
+            "description": "Distancia desde el inicio de la línea (o del borde de un área)."
+          },
+          "lado_muro": {
+            "type": "integer",
+            "enum": [
+              -1,
+              0,
+              1
+            ],
+            "title": "Lado Muro",
+            "description": "De qué cara del muro cae el clic; solo afecta el dibujo.",
+            "default": 0
           }
         },
         "type": "object",
@@ -38353,6 +38582,16 @@
             "type": "boolean",
             "title": "Llega Al Piso"
           },
+          "lado_muro": {
+            "type": "integer",
+            "enum": [
+              -1,
+              0,
+              1
+            ],
+            "title": "Lado Muro",
+            "default": 0
+          },
           "bisagra": {
             "type": "integer",
             "enum": [
@@ -38429,6 +38668,76 @@
         ],
         "title": "VersionCPURespuesta"
       },
+      "VersionCambioPeticion": {
+        "properties": {
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave"
+          },
+          "ancho_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ancho M"
+          },
+          "alto_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alto M"
+          },
+          "antepecho_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 50.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Antepecho M"
+          }
+        },
+        "type": "object",
+        "title": "VersionCambioPeticion"
+      },
       "VersionCuadrillaRespuesta": {
         "properties": {
           "id": {
@@ -38458,6 +38767,55 @@
           "vigente"
         ],
         "title": "VersionCuadrillaRespuesta"
+      },
+      "VersionDeVanoRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "puerta",
+              "ventana",
+              "cancel",
+              "arco",
+              "paso"
+            ],
+            "title": "Tipo"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "ancho_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Ancho M"
+          },
+          "alto_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Alto M"
+          },
+          "antepecho_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Antepecho M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tipo",
+          "clave",
+          "ancho_m",
+          "alto_m",
+          "antepecho_m"
+        ],
+        "title": "VersionDeVanoRespuesta"
       },
       "VersionDelPresupuestoRespuesta": {
         "properties": {
@@ -38514,6 +38872,39 @@
           "partidas"
         ],
         "title": "VersionDelPresupuestoRespuesta"
+      },
+      "VersionNuevaPeticion": {
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "puerta",
+              "ventana",
+              "cancel",
+              "arco",
+              "paso"
+            ],
+            "title": "Tipo"
+          },
+          "copiar_de": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Copiar De",
+            "description": "Una versión existente cuyas medidas se copian."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo"
+        ],
+        "title": "VersionNuevaPeticion"
       },
       "VersionPublicadaRespuesta": {
         "properties": {

@@ -111,6 +111,20 @@ async def _hay_conversion(sesion: AsyncSession) -> bool:
     )
 
 
+async def _hay_columna(sesion: AsyncSession, tabla: str, columna: str) -> bool:
+    return bool(
+        (
+            await sesion.execute(
+                text(
+                    "select exists (select 1 from information_schema.columns where table_schema = 'public' "
+                    "and table_name = :t and column_name = :c)"
+                ),
+                {"t": tabla, "c": columna},
+            )
+        ).scalar_one()
+    )
+
+
 async def _hay_tabla(sesion: AsyncSession, nombre: str) -> bool:
     return bool((await sesion.execute(text("select to_regclass(:n) is not null"), {"n": f"public.{nombre}"})).scalar_one())
 
@@ -146,6 +160,12 @@ async def _medida_valor_sql(sesion: AsyncSession) -> str:
             (await sesion.execute(text("select to_regclass('public.trazo_union') is not null"))).scalar_one()
         )
     uniones = _UNIONES_DE_MURO_SQL.format(escala=_ESCALA_SQL) if _UNIONES_DISPONIBLES else "0"
+    # Los vanos de un área (D-635) descuentan de su área; un vano sobre un muro no entra aquí (el muro tiene grosor).
+    area_vanos = (
+        "coalesce((select sum(v.ancho_m * v.alto_m * v.piezas) from vano v where v.trazo_id = t.id), 0)"
+        if _VANOS_DISPONIBLES
+        else "0"
+    )
     descuento = _DESCUENTO_DE_VANOS_SQL.format(caras=caras) if _VANOS_DISPONIBLES else "0"
     global _CONVERSION_DISPONIBLE
     if not _CONVERSION_DISPONIBLE:
@@ -165,7 +185,7 @@ async def _medida_valor_sql(sesion: AsyncSession) -> str:
                                 then greatest(
                                        ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * {_PENDIENTE_SQL} - ({uniones}),
                                        0) * t.grosor_m
-                              else ST_Area({_GEOMETRIA_SQL}) * power({_ESCALA_SQL}, 2)
+                              else greatest(ST_Area({_GEOMETRIA_SQL}) * power({_ESCALA_SQL}, 2) - ({area_vanos}), 0)
                             end
       when 'perimetro'  then ST_Perimeter({_GEOMETRIA_SQL}) * {_ESCALA_SQL}
       when 'longitud'   then greatest(
@@ -488,6 +508,19 @@ class RepositorioTrazosSQL:
         )
         return pivote
 
+    async def admite_vano(self, trazo_id: UUID) -> bool:
+        """Un vano se coloca sobre una línea (un muro) o sobre un área (D-635)."""
+        return bool(
+            (
+                await self._sesion.execute(
+                    text(
+                        "select ST_GeometryType(geometria) in ('ST_LineString', 'ST_Polygon') from trazo where id = :id"
+                    ),
+                    {"id": str(trazo_id)},
+                )
+            ).scalar_one_or_none()
+        )
+
     async def es_linea(self, trazo_id: UUID) -> bool:
         return bool(
             (
@@ -510,18 +543,25 @@ class RepositorioTrazosSQL:
         piezas: int,
         posicion_m: Decimal | None,
         autor_id: UUID,
+        lado_muro: int = 0,
     ) -> UUID:
+        con_lado = lado_muro != 0 and await _hay_columna(self._sesion, "vano", "lado_muro")
         fila = (
             await self._sesion.execute(
                 text(
                     """
-                    insert into vano (org_id, trazo_id, clave, tipo, ancho_m, alto_m, antepecho_m, piezas, posicion_m, autor_id)
-                    select t.org_id, t.id, :clave, :tipo, :ancho, :alto, :antepecho, :piezas, :posicion, :autor
+                    insert into vano (org_id, trazo_id, clave, tipo, ancho_m, alto_m, antepecho_m, piezas, posicion_m, autor_id"""
+                    + (", lado_muro" if con_lado else "")
+                    + """)
+                    select t.org_id, t.id, :clave, :tipo, :ancho, :alto, :antepecho, :piezas, :posicion, :autor"""
+                    + (", :lado" if con_lado else "")
+                    + """
                       from trazo t where t.id = :trazo
                     returning id
                     """
                 ),
                 {
+                    **({"lado": lado_muro} if con_lado else {}),
                     "trazo": str(trazo_id),
                     "clave": clave,
                     "tipo": tipo,
@@ -547,18 +587,26 @@ class RepositorioTrazosSQL:
             if await _hay_hoja(self._sesion)
             else "1 as bisagra, 1 as lado_hoja, 90 as apertura_grados"
         )
+        lado_v = "v.lado_muro" if await _hay_columna(self._sesion, "vano", "lado_muro") else "0 as lado_muro"
         filas = (
             await self._sesion.execute(
                 text(
                     f"""
                     with base as (
-                      select v.id, v.trazo_id, v.clave, v.tipo, v.ancho_m, v.alto_m, v.piezas, v.posicion_m, {hoja_v},
-                             t.geometria as g, coalesce(p.escala_m_por_unidad, 1) as escala,
-                             ST_Length(t.geometria) as largo
+                      select v.id, v.trazo_id, v.clave, v.tipo, v.ancho_m, v.alto_m, v.piezas, v.posicion_m, {hoja_v}, {lado_v},
+                             -- Sobre un área el vano va en su borde exterior (D-635).
+                             case when ST_GeometryType(t.geometria) = 'ST_Polygon' then ST_ExteriorRing(t.geometria)
+                                  else t.geometria end as g,
+                             coalesce(p.escala_m_por_unidad, 1) as escala,
+                             case when ST_GeometryType(t.geometria) = 'ST_Polygon' then ST_Perimeter(t.geometria)
+                                  else ST_Length(t.geometria) end as largo,
+                             coalesce(t.grosor_m, 0) / coalesce(p.escala_m_por_unidad, 1) as grosor_plano
                         from vano v
                         join trazo t on t.id = v.trazo_id
                         join plano p on p.id = t.plano_id
-                       where t.plano_id = :plano and ST_GeometryType(t.geometria) = 'ST_LineString' and ST_Length(t.geometria) > 0
+                       where t.plano_id = :plano and ST_GeometryType(t.geometria) in ('ST_LineString', 'ST_Polygon')
+                         and case when ST_GeometryType(t.geometria) = 'ST_Polygon' then ST_Perimeter(t.geometria)
+                                  else ST_Length(t.geometria) end > 0
                     ), f as (
                       select *, case when posicion_m is null then 0.5
                                      else least(1.0, greatest(0.0, (posicion_m / escala) / largo)) end as fr
@@ -570,6 +618,7 @@ class RepositorioTrazosSQL:
                         from f
                     )
                     select id, trazo_id, clave, tipo, ancho_m, alto_m, piezas, posicion_m, bisagra, lado_hoja, apertura_grados,
+                           lado_muro, grosor_plano,
                            ST_X(c) as x, ST_Y(c) as y,
                            degrees(atan2(ST_Y(d) - ST_Y(a), ST_X(d) - ST_X(a))) as angulo,
                            ancho_m / escala as ancho_plano
@@ -784,6 +833,7 @@ class RepositorioTrazosSQL:
 
     async def vanos_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]:
         hoja = "bisagra, lado_hoja, apertura_grados" if await _hay_hoja(self._sesion) else "1 as bisagra, 1 as lado_hoja, 90 as apertura_grados"
+        hoja += ", lado_muro" if await _hay_columna(self._sesion, "vano", "lado_muro") else ", 0 as lado_muro"
         filas = (
             await self._sesion.execute(
                 text(

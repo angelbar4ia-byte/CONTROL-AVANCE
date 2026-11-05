@@ -160,9 +160,11 @@ import { ProponerEscala } from './ProponerEscala';
 import { ElementoDelTrazo } from './ElementoDelTrazo';
 import { MarcasDeUnidadDelTrazo } from './MarcasDeUnidadDelTrazo';
 import { ConversionDelEnlace } from './ConversionDelEnlace';
+import { OPCIONES_DE_VANO_INICIALES, OpcionesDeVano, versionDelVano, type OpcionesDelVano } from './OpcionesDeVano';
+import { useListarVersionesApiV1VanosVersionGet } from '@/api/generado/vanos-catalogo/vanos-catalogo';
 import { UnionesDelMuro } from './UnionesDelMuro';
 import { VanosDelTrazo } from './VanosDelTrazo';
-import { claveSiguiente, vanoPorDefecto, type DatosDeVano } from './vanos';
+import { TIPOS_DE_VANO, claveSiguiente, type DatosDeVano } from './vanos';
 import { alternarEnSeleccion, trazosElegidos } from './seleccion';
 import { PanelVolumen } from './PanelVolumen';
 import { resumenDePantalla, type TrazoParaResumen } from './resumen';
@@ -173,7 +175,10 @@ import {
   aWkt,
   cajaDePuntos,
   gradosDeGiro,
+  direccionDeLaLinea,
+  largoDe,
   proyectarEnPolilinea,
+  puntoDentro,
   trasladar,
   geojsonAWkt,
   areaDeGeometria,
@@ -870,7 +875,10 @@ export function EspacioDeTrazo({
   const quitarHueco = useQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete<ErrorApi>();
   const transformar = useTransformarTrazosApiV1TrazosTransformarPost<ErrorApi>();
   const colocarVano = useColocarVanoApiV1TrazosTrazoIdVanosPost<ErrorApi>();
-  const [vanoPorColocar, setVanoPorColocar] = useState<DatosDeVano | null>(null);
+  const [opcionesVano, setOpcionesVano] = useState<OpcionesDelVano>(OPCIONES_DE_VANO_INICIALES);
+  /** Por línea: el primer clic (sobre qué trazo y a qué distancia de su inicio, en unidades de plano). */
+  const [vanoIni, setVanoIni] = useState<{ trazoId: string; distancia: number } | null>(null);
+  const versionesDeVano = useListarVersionesApiV1VanosVersionGet(undefined, { query: { enabled: herramienta === 'vano' } });
   const vanosConsulta = useVanosDelPlanoApiV1PlanosPlanoIdVanosGet(planoElegido, {
     query: { enabled: planoElegido !== '', retry: false },
   });
@@ -888,6 +896,8 @@ export function EspacioDeTrazo({
     bisagra: v.bisagra,
     ladoHoja: v.lado_hoja,
     aperturaGrados: v.apertura_grados,
+    ladoMuro: v.lado_muro,
+    grosorPlano: v.grosor_plano,
   }));
   const [anguloLibre, setAnguloLibre] = useState('15');
 
@@ -1156,10 +1166,6 @@ export function EspacioDeTrazo({
       setAviso('Para copiar en lote, primero elige con Seleccionar el punto o la pieza que quieres repetir.');
       return;
     }
-    if (nueva === 'vano' && seleccionado?.geometry.type !== 'LineString') {
-      setAviso('Para colocar un vano, primero elige con Seleccionar el muro (una línea) donde va.');
-      return;
-    }
     if (nueva === 'mover' && seleccionado === null) {
       setAviso('Para mover, primero elige el trazo con Seleccionar.');
       return;
@@ -1175,39 +1181,120 @@ export function EspacioDeTrazo({
     }
   }
 
-  /** El vano que se va a colocar con la herramienta Vano (el que se escribió en el panel, o una puerta por defecto). */
+  /** El vano que se va a colocar con la herramienta Vano (lo que se escribió en el bloque del muro): llena el panel de opciones. */
   function prepararVano(datos: DatosDeVano) {
-    setVanoPorColocar(datos);
+    setOpcionesVano((o) => ({ ...o, modo: 'punto', tipo: datos.tipo, versionId: null, piezas: datos.piezas }));
     cambiarHerramienta('vano');
-    setVanoPorColocar(datos);
   }
 
-  /** Un clic con la herramienta Vano: lo pone en el muro elegido, en el punto de la línea más cercano al clic. */
-  async function colocarVanoEn(p: Punto) {
-    if (seleccionado === null || seleccionado.geometry.type !== 'LineString') return;
-    const coordenadas = (seleccionado.geometry as { coordinates?: unknown }).coordinates;
-    const linea = Array.isArray(coordenadas) ? (coordenadas as number[][]).map((c) => [c[0], c[1]] as Punto) : [];
-    const sobre = proyectarEnPolilinea(p, linea);
-    if (sobre === null) return;
-    const datos = vanoPorColocar ?? vanoPorDefecto('puerta');
-    const trazoId = seleccionado.id as string;
+  /** Sobre qué muro, línea o área se hizo clic (no depende de lo elegido); `null` si el clic no cae en ninguno. */
+  function objetivoDeVano(p: Punto, tolerancia: number) {
+    let mejor: { trazoId: string; esArea: boolean; anillo: Punto[]; sobre: NonNullable<ReturnType<typeof proyectarEnPolilinea>>; separacion: number } | null = null;
+    for (const f of features) {
+      const tipo = String(f.geometry.type);
+      if (tipo !== 'LineString' && tipo !== 'Polygon') continue;
+      const coords = (f.geometry as { coordinates?: unknown }).coordinates;
+      if (!Array.isArray(coords)) continue;
+      const anillo = (tipo === 'Polygon' ? (coords[0] as number[][]) : (coords as number[][])).map((c) => [c[0], c[1]] as Punto);
+      const sobre = proyectarEnPolilinea(p, anillo);
+      if (sobre === null) continue;
+      const k = escalaDelPlano !== null && escalaDelPlano > 0 ? escalaDelPlano : 1;
+      const mitadGrosor = f.properties.grosor_m != null ? Number(f.properties.grosor_m) / k / 2 : 0;
+      let separacion = Math.max(0, sobre.separacion - mitadGrosor);
+      if (tipo === 'Polygon' && puntoDentro(p, anillo)) separacion = Math.min(separacion, tolerancia * 0.9);
+      if (separacion <= tolerancia && (mejor === null || separacion < mejor.separacion - 1e-9)) {
+        mejor = { trazoId: f.id as string, esArea: tipo === 'Polygon', anillo, sobre, separacion };
+      }
+    }
+    return mejor;
+  }
+
+  /** Un clic con la herramienta Vano: lo pone en el muro, línea o área bajo el clic, con el ancla y la versión elegidas. */
+  async function colocarVanoEn(p: Punto, tolerancia: number) {
+    const objetivo = objetivoDeVano(p, tolerancia);
+    if (objetivo === null) {
+      setAviso('Haz clic sobre un muro, una línea o un área: ahí se coloca el vano.');
+      return;
+    }
+    const k = escalaDelPlano !== null && escalaDelPlano > 0 ? escalaDelPlano : 1;
+    const trazoId = objetivo.trazoId;
     const existentes = vanosVisibles.filter((v) => v.trazoId === trazoId).map((v) => v.clave);
+    const o = opcionesVano;
+    const total = (vanoPorLinea: number, nuevo: number) =>
+      (vanosConsulta.data ?? []).filter((v) => v.trazo_id === trazoId).reduce((t, v) => t + Number(v.ancho_m) * Number(v.alto_m) * v.piezas, 0) + nuevo + vanoPorLinea;
+    let datos: { clave: string; ancho: number; alto: number; antepecho: number; piezas: number; centro: number; lado: number };
+    if (o.modo === 'punto') {
+      const version = versionDelVano(versionesDeVano.data ?? [], o);
+      if (!version) {
+        setAviso('Aún no cargan las versiones de vano; espera un momento.');
+        return;
+      }
+      const ancho = Number(version.ancho_m);
+      const alto = Number(version.alto_m);
+      if (!(ancho > 0) || !(alto > 0)) {
+        setAviso('El ancho y el alto del vano deben ser mayores que cero.');
+        return;
+      }
+      // «Punto que cae en tu clic»: a lo largo, la izquierda/centro/derecha de lo que se ve en pantalla (hacia la derecha o hacia abajo).
+      const dir = direccionDeLaLinea(objetivo.anillo, objetivo.sobre.distancia);
+      const haciaDerecha = dir[0] > 1e-9 || (Math.abs(dir[0]) <= 1e-9 && dir[1] > 0) ? 1 : -1;
+      const medio = ancho / k / 2;
+      const corrimiento = { i: 1, c: 0, d: -1 }[o.ancla.h] * medio * haciaDerecha;
+      const largo = largoDe(objetivo.anillo);
+      const centro = Math.min(largo, Math.max(0, objetivo.sobre.distancia + corrimiento));
+      datos = {
+        clave: claveSiguiente(o.tipo, existentes),
+        ancho,
+        alto,
+        antepecho: o.tipo === 'ventana' ? Number(version.antepecho_m) : 0,
+        piezas: o.piezas,
+        centro,
+        lado: { i: 1, c: 0, d: -1 }[o.ancla.v],
+      };
+    } else {
+      if (!(o.alturaLinea > 0)) {
+        setAviso('La altura debe ser mayor que cero.');
+        return;
+      }
+      if (vanoIni === null || vanoIni.trazoId !== trazoId) {
+        setVanoIni({ trazoId, distancia: objetivo.sobre.distancia });
+        setAviso(`${TIPOS_DE_VANO[o.tipo].nombre} por línea: clic 2 de 2 en el final (altura ${o.alturaLinea} m).`);
+        return;
+      }
+      const ancho = Math.abs(objetivo.sobre.distancia - vanoIni.distancia) * k;
+      const centro = (objetivo.sobre.distancia + vanoIni.distancia) / 2;
+      setVanoIni(null);
+      if (!(ancho > 0)) return;
+      datos = {
+        clave: claveSiguiente(o.tipo, existentes),
+        ancho: Number(ancho.toFixed(3)),
+        alto: o.alturaLinea,
+        antepecho: o.tipo === 'ventana' ? o.antepechoLinea : 0,
+        piezas: 1,
+        centro,
+        lado: 0,
+      };
+    }
     try {
       await colocarVano.mutateAsync({
         trazoId,
         data: {
-          clave: claveSiguiente(datos.tipo, existentes),
-          tipo: datos.tipo,
+          clave: datos.clave,
+          tipo: o.tipo,
           ancho_m: datos.ancho,
           alto_m: datos.alto,
           antepecho_m: datos.antepecho,
           piezas: datos.piezas,
-          posicion_m: sobre.distancia * (escalaDelPlano !== null && escalaDelPlano > 0 ? escalaDelPlano : 1),
+          posicion_m: datos.centro * k,
+          lado_muro: datos.lado as -1 | 0 | 1,
         },
       });
       void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/vanos') });
       invalidarTrazos();
-      setAviso('Vano colocado: descuenta de lo que mide el muro. Sigue dando clic para otro; Esc termina.');
+      const descuento = datos.ancho * datos.alto * datos.piezas;
+      setAviso(
+        `${datos.clave} ${datos.ancho} × ${datos.alto} m${datos.piezas > 1 ? ` × ${datos.piezas}` : ''} descontado de ${objetivo.esArea ? 'el área' : 'el muro'}: −${descuento.toFixed(2)} m². Total de vanos: −${total(0, descuento).toFixed(2)} m². Sigue dando clic para otro; Esc termina.`,
+      );
     } catch (err) {
       setAviso(`No se pudo colocar el vano: ${err instanceof Error ? err.message : 'error'}`);
     }
@@ -1287,7 +1374,7 @@ export function EspacioDeTrazo({
     setMenuDelTrazo({ id, x, y });
   }
 
-  function alPunto(p: Punto) {
+  function alPunto(p: Punto, tolerancia = 0) {
     setAviso(null);
     if (herramienta === 'nota') {
       if (claseDeNota === 'nota' || claseDeNota === 'texto') {
@@ -1308,7 +1395,7 @@ export function EspacioDeTrazo({
       return;
     }
     if (herramienta === 'vano') {
-      void colocarVanoEn(p);
+      void colocarVanoEn(p, tolerancia);
       return;
     }
     if (herramienta === 'mover') {
@@ -2715,6 +2802,19 @@ export function EspacioDeTrazo({
                   />
                 )}
                 {herramienta === 'contorno' && <OpcionesDeContorno modo={modoContorno} onModo={setModoContorno} />}
+                {herramienta === 'vano' && (
+                  <OpcionesDeVano
+                    opciones={opcionesVano}
+                    onCambiar={(cambio) => {
+                      setOpcionesVano((o) => ({ ...o, ...cambio }));
+                      if (cambio.modo) setVanoIni(null);
+                    }}
+                    puedeDefinir={sesion?.rol === 'control_obra' || sesion?.rol === 'costos'}
+                    hayObjetivo={features.some((f) => ['LineString', 'Polygon'].includes(String(f.geometry.type)))}
+                    onAviso={setAviso}
+                    onError={setAviso}
+                  />
+                )}
                 {propuestasDelPlano.length > 0 && (
                   <PanelDePropuestas
                     total={propuestasDelPlano.length}
@@ -2953,7 +3053,7 @@ export function EspacioDeTrazo({
             <div className="estacion__dibujo row" role="group" aria-label="Trazo en curso">
               {herramienta === 'vano' && (
                 <span className="text-mute text-xs">
-                  Vano ({(vanoPorColocar ?? vanoPorDefecto('puerta')).tipo}): clic sobre el muro donde va · Esc termina
+                  Vano ({opcionesVano.tipo}, {opcionesVano.modo === 'punto' ? 'por punto' : 'por línea'}): clic sobre un muro, línea o área · Esc termina
                 </span>
               )}
               {herramienta === 'mover' && (
@@ -3090,6 +3190,9 @@ export function EspacioDeTrazo({
           </span>
           <span data-testid="autoguardado" aria-live="polite" title="Cada cambio llega a la API al momento">
             {guardandoAhora ? 'Guardando…' : 'Todo guardado'}
+          </span>
+          <span className="text-mute" style={{ marginLeft: 'auto' }} title="Atajos de teclado de las herramientas; en pantalla táctil, dos dedos acercan">
+            Atajos: {Object.keys(ATAJOS).map((k) => k.toUpperCase()).join(' ')} · táctil: 2 dedos zoom
           </span>
         </div>
       )}

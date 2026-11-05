@@ -7,6 +7,6 @@
  */
 
 /**
- * Distancia desde el inicio de la línea.
+ * Distancia desde el inicio de la línea (o del borde de un área).
  */
 export type VanoPeticionPosicionM = number | string | null;

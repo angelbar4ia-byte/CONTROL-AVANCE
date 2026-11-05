@@ -151,7 +151,10 @@ class RepositorioTrazos(Protocol):
         piezas: int,
         posicion_m: Decimal | None,
         autor_id: UUID,
+        lado_muro: int = 0,
     ) -> UUID: ...
+
+    async def admite_vano(self, trazo_id: UUID) -> bool: ...
 
     async def trazo_del_vano(self, vano_id: UUID) -> UUID | None: ...
 

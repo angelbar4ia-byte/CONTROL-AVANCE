@@ -240,6 +240,7 @@ class ComandoAgregarVano:
     posicion_m: Decimal | None
     autor_id: UUID
     rol: Rol
+    lado_muro: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -1278,8 +1279,8 @@ class GestionarVanos(AgregarHuecoATrazo):
     async def agregar(self, cmd: ComandoAgregarVano, *, detectada_en: datetime) -> VanoCambiado:
         if await self._trazos.obtener(cmd.trazo_id) is None:
             raise TrazoNoEncontrado(f"El trazo {cmd.trazo_id} no existe o no está en tu alcance.")
-        if not await self._trazos.es_linea(cmd.trazo_id):
-            raise ErrorDeCuantificacion("Un vano se coloca sobre una línea (un muro).")
+        if not await self._trazos.admite_vano(cmd.trazo_id):
+            raise ErrorDeCuantificacion("Un vano se coloca sobre una línea (un muro) o sobre un área.")
 
         async def crear() -> UUID:
             return await self._trazos.crear_vano(
@@ -1292,6 +1293,7 @@ class GestionarVanos(AgregarHuecoATrazo):
                 piezas=cmd.piezas,
                 posicion_m=cmd.posicion_m,
                 autor_id=cmd.autor_id,
+                lado_muro=cmd.lado_muro,
             )
 
         return await self._cambiar(cmd.trazo_id, cmd.rol, cmd.autor_id, detectada_en, crear)

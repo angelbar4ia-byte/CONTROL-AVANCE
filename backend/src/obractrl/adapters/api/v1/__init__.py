@@ -61,6 +61,7 @@ from obractrl.adapters.api.v1.reprogramaciones import router as router_reprogram
 from obractrl.adapters.api.v1.revisiones import router as router_revisiones
 from obractrl.adapters.api.v1.torre import router as router_torre
 from obractrl.adapters.api.v1.usuarios import router as router_usuarios
+from obractrl.adapters.api.v1.vanos_catalogo import router as router_vanos_catalogo
 
 api_v1 = APIRouter()
 
@@ -96,6 +97,7 @@ api_v1.include_router(router_expediente)
 api_v1.include_router(router_cuantificacion)
 api_v1.include_router(router_mediciones)
 api_v1.include_router(router_elementos_parametricos)
+api_v1.include_router(router_vanos_catalogo)
 api_v1.include_router(router_cambios_de_unidad)
 api_v1.include_router(router_arbol_de_obra)
 api_v1.include_router(router_enlaces_de_hoja)

@@ -78,6 +78,9 @@ export interface VanoVisible {
   readonly bisagra?: number;
   readonly ladoHoja?: number;
   readonly aperturaGrados?: number;
+  /** De qué cara del muro se colocó (-1, 0, 1) y su grosor en unidades de plano, para dibujarlo con su cuerpo. */
+  readonly ladoMuro?: number;
+  readonly grosorPlano?: number;
 }
 
 export interface TrazoVisible {
@@ -149,7 +152,8 @@ interface Props {
   readonly huecos?: readonly (readonly Punto[])[];
   /** El hueco que se está dibujando ahora. */
   readonly huecoEnCurso?: readonly Punto[];
-  readonly onPunto: (p: Punto) => void;
+  /** Un clic de dibujo; `tolerancia` es el radio de captura (8 px de pantalla) en unidades de plano. */
+  readonly onPunto: (p: Punto, tolerancia: number) => void;
   /** `agregar`: con Mayús o Ctrl, suma o quita el trazo de la selección en vez de reemplazarla. */
   readonly onSeleccionar: (seleccion: Seleccion | null, agregar?: boolean) => void;
   /** Los demás trazos elegidos (multiselección), además de `seleccion`. */
@@ -495,7 +499,7 @@ export function Visor({
         herramienta === 'seleccionar' && (e.shiftKey || e.ctrlKey || e.metaKey),
       );
     } else {
-      onPunto(p);
+      onPunto(p, TOLERANCIA_PX * 1.75 * porPixel);
     }
   }
 
@@ -660,10 +664,14 @@ export function Visor({
 
       <g className="visor__vanos" data-testid="vanos">
         {vanos.map((v) => {
-          const alto = 10 * px;
+          const alto = Math.max(10 * px, v.grosorPlano ?? 0);
+          // Con el ancla transversal el vano se corre hacia la cara donde cayó el clic (el eje local y sigue al muro).
+          const direccion = Math.cos((v.angulo * Math.PI) / 180);
+          const haciaDerecha = direccion > 1e-9 || (Math.abs(direccion) <= 1e-9 && Math.sin((v.angulo * Math.PI) / 180) > 0);
+          const corrimiento = (v.ladoMuro ?? 0) * ((v.grosorPlano ?? 0) / 2) * (haciaDerecha ? 1 : -1);
           return (
             <g key={v.id} data-vano-id={v.id} data-tipo={v.tipo}>
-              <g transform={`translate(${v.x} ${v.y}) rotate(${v.angulo})`}>
+              <g transform={`translate(${v.x} ${v.y}) rotate(${v.angulo}) translate(0 ${corrimiento})`}>
                 <rect
                   className={v.tipo === 'ventana' ? 'visor__vano visor__vano--ventana' : 'visor__vano'}
                   x={-v.anchoPlano / 2}
