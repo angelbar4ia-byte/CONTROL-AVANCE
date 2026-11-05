@@ -179,3 +179,34 @@ async def test_renombrar_y_reordenar_niveles_y_etapas(
     assert (await control.patch(f"/api/v1/niveles/{uuid.uuid4()}", json={"orden": 1})).status_code == 422
     assert (await control.patch(f"/api/v1/etapas/{e}", json={"descripcion": ""})).status_code == 422
     assert (await residente.patch(f"/api/v1/niveles/{a}", json={"orden": 5})).status_code == 403
+
+
+async def test_una_partida_sube_y_baja_entre_las_de_su_etapa(
+    escenario: Escenario, catalogo: dict, control: httpx.AsyncClient
+) -> None:
+    engine = create_async_engine(DATABASE_URL_ADMIN)
+    c2 = uuid.uuid4()
+    async with engine.begin() as conn:
+        await conn.execute(
+            text("insert into concepto (id, org_id, tipo, clave, descripcion, unidad_id) values (:i, :o, 'concepto', 'MURO', 'Muro', :u)"),
+            {"i": str(c2), "o": str(escenario.org_id), "u": str(catalogo["m2"])},
+        )
+    await engine.dispose()
+    n1 = (await control.post("/api/v1/niveles", json={"clave": "pb", "descripcion": "Planta baja"})).json()["id"]
+    e1 = (await control.post("/api/v1/etapas", json={"nivel_id": n1, "clave": "cim", "descripcion": "Cimentación"})).json()["id"]
+    a1 = (await control.post(f"/api/v1/obras/{escenario.obra_id}/partidas", json={"concepto_id": str(catalogo["c1"]), "etapa_id": e1})).json()["actividad_id"]
+    a2 = (await control.post(f"/api/v1/obras/{escenario.obra_id}/partidas", json={"concepto_id": str(c2), "etapa_id": e1})).json()["actividad_id"]
+
+    async def orden() -> list[str]:
+        lista = (await control.get(f"/api/v1/obras/{escenario.obra_id}/actividades")).json()
+        en_etapa = [a for a in lista if a["etapa_id"] == e1]
+        return [a["id"] for a in sorted(en_etapa, key=lambda a: (a["orden"] is None, a["orden"] or 0, a["concepto_clave"]))]
+
+    assert await orden() == [a1, a2]  # sin lugar guardado, por clave: FIRME antes que MURO
+    r = await control.put(f"/api/v1/actividades/{a2}/lugar", json={"direccion": "up"})
+    assert r.status_code == 200, r.text
+    assert r.json() == {"actividad_id": a2, "lugar": 1, "de": 2}
+    assert await orden() == [a2, a1]
+    assert (await control.put(f"/api/v1/actividades/{a2}/lugar", json={"direccion": "up"})).status_code == 422  # ya es la primera
+    assert (await control.put(f"/api/v1/actividades/{a2}/lugar", json={"direccion": "down"})).status_code == 200
+    assert await orden() == [a1, a2]

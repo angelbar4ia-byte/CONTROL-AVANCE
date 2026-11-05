@@ -6,6 +6,7 @@ y delegan en `application.casos_uso.arbol`. Roles: Control de obra y Costos.
 
 from __future__ import annotations
 
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -178,6 +179,33 @@ async def mover_partida(
     return UbicacionRespuesta(
         **await caso_uso.mover_partida(actividad_id, peticion.etapa_id)
     )
+
+
+class LugarDeLaPartidaPeticion(BaseModel):
+    direccion: Literal["up", "down"]
+
+
+class LugarDeLaPartidaRespuesta(BaseModel):
+    actividad_id: UUID
+    lugar: int = Field(description="El lugar que ocupa ahora entre las partidas de su etapa (1 = primero).")
+    de: int
+
+
+@router.put(
+    "/actividades/{actividad_id}/lugar",
+    response_model=LugarDeLaPartidaRespuesta,
+    summary="Subir o bajar una partida entre las de su etapa",
+    responses={
+        404: {"description": "La partida no existe o está fuera de tu alcance."},
+        409: {"description": "La parte ya está asignada."},
+        422: {"description": "Ya está en ese extremo, o falta la migración 0116."},
+    },
+)
+async def subir_o_bajar_partida(
+    actividad_id: UUID, peticion: LugarDeLaPartidaPeticion, caso_uso: ArmarArbolDep
+) -> LugarDeLaPartidaRespuesta:
+    """Presentación del árbol: no cambia cantidades ni programa."""
+    return LugarDeLaPartidaRespuesta(**await caso_uso.subir_o_bajar_partida(actividad_id, peticion.direccion))
 
 
 @router.delete(

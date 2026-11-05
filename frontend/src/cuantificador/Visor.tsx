@@ -74,6 +74,10 @@ export interface VanoVisible {
   readonly clave: string;
   readonly tipo: string;
   readonly piezas: number;
+  /** La hoja de una puerta (D-632): extremo de las bisagras (1 inicial, -1 el otro), lado hacia donde abre y grados abierta. */
+  readonly bisagra?: number;
+  readonly ladoHoja?: number;
+  readonly aperturaGrados?: number;
 }
 
 export interface TrazoVisible {
@@ -668,6 +672,24 @@ export function Visor({
                   height={alto}
                   vectorEffect="non-scaling-stroke"
                 />
+                {v.tipo === 'puerta' && (v.aperturaGrados ?? 90) > 0 && (() => {
+                  // La hoja: del eje de las bisagras gira `apertura` hacia el lado en que abre, con el arco que barre.
+                  const w = v.anchoPlano;
+                  const sentido = (v.bisagra ?? 1) === 1 ? 1 : -1;
+                  const lado = (v.ladoHoja ?? 1) === 1 ? 1 : -1;
+                  const rad = ((v.aperturaGrados ?? 90) * Math.PI) / 180;
+                  const bx = -sentido * (w / 2);
+                  const fx = bx + sentido * w * Math.cos(rad);
+                  const fy = lado * w * Math.sin(rad);
+                  const cerrada = bx + sentido * w;
+                  const barrido = sentido * lado > 0 ? 1 : 0;
+                  return (
+                    <g data-hoja={v.id} fill="none">
+                      <line className="visor__vano" x1={bx} y1={0} x2={fx} y2={fy} vectorEffect="non-scaling-stroke" />
+                      <path className="visor__vano" d={`M ${cerrada} 0 A ${w} ${w} 0 0 ${barrido} ${fx} ${fy}`} vectorEffect="non-scaling-stroke" strokeDasharray="3 3" />
+                    </g>
+                  );
+                })()}
               </g>
               <text
                 className="visor__rotulo"

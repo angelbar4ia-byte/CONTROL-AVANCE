@@ -98,6 +98,7 @@ import { AltaNota } from './AltaNota';
 import { EditorDeTrabajo } from './EditorDeTrabajo';
 import { PanelDeElementos } from './PanelDeElementos';
 import { PanelDeParametricos } from './PanelDeParametricos';
+import { AltaDeTrabajo } from './AltaDeTrabajo';
 import { PanelDeTrabajos, cuadrillasDeLosTrabajos, type TrabajoElegido } from './PanelDeTrabajos';
 import { PanelDeMediciones } from './PanelDeMediciones';
 import { TrazosDelPlano } from './TrazosDelPlano';
@@ -158,7 +159,7 @@ import { PanelDePropuestas } from './PanelDePropuestas';
 import { ProponerEscala } from './ProponerEscala';
 import { ElementoDelTrazo } from './ElementoDelTrazo';
 import { MarcasDeUnidadDelTrazo } from './MarcasDeUnidadDelTrazo';
-import { MuroDelTrazo } from './MuroDelTrazo';
+import { ConversionDelEnlace } from './ConversionDelEnlace';
 import { UnionesDelMuro } from './UnionesDelMuro';
 import { VanosDelTrazo } from './VanosDelTrazo';
 import { claveSiguiente, vanoPorDefecto, type DatosDeVano } from './vanos';
@@ -561,7 +562,7 @@ export function EspacioDeTrazo({
     query: { enabled: puedeEditarTrabajos && pestana === 'trabajos' },
   });
   const cuadrillasDelCatalogo = useMemo(() => cuadrillasConsulta.data ?? [], [cuadrillasConsulta.data]);
-  const cuadrillasDeLaObra = useMemo(() => cuadrillasDeLosTrabajos(listaDeTrabajos), [listaDeTrabajos]);
+  const cuadrillasDeLaObra = useMemo(() => cuadrillasDeLosTrabajos(listaDeTrabajos, cuadrillasDelCatalogo), [listaDeTrabajos, cuadrillasDelCatalogo]);
   /** Lo medido de cada actividad: con la cantidad presupuestada, da la del concepto en Trabajos. */
   const medidaPorActividad = useMemo(
     () => new Map((estado.data ?? []).filter((n) => n.tipo_nodo === 'actividad').map((n) => [n.nodo_id, n.cantidad_medida])),
@@ -884,6 +885,9 @@ export function EspacioDeTrazo({
     clave: v.clave,
     tipo: v.tipo,
     piezas: v.piezas,
+    bisagra: v.bisagra,
+    ladoHoja: v.lado_hoja,
+    aperturaGrados: v.apertura_grados,
   }));
   const [anguloLibre, setAnguloLibre] = useState('15');
 
@@ -2031,18 +2035,32 @@ export function EspacioDeTrazo({
               onCambio={(aviso) => setAviso(aviso)}
               onError={(m) => setAviso(m)}
             />
-            {seleccionado.geometry.type === 'LineString' &&
-              seleccionado.properties.enlaces.some((e) => e.vigente && e.medida === 'longitud' && Number(e.factor) !== 1) && (
-                <MuroDelTrazo
-                  trazoId={seleccionado.id as string}
-                  puedeEditar
-                  onCambio={(aviso) => {
-                    setAviso(aviso);
-                    invalidarTrazos();
-                  }}
-                  onError={(m) => setAviso(m)}
-                />
-              )}
+            {['LineString', 'Polygon', 'Point'].includes(String(seleccionado.geometry.type)) &&
+              seleccionado.properties.enlaces
+                .filter((e) => e.vigente && e.tipo_nodo !== 'prototipo_nodo' && !e.matriz_concepto_id)
+                .map((e) => (
+                  <ConversionDelEnlace
+                    key={e.enlace_id}
+                    enlaceId={e.enlace_id}
+                    nombreDelConcepto={nombreDeNodo(e.tipo_nodo, e.nodo_id)}
+                    grosorM={seleccionado.properties.grosor_m != null ? Number(seleccionado.properties.grosor_m) : null}
+                    alineacion={seleccionado.properties.alineacion ?? null}
+                    hermanos={
+                      features.filter(
+                        (f) =>
+                          f.id !== seleccionado.id &&
+                          f.geometry.type === seleccionado.geometry.type &&
+                          (f.properties.grosor_m == null) === (seleccionado.properties.grosor_m == null) &&
+                          f.properties.enlaces.some((x) => x.vigente && x.nodo_id === e.nodo_id),
+                      ).length
+                    }
+                    onCambio={(aviso) => {
+                      setAviso(aviso);
+                      invalidarTrazos();
+                    }}
+                    onError={(m) => setAviso(m)}
+                  />
+                ))}
             {seleccionado.geometry.type === 'LineString' && (
               <UnionesDelMuro
                 trazoId={seleccionado.id as string}
@@ -2286,6 +2304,26 @@ export function EspacioDeTrazo({
             elegido={trabajoElegido}
             cargando={trabajosConsulta.isLoading}
             onElegir={setTrabajoElegido}
+            cuadrillasDelCatalogo={cuadrillasDelCatalogo}
+            alta={
+              puedeEditarTrabajos ? (
+                <AltaDeTrabajo
+                  conceptos={actividades.flatMap((a) =>
+                    a.concepto_id
+                      ? [{ conceptoId: a.concepto_id, actividadId: a.id, clave: a.concepto_clave ?? '', descripcion: a.descripcion ?? a.concepto_clave ?? '' }]
+                      : [],
+                  )}
+                  onCambio={(aviso) => setAviso(aviso)}
+                  onError={(m) => setAviso(m)}
+                  onRecargar={() => void trabajosConsulta.refetch()}
+                  onDestajo={(actividadId, insumoId) => setTrabajoElegido({ tipo: 'destajo', actividadId, insumoId })}
+                  onCuadrilla={(id) => {
+                    void cuadrillasConsulta.refetch();
+                    setTrabajoElegido({ tipo: 'cuadrilla', id });
+                  }}
+                />
+              ) : undefined
+            }
           />
         </div>
       ) : pestana === 'elementos' ? (

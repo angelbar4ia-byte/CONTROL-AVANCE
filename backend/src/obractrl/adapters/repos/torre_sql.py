@@ -253,7 +253,9 @@ class RepositorioTorreSQL:
                            act.fecha_inicio, act.fecha_termino, act.duracion_dias,
                            act.modo_pago, act.precio_unitario, act.precio_destajo,
                            act.contratista_id, ctr.razon_social as contratista_nombre,
-                           act.cuadrilla_id,  cua.nombre        as cuadrilla_nombre
+                           act.cuadrilla_id,  cua.nombre        as cuadrilla_nombre,
+                           -- El lugar en su etapa (0116); `to_jsonb` tolera la base sin esa columna todavía.
+                           (to_jsonb(act)->>'orden')::int as orden
                       from actividad act
                       left join concepto con on con.id = act.concepto_id
                       left join unidad   uni on uni.id = con.unidad_id

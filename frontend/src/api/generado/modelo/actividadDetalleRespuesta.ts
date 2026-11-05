@@ -20,6 +20,7 @@ import type { ActividadDetalleRespuestaEtapaDescripcion } from "./actividadDetal
 import type { ActividadDetalleRespuestaContratacionClave } from "./actividadDetalleRespuestaContratacionClave";
 import type { ActividadDetalleRespuestaEspecialidadClave } from "./actividadDetalleRespuestaEspecialidadClave";
 import type { ActividadDetalleRespuestaOrdenCambio } from "./actividadDetalleRespuestaOrdenCambio";
+import type { ActividadDetalleRespuestaOrden } from "./actividadDetalleRespuestaOrden";
 import type { ActividadDetalleRespuestaContratistaId } from "./actividadDetalleRespuestaContratistaId";
 import type { ActividadDetalleRespuestaContratistaNombre } from "./actividadDetalleRespuestaContratistaNombre";
 import type { ActividadDetalleRespuestaCuadrillaId } from "./actividadDetalleRespuestaCuadrillaId";
@@ -58,6 +59,8 @@ export interface ActividadDetalleRespuesta {
   especialidad_clave?: ActividadDetalleRespuestaEspecialidadClave;
   /** Si es extra-catálogo, la OC que lo autorizó (§11.2). */
   orden_cambio?: ActividadDetalleRespuestaOrdenCambio;
+  /** Su lugar entre las partidas de su etapa; vacío = por clave (0116). */
+  orden?: ActividadDetalleRespuestaOrden;
   contratista_id?: ActividadDetalleRespuestaContratistaId;
   contratista_nombre?: ActividadDetalleRespuestaContratistaNombre;
   cuadrilla_id?: ActividadDetalleRespuestaCuadrillaId;

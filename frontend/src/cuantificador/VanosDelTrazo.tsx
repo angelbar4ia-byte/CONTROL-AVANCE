@@ -10,6 +10,7 @@ import type { ErrorApi } from '@/api/cliente';
 import {
   getListarVanosApiV1TrazosTrazoIdVanosGetQueryKey,
   useColocarVanoApiV1TrazosTrazoIdVanosPost,
+  useFijarHojaDelVanoApiV1VanosVanoIdHojaPut,
   useListarVanosApiV1TrazosTrazoIdVanosGet,
   useQuitarVanoApiV1VanosVanoIdDelete,
   useVerMuroApiV1TrazosTrazoIdMuroGet,
@@ -33,6 +34,7 @@ export function VanosDelTrazo({ trazoId, puedeEditar, onColocarEnPlano, onCambio
   const vanos = useListarVanosApiV1TrazosTrazoIdVanosGet(trazoId);
   const colocar = useColocarVanoApiV1TrazosTrazoIdVanosPost<ErrorApi>();
   const quitar = useQuitarVanoApiV1VanosVanoIdDelete<ErrorApi>();
+  const hoja = useFijarHojaDelVanoApiV1VanosVanoIdHojaPut<ErrorApi>();
   // Los vanos descuentan por las caras que suma el muro (D-627).
   const caras = useVerMuroApiV1TrazosTrazoIdMuroGet(trazoId).data?.caras ?? CARAS_POR_DEFECTO;
   const [tipo, setTipo] = useState<TipoDeVano>('puerta');
@@ -79,6 +81,26 @@ export function VanosDelTrazo({ trazoId, puedeEditar, onColocarEnPlano, onCambio
     }
   }
 
+  /** La hoja de una puerta (D-632): bisagra, lado y apertura. Es dibujo: no cambia lo que descuenta. */
+  async function cambiarHoja(v: { id: string; clave: string; bisagra?: number; lado_hoja?: number; apertura_grados?: number }, cambio: Partial<{ bisagra: number; lado_hoja: number; apertura_grados: number }>) {
+    const siguiente = { bisagra: v.bisagra ?? 1, lado_hoja: v.lado_hoja ?? 1, apertura_grados: v.apertura_grados ?? 90, ...cambio };
+    try {
+      await hoja.mutateAsync({
+        vanoId: v.id,
+        data: {
+          bisagra: siguiente.bisagra === -1 ? -1 : 1,
+          lado_hoja: siguiente.lado_hoja === -1 ? -1 : 1,
+          apertura_grados: siguiente.apertura_grados,
+        },
+      });
+      recargar();
+      void queryClient.invalidateQueries({ queryKey: getListarVanosApiV1TrazosTrazoIdVanosGetQueryKey(trazoId) });
+      onCambio(`${v.clave}: hoja actualizada.`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo cambiar la hoja.');
+    }
+  }
+
   async function quitarVano(id: string, clave: string) {
     try {
       await quitar.mutateAsync({ vanoId: id });
@@ -104,6 +126,29 @@ export function VanosDelTrazo({ trazoId, puedeEditar, onColocarEnPlano, onCambio
               {Number(v.ancho_m)} × {Number(v.alto_m)} m · −
               {descuentoDelVano(Number(v.ancho_m), Number(v.alto_m), v.piezas, caras).toFixed(2)} m²
             </span>
+            {puedeEditar && v.tipo === 'puerta' && (
+              <span className="row" style={{ gap: 2 }} role="group" aria-label={`Hoja de ${v.clave}`}>
+                <button type="button" className="btn btn--ghost btn--sm" title="La bisagra pasa al otro extremo" aria-label={`Bisagra de ${v.clave} al otro extremo`} disabled={hoja.isPending} onClick={() => void cambiarHoja(v, { bisagra: -(v.bisagra ?? 1) })}>
+                  ⇄
+                </button>
+                <button type="button" className="btn btn--ghost btn--sm" title="Abre hacia el otro lado del muro" aria-label={`Hoja de ${v.clave} abre al otro lado`} disabled={hoja.isPending} onClick={() => void cambiarHoja(v, { lado_hoja: -(v.lado_hoja ?? 1) })}>
+                  ⇅
+                </button>
+                {[0, 45, 90, 180].map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    className={(v.apertura_grados ?? 90) === g ? 'btn btn--sm btn--primary' : 'btn btn--ghost btn--sm'}
+                    aria-pressed={(v.apertura_grados ?? 90) === g}
+                    aria-label={`Hoja de ${v.clave} abierta ${g} grados`}
+                    disabled={hoja.isPending}
+                    onClick={() => void cambiarHoja(v, { apertura_grados: g })}
+                  >
+                    {g}°
+                  </button>
+                ))}
+              </span>
+            )}
             {puedeEditar && (
               <button
                 type="button"

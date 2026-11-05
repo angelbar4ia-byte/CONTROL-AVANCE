@@ -39,6 +39,8 @@ import type {
   CrearUnidadPeticion,
   CuadrillaDelDestajoPeticion,
   CuadrillaRespuesta,
+  DestajoNuevoPeticion,
+  DestajoNuevoRespuesta,
   DestajoRespuesta,
   EliminarVersionDeCpuApiV1ConceptosConceptoIdCpuVersionDeleteParams,
   EtapaRespuesta,
@@ -3985,6 +3987,255 @@ export const useAsignarCuadrillaADestajoApiV1DestajosInsumoIdCuadrillaPut = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * Crea el destajo (un insumo de mano de obra con su precio) y lo pone en la receta del concepto. Es del **catálogo**:
+vale para todas las obras que usen el concepto. La cuadrilla y el rendimiento teórico son opcionales.
+ * @summary Agregar un destajo a la receta de un concepto
+ */
+export const agregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPost = (
+  conceptoId: string,
+  destajoNuevoPeticion: DestajoNuevoPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<DestajoNuevoRespuesta>(
+    {
+      url: `/api/v1/conceptos/${conceptoId}/destajos`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: destajoNuevoPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getAgregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPostMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof agregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPost
+        >
+      >,
+      TError,
+      { conceptoId: string; data: DestajoNuevoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof agregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPost
+      >
+    >,
+    TError,
+    { conceptoId: string; data: DestajoNuevoPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "agregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPost",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof agregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPost
+        >
+      >,
+      { conceptoId: string; data: DestajoNuevoPeticion }
+    > = (props) => {
+      const { conceptoId, data } = props ?? {};
+
+      return agregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPost(
+        conceptoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type AgregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPostMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof agregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPost
+      >
+    >
+  >;
+export type AgregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPostMutationBody =
+  DestajoNuevoPeticion;
+export type AgregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPostMutationError =
+  void;
+
+/**
+ * @summary Agregar un destajo a la receta de un concepto
+ */
+export const useAgregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof agregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPost
+        >
+      >,
+      TError,
+      { conceptoId: string; data: DestajoNuevoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<
+      typeof agregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPost
+    >
+  >,
+  TError,
+  { conceptoId: string; data: DestajoNuevoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getAgregarDestajoAlConceptoApiV1ConceptosConceptoIdDestajosPostMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * El destajo sigue en el catálogo de insumos; solo deja de ser parte de la receta de este concepto.
+ * @summary Quitar un destajo de la receta de un concepto
+ */
+export const quitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDelete =
+  (
+    conceptoId: string,
+    insumoId: string,
+    options?: SecondParameter<typeof peticion>,
+  ) => {
+    return peticion<void>(
+      {
+        url: `/api/v1/conceptos/${conceptoId}/destajos/${insumoId}`,
+        method: "DELETE",
+      },
+      options,
+    );
+  };
+
+export const getQuitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDeleteMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof quitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDelete
+        >
+      >,
+      TError,
+      { conceptoId: string; insumoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof quitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDelete
+      >
+    >,
+    TError,
+    { conceptoId: string; insumoId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "quitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDelete",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof quitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDelete
+        >
+      >,
+      { conceptoId: string; insumoId: string }
+    > = (props) => {
+      const { conceptoId, insumoId } = props ?? {};
+
+      return quitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDelete(
+        conceptoId,
+        insumoId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type QuitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDeleteMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof quitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDelete
+      >
+    >
+  >;
+
+export type QuitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDeleteMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Quitar un destajo de la receta de un concepto
+ */
+export const useQuitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDelete =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof quitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDelete
+          >
+        >,
+        TError,
+        { conceptoId: string; insumoId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof quitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDelete
+      >
+    >,
+    TError,
+    { conceptoId: string; insumoId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getQuitarDestajoDelConceptoApiV1ConceptosConceptoIdDestajosInsumoIdDeleteMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
 /**
  * Todas las versiones (§10.8): la carga de `CABECERAS_CUADRILLAS.xlsx`
 publica una nueva cada vez que la composición cambia.

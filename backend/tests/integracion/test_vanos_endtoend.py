@@ -253,3 +253,27 @@ async def test_las_uniones_de_muro_recortan_el_largo_y_la_fusion_junta_dos_muros
     assert c in ids and d not in ids
     # Con distinto grosor no se fusionan.
     assert (await control.post(f"/api/v1/trazos/{a}/fusion", json={"con_trazo_id": b})).status_code == 422
+
+
+async def test_la_hoja_de_una_puerta_se_guarda_y_no_cambia_lo_que_descuenta(
+    escenario: Escenario, control: httpx.AsyncClient
+) -> None:
+    plano, muro = await _muro(control, escenario, "longitud", "5.2")
+    r = await control.post(f"/api/v1/trazos/{muro}/vanos", json=PUERTA)
+    antes = _total(r)
+    vano = (await control.get(f"/api/v1/trazos/{muro}/vanos")).json()[0]
+    assert (vano["bisagra"], vano["lado_hoja"], vano["apertura_grados"]) == (1, 1, 90)  # lo de defecto
+
+    ruta = f"/api/v1/vanos/{vano['id']}/hoja"
+    assert (await control.put(ruta, json={"bisagra": -1, "lado_hoja": -1, "apertura_grados": 45})).status_code == 204
+    otra = (await control.get(f"/api/v1/trazos/{muro}/vanos")).json()[0]
+    assert (otra["bisagra"], otra["lado_hoja"], otra["apertura_grados"]) == (-1, -1, 45)
+    en_plano = (await control.get(f"/api/v1/planos/{plano}/vanos")).json()[0]
+    assert (en_plano["bisagra"], en_plano["apertura_grados"]) == (-1, 45)
+
+    # Es dibujo: la cantidad del muro no se mueve (otro vano idéntico descuenta lo mismo que el primero).
+    otra_puerta = await control.post(f"/api/v1/trazos/{muro}/vanos", json={**PUERTA, "clave": "P-02"})
+    assert antes - _total(otra_puerta) == Decimal("3.78").quantize(Decimal("0.0001"))
+    # Valores fuera de rango o un vano que no existe se rechazan.
+    assert (await control.put(ruta, json={"apertura_grados": 200})).status_code == 422
+    assert (await control.put(f"/api/v1/vanos/{uuid.uuid4()}/hoja", json={})).status_code == 404

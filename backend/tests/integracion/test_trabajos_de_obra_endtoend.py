@@ -124,3 +124,33 @@ async def test_otra_organizacion_no_ve_los_trabajos_de_esta_obra(escenario: Esce
     async with _cliente(ajeno) as cliente:
         r = await cliente.get(f"/api/v1/obras/{escenario.obra_id}/trabajos")
         assert r.status_code == 200 and r.json() == []
+
+
+async def test_se_agrega_un_destajo_a_la_receta_de_un_concepto_y_aparece_en_los_trabajos_de_la_obra(
+    escenario: Escenario, cliente_control: httpx.AsyncClient, cliente_residente: httpx.AsyncClient
+) -> None:
+    ids = await _sembrar(escenario)
+    concepto = ids["concepto"]
+    r = await cliente_control.post(
+        f"/api/v1/conceptos/{concepto}/destajos",
+        json={"descripcion": "Destajo de aplanado", "precio": "85.5", "factor": "1.2", "cuadrilla_id": ids["cuad"], "rendimiento_teorico": "9"},
+    )
+    assert r.status_code == 201, r.text
+    nuevo = r.json()
+    assert nuevo["clave"].startswith("MO-")
+
+    trabajos = (await cliente_control.get(f"/api/v1/obras/{escenario.obra_id}/trabajos")).json()
+    t = next(x for x in trabajos if x["insumo_id"] == nuevo["insumo_id"])
+    assert Decimal(str(t["precio"])) == Decimal("85.5") and Decimal(str(t["factor"])) == Decimal("1.2")
+    assert t["cuadrilla_id"] == ids["cuad"]
+
+    # La clave repetida y el concepto inexistente se rechazan; un residente no cambia el catálogo.
+    assert (await cliente_control.post(f"/api/v1/conceptos/{concepto}/destajos", json={"clave": nuevo["clave"], "descripcion": "Otro", "precio": "1"})).status_code == 422
+    assert (await cliente_control.post(f"/api/v1/conceptos/{uuid.uuid4()}/destajos", json={"descripcion": "X", "precio": "1"})).status_code == 404
+    assert (await cliente_residente.post(f"/api/v1/conceptos/{concepto}/destajos", json={"descripcion": "X", "precio": "1"})).status_code == 403
+
+    # Quitarlo de la receta: el destajo deja de ser un trabajo del concepto.
+    assert (await cliente_control.delete(f"/api/v1/conceptos/{concepto}/destajos/{nuevo['insumo_id']}")).status_code == 204
+    assert (await cliente_control.delete(f"/api/v1/conceptos/{concepto}/destajos/{nuevo['insumo_id']}")).status_code == 404
+    trabajos = (await cliente_control.get(f"/api/v1/obras/{escenario.obra_id}/trabajos")).json()
+    assert all(x["insumo_id"] != nuevo["insumo_id"] for x in trabajos)
