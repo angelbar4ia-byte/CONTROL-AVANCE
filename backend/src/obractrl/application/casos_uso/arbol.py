@@ -211,6 +211,29 @@ class ArmarArbol:
             await self._uow.commit()
         return {"actividad_id": actividad_id, "etapa_id": etapa_id, "nivel_id": nivel_id}
 
+    async def subir_o_bajar_partida(self, actividad_id: UUID, direccion: str) -> dict[str, Any]:
+        """Cambia el lugar de una partida entre las de su etapa (D-634). Es presentación: no toca cantidades ni programa."""
+        actividad = await self._arbol.actividad(actividad_id)
+        if actividad is None:
+            raise ActividadNoProgramable(f"Actividad {actividad_id} no encontrada en tu alcance.")
+        if direccion not in ("up", "down"):
+            raise ErrorDeCatalogo("Sube o baja la partida.")
+        estados = await self._partes.estados_de_obra(actividad["obra_id"])
+        if estados.get(_parte(actividad["etapa_id"])) == EstadoDeParte.ASIGNADA.value:
+            raise ErrorDeParte("Esa parte ya está asignada: reordenarla es control de cambio.")
+        hermanas = await self._arbol.hermanas_de_la_partida(actividad_id)
+        if hermanas is None:
+            raise ErrorDeCatalogo("Falta aplicar la migración 0116 (lugar de las partidas) en esta base.")
+        i = hermanas.index(actividad_id)
+        j = i - 1 if direccion == "up" else i + 1
+        if not 0 <= j < len(hermanas):
+            raise ErrorDeCatalogo("Ya está en ese extremo.")
+        hermanas[i], hermanas[j] = hermanas[j], hermanas[i]
+        async with self._uow:
+            await self._arbol.fijar_ordenes(hermanas)
+            await self._uow.commit()
+        return {"actividad_id": actividad_id, "lugar": j + 1, "de": len(hermanas)}
+
     async def quitar_partida(self, actividad_id: UUID) -> dict[str, Any]:
         """Borra una partida que todavía no se usa: sin avance, sin trazos, sin estimaciones, en una parte sin asignar."""
         actividad = await self._arbol.actividad(actividad_id)

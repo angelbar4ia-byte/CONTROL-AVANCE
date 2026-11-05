@@ -113,6 +113,7 @@ class ActividadRespuesta(BaseModel):
         default=None, description="El oficio del concepto (migración 0047)."
     )
     orden_cambio: str | None = None
+    orden: int | None = Field(default=None, description="Su lugar entre las partidas de su etapa; vacío = por clave (0116).")
     contratista_id: UUID | None = None
     contratista_nombre: str | None = None
     cuadrilla_id: UUID | None = None

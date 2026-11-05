@@ -18,6 +18,8 @@ import type {
   EtapaPeticion,
   HTTPValidationError,
   IdCreado,
+  LugarDeLaPartidaPeticion,
+  LugarDeLaPartidaRespuesta,
   NivelPeticion,
   ObractrlAdaptersApiV1ArbolPartidaRespuesta,
   PartidaPeticion,
@@ -537,6 +539,119 @@ export const useMoverPartidaApiV1ActividadesActividadIdUbicacionPut = <
 > => {
   const mutationOptions =
     getMoverPartidaApiV1ActividadesActividadIdUbicacionPutMutationOptions(
+      options,
+    );
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Presentación del árbol: no cambia cantidades ni programa.
+ * @summary Subir o bajar una partida entre las de su etapa
+ */
+export const subirOBajarPartidaApiV1ActividadesActividadIdLugarPut = (
+  actividadId: string,
+  lugarDeLaPartidaPeticion: LugarDeLaPartidaPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<LugarDeLaPartidaRespuesta>(
+    {
+      url: `/api/v1/actividades/${actividadId}/lugar`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: lugarDeLaPartidaPeticion,
+    },
+    options,
+  );
+};
+
+export const getSubirOBajarPartidaApiV1ActividadesActividadIdLugarPutMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof subirOBajarPartidaApiV1ActividadesActividadIdLugarPut>
+      >,
+      TError,
+      { actividadId: string; data: LugarDeLaPartidaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<typeof subirOBajarPartidaApiV1ActividadesActividadIdLugarPut>
+    >,
+    TError,
+    { actividadId: string; data: LugarDeLaPartidaPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "subirOBajarPartidaApiV1ActividadesActividadIdLugarPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof subirOBajarPartidaApiV1ActividadesActividadIdLugarPut>
+      >,
+      { actividadId: string; data: LugarDeLaPartidaPeticion }
+    > = (props) => {
+      const { actividadId, data } = props ?? {};
+
+      return subirOBajarPartidaApiV1ActividadesActividadIdLugarPut(
+        actividadId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type SubirOBajarPartidaApiV1ActividadesActividadIdLugarPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<typeof subirOBajarPartidaApiV1ActividadesActividadIdLugarPut>
+    >
+  >;
+export type SubirOBajarPartidaApiV1ActividadesActividadIdLugarPutMutationBody =
+  LugarDeLaPartidaPeticion;
+export type SubirOBajarPartidaApiV1ActividadesActividadIdLugarPutMutationError =
+  void;
+
+/**
+ * @summary Subir o bajar una partida entre las de su etapa
+ */
+export const useSubirOBajarPartidaApiV1ActividadesActividadIdLugarPut = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof subirOBajarPartidaApiV1ActividadesActividadIdLugarPut>
+      >,
+      TError,
+      { actividadId: string; data: LugarDeLaPartidaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<
+    ReturnType<typeof subirOBajarPartidaApiV1ActividadesActividadIdLugarPut>
+  >,
+  TError,
+  { actividadId: string; data: LugarDeLaPartidaPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getSubirOBajarPartidaApiV1ActividadesActividadIdLugarPutMutationOptions(
       options,
     );
 

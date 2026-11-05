@@ -195,6 +195,40 @@ class RepositorioArbolSQL:
         )
         return dict(fila) if fila else None
 
+    async def hermanas_de_la_partida(self, actividad_id: UUID) -> list[UUID] | None:
+        """Las partidas de la misma obra y etapa, en el orden en que se ven: por su lugar guardado y, sin él, por clave.
+        `None` si la base aún no tiene la columna `orden` (0116)."""
+        hay = (
+            await self._sesion.execute(
+                text(
+                    "select exists (select 1 from information_schema.columns where table_schema = 'public' "
+                    "and table_name = 'actividad' and column_name = 'orden')"
+                )
+            )
+        ).scalar_one()
+        if not hay:
+            return None
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select h.id
+                      from actividad a
+                      join actividad h on h.obra_id = a.obra_id and h.etapa_id is not distinct from a.etapa_id
+                      left join concepto c on c.id = h.concepto_id
+                     where a.id = :i
+                     order by h.orden nulls last, c.clave nulls last, h.created_at, h.id
+                    """
+                ),
+                {"i": str(actividad_id)},
+            )
+        ).all()
+        return [UUID(str(f[0])) for f in filas]
+
+    async def fijar_ordenes(self, ids: list[UUID]) -> None:
+        for n, i in enumerate(ids, start=1):
+            await self._sesion.execute(text("update actividad set orden = :o where id = :i"), {"o": n, "i": str(i)})
+
     async def mover_actividad(
         self, actividad_id: UUID, *, nivel_id: UUID | None, etapa_id: UUID | None
     ) -> None:

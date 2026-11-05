@@ -14144,6 +14144,64 @@
         }
       }
     },
+    "/api/v1/actividades/{actividad_id}/lugar": {
+      "put": {
+        "tags": [
+          "arbol"
+        ],
+        "summary": "Subir o bajar una partida entre las de su etapa",
+        "description": "Presentación del árbol: no cambia cantidades ni programa.",
+        "operationId": "subir_o_bajar_partida_api_v1_actividades__actividad_id__lugar_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actividad_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Actividad Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LugarDeLaPartidaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LugarDeLaPartidaRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "La partida no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La parte ya está asignada."
+          },
+          "422": {
+            "description": "Ya está en ese extremo, o falta la migración 0116."
+          }
+        }
+      }
+    },
     "/api/v1/actividades/{actividad_id}/partida": {
       "delete": {
         "tags": [
@@ -17275,6 +17333,18 @@
             "title": "Orden Cambio",
             "description": "Si es extra-catálogo, la OC que lo autorizó (§11.2)."
           },
+          "orden": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden",
+            "description": "Su lugar entre las partidas de su etapa; vacío = por clave (0116)."
+          },
           "contratista_id": {
             "anyOf": [
               {
@@ -18112,6 +18182,18 @@
               }
             ],
             "title": "Orden Cambio"
+          },
+          "orden": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orden",
+            "description": "Su lugar entre las partidas de su etapa; vacío = por clave (0116)."
           },
           "contratista_id": {
             "anyOf": [
@@ -28856,6 +28938,48 @@
         ],
         "title": "LoteRespuesta",
         "description": "Estado de un lote ya registrado (§9.4)."
+      },
+      "LugarDeLaPartidaPeticion": {
+        "properties": {
+          "direccion": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down"
+            ],
+            "title": "Direccion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "direccion"
+        ],
+        "title": "LugarDeLaPartidaPeticion"
+      },
+      "LugarDeLaPartidaRespuesta": {
+        "properties": {
+          "actividad_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Actividad Id"
+          },
+          "lugar": {
+            "type": "integer",
+            "title": "Lugar",
+            "description": "El lugar que ocupa ahora entre las partidas de su etapa (1 = primero)."
+          },
+          "de": {
+            "type": "integer",
+            "title": "De"
+          }
+        },
+        "type": "object",
+        "required": [
+          "actividad_id",
+          "lugar",
+          "de"
+        ],
+        "title": "LugarDeLaPartidaRespuesta"
       },
       "MarcaDeCambioRespuesta": {
         "properties": {

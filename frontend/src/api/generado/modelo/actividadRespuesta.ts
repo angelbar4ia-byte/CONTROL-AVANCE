@@ -20,6 +20,7 @@ import type { ActividadRespuestaEtapaDescripcion } from "./actividadRespuestaEta
 import type { ActividadRespuestaContratacionClave } from "./actividadRespuestaContratacionClave";
 import type { ActividadRespuestaEspecialidadClave } from "./actividadRespuestaEspecialidadClave";
 import type { ActividadRespuestaOrdenCambio } from "./actividadRespuestaOrdenCambio";
+import type { ActividadRespuestaOrden } from "./actividadRespuestaOrden";
 import type { ActividadRespuestaContratistaId } from "./actividadRespuestaContratistaId";
 import type { ActividadRespuestaContratistaNombre } from "./actividadRespuestaContratistaNombre";
 import type { ActividadRespuestaCuadrillaId } from "./actividadRespuestaCuadrillaId";
@@ -56,6 +57,8 @@ export interface ActividadRespuesta {
   /** El oficio del concepto (migración 0047). */
   especialidad_clave?: ActividadRespuestaEspecialidadClave;
   orden_cambio?: ActividadRespuestaOrdenCambio;
+  /** Su lugar entre las partidas de su etapa; vacío = por clave (0116). */
+  orden?: ActividadRespuestaOrden;
   contratista_id?: ActividadRespuestaContratistaId;
   contratista_nombre?: ActividadRespuestaContratistaNombre;
   cuadrilla_id?: ActividadRespuestaCuadrillaId;
