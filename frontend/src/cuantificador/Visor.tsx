@@ -411,10 +411,7 @@ export function Visor({
     const [ux, uy] = [Math.cos(rad), Math.sin(rad)];
     const linea = lineaDelVano(v.trazoId);
     const minimo = 4 * porPixel;
-    const mitad = v.anchoPlano / 2;
-    // Los extremos del vano ahora; el que no se arrastra queda donde está.
-    const ini: Punto = [v.x - ux * mitad, v.y - uy * mitad];
-    const fin: Punto = [v.x + ux * mitad, v.y + uy * mitad];
+    const origen = aPlano(e.clientX, e.clientY);
     let ultimo: NonNullable<typeof arrastreVano> | null = null;
     const alMover = (ev: PointerEvent) => {
       const q = aPlano(ev.clientX, ev.clientY);
@@ -433,9 +430,9 @@ export function Visor({
           ancho: v.anchoPlano,
         };
       } else {
-        const fijo = modo === 'ini' ? fin : ini;
         const signo = modo === 'ini' ? -1 : 1;
-        const along = signo * ((q[0] - fijo[0]) * ux + (q[1] - fijo[1]) * uy);
+        // Delta desde donde se agarró el asa: el ancho no salta aunque el asa esté corrida hacia afuera.
+        const along = v.anchoPlano + signo * ((q[0] - origen[0]) * ux + (q[1] - origen[1]) * uy);
         const ancho = Math.max(minimo, along);
         const corrimiento = signo * (ancho - v.anchoPlano) / 2;
         ultimo = { id: v.id, modo, x: v.x, y: v.y, angulo: v.angulo, distancia: 0, corrimiento, ancho };
@@ -839,9 +836,9 @@ export function Visor({
                 })()}
                 {elegido && herramienta === 'seleccionar' && (
                   <g className="visor__asas">
-                    <circle className="visor__asa" data-asa="ini" cx={-ancho / 2} cy={0} r={5 * px} vectorEffect="non-scaling-stroke" onPointerDown={(e) => empezarArrastreVano(e, v, 'ini')} />
-                    <circle className="visor__asa" data-asa="fin" cx={ancho / 2} cy={0} r={5 * px} vectorEffect="non-scaling-stroke" onPointerDown={(e) => empezarArrastreVano(e, v, 'fin')} />
-                    <circle className="visor__asa visor__asa--centro" data-asa="mover" cx={0} cy={0} r={5 * px} vectorEffect="non-scaling-stroke" onPointerDown={(e) => empezarArrastreVano(e, v, 'mover')} />
+                    <circle className="visor__asa" data-asa="ini" cx={-Math.max(ancho / 2, 10 * px)} cy={0} r={5 * px} vectorEffect="non-scaling-stroke" onPointerDown={(e) => empezarArrastreVano(e, v, 'ini')} />
+                    <circle className="visor__asa" data-asa="fin" cx={Math.max(ancho / 2, 10 * px)} cy={0} r={5 * px} vectorEffect="non-scaling-stroke" onPointerDown={(e) => empezarArrastreVano(e, v, 'fin')} />
+                    <circle className="visor__asa visor__asa--centro" data-asa="mover" cx={0} cy={0} r={3.5 * px} vectorEffect="non-scaling-stroke" onPointerDown={(e) => empezarArrastreVano(e, v, 'mover')} />
                   </g>
                 )}
               </g>
