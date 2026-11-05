@@ -358,3 +358,63 @@ async def test_cambiar_la_receta_con_una_obra_asignada_crea_una_version_y_la_con
     # Los trazos de la obra asignada siguen con la versión 1 (alto 2.8): sus totales no se movieron.
     totales = (await control.get(f"/api/v1/planos/{plano}/elementos-parametricos")).json()["totales"]
     assert [t["elemento_id"] for t in totales] == [elemento]
+
+
+async def test_el_concepto_de_la_actividad_tambien_toma_de_un_elemento(
+    control: httpx.AsyncClient, escenario
+) -> None:
+    """D-639: si el concepto de la actividad misma toma del elemento, su cantidad medida es esa toma (sin trazos directos)."""
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from tests.integracion.conftest import DATABASE_URL_ADMIN
+
+    org, unidad, concepto = str(escenario.org_id), uuid.uuid4(), uuid.uuid4()
+    motor = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with motor.begin() as c:
+            await c.execute(text("insert into unidad (id, org_id, clave, nombre) values (:i, :o, 'pza', 'Pieza')"), {"i": str(unidad), "o": org})
+            await c.execute(
+                text("insert into concepto (id, org_id, clave, descripcion, unidad_id) values (:i, :o, 'CAS-S9', 'Castillos completos', :u)"),
+                {"i": str(concepto), "o": org, "u": str(unidad)},
+            )
+            await c.execute(
+                text("update actividad set concepto_id = :c, cant_base = 10, cant_programada = 10, precio_unitario = 100 where id = :a"),
+                {"c": str(concepto), "a": str(escenario.actividad_id)},
+            )
+    finally:
+        await motor.dispose()
+    elemento = (await control.post("/api/v1/elementos-parametricos", json={"clave": "K-S", "nombre": "Castillo S", "tipo": "castillo"})).json()["id"]
+    assert (
+        await control.put(
+            f"/api/v1/elementos-parametricos/{elemento}/conceptos/{concepto}",
+            json={"unidad": "pza", "toma": {"concreto": True, "acero": True}},
+        )
+    ).status_code == 204
+    plano, ids = await _plano_con_trazos(control, escenario)
+
+    async def medido() -> float | None:
+        estado = (await control.get(f"/api/v1/obras/{escenario.obra_id}/cuantificacion")).json()
+        nodo = next((n for n in estado if n["nodo_id"] == str(escenario.actividad_id)), None)
+        return float(nodo["cantidad_medida"]) if nodo else None
+
+    for t in (ids["punto"], ids["punto2"]):
+        assert (await control.put(f"/api/v1/trazos/{t}/elemento-parametrico", json={"elemento_id": elemento})).status_code == 204
+    assert await medido() == pytest.approx(2)  # aún sin ningún enlace, ya aparece con lo que toma
+
+    # Quitar la marca de uno baja la cantidad.
+    assert (await control.put(f"/api/v1/trazos/{ids['punto2']}/elemento-parametrico", json={"elemento_id": None})).status_code == 204
+    assert await medido() == pytest.approx(1)
+
+    # Lo trazado directo sobre el concepto manda sobre lo tomado.
+    directo = await control.post(
+        f"/api/v1/planos/{plano}/trazos",
+        json={
+            "version_plano": 1,
+            "fuente": "pdf",
+            "geometria_wkt": "POINT(8 8)",
+            "enlaces": [{"medida": "conteo", "factor": "5", "actividad_id": str(escenario.actividad_id)}],
+        },
+    )
+    assert directo.status_code == 201, directo.text
+    assert await medido() == pytest.approx(5)

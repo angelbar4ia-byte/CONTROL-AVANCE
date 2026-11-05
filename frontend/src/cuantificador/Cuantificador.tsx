@@ -900,6 +900,7 @@ export function EspacioDeTrazo({
   const colocarVano = useColocarVanoApiV1TrazosTrazoIdVanosPost<ErrorApi>();
   const [vanoElegidoId, setVanoElegidoId] = useState<string | null>(null);
   const [moviendoVano, setMoviendoVano] = useState(false);
+  const [elementoAVer, setElementoAVer] = useState<string | null>(null);
   /** «Colocar este elemento» (D-604): lo que se trace nace marcado como este elemento, sin pedir concepto. */
   const [elementoPorColocar, setElementoPorColocar] = useState<{ id: string; clave: string; tipo: string } | null>(null);
   const ponerElemento = usePonerElementoEnTrazoApiV1TrazosTrazoIdElementoParametricoPut<ErrorApi>();
@@ -2362,6 +2363,10 @@ export function EspacioDeTrazo({
               geometria={String(seleccionado.geometry.type)}
               onCambio={(aviso) => setAviso(aviso)}
               onError={(m) => setAviso(m)}
+              onVerElemento={(id) => {
+                setElementoAVer(id);
+                setPestana('elementos');
+              }}
             />
             {['LineString', 'Polygon', 'Point'].includes(String(seleccionado.geometry.type)) &&
               seleccionado.properties.enlaces
@@ -2674,6 +2679,7 @@ export function EspacioDeTrazo({
             onError={(m) => setAviso(m)}
             onColocar={colocarElemento}
             colocandoId={elementoPorColocar?.id ?? null}
+            abrirId={elementoAVer}
           />
           <VanosDelPlano
             vanos={vanosConsulta.data ?? []}

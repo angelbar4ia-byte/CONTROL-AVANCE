@@ -82,6 +82,8 @@ test.describe('Cuantificador · la matriz que cuenta', () => {
     // --- 3. Trazar directo sobre la losa con una matriz que cuenta pide confirmar -----------------------------
     await matrices.locator('[data-cuenta="MTZ-NERV"]').click();
     await expect.poll(cantidadDeLaLosa).toBeCloseTo(4, 2);
+    // La pantalla ya sabe que la matriz cuenta (si no, el Rectángulo no pediría confirmar).
+    await expect(matrices.locator('[data-cuenta="MTZ-NERV"]')).toHaveAttribute('aria-pressed', 'true');
     await pagina.getByRole('toolbar', { name: 'Herramientas de trazo' }).getByRole('button', { name: 'Rectángulo', exact: true }).click();
     const aviso = pagina.getByRole('alertdialog', { name: /Sustituir la matriz que cuenta/ });
     await expect(aviso).toBeVisible();

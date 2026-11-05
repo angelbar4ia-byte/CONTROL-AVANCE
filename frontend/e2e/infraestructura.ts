@@ -182,7 +182,9 @@ export async function llamarApi<T = unknown>(
     respuesta.ok(),
     `${metodo} ${ruta} como ${rol}: ${respuesta.status()} ${await respuesta.text()}`,
   ).toBeTruthy();
-  return (await respuesta.json()) as T;
+  // Un 204 no trae cuerpo.
+  const texto = await respuesta.text();
+  return (texto ? JSON.parse(texto) : undefined) as T;
 }
 
 /** Id de la actividad de un concepto en una obra, por sus claves (las de la semilla). */

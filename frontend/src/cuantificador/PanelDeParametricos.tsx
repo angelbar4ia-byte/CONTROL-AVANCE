@@ -8,7 +8,7 @@
  */
 
 import { Trash2 } from 'lucide-react';
-import { useState, type KeyboardEvent } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import {
@@ -37,13 +37,15 @@ interface Props {
   readonly onColocar?: (elemento: { id: string; clave: string; tipo: TipoParametrico }) => void;
   /** El elemento que se está colocando, si hay uno. */
   readonly colocandoId?: string | null;
+  /** Un elemento que debe aparecer abierto (desde «Ver el elemento» del detalle del trazo). */
+  readonly abrirId?: string | null;
 }
 
 function enEnter(e: KeyboardEvent<HTMLInputElement>) {
   if (e.key === 'Enter') e.currentTarget.blur();
 }
 
-export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, onColocar, colocandoId = null }: Props) {
+export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, onColocar, colocandoId = null, abrirId = null }: Props) {
   const consulta = useListarElementosParametricosApiV1ElementosParametricosGet();
   const delPlano = useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet(planoId, { query: { enabled: planoId !== '' } });
   const conceptosDelPlano = useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet(planoId, { query: { enabled: planoId !== '' } });
@@ -54,6 +56,9 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError, 
   const [editando, setEditando] = useState<Readonly<Record<string, string>>>({});
   const [abierto, setAbierto] = useState<string | null>(null);
   const [buscar, setBuscar] = useState('');
+  useEffect(() => {
+    if (abrirId) setAbierto(abrirId);
+  }, [abrirId]);
 
   const elementos = consulta.data ?? [];
   const recargar = () =>
