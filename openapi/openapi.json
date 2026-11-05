@@ -10996,6 +10996,61 @@
         }
       }
     },
+    "/api/v1/vanos/{vano_id}/hoja": {
+      "put": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "La hoja de una puerta: bisagra, lado y apertura",
+        "description": "Dibujo y especificación: no cambia lo que descuenta el vano, así que no recalcula cantidades.",
+        "operationId": "fijar_hoja_del_vano_api_v1_vanos__vano_id__hoja_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Vano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HojaDelVanoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "El vano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/vanos/{vano_id}": {
       "delete": {
         "tags": [
@@ -26823,6 +26878,37 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HojaDelVanoPeticion": {
+        "properties": {
+          "bisagra": {
+            "type": "integer",
+            "enum": [
+              -1,
+              1
+            ],
+            "title": "Bisagra",
+            "default": 1
+          },
+          "lado_hoja": {
+            "type": "integer",
+            "enum": [
+              -1,
+              1
+            ],
+            "title": "Lado Hoja",
+            "default": 1
+          },
+          "apertura_grados": {
+            "type": "integer",
+            "maximum": 180.0,
+            "minimum": 0.0,
+            "title": "Apertura Grados",
+            "default": 90
+          }
+        },
+        "type": "object",
+        "title": "HojaDelVanoPeticion"
+      },
       "HuecoPeticion": {
         "properties": {
           "geometria_wkt": {
@@ -37363,6 +37449,29 @@
             ],
             "title": "Posicion M"
           },
+          "bisagra": {
+            "type": "integer",
+            "enum": [
+              -1,
+              1
+            ],
+            "title": "Bisagra",
+            "default": 1
+          },
+          "lado_hoja": {
+            "type": "integer",
+            "enum": [
+              -1,
+              1
+            ],
+            "title": "Lado Hoja",
+            "default": 1
+          },
+          "apertura_grados": {
+            "type": "integer",
+            "title": "Apertura Grados",
+            "default": 90
+          },
           "x": {
             "type": "number",
             "title": "X",
@@ -37570,6 +37679,34 @@
           "llega_al_piso": {
             "type": "boolean",
             "title": "Llega Al Piso"
+          },
+          "bisagra": {
+            "type": "integer",
+            "enum": [
+              -1,
+              1
+            ],
+            "title": "Bisagra",
+            "description": "Extremo donde van las bisagras: 1 el inicial, -1 el otro.",
+            "default": 1
+          },
+          "lado_hoja": {
+            "type": "integer",
+            "enum": [
+              -1,
+              1
+            ],
+            "title": "Lado Hoja",
+            "description": "Hacia qué lado del muro abre la hoja.",
+            "default": 1
+          },
+          "apertura_grados": {
+            "type": "integer",
+            "maximum": 180.0,
+            "minimum": 0.0,
+            "title": "Apertura Grados",
+            "description": "Cuánto está abierta la hoja al dibujarla.",
+            "default": 90
           }
         },
         "type": "object",

@@ -885,6 +885,9 @@ export function EspacioDeTrazo({
     clave: v.clave,
     tipo: v.tipo,
     piezas: v.piezas,
+    bisagra: v.bisagra,
+    ladoHoja: v.lado_hoja,
+    aperturaGrados: v.apertura_grados,
   }));
   const [anguloLibre, setAnguloLibre] = useState('15');
 

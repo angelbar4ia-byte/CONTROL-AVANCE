@@ -1411,6 +1411,18 @@ class GestionarVanos(AgregarHuecoATrazo):
 
         return await self._cambiar(trazo_id, rol, autor_id, detectada_en, guardar)
 
+    async def fijar_hoja(self, vano_id: UUID, *, bisagra: int, lado_hoja: int, apertura_grados: int) -> None:
+        """La hoja de una puerta (D-632): bisagra, lado y apertura. Es dibujo y especificación: no cambia lo que descuenta."""
+        if await self._trazos.trazo_del_vano(vano_id) is None:
+            raise TrazoNoEncontrado(f"El vano {vano_id} no existe o está fuera de tu alcance.")
+        if bisagra not in (-1, 1) or lado_hoja not in (-1, 1):
+            raise ErrorDeCuantificacion("La bisagra y el lado de la hoja son 1 o -1.")
+        if not 0 <= apertura_grados <= 180:
+            raise ErrorDeCuantificacion("La apertura va de 0° a 180°.")
+        async with self._uow:
+            await self._trazos.fijar_hoja(vano_id, bisagra=bisagra, lado_hoja=lado_hoja, apertura_grados=apertura_grados)
+            await self._uow.commit()
+
     async def mover(self, vano_id: UUID, posicion_m: Decimal) -> None:
         """Corre un vano por su muro. Dónde está no cambia lo que mide, así que no recalcula nada."""
         if await self._trazos.trazo_del_vano(vano_id) is None:

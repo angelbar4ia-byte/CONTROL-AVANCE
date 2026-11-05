@@ -31,6 +31,7 @@ import type {
   EscalaRespuesta,
   FusionPeticion,
   HTTPValidationError,
+  HojaDelVanoPeticion,
   HuecoPeticion,
   HuecoRespuesta,
   MatricesDeActividadRespuesta,
@@ -4151,6 +4152,104 @@ export const useColocarVanoApiV1TrazosTrazoIdVanosPost = <
 > => {
   const mutationOptions =
     getColocarVanoApiV1TrazosTrazoIdVanosPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Dibujo y especificación: no cambia lo que descuenta el vano, así que no recalcula cantidades.
+ * @summary La hoja de una puerta: bisagra, lado y apertura
+ */
+export const fijarHojaDelVanoApiV1VanosVanoIdHojaPut = (
+  vanoId: string,
+  hojaDelVanoPeticion: HojaDelVanoPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<void>(
+    {
+      url: `/api/v1/vanos/${vanoId}/hoja`,
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      data: hojaDelVanoPeticion,
+    },
+    options,
+  );
+};
+
+export const getFijarHojaDelVanoApiV1VanosVanoIdHojaPutMutationOptions = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof fijarHojaDelVanoApiV1VanosVanoIdHojaPut>>,
+    TError,
+    { vanoId: string; data: HojaDelVanoPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof fijarHojaDelVanoApiV1VanosVanoIdHojaPut>>,
+  TError,
+  { vanoId: string; data: HojaDelVanoPeticion },
+  TContext
+> => {
+  const mutationKey = ["fijarHojaDelVanoApiV1VanosVanoIdHojaPut"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof fijarHojaDelVanoApiV1VanosVanoIdHojaPut>>,
+    { vanoId: string; data: HojaDelVanoPeticion }
+  > = (props) => {
+    const { vanoId, data } = props ?? {};
+
+    return fijarHojaDelVanoApiV1VanosVanoIdHojaPut(
+      vanoId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type FijarHojaDelVanoApiV1VanosVanoIdHojaPutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof fijarHojaDelVanoApiV1VanosVanoIdHojaPut>>
+>;
+export type FijarHojaDelVanoApiV1VanosVanoIdHojaPutMutationBody =
+  HojaDelVanoPeticion;
+export type FijarHojaDelVanoApiV1VanosVanoIdHojaPutMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary La hoja de una puerta: bisagra, lado y apertura
+ */
+export const useFijarHojaDelVanoApiV1VanosVanoIdHojaPut = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof fijarHojaDelVanoApiV1VanosVanoIdHojaPut>>,
+      TError,
+      { vanoId: string; data: HojaDelVanoPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof fijarHojaDelVanoApiV1VanosVanoIdHojaPut>>,
+  TError,
+  { vanoId: string; data: HojaDelVanoPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getFijarHojaDelVanoApiV1VanosVanoIdHojaPutMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
