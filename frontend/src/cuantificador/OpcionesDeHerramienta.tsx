@@ -22,6 +22,7 @@ import {
 import type { Punto } from './geometria';
 import { PanelDeOpciones } from './PanelDeOpciones';
 import { numeroTecleado } from './volumen';
+import { AlturaPorPartes } from './AlturaPorPartes';
 import type { OpcionesDeMuro } from './trazoPeticion';
 
 const GROSORES_USUALES = [0.1, 0.15, 0.2, 0.3] as const;
@@ -173,16 +174,19 @@ export function OpcionesDeHerramienta({
               </>
             )}
             <div className="opciones__titulo">Altura</div>
-            <label className="opciones__campo" htmlFor="opc-altura-muro">
-              <span>Altura (m)</span>
-              <input
-                id="opc-altura-muro"
-                className="input"
-                inputMode="decimal"
-                value={muro.alt}
-                onChange={(e) => onMuro({ alt: e.target.value })}
-              />
-            </label>
+            {muro.partes.length === 0 && (
+              <label className="opciones__campo" htmlFor="opc-altura-muro">
+                <span>Altura (m)</span>
+                <input
+                  id="opc-altura-muro"
+                  className="input"
+                  inputMode="decimal"
+                  value={muro.alt}
+                  onChange={(e) => onMuro({ alt: e.target.value })}
+                />
+              </label>
+            )}
+            <AlturaPorPartes partes={muro.partes} alturaUnica={muro.alt} onPartes={(partes) => onMuro({ partes })} />
             <p className="text-mute text-xs">m²: largo del eje o de las caras × altura. Se afina después en el detalle del trazo.</p>
           </>
         )}

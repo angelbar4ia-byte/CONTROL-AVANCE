@@ -92,3 +92,19 @@ describe('Muro · medir por (D-638)', () => {
     expect(cuerpo.enlaces?.[0]).toMatchObject({ medida: 'longitud', factor: '1', conversion: { modo: 'area', mide: 'eje', alt: 3 } });
   });
 });
+
+describe('Muro · altura por partes (D-638)', () => {
+  it('con partes la conversión las lleva y la barra las cuenta', async () => {
+    const { conversionDeMuro, OPCIONES_DE_MURO_INICIALES, textoDeMuro } = await import('@/cuantificador/trazoPeticion');
+    const o = {
+      ...OPCIONES_DE_MURO_INICIALES,
+      partes: [
+        { nombre: 'Muro', desde_m: 0, hasta_m: 2.6, suma: true },
+        { nombre: 'Antepecho', desde_m: 2.6, hasta_m: 3, suma: false },
+      ],
+    };
+    expect(conversionDeMuro(o)).toMatchObject({ partes: [{ nombre: 'Muro', hasta_m: 2.6, suma: true }, { nombre: 'Antepecho', suma: false }] });
+    expect(textoDeMuro(o)).toBe('2 caras × 1 de 2 partes de altura');
+    expect(conversionDeMuro(OPCIONES_DE_MURO_INICIALES)).not.toHaveProperty('partes');
+  });
+});

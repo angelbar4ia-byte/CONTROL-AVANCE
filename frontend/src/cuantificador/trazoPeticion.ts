@@ -7,6 +7,7 @@
  */
 
 import type { ConversionPeticion, TrazoPeticion } from '@/api/generado/modelo';
+import type { ParteDeAltura } from './AlturaPorPartes';
 import type { Alineacion, Forma } from './formas';
 import { aWkt, MEDIDAS_POR_HERRAMIENTA, type GeometriaBase, type MedidaDeTrazo, type Punto } from './geometria';
 import type { TipoDeMedicion } from './tipos';
@@ -136,6 +137,8 @@ export interface OpcionesDeMuro {
   readonly lado: 'izq' | 'der';
   /** La altura, como se teclea. */
   readonly alt: string;
+  /** Altura por partes (D-627): con partes, la altura única no se usa. */
+  readonly partes: readonly ParteDeAltura[];
 }
 
 export const OPCIONES_DE_MURO_INICIALES: OpcionesDeMuro = {
@@ -143,6 +146,7 @@ export const OPCIONES_DE_MURO_INICIALES: OpcionesDeMuro = {
   cara: 'int',
   lado: 'der',
   alt: String(ALTURA_POR_DEFECTO_M),
+  partes: [],
 };
 
 /** La conversión con que nace un muro (o una línea) sobre un concepto en m²: su superficie por caras × altura. */
@@ -154,12 +158,14 @@ export function conversionDeMuro(o: OpcionesDeMuro): ConversionPeticion {
     cara: o.cara,
     lado: o.lado,
     alt: Number.isFinite(alt) && alt > 0 ? alt : ALTURA_POR_DEFECTO_M,
+    ...(o.partes.length > 0 ? { partes: o.partes.map((p) => ({ ...p })) } : {}),
   } as ConversionPeticion;
 }
 
 /** Cómo se dijo que se midió, para la barra: «largo del eje × 2.6 m», «2 caras × 2.6 m». */
 export function textoDeMuro(o: OpcionesDeMuro): string {
   const alt = conversionDeMuro(o).alt;
+  const alturas = o.partes.length > 0 ? `${o.partes.filter((p) => p.suma).length} de ${o.partes.length} partes de altura` : `${alt} m de altura`;
   const base = o.mide === 'eje' ? 'largo del eje' : o.mide === 'cara1' ? `1 cara (${o.cara === 'ext' ? 'exterior' : 'interior'})` : '2 caras';
-  return `${base} × ${alt} m de altura`;
+  return `${base} × ${alturas}`;
 }

@@ -253,3 +253,34 @@ async def test_la_conversion_se_elige_al_trazar_y_el_trazo_nace_con_su_cantidad(
         },
     )
     assert malo.status_code == 422
+
+
+async def test_la_altura_por_partes_se_elige_al_trazar(escenario: Escenario, control: httpx.AsyncClient) -> None:
+    """D-638: las partes de altura del muro viajan en la conversión con que nace el trazo (solo suman las que suman)."""
+    plano = await _plano(control, escenario)
+    r = await control.post(
+        f"/api/v1/planos/{plano}/trazos",
+        json={
+            "version_plano": 1,
+            "fuente": "pdf",
+            "geometria_wkt": "LINESTRING(0 0, 10 0)",
+            "enlaces": [
+                {
+                    "medida": "longitud",
+                    "factor": "1",
+                    "actividad_id": str(escenario.actividad_id),
+                    "conversion": {
+                        "modo": "area",
+                        "mide": "eje",
+                        "partes": [
+                            {"nombre": "Muro", "desde_m": 0, "hasta_m": 2.6, "suma": True},
+                            {"nombre": "Antepecho", "desde_m": 2.6, "hasta_m": 3, "suma": False},
+                        ],
+                    },
+                }
+            ],
+        },
+    )
+    assert r.status_code == 201, r.text
+    # Eje de 10 m × 2.6 m (la parte que suma); el antepecho no suma.
+    assert Decimal(str(r.json()["recalculos"][0]["cantidad_total"])) == Decimal("26")

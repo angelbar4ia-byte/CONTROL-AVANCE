@@ -17,6 +17,7 @@ import {
 } from '@/api/generado/cuantificacion/cuantificacion';
 import type { CalculoDeConversionRespuesta, ConversionPeticion } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
+import { AlturaPorPartes } from './AlturaPorPartes';
 
 interface Parte {
   nombre: string;
@@ -227,34 +228,7 @@ export function ConversionDelEnlace({ enlaceId, nombreDelConcepto, grosorM, alin
 
       {esMuro && ['area', 'vol'].includes(borrador.modo) && (
         <>
-          <div className="text-xs text-mute">Altura por partes</div>
-          <div className="row" style={{ gap: 4 }}>
-            {chip(partes.length === 0, 'Altura única', () => cambiar({ partes: [] }), 'unica')}
-            {chip(
-              partes.length > 0,
-              'Por partes',
-              () => cambiar({ partes: [{ nombre: 'Muro', desde_m: 0, hasta_m: num(borrador.alt) || 2.6, suma: true }] }),
-              'partes',
-            )}
-          </div>
-          {partes.map((p, i) => (
-            <div key={i} className="row" style={{ gap: 4 }}>
-              <input aria-label={`Nombre de la parte ${i + 1}`} style={{ width: 80 }} value={p.nombre} onChange={(e) => cambiar({ partes: partes.map((x, j) => (j === i ? { ...x, nombre: e.target.value } : x)) })} />
-              <input aria-label={`Desde (m) de la parte ${i + 1}`} inputMode="decimal" style={{ width: 48 }} value={String(p.desde_m)} onChange={(e) => cambiar({ partes: partes.map((x, j) => (j === i ? { ...x, desde_m: num(e.target.value) } : x)) })} />
-              <input aria-label={`Hasta (m) de la parte ${i + 1}`} inputMode="decimal" style={{ width: 48 }} value={String(p.hasta_m)} onChange={(e) => cambiar({ partes: partes.map((x, j) => (j === i ? { ...x, hasta_m: num(e.target.value) } : x)) })} />
-              <label className="text-xs" title="Suma a la cantidad">
-                <input type="checkbox" checked={p.suma} onChange={(e) => cambiar({ partes: partes.map((x, j) => (j === i ? { ...x, suma: e.target.checked } : x)) })} /> suma
-              </label>
-              <button type="button" className="btn btn--ghost btn--sm" aria-label={`Quitar la parte ${i + 1}`} onClick={() => cambiar({ partes: partes.filter((_, j) => j !== i) })}>
-                ×
-              </button>
-            </div>
-          ))}
-          {partes.length > 0 && (
-            <button type="button" className="btn btn--sm" onClick={() => cambiar({ partes: [...partes, { nombre: '', desde_m: partes[partes.length - 1]!.hasta_m, hasta_m: partes[partes.length - 1]!.hasta_m + 0.5, suma: true }] })}>
-              + Parte
-            </button>
-          )}
+          <AlturaPorPartes partes={partes} alturaUnica={String(borrador.alt ?? '')} onPartes={(nuevas) => cambiar({ partes: nuevas })} />
         </>
       )}
 
