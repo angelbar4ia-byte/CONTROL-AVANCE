@@ -758,6 +758,8 @@ export function Visor({
           t.porRevisar && 'is-por-revisar',
           t.aprobado && 'is-aprobado',
           t.resaltado && 'is-medicion',
+          // Una línea abierta no se rellena: con 3 o más puntos SVG la cerraría y pintaría un triángulo.
+          ['LineString', 'MultiLineString'].includes(String(t.geometry.type)) && 'is-linea',
         ]
           .filter(Boolean)
           .join(' ');

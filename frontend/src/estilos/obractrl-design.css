@@ -2423,6 +2423,8 @@ a { color: inherit; text-decoration: none; }
 .visor__trazo.is-por-revisar path,
 .visor__trazo.is-por-revisar circle { stroke: var(--c-warn); stroke-dasharray: 6 4; }
 .visor__trazo.is-por-revisar path { fill: var(--c-warn-soft); }
+/* Una línea (muro, polilínea) es solo trazo: sin relleno, aunque tenga más de dos puntos. */
+.visor__trazo.is-linea path { fill: none; }
 .visor__trazo.is-aprobado path { stroke: var(--c-ok); }
 .visor__trazo.is-aprobado circle { fill: var(--c-ok); stroke: var(--c-ok); }
 .visor__trazo.is-aprobado.is-selected path { stroke: var(--c-ok); stroke-width: 3.5; }
