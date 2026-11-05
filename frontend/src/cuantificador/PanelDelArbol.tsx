@@ -17,6 +17,7 @@ import {
   getListarNivelesApiV1NivelesGetQueryKey,
   useListarConceptosApiV1ConceptosGet,
   useListarEtapasApiV1EtapasGet,
+  useAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut,
   useListarNivelesApiV1NivelesGet,
   useListarUnidadesApiV1UnidadesGet,
 } from '@/api/generado/catalogos/catalogos';
@@ -29,6 +30,7 @@ import {
   useCrearNivelApiV1NivelesPost,
   useMoverPartidaApiV1ActividadesActividadIdUbicacionPut,
   useQuitarPartidaApiV1ActividadesActividadIdPartidaDelete,
+  useSubirOBajarPartidaApiV1ActividadesActividadIdLugarPut,
 } from '@/api/generado/arbol/arbol';
 import { useCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost } from '@/api/generado/partes/partes';
 import type { ActividadRespuesta } from '@/api/generado/modelo';
@@ -211,11 +213,21 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
   const cambiarUnidad = useCambiarUnidadDelConceptoApiV1ConceptosConceptoIdUnidadPut<ErrorApi>();
   const mover = useMoverPartidaApiV1ActividadesActividadIdUbicacionPut<ErrorApi>();
   const quitar = useQuitarPartidaApiV1ActividadesActividadIdPartidaDelete<ErrorApi>();
+  const lugar = useSubirOBajarPartidaApiV1ActividadesActividadIdLugarPut<ErrorApi>();
+  const asignarNivel = useAsignarNivelALaEtapaApiV1EtapasEtapaIdNivelPut<ErrorApi>();
 
   const unidadPorClave = useMemo(() => new Map((unidades.data ?? []).map((u) => [u.clave, u.id])), [unidades.data]);
   const partidasPorEtapa = useMemo(() => {
     const por = new Map<string, ActividadRespuesta[]>();
     for (const a of actividades) por.set(a.etapa_id ?? SIN_ETAPA, [...(por.get(a.etapa_id ?? SIN_ETAPA) ?? []), a]);
+    // Por el lugar que se les dio (0116) y, sin él, por clave: así se ven y así suben y bajan.
+    for (const lista of por.values()) {
+      lista.sort(
+        (x, y) =>
+          (x.orden ?? Number.MAX_SAFE_INTEGER) - (y.orden ?? Number.MAX_SAFE_INTEGER) ||
+          String(x.concepto_clave ?? '').localeCompare(String(y.concepto_clave ?? ''), 'es', { numeric: true }),
+      );
+    }
     return por;
   }, [actividades]);
   const datosDeEtapas = etapas.data;
@@ -341,6 +353,41 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
       onError(err instanceof Error ? err.message : 'No se pudo cambiar la unidad.');
     }
   }
+  async function subirOBajar(a: ActividadRespuesta, direccion: 'up' | 'down') {
+    try {
+      await lugar.mutateAsync({ actividadId: a.id, data: { direccion } });
+      onCambio(`${a.concepto_clave ?? 'La partida'} ${direccion === 'up' ? 'subió' : 'bajó'}.`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo cambiar el lugar de la partida.');
+    }
+  }
+  /** Pasa una partida a la etapa anterior o siguiente del árbol, en el orden en que se ven (Subir/Bajar de nivel del mockup). */
+  async function aOtraEtapa(a: ActividadRespuesta, sentido: -1 | 1) {
+    const orden = (niveles.data ?? []).flatMap((n) => (etapasPorNivel.get(n.id) ?? []).map((e) => e.id));
+    const i = a.etapa_id ? orden.indexOf(a.etapa_id) : -1;
+    const destino = i === -1 ? undefined : orden[i + sentido];
+    if (destino === undefined) {
+      onError(sentido === -1 ? 'Ya está en la primera etapa.' : 'Ya está en la última etapa.');
+      return;
+    }
+    await aEtapa(a, destino);
+  }
+  /** Pasa una etapa al nivel anterior o siguiente. */
+  async function aOtroNivel(etapaId: string, nivelActual: string, sentido: -1 | 1) {
+    const ids = (niveles.data ?? []).map((n) => n.id);
+    const destino = ids[ids.indexOf(nivelActual) + sentido];
+    if (destino === undefined) {
+      onError(sentido === -1 ? 'Ya está en el primer nivel.' : 'Ya está en el último nivel.');
+      return;
+    }
+    try {
+      await asignarNivel.mutateAsync({ etapaId, data: { nivel_id: destino } });
+      recargar();
+      onCambio('Etapa pasada a otro nivel.');
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'No se pudo pasar la etapa de nivel.');
+    }
+  }
   async function aEtapa(a: ActividadRespuesta, etapaId: string) {
     try {
       await mover.mutateAsync({ actividadId: a.id, data: { etapa_id: etapaId === SIN_ETAPA ? null : etapaId } });
@@ -415,6 +462,20 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
         >
           {conMatrices ? 'Ocultar matrices' : 'Matrices'}
         </button>
+        <span className="row" style={{ gap: 2, justifySelf: 'start' }} role="group" aria-label={`Mover ${a.concepto_clave ?? 'la partida'} en el árbol`}>
+          <button type="button" className="btn btn--ghost btn--sm" aria-label={`Subir posición de ${a.concepto_clave ?? 'la partida'}`} title="Subir posición" onClick={() => void subirOBajar(a, 'up')}>
+            ↑
+          </button>
+          <button type="button" className="btn btn--ghost btn--sm" aria-label={`Bajar posición de ${a.concepto_clave ?? 'la partida'}`} title="Bajar posición" onClick={() => void subirOBajar(a, 'down')}>
+            ↓
+          </button>
+          <button type="button" className="btn btn--ghost btn--sm" aria-label={`Subir ${a.concepto_clave ?? 'la partida'} a la etapa anterior`} title="Subir de nivel (pasa a la etapa anterior)" onClick={() => void aOtraEtapa(a, -1)}>
+            ⇤
+          </button>
+          <button type="button" className="btn btn--ghost btn--sm" aria-label={`Bajar ${a.concepto_clave ?? 'la partida'} a la etapa siguiente`} title="Bajar de nivel (pasa a la etapa siguiente)" onClick={() => void aOtraEtapa(a, 1)}>
+            ⇥
+          </button>
+        </span>
         <button
           type="button"
           className="btn btn--ghost btn--sm"
@@ -497,6 +558,14 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
                   <div className="arbol-edicion__titulo">
                     <strong>{e.clave}</strong> {nombreEditable('etapa', e.id, e.descripcion)}
                     {flechas('etapa', e.id, (etapasPorNivel.get(n.id) ?? []).map((x) => x.id), e.clave)}
+                    <span className="row" style={{ gap: 2 }}>
+                      <button type="button" className="btn btn--ghost btn--sm" aria-label={`Pasar ${e.clave} al nivel anterior`} title="Subir de nivel (pasa al nivel anterior)" onClick={() => void aOtroNivel(e.id, n.id, -1)}>
+                        ⇤
+                      </button>
+                      <button type="button" className="btn btn--ghost btn--sm" aria-label={`Pasar ${e.clave} al nivel siguiente`} title="Bajar de nivel (pasa al nivel siguiente)" onClick={() => void aOtroNivel(e.id, n.id, 1)}>
+                        ⇥
+                      </button>
+                    </span>
                     <NuevaPartida obraId={obraId} etapaId={e.id} onCreada={onCambio} onError={onError} />
                   </div>
                   <ul aria-label={`Partidas de ${e.clave}`}>{(partidasPorEtapa.get(e.id) ?? []).map(filaDePartida)}</ul>
