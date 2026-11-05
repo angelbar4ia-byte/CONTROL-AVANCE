@@ -1424,6 +1424,12 @@ export function EspacioDeTrazo({
 
   /** Borrar lo elegido: un trazo pide confirmación en su ventana; varios, juntos y con un solo deshacer. */
   function pedirBorrado() {
+    // Un vano elegido se quita sin pedir confirmación: se deshace con Ctrl+Z.
+    if (vanoElegido) {
+      setVanoElegidoId(null);
+      void accionesDeVano.quitar(vanoElegido);
+      return;
+    }
     if (idsElegidos.length > 1) void borrarVarios(idsElegidos);
     else if (seleccionado) setPorBorrar(seleccionado.id as string);
   }
@@ -2163,7 +2169,7 @@ export function EspacioDeTrazo({
       const destino = e.target as HTMLElement | null;
       if (destino && /^(INPUT|SELECT|TEXTAREA)$/.test(destino.tagName)) return;
       if (destino?.isContentEditable) return;
-      if ((e.key === 'Delete' || e.key === 'Backspace') && seleccionado && herramienta !== 'poligono' && herramienta !== 'linea' && herramienta !== 'hueco') {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && (seleccionado || vanoElegido) && herramienta !== 'poligono' && herramienta !== 'linea' && herramienta !== 'hueco') {
         e.preventDefault();
         pedirBorrado();
         return;
@@ -2179,7 +2185,7 @@ export function EspacioDeTrazo({
     return () => window.removeEventListener('keydown', alTeclear);
     // `cambiarHerramienta` lee estado del render: se rearma con él.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hayCajon, puedeAnotar, borrador, areaElegida, seleccionado, herramienta, mostrarMedidas, mostrarCotas, datosAbiertos]);
+  }, [hayCajon, puedeAnotar, borrador, areaElegida, seleccionado, vanoElegido, herramienta, mostrarMedidas, mostrarCotas, datosAbiertos]);
 
   // Al cambiar de plano se olvida lo que se podía deshacer y la medición activa: ya no es lo que se está viendo.
   useEffect(() => {
@@ -2856,10 +2862,10 @@ export function EspacioDeTrazo({
               {
                 clave: 'eliminar',
                 etiqueta: 'Eliminar selección',
-                deshabilitado: seleccionado === null,
+                deshabilitado: seleccionado === null && vanoElegido === null,
                 descripcion:
-                  seleccionado === null
-                    ? 'Elige un trazo con Seleccionar para poder eliminarlo'
+                  seleccionado === null && vanoElegido === null
+                    ? 'Elige un trazo o un vano con Seleccionar para poder eliminarlo'
                     : 'Eliminar el trazo elegido (Supr)',
                 onClick: () => pedirBorrado(),
               },
@@ -3215,6 +3221,10 @@ export function EspacioDeTrazo({
                 onElegirVano={elegirVano}
                 onAjustarVano={ajustarVano}
                 onSoltarVano={moviendoVano ? soltarVanoEn : null}
+                onBorrarVano={(id) => {
+                  const v = (vanosConsulta.data ?? []).find((x) => x.id === id);
+                  if (v) void accionesDeVano.quitar(v);
+                }}
                 onMenuVano={(id, x, y) => {
                   elegirVano(id);
                   setMenuDelVano({ id, x, y });
