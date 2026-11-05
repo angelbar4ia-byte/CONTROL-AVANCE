@@ -196,3 +196,60 @@ async def test_el_muro_cuenta_por_caras_y_por_partes_y_el_vano_descuenta_por_las
     mala = [{"nombre": "X", "desde_m": "2", "hasta_m": "1", "suma": True}]
     assert (await control.put(ruta, json={"caras": 2, "partes": mala})).status_code in (400, 422)
     assert (await control.put(ruta, json={"altura_m": "0.5", "caras": 2})).status_code in (400, 422)
+
+
+async def _muro_con(control: httpx.AsyncClient, escenario: Escenario, plano: str, wkt: str, grosor: str | None, factor: str = "1") -> str:
+    cuerpo = {
+        "version_plano": 1, "fuente": "pdf", "geometria_wkt": wkt,
+        "enlaces": [{"medida": "longitud", "factor": factor, "actividad_id": str(escenario.actividad_id)}],
+    }
+    if grosor:
+        cuerpo |= {"grosor_m": grosor, "alineacion": "centro"}
+    r = await control.post(f"/api/v1/planos/{plano}/trazos", json=cuerpo)
+    assert r.status_code == 201, r.text
+    return r.json()["trazo_id"]
+
+
+async def test_las_uniones_de_muro_recortan_el_largo_y_la_fusion_junta_dos_muros(
+    escenario: Escenario, control: httpx.AsyncClient
+) -> None:
+    plano = (await control.post(f"/api/v1/obras/{escenario.obra_id}/planos", json={"nombre": "P", "archivo_url": "e2e/p.pdf"})).json()["id"]
+    # Un muro de 10 m de eje y 0.2 m de grosor, y otro vertical de 0.3 m que cruza su extremo final.
+    a = await _muro_con(control, escenario, plano, "LINESTRING(0 0, 10 0)", "0.2")
+    b = await _muro_con(control, escenario, plano, "LINESTRING(10 -5, 10 5)", "0.3")
+    cuatro = Decimal("0.0001")
+
+    info = (await control.get(f"/api/v1/trazos/{a}/uniones")).json()
+    assert info["extremos"] == []
+    assert [(c["extremo"], c["trazo_id"]) for c in info["candidatos"]] == [("fin", b)]
+
+    # Conexión: el muro continúa, no cambia lo que mide. Unión a tope: pierde medio grosor del otro (0.15 m).
+    r = await control.put(f"/api/v1/trazos/{a}/uniones/fin", json={"op": "conexion", "con_trazo_id": b})
+    assert r.status_code == 200, r.text
+    assert _total(r) == Decimal("20").quantize(cuatro)  # los dos muros; la conexión no cambia el eje
+    r = await control.put(f"/api/v1/trazos/{a}/uniones/fin", json={"op": "union", "con_trazo_id": b})
+    assert r.status_code == 200, r.text
+    total_union = _total(r)
+    r = await control.delete(f"/api/v1/trazos/{a}/uniones/fin")
+    total_sin = _total(r)
+    assert total_sin - total_union == Decimal("0.15").quantize(cuatro)
+
+    # Un muro que no se encuentra con el extremo no se acepta.
+    lejos = await _muro_con(control, escenario, plano, "LINESTRING(0 50, 10 50)", "0.2")
+    assert (await control.put(f"/api/v1/trazos/{a}/uniones/ini", json={"op": "union", "con_trazo_id": lejos})).status_code == 422
+
+    # Empalme: dos muros que se solapan 2 m (de 8 a 10 m) cuentan ese tramo una sola vez.
+    c = await _muro_con(control, escenario, plano, "LINESTRING(8 0, 18 0)", "0.2")
+    r = await control.put(f"/api/v1/trazos/{c}/uniones/ini", json={"op": "empalme", "con_trazo_id": a})
+    assert r.status_code == 200, r.text
+    r2 = await control.delete(f"/api/v1/trazos/{c}/uniones/ini")
+    assert _total(r2) - _total(r) == Decimal("2").quantize(cuatro)
+
+    # Fusión: dos muros del mismo grosor que se tocan pasan a ser uno solo.
+    d = await _muro_con(control, escenario, plano, "LINESTRING(18 0, 25 0)", "0.2")
+    r = await control.post(f"/api/v1/trazos/{c}/fusion", json={"con_trazo_id": d})
+    assert r.status_code == 200, r.text
+    ids = {f["id"] for f in (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"]}
+    assert c in ids and d not in ids
+    # Con distinto grosor no se fusionan.
+    assert (await control.post(f"/api/v1/trazos/{a}/fusion", json={"con_trazo_id": b})).status_code == 422

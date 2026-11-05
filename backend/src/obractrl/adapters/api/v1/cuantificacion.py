@@ -1399,6 +1399,112 @@ async def fijar_muro(
     )
 
 
+class UnionDeExtremoRespuesta(BaseModel):
+    extremo: Literal["ini", "fin"]
+    op: Literal["conexion", "union", "empalme"]
+    con_trazo_id: UUID
+
+
+class CandidatoDeUnionRespuesta(BaseModel):
+    extremo: Literal["ini", "fin"]
+    trazo_id: UUID
+    grosor_m: Decimal | None
+    distancia_m: Decimal = Field(description="A cuántos metros del extremo queda el otro muro.")
+
+
+class UnionesDelMuroRespuesta(BaseModel):
+    extremos: list[UnionDeExtremoRespuesta]
+    candidatos: list[CandidatoDeUnionRespuesta] = Field(description="Los muros que se encuentran con cada extremo.")
+
+
+class UnionPeticion(BaseModel):
+    op: Literal["conexion", "union", "empalme"]
+    con_trazo_id: UUID
+
+
+class FusionPeticion(BaseModel):
+    con_trazo_id: UUID
+
+
+@router.get(
+    "/trazos/{trazo_id}/uniones",
+    response_model=UnionesDelMuroRespuesta,
+    summary="Qué pasa en cada extremo del muro y con qué muros se encuentra",
+    responses={404: {"description": "El trazo no existe o está fuera de tu alcance."}},
+)
+async def ver_uniones(trazo_id: UUID, caso_uso: GestionarVanosDep) -> UnionesDelMuroRespuesta:
+    return UnionesDelMuroRespuesta(**await caso_uso.uniones(trazo_id))
+
+
+_RESPUESTAS_UNION = {
+    403: {"description": "La línea alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."},
+    404: {"description": "El trazo no existe o está fuera de tu alcance."},
+    422: {"description": "No es una línea, o el otro muro no se encuentra con ese extremo."},
+}
+
+
+@router.put(
+    "/trazos/{trazo_id}/uniones/{extremo}",
+    response_model=VanoCambiadoRespuesta,
+    summary="Fijar qué pasa en un extremo del muro: conexión, unión a tope o empalme",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses=_RESPUESTAS_UNION,
+)
+async def fijar_union(
+    trazo_id: UUID, extremo: Literal["ini", "fin"], peticion: UnionPeticion, ctx: ContextoActual, caso_uso: GestionarVanosDep
+) -> VanoCambiadoRespuesta:
+    """La unión a tope resta medio grosor del otro muro del largo; el empalme, el tramo que se solapa."""
+    r = await caso_uso.fijar_union(
+        trazo_id,
+        extremo=extremo,
+        op=peticion.op,
+        con_trazo_id=peticion.con_trazo_id,
+        autor_id=ctx.usuario_id,
+        rol=Rol(ctx.rol),
+        detectada_en=datetime.now(UTC),
+    )
+    return VanoCambiadoRespuesta(vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos])
+
+
+@router.delete(
+    "/trazos/{trazo_id}/uniones/{extremo}",
+    response_model=VanoCambiadoRespuesta,
+    summary="Quitar la unión de un extremo",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses=_RESPUESTAS_UNION,
+)
+async def quitar_union(
+    trazo_id: UUID, extremo: Literal["ini", "fin"], ctx: ContextoActual, caso_uso: GestionarVanosDep
+) -> VanoCambiadoRespuesta:
+    r = await caso_uso.fijar_union(
+        trazo_id,
+        extremo=extremo,
+        op=None,
+        con_trazo_id=None,
+        autor_id=ctx.usuario_id,
+        rol=Rol(ctx.rol),
+        detectada_en=datetime.now(UTC),
+    )
+    return VanoCambiadoRespuesta(vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos])
+
+
+@router.post(
+    "/trazos/{trazo_id}/fusion",
+    response_model=VanoCambiadoRespuesta,
+    summary="Fusionar dos muros que se encuentran en un extremo: pasan a ser uno solo",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses=_RESPUESTAS_UNION,
+)
+async def fusionar_muros(
+    trazo_id: UUID, peticion: FusionPeticion, ctx: ContextoActual, caso_uso: GestionarVanosDep
+) -> VanoCambiadoRespuesta:
+    """El primero conserva su identidad y absorbe al segundo; deben tener el mismo grosor y alimentar lo mismo."""
+    r = await caso_uso.fusionar(
+        trazo_id, peticion.con_trazo_id, autor_id=ctx.usuario_id, rol=Rol(ctx.rol), detectada_en=datetime.now(UTC)
+    )
+    return VanoCambiadoRespuesta(vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos])
+
+
 class VanoEnPlanoRespuesta(BaseModel):
     id: UUID
     trazo_id: UUID

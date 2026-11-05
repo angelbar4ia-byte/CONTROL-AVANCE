@@ -11045,6 +11045,244 @@
         }
       }
     },
+    "/api/v1/trazos/{trazo_id}/uniones": {
+      "get": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Qué pasa en cada extremo del muro y con qué muros se encuentra",
+        "operationId": "ver_uniones_api_v1_trazos__trazo_id__uniones_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnionesDelMuroRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trazos/{trazo_id}/uniones/{extremo}": {
+      "put": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Fijar qué pasa en un extremo del muro: conexión, unión a tope o empalme",
+        "description": "La unión a tope resta medio grosor del otro muro del largo; el empalme, el tramo que se solapa.",
+        "operationId": "fijar_union_api_v1_trazos__trazo_id__uniones__extremo__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          },
+          {
+            "name": "extremo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "ini",
+                "fin"
+              ],
+              "type": "string",
+              "title": "Extremo"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VanoCambiadoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "La línea alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "No es una línea, o el otro muro no se encuentra con ese extremo."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Quitar la unión de un extremo",
+        "operationId": "quitar_union_api_v1_trazos__trazo_id__uniones__extremo__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          },
+          {
+            "name": "extremo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "ini",
+                "fin"
+              ],
+              "type": "string",
+              "title": "Extremo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VanoCambiadoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "La línea alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "No es una línea, o el otro muro no se encuentra con ese extremo."
+          }
+        }
+      }
+    },
+    "/api/v1/trazos/{trazo_id}/fusion": {
+      "post": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Fusionar dos muros que se encuentran en un extremo: pasan a ser uno solo",
+        "description": "El primero conserva su identidad y absorbe al segundo; deben tener el mismo grosor y alimentar lo mismo.",
+        "operationId": "fusionar_muros_api_v1_trazos__trazo_id__fusion_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trazo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Trazo Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FusionPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VanoCambiadoRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "La línea alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."
+          },
+          "404": {
+            "description": "El trazo no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "No es una línea, o el otro muro no se encuentra con ese extremo."
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/vanos": {
       "get": {
         "tags": [
@@ -19046,6 +19284,49 @@
         ],
         "title": "CandadoPeticion"
       },
+      "CandidatoDeUnionRespuesta": {
+        "properties": {
+          "extremo": {
+            "type": "string",
+            "enum": [
+              "ini",
+              "fin"
+            ],
+            "title": "Extremo"
+          },
+          "trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Trazo Id"
+          },
+          "grosor_m": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grosor M"
+          },
+          "distancia_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Distancia M",
+            "description": "A cuántos metros del extremo queda el otro muro."
+          }
+        },
+        "type": "object",
+        "required": [
+          "extremo",
+          "trazo_id",
+          "grosor_m",
+          "distancia_m"
+        ],
+        "title": "CandidatoDeUnionRespuesta"
+      },
       "CapturaAvancePeticion": {
         "properties": {
           "cant_ejecutada": {
@@ -25794,6 +26075,20 @@
         ],
         "title": "FuenteTrazo",
         "description": "De qué archivo salió el trazo (TRAZO.fuente, migración 0057).\n\nDetermina la precedencia al reemplazar un enlace (IFC > DWG > PDF) —\nesa comparación es trabajo de quien llama a `ReemplazarEnlace`, nunca\nun CHECK de esta tabla ni una regla automática (MODELO.md §1b: \"depende\nde que quien traza reemplace el enlace a mano\")."
+      },
+      "FusionPeticion": {
+        "properties": {
+          "con_trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Con Trazo Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "con_trazo_id"
+        ],
+        "title": "FusionPeticion"
       },
       "FusionRespuesta": {
         "properties": {
@@ -35980,6 +36275,88 @@
           "nombre"
         ],
         "title": "UnidadRespuesta"
+      },
+      "UnionDeExtremoRespuesta": {
+        "properties": {
+          "extremo": {
+            "type": "string",
+            "enum": [
+              "ini",
+              "fin"
+            ],
+            "title": "Extremo"
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "conexion",
+              "union",
+              "empalme"
+            ],
+            "title": "Op"
+          },
+          "con_trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Con Trazo Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "extremo",
+          "op",
+          "con_trazo_id"
+        ],
+        "title": "UnionDeExtremoRespuesta"
+      },
+      "UnionPeticion": {
+        "properties": {
+          "op": {
+            "type": "string",
+            "enum": [
+              "conexion",
+              "union",
+              "empalme"
+            ],
+            "title": "Op"
+          },
+          "con_trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Con Trazo Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "op",
+          "con_trazo_id"
+        ],
+        "title": "UnionPeticion"
+      },
+      "UnionesDelMuroRespuesta": {
+        "properties": {
+          "extremos": {
+            "items": {
+              "$ref": "#/components/schemas/UnionDeExtremoRespuesta"
+            },
+            "type": "array",
+            "title": "Extremos"
+          },
+          "candidatos": {
+            "items": {
+              "$ref": "#/components/schemas/CandidatoDeUnionRespuesta"
+            },
+            "type": "array",
+            "title": "Candidatos",
+            "description": "Los muros que se encuentran con cada extremo."
+          }
+        },
+        "type": "object",
+        "required": [
+          "extremos",
+          "candidatos"
+        ],
+        "title": "UnionesDelMuroRespuesta"
       },
       "UsuarioRespuesta": {
         "properties": {

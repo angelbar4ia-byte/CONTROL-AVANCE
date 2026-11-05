@@ -137,6 +137,9 @@ __all__ = [
     "VanoCambiado",
 ]
 
+RADIO_DE_UNION_M = Decimal("0.5")
+"""A cuántos metros de un extremo se considera que otro muro se encuentra con él."""
+
 _ROLES_QUE_TOCAN_PROTOTIPO = (Rol.CONTROL_OBRA, Rol.SUPER_INTENDENTE)
 """Quién puede enlazar contra un `prototipo_nodo` (ver docstring del
 módulo): los mismos dos roles que `app.es_config()` ya exige para
@@ -1300,6 +1303,75 @@ class GestionarVanos(AgregarHuecoATrazo):
         if await self._trazos.obtener(trazo_id) is None:
             raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
         return await self._trazos.muro_de_trazo(trazo_id)
+
+    async def uniones(self, trazo_id: UUID) -> dict[str, Any]:
+        if await self._trazos.obtener(trazo_id) is None:
+            raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
+        return {
+            "extremos": await self._trazos.uniones_de_trazo(trazo_id),
+            "candidatos": await self._trazos.candidatos_de_union(trazo_id, RADIO_DE_UNION_M),
+        }
+
+    async def fijar_union(
+        self,
+        trazo_id: UUID,
+        *,
+        extremo: str,
+        op: str | None,
+        con_trazo_id: UUID | None,
+        autor_id: UUID,
+        rol: Rol,
+        detectada_en: datetime,
+    ) -> VanoCambiado:
+        """Qué pasa en un extremo del muro cuando llega a otro (D-629): conexión, unión a tope o empalme. `op=None` la
+        quita. Cambia lo que mide el largo del muro, así que se recalcula lo que alimenta, como con un vano."""
+        if extremo not in ("ini", "fin"):
+            raise ErrorDeCuantificacion("El extremo es el inicio o el final del muro.")
+        if await self._trazos.obtener(trazo_id) is None:
+            raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
+        if not await self._trazos.es_linea(trazo_id):
+            raise ErrorDeCuantificacion("Las uniones se fijan sobre una línea (un muro).")
+        if op is not None:
+            if op not in ("conexion", "union", "empalme"):
+                raise ErrorDeCuantificacion("La unión es conexión, unión a tope o empalme (la fusión es otra acción).")
+            if con_trazo_id is None or con_trazo_id == trazo_id:
+                raise ErrorDeCuantificacion("Elige el otro muro con el que se encuentra.")
+            if not any(
+                c["extremo"] == extremo and UUID(str(c["trazo_id"])) == con_trazo_id
+                for c in await self._trazos.candidatos_de_union(trazo_id, RADIO_DE_UNION_M)
+            ):
+                raise ErrorDeCuantificacion("Ese muro no se encuentra con este extremo.")
+
+        async def guardar() -> UUID:
+            if op is None:
+                await self._trazos.quitar_union(trazo_id=trazo_id, extremo=extremo)
+            else:
+                await self._trazos.fijar_union(
+                    trazo_id=trazo_id, extremo=extremo, op=op, con_trazo_id=con_trazo_id, autor_id=autor_id  # type: ignore[arg-type]
+                )
+            return trazo_id
+
+        return await self._cambiar(trazo_id, rol, autor_id, detectada_en, guardar)
+
+    async def fusionar(
+        self, trazo_id: UUID, con_trazo_id: UUID, *, autor_id: UUID, rol: Rol, detectada_en: datetime
+    ) -> VanoCambiado:
+        """Los dos muros pasan a ser uno (D-629): el primero conserva su identidad y absorbe al segundo."""
+        for t in (trazo_id, con_trazo_id):
+            if await self._trazos.obtener(t) is None:
+                raise TrazoNoEncontrado(f"El trazo {t} no existe o no está en tu alcance.")
+        if trazo_id == con_trazo_id:
+            raise ErrorDeCuantificacion("Elige otro muro para fusionar.")
+
+        async def juntar() -> UUID:
+            motivo = await self._trazos.fusionar(
+                trazo_id=trazo_id, con_trazo_id=con_trazo_id, tolerancia_m=RADIO_DE_UNION_M
+            )
+            if motivo is not None:
+                raise ErrorDeCuantificacion(motivo)
+            return trazo_id
+
+        return await self._cambiar(trazo_id, rol, autor_id, detectada_en, juntar)
 
     async def fijar_muro(
         self,

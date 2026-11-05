@@ -64,10 +64,26 @@ _DESCUENTO_DE_VANOS_SQL = """
            * {caras} / nullif(e.factor, 0)
     end
 """
+# Las uniones de muro (0111) recortan el largo: la unión a tope pierde medio grosor del otro muro y el empalme el tramo
+# que se solapa con él (se cuenta una sola vez). En metros, como `medida_valor`.
+_UNIONES_DE_MURO_SQL = """
+    coalesce((select sum(coalesce(o.grosor_m, 0) / 2.0)
+                from trazo_union u join trazo o on o.id = u.con_trazo_id
+               where u.trazo_id = t.id and u.op = 'union'), 0)
+  + coalesce((select sum(ST_Length(ST_Intersection(t.geometria, o.geometria)) * {escala})
+                from trazo_union u join trazo o on o.id = u.con_trazo_id
+               where u.trazo_id = t.id and u.op = 'empalme'), 0)
+"""
+_UNIONES_DISPONIBLES = False
+"""Se vuelve `True` cuando la tabla `trazo_union` (0111) ya existe y no se vuelve a preguntar."""
 _MURO_DISPONIBLE = False
 """Se vuelve `True` cuando las columnas `trazo.muro_*` (0110) ya existen y no se vuelve a preguntar."""
 _VANOS_DISPONIBLES = False
 """Se vuelve `True` cuando la tabla `vano` (0103) ya existe y no se vuelve a preguntar."""
+
+
+async def _hay_tabla(sesion: AsyncSession, nombre: str) -> bool:
+    return bool((await sesion.execute(text("select to_regclass(:n) is not null"), {"n": f"public.{nombre}"})).scalar_one())
 
 
 async def _hay_muro(sesion: AsyncSession) -> bool:
@@ -95,17 +111,25 @@ async def _medida_valor_sql(sesion: AsyncSession) -> str:
     if not _MURO_DISPONIBLE:
         _MURO_DISPONIBLE = await _hay_muro(sesion)
     caras = "coalesce(t.muro_caras, 2)" if _MURO_DISPONIBLE else "2"
+    global _UNIONES_DISPONIBLES
+    if not _UNIONES_DISPONIBLES:
+        _UNIONES_DISPONIBLES = bool(
+            (await sesion.execute(text("select to_regclass('public.trazo_union') is not null"))).scalar_one()
+        )
+    uniones = _UNIONES_DE_MURO_SQL.format(escala=_ESCALA_SQL) if _UNIONES_DISPONIBLES else "0"
     descuento = _DESCUENTO_DE_VANOS_SQL.format(caras=caras) if _VANOS_DISPONIBLES else "0"
     return f"""
     case e.medida
       when 'area'      then case
                               when t.grosor_m is not null
-                                then ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * t.grosor_m * {_PENDIENTE_SQL}
+                                then greatest(
+                                       ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * {_PENDIENTE_SQL} - ({uniones}),
+                                       0) * t.grosor_m
                               else ST_Area({_GEOMETRIA_SQL}) * power({_ESCALA_SQL}, 2)
                             end
       when 'perimetro'  then ST_Perimeter({_GEOMETRIA_SQL}) * {_ESCALA_SQL}
       when 'longitud'   then greatest(
-                              ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * {_PENDIENTE_SQL} - {descuento},
+                              ST_Length({_GEOMETRIA_SQL}) * {_ESCALA_SQL} * {_PENDIENTE_SQL} - {descuento} - ({uniones}),
                               0)
       when 'conteo'     then 1
     end
@@ -582,6 +606,135 @@ class RepositorioTrazosSQL:
             {"f": factor, "id": str(trazo_id)},
         )
         return int(res.rowcount or 0)
+
+    async def uniones_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]:
+        """Qué pasa en cada extremo del muro (0111). Sin la tabla, nada."""
+        if not await _hay_tabla(self._sesion, "trazo_union"):
+            return []
+        filas = (
+            await self._sesion.execute(
+                text("select extremo, op, con_trazo_id from trazo_union where trazo_id = :t order by extremo"),
+                {"t": str(trazo_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def candidatos_de_union(self, trazo_id: UUID, radio_m: Decimal) -> list[dict[str, Any]]:
+        """Las otras líneas del mismo plano y versión que quedan a menos de `radio_m` de cada extremo del muro."""
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    with t as (
+                      select tr.plano_id, tr.version_plano, tr.geometria,
+                             ST_StartPoint(tr.geometria) as ini, ST_EndPoint(tr.geometria) as fin,
+                             coalesce(p.escala_m_por_unidad, 1) as esc
+                        from trazo tr join plano p on p.id = tr.plano_id
+                       where tr.id = :t and ST_GeometryType(tr.geometria) = 'ST_LineString'
+                    )
+                    select e.extremo, o.id as trazo_id, o.grosor_m,
+                           ST_Distance(case e.extremo when 'ini' then t.ini else t.fin end, o.geometria) * t.esc as distancia_m
+                      from t
+                      cross join (values ('ini'), ('fin')) as e(extremo)
+                      join trazo o on o.plano_id = t.plano_id and o.version_plano = t.version_plano and o.id <> :t
+                                  and ST_GeometryType(o.geometria) = 'ST_LineString'
+                     where ST_Distance(case e.extremo when 'ini' then t.ini else t.fin end, o.geometria) * t.esc <= :r
+                     order by e.extremo, distancia_m
+                    """
+                ),
+                {"t": str(trazo_id), "r": radio_m},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def fijar_union(self, *, trazo_id: UUID, extremo: str, op: str, con_trazo_id: UUID, autor_id: UUID) -> None:
+        if not await _hay_tabla(self._sesion, "trazo_union"):
+            raise ErrorDeCuantificacion("Falta aplicar la migración 0111 (uniones de muro) en esta base.")
+        await self._sesion.execute(
+            text(
+                """
+                insert into trazo_union (org_id, trazo_id, extremo, op, con_trazo_id, autor_id)
+                select t.org_id, t.id, :e, :op, :c, :a from trazo t where t.id = :t
+                on conflict (trazo_id, extremo) do update set op = excluded.op, con_trazo_id = excluded.con_trazo_id,
+                                                              autor_id = excluded.autor_id
+                """
+            ),
+            {"t": str(trazo_id), "e": extremo, "op": op, "c": str(con_trazo_id), "a": str(autor_id)},
+        )
+
+    async def quitar_union(self, *, trazo_id: UUID, extremo: str) -> None:
+        if await _hay_tabla(self._sesion, "trazo_union"):
+            await self._sesion.execute(
+                text("delete from trazo_union where trazo_id = :t and extremo = :e"), {"t": str(trazo_id), "e": extremo}
+            )
+
+    async def fusionar(self, *, trazo_id: UUID, con_trazo_id: UUID, tolerancia_m: Decimal) -> str | None:
+        """Junta dos líneas que se tocan en un extremo en una sola (la primera conserva su identidad). Devuelve el motivo
+        si no se puede; `None` si se fusionaron."""
+        s = self._sesion
+        fila = (
+            await s.execute(
+                text(
+                    """
+                    select a.plano_id = b.plano_id and a.version_plano = b.version_plano as mismo_plano,
+                           ST_GeometryType(a.geometria) = 'ST_LineString' and ST_GeometryType(b.geometria) = 'ST_LineString' as lineas,
+                           coalesce(a.grosor_m, -1) = coalesce(b.grosor_m, -1)
+                             and coalesce(a.alineacion, '') = coalesce(b.alineacion, '') as mismo_cuerpo,
+                           ST_LineMerge(ST_Union(a.geometria, b.geometria)) as unida,
+                           least(ST_Distance(ST_StartPoint(a.geometria), ST_StartPoint(b.geometria)),
+                                 ST_Distance(ST_StartPoint(a.geometria), ST_EndPoint(b.geometria)),
+                                 ST_Distance(ST_EndPoint(a.geometria), ST_StartPoint(b.geometria)),
+                                 ST_Distance(ST_EndPoint(a.geometria), ST_EndPoint(b.geometria))) * coalesce(p.escala_m_por_unidad, 1) as junta_m
+                      from trazo a join trazo b on b.id = :b join plano p on p.id = a.plano_id
+                     where a.id = :a
+                    """
+                ),
+                {"a": str(trazo_id), "b": str(con_trazo_id)},
+            )
+        ).mappings().first()
+        if fila is None:
+            return "Uno de los muros no existe."
+        if not fila["mismo_plano"]:
+            return "Los dos muros deben ser del mismo plano y la misma versión."
+        if not fila["lineas"]:
+            return "Solo se fusionan líneas."
+        if not fila["mismo_cuerpo"]:
+            return "Los dos muros deben tener el mismo grosor y la misma alineación."
+        if fila["junta_m"] is None or Decimal(str(fila["junta_m"])) > tolerancia_m:
+            return "Los muros deben encontrarse en un extremo para fusionarse."
+        conjuntos = (
+            await s.execute(
+                text(
+                    """
+                    select (select coalesce(array_agg(distinct concat(tipo_nodo, coalesce(actividad_id::text, ''), coalesce(prototipo_nodo_id::text, ''), coalesce(matriz_concepto_id::text, ''), medida, factor)), '{}')
+                              from enlace_cuantificacion where trazo_id = :a and vigente)
+                         = (select coalesce(array_agg(distinct concat(tipo_nodo, coalesce(actividad_id::text, ''), coalesce(prototipo_nodo_id::text, ''), coalesce(matriz_concepto_id::text, ''), medida, factor)), '{}')
+                              from enlace_cuantificacion where trazo_id = :b and vigente) as iguales
+                    """
+                ),
+                {"a": str(trazo_id), "b": str(con_trazo_id)},
+            )
+        ).scalar_one()
+        if not conjuntos:
+            return "Los dos muros miden cosas distintas: para fusionarlos deben alimentar lo mismo."
+        tiene_vanos = (
+            await s.execute(text("select to_regclass('public.vano') is not null and exists (select 1 from vano where trazo_id = :b)"), {"b": str(con_trazo_id)})
+        ).scalar_one()
+        if tiene_vanos:
+            return "El muro que se absorbe tiene vanos: quítalos o muévelos antes de fusionar."
+        if fila["unida"] is None:
+            return "La unión no forma una sola línea."
+        res = await s.execute(
+            text("update trazo set geometria = ST_LineMerge(ST_Union(geometria, (select geometria from trazo where id = :b))) where id = :a and ST_GeometryType(ST_LineMerge(ST_Union(geometria, (select geometria from trazo where id = :b)))) = 'ST_LineString'"),
+            {"a": str(trazo_id), "b": str(con_trazo_id)},
+        )
+        if not res.rowcount:
+            return "La unión no forma una sola línea."
+        if await _hay_tabla(s, "trazo_union"):
+            await s.execute(text("update trazo_union set con_trazo_id = :a where con_trazo_id = :b and trazo_id <> :a"), {"a": str(trazo_id), "b": str(con_trazo_id)})
+            await s.execute(text("delete from trazo_union where trazo_id in (:a, :b) and con_trazo_id in (:a, :b)"), {"a": str(trazo_id), "b": str(con_trazo_id)})
+        await s.execute(text("delete from trazo where id = :b"), {"b": str(con_trazo_id)})
+        return None
 
     async def vanos_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]:
         filas = (
