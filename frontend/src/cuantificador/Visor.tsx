@@ -184,6 +184,8 @@ interface Props {
     id: string,
     cambio: { distanciaPlano?: number; anchoPlano?: number; corrimientoPlano?: number },
   ) => void;
+  /** Con «Mover…» del menú del vano: el siguiente clic en el plano es el lugar nuevo del vano elegido. */
+  readonly onSoltarVano?: ((p: Punto) => void) | null;
   /** Clic derecho (sin arrastre) sobre un vano: dónde, en pantalla, para abrir su menú. */
   readonly onMenuVano?: (id: string, x: number, y: number) => void;
   /** Dónde está el cursor (plano, sin asistir) para mostrar sus coordenadas; no vuelve a pintar nada por sí mismo. */
@@ -275,6 +277,7 @@ export function Visor({
   onElegirVano,
   onAjustarVano,
   onMenuVano,
+  onSoltarVano = null,
   onCoordenadas,
   onMenu,
   asistir,
@@ -599,6 +602,10 @@ export function Visor({
       // Una nota es un punto diminuto sobre trazos que suelen ser polígonos
       // grandes: si se probara el trazo primero, dentro de un polígono siempre
       // ganaría el trazo y la nota nunca se podría elegir.
+      if (onSoltarVano) {
+        onSoltarVano(p);
+        return;
+      }
       if (herramienta === 'seleccionar') onElegirVano?.(null);
       const nota = notaEnPunto(notas, p, tolerancia);
       const trazo = nota === null ? trazoEnPunto(trazos, p, tolerancia) : null;

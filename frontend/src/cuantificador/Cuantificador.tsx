@@ -885,6 +885,7 @@ export function EspacioDeTrazo({
   const transformar = useTransformarTrazosApiV1TrazosTransformarPost<ErrorApi>();
   const colocarVano = useColocarVanoApiV1TrazosTrazoIdVanosPost<ErrorApi>();
   const [vanoElegidoId, setVanoElegidoId] = useState<string | null>(null);
+  const [moviendoVano, setMoviendoVano] = useState(false);
   const [menuDelVano, setMenuDelVano] = useState<{ id: string; x: number; y: number } | null>(null);
   const [opcionesVano, setOpcionesVano] = useState<OpcionesDelVano>(OPCIONES_DE_VANO_INICIALES);
   /** Por línea: el primer clic (sobre qué trazo y a qué distancia de su inicio, en unidades de plano). */
@@ -1348,6 +1349,19 @@ export function EspacioDeTrazo({
     setExtras(new Set());
   }
 
+  /** El clic que sigue a «Mover…»: el vano elegido se pega al punto más cercano de su muro. */
+  function soltarVanoEn(p: Punto) {
+    setMoviendoVano(false);
+    const v = vanoElegido;
+    if (!v || !(v.ancho_plano > 0)) return;
+    const f = features.find((x) => x.id === v.trazo_id);
+    const coords = (f?.geometry as { coordinates?: unknown } | undefined)?.coordinates;
+    if (!f || !Array.isArray(coords)) return;
+    const anillo = (String(f.geometry.type) === 'Polygon' ? (coords[0] as number[][]) : (coords as number[][])).map((c) => [c[0], c[1]] as Punto);
+    const sobre = proyectarEnPolilinea(p, anillo);
+    if (sobre) void accionesDeVano.moverA(v, sobre.distancia * (Number(v.ancho_m) / v.ancho_plano));
+  }
+
   /** Elegir un vano (clic con Seleccionar o desde su menú): su detalle reemplaza al del trazo. */
   function elegirVano(id: string | null) {
     setVanoElegidoId(id);
@@ -1681,6 +1695,7 @@ export function EspacioDeTrazo({
       if (e.key === 'Escape') {
         setVanoElegidoId(null);
         setMenuDelVano(null);
+        setMoviendoVano(false);
       }
     };
     window.addEventListener('keydown', cerrar);
@@ -1691,6 +1706,7 @@ export function EspacioDeTrazo({
   }, [herramienta]);
   useEffect(() => {
     setVanoElegidoId(null);
+    setMoviendoVano(false);
   }, [planoElegido]);
 
   useEffect(() => {
@@ -3059,6 +3075,7 @@ export function EspacioDeTrazo({
                 vanoElegidoId={vanoElegidoId}
                 onElegirVano={elegirVano}
                 onAjustarVano={ajustarVano}
+                onSoltarVano={moviendoVano ? soltarVanoEn : null}
                 onMenuVano={(id, x, y) => {
                   elegirVano(id);
                   setMenuDelVano({ id, x, y });
@@ -3412,7 +3429,7 @@ export function EspacioDeTrazo({
                 ))}
               </>
             )}
-            <button type="button" role="menuitem" className="btn btn--ghost btn--sm" onClick={() => { setMenuDelVano(null); setAviso('Mover el vano: arrastra el asa central por el muro; las de los extremos cambian el ancho.'); }}>
+            <button type="button" role="menuitem" className="btn btn--ghost btn--sm" onClick={() => { setMenuDelVano(null); cambiarHerramienta('seleccionar'); setMoviendoVano(true); setAviso('Mover el vano: clic en el nuevo lugar sobre su muro. Esc cancela.'); }}>
               Mover…
             </button>
             <button type="button" role="menuitem" className="btn btn--ghost btn--sm" onClick={() => { setMenuDelVano(null); setVanoElegidoId(null); void accionesDeVano.quitar(vanoElegido); }}>
