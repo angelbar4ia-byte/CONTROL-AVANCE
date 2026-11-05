@@ -1208,6 +1208,9 @@ class MatrizRespuesta(BaseModel):
         default=None, description="Lo medido en esta obra; no reescribe el catálogo."
     )
     diferencia: Decimal | None = None
+    cantidad_origen: Literal["trazos", "elemento"] = Field(
+        default="trazos", description="De dónde viene lo medido: sus trazos o lo que toma de un elemento colocado (D-639)."
+    )
 
 
 class MatricesDeActividadRespuesta(BaseModel):

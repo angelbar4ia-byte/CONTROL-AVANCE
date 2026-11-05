@@ -11,12 +11,15 @@ from typing import Any
 from uuid import UUID
 
 from obractrl.application.casos_uso.cuantificar import MedicionNoEncontrada
+from obractrl.application.casos_uso.tomas_de_elemento import (
+    filas_de_toma,
+    totales_de_trazos,
+)
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
 from obractrl.domain.cuantificacion.elementos_parametricos import (
     GEOMETRIA_DEL_TIPO,
     MATERIALES_DE_UN_ELEMENTO,
     ErrorDeElementoParametrico,
-    lados_por_defecto,
     normalizar_parametros,
     receta,
     toma_por_unidad,
@@ -56,9 +59,23 @@ def _con_receta(fila: dict[str, Any]) -> dict[str, Any]:
 
 
 class GestionarElementosParametricos:
-    def __init__(self, *, elementos: Any, uow: UnidadDeTrabajo) -> None:
+    def __init__(self, *, elementos: Any, uow: UnidadDeTrabajo, sincronizador: Any | None = None) -> None:
         self._elementos = elementos
         self._uow = uow
+        # Lo que un concepto toma de un elemento escribe la cantidad medida de su matriz (D-639).
+        self._sincronizador = sincronizador
+
+    async def _sincronizar_obras_con(self, elemento_id: UUID | None) -> None:
+        if self._sincronizador is not None:
+            await self._sincronizador.de_las_obras_con(elemento_id)
+
+    async def sincronizar_obra(self, obra_id: UUID) -> None:
+        """Rehace las cantidades que las matrices de la obra toman de los elementos colocados."""
+        if self._sincronizador is None:
+            return
+        async with self._uow:
+            await self._sincronizador.de_la_obra(obra_id)
+            await self._uow.commit()
 
     async def listar(self) -> list[dict[str, Any]]:
         return [_con_receta(f) for f in await self._elementos.listar()]
@@ -90,13 +107,18 @@ class GestionarElementosParametricos:
             raise ErrorDeElementoParametrico(f"Ya existe un elemento con la clave {nueva_clave}.")
         async with self._uow:
             await self._elementos.actualizar(elemento_id, clave=nueva_clave, nombre=nuevo_nombre, parametros=nuevos)
+            await self._sincronizar_obras_con(elemento_id)
             await self._uow.commit()
 
     async def eliminar(self, elemento_id: UUID) -> None:
         if await self._elementos.obtener(elemento_id) is None:
             raise ElementoParametricoNoEncontrado(f"El elemento {elemento_id} no existe o está fuera de tu alcance.")
         async with self._uow:
+            obras = await self._elementos.obras_con_el_elemento(elemento_id)
             await self._elementos.eliminar(elemento_id)
+            if self._sincronizador is not None:
+                for obra_id in obras:
+                    await self._sincronizador.de_la_obra(obra_id)
             await self._uow.commit()
 
     async def poner_en_trazo(self, trazo_id: UUID, elemento_id: UUID | None, lados: int | None) -> None:
@@ -121,6 +143,9 @@ class GestionarElementosParametricos:
                     raise ErrorDeElementoParametrico(f"{elemento['clave']} lleva cimbra de {disponibles} lados, no de {lados}.")
         async with self._uow:
             await self._elementos.poner_en_trazo(trazo_id, elemento_id, lados)
+            obra_id = await self._elementos.obra_del_trazo(trazo_id)
+            if self._sincronizador is not None and obra_id is not None:
+                await self._sincronizador.de_la_obra(obra_id)
             await self._uow.commit()
 
     async def _elemento(self, elemento_id: UUID) -> dict[str, Any]:
@@ -160,12 +185,14 @@ class GestionarElementosParametricos:
             await self._elementos.fijar_concepto(
                 elemento_id=elemento_id, concepto_id=concepto_id, unidad=unidad, toma=limpia, autor_id=autor_id
             )
+            await self._sincronizar_obras_con(elemento_id)
             await self._uow.commit()
 
     async def quitar_concepto(self, elemento_id: UUID, concepto_id: UUID) -> None:
         await self._elemento(elemento_id)
         async with self._uow:
             await self._elementos.quitar_concepto(elemento_id=elemento_id, concepto_id=concepto_id)
+            await self._sincronizar_obras_con(elemento_id)
             await self._uow.commit()
 
     async def conceptos_del_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
@@ -173,66 +200,13 @@ class GestionarElementosParametricos:
         concepto y los materiales que toma (D-630)."""
         elementos = {e["id"]: e for e in await self._elementos.listar()}
         totales = {t["elemento_id"]: t for t in (await self.totales_del_plano(plano_id))["totales"]}
-        filas: list[dict[str, Any]] = []
-        for f in await self._elementos.de_todos_los_elementos():
-            t = totales.get(f["elemento_id"])
-            e = elementos.get(f["elemento_id"])
-            if t is None or e is None:
-                continue
-            toma = {m: bool(v) for m, v in dict(f["toma"] or {}).items() if m in MATERIALES_DE_UN_ELEMENTO}
-            u = toma_por_unidad(e["tipo"], dict(e["parametros"] or {}), f["unidad"], toma)
-            en_ml = e["tipo"] == "castillo" and f["unidad"] == "ml"
-            cantidad = t["colocados"] * u["cantidad_por_muestra"] if en_ml else t["cantidad"]
-            totales_del_plano = {
-                "concreto": ("concreto_m3", "m³"), "acero": ("acero_kg", "kg"), "estribos": ("estribos_kg", "kg"),
-                "alambre": ("alambre_kg", "kg"), "cimbra": ("cimbra_m2", "m²"),
-            }
-            filas.append(
-                {
-                    "elemento_id": f["elemento_id"],
-                    "concepto_id": f["concepto_id"],
-                    "clave": f["clave"],
-                    "descripcion": f["descripcion"],
-                    "unidad": f["unidad"],
-                    "cantidad": cantidad,
-                    "materiales": {
-                        m: {"cantidad": t[campo], "unidad": un} for m, (campo, un) in totales_del_plano.items() if toma.get(m)
-                    },
-                }
-            )
-        return filas
+        return filas_de_toma(elementos, totales, await self._elementos.de_todos_los_elementos())
 
     async def totales_del_plano(self, plano_id: UUID) -> dict[str, Any]:
         """Lo que llevan en total los elementos colocados en un plano: la receta de una muestra × lo que aporta cada trazo."""
         elementos = {e["id"]: e for e in await self._elementos.listar()}
-        por_elemento: dict[Any, dict[str, Any]] = {}
         trazos = await self._elementos.trazos_del_plano(plano_id)
-        for trazo in trazos:
-            e = elementos.get(trazo["elemento_parametrico_id"])
-            if e is None:
-                continue
-            p = normalizar_parametros(e["tipo"], dict(e["parametros"] or {}))
-            r = receta(e["tipo"], p)
-            q = float(trazo["cantidad"])
-            lados = trazo["lados_cimbra"] or lados_por_defecto(e["tipo"], p)
-            lados_disponibles = r["cimbra_m2"]
-            m2_por_muestra = lados_disponibles.get(lados, 0.0)
-            t = por_elemento.setdefault(
-                e["id"],
-                {
-                    "elemento_id": e["id"], "clave": e["clave"], "nombre": e["nombre"], "tipo": e["tipo"],
-                    "unidad": r["unidad"], "colocados": 0, "cantidad": 0.0, "concreto_m3": 0.0, "acero_kg": 0.0,
-                    "estribos_kg": 0.0, "alambre_kg": 0.0, "cimbra_m2": 0.0, "cimbra_por_lados": {},
-                },
-            )
-            t["colocados"] += 1
-            t["cantidad"] += q
-            t["concreto_m3"] += r["concreto"] * q
-            t["acero_kg"] += r["acero_kg"] * q
-            t["estribos_kg"] += r["estribos_kg"] * q
-            t["alambre_kg"] += r["alambre_kg"] * q
-            t["cimbra_m2"] += m2_por_muestra * q
-            t["cimbra_por_lados"][lados] = t["cimbra_por_lados"].get(lados, 0.0) + m2_por_muestra * q
+        por_elemento = totales_de_trazos(elementos, trazos)
         return {
             "totales": sorted(por_elemento.values(), key=lambda x: x["clave"]),
             "trazos": [

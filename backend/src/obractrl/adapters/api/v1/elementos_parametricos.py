@@ -323,3 +323,15 @@ async def dejar_de_tomar_del_elemento(
 async def conceptos_del_plano(plano_id: UUID, caso_uso: GestionarElementosParametricosDep) -> list[ConceptoDelPlanoRespuesta]:
     """La cantidad del concepto en su unidad y los materiales que toma, según los elementos que lleva el plano."""
     return [ConceptoDelPlanoRespuesta(**c) for c in await caso_uso.conceptos_del_plano(plano_id)]
+
+
+@router.post(
+    "/obras/{obra_id}/tomas/sincronizar",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Rehacer lo que las matrices de la obra toman de los elementos colocados",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+)
+async def sincronizar_tomas(obra_id: UUID, caso_uso: GestionarElementosParametricosDep) -> None:
+    """Se llama al borrar o mover trazos de elementos: la cantidad medida de cada matriz que toma de ellos se rehace
+    (D-639). Lo trazado directo sobre la matriz manda sobre lo tomado."""
+    await caso_uso.sincronizar_obra(obra_id)

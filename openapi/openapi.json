@@ -12985,6 +12985,48 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/tomas/sincronizar": {
+      "post": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Rehacer lo que las matrices de la obra toman de los elementos colocados",
+        "description": "Se llama al borrar o mover trazos de elementos: la cantidad medida de cada matriz que toma de ellos se rehace\n(D-639). Lo trazado directo sobre la matriz manda sobre lo tomado.",
+        "operationId": "sincronizar_tomas_api_v1_obras__obra_id__tomas_sincronizar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/vanos-version": {
       "get": {
         "tags": [
@@ -29797,6 +29839,16 @@
               }
             ],
             "title": "Diferencia"
+          },
+          "cantidad_origen": {
+            "type": "string",
+            "enum": [
+              "trazos",
+              "elemento"
+            ],
+            "title": "Cantidad Origen",
+            "description": "De dónde viene lo medido: sus trazos o lo que toma de un elemento colocado (D-639).",
+            "default": "trazos"
           }
         },
         "type": "object",

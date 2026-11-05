@@ -193,3 +193,123 @@ async def test_un_concepto_toma_su_parte_de_la_receta_del_elemento(
 
     assert (await control.delete(f"{ruta}/{habilitado}")).status_code == 204
     assert [c["clave"] for c in (await control.get(ruta)).json()] == ["COL-K9"]
+
+
+async def test_la_toma_escribe_la_cantidad_medida_de_la_matriz_y_lo_trazado_manda(
+    control: httpx.AsyncClient, escenario
+) -> None:
+    """D-639: lo que un concepto toma de los elementos colocados es la cantidad medida de su matriz en la actividad."""
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from tests.integracion.conftest import DATABASE_URL_ADMIN
+
+    org, unidad, madre, hab = str(escenario.org_id), uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    motor = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with motor.begin() as c:
+            await c.execute(text("insert into unidad (id, org_id, clave, nombre) values (:i, :o, 'pza', 'Pieza')"), {"i": str(unidad), "o": org})
+            await c.execute(text("insert into concepto (id, org_id, clave, descripcion) values (:i, :o, 'MAD-K9', 'Castillos')"), {"i": str(madre), "o": org})
+            await c.execute(
+                text("insert into concepto (id, org_id, clave, descripcion, unidad_id) values (:i, :o, 'HAB-K9', 'Habilitado K-9', :u)"),
+                {"i": str(hab), "o": org, "u": str(unidad)},
+            )
+            await c.execute(
+                text("insert into explosion (org_id, concepto_id, tipo_hijo, concepto_hijo_id, categoria, cantidad) values (:o, :p, 'concepto', :h, 'matriz', 1)"),
+                {"o": org, "p": str(madre), "h": str(hab)},
+            )
+            await c.execute(
+                text("update actividad set concepto_id = :c, cant_base = 10, cant_programada = 10, precio_unitario = 100 where id = :a"),
+                {"c": str(madre), "a": str(escenario.actividad_id)},
+            )
+    finally:
+        await motor.dispose()
+
+    elemento = (await control.post("/api/v1/elementos-parametricos", json={"clave": "K-9", "nombre": "Castillo K-9", "tipo": "castillo"})).json()["id"]
+    assert (
+        await control.put(f"/api/v1/elementos-parametricos/{elemento}/conceptos/{hab}", json={"unidad": "pza", "toma": {"acero": True}})
+    ).status_code == 204
+
+    async def matriz() -> dict:
+        r = await control.get(f"/api/v1/actividades/{escenario.actividad_id}/matrices")
+        assert r.status_code == 200, r.text
+        return next(m for m in r.json()["matrices"] if m["concepto_id"] == str(hab))
+
+    assert (await matriz())["cantidad_medida"] is None
+
+    # Dos castillos colocados: la matriz queda medida en 2 piezas, y de dónde viene lo dice.
+    plano, ids = await _plano_con_trazos(control, escenario)
+    for t in (ids["punto"], ids["punto2"]):
+        assert (await control.put(f"/api/v1/trazos/{t}/elemento-parametrico", json={"elemento_id": elemento})).status_code == 204
+    m = await matriz()
+    assert float(m["cantidad_medida"]) == pytest.approx(2) and m["cantidad_origen"] == "elemento"
+
+    # Quitar la marca de uno baja la cantidad; quitar la toma del concepto deja la matriz sin medir.
+    assert (await control.put(f"/api/v1/trazos/{ids['punto2']}/elemento-parametrico", json={"elemento_id": None})).status_code == 204
+    assert float((await matriz())["cantidad_medida"]) == pytest.approx(1)
+    assert (await control.delete(f"/api/v1/elementos-parametricos/{elemento}/conceptos/{hab}")).status_code == 204
+    assert (await matriz())["cantidad_medida"] is None
+    assert (
+        await control.put(f"/api/v1/elementos-parametricos/{elemento}/conceptos/{hab}", json={"unidad": "pza", "toma": {"acero": True}})
+    ).status_code == 204
+    assert float((await matriz())["cantidad_medida"]) == pytest.approx(1)
+
+    # Lo trazado directo sobre la matriz manda sobre lo tomado (no hay doble conteo).
+    medido = await control.post(
+        f"/api/v1/planos/{plano}/trazos",
+        json={
+            "version_plano": 1,
+            "fuente": "pdf",
+            "geometria_wkt": "POINT(8 8)",
+            "enlaces": [{"medida": "conteo", "factor": "3", "actividad_id": str(escenario.actividad_id), "matriz_concepto_id": str(hab)}],
+        },
+    )
+    assert medido.status_code == 201, medido.text
+    m = await matriz()
+    assert float(m["cantidad_medida"]) == pytest.approx(3) and m["cantidad_origen"] == "trazos"
+    # Rehacer las tomas no pisa lo medido con trazos.
+    assert (await control.post(f"/api/v1/obras/{escenario.obra_id}/tomas/sincronizar")).status_code == 204
+    assert float((await matriz())["cantidad_medida"]) == pytest.approx(3)
+
+
+async def test_borrar_el_trazo_de_un_elemento_rehace_lo_que_toma_la_matriz(
+    control: httpx.AsyncClient, escenario
+) -> None:
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from tests.integracion.conftest import DATABASE_URL_ADMIN
+
+    org, unidad, madre, hab = str(escenario.org_id), uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    motor = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with motor.begin() as c:
+            await c.execute(text("insert into unidad (id, org_id, clave, nombre) values (:i, :o, 'pza', 'Pieza')"), {"i": str(unidad), "o": org})
+            await c.execute(text("insert into concepto (id, org_id, clave, descripcion) values (:i, :o, 'MAD-B9', 'Castillos')"), {"i": str(madre), "o": org})
+            await c.execute(
+                text("insert into concepto (id, org_id, clave, descripcion, unidad_id) values (:i, :o, 'HAB-B9', 'Habilitado', :u)"),
+                {"i": str(hab), "o": org, "u": str(unidad)},
+            )
+            await c.execute(
+                text("insert into explosion (org_id, concepto_id, tipo_hijo, concepto_hijo_id, categoria, cantidad) values (:o, :p, 'concepto', :h, 'matriz', 1)"),
+                {"o": org, "p": str(madre), "h": str(hab)},
+            )
+            await c.execute(
+                text("update actividad set concepto_id = :c, cant_base = 10, cant_programada = 10, precio_unitario = 100 where id = :a"),
+                {"c": str(madre), "a": str(escenario.actividad_id)},
+            )
+    finally:
+        await motor.dispose()
+    elemento = (await control.post("/api/v1/elementos-parametricos", json={"clave": "K-B", "nombre": "Castillo", "tipo": "castillo"})).json()["id"]
+    await control.put(f"/api/v1/elementos-parametricos/{elemento}/conceptos/{hab}", json={"unidad": "pza", "toma": {"acero": True}})
+    _plano, ids = await _plano_con_trazos(control, escenario)
+    for t in (ids["punto"], ids["punto2"]):
+        await control.put(f"/api/v1/trazos/{t}/elemento-parametrico", json={"elemento_id": elemento})
+
+    async def medido() -> object:
+        r = await control.get(f"/api/v1/actividades/{escenario.actividad_id}/matrices")
+        return next(m for m in r.json()["matrices"] if m["concepto_id"] == str(hab))["cantidad_medida"]
+
+    assert float(await medido()) == pytest.approx(2)  # type: ignore[arg-type]
+    assert (await control.delete(f"/api/v1/trazos/{ids['punto']}")).status_code == 200
+    assert float(await medido()) == pytest.approx(1)  # type: ignore[arg-type]

@@ -133,6 +133,54 @@ class RepositorioElementosParametricosSQL:
         ).mappings().all()
         return [dict(f) for f in filas]
 
+    async def trazos_de_la_obra(self, obra_id: UUID) -> list[dict[str, Any]]:
+        """Cada trazo de la obra (de todos sus planos) que es un elemento, con lo que aporta: 1 pieza, sus metros o sus m² (ya con la escala)."""
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select t.id, t.elemento_parametrico_id, t.lados_cimbra,
+                           case ep.tipo
+                             when 'lineal' then ST_Length(app.geometria_efectiva(t.id, t.geometria))
+                                                * coalesce(p.escala_m_por_unidad, 1)
+                                                * sqrt(1 + power(coalesce(t.pendiente_pct, 0) / 100.0, 2))
+                             when 'losa'   then ST_Area(app.geometria_efectiva(t.id, t.geometria))
+                                                * power(coalesce(p.escala_m_por_unidad, 1), 2)
+                             else 1
+                           end as cantidad
+                      from trazo t
+                      join plano p on p.id = t.plano_id
+                      join elemento_parametrico ep on ep.id = t.elemento_parametrico_id
+                     where p.obra_id = :obra and t.hueco_de is null and not t.propuesta
+                    """
+                ),
+                {"obra": str(obra_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def obra_del_trazo(self, trazo_id: UUID) -> UUID | None:
+        fila = (
+            await self._sesion.execute(
+                text("select p.obra_id from trazo t join plano p on p.id = t.plano_id where t.id = :t"), {"t": str(trazo_id)}
+            )
+        ).scalar_one_or_none()
+        return UUID(str(fila)) if fila else None
+
+    async def obras_con_el_elemento(self, elemento_id: UUID | None = None) -> list[UUID]:
+        """Las obras con trazos marcados como este elemento (o como cualquiera, sin `elemento_id`)."""
+        filas = (
+            await self._sesion.execute(
+                text(
+                    "select distinct p.obra_id from trazo t join plano p on p.id = t.plano_id "
+                    "where t.elemento_parametrico_id is not null "
+                    "and (cast(:e as uuid) is null or t.elemento_parametrico_id = cast(:e as uuid))"
+                ),
+                {"e": str(elemento_id) if elemento_id else None},
+            )
+        ).scalars().all()
+        return [UUID(str(f)) for f in filas]
+
     async def conceptos_de(self, elemento_id: UUID) -> list[dict[str, Any]]:
         filas = (
             await self._sesion.execute(

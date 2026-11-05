@@ -1554,6 +1554,7 @@ class EliminarTrazo:
         uow: UnidadDeTrabajo,
         eventos: PublicadorEventos | None = None,
         matrices: RepositorioMatrices | None = None,
+        tomas: Any | None = None,
     ) -> None:
         self._trazos = trazos
         self._enlaces = enlaces
@@ -1563,6 +1564,8 @@ class EliminarTrazo:
         self._uow = uow
         self._eventos = eventos
         self._matrices = matrices
+        # Borrar un elemento colocado cambia lo que las matrices toman de él (D-639).
+        self._tomas = tomas
 
     async def ejecutar(
         self, cmd: ComandoEliminarTrazo, *, detectada_en: datetime
@@ -1590,6 +1593,7 @@ class EliminarTrazo:
                 f"y eso exige {permitidos}; el rol {cmd.rol.value!r} no puede."
             )
 
+        obra_de_la_toma = await self._tomas.obra_si_es_elemento(cmd.trazo_id) if self._tomas is not None else None
         async with self._uow:
             await self._trazos.eliminar(cmd.trazo_id)
             recalculos: list[ResultadoDeRecalculo] = []
@@ -1616,6 +1620,8 @@ class EliminarTrazo:
                         proponer_desviacion=any(bool(f["vigente"]) for f in quedan),
                     )
                 )
+            if obra_de_la_toma is not None:
+                await self._tomas.de_la_obra(obra_de_la_toma)
             await self._uow.commit()
 
         resultado = tuple(recalculos)
@@ -1995,6 +2001,7 @@ class ConsultarMatrices:
                     "cantidad_catalogo": catalogo,
                     "precio_unitario": f["precio_unitario"],
                     "cantidad_medida": n.cantidad_medida,
+                    "cantidad_origen": f.get("cantidad_origen") or "trazos",
                     "diferencia": (
                         n.cantidad_medida - catalogo if n.cantidad_medida is not None else None
                     ),

@@ -1539,7 +1539,7 @@ class RepositorioMatricesSQL:
         self._sesion = sesion
 
     async def fijar_cantidad(
-        self, *, actividad_id: UUID, concepto_id: UUID, cantidad: Decimal | None
+        self, *, actividad_id: UUID, concepto_id: UUID, cantidad: Decimal | None, origen: str = "trazos"
     ) -> None:
         if cantidad is None:
             await self._sesion.execute(
@@ -1547,18 +1547,71 @@ class RepositorioMatricesSQL:
                 {"a": str(actividad_id), "c": str(concepto_id)},
             )
             return
+        con_origen = await _hay_columna(self._sesion, "actividad_matriz", "origen")
         await self._sesion.execute(
             text(
-                """
-                insert into actividad_matriz (org_id, obra_id, actividad_id, concepto_id, cantidad_medida)
-                select a.org_id, a.obra_id, a.id, cast(:concepto as uuid), :cantidad
+                f"""
+                insert into actividad_matriz (org_id, obra_id, actividad_id, concepto_id, cantidad_medida{", origen" if con_origen else ""})
+                select a.org_id, a.obra_id, a.id, cast(:concepto as uuid), :cantidad{", :origen" if con_origen else ""}
                   from actividad a where a.id = :actividad
                 on conflict (actividad_id, concepto_id) do update
-                   set cantidad_medida = excluded.cantidad_medida, actualizada_en = now()
+                   set cantidad_medida = excluded.cantidad_medida, actualizada_en = now(){", origen = excluded.origen" if con_origen else ""}
                 """
             ),
-            {"actividad": str(actividad_id), "concepto": str(concepto_id), "cantidad": cantidad},
+            {"actividad": str(actividad_id), "concepto": str(concepto_id), "cantidad": cantidad, **({"origen": origen} if con_origen else {})},
         )
+
+    async def aplicar_tomas(self, obra_id: UUID, tomas: dict[UUID, tuple[Decimal, str]]) -> list[UUID]:
+        """Escribe, en cada matriz de la obra que un elemento alimenta, la cantidad que toma de él (D-639).
+
+        `tomas`: concepto → (cantidad, unidad del concepto). Una matriz medida con trazos propios no se toca (lo medido
+        manda). Las que venían de un elemento y ya no lo tienen se borran. Devuelve las actividades cuya cantidad sale de
+        una de esas matrices (la que cuenta, D-636): hay que recalcularlas.
+        """
+        if not await _hay_columna(self._sesion, "actividad_matriz", "origen"):
+            return []
+        from obractrl.domain.cuantificacion.conversion import coincide_la_unidad
+
+        actividades = (
+            await self._sesion.execute(
+                text("select id from actividad where obra_id = :o and concepto_id is not null"), {"o": str(obra_id)}
+            )
+        ).scalars().all()
+        a_recalcular: list[UUID] = []
+        for actividad_id in actividades:
+            arbol = await self.arbol_de_actividad(UUID(str(actividad_id)))
+            if arbol is None:
+                continue
+            con_trazos = {
+                UUID(str(m))
+                for m in (
+                    await self._sesion.execute(
+                        text(
+                            "select distinct matriz_concepto_id from enlace_cuantificacion "
+                            "where actividad_id = :a and vigente and matriz_concepto_id is not null"
+                        ),
+                        {"a": str(actividad_id)},
+                    )
+                ).scalars().all()
+            }
+            conservadas: list[str] = []
+            for m in arbol["matrices"]:
+                cid = UUID(str(m["concepto_id"]))
+                toma = tomas.get(cid)
+                if toma is None or cid in con_trazos or not coincide_la_unidad(str(m["unidad"] or ""), toma[1]):
+                    continue
+                await self.fijar_cantidad(actividad_id=UUID(str(actividad_id)), concepto_id=cid, cantidad=toma[0], origen="elemento")
+                conservadas.append(str(cid))
+            await self._sesion.execute(
+                text(
+                    "delete from actividad_matriz where actividad_id = :a and origen = 'elemento' "
+                    "and not (concepto_id::text = any(cast(:k as text[])))"
+                ),
+                {"a": str(actividad_id), "k": conservadas},
+            )
+            if await self.la_que_cuenta(UUID(str(actividad_id))) is not None:
+                a_recalcular.append(UUID(str(actividad_id)))
+        return a_recalcular
 
     async def la_que_cuenta(self, actividad_id: UUID) -> dict[str, Any] | None:
         """La matriz que da la cantidad de la actividad (0118): `{concepto_id, cantidad}`; `None` si no hay o falta 0118."""
@@ -1619,11 +1672,12 @@ class RepositorioMatricesSQL:
         if act is None:
             return None
         matrices: list[dict[str, Any]] = []
+        origen_sql = "m.origen" if await _hay_columna(self._sesion, "actividad_matriz", "origen") else "'trazos'"
         if act["concepto_id"] is not None:
             filas = (
                 await self._sesion.execute(
                     text(
-                        """
+                        f"""
                         with recursive arbol as (
                             select e.concepto_hijo_id as concepto_id, e.concepto_id as padre_id,
                                    1 as nivel, e.cantidad::numeric as unitaria, e.cantidad::numeric as acumulada,
@@ -1647,7 +1701,7 @@ class RepositorioMatricesSQL:
                                coalesce((select k.precio_unitario from cpu k
                                           where k.concepto_id = ar.concepto_id and k.vigente
                                           order by k.version desc limit 1), 0) as precio_unitario,
-                               m.cantidad_medida
+                               m.cantidad_medida, {origen_sql} as cantidad_origen
                           from arbol ar
                           join concepto c on c.id = ar.concepto_id
                           left join unidad u on u.id = c.unidad_id

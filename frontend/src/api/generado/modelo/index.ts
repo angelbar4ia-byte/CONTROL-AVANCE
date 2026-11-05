@@ -759,6 +759,7 @@ export type * from "./matrizQueCuentaRespuesta";
 export type * from "./matrizQueCuentaRespuestaMatrizCuentaId";
 export type * from "./matrizRespuesta";
 export type * from "./matrizRespuestaCantidadMedida";
+export * from "./matrizRespuestaCantidadOrigen";
 export type * from "./matrizRespuestaDiferencia";
 export type * from "./matrizRespuestaFormula";
 export type * from "./matrizRespuestaFormulaAnyOf";
