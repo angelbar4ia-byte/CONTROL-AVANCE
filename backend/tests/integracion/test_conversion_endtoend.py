@@ -208,3 +208,48 @@ async def test_una_forma_y_un_punto_cuentan_por_piezas_area_o_volumen(escenario:
     assert ip["tipo"] == "punto" and [m["clave"] for m in ip["modos"]] == ["pza"]
     assert (await control.post(f"{ruta_p}/calcular", json={"modo": "pza"})).json()["valor"] == 1
     assert (await control.post(f"{ruta_p}/calcular", json={"modo": "area"})).status_code == 422
+
+
+async def test_la_conversion_se_elige_al_trazar_y_el_trazo_nace_con_su_cantidad(
+    escenario: Escenario, control: httpx.AsyncClient
+) -> None:
+    """D-638: «Muro · medir por» y la altura se eligen antes de trazar; el trazo nace con esa conversión y factor 1."""
+    plano = await _plano(control, escenario)
+    r = await control.post(
+        f"/api/v1/planos/{plano}/trazos",
+        json={
+            "version_plano": 1,
+            "fuente": "pdf",
+            "geometria_wkt": "LINESTRING(0 0, 10 0)",
+            "grosor_m": "0.15",
+            "alineacion": "centro",
+            "enlaces": [
+                {
+                    "medida": "longitud",
+                    "factor": "5.2",  # se ignora: manda la conversión
+                    "actividad_id": str(escenario.actividad_id),
+                    "conversion": {"modo": "area", "mide": "eje", "alt": 3},
+                }
+            ],
+        },
+    )
+    assert r.status_code == 201, r.text
+    # 10 m de eje × 3 m de altura = 30 m²: lo calcula la base, no el factor.
+    assert Decimal(str(r.json()["recalculos"][0]["cantidad_total"])) == Decimal(30)
+    enlace = await _enlace_vigente(control, plano, r.json()["trazo_id"])
+    info = (await control.get(f"/api/v1/enlaces/{enlace}/conversion")).json()
+    assert info["es_la_de_hoy"] is True and info["conversion"]["mide"] == "eje"
+
+    # Una conversión que el tipo de trazo no admite se rechaza.
+    malo = await control.post(
+        f"/api/v1/planos/{plano}/trazos",
+        json={
+            "version_plano": 1,
+            "fuente": "pdf",
+            "geometria_wkt": "LINESTRING(0 5, 10 5)",
+            "enlaces": [
+                {"medida": "longitud", "factor": "1", "actividad_id": str(escenario.actividad_id), "conversion": {"modo": "perim"}}
+            ],
+        },
+    )
+    assert malo.status_code == 422

@@ -6,7 +6,7 @@
  * Funciones puras, sin DOM ni React.
  */
 
-import type { TrazoPeticion } from '@/api/generado/modelo';
+import type { ConversionPeticion, TrazoPeticion } from '@/api/generado/modelo';
 import type { Alineacion, Forma } from './formas';
 import { aWkt, MEDIDAS_POR_HERRAMIENTA, type GeometriaBase, type MedidaDeTrazo, type Punto } from './geometria';
 import type { TipoDeMedicion } from './tipos';
@@ -17,6 +17,8 @@ export interface EnlaceDeTrazo {
   readonly matrizId?: string;
   readonly medida: MedidaDeTrazo;
   readonly factor: string;
+  /** Cómo cuenta el trazo para el concepto desde que se traza (D-638): con ella el factor es 1 y la base calcula. */
+  readonly conversion?: ConversionPeticion;
 }
 
 export interface DatosDelTrazo {
@@ -68,6 +70,7 @@ export function trazoPeticion(d: DatosDelTrazo): TrazoPeticion {
     enlaces: d.enlaces.map((e) => ({
       medida: e.medida,
       factor: e.factor,
+      ...(e.conversion ? { conversion: e.conversion } : {}),
       ...(e.prototipoNodoId
         ? { prototipo_nodo_id: e.prototipoNodoId }
         : { actividad_id: e.actividadId as string, ...(e.matrizId ? { matriz_concepto_id: e.matrizId } : {}) }),
@@ -123,4 +126,40 @@ export function factorDeLaMedida(
     return String(Number((ALTURA_POR_DEFECTO_M * CARAS_POR_DEFECTO).toFixed(6)));
   }
   return '1';
+}
+
+
+/** Lo que se elige antes de trazar un muro sobre un concepto en m² (el panel «Muro · medir por», D-638). */
+export interface OpcionesDeMuro {
+  readonly mide: 'eje' | 'cara1' | 'cara2';
+  readonly cara: 'int' | 'ext';
+  readonly lado: 'izq' | 'der';
+  /** La altura, como se teclea. */
+  readonly alt: string;
+}
+
+export const OPCIONES_DE_MURO_INICIALES: OpcionesDeMuro = {
+  mide: 'cara2',
+  cara: 'int',
+  lado: 'der',
+  alt: String(ALTURA_POR_DEFECTO_M),
+};
+
+/** La conversión con que nace un muro (o una línea) sobre un concepto en m²: su superficie por caras × altura. */
+export function conversionDeMuro(o: OpcionesDeMuro): ConversionPeticion {
+  const alt = Number(String(o.alt).replace(',', '.'));
+  return {
+    modo: 'area',
+    mide: o.mide,
+    cara: o.cara,
+    lado: o.lado,
+    alt: Number.isFinite(alt) && alt > 0 ? alt : ALTURA_POR_DEFECTO_M,
+  } as ConversionPeticion;
+}
+
+/** Cómo se dijo que se midió, para la barra: «largo del eje × 2.6 m», «2 caras × 2.6 m». */
+export function textoDeMuro(o: OpcionesDeMuro): string {
+  const alt = conversionDeMuro(o).alt;
+  const base = o.mide === 'eje' ? 'largo del eje' : o.mide === 'cara1' ? `1 cara (${o.cara === 'ext' ? 'exterior' : 'interior'})` : '2 caras';
+  return `${base} × ${alt} m de altura`;
 }

@@ -71,11 +71,17 @@ test.describe('Cuantificador · trazo directo', () => {
     await expect(page.getByRole('dialog', { name: /Guardar/ })).toBeHidden();
     await expect(page.getByRole('status')).toContainText('Línea medida como área');
     await expect.poll(cantidad).toBeGreaterThan(antesDeLinea);
-    const trazos = await llamarApi<{ features: { geometry: { type: string }; properties: { enlaces: { medida: string; factor: string }[] } }[] }>(
+    const trazos = await llamarApi<{ features: { geometry: { type: string }; properties: { enlaces: { medida: string; factor: string; enlace_id: string }[] } }[] }>(
       request, 'control', 'GET', `/planos/${plano.id}/trazos`,
     );
     const linea = trazos.features.find((f) => f.geometry.type === 'LineString')!;
+    // Nace con su conversión (D-638): el panel «Muro · medir por» trae 2 caras × 2.6 m; el factor es 1 y la base calcula.
     expect(linea.properties.enlaces[0]).toMatchObject({ medida: 'longitud' });
-    expect(Number(linea.properties.enlaces[0]!.factor)).toBeCloseTo(5.2, 6);
+    expect(Number(linea.properties.enlaces[0]!.factor)).toBeCloseTo(1, 6);
+    const conv = await llamarApi<{ es_la_de_hoy: boolean; conversion: { mide: string; alt: number } }>(
+      request, 'control', 'GET', `/enlaces/${(linea.properties.enlaces[0] as unknown as { enlace_id: string }).enlace_id}/conversion`,
+    );
+    expect(conv.es_la_de_hoy).toBe(true);
+    expect(conv.conversion).toMatchObject({ mide: 'cara2', alt: 2.6 });
   });
 });

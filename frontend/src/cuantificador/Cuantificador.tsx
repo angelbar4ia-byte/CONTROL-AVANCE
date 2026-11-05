@@ -118,7 +118,16 @@ import { girar, rotacionValida, type VistaDelPlano } from './vista';
 import { AltaDeConcepto } from './AltaDeConcepto';
 import { AltaPlano } from './AltaPlano';
 import { AltaTrazo, type NodoDePrototipo } from './AltaTrazo';
-import { ALTURA_POR_DEFECTO_M, CARAS_POR_DEFECTO, factorDeLaMedida, medidaDirecta, trazoPeticion } from './trazoPeticion';
+import {
+  conversionDeMuro,
+  factorDeLaMedida,
+  medidaDirecta,
+  CARAS_POR_DEFECTO,
+  OPCIONES_DE_MURO_INICIALES,
+  textoDeMuro,
+  trazoPeticion,
+  type OpcionesDeMuro,
+} from './trazoPeticion';
 import { motivoDeIncompatibilidad } from './mediciones';
 import { CalibrarEscala } from './CalibrarEscala';
 import { useAjuste, useAnchoAjustable } from '@/lib/useAjuste';
@@ -411,6 +420,7 @@ export function EspacioDeTrazo({
   /** Pendiente en % de la línea que se traza (un tramo inclinado); `null` = horizontal. */
   const [pendientePct, setPendientePct] = useState<number | null>(null);
   const [alineacion, setAlineacion] = useState<Alineacion>('centro');
+  const [opcionesMuro, setOpcionesMuro] = useState<OpcionesDeMuro>(OPCIONES_DE_MURO_INICIALES);
   const [formaPunto, setFormaPunto] = useState<Forma | null>(null);
   /** La forma con la que se está guardando el trazo (solo cuando nació de un punto con forma). */
   const [formaEstampada, setFormaEstampada] = useState<Forma | null>(null);
@@ -1584,6 +1594,7 @@ export function EspacioDeTrazo({
     };
     let data: TrazoPeticion | null = null;
     let factor = '1';
+    let conversionDeLaLinea: ReturnType<typeof conversionDeMuro> | null = null;
     if (medicionActiva) {
       if (motivoDeIncompatibilidad(medicionActiva.tipo, tipo, conForma !== null) === null) {
         data = trazoPeticion({ ...base, medicionId: medicionActiva.id, enlaces: [] });
@@ -1592,9 +1603,22 @@ export function EspacioDeTrazo({
       const medida = medidaDirecta(tipoDelConcepto, tipo, conGrosor, conForma !== null);
       if (medida) {
         factor = factorDeLaMedida(tipoDelConcepto, tipo, conGrosor, medida);
+        // Una línea sobre un concepto en m² nace con la conversión elegida en el panel (Eje / 1 cara / 2 caras × altura).
+        if (tipoDelConcepto === 'area' && tipo === 'linea' && medida === 'longitud') {
+          conversionDeLaLinea = conversionDeMuro(opcionesMuro);
+          factor = '1';
+        }
         data = trazoPeticion({
           ...base,
-          enlaces: [{ actividadId: conceptoEnFoco, ...(matrizActiva ? { matrizId: matrizActiva.id } : {}), medida, factor }],
+          enlaces: [
+            {
+              actividadId: conceptoEnFoco,
+              ...(matrizActiva ? { matrizId: matrizActiva.id } : {}),
+              medida,
+              factor,
+              ...(conversionDeLaLinea ? { conversion: conversionDeLaLinea } : {}),
+            },
+          ],
         });
       }
     }
@@ -1604,11 +1628,11 @@ export function EspacioDeTrazo({
     registrarTrazo.mutateAsync({ planoId, data: cuerpo }).then(
       (r) => {
         alGuardar(r, { planoId, data: cuerpo });
-        if (factor !== '1') {
+        if (conversionDeLaLinea) {
           // Una línea sobre un concepto en m²: se dice cómo se convirtió el largo en área, y que se puede cambiar.
           setAviso(
-            `Línea medida como área: largo × ${ALTURA_POR_DEFECTO_M} m de altura × ${CARAS_POR_DEFECTO} caras. ` +
-              `Cantidad medida del nodo: ${fmtNum(r.recalculos[0]?.cantidad_total)}. El factor se cambia en el detalle del trazo.`,
+            `Línea medida como área: ${textoDeMuro(opcionesMuro)}. ` +
+              `Cantidad medida del nodo: ${fmtNum(r.recalculos[0]?.cantidad_total)}. Se cambia en el detalle del trazo.`,
           );
         }
       },
@@ -2953,6 +2977,8 @@ export function EspacioDeTrazo({
                     forma={formaPunto}
                     onForma={setFormaPunto}
                     contornoElegido={contornoElegido}
+                    muro={herramienta === 'punto' || tipoDelConcepto !== 'area' || medicionActiva ? null : opcionesMuro}
+                    onMuro={(cambio) => setOpcionesMuro((o) => ({ ...o, ...cambio }))}
                   />
                 )}
                 {herramienta === 'contorno' && <OpcionesDeContorno modo={modoContorno} onModo={setModoContorno} />}

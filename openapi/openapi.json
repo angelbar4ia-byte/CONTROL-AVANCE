@@ -28520,6 +28520,17 @@
             ],
             "title": "Matriz Concepto Id",
             "description": "Si lo que se mide es una matriz interna de la actividad (nervaduras, trabes…) y no la actividad entera (D-583). Solo con `actividad_id`."
+          },
+          "conversion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConversionPeticion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cómo cuenta el trazo para el concepto desde que se traza (D-633, D-638): con ella la medida y el factor se ignoran —la base calcula la cantidad con el factor 1—. Solo con `actividad_id`."
           }
         },
         "type": "object",

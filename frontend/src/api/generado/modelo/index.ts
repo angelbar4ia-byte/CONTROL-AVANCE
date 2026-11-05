@@ -655,6 +655,7 @@ export type * from "./insumosProgramadosApiV1InsumosProgramadosGetParams";
 export type * from "./insumosProgramadosRespuesta";
 export type * from "./intencionEnlacePeticion";
 export type * from "./intencionEnlacePeticionActividadId";
+export type * from "./intencionEnlacePeticionConversion";
 export type * from "./intencionEnlacePeticionFactor";
 export type * from "./intencionEnlacePeticionMatrizConceptoId";
 export type * from "./intencionEnlacePeticionPrototipoNodoId";

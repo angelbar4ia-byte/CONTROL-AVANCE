@@ -155,6 +155,13 @@ class IntencionEnlacePeticion(BaseModel):
             "actividad entera (D-583). Solo con `actividad_id`."
         ),
     )
+    conversion: ConversionPeticion | None = Field(
+        default=None,
+        description=(
+            "Cómo cuenta el trazo para el concepto desde que se traza (D-633, D-638): con ella la medida y el "
+            "factor se ignoran —la base calcula la cantidad con el factor 1—. Solo con `actividad_id`."
+        ),
+    )
 
     @model_validator(mode="after")
     def _exactamente_un_nodo(self) -> IntencionEnlacePeticion:
@@ -437,6 +444,7 @@ async def registrar_trazo(
                     actividad_id=e.actividad_id,
                     prototipo_nodo_id=e.prototipo_nodo_id,
                     matriz_concepto_id=e.matriz_concepto_id,
+                    conversion=_conv(e.conversion) if e.conversion is not None else None,
                 )
                 for e in peticion.enlaces
             ),

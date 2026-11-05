@@ -70,3 +70,25 @@ describe('Cuerpo del trazo', () => {
     expect(factorDeLaMedida('conteo', 'punto', false, 'conteo')).toBe('1');
   });
 });
+
+describe('Muro · medir por (D-638)', () => {
+  it('la conversión de un muro sobre m² sale de lo elegido antes de trazar', async () => {
+    const { conversionDeMuro, OPCIONES_DE_MURO_INICIALES, textoDeMuro } = await import('@/cuantificador/trazoPeticion');
+    expect(conversionDeMuro(OPCIONES_DE_MURO_INICIALES)).toMatchObject({ modo: 'area', mide: 'cara2', alt: 2.6 });
+    const eje = { ...OPCIONES_DE_MURO_INICIALES, mide: 'eje' as const, alt: '3,2' };
+    expect(conversionDeMuro(eje)).toMatchObject({ mide: 'eje', alt: 3.2 });
+    expect(textoDeMuro(eje)).toBe('largo del eje × 3.2 m de altura');
+    // Una altura que no vale cae en la de defecto.
+    expect(conversionDeMuro({ ...OPCIONES_DE_MURO_INICIALES, alt: 'x' })).toMatchObject({ alt: 2.6 });
+  });
+
+  it('el enlace lleva la conversión y el servidor ignora el factor', () => {
+    const cuerpo = trazoPeticion({
+      versionPlano: 1,
+      herramienta: 'linea',
+      puntos: [[0, 0], [10, 0]],
+      enlaces: [{ actividadId: 'a', medida: 'longitud', factor: '1', conversion: { modo: 'area', mide: 'eje', alt: 3 } as never }],
+    });
+    expect(cuerpo.enlaces?.[0]).toMatchObject({ medida: 'longitud', factor: '1', conversion: { modo: 'area', mide: 'eje', alt: 3 } });
+  });
+});

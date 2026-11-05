@@ -197,6 +197,9 @@ class IntencionEnlace:
     matriz_concepto_id: UUID | None = None
     """Si se mide una matriz interna de la actividad (nervaduras, trabes…) y no la actividad
     entera (D-583). Solo con `actividad_id`."""
+    conversion: dict[str, Any] | None = None
+    """Cómo cuenta el trazo para el concepto desde que se traza (D-633, D-638): con ella la medida es la natural del
+    tipo de trazo y el factor 1; la cantidad la calcula la base. Solo con `actividad_id`."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -715,13 +718,22 @@ class RegistrarTrazoConEnlaces:
                         str(intencion.matriz_concepto_id) if intencion.matriz_concepto_id else None
                     ),
                 )
+                conversion = None
+                medida_guardada, factor_guardado = validado.medida.value, validado.factor
+                if intencion.conversion is not None:
+                    if intencion.actividad_id is None:
+                        raise ErrorDeCuantificacion("La conversión se fija sobre el enlace a un concepto.")
+                    tipo = str((await self._enlaces.calcular_conversion(trazo_id, {"modo": "largo"}))["tipo"])
+                    conversion = normalizar_conversion(tipo, intencion.conversion)
+                    medida_guardada, factor_guardado = medida_natural(tipo), Decimal(1)
                 enlace_id = await self._enlaces.crear(
                     trazo_id=trazo_id,
                     actividad_id=intencion.actividad_id,
                     prototipo_nodo_id=intencion.prototipo_nodo_id,
                     matriz_concepto_id=intencion.matriz_concepto_id,
-                    medida=validado.medida.value,
-                    factor=validado.factor,
+                    medida=medida_guardada,
+                    factor=factor_guardado,
+                    **({"conversion": conversion} if conversion is not None else {}),
                 )
                 enlace_ids.append(enlace_id)
                 nodos_tocados[
