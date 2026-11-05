@@ -70,6 +70,7 @@ class ArbolDeObra:
             "prototipo_clave": obra["prototipo_clave"],
             "prototipo_nombre": obra["prototipo_nombre"],
             "forma_de_arranque": await self._arbol.forma_de_arranque(obra_id),
+            "partidas": await self._arbol.partidas_de_la_obra(obra_id),
             "borrador_id": borrador["id"] if borrador else None,
             "versiones": await self._arbol.versiones(pid),
             "nodos": await self._arbol.nodos(pid),

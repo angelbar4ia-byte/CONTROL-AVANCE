@@ -30,7 +30,6 @@ test.describe('Cuantificador · matrices de un concepto', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave: `MCO-${sufijo}`,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const madre = await llamarApi<{ id: string }>(request, 'control', 'POST', '/conceptos', {
       tipo: 'concepto',
       clave: `PAD-${sufijo}`,

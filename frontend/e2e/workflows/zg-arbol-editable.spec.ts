@@ -26,7 +26,6 @@ test.describe('Cuantificador · árbol editable', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave: `ARB-${sufijo}`,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const unidades = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/unidades');
     const concepto = await llamarApi<{ id: string }>(request, 'control', 'POST', '/conceptos', {
       tipo: 'concepto',

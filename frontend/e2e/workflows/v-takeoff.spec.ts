@@ -37,7 +37,6 @@ async function obraNueva(request: Parameters<typeof llamarApi>[0], prefijo: stri
     residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
     clave,
   });
-  await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
   const actividades = await llamarApi<{ id: string }[]>(request, 'control', 'GET', `/obras/${obra.id}/actividades`);
   return { obra, actividades };
 }

@@ -29,7 +29,6 @@ test.describe('Cuantificador · pestañas Trazos y Elementos', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const actividades = await llamarApi<{ id: string; concepto_clave: string }[]>(
       request,
       'control',
@@ -100,7 +99,6 @@ test.describe('Cuantificador · pestañas Trazos y Elementos', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const actividades = await llamarApi<{ id: string; concepto_clave: string }[]>(
       request,
       'control',

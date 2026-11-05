@@ -35,7 +35,6 @@ test.describe('Cuantificador · conteo automático', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave: `CAU-${sufijo}`,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const concepto = await llamarApi<{ id: string }>(request, 'control', 'POST', '/conceptos', {
       tipo: 'concepto',
       clave: `SAL-${sufijo}`,

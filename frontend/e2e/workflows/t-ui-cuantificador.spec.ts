@@ -41,7 +41,6 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const actividades = await llamarApi<{ id: string; concepto_clave: string }[]>(
       request,
       'control',
@@ -150,7 +149,6 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const actividades = await llamarApi<{ id: string; concepto_clave: string }[]>(
       request,
       'control',
@@ -276,7 +274,6 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const plano = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
       nombre: 'Planta UI 3',
       archivo_url: 'planos/ui3.dwg',
@@ -371,7 +368,6 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const actividades = await llamarApi<{ id: string }[]>(request, 'control', 'GET', `/obras/${obra.id}/actividades`);
     const plano = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
       nombre: 'Planta UI 4',
@@ -448,7 +444,6 @@ test.describe('Cuantificador · pantalla de trabajo', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const planoA = await llamarApi<{ id: string }>(request, 'control', 'POST', `/obras/${obra.id}/planos`, {
       nombre: 'Planta baja',
       archivo_url: 'planos/baja.dwg',

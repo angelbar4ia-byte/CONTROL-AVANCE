@@ -57,6 +57,7 @@ class ArbolDeLaObraRespuesta(BaseModel):
     prototipo_id: UUID
     prototipo_clave: str
     prototipo_nombre: str
+    partidas: int = Field(default=0, description="Partidas (actividades) que ya tiene la obra.")
     forma_de_arranque: Literal["prototipo", "catalogo_base", "ingenieria", "desde_cero"] | None = Field(
         default=None, description="Por dónde se creó la obra; solo informativa."
     )

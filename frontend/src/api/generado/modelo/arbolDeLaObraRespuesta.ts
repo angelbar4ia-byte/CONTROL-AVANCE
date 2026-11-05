@@ -16,6 +16,8 @@ export interface ArbolDeLaObraRespuesta {
   prototipo_id: string;
   prototipo_clave: string;
   prototipo_nombre: string;
+  /** Partidas (actividades) que ya tiene la obra. */
+  partidas?: number;
   /** Por dónde se creó la obra; solo informativa. */
   forma_de_arranque?: ArbolDeLaObraRespuestaFormaDeArranque;
   borrador_id: ArbolDeLaObraRespuestaBorradorId;

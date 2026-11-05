@@ -17942,6 +17942,12 @@
             "type": "string",
             "title": "Prototipo Nombre"
           },
+          "partidas": {
+            "type": "integer",
+            "title": "Partidas",
+            "description": "Partidas (actividades) que ya tiene la obra.",
+            "default": 0
+          },
           "forma_de_arranque": {
             "anyOf": [
               {

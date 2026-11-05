@@ -51,7 +51,6 @@ test.describe('Reprogramar lo asignado · la cadena con salto', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const excavacion = await actividadDe(request, 'residente', clave, 'E2E-EXC');
 
     // La actividad necesita un frente para que el trato de la planeación la alcance.

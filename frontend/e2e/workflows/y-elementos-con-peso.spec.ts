@@ -30,7 +30,6 @@ test.describe('Cuantificador · elementos con peso', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
     const conceptos = await llamarApi<{ id: string; clave: string }[]>(request, 'control', 'GET', '/conceptos');
     const acero = await llamarApi<{ id: string }>(request, 'residente', 'POST', '/actividades', {
       obra_id: obra.id,

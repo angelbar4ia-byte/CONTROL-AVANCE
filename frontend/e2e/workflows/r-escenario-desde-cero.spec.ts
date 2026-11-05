@@ -37,9 +37,10 @@ test.describe('Desde cero y rediseño · el paramétrico primero', () => {
     await entrarComo(control, 'control');
 
     // --- 1. Desde cero, un ensamble por tipo de espacio ------------------------------------------------
-    await control.goto('/cuantificador');
+    await control.goto('/obras');
     await control.getByRole('button', { name: 'Nueva obra' }).click();
-    const alta = control.getByRole('dialog', { name: 'Nueva obra desde el cuantificador' });
+    const alta = control.getByRole('dialog', { name: 'Nueva obra' });
+    await alta.getByLabel('Parte de').selectOption('nueva');
     await alta.getByLabel('Cluster').selectOption({ label: 'PROY-E2E · CLU-E2E — Cluster E2E' });
     await alta.getByLabel('Clave').fill(clave);
     await alta.getByLabel('Cómo arranca').selectOption('cero');
@@ -105,7 +106,6 @@ test.describe('Desde cero y rediseño · el paramétrico primero', () => {
       residente_id: usuarios.find((u) => u.nombre === 'Rosa Residente')!.id,
       clave,
     });
-    await llamarApi(request, 'control', 'POST', `/obras/${obra.id}/generar`, { modo_pago: 'destajo' });
 
     const control = await (await browser.newContext()).newPage();
     await entrarComo(control, 'control');

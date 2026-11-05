@@ -12,7 +12,7 @@
  * componen la estructura con cantidades estimadas; después se mide por partes.
  */
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 
 import type { ErrorApi } from '@/api/cliente';
 import { Rol } from '@/api/generado/modelo';
@@ -40,9 +40,11 @@ interface Props {
   readonly onCerrar: () => void;
   /** La obra ya está creada y generada: se abre en el cuantificador. */
   readonly onCreada: (obraId: string) => void;
+  /** El selector «Parte de» del Creador de obra. */
+  readonly origen?: ReactNode;
 }
 
-export function NuevaObra({ onCerrar, onCreada }: Props) {
+export function NuevaObra({ onCerrar, onCreada, origen }: Props) {
   const [clusterId, setClusterId] = useState('');
   const [clave, setClave] = useState('');
   const [plantas, setPlantas] = useState<1 | 2>(1);
@@ -146,9 +148,10 @@ export function NuevaObra({ onCerrar, onCreada }: Props) {
   }
 
   return (
-    <Modal titulo="Nueva obra desde el cuantificador" onCerrar={onCerrar}>
+    <Modal titulo="Nueva obra" onCerrar={onCerrar}>
       <form onSubmit={alEnviar}>
         <div className="sheet__body col gap-12">
+          {origen}
           <p className="text-mute text-sm">
             Una obra cuyo proyecto es diferente de todos los prototipos. Se forma su catálogo con la estructura y
             los conceptos de un prototipo, <strong>sin cantidades</strong>: llegan midiendo, y lo que mides es el

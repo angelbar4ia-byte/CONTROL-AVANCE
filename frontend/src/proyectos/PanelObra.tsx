@@ -156,6 +156,7 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
       onSuccess: (respuesta) => {
         setError(null);
         setGenerada(respuesta);
+        void arbol.refetch();
         onCambiada();
       },
       onError: (err) => setError({ mensaje: err.message, campo: err.campo }),
@@ -176,6 +177,7 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
       onSuccess: () => {
         setError(null);
         setGenerada(null);
+        void arbol.refetch();
         onCambiada();
       },
       onError: (err) => setError({ mensaje: err.message, campo: err.campo }),
@@ -257,6 +259,9 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
             }
             mono={obra.prototipo_id !== null && !prototipo}
           />
+          {arbol.data && (
+            <Dato etiqueta="Partidas" valor={String(arbol.data.partidas)} />
+          )}
           {arbol.data?.forma_de_arranque && (
             <Dato etiqueta="Arrancó como" valor={ETIQUETA_FORMA[arbol.data.forma_de_arranque] ?? arbol.data.forma_de_arranque} />
           )}
@@ -402,7 +407,7 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
 
         {/* La generación es del creador de obra (§11.2): a los demás roles
             ni siquiera se les muestra la tarjeta. */}
-        {impedimento !== 'rol' && (
+        {impedimento !== 'rol' && arbol.data !== undefined && (arbol.data.partidas === 0 || generada !== null) && (
           <div className="card">
             <div className="card__header">
               <div>

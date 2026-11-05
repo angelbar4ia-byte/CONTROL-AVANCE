@@ -369,6 +369,12 @@ class RepositorioArbolDeObraSQL:
             )
         )
 
+    async def partidas_de_la_obra(self, obra_id: UUID) -> int:
+        """Cuántas partidas (actividades) tiene la obra: si ya se generaron, «Generar actividades» sobra."""
+        return int(
+            (await self._sesion.execute(text("select count(*) from actividad where obra_id = :o"), {"o": str(obra_id)})).scalar_one()
+        )
+
     async def trabajo_real_de_la_obra(self, obra_id: UUID) -> str | None:
         """Lo que ya no es diseño: avance ejecutado, registros de avance o estimaciones; `None` si no hay nada de eso."""
         fila = (
