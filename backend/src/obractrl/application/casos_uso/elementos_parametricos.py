@@ -14,10 +14,12 @@ from obractrl.application.casos_uso.cuantificar import MedicionNoEncontrada
 from obractrl.application.puertos.repositorios import UnidadDeTrabajo
 from obractrl.domain.cuantificacion.elementos_parametricos import (
     GEOMETRIA_DEL_TIPO,
+    MATERIALES_DE_UN_ELEMENTO,
     ErrorDeElementoParametrico,
     lados_por_defecto,
     normalizar_parametros,
     receta,
+    toma_por_unidad,
 )
 
 __all__ = ["ComandoCrearElementoParametrico", "ElementoParametricoNoEncontrado", "GestionarElementosParametricos"]
@@ -120,6 +122,85 @@ class GestionarElementosParametricos:
         async with self._uow:
             await self._elementos.poner_en_trazo(trazo_id, elemento_id, lados)
             await self._uow.commit()
+
+    async def _elemento(self, elemento_id: UUID) -> dict[str, Any]:
+        e = await self._elementos.obtener(elemento_id)
+        if e is None:
+            raise ElementoParametricoNoEncontrado(f"El elemento {elemento_id} no existe o está fuera de tu alcance.")
+        return e
+
+    @staticmethod
+    def _toma_de(fila: dict[str, Any], elemento: dict[str, Any]) -> dict[str, Any]:
+        toma = {m: bool(v) for m, v in dict(fila["toma"] or {}).items() if m in MATERIALES_DE_UN_ELEMENTO}
+        return {
+            "concepto_id": fila["concepto_id"],
+            "clave": fila["clave"],
+            "descripcion": fila["descripcion"],
+            "toma": toma,
+            **toma_por_unidad(elemento["tipo"], dict(elemento["parametros"] or {}), fila["unidad"], toma),
+        }
+
+    async def conceptos(self, elemento_id: UUID) -> list[dict[str, Any]]:
+        """Los conceptos que toman una parte de la receta de este elemento, con lo que toman por unidad del concepto."""
+        elemento = await self._elemento(elemento_id)
+        return [self._toma_de(f, elemento) for f in await self._elementos.conceptos_de(elemento_id)]
+
+    async def fijar_concepto(
+        self, elemento_id: UUID, concepto_id: UUID, *, unidad: str, toma: dict[str, bool], autor_id: UUID
+    ) -> None:
+        elemento = await self._elemento(elemento_id)
+        if not await self._elementos.concepto_existe(concepto_id):
+            raise ElementoParametricoNoEncontrado(f"El concepto {concepto_id} no existe o está fuera de tu alcance.")
+        limpia = {m: True for m in MATERIALES_DE_UN_ELEMENTO if toma.get(m)}
+        if not limpia:
+            raise ErrorDeElementoParametrico("El concepto debe tomar al menos un material del elemento.")
+        # Valida la unidad y la cimbra contra la receta antes de guardar.
+        toma_por_unidad(elemento["tipo"], dict(elemento["parametros"] or {}), unidad, limpia)
+        async with self._uow:
+            await self._elementos.fijar_concepto(
+                elemento_id=elemento_id, concepto_id=concepto_id, unidad=unidad, toma=limpia, autor_id=autor_id
+            )
+            await self._uow.commit()
+
+    async def quitar_concepto(self, elemento_id: UUID, concepto_id: UUID) -> None:
+        await self._elemento(elemento_id)
+        async with self._uow:
+            await self._elementos.quitar_concepto(elemento_id=elemento_id, concepto_id=concepto_id)
+            await self._uow.commit()
+
+    async def conceptos_del_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
+        """Lo que cada concepto toma, en total, de los elementos colocados en el plano: su cantidad en la unidad del
+        concepto y los materiales que toma (D-630)."""
+        elementos = {e["id"]: e for e in await self._elementos.listar()}
+        totales = {t["elemento_id"]: t for t in (await self.totales_del_plano(plano_id))["totales"]}
+        filas: list[dict[str, Any]] = []
+        for f in await self._elementos.de_todos_los_elementos():
+            t = totales.get(f["elemento_id"])
+            e = elementos.get(f["elemento_id"])
+            if t is None or e is None:
+                continue
+            toma = {m: bool(v) for m, v in dict(f["toma"] or {}).items() if m in MATERIALES_DE_UN_ELEMENTO}
+            u = toma_por_unidad(e["tipo"], dict(e["parametros"] or {}), f["unidad"], toma)
+            en_ml = e["tipo"] == "castillo" and f["unidad"] == "ml"
+            cantidad = t["colocados"] * u["cantidad_por_muestra"] if en_ml else t["cantidad"]
+            totales_del_plano = {
+                "concreto": ("concreto_m3", "m³"), "acero": ("acero_kg", "kg"), "estribos": ("estribos_kg", "kg"),
+                "alambre": ("alambre_kg", "kg"), "cimbra": ("cimbra_m2", "m²"),
+            }
+            filas.append(
+                {
+                    "elemento_id": f["elemento_id"],
+                    "concepto_id": f["concepto_id"],
+                    "clave": f["clave"],
+                    "descripcion": f["descripcion"],
+                    "unidad": f["unidad"],
+                    "cantidad": cantidad,
+                    "materiales": {
+                        m: {"cantidad": t[campo], "unidad": un} for m, (campo, un) in totales_del_plano.items() if toma.get(m)
+                    },
+                }
+            )
+        return filas
 
     async def totales_del_plano(self, plano_id: UUID) -> dict[str, Any]:
         """Lo que llevan en total los elementos colocados en un plano: la receta de una muestra × lo que aporta cada trazo."""

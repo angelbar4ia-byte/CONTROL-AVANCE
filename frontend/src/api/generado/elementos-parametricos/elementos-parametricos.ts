@@ -26,6 +26,9 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ConceptoDelElementoRespuesta,
+  ConceptoDelPlanoRespuesta,
+  ConceptoTomaPeticion,
   ElementoEnTrazoPeticion,
   ElementoParametricoCambio,
   ElementoParametricoCreado,
@@ -1868,6 +1871,1274 @@ export function useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet<
 } {
   const queryOptions =
     getElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGetQueryOptions(
+      planoId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Los conceptos que toman una parte de la receta del elemento
+ */
+export const conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet =
+  (
+    elementoId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ConceptoDelElementoRespuesta[]>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/conceptos`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetInfiniteQueryKey =
+  (elementoId?: string) => {
+    return [
+      "infinite",
+      `/api/v1/elementos-parametricos/${elementoId}/conceptos`,
+    ] as const;
+  };
+
+export const getConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetQueryKey =
+  (elementoId?: string) => {
+    return [`/api/v1/elementos-parametricos/${elementoId}/conceptos`] as const;
+  };
+
+export const getConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+        >
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetInfiniteQueryKey(
+        elementoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+        >
+      >
+    > = ({ signal }) =>
+      conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet(
+        elementoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!elementoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+      >
+    >
+  >;
+export type ConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetInfiniteQueryError =
+  void | HTTPValidationError;
+
+export function useConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los conceptos que toman una parte de la receta del elemento
+ */
+
+export function useConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+      >
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetInfiniteQueryOptions(
+      elementoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+      >
+    >,
+    TError = void | HTTPValidationError,
+  >(
+    elementoId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetQueryKey(
+        elementoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+        >
+      >
+    > = ({ signal }) =>
+      conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet(
+        elementoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!elementoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+      >
+    >
+  >;
+export type ConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetQueryError =
+  void | HTTPValidationError;
+
+export function useConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Los conceptos que toman una parte de la receta del elemento
+ */
+
+export function useConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+    >
+  >,
+  TError = void | HTTPValidationError,
+>(
+  elementoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getConceptosDelElementoApiV1ElementosParametricosElementoIdConceptosGetQueryOptions(
+      elementoId,
+      options,
+    );
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Un concepto toma una parte de la receta del elemento
+ */
+export const tomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPut =
+  (
+    elementoId: string,
+    conceptoId: string,
+    conceptoTomaPeticion: ConceptoTomaPeticion,
+    options?: SecondParameter<typeof peticion>,
+  ) => {
+    return peticion<void>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/conceptos/${conceptoId}`,
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        data: conceptoTomaPeticion,
+      },
+      options,
+    );
+  };
+
+export const getTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPutMutationOptions =
+  <TError = void, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof tomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPut
+        >
+      >,
+      TError,
+      { elementoId: string; conceptoId: string; data: ConceptoTomaPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof tomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPut
+      >
+    >,
+    TError,
+    { elementoId: string; conceptoId: string; data: ConceptoTomaPeticion },
+    TContext
+  > => {
+    const mutationKey = [
+      "tomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPut",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof tomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPut
+        >
+      >,
+      { elementoId: string; conceptoId: string; data: ConceptoTomaPeticion }
+    > = (props) => {
+      const { elementoId, conceptoId, data } = props ?? {};
+
+      return tomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPut(
+        elementoId,
+        conceptoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type TomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPutMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof tomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPut
+      >
+    >
+  >;
+export type TomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPutMutationBody =
+  ConceptoTomaPeticion;
+export type TomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPutMutationError =
+  void;
+
+/**
+ * @summary Un concepto toma una parte de la receta del elemento
+ */
+export const useTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPut =
+  <TError = void, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof tomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPut
+          >
+        >,
+        TError,
+        { elementoId: string; conceptoId: string; data: ConceptoTomaPeticion },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof tomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPut
+      >
+    >,
+    TError,
+    { elementoId: string; conceptoId: string; data: ConceptoTomaPeticion },
+    TContext
+  > => {
+    const mutationOptions =
+      getTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdPutMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * @summary El concepto deja de tomar del elemento
+ */
+export const dejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDelete =
+  (
+    elementoId: string,
+    conceptoId: string,
+    options?: SecondParameter<typeof peticion>,
+  ) => {
+    return peticion<void>(
+      {
+        url: `/api/v1/elementos-parametricos/${elementoId}/conceptos/${conceptoId}`,
+        method: "DELETE",
+      },
+      options,
+    );
+  };
+
+export const getDejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDeleteMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<
+          typeof dejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDelete
+        >
+      >,
+      TError,
+      { elementoId: string; conceptoId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<
+      ReturnType<
+        typeof dejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDelete
+      >
+    >,
+    TError,
+    { elementoId: string; conceptoId: string },
+    TContext
+  > => {
+    const mutationKey = [
+      "dejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDelete",
+    ];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<
+          typeof dejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDelete
+        >
+      >,
+      { elementoId: string; conceptoId: string }
+    > = (props) => {
+      const { elementoId, conceptoId } = props ?? {};
+
+      return dejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDelete(
+        elementoId,
+        conceptoId,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type DejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDeleteMutationResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof dejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDelete
+      >
+    >
+  >;
+
+export type DejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDeleteMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary El concepto deja de tomar del elemento
+ */
+export const useDejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDelete =
+  <TError = void | HTTPValidationError, TContext = unknown>(
+    options?: {
+      mutation?: UseMutationOptions<
+        Awaited<
+          ReturnType<
+            typeof dejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDelete
+          >
+        >,
+        TError,
+        { elementoId: string; conceptoId: string },
+        TContext
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+    queryClient?: QueryClient,
+  ): UseMutationResult<
+    Awaited<
+      ReturnType<
+        typeof dejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDelete
+      >
+    >,
+    TError,
+    { elementoId: string; conceptoId: string },
+    TContext
+  > => {
+    const mutationOptions =
+      getDejarDeTomarDelElementoApiV1ElementosParametricosElementoIdConceptosConceptoIdDeleteMutationOptions(
+        options,
+      );
+
+    return useMutation(mutationOptions, queryClient);
+  };
+/**
+ * La cantidad del concepto en su unidad y los materiales que toma, según los elementos que lleva el plano.
+ * @summary Lo que cada concepto toma, en total, de los elementos colocados en un plano
+ */
+export const conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet =
+  (
+    planoId: string,
+    options?: SecondParameter<typeof peticion>,
+    signal?: AbortSignal,
+  ) => {
+    return peticion<ConceptoDelPlanoRespuesta[]>(
+      {
+        url: `/api/v1/planos/${planoId}/elementos-parametricos/conceptos`,
+        method: "GET",
+        signal,
+      },
+      options,
+    );
+  };
+
+export const getConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetInfiniteQueryKey =
+  (planoId?: string) => {
+    return [
+      "infinite",
+      `/api/v1/planos/${planoId}/elementos-parametricos/conceptos`,
+    ] as const;
+  };
+
+export const getConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetQueryKey =
+  (planoId?: string) => {
+    return [
+      `/api/v1/planos/${planoId}/elementos-parametricos/conceptos`,
+    ] as const;
+  };
+
+export const getConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetInfiniteQueryOptions =
+  <
+    TData = InfiniteData<
+      Awaited<
+        ReturnType<
+          typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+        >
+      >
+    >,
+    TError = HTTPValidationError,
+  >(
+    planoId: string,
+    options?: {
+      query?: Partial<
+        UseInfiniteQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetInfiniteQueryKey(
+        planoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+        >
+      >
+    > = ({ signal }) =>
+      conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet(
+        planoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!planoId,
+      ...queryOptions,
+    } as UseInfiniteQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetInfiniteQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+      >
+    >
+  >;
+export type ConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetInfiniteQueryError =
+  HTTPValidationError;
+
+export function useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Lo que cada concepto toma, en total, de los elementos colocados en un plano
+ */
+
+export function useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetInfinite<
+  TData = InfiniteData<
+    Awaited<
+      ReturnType<
+        typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+      >
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseInfiniteQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseInfiniteQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetInfiniteQueryOptions(
+      planoId,
+      options,
+    );
+
+  const query = useInfiniteQuery(
+    queryOptions,
+    queryClient,
+  ) as UseInfiniteQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+export const getConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetQueryOptions =
+  <
+    TData = Awaited<
+      ReturnType<
+        typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+      >
+    >,
+    TError = HTTPValidationError,
+  >(
+    planoId: string,
+    options?: {
+      query?: Partial<
+        UseQueryOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+            >
+          >,
+          TError,
+          TData
+        >
+      >;
+      request?: SecondParameter<typeof peticion>;
+    },
+  ) => {
+    const { query: queryOptions, request: requestOptions } = options ?? {};
+
+    const queryKey =
+      queryOptions?.queryKey ??
+      getConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetQueryKey(
+        planoId,
+      );
+
+    const queryFn: QueryFunction<
+      Awaited<
+        ReturnType<
+          typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+        >
+      >
+    > = ({ signal }) =>
+      conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet(
+        planoId,
+        requestOptions,
+        signal,
+      );
+
+    return {
+      queryKey,
+      queryFn,
+      enabled: !!planoId,
+      ...queryOptions,
+    } as UseQueryOptions<
+      Awaited<
+        ReturnType<
+          typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+        >
+      >,
+      TError,
+      TData
+    > & { queryKey: DataTag<QueryKey, TData, TError> };
+  };
+
+export type ConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetQueryResult =
+  NonNullable<
+    Awaited<
+      ReturnType<
+        typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+      >
+    >
+  >;
+export type ConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetQueryError =
+  HTTPValidationError;
+
+export function useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<
+            ReturnType<
+              typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+            >
+          >,
+          TError,
+          Awaited<
+            ReturnType<
+              typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+            >
+          >
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary Lo que cada concepto toma, en total, de los elementos colocados en un plano
+ */
+
+export function useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet<
+  TData = Awaited<
+    ReturnType<
+      typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+    >
+  >,
+  TError = HTTPValidationError,
+>(
+  planoId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<
+          ReturnType<
+            typeof conceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet
+          >
+        >,
+        TError,
+        TData
+      >
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions =
+    getConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGetQueryOptions(
       planoId,
       options,
     );

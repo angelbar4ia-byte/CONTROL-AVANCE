@@ -132,3 +132,57 @@ class RepositorioElementosParametricosSQL:
             )
         ).mappings().all()
         return [dict(f) for f in filas]
+
+    async def conceptos_de(self, elemento_id: UUID) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select ec.concepto_id, c.clave, c.descripcion, ec.unidad, ec.toma
+                      from elemento_concepto ec join concepto c on c.id = ec.concepto_id
+                     where ec.elemento_id = :e order by lower(c.clave)
+                    """
+                ),
+                {"e": str(elemento_id)},
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def de_todos_los_elementos(self) -> list[dict[str, Any]]:
+        filas = (
+            await self._sesion.execute(
+                text(
+                    """
+                    select ec.elemento_id, ec.concepto_id, c.clave, c.descripcion, ec.unidad, ec.toma
+                      from elemento_concepto ec join concepto c on c.id = ec.concepto_id order by lower(c.clave)
+                    """
+                )
+            )
+        ).mappings().all()
+        return [dict(f) for f in filas]
+
+    async def fijar_concepto(
+        self, *, elemento_id: UUID, concepto_id: UUID, unidad: str, toma: dict[str, bool], autor_id: UUID
+    ) -> None:
+        await self._sesion.execute(
+            text(
+                """
+                insert into elemento_concepto (org_id, elemento_id, concepto_id, unidad, toma, autor_id)
+                select e.org_id, e.id, :c, :u, cast(:t as jsonb), :a from elemento_parametrico e where e.id = :e
+                on conflict (elemento_id, concepto_id) do update set unidad = excluded.unidad, toma = excluded.toma,
+                                                                      autor_id = excluded.autor_id
+                """
+            ),
+            {"e": str(elemento_id), "c": str(concepto_id), "u": unidad, "t": json.dumps(toma), "a": str(autor_id)},
+        )
+
+    async def quitar_concepto(self, *, elemento_id: UUID, concepto_id: UUID) -> None:
+        await self._sesion.execute(
+            text("delete from elemento_concepto where elemento_id = :e and concepto_id = :c"),
+            {"e": str(elemento_id), "c": str(concepto_id)},
+        )
+
+    async def concepto_existe(self, concepto_id: UUID) -> bool:
+        return bool(
+            (await self._sesion.execute(text("select 1 from concepto where id = :c"), {"c": str(concepto_id)})).first()
+        )

@@ -12270,6 +12270,223 @@
         }
       }
     },
+    "/api/v1/elementos-parametricos/{elemento_id}/conceptos": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Los conceptos que toman una parte de la receta del elemento",
+        "operationId": "conceptos_del_elemento_api_v1_elementos_parametricos__elemento_id__conceptos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConceptoDelElementoRespuesta"
+                  },
+                  "title": "Response Conceptos Del Elemento Api V1 Elementos Parametricos  Elemento Id  Conceptos Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El elemento no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/elementos-parametricos/{elemento_id}/conceptos/{concepto_id}": {
+      "put": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Un concepto toma una parte de la receta del elemento",
+        "operationId": "tomar_del_elemento_api_v1_elementos_parametricos__elemento_id__conceptos__concepto_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          },
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConceptoTomaPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "El elemento o el concepto no existen o están fuera de tu alcance."
+          },
+          "422": {
+            "description": "No toma ningún material, o la unidad no corresponde al elemento."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "El concepto deja de tomar del elemento",
+        "operationId": "dejar_de_tomar_del_elemento_api_v1_elementos_parametricos__elemento_id__conceptos__concepto_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "elemento_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Elemento Id"
+            }
+          },
+          {
+            "name": "concepto_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Concepto Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "El elemento no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/planos/{plano_id}/elementos-parametricos/conceptos": {
+      "get": {
+        "tags": [
+          "elementos parametricos"
+        ],
+        "summary": "Lo que cada concepto toma, en total, de los elementos colocados en un plano",
+        "description": "La cantidad del concepto en su unidad y los materiales que toma, según los elementos que lleva el plano.",
+        "operationId": "conceptos_del_plano_api_v1_planos__plano_id__elementos_parametricos_conceptos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "plano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Plano Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConceptoDelPlanoRespuesta"
+                  },
+                  "title": "Response Conceptos Del Plano Api V1 Planos  Plano Id  Elementos Parametricos Conceptos Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/conceptos/{concepto_id}/cambio-de-unidad": {
       "post": {
         "tags": [
@@ -20016,6 +20233,116 @@
         ],
         "title": "CohorteItemRespuesta"
       },
+      "ConceptoDelElementoRespuesta": {
+        "properties": {
+          "concepto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Concepto Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad",
+            "description": "En qué unidad se cuenta el concepto: pza, ml o m²."
+          },
+          "toma": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Toma",
+            "description": "Qué materiales toma: concreto, acero, estribos, alambre, cimbra."
+          },
+          "por_unidad": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MaterialTomadoRespuesta"
+            },
+            "type": "object",
+            "title": "Por Unidad",
+            "description": "Lo que toma por unidad del concepto."
+          },
+          "cantidad_por_muestra": {
+            "type": "number",
+            "title": "Cantidad Por Muestra",
+            "description": "Cuántas unidades del concepto trae una muestra del elemento."
+          },
+          "lados": {
+            "type": "integer",
+            "title": "Lados",
+            "description": "Los lados de cimbra con que se calcula."
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepto_id",
+          "clave",
+          "descripcion",
+          "unidad",
+          "toma",
+          "por_unidad",
+          "cantidad_por_muestra",
+          "lados"
+        ],
+        "title": "ConceptoDelElementoRespuesta"
+      },
+      "ConceptoDelPlanoRespuesta": {
+        "properties": {
+          "elemento_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Elemento Id"
+          },
+          "concepto_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Concepto Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "descripcion": {
+            "type": "string",
+            "title": "Descripcion"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          },
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad",
+            "description": "Cuánto suma el concepto en el plano, en su unidad."
+          },
+          "materiales": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MaterialTomadoRespuesta"
+            },
+            "type": "object",
+            "title": "Materiales",
+            "description": "Lo que toma en total, por material."
+          }
+        },
+        "type": "object",
+        "required": [
+          "elemento_id",
+          "concepto_id",
+          "clave",
+          "descripcion",
+          "unidad",
+          "cantidad",
+          "materiales"
+        ],
+        "title": "ConceptoDelPlanoRespuesta"
+      },
       "ConceptoDelReporteRespuesta": {
         "properties": {
           "actividad_id": {
@@ -20322,6 +20649,33 @@
           "descripcion"
         ],
         "title": "ConceptoRespuesta"
+      },
+      "ConceptoTomaPeticion": {
+        "properties": {
+          "unidad": {
+            "type": "string",
+            "enum": [
+              "pza",
+              "ml",
+              "m²"
+            ],
+            "title": "Unidad"
+          },
+          "toma": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Toma",
+            "description": "Qué materiales toma: concreto, acero, estribos, alambre, cimbra."
+          }
+        },
+        "type": "object",
+        "required": [
+          "unidad",
+          "toma"
+        ],
+        "title": "ConceptoTomaPeticion"
       },
       "ConceptosDelOficioPeticion": {
         "properties": {
@@ -27793,6 +28147,24 @@
           "equivalencia"
         ],
         "title": "MarcaDeCambioRespuesta"
+      },
+      "MaterialTomadoRespuesta": {
+        "properties": {
+          "cantidad": {
+            "type": "number",
+            "title": "Cantidad"
+          },
+          "unidad": {
+            "type": "string",
+            "title": "Unidad"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cantidad",
+          "unidad"
+        ],
+        "title": "MaterialTomadoRespuesta"
       },
       "MatricesDeActividadRespuesta": {
         "properties": {

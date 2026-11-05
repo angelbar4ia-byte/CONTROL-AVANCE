@@ -13,6 +13,7 @@ import { useState, type KeyboardEvent } from 'react';
 import type { ErrorApi } from '@/api/cliente';
 import {
   getListarElementosParametricosApiV1ElementosParametricosGetQueryKey,
+  useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet,
   useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet,
   useActualizarElementoParametricoApiV1ElementosParametricosElementoIdPatch,
   useCrearElementoParametricoApiV1ElementosParametricosPost,
@@ -22,6 +23,7 @@ import {
 import type { ElementoParametricoRespuesta } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
 
+import { ConceptosDelElemento } from './ConceptosDelElemento';
 import { CAMPOS_POR_TIPO, NOMBRE_DEL_TIPO, formatoDeReceta, lineasDeReceta, type TipoParametrico } from './parametricos';
 import { numeroTecleado } from './volumen';
 
@@ -40,6 +42,7 @@ function enEnter(e: KeyboardEvent<HTMLInputElement>) {
 export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError }: Props) {
   const consulta = useListarElementosParametricosApiV1ElementosParametricosGet();
   const delPlano = useElementosDelPlanoApiV1PlanosPlanoIdElementosParametricosGet(planoId, { query: { enabled: planoId !== '' } });
+  const conceptosDelPlano = useConceptosDelPlanoApiV1PlanosPlanoIdElementosParametricosConceptosGet(planoId, { query: { enabled: planoId !== '' } });
   const crear = useCrearElementoParametricoApiV1ElementosParametricosPost<ErrorApi>();
   const actualizar = useActualizarElementoParametricoApiV1ElementosParametricosElementoIdPatch<ErrorApi>();
   const eliminar = useEliminarElementoParametricoApiV1ElementosParametricosElementoIdDelete<ErrorApi>();
@@ -110,6 +113,15 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError }
               {formatoDeReceta(t.alambre_kg, 2)} kg · cimbra {formatoDeReceta(t.cimbra_m2, 2)} m²
             </div>
           ))}
+          {(conceptosDelPlano.data ?? []).map((c) => (
+            <div key={`${c.elemento_id}:${c.concepto_id}`} className="text-xs text-mute" data-concepto-del-plano={c.clave}>
+              <span className="mono">{c.clave}</span> · {formatoDeReceta(c.cantidad, 2)} {c.unidad}
+              {' — '}
+              {Object.entries(c.materiales)
+                .map(([m, v]) => `${m} ${formatoDeReceta(v.cantidad, 2)} ${v.unidad}`)
+                .join(' · ')}
+            </div>
+          ))}
         </div>
       )}
       {elementos.length === 0 && !consulta.isLoading && <div className="text-mute text-xs">Aún no hay elementos paramétricos.</div>}
@@ -169,6 +181,14 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError }
                       </div>
                     ))}
                   </dl>
+                  <ConceptosDelElemento
+                    elementoId={e.id}
+                    clave={e.clave}
+                    unidades={tipo === 'castillo' ? ['pza', 'ml'] : tipo === 'lineal' ? ['ml'] : tipo === 'losa' ? ['m²'] : ['pza']}
+                    puedeDefinir={puedeDefinir}
+                    onCambio={(aviso) => onCambio(aviso)}
+                    onError={onError}
+                  />
                 </>
               )}
             </li>
