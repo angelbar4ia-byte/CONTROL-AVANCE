@@ -58,9 +58,11 @@ test.describe('Cuantificador · trazo directo', () => {
 
     // Sin medición, los trazos van del color de su concepto: el mismo que su muestra en el árbol.
     await expect(page.locator('.visor__trazo')).toHaveCount(2);
-    const colorDelArbol = await page.getByTestId('color-del-concepto').first().evaluate((n) => getComputedStyle(n).backgroundColor);
+    // (el concepto elegido no siempre es el primero del árbol: basta con que sea el color de alguna muestra)
+    const coloresDelArbol = await page.getByTestId('color-del-concepto').evaluateAll((ns) => ns.map((n) => getComputedStyle(n).backgroundColor));
     const coloresDeTrazos = await page.locator('.visor__trazo path').evaluateAll((ns) => ns.map((n) => getComputedStyle(n).stroke));
-    expect(new Set(coloresDeTrazos)).toEqual(new Set([colorDelArbol]));
+    expect(new Set(coloresDeTrazos).size).toBe(1);
+    expect(coloresDelArbol).toContain(coloresDeTrazos[0]);
 
     // Una línea sobre un concepto en m² mide su largo × altura (2.6 m) × caras (2): suma al concepto y se dice cómo.
     const antesDeLinea = await cantidad();
