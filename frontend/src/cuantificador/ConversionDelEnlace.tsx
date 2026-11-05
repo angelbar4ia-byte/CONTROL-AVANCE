@@ -150,12 +150,15 @@ export function ConversionDelEnlace({ enlaceId, nombreDelConcepto, grosorM, alin
       <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 12px' }} aria-label="Resumen del trazo">
         {[
           ['Concepto', nombreDelConcepto],
-          ['Tipo', { muro: 'Muro', linea: 'Línea', area: 'Área' }[info.data.tipo] ?? info.data.tipo],
+          ['Tipo', { muro: 'Muro', linea: 'Línea', area: 'Área', forma: 'Forma', punto: 'Punto' }[info.data.tipo] ?? info.data.tipo],
           ...(resultado && esMuroOLinea(info.data.tipo) ? [['Largo', `${Number(resultado.componentes.largo).toFixed(2)} m`]] : []),
           ...(grosorM != null ? [['Grosor', `${grosorM} m`], ['Alineación', alineacion ?? 'centro']] : []),
           ...(resultado && info.data.tipo === 'area'
             ? [['Área', `${Number(resultado.componentes.area).toFixed(2)} m²`], ['Perímetro', `${Number(resultado.componentes.perimetro).toFixed(2)} m`]]
             : []),
+          ...(resultado && info.data.tipo === 'forma' ? [['Área', `${Number(resultado.componentes.area).toFixed(4)} m²`]] : []),
+          ...(resultado && Number(resultado.componentes.huecos) > 0 ? [['Huecos', String(resultado.componentes.huecos)]] : []),
+          ...(resultado && Number(resultado.componentes.pendiente_pct) > 0 ? [['Pendiente', `${Number(resultado.componentes.pendiente_pct)} %`]] : []),
           ...(resultado && Number(resultado.componentes.vanos_m2) > 0 ? [['Vanos', `− ${Number(resultado.componentes.vanos_m2).toFixed(2)} m²`]] : []),
         ].map(([a, b]) => (
           <div key={a} style={{ display: 'contents' }}>

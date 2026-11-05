@@ -28,6 +28,8 @@ MODOS_POR_TIPO: dict[str, tuple[tuple[str, str], ...]] = {
     "muro": (("largo", "Largo"), ("area", "Área"), ("vol", "Volumen"), ("pza", "Piezas")),
     "linea": (("largo", "Largo"), ("area", "Área"), ("vol", "Volumen"), ("pza", "Piezas")),
     "area": (("area", "Área"), ("vol", "Volumen"), ("pza", "Piezas"), ("perim", "Perímetro")),
+    "forma": (("pza", "Contar"), ("area", "Área"), ("vol", "Volumen")),
+    "punto": (("pza", "Contar"),),
 }
 """Los modos de cada tipo de trazo (los demás tipos siguen contando como siempre, por medida × factor)."""
 
@@ -42,6 +44,7 @@ CAMPOS_POR_MODO: dict[str, tuple[tuple[str, str, str], ...]] = {
     "area/vol": (("esp", "Espesor", "m"), ("desc", "Descuento", "m³")),
     "area/pza": (("pw", "Ancho de la pieza", "m"), ("ph", "Alto de la pieza", "m"), ("merma", "Merma", "%")),
     "area/perim": (("alt", "Altura (0 = solo largo)", "m"),),
+    "forma/vol": (("alt", "Altura", "m"),),
 }
 
 PIEZAS_DE_MUESTRA: dict[str, tuple[float, float]] = {
@@ -57,7 +60,7 @@ _SEPARADOR_DE_ALTURA = ("area",)
 
 def medida_natural(tipo: str) -> str:
     """La medida con la que se guarda el enlace (el valor ya trae la cantidad final; el factor es 1)."""
-    return {"muro": "longitud", "linea": "longitud", "area": "area"}.get(tipo, "conteo")
+    return {"muro": "longitud", "linea": "longitud", "area": "area", "forma": "area"}.get(tipo, "conteo")
 
 
 def _numero(valor: Any, que: str) -> float:
@@ -83,6 +86,8 @@ def conversion_por_defecto(tipo: str, unidad_del_concepto: str | None) -> dict[s
         return {**base, "modo": "vol" if u == "m3" else "pza" if u in ("pza", "lote") else "area"}
     if tipo in ("muro", "linea"):
         return {**base, "modo": "area" if u == "m2" else "vol" if u == "m3" else "pza" if u in ("pza", "lote") else "largo"}
+    if tipo == "forma":
+        return {**base, "modo": "vol" if u == "m3" else "area" if u == "m2" else "pza"}
     return {**base, "modo": "pza"}
 
 
@@ -176,6 +181,10 @@ def formula_en_texto(c: dict[str, Any], conv: dict[str, Any]) -> str:
         return (
             f"{_m(p)} m × {conv['alt']} m{resta(vanos_m2, 'm²')}" if conv.get("alt") else f"{_m(p)} m de perímetro{resta(vanos_ml, 'm')}"
         )
+    if tipo == "forma" and modo == "area":
+        return f"{_m(float(c['area']))} m²"
+    if tipo == "forma" and modo == "vol":
+        return f"{_m(float(c['area']))} m² × {_g(float(conv.get('alt', 2.6)))} m"
     return "1 pieza"
 
 
