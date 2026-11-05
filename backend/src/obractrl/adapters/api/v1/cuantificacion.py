@@ -737,11 +737,23 @@ class TraerTrazoPeticion(BaseModel):
     dy: Decimal = Field(default=Decimal(0), description="Cuánto se corre el trazo en Y (unidades de plano).")
 
 
+class ComparacionDeMedida(BaseModel):
+    medida: str
+    antes: Decimal
+    despues: Decimal
+    igual: bool = Field(description="`true` si la medida no cambió entre las dos revisiones del plano.")
+
+
 class TrazoTraidoRespuesta(BaseModel):
     trazo_id: UUID
     enlace_ids: list[UUID]
     huecos: int
     recalculos: list[ResultadoRecalculoRespuesta]
+    comparacion: list[ComparacionDeMedida] = Field(
+        default_factory=list,
+        description="D-113: lo medido antes contra lo retrazado en la revisión nueva, por medida.",
+    )
+    cambio_la_medida: bool = Field(default=False, description="`true` si alguna medida difiere: hay que revisarla.")
 
 
 @router.post(
@@ -778,6 +790,11 @@ async def traer_trazo(
         enlace_ids=list(resultado.enlace_ids),
         huecos=resultado.huecos,
         recalculos=[ResultadoRecalculoRespuesta.desde_dominio(r) for r in resultado.recalculos],
+        comparacion=[
+            ComparacionDeMedida(medida=m, antes=a, despues=d, igual=abs(a - d) < Decimal("0.0001"))
+            for m, a, d in resultado.comparacion
+        ],
+        cambio_la_medida=any(abs(a - d) >= Decimal("0.0001") for _m, a, d in resultado.comparacion),
     )
 
 
@@ -913,6 +930,11 @@ class EnlaceDeTrazoRespuesta(BaseModel):
     cantidad: Decimal = Field(description="`medida_valor × factor`.")
 
 
+class ConexionDeMuro(BaseModel):
+    extremo: Literal["ini", "fin"]
+    con_trazo_id: UUID
+
+
 class TrazoPropiedades(BaseModel):
     trazo_id: UUID
     version_plano: int
@@ -930,6 +952,10 @@ class TrazoPropiedades(BaseModel):
     alineacion: Literal["centro", "izquierda", "derecha"] | None = None
     pendiente_pct: Decimal | None = Field(
         default=None, description="Pendiente en % de una línea inclinada; `null` = horizontal."
+    )
+    conexiones: list[ConexionDeMuro] = Field(
+        default_factory=list,
+        description="Extremos del muro que continúan en otro (D-629): el plano cierra la esquina al dibujar el cuerpo.",
     )
     medicion_id: UUID | None = Field(
         default=None, description="La medición a la que pertenece el trazo (0088); `null` = suelto."
@@ -1077,6 +1103,7 @@ async def trazos_de_plano(
                     grosor_m=trazo.get("grosor_m"),
                     alineacion=trazo.get("alineacion"),
                     pendiente_pct=trazo.get("pendiente_pct"),
+                    conexiones=[ConexionDeMuro(**c) for c in trazo.get("conexiones", [])],
                     medicion_id=trazo.get("medicion_id"),
                     forma=trazo.get("forma"),
                     n_huecos=int(trazo.get("n_huecos") or 0),

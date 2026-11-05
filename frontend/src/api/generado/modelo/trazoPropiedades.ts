@@ -12,6 +12,7 @@ import type { TrazoPropiedadesAprobadoEn } from "./trazoPropiedadesAprobadoEn";
 import type { TrazoPropiedadesGrosorM } from "./trazoPropiedadesGrosorM";
 import type { TrazoPropiedadesAlineacion } from "./trazoPropiedadesAlineacion";
 import type { TrazoPropiedadesPendientePct } from "./trazoPropiedadesPendientePct";
+import type { ConexionDeMuro } from "./conexionDeMuro";
 import type { TrazoPropiedadesMedicionId } from "./trazoPropiedadesMedicionId";
 import type { TrazoPropiedadesForma } from "./trazoPropiedadesForma";
 import type { TrazoPropiedadesPropuestaOrigen } from "./trazoPropiedadesPropuestaOrigen";
@@ -35,6 +36,8 @@ export interface TrazoPropiedades {
   alineacion?: TrazoPropiedadesAlineacion;
   /** Pendiente en % de una línea inclinada; `null` = horizontal. */
   pendiente_pct?: TrazoPropiedadesPendientePct;
+  /** Extremos del muro que continúan en otro (D-629): el plano cierra la esquina al dibujar el cuerpo. */
+  conexiones?: ConexionDeMuro[];
   /** La medición a la que pertenece el trazo (0088); `null` = suelto. */
   medicion_id?: TrazoPropiedadesMedicionId;
   /** Plantilla con la que se estampó un punto con forma. */

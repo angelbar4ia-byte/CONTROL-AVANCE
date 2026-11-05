@@ -21152,6 +21152,37 @@
         ],
         "title": "CohorteItemRespuesta"
       },
+      "ComparacionDeMedida": {
+        "properties": {
+          "medida": {
+            "type": "string",
+            "title": "Medida"
+          },
+          "antes": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Antes"
+          },
+          "despues": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Despues"
+          },
+          "igual": {
+            "type": "boolean",
+            "title": "Igual",
+            "description": "`true` si la medida no cambió entre las dos revisiones del plano."
+          }
+        },
+        "type": "object",
+        "required": [
+          "medida",
+          "antes",
+          "despues",
+          "igual"
+        ],
+        "title": "ComparacionDeMedida"
+      },
       "ConceptoDelElementoRespuesta": {
         "properties": {
           "concepto_id": {
@@ -21610,6 +21641,29 @@
         "type": "object",
         "title": "ConceptosDelOficioPeticion",
         "description": "Los conceptos que se ejecutan con ese oficio, **completos**.\n\nReemplazo y no alta, igual que las etapas de un frente: lo que no venga en\nla lista se queda sin oficio. Así mover un concepto de un oficio a otro es\nuna llamada y no dos."
+      },
+      "ConexionDeMuro": {
+        "properties": {
+          "extremo": {
+            "type": "string",
+            "enum": [
+              "ini",
+              "fin"
+            ],
+            "title": "Extremo"
+          },
+          "con_trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Con Trazo Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "extremo",
+          "con_trazo_id"
+        ],
+        "title": "ConexionDeMuro"
       },
       "ConfirmacionDeActividad": {
         "properties": {
@@ -37709,6 +37763,14 @@
             "title": "Pendiente Pct",
             "description": "Pendiente en % de una línea inclinada; `null` = horizontal."
           },
+          "conexiones": {
+            "items": {
+              "$ref": "#/components/schemas/ConexionDeMuro"
+            },
+            "type": "array",
+            "title": "Conexiones",
+            "description": "Extremos del muro que continúan en otro (D-629): el plano cierra la esquina al dibujar el cuerpo."
+          },
           "medicion_id": {
             "anyOf": [
               {
@@ -37887,6 +37949,20 @@
             },
             "type": "array",
             "title": "Recalculos"
+          },
+          "comparacion": {
+            "items": {
+              "$ref": "#/components/schemas/ComparacionDeMedida"
+            },
+            "type": "array",
+            "title": "Comparacion",
+            "description": "D-113: lo medido antes contra lo retrazado en la revisión nueva, por medida."
+          },
+          "cambio_la_medida": {
+            "type": "boolean",
+            "title": "Cambio La Medida",
+            "description": "`true` si alguna medida difiere: hay que revisarla.",
+            "default": false
           }
         },
         "type": "object",
