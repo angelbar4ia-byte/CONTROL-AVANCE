@@ -212,3 +212,35 @@ async def test_una_obra_programada_o_con_avance_ya_no_se_elimina(escenario: Esce
         assert (await control.post(ruta, json={"clave": "OBRA 01"})).status_code == 409  # programada: contratada
     finally:
         await motor.dispose()
+
+
+async def test_reiniciar_una_obra_borra_lo_disenado_y_vuelve_al_prototipo_base(
+    escenario: Escenario, base: dict, control: httpx.AsyncClient
+) -> None:
+    ruta = f"/api/v1/obras/{escenario.obra_id}"
+    plano = (await control.post(f"{ruta}/planos", json={"nombre": "P", "archivo_url": "e2e/p.pdf"})).json()["id"]
+    await control.post(
+        f"/api/v1/planos/{plano}/trazos",
+        json={"version_plano": 1, "fuente": "pdf", "geometria_wkt": "POINT(1 1)",
+              "enlaces": [{"medida": "conteo", "factor": "1", "actividad_id": str(escenario.actividad_id)}]},
+    )
+    await control.post(f"{ruta}/arbol/propio")
+    propio = (await control.get(f"{ruta}/arbol")).json()["prototipo_id"]
+    assert propio != str(escenario.prototipo_id)
+
+    assert (await control.post(f"{ruta}/reiniciar", json={"clave": "mal"})).status_code == 422
+    r = await control.post(f"{ruta}/reiniciar", json={"clave": "OBRA 01"})
+    assert r.status_code == 200, r.text
+    assert r.json() == {"trazos": 1, "actividades": 1, "volvio_al_base": True}
+
+    # La obra sigue ahí, con su plano, de vuelta en el prototipo base; la copia desapareció y no quedan partidas ni trazos.
+    arbol = (await control.get(f"{ruta}/arbol")).json()
+    assert arbol["propio"] is False and arbol["prototipo_id"] == str(escenario.prototipo_id)
+    assert (await control.get(f"/api/v1/planos/{plano}/trazos")).json()["features"] == []
+    motor = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with motor.connect() as c:
+            assert (await c.execute(text("select count(*) from prototipo where id = :p"), {"p": propio})).scalar_one() == 0
+            assert (await c.execute(text("select count(*) from actividad where obra_id = :o"), {"o": str(escenario.obra_id)})).scalar_one() == 0
+    finally:
+        await motor.dispose()

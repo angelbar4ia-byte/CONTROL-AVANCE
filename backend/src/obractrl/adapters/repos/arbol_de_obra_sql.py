@@ -26,7 +26,7 @@ class RepositorioArbolDeObraSQL:
             await self._sesion.execute(
                 text(
                     """
-                    select o.id, o.clave, o.prototipo_id, p.clave as prototipo_clave, p.nombre as prototipo_nombre,
+                    select o.id, o.clave, o.prototipo_id, o.prototipo_origen_id, p.clave as prototipo_clave, p.nombre as prototipo_nombre,
                            p.de_una_obra
                       from obra o join prototipo p on p.id = o.prototipo_id where o.id = :id
                     """
@@ -135,7 +135,8 @@ class RepositorioArbolDeObraSQL:
     async def apuntar_obra(self, obra_id: UUID, prototipo_id: UUID, mapa: dict[UUID, UUID]) -> int:
         """La obra pasa al prototipo nuevo y sus partidas se re-ligan a los nodos copiados."""
         await self._sesion.execute(
-            text("update obra set prototipo_id = :p where id = :o"), {"p": str(prototipo_id), "o": str(obra_id)}
+            text("update obra set prototipo_origen_id = prototipo_id, prototipo_id = :p where id = :o"),
+            {"p": str(prototipo_id), "o": str(obra_id)},
         )
         n = 0
         for viejo, nuevo in mapa.items():
@@ -393,3 +394,38 @@ class RepositorioArbolDeObraSQL:
                 text("delete from prototipo where id = :p and de_una_obra and not exists (select 1 from obra where prototipo_id = :p)"),
                 {"p": str(prototipo_id)},
             )
+
+    async def reiniciar_obra(self, obra_id: UUID, prototipo_id: UUID, origen_id: UUID | None) -> dict[str, int]:
+        """Vuelve la obra al principio del diseño: se queda con su cluster y sus planos (los archivos), sin lo hecho encima.
+
+        Borra partidas, programa, estados de las partes, y lo medido en los planos (trazos, mediciones, notas, enlaces).
+        Si la obra tenía un árbol propio copiado de un prototipo base, regresa a ese prototipo y se borra la copia.
+        """
+        s = self._sesion
+        o = {"o": str(obra_id)}
+
+        async def borrar(sql: str) -> int:
+            return int((await s.execute(text(sql), o)).rowcount or 0)
+
+        trazos = await borrar("delete from trazo where plano_id in (select id from plano where obra_id = :o)")
+        await borrar("delete from medicion where plano_id in (select id from plano where obra_id = :o)")
+        await borrar("delete from nota_plano where plano_id in (select id from plano where obra_id = :o)")
+        await borrar("delete from plano_enlace where plano_id in (select id from plano where obra_id = :o)")
+        actividades = await borrar("delete from actividad where obra_id = :o")
+        await borrar("delete from programa_obra where obra_id = :o")
+        # `parte_transicion` es una bitácora de solo agregar: se conserva como historial de lo que se hizo.
+        # Las partes vuelven a «cuantificando»: ese registro no se borra (el rol de la app solo lo agrega y lo cambia).
+        await borrar("update parte_estado set estado = 'cuantificando' where obra_id = :o")
+        await borrar("delete from desviacion where obra_id = :o")
+        volvio = 0
+        if origen_id is not None:
+            await s.execute(
+                text("update obra set prototipo_id = :origen, prototipo_origen_id = null where id = :o"),
+                {"origen": str(origen_id), "o": str(obra_id)},
+            )
+            await s.execute(
+                text("delete from prototipo where id = :p and de_una_obra and not exists (select 1 from obra where prototipo_id = :p)"),
+                {"p": str(prototipo_id)},
+            )
+            volvio = 1
+        return {"trazos": trazos, "actividades": actividades, "volvio_al_base": volvio}

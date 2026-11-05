@@ -785,6 +785,7 @@ export type * from "./obraNuevaPeticion";
 export * from "./obraNuevaPeticionPlantas";
 export type * from "./obraNuevaPeticionResidenteId";
 export type * from "./obraNuevaRespuesta";
+export type * from "./obraReiniciadaRespuesta";
 export type * from "./obraRespuesta";
 export type * from "./obraRespuestaFechaFin";
 export type * from "./obraRespuestaFechaInicio";

@@ -33,6 +33,7 @@ import type {
   EliminarObraPeticion,
   NodoCreadoRespuesta,
   NodoPeticion,
+  ObraReiniciadaRespuesta,
 } from ".././modelo";
 
 import { peticion } from "../../cliente";
@@ -1131,6 +1132,107 @@ export const useEliminarObraApiV1ObrasObraIdEliminarPost = <
 > => {
   const mutationOptions =
     getEliminarObraApiV1ObrasObraIdEliminarPostMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * La obra se queda con su cluster y sus planos; se borra lo diseñado encima (partidas, programa, trazos, estados).
+Si tenía un árbol propio copiado de un prototipo base, vuelve a ese prototipo.
+ * @summary Reiniciar desde cero una obra que sigue en diseño
+ */
+export const reiniciarObraApiV1ObrasObraIdReiniciarPost = (
+  obraId: string,
+  eliminarObraPeticion: EliminarObraPeticion,
+  options?: SecondParameter<typeof peticion>,
+  signal?: AbortSignal,
+) => {
+  return peticion<ObraReiniciadaRespuesta>(
+    {
+      url: `/api/v1/obras/${obraId}/reiniciar`,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      data: eliminarObraPeticion,
+      signal,
+    },
+    options,
+  );
+};
+
+export const getReiniciarObraApiV1ObrasObraIdReiniciarPostMutationOptions = <
+  TError = void,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reiniciarObraApiV1ObrasObraIdReiniciarPost>>,
+    TError,
+    { obraId: string; data: EliminarObraPeticion },
+    TContext
+  >;
+  request?: SecondParameter<typeof peticion>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reiniciarObraApiV1ObrasObraIdReiniciarPost>>,
+  TError,
+  { obraId: string; data: EliminarObraPeticion },
+  TContext
+> => {
+  const mutationKey = ["reiniciarObraApiV1ObrasObraIdReiniciarPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reiniciarObraApiV1ObrasObraIdReiniciarPost>>,
+    { obraId: string; data: EliminarObraPeticion }
+  > = (props) => {
+    const { obraId, data } = props ?? {};
+
+    return reiniciarObraApiV1ObrasObraIdReiniciarPost(
+      obraId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReiniciarObraApiV1ObrasObraIdReiniciarPostMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof reiniciarObraApiV1ObrasObraIdReiniciarPost>>
+  >;
+export type ReiniciarObraApiV1ObrasObraIdReiniciarPostMutationBody =
+  EliminarObraPeticion;
+export type ReiniciarObraApiV1ObrasObraIdReiniciarPostMutationError = void;
+
+/**
+ * @summary Reiniciar desde cero una obra que sigue en diseño
+ */
+export const useReiniciarObraApiV1ObrasObraIdReiniciarPost = <
+  TError = void,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof reiniciarObraApiV1ObrasObraIdReiniciarPost>>,
+      TError,
+      { obraId: string; data: EliminarObraPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof reiniciarObraApiV1ObrasObraIdReiniciarPost>>,
+  TError,
+  { obraId: string; data: EliminarObraPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getReiniciarObraApiV1ObrasObraIdReiniciarPostMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
