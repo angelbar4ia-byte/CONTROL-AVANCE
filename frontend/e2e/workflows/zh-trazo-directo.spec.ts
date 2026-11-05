@@ -65,8 +65,9 @@ test.describe('Cuantificador · trazo directo', () => {
     // Una línea sobre un concepto en m² mide su largo × altura (2.6 m) × caras (2): suma al concepto y se dice cómo.
     const antesDeLinea = await cantidad();
     await barra.getByRole('button', { name: 'Línea', exact: true }).click();
-    await clic(0.45, 0.85);
-    await clic(0.75, 0.85);
+    // El panel de opciones de la línea tapa la izquierda del lienzo: los clics van a la derecha.
+    await clic(0.68, 0.85);
+    await clic(0.9, 0.85);
     await expect(page.getByRole('dialog', { name: /Guardar/ })).toBeHidden();
     await expect(page.getByRole('status')).toContainText('Línea medida como área');
     await expect.poll(cantidad).toBeGreaterThan(antesDeLinea);

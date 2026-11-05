@@ -215,7 +215,7 @@ export function OpcionesDeHerramienta({
         </p>
         <p className="text-mute text-xs">
           {grosorM === null
-            ? 'Sin grosor la línea mide su largo. Con grosor mide también largo × grosor (el área de un muro).'
+            ? 'La línea mide su largo. Sobre un concepto en m² lo vuelve área: largo × altura × caras (se afina en el detalle).'
             : 'El eje es la línea que dibujas; el cuerpo del muro queda del lado que elijas.'}
         </p>
       </PanelDeOpciones>

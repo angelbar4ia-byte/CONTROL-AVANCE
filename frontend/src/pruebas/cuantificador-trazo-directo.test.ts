@@ -24,8 +24,10 @@ describe('Guardado directo: la medida se deduce del concepto', () => {
     expect(medidaDirecta(null, 'poligono', false, false)).toBeNull();
   });
 
-  it('un muro (línea con grosor) de un concepto de área mide su área', () => {
-    expect(medidaDirecta('area', 'linea', true, false)).toBe('area');
+  it('un muro (línea con grosor) de un concepto de área mide su largo y lo vuelve área con la altura y las caras', () => {
+    // Antes sumaba largo × grosor (su planta); el mockup y D-601: largo × altura × caras, como una línea sin grosor.
+    expect(medidaDirecta('area', 'linea', true, false)).toBe('longitud');
+    expect(factorDeLaMedida('area', 'linea', true, 'longitud')).toBe('5.2');
   });
 });
 
