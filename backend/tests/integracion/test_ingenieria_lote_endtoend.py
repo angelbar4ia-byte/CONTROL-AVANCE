@@ -476,6 +476,62 @@ class TestCaminoDisenoNuevo:
         assert base_concepto["cantidad"] == Decimal("1")
         assert base_concepto["modo_cantidad"] == "capturada"
 
+    async def test_modificar_cambia_la_cantidad_en_el_arbol_propio_y_la_vista_previa_no_escribe(
+        self, escenario: Escenario, contexto_control: ContextoSesion
+    ) -> None:
+        base_id = await self._prototipo_base_sintetico(contexto_control, escenario)
+        motor = create_async_engine(DATABASE_URL_ADMIN)
+        try:
+            async with motor.begin() as c:
+                await c.execute(text("update obra set prototipo_id = :p where id = :o"), {"p": str(base_id), "o": str(escenario.obra_id)})
+        finally:
+            await motor.dispose()
+
+        async def cargar(dry_run: bool):
+            async with sesion_con_rls(contexto_control) as sesion:
+                caso_uso = await FabricaDeCargas(sesion).para(TipoCarga.INGENIERIA_LOTE)
+                return await caso_uso.ejecutar(
+                    ComandoEjecutarCarga(
+                        tipo=TipoCarga.INGENIERIA_LOTE,
+                        contenido=self._archivo_ingenieria_sintetica(),
+                        archivo_nombre="sintetica.xlsx",
+                        usuario_id=contexto_control.usuario_id,
+                        obra_id=escenario.obra_id,
+                        camino_ingenieria="modificar",
+                        dry_run=dry_run,
+                    )
+                )
+
+        # La vista previa dice qué cambiaría y no toca nada: la obra sigue en el prototipo base.
+        previa = await cargar(True)
+        assert previa.resumen.errores == 0
+        async with sesion_con_rls(contexto_control) as sesion:
+            assert (await RepositorioObrasSQL(sesion).obtener(escenario.obra_id))["prototipo_id"] == base_id
+
+        resultado = await cargar(False)
+        assert resultado.estatus is EstatusCarga.APLICADO
+
+        async with sesion_con_rls(contexto_control) as sesion:
+            propio = (await RepositorioObrasSQL(sesion).obtener(escenario.obra_id))["prototipo_id"]
+            assert propio != base_id  # se clonó el árbol propio
+            nodos = await RepositorioPrototipoNodoSQL(sesion).por_prototipo(propio)
+            base = await RepositorioPrototipoNodoSQL(sesion).por_prototipo(base_id)
+        concepto = next(n for n in nodos if n["clave"] == "EST-1")
+        assert concepto["cantidad"] == Decimal("3") and concepto["modo_cantidad"] == "cargada"
+        # El prototipo compartido no se tocó y el cambio quedó en un borrador del presupuesto de la obra.
+        assert next(n for n in base if n["clave"] == "EST-1")["cantidad"] == Decimal("1")
+        motor = create_async_engine(DATABASE_URL_ADMIN)
+        try:
+            async with motor.connect() as c:
+                estado = (
+                    await c.execute(
+                        text("select estado from presupuesto where prototipo_id = :p order by version desc limit 1"), {"p": str(propio)}
+                    )
+                ).scalar_one()
+        finally:
+            await motor.dispose()
+        assert estado == "borrador"
+
     async def test_revertir_la_carga_borra_el_prototipo_nuevo_por_cascada(
         self, escenario: Escenario, contexto_control: ContextoSesion
     ) -> None:

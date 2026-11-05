@@ -2226,6 +2226,7 @@ class FabricaDeCargas:
                 desviaciones=RepositorioDesviacionesSQL(sesion),
                 ingenieria_insumos=RepositorioIngenieriaLoteInsumosSQL(sesion),
                 cargas=cargas,
+                arbol=obtener_arbol_de_obra(sesion),
             )
         # `cargador_para` ya rechazó los tipos sin cargador; llegar aquí
         # significa que se agregó uno y se olvidó su aplicador.

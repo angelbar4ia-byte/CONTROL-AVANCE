@@ -314,6 +314,36 @@ class RepositorioArbolDeObraSQL:
             {"b": str(borrador_id), "c": str(concepto_id), "n": str(nodo_id)},
         )
 
+    async def fijar_cantidad(self, prototipo_id: UUID, borrador_id: UUID, nodo_id: UUID, cantidad: Decimal) -> None:
+        """La cantidad de una partida del árbol (cargada de una ingeniería) y la de su renglón en el borrador."""
+        s = self._sesion
+        await s.execute(
+            text("update prototipo_nodo set cantidad = :c, modo_cantidad = 'cargada' where id = :n and prototipo_id = :p"),
+            {"c": cantidad, "n": str(nodo_id), "p": str(prototipo_id)},
+        )
+        await s.execute(
+            text(
+                "update partida_presupuesto set cantidad = :c, importe = round(:c * precio_unitario, 2) "
+                "where presupuesto_id = :b and prototipo_nodo_id = :n"
+            ),
+            {"c": cantidad, "b": str(borrador_id), "n": str(nodo_id)},
+        )
+        await s.execute(
+            text(
+                "update presupuesto set monto_total = coalesce((select sum(importe) from partida_presupuesto "
+                "where presupuesto_id = :b), 0) where id = :b"
+            ),
+            {"b": str(borrador_id)},
+        )
+
+    async def concepto_por_clave(self, clave: str) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text("select id, clave, descripcion from concepto where clave = :c limit 1"), {"c": clave}
+            )
+        ).mappings().first()
+        return dict(fila) if fila else None
+
     async def ajustar_nodo(self, nodo_id: UUID, nombre: str | None, orden: int | None) -> None:
         await self._sesion.execute(
             text("update prototipo_nodo set nombre = coalesce(:n, nombre), orden = coalesce(:o, orden) where id = :id"),

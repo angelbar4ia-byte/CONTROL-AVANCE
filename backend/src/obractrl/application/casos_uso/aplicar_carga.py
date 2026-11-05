@@ -4979,6 +4979,21 @@ class CaminoIngenieria(StrEnum):
     prototipo nuevo (`modo_cantidad='cargada'`), nunca en una
     `Desviacion`."""
 
+    MODIFICAR = "modificar"
+    """Sobre el árbol propio de la obra (D-628): solo cambia la cantidad de las
+    partidas que ya existen. Sin vista previa no escribe nada."""
+
+    ACTUALIZAR = "actualizar"
+    """Como `modificar`, y además agrega las partidas que la ingeniería trae y el
+    árbol no tenía (bajo su etapa)."""
+
+    SUSTITUIR = "sustituir"
+    """Como `actualizar`, y las partidas que la ingeniería no trae quedan en 0: lo
+    cargado reemplaza al presupuesto vigente."""
+
+
+_SOBRE_LA_OBRA = (CaminoIngenieria.MODIFICAR, CaminoIngenieria.ACTUALIZAR, CaminoIngenieria.SUSTITUIR)
+
 
 class ContextoIngenieriaIncompleto(ValueError):
     """Falta `obra_id`, o el camino `diseno_nuevo` sin `prototipo_base_id`
@@ -5220,7 +5235,9 @@ class AplicadorIngenieriaLote:
         desviaciones: RepositorioDesviaciones,
         ingenieria_insumos: RepositorioIngenieriaLoteInsumos,
         cargas: RepositorioCargas,
+        arbol: Any = None,
     ) -> None:
+        self._arbol = arbol
         self._obras = obras
         self._prototipos = prototipos
         self._prototipo_nodos = prototipo_nodos
@@ -5292,6 +5309,10 @@ class AplicadorIngenieriaLote:
                 insumos=tuple(replace(f, etapa=etapa_externa) for f in lote.insumos),
             )
 
+        if camino_resuelto in _SOBRE_LA_OBRA:
+            return await self._aplicar_sobre_la_obra(
+                lote, obra_id=obra_id, modo=camino_resuelto, dry_run=dry_run, carga_id=carga_id
+            )
         if camino_resuelto is CaminoIngenieria.CONOCIDO:
             return await self._aplicar_conocido(
                 lote, obra_id=obra_id, dry_run=dry_run, carga_id=carga_id
@@ -5521,6 +5542,106 @@ class AplicadorIngenieriaLote:
             )
 
         return tuple(resultados), tuple(pendientes)
+
+    async def _aplicar_sobre_la_obra(
+        self, lote: LoteIngenieriaLeido, *, obra_id: UUID, modo: CaminoIngenieria, dry_run: bool, carga_id: UUID
+    ) -> Aplicacion:
+        """Modificar, actualizar o sustituir el presupuesto de la obra con la ingeniería (D-628).
+
+        La reversión reconstruye cantidades contra el árbol **propio** de la obra y se escriben ahí (y en su borrador, que
+        Control de obra o Costos confirma). Solo en diseño. La vista previa (`dry_run`) dice qué cambiaría sin escribir.
+        """
+        if self._arbol is None:
+            raise ErrorDeProyecto("Esta carga necesita el árbol de la obra: no está disponible.")
+        obra = await self._obras.obtener(obra_id)
+        if obra is None:
+            raise ErrorDeProyecto(f"La obra {obra_id} no existe o está fuera de tu alcance.")
+        prototipo_id = await self._arbol.preparar_para_cargar(obra_id, dry_run=dry_run)
+
+        insumos_acumulados = await self._insumos_acumulados(obra_id, lote)
+        etapas_de_este_archivo = self._etapas_del_archivo(lote)
+        nodos = await self._prototipo_nodos.por_prototipo(prototipo_id)
+        presupuesto_por_etapa, nodo_por_etapa_clave = _presupuesto_y_nodos_por_etapa(nodos)
+        resultados_todos, pendientes = await self._reconstruir(nodos, presupuesto_por_etapa, lote, insumos_acumulados)
+        resultados = self._filtrar_por_archivo(resultados_todos, lote, etapas_de_este_archivo)
+
+        mejor_costo: dict[str, Decimal] = {}
+        mejor_ubicacion: dict[str, tuple[str, Decimal]] = {}
+        for r in resultados:
+            if r.reparto is None:
+                continue
+            costo_destajo = (r.precio or Decimal(0)) * r.cantidad_real
+            for concepto, cantidad_real in r.reparto.items():
+                actual = mejor_costo.get(concepto)
+                if actual is None or costo_destajo > actual:
+                    mejor_costo[concepto] = costo_destajo
+                    mejor_ubicacion[concepto] = (r.etapa, cantidad_real)
+
+        nodo_de_etapa = {str(n["clave"]): n for n in nodos if str(n["tipo"]) == "etapa" and n.get("clave")}
+        cambios: list[tuple[Mapping[str, Any], Decimal]] = []
+        altas: list[tuple[str, str, Decimal]] = []
+        sin_cambio: list[str] = []
+        for concepto, (etapa, cantidad) in mejor_ubicacion.items():
+            nodo = nodo_por_etapa_clave.get((etapa, concepto))
+            if nodo is not None:
+                if Decimal(str(nodo.get("cantidad") or 0)) == cantidad:
+                    sin_cambio.append(concepto)
+                else:
+                    cambios.append((nodo, cantidad))
+            elif modo is not CaminoIngenieria.MODIFICAR and etapa in nodo_de_etapa:
+                altas.append((etapa, concepto, cantidad))
+        a_cero: list[Mapping[str, Any]] = []
+        if modo is CaminoIngenieria.SUSTITUIR:
+            traidos = {(e, c) for c, (e, _) in mejor_ubicacion.items()}
+            a_cero = [
+                nodo
+                for (etapa, concepto), nodo in nodo_por_etapa_clave.items()
+                if (etapa, concepto) not in traidos and Decimal(str(nodo.get("cantidad") or 0)) != 0
+            ]
+
+        diff = Diff(
+            altas=tuple(Cambio(clave=c, despues={"etapa": e, "cantidad": str(q)}) for e, c, q in altas),
+            cambios=tuple(
+                Cambio(
+                    clave=str(n["clave"]),
+                    antes={"cantidad": str(n.get("cantidad") or 0)},
+                    despues={"cantidad": str(q)},
+                )
+                for n, q in cambios
+            ),
+            bajas=tuple(
+                Cambio(clave=str(n["clave"]), antes={"cantidad": str(n.get("cantidad") or 0)}, despues={"cantidad": "0"})
+                for n in a_cero
+            ),
+            sin_cambio=tuple(sin_cambio),
+        )
+        detalle = {
+            "camino": str(modo),
+            "partidas_que_cambian": len(cambios),
+            "partidas_nuevas": len(altas),
+            "partidas_a_cero": len(a_cero),
+            "sin_cambio": len(sin_cambio),
+        }
+        if dry_run:
+            return Aplicacion(diff=diff, pendientes=tuple(pendientes), detalle=detalle)
+
+        for nodo, cantidad in cambios:
+            await self._arbol.cargar_cantidad(prototipo_id, nodo["id"], cantidad)
+        for nodo in a_cero:
+            await self._arbol.cargar_cantidad(prototipo_id, nodo["id"], Decimal(0))
+        nuevas = 0
+        for etapa, concepto, cantidad in altas:
+            if await self._arbol.cargar_partida_nueva(prototipo_id, nodo_de_etapa[etapa]["id"], concepto, cantidad):
+                nuevas += 1
+        await self._persistir_insumos_del_archivo(obra_id, carga_id, lote, dry_run=False)
+        detalle["partidas_nuevas"] = nuevas
+        return Aplicacion(
+            diff=diff,
+            pendientes=tuple(pendientes),
+            actualizados=len(cambios) + len(a_cero),
+            insertados=nuevas,
+            detalle=detalle,
+        )
 
     async def _aplicar_conocido(
         self, lote: LoteIngenieriaLeido, *, obra_id: UUID, dry_run: bool, carga_id: UUID
