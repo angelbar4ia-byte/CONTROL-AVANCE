@@ -357,3 +357,17 @@ describe('selección por ventana', () => {
     expect(trazosEnVentana([fuera], caja, false)).toEqual([]);
   });
 });
+
+describe('Círculo: radio y diámetro', () => {
+  it('un polígono de muchos lados casi circular dice su radio; un cuadrado o un hexágono no', async () => {
+    const { medidasDeCirculo } = await import('@/cuantificador/geometria');
+    const ngono = (n: number, r: number) =>
+      [...Array.from({ length: n }, (_, i) => [r * Math.cos((2 * Math.PI * i) / n), r * Math.sin((2 * Math.PI * i) / n)]), [r, 0]];
+    const circulo = medidasDeCirculo({ type: 'Polygon', coordinates: [ngono(48, 5)] });
+    expect(circulo?.radio).toBeCloseTo(5, 1);
+    expect(circulo?.diametro).toBeCloseTo(10, 1);
+    expect(medidasDeCirculo({ type: 'Polygon', coordinates: [ngono(6, 5)] })).toBeNull();
+    expect(medidasDeCirculo({ type: 'Polygon', coordinates: [[[0, 0], [4, 0], [4, 4], [0, 4], [0, 0]]] })).toBeNull();
+    expect(medidasDeCirculo({ type: 'LineString', coordinates: [[0, 0], [1, 1]] })).toBeNull();
+  });
+});

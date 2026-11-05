@@ -94,8 +94,15 @@ class GestionarElementosParametricos:
         return nuevo
 
     async def actualizar(
-        self, elemento_id: UUID, *, clave: str | None, nombre: str | None, parametros: dict[str, Any] | None
-    ) -> None:
+        self,
+        elemento_id: UUID,
+        *,
+        clave: str | None,
+        nombre: str | None,
+        parametros: dict[str, Any] | None,
+        autor_id: UUID | None = None,
+    ) -> UUID:
+        """Cambia un elemento. Devuelve el id de la versión vigente (otro, si hubo que crear una versión nueva)."""
         actual = await self._elementos.obtener(elemento_id)
         if actual is None:
             raise ElementoParametricoNoEncontrado(f"El elemento {elemento_id} no existe o está fuera de tu alcance.")
@@ -105,10 +112,24 @@ class GestionarElementosParametricos:
         nuevos = normalizar_parametros(actual["tipo"], {**(actual["parametros"] or {}), **(parametros or {})})
         if await self._elementos.clave_en_uso(nueva_clave, salvo=elemento_id):
             raise ErrorDeElementoParametrico(f"Ya existe un elemento con la clave {nueva_clave}.")
+        cambia_la_receta = nuevos != normalizar_parametros(actual["tipo"], dict(actual["parametros"] or {}))
+        if cambia_la_receta and await self._elementos.obras_congeladas_con(elemento_id):
+            # D-639: las obras asignadas conservan la versión con que midieron; el resto pasa a la nueva.
+            async with self._uow:
+                if autor_id is None:
+                    raise ErrorDeElementoParametrico("Falta quién cambia el elemento.")
+                nueva = await self._elementos.crear_version(
+                    elemento_id, clave=nueva_clave, nombre=nuevo_nombre, parametros=nuevos, autor_id=autor_id
+                )
+                await self._sincronizar_obras_con(nueva)
+                await self._sincronizar_obras_con(elemento_id)
+                await self._uow.commit()
+            return nueva
         async with self._uow:
             await self._elementos.actualizar(elemento_id, clave=nueva_clave, nombre=nuevo_nombre, parametros=nuevos)
             await self._sincronizar_obras_con(elemento_id)
             await self._uow.commit()
+        return elemento_id
 
     async def eliminar(self, elemento_id: UUID) -> None:
         if await self._elementos.obtener(elemento_id) is None:
@@ -198,13 +219,13 @@ class GestionarElementosParametricos:
     async def conceptos_del_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
         """Lo que cada concepto toma, en total, de los elementos colocados en el plano: su cantidad en la unidad del
         concepto y los materiales que toma (D-630)."""
-        elementos = {e["id"]: e for e in await self._elementos.listar()}
+        elementos = {e["id"]: e for e in await self._elementos.listar_todos()}
         totales = {t["elemento_id"]: t for t in (await self.totales_del_plano(plano_id))["totales"]}
         return filas_de_toma(elementos, totales, await self._elementos.de_todos_los_elementos())
 
     async def totales_del_plano(self, plano_id: UUID) -> dict[str, Any]:
         """Lo que llevan en total los elementos colocados en un plano: la receta de una muestra × lo que aporta cada trazo."""
-        elementos = {e["id"]: e for e in await self._elementos.listar()}
+        elementos = {e["id"]: e for e in await self._elementos.listar_todos()}
         trazos = await self._elementos.trazos_del_plano(plano_id)
         por_elemento = totales_de_trazos(elementos, trazos)
         return {

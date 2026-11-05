@@ -707,3 +707,20 @@ export function direccionDeLaLinea(linea: readonly Punto[], distancia: number): 
   }
   return ultimo;
 }
+
+
+/**
+ * Si un área es un círculo (la herramienta Círculo lo dibuja como un polígono de muchos lados): su radio y su diámetro, en
+ * unidades de plano. Un polígono es un círculo si tiene bastantes lados y su área es casi la de un círculo de su perímetro
+ * (4πA/P² ≈ 1). Un cuadrado da 0.785; un hexágono 0.907.
+ */
+export function medidasDeCirculo(geometria: GeometriaGeoJson): { readonly radio: number; readonly diametro: number } | null {
+  if (geometria.type !== 'Polygon') return null;
+  const exterior = partesDe(geometria).find((p) => p.tipo === 'anillo' && !p.hueco);
+  if (!exterior || exterior.puntos.length < 16) return null;
+  const perimetro = perimetroLocal(exterior.puntos);
+  const area = areaLocal(exterior.puntos);
+  if (!(perimetro > 0) || (4 * Math.PI * area) / perimetro ** 2 < 0.985) return null;
+  const radio = perimetro / (2 * Math.PI);
+  return { radio, diametro: 2 * radio };
+}

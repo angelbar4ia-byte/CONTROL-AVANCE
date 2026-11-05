@@ -12582,6 +12582,7 @@
           "elementos parametricos"
         ],
         "summary": "Cambiar la clave, el nombre o algunos parámetros de un elemento paramétrico",
+        "description": "Si cambia la receta y hay obras asignadas que lo usan, nace una versión nueva (D-639): esas obras conservan la\nanterior y el resto pasa a la nueva.",
         "operationId": "actualizar_elemento_parametrico_api_v1_elementos_parametricos__elemento_id__patch",
         "security": [
           {
@@ -25189,6 +25190,12 @@
           },
           "receta": {
             "$ref": "#/components/schemas/RecetaRespuesta"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "description": "Sube al cambiar la receta con obras asignadas que lo usan (D-639).",
+            "default": 1
           }
         },
         "type": "object",

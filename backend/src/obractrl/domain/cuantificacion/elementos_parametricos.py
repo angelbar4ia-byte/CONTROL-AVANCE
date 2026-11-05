@@ -6,7 +6,9 @@ cadenas) o **m²** (losa maciza). La receta es la de UNA muestra; el trazo aport
 La cimbra se da **por número de lados** (4, 3 o 2 en un castillo según esté aislado, junto a un vano o en un muro
 continuo); el diseño de la cimbra (forro, usos, alambre) es un sub-elemento que llega aparte (D-603).
 
-Función pura, sin base de datos: las constantes físicas son las de `CONSTANTE_FISICA` (D-326).
+Función pura, sin base de datos. Las constantes físicas (vara comercial, peso por varilla y por calibre de alambre) viven
+aquí, en el código: pasarlas a la tabla `CONSTANTE_FISICA` (D-326, D-602 §7) queda pendiente de que esa tabla exista; hasta
+entonces un cambio de constantes llega a todos los elementos porque la receta se calcula al leer.
 """
 
 from __future__ import annotations

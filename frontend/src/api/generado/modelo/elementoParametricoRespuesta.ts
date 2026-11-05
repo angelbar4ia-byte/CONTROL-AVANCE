@@ -16,4 +16,6 @@ export interface ElementoParametricoRespuesta {
   tipo: ElementoParametricoRespuestaTipo;
   parametros: ElementoParametricoRespuestaParametros;
   receta: RecetaRespuesta;
+  /** Sube al cambiar la receta con obras asignadas que lo usan (D-639). */
+  version?: number;
 }

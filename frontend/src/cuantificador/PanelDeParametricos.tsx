@@ -49,6 +49,7 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError }
   const [nuevo, setNuevo] = useState({ clave: '', nombre: '', tipo: 'castillo' as TipoParametrico });
   const [editando, setEditando] = useState<Readonly<Record<string, string>>>({});
   const [abierto, setAbierto] = useState<string | null>(null);
+  const [buscar, setBuscar] = useState('');
 
   const elementos = consulta.data ?? [];
   const recargar = () =>
@@ -125,8 +126,18 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError }
         </div>
       )}
       {elementos.length === 0 && !consulta.isLoading && <div className="text-mute text-xs">Aún no hay elementos paramétricos.</div>}
+      {elementos.length > 3 && (
+        <input
+          className="input"
+          type="search"
+          aria-label="Buscar elemento"
+          placeholder="Buscar elemento"
+          value={buscar}
+          onChange={(e) => setBuscar(e.target.value)}
+        />
+      )}
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
-        {elementos.map((e) => {
+        {elementos.filter((e) => `${e.clave} ${e.nombre}`.toLowerCase().includes(buscar.trim().toLowerCase())).map((e) => {
           const tipo = e.tipo as TipoParametrico;
           const abiertoAhora = abierto === e.id;
           return (
@@ -140,6 +151,9 @@ export function PanelDeParametricos({ planoId, puedeDefinir, onCambio, onError }
                   onClick={() => setAbierto(abiertoAhora ? null : e.id)}
                 >
                   <span className="mono">{e.clave}</span> · {e.nombre}
+                  {(e as { version?: number }).version !== undefined && (e as { version?: number }).version! > 1 && (
+                    <span className="badge badge--outline" title="Versión del elemento: las obras asignadas conservan la anterior (D-639)">v{(e as { version?: number }).version}</span>
+                  )}
                 </button>
                 <span className="badge badge--outline">{NOMBRE_DEL_TIPO[tipo]}</span>
                 {puedeDefinir && (

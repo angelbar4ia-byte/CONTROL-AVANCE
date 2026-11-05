@@ -150,6 +150,7 @@ import {
   formaDe,
   type HerramientaDeDibujo,
 } from './dibujo';
+import { medidasDeCirculo } from './geometria';
 import { centroide, cotasDe, etiquetasDeMedidas, fmtMedida, sinCierre } from './etiquetas';
 import {
   REFERENCIAS_POR_DEFECTO,
@@ -2266,6 +2267,17 @@ export function EspacioDeTrazo({
               {seleccionado.properties.capa ?? 'Sin capa'} ·{' '}
               <span className="mono">{seleccionado.properties.fuente.toUpperCase()}</span>
             </div>
+            {(() => {
+              // Un círculo dice su radio y su diámetro (D-633): se miden en metros con la escala del plano.
+              const c = medidasDeCirculo(seleccionado.geometry);
+              if (!c) return null;
+              const k = escalaDelPlano !== null && escalaDelPlano > 0 ? escalaDelPlano : 1;
+              return (
+                <div className="text-xs mono" data-testid="medidas-de-circulo">
+                  Círculo · radio {(c.radio * k).toFixed(2)} m · diámetro {(c.diametro * k).toFixed(2)} m
+                </div>
+              );
+            })()}
             <SelectorDeMedicion
               trazo={seleccionado}
               mediciones={listaDeMediciones}

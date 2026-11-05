@@ -114,7 +114,7 @@ class SincronizarTomas:
 
     async def tomas_de_la_obra(self, obra_id: UUID) -> dict[UUID, tuple[Decimal, str]]:
         """Concepto → (cantidad, unidad) de lo que toma de los elementos colocados en toda la obra."""
-        elementos = {e["id"]: e for e in await self._elementos.listar()}
+        elementos = {e["id"]: e for e in await self._elementos.listar_todos()}
         totales = totales_de_trazos(elementos, await self._elementos.trazos_de_la_obra(obra_id))
         suma: dict[UUID, tuple[Decimal, str]] = {}
         for f in filas_de_toma(elementos, totales, await self._elementos.de_todos_los_elementos()):

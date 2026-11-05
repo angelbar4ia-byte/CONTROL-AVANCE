@@ -53,6 +53,7 @@ class ElementoParametricoRespuesta(BaseModel):
     tipo: TipoDeElementoParametrico
     parametros: dict[str, float]
     receta: RecetaRespuesta
+    version: int = Field(default=1, description="Sube al cambiar la receta con obras asignadas que lo usan (D-639).")
 
 
 class ElementoParametricoPeticion(BaseModel):
@@ -86,6 +87,7 @@ def _respuesta(fila: dict[str, Any]) -> ElementoParametricoRespuesta:
         nombre=fila["nombre"],
         tipo=fila["tipo"],
         parametros={k: float(v) for k, v in fila["parametros"].items()},
+        version=int(fila.get("version") or 1),
         receta=RecetaRespuesta(**{**r, "cimbra_m2": {str(k): float(v) for k, v in r["cimbra_m2"].items()}}),
     )
 
@@ -153,13 +155,16 @@ async def crear_elemento_parametrico(
     },
 )
 async def actualizar_elemento_parametrico(
-    elemento_id: UUID, peticion: ElementoParametricoCambio, caso_uso: GestionarElementosParametricosDep
+    elemento_id: UUID, peticion: ElementoParametricoCambio, ctx: ContextoActual, caso_uso: GestionarElementosParametricosDep
 ) -> None:
+    """Si cambia la receta y hay obras asignadas que lo usan, nace una versión nueva (D-639): esas obras conservan la
+    anterior y el resto pasa a la nueva."""
     await caso_uso.actualizar(
         elemento_id,
         clave=peticion.clave,
         nombre=peticion.nombre,
         parametros=dict(peticion.parametros) if peticion.parametros is not None else None,
+        autor_id=ctx.usuario_id,
     )
 
 

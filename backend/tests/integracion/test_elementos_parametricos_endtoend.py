@@ -313,3 +313,48 @@ async def test_borrar_el_trazo_de_un_elemento_rehace_lo_que_toma_la_matriz(
     assert float(await medido()) == pytest.approx(2)  # type: ignore[arg-type]
     assert (await control.delete(f"/api/v1/trazos/{ids['punto']}")).status_code == 200
     assert float(await medido()) == pytest.approx(1)  # type: ignore[arg-type]
+
+
+async def test_cambiar_la_receta_con_una_obra_asignada_crea_una_version_y_la_congela(
+    control: httpx.AsyncClient, escenario
+) -> None:
+    """D-639: las obras asignadas conservan la versión con que midieron; el catálogo y el resto pasan a la nueva."""
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from tests.integracion.conftest import DATABASE_URL_ADMIN
+
+    elemento = (await control.post("/api/v1/elementos-parametricos", json={"clave": "K-V", "nombre": "Castillo V", "tipo": "castillo"})).json()["id"]
+    plano, ids = await _plano_con_trazos(control, escenario)
+    for t in (ids["punto"], ids["punto2"]):
+        await control.put(f"/api/v1/trazos/{t}/elemento-parametrico", json={"elemento_id": elemento})
+
+    async def catalogo() -> dict:
+        return next(e for e in (await control.get("/api/v1/elementos-parametricos")).json() if e["clave"] == "K-V")
+
+    antes = await catalogo()
+    assert antes["version"] == 1
+
+    # Sin obra asignada, cambiar la receta cambia el elemento en su lugar (misma versión).
+    assert (await control.patch(f"/api/v1/elementos-parametricos/{elemento}", json={"parametros": {"alto": 2.8}})).status_code == 204
+    en_sitio = await catalogo()
+    assert en_sitio["id"] == elemento and en_sitio["version"] == 1 and en_sitio["parametros"]["alto"] == 2.8
+
+    # La obra se asigna: el siguiente cambio de receta crea la versión 2.
+    motor = create_async_engine(DATABASE_URL_ADMIN)
+    try:
+        async with motor.begin() as c:
+            await c.execute(
+                text("insert into parte_estado (org_id, obra_id, clave, estado) values (:o, :ob, 'sin_etapa', 'asignada')"),
+                {"o": str(escenario.org_id), "ob": str(escenario.obra_id)},
+            )
+    finally:
+        await motor.dispose()
+    assert (await control.patch(f"/api/v1/elementos-parametricos/{elemento}", json={"parametros": {"alto": 3.0}})).status_code == 204
+    nueva = await catalogo()
+    assert nueva["version"] == 2 and nueva["id"] != elemento and nueva["parametros"]["alto"] == 3.0
+    assert len([e for e in (await control.get("/api/v1/elementos-parametricos")).json() if e["clave"] == "K-V"]) == 1
+
+    # Los trazos de la obra asignada siguen con la versión 1 (alto 2.8): sus totales no se movieron.
+    totales = (await control.get(f"/api/v1/planos/{plano}/elementos-parametricos")).json()["totales"]
+    assert [t["elemento_id"] for t in totales] == [elemento]

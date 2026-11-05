@@ -1016,6 +1016,8 @@ export const useCrearElementoParametricoApiV1ElementosParametricosPost = <
   return useMutation(mutationOptions, queryClient);
 };
 /**
+ * Si cambia la receta y hay obras asignadas que lo usan, nace una versión nueva (D-639): esas obras conservan la
+anterior y el resto pasa a la nueva.
  * @summary Cambiar la clave, el nombre o algunos parámetros de un elemento paramétrico
  */
 export const actualizarElementoParametricoApiV1ElementosParametricosElementoIdPatch =
