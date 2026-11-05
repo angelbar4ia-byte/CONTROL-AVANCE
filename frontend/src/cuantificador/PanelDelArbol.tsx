@@ -34,6 +34,7 @@ import { useCrearConceptoEnLaObraApiV1ObrasObraIdConceptosNuevosPost } from '@/a
 import type { ActividadRespuesta } from '@/api/generado/modelo';
 import { queryClient } from '@/app/queryClient';
 import { descripcionCorta, reordenar } from './arbol';
+import { ArbolDeLaObra } from './ArbolDeLaObra';
 import { CambioDeUnidadDelConcepto } from './CambioDeUnidadDelConcepto';
 import { MatricesDeActividad } from './MatricesDeActividad';
 import { NOMBRE_DE_TIPO, tipoDeMedicion } from './tipos';
@@ -193,6 +194,8 @@ function NuevaPartida({ obraId, etapaId, onCreada, onError }: {
 }
 
 export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props) {
+  /** Qué se ve: las partidas de la obra, o su árbol y las versiones del presupuesto (D-624). */
+  const [vista, setVista] = useState<'partidas' | 'arbol'>('partidas');
   const [matricesAbiertas, setMatricesAbiertas] = useState<ReadonlySet<string>>(new Set());
   /** Un cambio de unidad que cruza de tipo en curso: pide equivalencia en vez de cambiarse directo. */
   const [cambioDeUnidad, setCambioDeUnidad] = useState<{ actividad: ActividadRespuesta; unidadId: string } | null>(null);
@@ -447,8 +450,32 @@ export function PanelDelArbol({ obraId, actividades, onCambio, onError }: Props)
     );
   };
 
+  if (vista === 'arbol') {
+    return (
+      <div className="arbol-edicion" role="region" aria-label="Árbol de la obra">
+        <div className="row" role="group" aria-label="Qué editar" style={{ gap: 4, padding: '6px 8px 0' }}>
+          <button type="button" aria-pressed={false} className="btn btn--ghost btn--sm" onClick={() => setVista('partidas')}>
+            Partidas de la obra
+          </button>
+          <button type="button" aria-pressed className="btn btn--sm">
+            Árbol y versiones
+          </button>
+        </div>
+        <ArbolDeLaObra obraId={obraId} onCambio={onCambio} onError={onError} />
+      </div>
+    );
+  }
+
   return (
     <div className="arbol-edicion" role="region" aria-label="Armar el árbol">
+      <div className="row" role="group" aria-label="Qué editar" style={{ gap: 4, padding: '6px 8px 0' }}>
+        <button type="button" aria-pressed className="btn btn--sm">
+          Partidas de la obra
+        </button>
+        <button type="button" aria-pressed={false} className="btn btn--ghost btn--sm" onClick={() => setVista('arbol')}>
+          Árbol y versiones
+        </button>
+      </div>
       <p className="text-mute text-xs" style={{ margin: '6px 8px' }}>
         Aquí armas el árbol: niveles, etapas y partidas. La unidad de un concepto decide cómo se mide y es del catálogo (vale para
         todas las obras).
