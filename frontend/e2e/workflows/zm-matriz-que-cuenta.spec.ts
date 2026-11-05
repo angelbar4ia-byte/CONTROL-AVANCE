@@ -76,6 +76,8 @@ test.describe('Cuantificador · la matriz que cuenta', () => {
     // --- 2. Soltarla devuelve los trazos propios ---------------------------------------------------------------
     await matrices.locator('[data-cuenta="MTZ-NERV"]').click();
     await expect.poll(cantidadDeLaLosa).toBeCloseTo(6, 2);
+    // Esperar a que el botón refleje que ya no cuenta: un clic con el estado viejo volvería a soltarla.
+    await expect(matrices.locator('[data-cuenta="MTZ-NERV"]')).toHaveAttribute('aria-pressed', 'false');
 
     // --- 3. Trazar directo sobre la losa con una matriz que cuenta pide confirmar -----------------------------
     await matrices.locator('[data-cuenta="MTZ-NERV"]').click();
