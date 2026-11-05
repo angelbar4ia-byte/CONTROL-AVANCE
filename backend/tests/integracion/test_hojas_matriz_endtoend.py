@@ -202,6 +202,11 @@ async def test_la_matriz_que_cuenta_da_la_cantidad_del_concepto_en_lugar_de_sus_
     assert float(r.json()["cantidad_total"]) == pytest.approx(7)
     assert (await _matrices(control, escenario))["matriz_cuenta_id"] == losa["NERV"]
 
+    # El estado de la cuantificación (lo que muestra el encabezado) también sigue a la matriz que cuenta.
+    estado = (await control.get(f"/api/v1/obras/{escenario.obra_id}/cuantificacion")).json()
+    nodo = next(n for n in estado if n["nodo_id"] == str(escenario.actividad_id))
+    assert float(nodo["cantidad_medida"]) == pytest.approx(7)
+
     # Otro trazo directo no suma mientras la matriz cuente.
     r2 = await _medir(control, escenario, 2)
     assert r2.status_code == 201, r2.text

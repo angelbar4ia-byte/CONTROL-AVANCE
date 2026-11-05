@@ -810,6 +810,7 @@ def obtener_consultar_cuantificacion(sesion: SesionRLS) -> ConsultarCuantificaci
         trazos=RepositorioTrazosSQL(sesion),
         enlaces=RepositorioEnlacesCuantificacionSQL(sesion),
         notas=RepositorioNotasPlanoSQL(sesion),
+        matrices=RepositorioMatricesSQL(sesion),
     )
 
 

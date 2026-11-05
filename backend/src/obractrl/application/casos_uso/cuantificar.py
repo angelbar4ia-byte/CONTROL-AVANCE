@@ -1872,11 +1872,13 @@ class ConsultarCuantificacion:
         trazos: RepositorioTrazos,
         enlaces: RepositorioEnlacesCuantificacion,
         notas: RepositorioNotasPlano,
+        matrices: RepositorioMatrices | None = None,
     ) -> None:
         self._planos = planos
         self._trazos = trazos
         self._enlaces = enlaces
         self._notas = notas
+        self._matrices = matrices
 
     async def planos_de_obra(self, obra_id: UUID) -> list[dict]:
         await self._exigir_obra(obra_id)
@@ -1915,6 +1917,21 @@ class ConsultarCuantificacion:
         for (tipo_nodo, nodo_id), enlaces in por_nodo.items():
             vigentes = [e for e in enlaces if e["vigente"]]
             primero = enlaces[0]
+            medida_del_nodo = cantidad_medida(
+                [
+                    MedidaDeEnlace(
+                        medida_valor=Decimal(str(e["medida_valor"])),
+                        factor=Decimal(str(e["factor"])),
+                        vigente=bool(e["vigente"]),
+                    )
+                    for e in enlaces
+                ]
+            )
+            if self._matrices is not None and tipo_nodo == TipoNodoCuantificacion.ACTIVIDAD.value:
+                # Con una matriz que cuenta (D-636) la cantidad del concepto es la de esa matriz.
+                cuenta = await self._matrices.la_que_cuenta(nodo_id)
+                if cuenta is not None:
+                    medida_del_nodo = Decimal(str(cuenta["cantidad"])) if cuenta["cantidad"] is not None else Decimal(0)
             nodos.append(
                 NodoCuantificado(
                     tipo_nodo=tipo_nodo,
@@ -1926,16 +1943,7 @@ class ConsultarCuantificacion:
                         else None
                     ),
                     # El dominio suma; el SQL solo midió (§12.11).
-                    cantidad_medida=cantidad_medida(
-                        [
-                            MedidaDeEnlace(
-                                medida_valor=Decimal(str(e["medida_valor"])),
-                                factor=Decimal(str(e["factor"])),
-                                vigente=bool(e["vigente"]),
-                            )
-                            for e in enlaces
-                        ]
-                    ),
+                    cantidad_medida=medida_del_nodo,
                     enlaces_vigentes=len(vigentes),
                     enlaces_reemplazados=len(enlaces) - len(vigentes),
                     trazos_por_revisar=sum(1 for e in vigentes if e["por_revisar"]),
