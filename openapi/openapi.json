@@ -21611,6 +21611,29 @@
         "title": "ConceptosDelOficioPeticion",
         "description": "Los conceptos que se ejecutan con ese oficio, **completos**.\n\nReemplazo y no alta, igual que las etapas de un frente: lo que no venga en\nla lista se queda sin oficio. Así mover un concepto de un oficio a otro es\nuna llamada y no dos."
       },
+      "ConexionDeMuro": {
+        "properties": {
+          "extremo": {
+            "type": "string",
+            "enum": [
+              "ini",
+              "fin"
+            ],
+            "title": "Extremo"
+          },
+          "con_trazo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Con Trazo Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "extremo",
+          "con_trazo_id"
+        ],
+        "title": "ConexionDeMuro"
+      },
       "ConfirmacionDeActividad": {
         "properties": {
           "actividad_id": {
@@ -37708,6 +37731,14 @@
             ],
             "title": "Pendiente Pct",
             "description": "Pendiente en % de una línea inclinada; `null` = horizontal."
+          },
+          "conexiones": {
+            "items": {
+              "$ref": "#/components/schemas/ConexionDeMuro"
+            },
+            "type": "array",
+            "title": "Conexiones",
+            "description": "Extremos del muro que continúan en otro (D-629): el plano cierra la esquina al dibujar el cuerpo."
           },
           "medicion_id": {
             "anyOf": [

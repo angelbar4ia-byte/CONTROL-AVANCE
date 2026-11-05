@@ -158,6 +158,7 @@ import {
   type ReferenciasActivas,
 } from './referencias';
 import {
+  alargarExtremos,
   bandaDeLinea,
   poligonoDeForma,
   normalizarContorno,
@@ -789,7 +790,12 @@ export function EspacioDeTrazo({
         banda:
           f.properties.grosor_m != null && f.properties.alineacion
             ? bandaDeLinea(
-                puntosDe(f.geometry),
+                alargarExtremos(
+                  puntosDe(f.geometry),
+                  (Number(f.properties.grosor_m) * unidadesPorMetro) / 2,
+                  (f.properties.conexiones ?? []).some((c) => c.extremo === 'ini'),
+                  (f.properties.conexiones ?? []).some((c) => c.extremo === 'fin'),
+                ),
                 Number(f.properties.grosor_m) * unidadesPorMetro,
                 f.properties.alineacion,
               )

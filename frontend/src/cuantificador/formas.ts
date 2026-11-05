@@ -164,6 +164,31 @@ export function desplazarPolilinea(puntos: readonly Punto[], d: number): Punto[]
 }
 
 /**
+ * Alarga el eje medio grosor en los extremos que continúan en otro muro (conexión, D-629), para que el cuerpo
+ * cierre la esquina sin hueco. Solo cambia lo que se dibuja: el eje y la medida quedan igual.
+ */
+export function alargarExtremos(
+  puntos: readonly Punto[],
+  extension: number,
+  inicio: boolean,
+  final: boolean,
+): Punto[] {
+  const salida = puntos.map((p) => [p[0], p[1]] as Punto);
+  const n = salida.length;
+  if (n < 2 || !(extension > 0)) return salida;
+  const empujar = (de: number, hacia: number) => {
+    const a = salida[de] as Punto;
+    const b = salida[hacia] as Punto;
+    const largo = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (largo === 0) return;
+    salida[de] = [a[0] + ((a[0] - b[0]) / largo) * extension, a[1] + ((a[1] - b[1]) / largo) * extension];
+  };
+  if (inicio) empujar(0, 1);
+  if (final) empujar(n - 1, n - 2);
+  return salida;
+}
+
+/**
  * El contorno del cuerpo de una línea con grosor: un anillo cerrado que se pinta como un muro.
  * `centro` reparte el grosor a los dos lados del eje; `izquierda`/`derecha` lo ponen todo de un
  * lado, mirando en el sentido en que se dibujó.

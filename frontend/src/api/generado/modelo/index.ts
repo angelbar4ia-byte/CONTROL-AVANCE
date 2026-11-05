@@ -244,6 +244,8 @@ export type * from "./conceptoTomaPeticion";
 export type * from "./conceptoTomaPeticionToma";
 export * from "./conceptoTomaPeticionUnidad";
 export type * from "./conceptosDelOficioPeticion";
+export type * from "./conexionDeMuro";
+export * from "./conexionDeMuroExtremo";
 export type * from "./confirmacionDeActividad";
 export type * from "./confirmacionDeActividadCantConfirmada";
 export type * from "./confirmacionDeActividadConceptoClave";
