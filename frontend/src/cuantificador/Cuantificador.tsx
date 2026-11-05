@@ -37,8 +37,7 @@ import {
   useEliminarTrazoApiV1TrazosTrazoIdDelete,
   useTransformarTrazosApiV1TrazosTransformarPost,
   useColocarVanoApiV1TrazosTrazoIdVanosPost,
-  useCambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch,
-  useMoverVanoApiV1VanosVanoIdPosicionPatch,
+  useVerMuroApiV1TrazosTrazoIdMuroGet,
   useVanosDelPlanoApiV1PlanosPlanoIdVanosGet,
   useAprobarTrazoApiV1TrazosTrazoIdAprobarPost,
   useArchivoDePlanoApiV1PlanosPlanoIdArchivoGet,
@@ -171,6 +170,9 @@ import { OPCIONES_DE_VANO_INICIALES, OpcionesDeVano, versionDelVano, type Opcion
 import { useListarVersionesApiV1VanosVersionGet } from '@/api/generado/vanos-catalogo/vanos-catalogo';
 import { UnionesDelMuro } from './UnionesDelMuro';
 import { VanosDelTrazo } from './VanosDelTrazo';
+import { VanoElegido } from './VanoElegido';
+import { VanosDelPlano } from './VanosDelPlano';
+import { useAccionesDeVano } from './accionesDeVano';
 import { TIPOS_DE_VANO, claveSiguiente, type DatosDeVano } from './vanos';
 import { alternarEnSeleccion, trazosElegidos } from './seleccion';
 import { PanelVolumen } from './PanelVolumen';
@@ -882,9 +884,8 @@ export function EspacioDeTrazo({
   const quitarHueco = useQuitarHuecoApiV1TrazosTrazoIdHuecosHuecoIdDelete<ErrorApi>();
   const transformar = useTransformarTrazosApiV1TrazosTransformarPost<ErrorApi>();
   const colocarVano = useColocarVanoApiV1TrazosTrazoIdVanosPost<ErrorApi>();
-  const moverVano = useMoverVanoApiV1VanosVanoIdPosicionPatch<ErrorApi>();
-  const cambiarAnchoDelVano = useCambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch<ErrorApi>();
   const [vanoElegidoId, setVanoElegidoId] = useState<string | null>(null);
+  const [menuDelVano, setMenuDelVano] = useState<{ id: string; x: number; y: number } | null>(null);
   const [opcionesVano, setOpcionesVano] = useState<OpcionesDelVano>(OPCIONES_DE_VANO_INICIALES);
   /** Por línea: el primer clic (sobre qué trazo y a qué distancia de su inicio, en unidades de plano). */
   const [vanoIni, setVanoIni] = useState<{ trazoId: string; distancia: number } | null>(null);
@@ -1310,26 +1311,49 @@ export function EspacioDeTrazo({
     }
   }
 
-  /** Se soltó un asa del vano elegido: correrlo por su muro, o ensancharlo / angostarlo (recalcula lo que descuenta). */
-  async function ajustarVano(id: string, cambio: { desplazamiento?: number; anchoPlano?: number }) {
+  const accionesDeVano = useAccionesDeVano({
+    historial,
+    alCambiarHistorial: refrescarHistorial,
+    avisar: setAviso,
+    alCambiarMedidas: invalidarTrazos,
+    vanos: vanosConsulta.data ?? [],
+  });
+  const vanoElegido = (vanosConsulta.data ?? []).find((v) => v.id === vanoElegidoId) ?? null;
+  const murosDelVano = useVerMuroApiV1TrazosTrazoIdMuroGet(vanoElegido?.trazo_id ?? '', {
+    query: { enabled: vanoElegido !== null, retry: false },
+  });
+
+  /** Se soltó un asa del vano elegido: pegarlo a otro punto del muro, o cambiarle el ancho con el extremo contrario fijo. */
+  function ajustarVano(id: string, cambio: { distanciaPlano?: number; anchoPlano?: number; corrimientoPlano?: number }) {
     const v = (vanosConsulta.data ?? []).find((x) => x.id === id);
     if (!v || !(v.ancho_plano > 0)) return;
     const metrosPorUnidad = Number(v.ancho_m) / v.ancho_plano;
-    try {
-      if (cambio.desplazamiento !== undefined) {
-        const posicion = Math.max(0, Number(v.posicion_m ?? 0) + cambio.desplazamiento * metrosPorUnidad);
-        await moverVano.mutateAsync({ vanoId: id, data: { posicion_m: Number(posicion.toFixed(3)) } });
-        setAviso(`${v.clave} corrido a ${posicion.toFixed(2)} m desde el inicio del muro.`);
-      }
-      if (cambio.anchoPlano !== undefined) {
-        const ancho = Math.max(0.05, Number((cambio.anchoPlano * metrosPorUnidad).toFixed(3)));
-        await cambiarAnchoDelVano.mutateAsync({ vanoId: id, data: { ancho_m: ancho } });
-        setAviso(`${v.clave} ahora mide ${ancho.toFixed(2)} m de ancho; lo que descuenta se recalculó.`);
-        invalidarTrazos();
-      }
-      void queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).includes('/vanos') });
-    } catch (err) {
-      setAviso(`No se pudo ajustar el vano: ${err instanceof Error ? err.message : 'error'}`);
+    if (cambio.distanciaPlano !== undefined) void accionesDeVano.moverA(v, cambio.distanciaPlano * metrosPorUnidad);
+    if (cambio.anchoPlano !== undefined) {
+      void accionesDeVano.cambiarAncho(v, cambio.anchoPlano * metrosPorUnidad, (cambio.corrimientoPlano ?? 0) * metrosPorUnidad);
+    }
+  }
+
+  /** Cómo se llama el muro, la línea o el área: su concepto si lo tiene, si no su capa. */
+  function nombreDeTrazoPorId(id: string): string {
+    const f = features.find((x) => x.id === id);
+    if (!f) return 'el muro';
+    const enlace = f.properties.enlaces.find((e) => e.vigente);
+    return enlace ? nombreDeNodo(enlace.tipo_nodo, enlace.nodo_id) : (f.properties.capa ?? 'Trazo sin enlace');
+  }
+
+  function irAlTrazoDelVano(trazoId: string) {
+    setVanoElegidoId(null);
+    setSeleccion({ tipo: 'trazo', id: trazoId });
+    setExtras(new Set());
+  }
+
+  /** Elegir un vano (clic con Seleccionar o desde su menú): su detalle reemplaza al del trazo. */
+  function elegirVano(id: string | null) {
+    setVanoElegidoId(id);
+    if (id !== null) {
+      setSeleccion(null);
+      setExtras(new Set());
     }
   }
 
@@ -1650,10 +1674,33 @@ export function EspacioDeTrazo({
     }
   }
 
+  // Un vano elegido se suelta con Esc, al cambiar de herramienta (salvo Seleccionar) o de plano.
+  useEffect(() => {
+    if (vanoElegidoId === null) return;
+    const cerrar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setVanoElegidoId(null);
+        setMenuDelVano(null);
+      }
+    };
+    window.addEventListener('keydown', cerrar);
+    return () => window.removeEventListener('keydown', cerrar);
+  }, [vanoElegidoId]);
+  useEffect(() => {
+    if (herramienta !== 'seleccionar') setVanoElegidoId(null);
+  }, [herramienta]);
+  useEffect(() => {
+    setVanoElegidoId(null);
+  }, [planoElegido]);
+
   useEffect(() => {
     if (menuDelTrazo === null) return;
     const cerrar = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuDelTrazo(null);
+      if (e.key === 'Escape') {
+        setMenuDelTrazo(null);
+        setMenuDelVano(null);
+        setVanoElegidoId(null);
+      }
     };
     window.addEventListener('keydown', cerrar);
     return () => window.removeEventListener('keydown', cerrar);
@@ -2072,7 +2119,9 @@ export function EspacioDeTrazo({
   const detalle = (
     <aside className="estacion__detalle" aria-label="Detalle">
       <div className="estacion__titulo">
-        {pestana === 'trabajos' && trabajoElegido && puedeVerTrabajos
+        {vanoElegido
+          ? 'Elemento colocado'
+          : pestana === 'trabajos' && trabajoElegido && puedeVerTrabajos
           ? trabajoElegido.tipo === 'cuadrilla'
             ? 'Trabajo · cuadrilla'
             : 'Trabajo · destajo'
@@ -2083,7 +2132,21 @@ export function EspacioDeTrazo({
             : 'Trazos del plano'}
       </div>
       <div className="estacion__detalle-cuerpo col">
-        {pestana === 'trabajos' && trabajoElegido && puedeVerTrabajos ? (
+        {vanoElegido ? (
+          <VanoElegido
+            vano={vanoElegido}
+            colocadoEn={nombreDeTrazoPorId(vanoElegido.trazo_id)}
+            caras={murosDelVano.data?.caras ?? CARAS_POR_DEFECTO}
+            puedeEditar
+            onPiezas={(n) => void accionesDeVano.cambiarPiezas(vanoElegido, n)}
+            onHoja={(cambio) => void accionesDeVano.cambiarHoja(vanoElegido, cambio)}
+            onIrAlTrazo={() => irAlTrazoDelVano(vanoElegido.trazo_id)}
+            onQuitar={() => {
+              setVanoElegidoId(null);
+              void accionesDeVano.quitar(vanoElegido);
+            }}
+          />
+        ) : pestana === 'trabajos' && trabajoElegido && puedeVerTrabajos ? (
           <EditorDeTrabajo
             elegido={trabajoElegido}
             trabajos={listaDeTrabajos}
@@ -2464,6 +2527,15 @@ export function EspacioDeTrazo({
               if (aviso) setAviso(aviso);
             }}
             onError={(m) => setAviso(m)}
+          />
+          <VanosDelPlano
+            vanos={vanosConsulta.data ?? []}
+            elegidoId={vanoElegidoId}
+            nombreDelMuro={nombreDeTrazoPorId}
+            onElegir={(id) => {
+              cambiarHerramienta('seleccionar');
+              elegirVano(id);
+            }}
           />
         </div>
       ) : pestana === 'mediciones' ? (
@@ -2985,8 +3057,12 @@ export function EspacioDeTrazo({
                 onMenu={abrirMenuDelTrazo}
                 vanos={vanosVisibles}
                 vanoElegidoId={vanoElegidoId}
-                onElegirVano={setVanoElegidoId}
-                onAjustarVano={(id, cambio) => void ajustarVano(id, cambio)}
+                onElegirVano={elegirVano}
+                onAjustarVano={ajustarVano}
+                onMenuVano={(id, x, y) => {
+                  elegirVano(id);
+                  setMenuDelVano({ id, x, y });
+                }}
                 onPunto={alPunto}
                 onSeleccionar={alElegirEnElPlano}
               />
@@ -3287,6 +3363,60 @@ export function EspacioDeTrazo({
             </button>
             <button type="button" role="menuitem" className="btn btn--ghost btn--sm" onClick={() => { setMenuDelTrazo(null); pedirBorrado(); }}>
               Borrar el trazo
+            </button>
+          </div>
+        </div>
+      )}
+      {menuDelVano !== null && vanoElegido !== null && vanoElegido.id === menuDelVano.id && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+          onPointerDown={() => setMenuDelVano(null)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setMenuDelVano(null);
+          }}
+        >
+          <div
+            role="menu"
+            aria-label="Opciones del vano"
+            onPointerDown={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              left: Math.min(menuDelVano.x, window.innerWidth - 230),
+              top: Math.min(menuDelVano.y, window.innerHeight - 280),
+              width: 220,
+              display: 'grid',
+              gap: 2,
+              padding: 6,
+              border: '1px solid var(--line, #ccc)',
+              borderRadius: 10,
+              background: 'var(--panel, #fff)',
+              boxShadow: '0 6px 24px rgb(0 0 0 / .18)',
+            }}
+          >
+            <div className="text-xs text-mute" style={{ padding: '2px 6px' }}>
+              {vanoElegido.clave} · {Number(vanoElegido.ancho_m)} × {Number(vanoElegido.alto_m)} m
+            </div>
+            {vanoElegido.tipo === 'puerta' && (
+              <>
+                <button type="button" role="menuitem" className="btn btn--ghost btn--sm" onClick={() => { setMenuDelVano(null); void accionesDeVano.cambiarHoja(vanoElegido, { lado_hoja: -(vanoElegido.lado_hoja ?? 1) }, 'hoja al otro lado'); }}>
+                  Hoja al otro lado
+                </button>
+                <button type="button" role="menuitem" className="btn btn--ghost btn--sm" onClick={() => { setMenuDelVano(null); void accionesDeVano.cambiarHoja(vanoElegido, { bisagra: -(vanoElegido.bisagra ?? 1) }, 'bisagra'); }}>
+                  Bisagra al otro extremo
+                </button>
+                {[0, 45, 90, 135].map((g) => (
+                  <button key={g} type="button" role="menuitem" className="btn btn--ghost btn--sm" onClick={() => { setMenuDelVano(null); void accionesDeVano.cambiarHoja(vanoElegido, { apertura_grados: g }, 'apertura'); }}>
+                    Hoja abierta {g}°
+                  </button>
+                ))}
+              </>
+            )}
+            <button type="button" role="menuitem" className="btn btn--ghost btn--sm" onClick={() => { setMenuDelVano(null); setAviso('Mover el vano: arrastra el asa central por el muro; las de los extremos cambian el ancho.'); }}>
+              Mover…
+            </button>
+            <button type="button" role="menuitem" className="btn btn--ghost btn--sm" onClick={() => { setMenuDelVano(null); setVanoElegidoId(null); void accionesDeVano.quitar(vanoElegido); }}>
+              Quitar el vano
             </button>
           </div>
         </div>

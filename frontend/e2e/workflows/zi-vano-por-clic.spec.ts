@@ -69,6 +69,19 @@ test.describe('Cuantificador · vanos con un clic', () => {
     await page.mouse.down();
     await page.mouse.move(a.x + a.width / 2 + 12, a.y + a.height / 2, { steps: 4 });
     await page.mouse.up();
-    await expect(page.getByText(/V-01 ahora mide .* m de ancho/)).toBeVisible();
+    await expect(page.getByText(/ahora de .* m de ancho/)).toBeVisible();
+
+    // Su detalle es «Elemento colocado»: lo que descuenta y dónde está; con las piezas editables.
+    const detalle = page.getByRole('group', { name: 'Elemento colocado' });
+    await expect(detalle).toBeVisible();
+    await expect(detalle.getByText('Ventana', { exact: true })).toBeVisible();
+    await detalle.getByLabel('Piezas idénticas').fill('2');
+    await expect(page.getByText(/2 piezas idénticas; lo que descuenta se recalculó/)).toBeVisible();
+
+    // Quitarlo y deshacer lo vuelve a poner.
+    await detalle.getByRole('button', { name: 'Quitar el vano' }).click();
+    await expect(page.locator('[data-vano-id]')).toHaveCount(0);
+    await page.keyboard.press('Control+z');
+    await expect(page.locator('[data-vano-id]')).toHaveCount(1);
   });
 });

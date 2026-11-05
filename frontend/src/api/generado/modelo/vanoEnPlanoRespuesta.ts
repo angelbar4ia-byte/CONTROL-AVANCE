@@ -19,6 +19,8 @@ export interface VanoEnPlanoRespuesta {
   ancho_m: string;
   /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
   alto_m: string;
+  /** @pattern ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$ */
+  antepecho_m?: string;
   piezas: number;
   posicion_m: VanoEnPlanoRespuestaPosicionM;
   bisagra?: VanoEnPlanoRespuestaBisagra;

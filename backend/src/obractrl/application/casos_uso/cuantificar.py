@@ -247,6 +247,8 @@ class ComandoAgregarVano:
 class VanoCambiado:
     vano_id: UUID
     recalculos: tuple[Any, ...]
+    clave: str | None = None
+    version_nueva: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -1321,8 +1323,29 @@ class GestionarVanos(AgregarHuecoATrazo):
         if ancho_m <= 0:
             raise ErrorDeCuantificacion("El ancho del vano debe ser mayor que cero.")
 
+        resultado: dict[str, Any] = {}
+
         async def guardar() -> UUID:
-            await self._trazos.fijar_ancho_vano(vano_id, ancho_m)
+            resultado.update(await self._trazos.fijar_ancho_vano(vano_id, ancho_m, autor_id))
+            return vano_id
+
+        r = await self._cambiar(trazo_id, rol, autor_id, detectada_en, guardar)
+        return VanoCambiado(
+            vano_id=r.vano_id, recalculos=r.recalculos, clave=resultado.get("clave"), version_nueva=bool(resultado.get("version_nueva"))
+        )
+
+    async def cambiar_piezas(
+        self, vano_id: UUID, piezas: int, *, autor_id: UUID, rol: Rol, detectada_en: datetime
+    ) -> VanoCambiado:
+        """Cuántas piezas idénticas son: cambia lo que descuenta y recalcula lo que alimenta la línea."""
+        trazo_id = await self._trazos.trazo_del_vano(vano_id)
+        if trazo_id is None:
+            raise TrazoNoEncontrado(f"El vano {vano_id} no existe o está fuera de tu alcance.")
+        if not 1 <= piezas <= 999:
+            raise ErrorDeCuantificacion("Las piezas van de 1 a 999.")
+
+        async def guardar() -> UUID:
+            await self._trazos.fijar_piezas_vano(vano_id, piezas)
             return vano_id
 
         return await self._cambiar(trazo_id, rol, autor_id, detectada_en, guardar)

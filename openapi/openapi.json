@@ -11654,13 +11654,75 @@
         }
       }
     },
+    "/api/v1/vanos/{vano_id}/piezas": {
+      "patch": {
+        "tags": [
+          "cuantificacion"
+        ],
+        "summary": "Cambiar cuántas piezas idénticas son",
+        "description": "Cambia lo que descuenta el vano: sus nodos se recalculan.",
+        "operationId": "cambiar_piezas_del_vano_api_v1_vanos__vano_id__piezas_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vano_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Vano Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VanoPiezasPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VanoCambiadoRespuesta"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "El vano no existe o está fuera de tu alcance."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/vanos/{vano_id}/ancho": {
       "patch": {
         "tags": [
           "cuantificacion"
         ],
         "summary": "Cambiar el ancho de un vano",
-        "description": "Cambia lo que descuenta el vano: sus nodos se recalculan.",
+        "description": "Cambia lo que descuenta el vano: sus nodos se recalculan, y la versión sigue al ancho.",
         "operationId": "cambiar_ancho_del_vano_api_v1_vanos__vano_id__ancho_patch",
         "security": [
           {
@@ -11695,7 +11757,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/VanoCambiadoRespuesta"
+                  "$ref": "#/components/schemas/VanoAnchoRespuesta"
                 }
               }
             }
@@ -38341,6 +38403,46 @@
         ],
         "title": "VanoAnchoPeticion"
       },
+      "VanoAnchoRespuesta": {
+        "properties": {
+          "vano_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Vano Id"
+          },
+          "recalculos": {
+            "items": {
+              "$ref": "#/components/schemas/ResultadoRecalculoRespuesta"
+            },
+            "type": "array",
+            "title": "Recalculos"
+          },
+          "clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clave",
+            "description": "La versión del catálogo a la que quedó el vano."
+          },
+          "version_nueva": {
+            "type": "boolean",
+            "title": "Version Nueva",
+            "description": "Si hubo que crear la versión porque ninguna tenía esas medidas.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "vano_id",
+          "recalculos"
+        ],
+        "title": "VanoAnchoRespuesta"
+      },
       "VanoCambiadoRespuesta": {
         "properties": {
           "vano_id": {
@@ -38392,6 +38494,12 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Alto M"
+          },
+          "antepecho_m": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Antepecho M",
+            "default": "0"
           },
           "piezas": {
             "type": "integer",
@@ -38593,6 +38701,21 @@
         ],
         "title": "VanoPeticion",
         "description": "Una puerta, ventana o paso colocado sobre una línea."
+      },
+      "VanoPiezasPeticion": {
+        "properties": {
+          "piezas": {
+            "type": "integer",
+            "maximum": 999.0,
+            "minimum": 1.0,
+            "title": "Piezas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "piezas"
+        ],
+        "title": "VanoPiezasPeticion"
       },
       "VanoPosicionPeticion": {
         "properties": {

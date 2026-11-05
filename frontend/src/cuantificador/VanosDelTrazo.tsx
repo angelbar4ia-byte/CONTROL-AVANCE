@@ -134,7 +134,7 @@ export function VanosDelTrazo({ trazoId, puedeEditar, onColocarEnPlano, onCambio
                 <button type="button" className="btn btn--ghost btn--sm" title="Abre hacia el otro lado del muro" aria-label={`Hoja de ${v.clave} abre al otro lado`} disabled={hoja.isPending} onClick={() => void cambiarHoja(v, { lado_hoja: -(v.lado_hoja ?? 1) })}>
                   ⇅
                 </button>
-                {[0, 45, 90, 180].map((g) => (
+                {[0, 45, 90, 135].map((g) => (
                   <button
                     key={g}
                     type="button"

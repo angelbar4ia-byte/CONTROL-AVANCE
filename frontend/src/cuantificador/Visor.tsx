@@ -40,6 +40,8 @@ import {
   VISTA_VACIA,
   cajaDePuntos,
   desplazar,
+  direccionDeLaLinea,
+  proyectarEnPolilinea,
   marcadoresDe,
   puntosDe,
   rutaSvg,
@@ -67,6 +69,8 @@ const TOLERANCIA_PX = 8;
 /** Un vano (puerta, ventana…) sobre un muro: dónde va, hacia dónde corre el muro ahí y cuánto mide de ancho (unidades de plano). */
 export interface VanoVisible {
   readonly id: string;
+  /** El muro, línea o área donde está: por su geometría el asa central se pega a él. */
+  readonly trazoId?: string;
   readonly x: number;
   readonly y: number;
   readonly angulo: number;
@@ -176,7 +180,12 @@ interface Props {
   readonly vanoElegidoId?: string | null;
   readonly onElegirVano?: (id: string | null) => void;
   /** Se soltó un asa: `desplazamiento` (unidades de plano, a lo largo del muro) o el nuevo `anchoPlano`. */
-  readonly onAjustarVano?: (id: string, cambio: { desplazamiento?: number; anchoPlano?: number }) => void;
+  readonly onAjustarVano?: (
+    id: string,
+    cambio: { distanciaPlano?: number; anchoPlano?: number; corrimientoPlano?: number },
+  ) => void;
+  /** Clic derecho (sin arrastre) sobre un vano: dónde, en pantalla, para abrir su menú. */
+  readonly onMenuVano?: (id: string, x: number, y: number) => void;
   /** Dónde está el cursor (plano, sin asistir) para mostrar sus coordenadas; no vuelve a pintar nada por sí mismo. */
   readonly onCoordenadas?: (p: Punto | null) => void;
   /**
@@ -265,6 +274,7 @@ export function Visor({
   vanoElegidoId = null,
   onElegirVano,
   onAjustarVano,
+  onMenuVano,
   onCoordenadas,
   onMenu,
   asistir,
@@ -370,29 +380,76 @@ export function Visor({
   const porPixel = vista.ancho / anchoPantalla;
 
   // Las asas de un vano: lo que se arrastra se ve al instante y se manda al soltar.
-  const [arrastreVano, setArrastreVano] = useState<{ id: string; modo: 'mover' | 'ini' | 'fin'; d: number } | null>(null);
+  //  · centro: el vano se pega al muro (puede pasar de un tramo a otro);
+  //  · extremo: el otro extremo queda fijo y el centro se corre con el ancho.
+  const [arrastreVano, setArrastreVano] = useState<{
+    id: string;
+    modo: 'mover' | 'ini' | 'fin';
+    /** Mover: dónde queda (plano) y hacia dónde corre el muro ahí. Extremos: corrimiento del centro y ancho nuevo. */
+    x: number;
+    y: number;
+    angulo: number;
+    distancia: number;
+    corrimiento: number;
+    ancho: number;
+  } | null>(null);
+  function lineaDelVano(trazoId: string | undefined): Punto[] | null {
+    const t = trazoId === undefined ? undefined : trazos.find((x) => x.id === trazoId);
+    const coords = (t?.geometry as { coordinates?: unknown } | undefined)?.coordinates;
+    if (!t || !Array.isArray(coords)) return null;
+    const anillo = String(t.geometry.type) === 'Polygon' ? (coords[0] as number[][]) : (coords as number[][]);
+    return Array.isArray(anillo) ? anillo.map((c) => [c[0], c[1]] as Punto) : null;
+  }
   function empezarArrastreVano(e: React.PointerEvent, v: VanoVisible, modo: 'mover' | 'ini' | 'fin') {
     if (e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
     const rad = (v.angulo * Math.PI) / 180;
     const [ux, uy] = [Math.cos(rad), Math.sin(rad)];
-    const origen = aPlano(e.clientX, e.clientY);
+    const linea = lineaDelVano(v.trazoId);
     const minimo = 4 * porPixel;
-    let d = 0;
-    const limitar = (x: number) => (modo === 'mover' ? x : Math.max(x, -(v.anchoPlano - minimo) / 2));
+    const mitad = v.anchoPlano / 2;
+    // Los extremos del vano ahora; el que no se arrastra queda donde está.
+    const ini: Punto = [v.x - ux * mitad, v.y - uy * mitad];
+    const fin: Punto = [v.x + ux * mitad, v.y + uy * mitad];
+    let ultimo: NonNullable<typeof arrastreVano> | null = null;
     const alMover = (ev: PointerEvent) => {
       const q = aPlano(ev.clientX, ev.clientY);
-      const bruto = (q[0] - origen[0]) * ux + (q[1] - origen[1]) * uy;
-      d = limitar(modo === 'ini' ? -bruto : bruto);
-      setArrastreVano({ id: v.id, modo, d });
+      if (modo === 'mover') {
+        const sobre = linea ? proyectarEnPolilinea(q, linea) : null;
+        if (!sobre || !linea) return;
+        const dir = direccionDeLaLinea(linea, sobre.distancia);
+        ultimo = {
+          id: v.id,
+          modo,
+          x: sobre.punto[0],
+          y: sobre.punto[1],
+          angulo: (Math.atan2(dir[1], dir[0]) * 180) / Math.PI,
+          distancia: sobre.distancia,
+          corrimiento: 0,
+          ancho: v.anchoPlano,
+        };
+      } else {
+        const fijo = modo === 'ini' ? fin : ini;
+        const signo = modo === 'ini' ? -1 : 1;
+        const along = signo * ((q[0] - fijo[0]) * ux + (q[1] - fijo[1]) * uy);
+        const ancho = Math.max(minimo, along);
+        const corrimiento = signo * (ancho - v.anchoPlano) / 2;
+        ultimo = { id: v.id, modo, x: v.x, y: v.y, angulo: v.angulo, distancia: 0, corrimiento, ancho };
+      }
+      setArrastreVano(ultimo);
     };
     const alSoltar = () => {
       window.removeEventListener('pointermove', alMover);
       window.removeEventListener('pointerup', alSoltar);
       setArrastreVano(null);
-      if (Math.abs(d) < 1e-9) return;
-      onAjustarVano?.(v.id, modo === 'mover' ? { desplazamiento: d } : { anchoPlano: v.anchoPlano + 2 * d });
+      const u = ultimo;
+      if (!u) return;
+      if (u.modo === 'mover') {
+        if (Math.hypot(u.x - v.x, u.y - v.y) > 1e-9) onAjustarVano?.(v.id, { distanciaPlano: u.distancia });
+      } else if (Math.abs(u.ancho - v.anchoPlano) > 1e-9) {
+        onAjustarVano?.(v.id, { anchoPlano: u.ancho, corrimientoPlano: u.corrimiento });
+      }
     };
     window.addEventListener('pointermove', alMover);
     window.addEventListener('pointerup', alSoltar);
@@ -490,6 +547,23 @@ export function Visor({
     if (alSoltarPuntero(e)) return;
     const g = gesto.current;
     gesto.current = null;
+    if (g && !g.movido && g.soloMueve && e.button === 2 && onMenuVano) {
+      // Un vano bajo el cursor tiene su propio menú (hoja, mover, quitar).
+      const q = aPlano(e.clientX, e.clientY);
+      const sobreVano = [...vanos].reverse().find((v) => {
+        const rad = (v.angulo * Math.PI) / 180;
+        const dx = q[0] - v.x;
+        const dy = q[1] - v.y;
+        const along = dx * Math.cos(rad) + dy * Math.sin(rad);
+        const across = -dx * Math.sin(rad) + dy * Math.cos(rad);
+        const tol = TOLERANCIA_PX * porPixel;
+        return Math.abs(along) <= v.anchoPlano / 2 + tol && Math.abs(across) <= Math.max(10 * porPixel, v.grosorPlano ?? 0) / 2 + tol;
+      });
+      if (sobreVano) {
+        onMenuVano(sobreVano.id, e.clientX, e.clientY);
+        return;
+      }
+    }
     if (g && !g.movido && g.soloMueve && e.button === 2 && onMenu) {
       const sobre = trazoEnPunto(trazos, aPlano(e.clientX, e.clientY), TOLERANCIA_PX * porPixel);
       onMenu(sobre, e.clientX, e.clientY);
@@ -709,9 +783,13 @@ export function Visor({
           const corrimiento = (v.ladoMuro ?? 0) * ((v.grosorPlano ?? 0) / 2) * (haciaDerecha ? 1 : -1);
           const elegido = vanoElegidoId === v.id;
           const enArrastre = arrastreVano?.id === v.id ? arrastreVano : null;
-          // Mientras se arrastra, el vano ya se ve en su lugar nuevo (a lo largo del muro) o con el ancho nuevo.
-          const desvio = enArrastre?.modo === 'mover' ? enArrastre.d : 0;
-          const ancho = enArrastre && enArrastre.modo !== 'mover' ? v.anchoPlano + 2 * enArrastre.d : v.anchoPlano;
+          // Mientras se arrastra, el vano ya se ve en su lugar nuevo (pegado al muro) o con el ancho nuevo.
+          const moviendo = enArrastre?.modo === 'mover' ? enArrastre : null;
+          const posX = moviendo ? moviendo.x : v.x;
+          const posY = moviendo ? moviendo.y : v.y;
+          const anguloV = moviendo ? moviendo.angulo : v.angulo;
+          const desvio = enArrastre && enArrastre.modo !== 'mover' ? enArrastre.corrimiento : 0;
+          const ancho = enArrastre && enArrastre.modo !== 'mover' ? enArrastre.ancho : v.anchoPlano;
           return (
             <g
               key={v.id}
@@ -724,7 +802,7 @@ export function Visor({
                 onElegirVano?.(v.id);
               }}
             >
-              <g transform={`translate(${v.x} ${v.y}) rotate(${v.angulo}) translate(${desvio} ${corrimiento})`}>
+              <g transform={`translate(${posX} ${posY}) rotate(${anguloV}) translate(${desvio} ${corrimiento})`}>
                 <rect className="visor__vano-zona" x={-ancho / 2} y={-alto / 2} width={ancho} height={alto} />
                 <rect
                   className={v.tipo === 'ventana' ? 'visor__vano visor__vano--ventana' : 'visor__vano'}

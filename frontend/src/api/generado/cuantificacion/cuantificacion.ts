@@ -63,9 +63,11 @@ import type {
   UnionPeticion,
   UnionesDelMuroRespuesta,
   VanoAnchoPeticion,
+  VanoAnchoRespuesta,
   VanoCambiadoRespuesta,
   VanoEnPlanoRespuesta,
   VanoPeticion,
+  VanoPiezasPeticion,
   VanoPosicionPeticion,
   VanoRespuesta,
   VistaPeticion,
@@ -6447,6 +6449,109 @@ export function useVanosDelPlanoApiV1PlanosPlanoIdVanosGet<
 
 /**
  * Cambia lo que descuenta el vano: sus nodos se recalculan.
+ * @summary Cambiar cuántas piezas idénticas son
+ */
+export const cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch = (
+  vanoId: string,
+  vanoPiezasPeticion: VanoPiezasPeticion,
+  options?: SecondParameter<typeof peticion>,
+) => {
+  return peticion<VanoCambiadoRespuesta>(
+    {
+      url: `/api/v1/vanos/${vanoId}/piezas`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: vanoPiezasPeticion,
+    },
+    options,
+  );
+};
+
+export const getCambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatchMutationOptions =
+  <TError = void | HTTPValidationError, TContext = unknown>(options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch>
+      >,
+      TError,
+      { vanoId: string; data: VanoPiezasPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  }): UseMutationOptions<
+    Awaited<ReturnType<typeof cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch>>,
+    TError,
+    { vanoId: string; data: VanoPiezasPeticion },
+    TContext
+  > => {
+    const mutationKey = ["cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch"];
+    const { mutation: mutationOptions, request: requestOptions } = options
+      ? options.mutation &&
+        "mutationKey" in options.mutation &&
+        options.mutation.mutationKey
+        ? options
+        : { ...options, mutation: { ...options.mutation, mutationKey } }
+      : { mutation: { mutationKey }, request: undefined };
+
+    const mutationFn: MutationFunction<
+      Awaited<
+        ReturnType<typeof cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch>
+      >,
+      { vanoId: string; data: VanoPiezasPeticion }
+    > = (props) => {
+      const { vanoId, data } = props ?? {};
+
+      return cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch(
+        vanoId,
+        data,
+        requestOptions,
+      );
+    };
+
+    return { mutationFn, ...mutationOptions };
+  };
+
+export type CambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatchMutationResult =
+  NonNullable<
+    Awaited<ReturnType<typeof cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch>>
+  >;
+export type CambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatchMutationBody =
+  VanoPiezasPeticion;
+export type CambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatchMutationError =
+  void | HTTPValidationError;
+
+/**
+ * @summary Cambiar cuántas piezas idénticas son
+ */
+export const useCambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch = <
+  TError = void | HTTPValidationError,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<
+        ReturnType<typeof cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch>
+      >,
+      TError,
+      { vanoId: string; data: VanoPiezasPeticion },
+      TContext
+    >;
+    request?: SecondParameter<typeof peticion>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof cambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatch>>,
+  TError,
+  { vanoId: string; data: VanoPiezasPeticion },
+  TContext
+> => {
+  const mutationOptions =
+    getCambiarPiezasDelVanoApiV1VanosVanoIdPiezasPatchMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Cambia lo que descuenta el vano: sus nodos se recalculan, y la versión sigue al ancho.
  * @summary Cambiar el ancho de un vano
  */
 export const cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch = (
@@ -6454,7 +6559,7 @@ export const cambiarAnchoDelVanoApiV1VanosVanoIdAnchoPatch = (
   vanoAnchoPeticion: VanoAnchoPeticion,
   options?: SecondParameter<typeof peticion>,
 ) => {
-  return peticion<VanoCambiadoRespuesta>(
+  return peticion<VanoAnchoRespuesta>(
     {
       url: `/api/v1/vanos/${vanoId}/ancho`,
       method: "PATCH",

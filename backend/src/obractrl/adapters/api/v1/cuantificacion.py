@@ -1659,6 +1659,7 @@ class VanoEnPlanoRespuesta(BaseModel):
     tipo: str
     ancho_m: Decimal
     alto_m: Decimal
+    antepecho_m: Decimal = Decimal(0)
     piezas: int
     posicion_m: Decimal | None
     bisagra: Literal[-1, 1] = 1
@@ -1685,26 +1686,57 @@ async def vanos_del_plano(plano_id: UUID, caso_uso: GestionarVanosDep) -> list[V
     return [VanoEnPlanoRespuesta(**v) for v in await caso_uso.del_plano(plano_id)]
 
 
+class VanoPiezasPeticion(BaseModel):
+    piezas: int = Field(ge=1, le=999)
+
+
+@router.patch(
+    "/vanos/{vano_id}/piezas",
+    response_model=VanoCambiadoRespuesta,
+    summary="Cambiar cuántas piezas idénticas son",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={404: {"description": "El vano no existe o está fuera de tu alcance."}},
+)
+async def cambiar_piezas_del_vano(
+    vano_id: UUID, peticion: VanoPiezasPeticion, ctx: ContextoActual, caso_uso: GestionarVanosDep
+) -> VanoCambiadoRespuesta:
+    """Cambia lo que descuenta el vano: sus nodos se recalculan."""
+    r = await caso_uso.cambiar_piezas(
+        vano_id, peticion.piezas, autor_id=ctx.usuario_id, rol=Rol(ctx.rol), detectada_en=datetime.now(UTC)
+    )
+    return VanoCambiadoRespuesta(
+        vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos]
+    )
+
+
+class VanoAnchoRespuesta(VanoCambiadoRespuesta):
+    clave: str | None = Field(default=None, description="La versión del catálogo a la que quedó el vano.")
+    version_nueva: bool = Field(default=False, description="Si hubo que crear la versión porque ninguna tenía esas medidas.")
+
+
 class VanoAnchoPeticion(BaseModel):
     ancho_m: Decimal = Field(gt=0, le=50)
 
 
 @router.patch(
     "/vanos/{vano_id}/ancho",
-    response_model=VanoCambiadoRespuesta,
+    response_model=VanoAnchoRespuesta,
     summary="Cambiar el ancho de un vano",
     dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
     responses={404: {"description": "El vano no existe o está fuera de tu alcance."}},
 )
 async def cambiar_ancho_del_vano(
     vano_id: UUID, peticion: VanoAnchoPeticion, ctx: ContextoActual, caso_uso: GestionarVanosDep
-) -> VanoCambiadoRespuesta:
-    """Cambia lo que descuenta el vano: sus nodos se recalculan."""
+) -> VanoAnchoRespuesta:
+    """Cambia lo que descuenta el vano: sus nodos se recalculan, y la versión sigue al ancho."""
     r = await caso_uso.cambiar_ancho(
         vano_id, peticion.ancho_m, autor_id=ctx.usuario_id, rol=Rol(ctx.rol), detectada_en=datetime.now(UTC)
     )
-    return VanoCambiadoRespuesta(
-        vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos]
+    return VanoAnchoRespuesta(
+        vano_id=r.vano_id,
+        recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos],
+        clave=r.clave,
+        version_nueva=r.version_nueva,
     )
 
 

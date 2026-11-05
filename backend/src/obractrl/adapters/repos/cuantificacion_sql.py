@@ -593,7 +593,7 @@ class RepositorioTrazosSQL:
                 text(
                     f"""
                     with base as (
-                      select v.id, v.trazo_id, v.clave, v.tipo, v.ancho_m, v.alto_m, v.piezas, v.posicion_m, {hoja_v}, {lado_v},
+                      select v.id, v.trazo_id, v.clave, v.tipo, v.ancho_m, v.alto_m, v.antepecho_m, v.piezas, v.posicion_m, {hoja_v}, {lado_v},
                              -- Sobre un área el vano va en su borde exterior (D-635).
                              case when ST_GeometryType(t.geometria) = 'ST_Polygon' then ST_ExteriorRing(t.geometria)
                                   else t.geometria end as g,
@@ -617,7 +617,7 @@ class RepositorioTrazosSQL:
                              ST_LineInterpolatePoint(g, greatest(0.0, fr - 0.001)) as a
                         from f
                     )
-                    select id, trazo_id, clave, tipo, ancho_m, alto_m, piezas,
+                    select id, trazo_id, clave, tipo, ancho_m, alto_m, antepecho_m, piezas,
                            coalesce(posicion_m, round((fr * largo * escala)::numeric, 3)) as posicion_m, bisagra, lado_hoja, apertura_grados,
                            lado_muro, grosor_plano,
                            ST_X(c) as x, ST_Y(c) as y,
@@ -636,10 +636,63 @@ class RepositorioTrazosSQL:
             text("update vano set posicion_m = :p where id = :id"), {"p": posicion_m, "id": str(vano_id)}
         )
 
-    async def fijar_ancho_vano(self, vano_id: UUID, ancho_m: Decimal) -> None:
-        await self._sesion.execute(
-            text("update vano set ancho_m = :a where id = :id"), {"a": ancho_m, "id": str(vano_id)}
-        )
+    async def fijar_ancho_vano(self, vano_id: UUID, ancho_m: Decimal, autor_id: UUID) -> dict[str, Any]:
+        """Cambia el ancho y hace que la versión siga al ancho: pasa a la del catálogo con esas medidas o crea una nueva.
+
+        Devuelve `{"clave", "version_nueva"}`. Sin el catálogo (0117 pendiente) la clave no cambia.
+        """
+        v = (
+            await self._sesion.execute(
+                text("select tipo, clave, alto_m, antepecho_m from vano where id = :id"), {"id": str(vano_id)}
+            )
+        ).mappings().one()
+        await self._sesion.execute(text("update vano set ancho_m = :a where id = :id"), {"a": ancho_m, "id": str(vano_id)})
+        if not await _hay_tabla(self._sesion, "vano_version"):
+            return {"clave": v["clave"], "version_nueva": False}
+        if not (await self._sesion.execute(text("select exists (select 1 from vano_version)"))).scalar_one():
+            # El catálogo nace perezoso: si nadie lo abrió aún, primero sus versiones de partida.
+            from obractrl.adapters.repos.vanos_version_sql import (
+                RepositorioVanosVersionSQL,
+            )
+
+            await RepositorioVanosVersionSQL(self._sesion).sembrar(autor_id)
+        medidas = {"t": v["tipo"], "a": ancho_m, "h": v["alto_m"], "s": v["antepecho_m"]}
+        existente = (
+            await self._sesion.execute(
+                text(
+                    "select clave from vano_version where tipo = :t and ancho_m = :a and alto_m = :h and antepecho_m = :s "
+                    "order by lower(clave) limit 1"
+                ),
+                medidas,
+            )
+        ).scalar_one_or_none()
+        nueva = False
+        if existente is None:
+            prefijo = {"puerta": "P", "ventana": "V", "cancel": "C", "arco": "A", "paso": "PS"}[v["tipo"]]
+            n = int((await self._sesion.execute(text("select count(*) from vano_version where tipo = :t"), {"t": v["tipo"]})).scalar_one()) + 1
+            while True:
+                existente = f"{prefijo}-{n:02d}"
+                en_uso = (
+                    await self._sesion.execute(
+                        text("select exists (select 1 from vano_version where lower(btrim(clave)) = lower(:c))"), {"c": existente}
+                    )
+                ).scalar_one()
+                if not en_uso:
+                    break
+                n += 1
+            await self._sesion.execute(
+                text(
+                    "insert into vano_version (org_id, tipo, clave, ancho_m, alto_m, antepecho_m, autor_id) "
+                    "values (cast(current_setting('app.org_id') as uuid), :t, :c, :a, :h, :s, :autor)"
+                ),
+                {**medidas, "c": existente, "autor": str(autor_id)},
+            )
+            nueva = True
+        await self._sesion.execute(text("update vano set clave = :c where id = :id"), {"c": existente, "id": str(vano_id)})
+        return {"clave": str(existente), "version_nueva": nueva}
+
+    async def fijar_piezas_vano(self, vano_id: UUID, piezas: int) -> None:
+        await self._sesion.execute(text("update vano set piezas = :p where id = :id"), {"p": piezas, "id": str(vano_id)})
 
     async def trazo_del_vano(self, vano_id: UUID) -> UUID | None:
         fila = (

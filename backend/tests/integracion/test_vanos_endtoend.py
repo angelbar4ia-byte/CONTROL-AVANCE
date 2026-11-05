@@ -347,6 +347,22 @@ async def test_cambiar_el_ancho_de_un_vano_recalcula_lo_que_descuenta(escenario:
     assert _total(r) == (Decimal("52") - Decimal("4.2")).quantize(Decimal("0.0001"))
     en_plano = next(v for v in (await control.get(f"/api/v1/planos/{plano}/vanos")).json() if v["id"] == vano)
     assert en_plano["ancho_plano"] == pytest.approx(1.0)
+    # La versión sigue al ancho: 1 × 2.1 es la P-02 del catálogo.
+    assert r.json()["clave"] == "P-02" and r.json()["version_nueva"] is False
+    assert en_plano["clave"] == "P-02"
+
+    # Un ancho que ninguna versión tiene crea la siguiente del tipo.
+    r = await control.patch(f"/api/v1/vanos/{vano}/ancho", json={"ancho_m": "1.1"})
+    assert r.json()["clave"] == "P-04" and r.json()["version_nueva"] is True
+    versiones = (await control.get("/api/v1/vanos-version")).json()
+    assert any(v["clave"] == "P-04" and Decimal(str(v["ancho_m"])) == Decimal("1.1") for v in versiones)
+
+    # Las piezas idénticas también recalculan.
+    r = await control.patch(f"/api/v1/vanos/{vano}/piezas", json={"piezas": 2})
+    assert r.status_code == 200, r.text
+    assert _total(r) == (Decimal("52") - Decimal("1.1") * Decimal("2.1") * 2 * 2).quantize(Decimal("0.0001"))
+    assert (await control.patch(f"/api/v1/vanos/{vano}/piezas", json={"piezas": 0})).status_code == 422
+    assert (await control.patch(f"/api/v1/vanos/{uuid.uuid4()}/piezas", json={"piezas": 1})).status_code == 404
 
     assert (await control.patch(f"/api/v1/vanos/{uuid.uuid4()}/ancho", json={"ancho_m": "1"})).status_code == 404
     assert (await control.patch(f"/api/v1/vanos/{vano}/ancho", json={"ancho_m": "0"})).status_code == 422
