@@ -177,16 +177,28 @@ class ArbolDeObra:
     async def eliminar_obra(self, obra_id: UUID, clave_confirmada: str) -> None:
         """Borra una obra que sigue en diseño. Pide la clave escrita: la segunda confirmación (la primera es de la pantalla)."""
         obra = await self._obra(obra_id)
-        estados = await self._partes.estados_de_obra(obra_id)
-        if any(e in ESTADOS_QUE_YA_SON_CONTRATO for e in estados.values()):
-            raise ErrorDeParte(
-                "La obra ya tiene partes programadas o asignadas: dejó de ser diseño y no se elimina desde aquí."
-            )
-        trabajo = await self._arbol.trabajo_real_de_la_obra(obra_id)
-        if trabajo is not None:
-            raise ErrorDeParte(f"{trabajo} Dejó de ser diseño y no se elimina desde aquí.")
+        await self._exigir_en_diseno(obra_id)
         if clave_confirmada.strip().upper() != str(obra["clave"]).strip().upper():
             raise ErrorDeCatalogo(f"Para eliminarla escribe su clave exacta: {obra['clave']}.")
         async with self._uow:
             await self._arbol.eliminar_obra(obra_id, obra["prototipo_id"], bool(obra["de_una_obra"]))
             await self._uow.commit()
+
+    async def reiniciar_obra(self, obra_id: UUID, clave_confirmada: str) -> dict[str, int]:
+        """Reinicia una obra en diseño desde cero (mismas condiciones y misma confirmación escrita que eliminarla)."""
+        obra = await self._obra(obra_id)
+        await self._exigir_en_diseno(obra_id)
+        if clave_confirmada.strip().upper() != str(obra["clave"]).strip().upper():
+            raise ErrorDeCatalogo(f"Para reiniciarla escribe su clave exacta: {obra['clave']}.")
+        async with self._uow:
+            resumen = await self._arbol.reiniciar_obra(obra_id, obra["prototipo_id"], obra.get("prototipo_origen_id"))
+            await self._uow.commit()
+        return resumen
+
+    async def _exigir_en_diseno(self, obra_id: UUID) -> None:
+        estados = await self._partes.estados_de_obra(obra_id)
+        if any(e in ESTADOS_QUE_YA_SON_CONTRATO for e in estados.values()):
+            raise ErrorDeParte("La obra ya tiene partes programadas o asignadas: dejó de ser diseño.")
+        trabajo = await self._arbol.trabajo_real_de_la_obra(obra_id)
+        if trabajo is not None:
+            raise ErrorDeParte(f"{trabajo} Dejó de ser diseño.")

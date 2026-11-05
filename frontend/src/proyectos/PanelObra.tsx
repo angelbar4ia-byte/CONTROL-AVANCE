@@ -39,7 +39,10 @@ import { ErrorBanner } from '@/lib/ErrorBanner';
 import { Sheet } from '@/lib/Sheet';
 import type { Rol } from '@/shell/navegacion';
 import { useArranqueDeLaObraApiV1ObrasObraIdArranqueGet } from '@/api/generado/partes/partes';
-import { useEliminarObraApiV1ObrasObraIdEliminarPost } from '@/api/generado/arbol-de-la-obra/arbol-de-la-obra';
+import {
+  useEliminarObraApiV1ObrasObraIdEliminarPost,
+  useReiniciarObraApiV1ObrasObraIdReiniciarPost,
+} from '@/api/generado/arbol-de-la-obra/arbol-de-la-obra';
 import { InstanciarPrograma } from '@/programacion/InstanciarPrograma';
 import { CampoSelect, CampoTexto } from './Campos';
 import { cambiosDeObra, formularioDeObra, hayCambios } from './formulario';
@@ -72,8 +75,24 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
   const arranque = useArranqueDeLaObraApiV1ObrasObraIdArranqueGet(obra.id);
   const [error, setError] = useState<{ mensaje: string; campo?: string } | null>(null);
   /** Eliminar una obra en diseño pide dos confirmaciones: la ventana y escribir su clave (D-624). */
-  const [eliminando, setEliminando] = useState(false);
+  const [eliminando, setEliminando] = useState<'eliminar' | 'reiniciar' | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
   const [claveEscrita, setClaveEscrita] = useState('');
+  const reiniciar = useReiniciarObraApiV1ObrasObraIdReiniciarPost<ErrorApi>({
+    mutation: {
+      onSuccess: (r) => {
+        setError(null);
+        setEliminando(null);
+        setClaveEscrita('');
+        setAviso(
+          `Obra reiniciada: ${r.actividades} partidas y ${r.trazos} trazos borrados` +
+            (r.volvio_al_base ? '; volvió al prototipo base.' : '.'),
+        );
+        onCambiada();
+      },
+      onError: (err) => setError({ mensaje: err.message, campo: err.campo }),
+    },
+  });
   const eliminar = useEliminarObraApiV1ObrasObraIdEliminarPost<ErrorApi>({
     mutation: {
       onSuccess: () => {
@@ -409,20 +428,34 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
               )}
 
               {editable && (
-                <div role="group" aria-label="Eliminar la obra" style={{ display: 'grid', gap: 6 }}>
-                  {!eliminando ? (
-                    <button
-                      type="button"
-                      className="btn btn--danger"
-                      title="Solo mientras la obra sigue en diseño: nada programado ni asignado, sin avance."
-                      onClick={() => {
-                        if (window.confirm(`¿Eliminar la obra ${obra.clave}? Se borran sus planos, trazos, partidas y programa, y su árbol propio. No se puede deshacer.`)) {
-                          setEliminando(true);
-                        }
-                      }}
-                    >
-                      Eliminar obra
-                    </button>
+                <div role="group" aria-label="Reiniciar o eliminar la obra" style={{ display: 'grid', gap: 6 }}>
+                  {eliminando === null ? (
+                    <div className="row" style={{ gap: 6 }}>
+                      <button
+                        type="button"
+                        className="btn"
+                        title="Borra partidas, programa, trazos y estados de las partes; la obra conserva su cluster y sus planos. Solo mientras sigue en diseño."
+                        onClick={() => {
+                          if (window.confirm(`¿Reiniciar la obra ${obra.clave} desde cero? Se borran sus partidas, programa y trazos, y vuelve al prototipo base. Conserva el cluster y los planos.`)) {
+                            setEliminando('reiniciar');
+                          }
+                        }}
+                      >
+                        Reiniciar obra
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--danger"
+                        title="Solo mientras la obra sigue en diseño: nada programado ni asignado, sin avance."
+                        onClick={() => {
+                          if (window.confirm(`¿Eliminar la obra ${obra.clave}? Se borran sus planos, trazos, partidas y programa, y su árbol propio. No se puede deshacer.`)) {
+                            setEliminando('eliminar');
+                          }
+                        }}
+                      >
+                        Eliminar obra
+                      </button>
+                    </div>
                   ) : (
                     <>
                       <label className="text-sm">
@@ -433,16 +466,27 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
                         <button
                           type="button"
                           className="btn btn--danger"
-                          disabled={eliminar.isPending || claveEscrita.trim().toUpperCase() !== obra.clave.trim().toUpperCase()}
-                          onClick={() => eliminar.mutate({ obraId: obra.id, data: { clave: claveEscrita } })}
+                          disabled={
+                            eliminar.isPending || reiniciar.isPending || claveEscrita.trim().toUpperCase() !== obra.clave.trim().toUpperCase()
+                          }
+                          onClick={() =>
+                            eliminando === 'eliminar'
+                              ? eliminar.mutate({ obraId: obra.id, data: { clave: claveEscrita } })
+                              : reiniciar.mutate({ obraId: obra.id, data: { clave: claveEscrita } })
+                          }
                         >
-                          {eliminar.isPending ? 'Eliminando…' : 'Eliminar definitivamente'}
+                          {eliminando === 'eliminar' ? 'Eliminar definitivamente' : 'Reiniciar definitivamente'}
                         </button>
-                        <button type="button" className="btn" onClick={() => { setEliminando(false); setClaveEscrita(''); }}>
+                        <button type="button" className="btn" onClick={() => { setEliminando(null); setClaveEscrita(''); }}>
                           Cancelar
                         </button>
                       </div>
                     </>
+                  )}
+                  {aviso && (
+                    <div className="text-sm" role="status">
+                      {aviso}
+                    </div>
                   )}
                 </div>
               )}

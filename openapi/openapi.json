@@ -12664,6 +12664,67 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/reiniciar": {
+      "post": {
+        "tags": [
+          "arbol de la obra"
+        ],
+        "summary": "Reiniciar desde cero una obra que sigue en diseño",
+        "description": "La obra se queda con su cluster y sus planos; se borra lo diseñado encima (partidas, programa, trazos, estados).\nSi tenía un árbol propio copiado de un prototipo base, vuelve a ese prototipo.",
+        "operationId": "reiniciar_obra_api_v1_obras__obra_id__reiniciar_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EliminarObraPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObraReiniciadaRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo hacen Control de obra y Costos."
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La obra ya tiene partes programadas o asignadas, avance o estimaciones."
+          },
+          "422": {
+            "description": "La clave escrita no es la de la obra."
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/enlaces": {
       "get": {
         "tags": [
@@ -28876,6 +28937,32 @@
           "nodos"
         ],
         "title": "ObraNuevaRespuesta"
+      },
+      "ObraReiniciadaRespuesta": {
+        "properties": {
+          "trazos": {
+            "type": "integer",
+            "title": "Trazos",
+            "description": "Trazos borrados de los planos."
+          },
+          "actividades": {
+            "type": "integer",
+            "title": "Actividades",
+            "description": "Partidas borradas."
+          },
+          "volvio_al_base": {
+            "type": "boolean",
+            "title": "Volvio Al Base",
+            "description": "La obra volvió al prototipo base y su árbol propio se borró."
+          }
+        },
+        "type": "object",
+        "required": [
+          "trazos",
+          "actividades",
+          "volvio_al_base"
+        ],
+        "title": "ObraReiniciadaRespuesta"
       },
       "ObraRespuesta": {
         "properties": {

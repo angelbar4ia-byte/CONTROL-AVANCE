@@ -185,3 +185,27 @@ class EliminarObraPeticion(BaseModel):
 async def eliminar_obra(obra_id: UUID, peticion: EliminarObraPeticion, caso_uso: ArbolDeObraDep) -> None:
     """Borra la obra con todo lo suyo (planos, trazos, partidas, programa); si tenía un árbol propio, también ese árbol."""
     await caso_uso.eliminar_obra(obra_id, peticion.clave)
+
+
+class ObraReiniciadaRespuesta(BaseModel):
+    trazos: int = Field(description="Trazos borrados de los planos.")
+    actividades: int = Field(description="Partidas borradas.")
+    volvio_al_base: bool = Field(description="La obra volvió al prototipo base y su árbol propio se borró.")
+
+
+@router.post(
+    "/obras/{obra_id}/reiniciar",
+    response_model=ObraReiniciadaRespuesta,
+    summary="Reiniciar desde cero una obra que sigue en diseño",
+    dependencies=[Depends(exigir_rol(Rol.CONTROL_OBRA))],
+    responses={
+        **_RESPUESTAS,
+        409: {"description": "La obra ya tiene partes programadas o asignadas, avance o estimaciones."},
+        422: {"description": "La clave escrita no es la de la obra."},
+    },
+)
+async def reiniciar_obra(obra_id: UUID, peticion: EliminarObraPeticion, caso_uso: ArbolDeObraDep) -> ObraReiniciadaRespuesta:
+    """La obra se queda con su cluster y sus planos; se borra lo diseñado encima (partidas, programa, trazos, estados).
+    Si tenía un árbol propio copiado de un prototipo base, vuelve a ese prototipo."""
+    r = await caso_uso.reiniciar_obra(obra_id, peticion.clave)
+    return ObraReiniciadaRespuesta(trazos=r["trazos"], actividades=r["actividades"], volvio_al_base=bool(r["volvio_al_base"]))
