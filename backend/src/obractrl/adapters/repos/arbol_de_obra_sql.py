@@ -11,6 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 __all__ = ["RepositorioArbolDeObraSQL"]
 
+_FORMA_DISPONIBLE = False
+"""Se vuelve `True` cuando la columna `obra.forma_de_arranque` (0109) ya existe y no se vuelve a preguntar."""
+
 _COLUMNAS_NODO = (
     "parent_id, tipo, nombre, clave, concepto_id, nivel_id, etapa_id, orden, cantidad, ponderacion, "
     "modo_cantidad, ocurrencia, wbs, nivel_erp"
@@ -429,3 +432,41 @@ class RepositorioArbolDeObraSQL:
             )
             volvio = 1
         return {"trazos": trazos, "actividades": actividades, "volvio_al_base": volvio}
+
+    async def _hay_forma_de_arranque(self) -> bool:
+        """La columna llega con la migración 0109; el código puede desplegarse antes y no debe tumbar nada (expand → contract)."""
+        global _FORMA_DISPONIBLE
+        if not _FORMA_DISPONIBLE:
+            _FORMA_DISPONIBLE = bool(
+                (
+                    await self._sesion.execute(
+                        text(
+                            "select exists (select 1 from information_schema.columns "
+                            "where table_name = 'obra' and column_name = 'forma_de_arranque')"
+                        )
+                    )
+                ).scalar_one()
+            )
+        return _FORMA_DISPONIBLE
+
+    async def fijar_forma_de_arranque(self, obra_id: UUID, forma: str) -> None:
+        if not await self._hay_forma_de_arranque():
+            return
+        await self._sesion.execute(
+            text("update obra set forma_de_arranque = :f where id = :o"), {"f": forma, "o": str(obra_id)}
+        )
+
+    async def forma_de_arranque(self, obra_id: UUID) -> str | None:
+        if not await self._hay_forma_de_arranque():
+            return None
+        return (
+            await self._sesion.execute(text("select forma_de_arranque from obra where id = :o"), {"o": str(obra_id)})
+        ).scalar_one_or_none()
+
+    async def prototipo(self, prototipo_id: UUID) -> dict[str, Any] | None:
+        fila = (
+            await self._sesion.execute(
+                text("select id, clave, nombre, de_una_obra from prototipo where id = :p"), {"p": str(prototipo_id)}
+            )
+        ).mappings().first()
+        return dict(fila) if fila else None

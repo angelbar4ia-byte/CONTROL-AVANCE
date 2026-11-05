@@ -40,9 +40,12 @@ import { Sheet } from '@/lib/Sheet';
 import type { Rol } from '@/shell/navegacion';
 import { useArranqueDeLaObraApiV1ObrasObraIdArranqueGet } from '@/api/generado/partes/partes';
 import {
+  useCambiarPrototipoApiV1ObrasObraIdPrototipoPost,
   useEliminarObraApiV1ObrasObraIdEliminarPost,
   useReiniciarObraApiV1ObrasObraIdReiniciarPost,
+  useVerArbolApiV1ObrasObraIdArbolGet,
 } from '@/api/generado/arbol-de-la-obra/arbol-de-la-obra';
+import { useListarPrototiposApiV1PrototiposGet } from '@/api/generado/proyectos/proyectos';
 import { InstanciarPrograma } from '@/programacion/InstanciarPrograma';
 import { CampoSelect, CampoTexto } from './Campos';
 import { cambiosDeObra, formularioDeObra, hayCambios } from './formulario';
@@ -65,6 +68,13 @@ interface Props {
   readonly onCambiada: () => void;
 }
 
+const ETIQUETA_FORMA: Record<string, string> = {
+  prototipo: 'Un prototipo',
+  catalogo_base: 'Catálogo base',
+  ingenieria: 'Carga de ingeniería',
+  desde_cero: 'Desde cero',
+};
+
 export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada }: Props) {
   const [formulario, setFormulario] = useState(() => formularioDeObra(obra));
   const [modoPago, setModoPago] = useState<ModoPago>(ModoPago.destajo);
@@ -75,9 +85,31 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
   const arranque = useArranqueDeLaObraApiV1ObrasObraIdArranqueGet(obra.id);
   const [error, setError] = useState<{ mensaje: string; campo?: string } | null>(null);
   /** Eliminar una obra en diseño pide dos confirmaciones: la ventana y escribir su clave (D-624). */
-  const [eliminando, setEliminando] = useState<'eliminar' | 'reiniciar' | null>(null);
+  const [eliminando, setEliminando] = useState<'eliminar' | 'reiniciar' | 'prototipo' | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [claveEscrita, setClaveEscrita] = useState('');
+  const [prototipoNuevo, setPrototipoNuevo] = useState('');
+  const arbol = useVerArbolApiV1ObrasObraIdArbolGet(obra.id);
+  const catalogo = useListarPrototiposApiV1PrototiposGet({}, { query: { enabled: puedeEditarObra(rol, obra) } });
+  const cambiarPrototipo = useCambiarPrototipoApiV1ObrasObraIdPrototipoPost<ErrorApi>({
+    mutation: {
+      onSuccess: (r) => {
+        setError(null);
+        setEliminando(null);
+        setClaveEscrita('');
+        setPrototipoNuevo('');
+        setAviso(
+          `Prototipo cambiado: se borraron ${r.actividades} partidas y ${r.trazos} trazos. ` +
+            (r.motivo_sin_generar
+              ? `No se generaron partidas: ${r.motivo_sin_generar}`
+              : `Se generaron ${r.actividades_generadas} partidas del prototipo nuevo.`),
+        );
+        void arbol.refetch();
+        onCambiada();
+      },
+      onError: (err) => setError({ mensaje: err.message, campo: err.campo }),
+    },
+  });
   const reiniciar = useReiniciarObraApiV1ObrasObraIdReiniciarPost<ErrorApi>({
     mutation: {
       onSuccess: (r) => {
@@ -225,6 +257,9 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
             }
             mono={obra.prototipo_id !== null && !prototipo}
           />
+          {arbol.data?.forma_de_arranque && (
+            <Dato etiqueta="Arrancó como" valor={ETIQUETA_FORMA[arbol.data.forma_de_arranque] ?? arbol.data.forma_de_arranque} />
+          )}
           <Dato
             etiqueta="Residente"
             valor={
@@ -445,6 +480,14 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
                       </button>
                       <button
                         type="button"
+                        className="btn"
+                        title="Cambia el prototipo mientras la obra sigue en diseño: se borra lo diseñado y se generan las partidas del prototipo nuevo."
+                        onClick={() => setEliminando('prototipo')}
+                      >
+                        Cambiar prototipo
+                      </button>
+                      <button
+                        type="button"
                         className="btn btn--danger"
                         title="Solo mientras la obra sigue en diseño: nada programado ni asignado, sin avance."
                         onClick={() => {
@@ -458,6 +501,21 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
                     </div>
                   ) : (
                     <>
+                      {eliminando === 'prototipo' && (
+                        <label className="text-sm">
+                          Prototipo nuevo (se borra lo diseñado de esta obra)
+                          <select aria-label="Prototipo nuevo" value={prototipoNuevo} onChange={(e) => setPrototipoNuevo(e.target.value)}>
+                            <option value="">Elige un prototipo…</option>
+                            {(catalogo.data ?? [])
+                              .filter((p) => p.id !== obra.prototipo_id)
+                              .map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.clave} · {p.nombre}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                      )}
                       <label className="text-sm">
                         Para confirmar, escribe la clave de la obra: <span className="mono">{obra.clave}</span>
                         <input aria-label="Clave de la obra para confirmar" value={claveEscrita} onChange={(e) => setClaveEscrita(e.target.value)} />
@@ -467,15 +525,25 @@ export function PanelObra({ obra, rol, cluster, prototipo, onCerrar, onCambiada 
                           type="button"
                           className="btn btn--danger"
                           disabled={
-                            eliminar.isPending || reiniciar.isPending || claveEscrita.trim().toUpperCase() !== obra.clave.trim().toUpperCase()
+                            eliminar.isPending ||
+                            reiniciar.isPending ||
+                            cambiarPrototipo.isPending ||
+                            (eliminando === 'prototipo' && prototipoNuevo === '') ||
+                            claveEscrita.trim().toUpperCase() !== obra.clave.trim().toUpperCase()
                           }
                           onClick={() =>
                             eliminando === 'eliminar'
                               ? eliminar.mutate({ obraId: obra.id, data: { clave: claveEscrita } })
-                              : reiniciar.mutate({ obraId: obra.id, data: { clave: claveEscrita } })
+                              : eliminando === 'prototipo'
+                                ? cambiarPrototipo.mutate({ obraId: obra.id, data: { prototipo_id: prototipoNuevo, clave: claveEscrita } })
+                                : reiniciar.mutate({ obraId: obra.id, data: { clave: claveEscrita } })
                           }
                         >
-                          {eliminando === 'eliminar' ? 'Eliminar definitivamente' : 'Reiniciar definitivamente'}
+                          {eliminando === 'eliminar'
+                            ? 'Eliminar definitivamente'
+                            : eliminando === 'prototipo'
+                              ? 'Cambiar prototipo definitivamente'
+                              : 'Reiniciar definitivamente'}
                         </button>
                         <button type="button" className="btn" onClick={() => { setEliminando(null); setClaveEscrita(''); }}>
                           Cancelar

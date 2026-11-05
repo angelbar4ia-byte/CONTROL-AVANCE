@@ -33,6 +33,7 @@ import type {
   HTTPValidationError,
   IniciarObraPeticion,
   ListarObrasApiV1ObrasGetParams,
+  ObraCreadaRespuesta,
   ObraGeneradaRespuesta,
   ObraRespuesta,
 } from ".././modelo";
@@ -485,7 +486,7 @@ export const crearObraApiV1ObrasPost = (
   options?: SecondParameter<typeof peticion>,
   signal?: AbortSignal,
 ) => {
-  return peticion<ObraRespuesta>(
+  return peticion<ObraCreadaRespuesta>(
     {
       url: `/api/v1/obras`,
       method: "POST",
@@ -1015,7 +1016,7 @@ export const crearObrasEnLoteApiV1ObrasBulkPost = (
   options?: SecondParameter<typeof peticion>,
   signal?: AbortSignal,
 ) => {
-  return peticion<ObraRespuesta[]>(
+  return peticion<ObraCreadaRespuesta[]>(
     {
       url: `/api/v1/obras/bulk`,
       method: "POST",

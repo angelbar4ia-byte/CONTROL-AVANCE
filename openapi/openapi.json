@@ -4038,7 +4038,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ObraRespuesta"
+                  "$ref": "#/components/schemas/ObraCreadaRespuesta"
                 }
               }
             }
@@ -4208,7 +4208,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ObraRespuesta"
+                    "$ref": "#/components/schemas/ObraCreadaRespuesta"
                   },
                   "title": "Response Crear Obras En Lote Api V1 Obras Bulk Post"
                 }
@@ -12725,6 +12725,67 @@
         }
       }
     },
+    "/api/v1/obras/{obra_id}/prototipo": {
+      "post": {
+        "tags": [
+          "arbol de la obra"
+        ],
+        "summary": "Cambiar el prototipo de una obra que sigue en diseño",
+        "description": "Lo diseñado se borra (como al reiniciar) y la obra pasa al prototipo elegido; su árbol propio, si tenía, se borra.",
+        "operationId": "cambiar_prototipo_api_v1_obras__obra_id__prototipo_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "obra_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Obra Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarPrototipoPeticion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObraReiniciadaRespuesta"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Lo hacen Control de obra y Costos."
+          },
+          "404": {
+            "description": "La obra no existe o está fuera de tu alcance."
+          },
+          "409": {
+            "description": "La obra ya tiene partes programadas o asignadas, avance o estimaciones."
+          },
+          "422": {
+            "description": "La clave escrita no es la de la obra, o el prototipo no sirve."
+          }
+        }
+      }
+    },
     "/api/v1/planos/{plano_id}/enlaces": {
       "get": {
         "tags": [
@@ -17881,6 +17942,24 @@
             "type": "string",
             "title": "Prototipo Nombre"
           },
+          "forma_de_arranque": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "prototipo",
+                  "catalogo_base",
+                  "ingenieria",
+                  "desde_cero"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forma De Arranque",
+            "description": "Por dónde se creó la obra; solo informativa."
+          },
           "borrador_id": {
             "anyOf": [
               {
@@ -18675,6 +18754,27 @@
           "estatus"
         ],
         "title": "CambiarEstatusPeticion"
+      },
+      "CambiarPrototipoPeticion": {
+        "properties": {
+          "prototipo_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Prototipo Id"
+          },
+          "clave": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clave",
+            "description": "La clave de la obra, escrita: la confirmación."
+          }
+        },
+        "type": "object",
+        "required": [
+          "prototipo_id",
+          "clave"
+        ],
+        "title": "CambiarPrototipoPeticion"
       },
       "CambioDeUnidadPeticion": {
         "properties": {
@@ -28743,6 +28843,131 @@
         "title": "ObraCandidataRespuesta",
         "description": "Una obra a la que este programa base se puede replicar (§11.2).\n\nLo que la pantalla de replicación necesita saber **antes** de elegir: qué\ncasa es, si ya se generó desde su prototipo —sin actividades no hay nada\nque programar (§11.3 A.2)— y si ya trae cronograma, porque replicar sobre\nuna obra programada le crea una **versión nueva** y eso el usuario lo tiene\nque saber antes, no después (§7.5)."
       },
+      "ObraCreadaRespuesta": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "cluster_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cluster Id"
+          },
+          "prototipo_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prototipo Id"
+          },
+          "clave": {
+            "type": "string",
+            "title": "Clave"
+          },
+          "residente_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residente Id"
+          },
+          "estatus": {
+            "type": "string",
+            "title": "Estatus"
+          },
+          "fecha_inicio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Inicio"
+          },
+          "fecha_fin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha Fin"
+          },
+          "avance_pct": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Avance Pct"
+          },
+          "m2": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "M2"
+          },
+          "es_urba": {
+            "type": "boolean",
+            "title": "Es Urba"
+          },
+          "actividades_generadas": {
+            "type": "integer",
+            "title": "Actividades Generadas",
+            "description": "Partidas que se generaron del prototipo al crear la obra.",
+            "default": 0
+          },
+          "motivo_sin_generar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Sin Generar",
+            "description": "Por qué no se generaron (la obra se creó igual): sin árbol, o falta un costo vigente."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cluster_id",
+          "prototipo_id",
+          "clave",
+          "residente_id",
+          "estatus",
+          "fecha_inicio",
+          "fecha_fin",
+          "avance_pct",
+          "m2",
+          "es_urba"
+        ],
+        "title": "ObraCreadaRespuesta",
+        "description": "La obra recién creada y lo que se hizo por ella: sus partidas se generan solas (D-626)."
+      },
       "ObraDesdeCeroPeticion": {
         "properties": {
           "cluster_id": {
@@ -28940,6 +29165,24 @@
       },
       "ObraReiniciadaRespuesta": {
         "properties": {
+          "actividades_generadas": {
+            "type": "integer",
+            "title": "Actividades Generadas",
+            "description": "Partidas generadas de nuevo (al cambiar de prototipo).",
+            "default": 0
+          },
+          "motivo_sin_generar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Sin Generar",
+            "description": "Por qué no se generaron, si no se pudo."
+          },
           "trazos": {
             "type": "integer",
             "title": "Trazos",

@@ -5,8 +5,13 @@
  * Control de avance de obra para vivienda en serie. REST + OpenAPI; los hooks de TanStack Query se autogeneran con Orval desde este esquema (§12.2).
  * OpenAPI spec version: 0.1.0
  */
+import type { ObraReiniciadaRespuestaMotivoSinGenerar } from "./obraReiniciadaRespuestaMotivoSinGenerar";
 
 export interface ObraReiniciadaRespuesta {
+  /** Partidas generadas de nuevo (al cambiar de prototipo). */
+  actividades_generadas?: number;
+  /** Por qué no se generaron, si no se pudo. */
+  motivo_sin_generar?: ObraReiniciadaRespuestaMotivoSinGenerar;
   /** Trazos borrados de los planos. */
   trazos: number;
   /** Partidas borradas. */

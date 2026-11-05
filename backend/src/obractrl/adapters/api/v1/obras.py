@@ -29,6 +29,7 @@ from obractrl.adapters.api.casos_uso import (
     CrearObrasEnLoteDep,
     GenerarObraDesdePrototipoDep,
     IniciarObraDep,
+    PrepararObraNuevaDep,
     RevertirGeneracionDeObraDep,
 )
 from obractrl.adapters.api.dependencias import SesionRLS, exigir_rol
@@ -165,6 +166,15 @@ class ObraRespuesta(BaseModel):
         )
 
 
+class ObraCreadaRespuesta(ObraRespuesta):
+    """La obra recién creada y lo que se hizo por ella: sus partidas se generan solas (D-626)."""
+
+    actividades_generadas: int = Field(default=0, description="Partidas que se generaron del prototipo al crear la obra.")
+    motivo_sin_generar: str | None = Field(
+        default=None, description="Por qué no se generaron (la obra se creó igual): sin árbol, o falta un costo vigente."
+    )
+
+
 class ObraGeneradaRespuesta(BaseModel):
     """Resultado del workflow A: qué se creó y sobre qué programa (§11.3 A)."""
 
@@ -227,15 +237,15 @@ async def obtener_obra(obra_id: UUID, sesion: SesionRLS) -> ObraRespuesta:
 
 @router.post(
     "/obras",
-    response_model=ObraRespuesta,
+    response_model=ObraCreadaRespuesta,
     status_code=status.HTTP_201_CREATED,
     summary="Alta de obra",
     dependencies=[CREADOR_DE_OBRA],
     responses={422: {"description": "Datos de obra inválidos (§7.2)."}},
 )
 async def crear_obra(
-    peticion: CrearObraPeticion, caso_uso: CrearObraDep
-) -> ObraRespuesta:
+    peticion: CrearObraPeticion, caso_uso: CrearObraDep, preparar: PrepararObraNuevaDep
+) -> ObraCreadaRespuesta:
     """Control de obra crea la obra (cluster, prototipo, residente) (§11.3 A.1)."""
     creada = await caso_uso.ejecutar(
         ComandoCrearObra(
@@ -249,20 +259,21 @@ async def crear_obra(
             es_urba=peticion.es_urba,
         )
     )
-    return ObraRespuesta.desde_dominio(creada.id, creada.obra)
+    hecho = await preparar.ejecutar(creada.id, "prototipo")
+    return ObraCreadaRespuesta(**ObraRespuesta.desde_dominio(creada.id, creada.obra).model_dump(), **hecho)
 
 
 @router.post(
     "/obras/bulk",
-    response_model=list[ObraRespuesta],
+    response_model=list[ObraCreadaRespuesta],
     status_code=status.HTTP_201_CREATED,
     summary="Alta masiva de obras",
     dependencies=[CREADOR_DE_OBRA, Idempotencia],
     responses={422: {"description": "Alguna obra del lote es inválida (§7.2)."}},
 )
 async def crear_obras_en_lote(
-    peticion: CrearObrasEnLotePeticion, caso_uso: CrearObrasEnLoteDep
-) -> list[ObraRespuesta]:
+    peticion: CrearObrasEnLotePeticion, caso_uso: CrearObrasEnLoteDep, preparar: PrepararObraNuevaDep
+) -> list[ObraCreadaRespuesta]:
     """Da de alta el lote completo en una transacción (§11.2)."""
     creadas = await caso_uso.ejecutar(
         ComandoCrearObrasEnLote(
@@ -281,10 +292,11 @@ async def crear_obras_en_lote(
             ]
         )
     )
-    return [
-        ObraRespuesta.desde_dominio(obra_id, obra)
-        for obra_id, obra in zip(creadas.ids, creadas.obras, strict=True)
-    ]
+    respuesta = []
+    for obra_id, obra in zip(creadas.ids, creadas.obras, strict=True):
+        hecho = await preparar.ejecutar(obra_id, "prototipo")
+        respuesta.append(ObraCreadaRespuesta(**ObraRespuesta.desde_dominio(obra_id, obra).model_dump(), **hecho))
+    return respuesta
 
 
 @router.patch(
