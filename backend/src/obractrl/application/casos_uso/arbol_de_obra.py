@@ -197,6 +197,45 @@ class ArbolDeObra:
             await self._uow.commit()
         return resumen
 
+    async def preparar_para_cargar(self, obra_id: UUID, *, dry_run: bool) -> UUID:
+        """El prototipo sobre el que se carga una ingeniería (D-628): el árbol propio de la obra. Si la obra aún usa el
+        del prototipo base lo clona (salvo en una vista previa, que no escribe). Solo en diseño. No abre su propia
+        transacción: corre dentro de la de la carga."""
+        obra = await self._obra(obra_id)
+        await self._exigir_en_diseno(obra_id)
+        if obra["de_una_obra"] or dry_run:
+            return UUID(str(obra["prototipo_id"]))
+        clave = await self._arbol.clave_libre(str(obra["clave"]))
+        nuevo, mapa = await self._arbol.clonar(obra["prototipo_id"], clave)
+        await self._arbol.apuntar_obra(obra_id, nuevo, mapa)
+        return UUID(str(nuevo))
+
+    async def cargar_cantidad(self, prototipo_id: UUID, nodo_id: UUID, cantidad: Any) -> None:
+        """Escribe una cantidad cargada en el árbol propio y en su borrador (nace con el primer cambio)."""
+        borrador = await self._arbol.asegurar_borrador(prototipo_id)
+        await self._arbol.fijar_cantidad(prototipo_id, borrador, nodo_id, cantidad)
+
+    async def cargar_partida_nueva(
+        self, prototipo_id: UUID, etapa_nodo_id: UUID, concepto_clave: str, cantidad: Any
+    ) -> bool:
+        """Un concepto que la ingeniería trae y el árbol no tenía: entra bajo su etapa con su cantidad. `False` si el
+        concepto no existe en el catálogo."""
+        concepto = await self._arbol.concepto_por_clave(concepto_clave)
+        if concepto is None:
+            return False
+        borrador = await self._arbol.asegurar_borrador(prototipo_id)
+        nodo = await self._arbol.crear_nodo(
+            prototipo_id=prototipo_id,
+            parent_id=etapa_nodo_id,
+            tipo="concepto",
+            nombre=concepto["descripcion"],
+            clave=concepto["clave"],
+            concepto_id=concepto["id"],
+        )
+        await self._arbol.partida_al_borrador(borrador, nodo, concepto["id"])
+        await self._arbol.fijar_cantidad(prototipo_id, borrador, nodo, cantidad)
+        return True
+
     async def _exigir_en_diseno(self, obra_id: UUID) -> None:
         estados = await self._partes.estados_de_obra(obra_id)
         if any(e in ESTADOS_QUE_YA_SON_CONTRATO for e in estados.values()):

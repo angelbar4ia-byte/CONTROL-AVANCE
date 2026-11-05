@@ -66,6 +66,20 @@ interface Props {
   readonly onAplicada: () => void;
 }
 
+type CaminoDeIngenieria = 'conocido' | 'diseno_nuevo' | 'modificar' | 'actualizar' | 'sustituir';
+
+const PISTA_DEL_CAMINO: Record<CaminoDeIngenieria, string> = {
+  conocido: 'Se compara contra el prototipo de la obra y las diferencias quedan como desviaciones sin causa.',
+  diseno_nuevo:
+    'Se copia la estructura del prototipo más parecido a uno de un solo uso para esta obra; la ingeniería cargada es su presupuesto.',
+  modificar:
+    'Solo mientras la obra sigue en diseño. Cambia la cantidad de las partidas que ya tiene en su árbol propio, en un borrador que se confirma. La vista previa dice qué cambiaría.',
+  actualizar:
+    'Solo en diseño. Como modificar, y además agrega las partidas que la ingeniería trae y el árbol no tenía. La vista previa dice qué cambiaría.',
+  sustituir:
+    'Solo en diseño. Lo cargado reemplaza al presupuesto: las partidas que la ingeniería no trae quedan en cero. La vista previa dice qué cambiaría.',
+};
+
 export function SubirCarga({ tipoInicial, obraInicial, onCerrar, onAplicada }: Props) {
   const { sesion } = useSesion();
   const tipos = tiposParaRol(sesion?.rol);
@@ -76,7 +90,7 @@ export function SubirCarga({ tipoInicial, obraInicial, onCerrar, onAplicada }: P
   // Ingeniería del lote: a qué obra, y si el modelo es de un prototipo conocido o se parte del
   // más parecido (escenario 2, paso 2 del cerebro).
   const [obraId, setObraId] = useState(obraInicial ?? '');
-  const [camino, setCamino] = useState<'conocido' | 'diseno_nuevo'>('conocido');
+  const [camino, setCamino] = useState<CaminoDeIngenieria>('conocido');
   const [baseId, setBaseId] = useState('');
   const [nombreNuevo, setNombreNuevo] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -214,18 +228,17 @@ export function SubirCarga({ tipoInicial, obraInicial, onCerrar, onAplicada }: P
                   className="select"
                   value={camino}
                   onChange={(e) => {
-                    setCamino(e.target.value as 'conocido' | 'diseno_nuevo');
+                    setCamino(e.target.value as CaminoDeIngenieria);
                     reiniciarPrevia();
                   }}
                 >
                   <option value="conocido">Es uno de los prototipos (el de la obra)</option>
                   <option value="diseno_nuevo">Es especial o nuevo: partir del más parecido</option>
+                  <option value="modificar">Modificar el presupuesto de la obra: cambia las cantidades que ya existen</option>
+                  <option value="actualizar">Actualizar el presupuesto: modifica y agrega las partidas nuevas</option>
+                  <option value="sustituir">Sustituir el presupuesto: lo cargado reemplaza al actual</option>
                 </select>
-                <div className="field__hint">
-                  {camino === 'conocido'
-                    ? 'Se compara contra el prototipo de la obra y las diferencias quedan como desviaciones sin causa.'
-                    : 'Se copia la estructura del prototipo más parecido a uno de un solo uso para esta obra; la ingeniería cargada es su presupuesto.'}
-                </div>
+                <div className="field__hint">{PISTA_DEL_CAMINO[camino]}</div>
               </div>
               {camino === 'diseno_nuevo' && (
                 <>

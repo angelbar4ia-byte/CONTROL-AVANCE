@@ -25,7 +25,7 @@ export interface BodySubirCargaApiV1CargasPost {
   dry_run?: boolean;
   /** Solo tipo='ingenieria_lote': a qué obra pertenece el lote (§11.4). Obligatorio para ese tipo — nunca se adivina del nombre del archivo. */
   obra_id?: BodySubirCargaApiV1CargasPostObraId;
-  /** Solo tipo='ingenieria_lote': 'conocido' (default) o 'diseno_nuevo'. */
+  /** Solo tipo='ingenieria_lote': 'conocido' (default), 'diseno_nuevo', o sobre el presupuesto de la obra: 'modificar', 'actualizar' o 'sustituir' (D-628). */
   camino_ingenieria?: BodySubirCargaApiV1CargasPostCaminoIngenieria;
   /** Solo tipo='ingenieria_lote' con camino_ingenieria='diseno_nuevo': el prototipo del que se clona la estructura. Obligatorio en ese caso. */
   prototipo_base_id?: BodySubirCargaApiV1CargasPostPrototipoBaseId;

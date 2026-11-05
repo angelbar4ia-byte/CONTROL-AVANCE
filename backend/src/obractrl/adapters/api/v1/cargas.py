@@ -283,8 +283,9 @@ async def subir_carga(
         str | None,
         Form(
             description=(
-                "Solo tipo='ingenieria_lote': 'conocido' (default) o "
-                "'diseno_nuevo'."
+                "Solo tipo='ingenieria_lote': 'conocido' (default), "
+                "'diseno_nuevo', o sobre el presupuesto de la obra: "
+                "'modificar', 'actualizar' o 'sustituir' (D-628)."
             )
         ),
     ] = None,
