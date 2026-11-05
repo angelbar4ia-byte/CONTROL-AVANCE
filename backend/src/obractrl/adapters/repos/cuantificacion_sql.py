@@ -28,6 +28,8 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from obractrl.domain.cuantificacion.reglas import ErrorDeCuantificacion
+
 __all__ = [
     "RepositorioEnlacesCuantificacionSQL",
     "RepositorioNotasPlanoSQL",
@@ -59,11 +61,26 @@ _DESCUENTO_DE_VANOS_SQL = """
     case when e.factor = 1
       then coalesce((select sum(v.ancho_m * v.piezas) from vano v where v.trazo_id = t.id and v.llega_al_piso), 0)
       else coalesce((select sum(v.ancho_m * v.alto_m * v.piezas) from vano v where v.trazo_id = t.id), 0)
-           * 2 / nullif(e.factor, 0)
+           * {caras} / nullif(e.factor, 0)
     end
 """
+_MURO_DISPONIBLE = False
+"""Se vuelve `True` cuando las columnas `trazo.muro_*` (0110) ya existen y no se vuelve a preguntar."""
 _VANOS_DISPONIBLES = False
 """Se vuelve `True` cuando la tabla `vano` (0103) ya existe y no se vuelve a preguntar."""
+
+
+async def _hay_muro(sesion: AsyncSession) -> bool:
+    return bool(
+        (
+            await sesion.execute(
+                text(
+                    "select exists (select 1 from information_schema.columns "
+                    "where table_schema = 'public' and table_name = 'trazo' and column_name = 'muro_caras')"
+                )
+            )
+        ).scalar_one()
+    )
 
 
 async def _medida_valor_sql(sesion: AsyncSession) -> str:
@@ -74,7 +91,11 @@ async def _medida_valor_sql(sesion: AsyncSession) -> str:
         _VANOS_DISPONIBLES = bool(
             (await sesion.execute(text("select to_regclass('public.vano') is not null"))).scalar_one()
         )
-    descuento = _DESCUENTO_DE_VANOS_SQL if _VANOS_DISPONIBLES else "0"
+    global _MURO_DISPONIBLE
+    if not _MURO_DISPONIBLE:
+        _MURO_DISPONIBLE = await _hay_muro(sesion)
+    caras = "coalesce(t.muro_caras, 2)" if _MURO_DISPONIBLE else "2"
+    descuento = _DESCUENTO_DE_VANOS_SQL.format(caras=caras) if _VANOS_DISPONIBLES else "0"
     return f"""
     case e.medida
       when 'area'      then case
@@ -505,6 +526,62 @@ class RepositorioTrazosSQL:
 
     async def quitar_vano(self, vano_id: UUID) -> None:
         await self._sesion.execute(text("delete from vano where id = :id"), {"id": str(vano_id)})
+
+    async def muro_de_trazo(self, trazo_id: UUID) -> dict[str, Any]:
+        """Cómo cuenta el muro: altura, caras y partes. Con la migración 0110 pendiente, los valores de defecto."""
+        defecto: dict[str, Any] = {"altura_m": None, "caras": 2, "cara": None, "partes": None}
+        if not await _hay_muro(self._sesion):
+            return defecto
+        fila = (
+            await self._sesion.execute(
+                text("select muro_altura_m, muro_caras, muro_cara, muro_partes from trazo where id = :id"),
+                {"id": str(trazo_id)},
+            )
+        ).mappings().one_or_none()
+        if fila is None:
+            return defecto
+        return {
+            "altura_m": fila["muro_altura_m"],
+            "caras": fila["muro_caras"] or 2,
+            "cara": fila["muro_cara"],
+            "partes": fila["muro_partes"],
+        }
+
+    async def fijar_muro(
+        self,
+        *,
+        trazo_id: UUID,
+        altura_m: Decimal | None,
+        caras: int,
+        cara: str | None,
+        partes: list[dict[str, Any]] | None,
+        factor: Decimal,
+    ) -> int:
+        """Guarda cómo cuenta el muro y rehace el factor de sus enlaces de largo en m² (los de factor distinto de 1).
+        Devuelve cuántos enlaces cambió."""
+        if not await _hay_muro(self._sesion):
+            raise ErrorDeCuantificacion("Falta aplicar la migración 0110 (muros por caras y partes) en esta base.")
+        await self._sesion.execute(
+            text(
+                "update trazo set muro_altura_m = :h, muro_caras = :c, muro_cara = :cara, "
+                "muro_partes = cast(:partes as jsonb) where id = :id"
+            ),
+            {
+                "h": altura_m,
+                "c": caras,
+                "cara": cara,
+                "partes": json.dumps(partes) if partes else None,
+                "id": str(trazo_id),
+            },
+        )
+        res = await self._sesion.execute(
+            text(
+                "update enlace_cuantificacion set factor = :f "
+                "where trazo_id = :id and vigente and medida = 'longitud' and factor <> 1"
+            ),
+            {"f": factor, "id": str(trazo_id)},
+        )
+        return int(res.rowcount or 0)
 
     async def vanos_de_trazo(self, trazo_id: UUID) -> list[dict[str, Any]]:
         filas = (

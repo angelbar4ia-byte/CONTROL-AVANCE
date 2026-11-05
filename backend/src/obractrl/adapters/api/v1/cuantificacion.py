@@ -82,6 +82,7 @@ from obractrl.application.casos_uso.cuantificar import (
     PlanoNoEncontrado,
     ResultadoDeRecalculo,
 )
+from obractrl.domain.cuantificacion.muro import ParteDeAltura, altura_efectiva
 from obractrl.domain.shared.diccionario import FuenteTrazo, MedidaCuantificacion, Rol
 from obractrl.infrastructure.storage.r2 import firmar_descarga
 
@@ -1316,6 +1317,83 @@ async def colocar_vano(
 async def quitar_vano(vano_id: UUID, ctx: ContextoActual, caso_uso: GestionarVanosDep) -> VanoCambiadoRespuesta:
     """La línea vuelve a medir sin ese vano; sus nodos se recalculan."""
     r = await caso_uso.quitar(vano_id, autor_id=ctx.usuario_id, rol=Rol(ctx.rol), detectada_en=datetime.now(UTC))
+    return VanoCambiadoRespuesta(
+        vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos]
+    )
+
+
+class ParteDeAlturaModelo(BaseModel):
+    nombre: str = Field(default="", max_length=40)
+    desde_m: Decimal = Field(ge=0)
+    hasta_m: Decimal = Field(gt=0)
+    suma: bool = Field(default=True, description="Si no suma, cuenta para la altura pero no para la cantidad.")
+
+
+class MuroDelTrazoPeticion(BaseModel):
+    altura_m: Decimal | None = Field(default=None, gt=0, description="Altura única; ignorada si hay partes.")
+    caras: Literal[1, 2] = 2
+    cara: Literal["interior", "exterior"] | None = Field(default=None, description="Con una sola cara, cuál.")
+    partes: list[ParteDeAlturaModelo] | None = Field(default=None, description="Altura por partes.")
+
+
+class MuroDelTrazoRespuesta(BaseModel):
+    altura_m: Decimal | None
+    caras: int
+    cara: str | None
+    partes: list[ParteDeAlturaModelo] | None
+    altura_efectiva_m: Decimal = Field(description="La altura que suma a la cantidad.")
+
+
+def _muro_respuesta(m: dict) -> MuroDelTrazoRespuesta:
+    partes = [
+        ParteDeAltura(nombre=p.get("nombre", ""), desde_m=Decimal(str(p["desde_m"])), hasta_m=Decimal(str(p["hasta_m"])), suma=bool(p.get("suma", True)))
+        for p in (m["partes"] or [])
+    ]
+    altura = altura_efectiva(m["altura_m"], partes or None)
+    return MuroDelTrazoRespuesta(
+        altura_m=m["altura_m"],
+        caras=m["caras"],
+        cara=m["cara"],
+        partes=[ParteDeAlturaModelo(nombre=p.nombre, desde_m=p.desde_m, hasta_m=p.hasta_m, suma=p.suma) for p in partes] or None,
+        altura_efectiva_m=altura,
+    )
+
+
+@router.get(
+    "/trazos/{trazo_id}/muro",
+    response_model=MuroDelTrazoRespuesta,
+    summary="Cómo cuenta un muro: altura, caras y partes",
+    responses={404: {"description": "El trazo no existe o está fuera de tu alcance."}},
+)
+async def ver_muro(trazo_id: UUID, caso_uso: GestionarVanosDep) -> MuroDelTrazoRespuesta:
+    return _muro_respuesta(await caso_uso.muro(trazo_id))
+
+
+@router.put(
+    "/trazos/{trazo_id}/muro",
+    response_model=VanoCambiadoRespuesta,
+    summary="Fijar cómo cuenta un muro: altura única o por partes y una o dos caras",
+    dependencies=[Depends(exigir_rol(*ROLES_QUE_TRAZAN))],
+    responses={
+        403: {"description": "La línea alimenta un prototipo_nodo y el rol no es Control de obra ni Super intendente."},
+        404: {"description": "El trazo no existe o está fuera de tu alcance."},
+        422: {"description": "El trazo no es una línea o las partes no valen."},
+    },
+)
+async def fijar_muro(
+    trazo_id: UUID, peticion: MuroDelTrazoPeticion, ctx: ContextoActual, caso_uso: GestionarVanosDep
+) -> VanoCambiadoRespuesta:
+    """Rehace el factor de los enlaces de largo en m² del muro (altura × caras) y recalcula lo que alimenta."""
+    r = await caso_uso.fijar_muro(
+        trazo_id,
+        altura_m=peticion.altura_m,
+        caras=peticion.caras,
+        cara=peticion.cara,
+        partes=[ParteDeAltura(p.nombre, p.desde_m, p.hasta_m, p.suma) for p in peticion.partes] if peticion.partes else None,
+        autor_id=ctx.usuario_id,
+        rol=Rol(ctx.rol),
+        detectada_en=datetime.now(UTC),
+    )
     return VanoCambiadoRespuesta(
         vano_id=r.vano_id, recalculos=[ResultadoRecalculoRespuesta.desde_dominio(x) for x in r.recalculos]
     )

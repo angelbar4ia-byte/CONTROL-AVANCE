@@ -157,3 +157,42 @@ async def test_los_vanos_del_plano_traen_donde_van_y_se_corren_por_el_muro(escen
     assert antes is not None
     assert (await control.patch(f"/api/v1/vanos/{uuid.uuid4()}/posicion", json={"posicion_m": "1"})).status_code == 404
     assert (await control.patch(f"/api/v1/vanos/{centrada}/posicion", json={"posicion_m": "-1"})).status_code == 422
+
+
+async def test_el_muro_cuenta_por_caras_y_por_partes_y_el_vano_descuenta_por_las_mismas_caras(
+    escenario: Escenario, control: httpx.AsyncClient
+) -> None:
+    _, trazo = await _muro(control, escenario, "longitud", "5.2")
+    ruta = f"/api/v1/trazos/{trazo}/muro"
+    cuatro = Decimal("0.0001")
+
+    por_defecto = (await control.get(ruta)).json()
+    assert por_defecto["caras"] == 2 and por_defecto["partes"] is None
+
+    # Una sola cara: 10 m × 2.6 m × 1 = 26 m².
+    r = await control.put(ruta, json={"altura_m": "2.6", "caras": 1, "cara": "interior"})
+    assert r.status_code == 200, r.text
+    assert _total(r) == Decimal("26").quantize(cuatro)
+    assert (await control.get(ruta)).json()["cara"] == "interior"
+
+    # Altura por partes: lo que no suma (el cerramiento) cuenta para la altura pero no para la cantidad.
+    partes = [
+        {"nombre": "Muro", "desde_m": "0", "hasta_m": "2.3", "suma": True},
+        {"nombre": "Cerramiento", "desde_m": "2.3", "hasta_m": "2.5", "suma": False},
+    ]
+    r = await control.put(ruta, json={"caras": 2, "partes": partes})
+    assert r.status_code == 200, r.text
+    assert Decimal((await control.get(ruta)).json()["altura_efectiva_m"]) == Decimal("2.3")
+    assert _total(r) == Decimal("46").quantize(cuatro)  # 10 × 2.3 × 2
+
+    # Un vano descuenta por las mismas caras: puerta 0.9 × 2.1 × 2 = 3.78 m².
+    v = await control.post(f"/api/v1/trazos/{trazo}/vanos", json=PUERTA)
+    assert _total(v) == (Decimal("46") - Decimal("3.78")).quantize(cuatro)
+
+    # Con una cara el vano descuenta una sola vez.
+    r = await control.put(ruta, json={"altura_m": "2.6", "caras": 1})
+    assert _total(r) == (Decimal("26") - Decimal("1.89")).quantize(cuatro)
+
+    mala = [{"nombre": "X", "desde_m": "2", "hasta_m": "1", "suma": True}]
+    assert (await control.put(ruta, json={"caras": 2, "partes": mala})).status_code in (400, 422)
+    assert (await control.put(ruta, json={"altura_m": "0.5", "caras": 2})).status_code in (400, 422)

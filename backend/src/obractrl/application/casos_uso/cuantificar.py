@@ -78,6 +78,11 @@ from obractrl.application.puertos.repositorios import (
 from obractrl.domain.cuantificacion.escala import escala_desde_referencia
 from obractrl.domain.cuantificacion.matriz import NodoDeMatriz, ajuste_por_medicion
 from obractrl.domain.cuantificacion.medicion import motivo_de_incompatibilidad
+from obractrl.domain.cuantificacion.muro import (
+    ParteDeAltura,
+    altura_efectiva,
+    factor_de_muro,
+)
 from obractrl.domain.cuantificacion.reglas import (
     EnlaceCuantificacion,
     ErrorDeCuantificacion,
@@ -1290,6 +1295,49 @@ class GestionarVanos(AgregarHuecoATrazo):
 
     async def del_plano(self, plano_id: UUID) -> list[dict[str, Any]]:
         return await self._trazos.vanos_del_plano(plano_id)
+
+    async def muro(self, trazo_id: UUID) -> dict[str, Any]:
+        if await self._trazos.obtener(trazo_id) is None:
+            raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
+        return await self._trazos.muro_de_trazo(trazo_id)
+
+    async def fijar_muro(
+        self,
+        trazo_id: UUID,
+        *,
+        altura_m: Decimal | None,
+        caras: int,
+        cara: str | None,
+        partes: Sequence[ParteDeAltura] | None,
+        autor_id: UUID,
+        rol: Rol,
+        detectada_en: datetime,
+    ) -> VanoCambiado:
+        """Cómo cuenta un muro (D-627): altura única o por partes y una o dos caras. Rehace el factor de sus enlaces de
+        largo en m² y recalcula los nodos que alimenta, igual que un vano."""
+        if await self._trazos.obtener(trazo_id) is None:
+            raise TrazoNoEncontrado(f"El trazo {trazo_id} no existe o no está en tu alcance.")
+        if not await self._trazos.es_linea(trazo_id):
+            raise ErrorDeCuantificacion("Cómo cuenta el muro se fija sobre una línea.")
+        factor = factor_de_muro(altura_efectiva(altura_m, partes), caras)
+        guardar_partes = (
+            [{"nombre": p.nombre, "desde_m": str(p.desde_m), "hasta_m": str(p.hasta_m), "suma": p.suma} for p in partes]
+            if partes
+            else None
+        )
+
+        async def guardar() -> UUID:
+            await self._trazos.fijar_muro(
+                trazo_id=trazo_id,
+                altura_m=None if partes else altura_m,
+                caras=caras,
+                cara=cara if caras == 1 else None,
+                partes=guardar_partes,
+                factor=factor,
+            )
+            return trazo_id
+
+        return await self._cambiar(trazo_id, rol, autor_id, detectada_en, guardar)
 
     async def mover(self, vano_id: UUID, posicion_m: Decimal) -> None:
         """Corre un vano por su muro. Dónde está no cambia lo que mide, así que no recalcula nada."""
